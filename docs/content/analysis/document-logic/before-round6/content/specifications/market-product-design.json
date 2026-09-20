@@ -1,0 +1,777 @@
+{
+  "date": "2026-09-19",
+  "status": "design_proposal_not_merged",
+  "packageRef": "DS-05",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "requirementRefs": [
+    11,
+    13
+  ],
+  "taskRefs": [
+    "DEX-01",
+    "DEX-02",
+    "DEX-03",
+    "FX-01",
+    "FX-02",
+    "FX-03",
+    "PERP-01",
+    "PERP-02",
+    "PERP-03",
+    "PERP-04",
+    "PERP-05",
+    "PERP-06"
+  ],
+  "decisionRefs": [
+    "D12",
+    "D13",
+    "D19"
+  ],
+  "sourceHashes": {
+    "content/planning/full-scope-design-review.json": "13d0cc85d55dd128e7862795b95735013b040cc38ccb7d0e42d7de43c6816ced",
+    "content/planning/work-breakdown.json": "6c7dd2e443ad4278a82adf6fe42782ca7954507cbf95ed48562cc69b9643fa68",
+    "content/planning/technology-selection.json": "08386e3bfa440040c78fec73b3ec3f13195c94bbb42ac614954cc605334b78db",
+    "content/specifications/api-catalog.json": "0c4353873a8e4a539bde0af783caf6478a35064804349b2740715bcfa2d335f0",
+    "content/specifications/screen-flows.json": "1db102661e79a3350e45a38e70c1cd354ef0259005ec3c026119cfc91077ae0f",
+    "content/specifications/extended-dtos.json": "0c8ce0042374921d936cde0dc66cf32827777fd2b3bfb77d425ab24865858ee5",
+    "content/specifications/approval-source-dispatch.json": "65a48dd3c4cafab89a7e181869998834d68fd92d79a7d01be97990b48d45eac9",
+    "content/specifications/stablenet-compatibility-design.json": "7e2cb794fda2ed0dfb57d1615b2d71bb06df57fca7a02a1886066fd3d1a4ff33",
+    "content/expanded-scope-reuse-inventory.md": "ea68941b5487767f71c004a2e5f323ce7cc7fbb696a281b441d0fc483d636a66",
+    "content/specifications/social-wallet-recovery-design.json": "475746f368ea4130a374758ba8f2f0c6b9ebd1ee0cb7937aca1c46771210a040"
+  },
+  "productCards": [
+    {
+      "id": "PD-01",
+      "title": "토큰 교환",
+      "screenRefs": [
+        "U14"
+      ],
+      "apiRefs": [
+        "API-057",
+        "API-058"
+      ],
+      "model": "exact-input 또는 exact-output, 검증 pool/router/route·fee tier 선택",
+      "reviewFields": "assetIn/out·atomic amount·recipient·spender·기한·최소수취/최대지출·quote block/hash",
+      "completion": "실제 swap 실행·토큰 증거·수취량·가스 확인; allowance만 성공이면 미실행",
+      "unselected": "pool 모델/route/quote source/fee·부분체결 지원 미선정",
+      "acceptance": {
+        "status": "not_run",
+        "normalControlRequired": true,
+        "evidenceRefs": []
+      }
+    },
+    {
+      "id": "PD-02",
+      "title": "유동성 추가·회수·수수료 수령",
+      "screenRefs": [
+        "U14"
+      ],
+      "apiRefs": [
+        "API-057",
+        "API-058",
+        "API-059"
+      ],
+      "model": "fungible LP 또는 범위형 position 선택, add/remove/collect 각각 검토",
+      "reviewFields": "pool/token pair·position owner/id·range/fee tier·지분/유동성·토큰별 minima",
+      "completion": "추가/축소된 유동성, 실제 수취/수수료와 잔여 position을 각각 관측",
+      "unselected": "회수와 collect가 한 호출인지 별도인지 ABI검증 필요; 같은 shareAmount를 모든 모델에 적용 금지",
+      "acceptance": {
+        "status": "not_run",
+        "normalControlRequired": true,
+        "evidenceRefs": []
+      }
+    },
+    {
+      "id": "PD-03",
+      "title": "FX",
+      "screenRefs": [
+        "U15"
+      ],
+      "apiRefs": [
+        "API-057",
+        "API-058"
+      ],
+      "model": "USD/KRW 시험자산 현물 교환 후보 또는 별도 파생모델 비교; selection=null",
+      "reviewFields": "base/quote 통화방향·token identity·rateNum/rateDen·단위·spread/fee·가격시점",
+      "completion": "선택 모델 실제 체결/수취 또는 포지션을 표시; 은행 환전/법정통화 인출 완료 주장 금지",
+      "unselected": "FX를 spot로 확정하지 않음; 파생선택 시 별도 profile/증거금·가격·정산 계약 필요",
+      "acceptance": {
+        "status": "not_run",
+        "normalControlRequired": true,
+        "evidenceRefs": []
+      }
+    },
+    {
+      "id": "PD-04",
+      "title": "Perpetual 포지션",
+      "screenRefs": [
+        "U16"
+      ],
+      "apiRefs": [
+        "API-060",
+        "API-061",
+        "API-062"
+      ],
+      "model": "개설/증액/축소/종료·담보 입출금·펀딩·청산; isolated/cross, linear/inverse 비교",
+      "reviewFields": "시장·담보·방향/수량·price/mark/index·position revision·수수료·담보한도·risk policy",
+      "completion": "실제 position/담보·realized/unrealized PnL·funding·liquidation 상태를 구분",
+      "unselected": "모델·레버리지·margin ratio·청산/보험/부채처리·가격원·funding 규칙 미선정",
+      "acceptance": {
+        "status": "not_run",
+        "normalControlRequired": true,
+        "evidenceRefs": []
+      }
+    }
+  ],
+  "tradeTransitions": [
+    {
+      "id": "MT-01",
+      "fromState": "draft",
+      "toState": "quoted",
+      "route": "API-057 또는 API-061 상세 market profile",
+      "guard": "등록 market/asset/price/risk policy와 현재 source 확인",
+      "record": "불변 quoteRef/digest·block/hash·가격유효성·기한. 견적은 서명권 아님"
+    },
+    {
+      "id": "MT-02",
+      "fromState": "quoted",
+      "toState": "allowance_pending",
+      "route": "allowance 단계 후보",
+      "guard": "선정 spender/code·amount/expiry·token 동작 표시 및 별도 승인",
+      "record": "allowance tx/permit 별도 operation. 무제한승인을 몰래 기본값으로 사용하지 않음"
+    },
+    {
+      "id": "MT-03",
+      "fromState": "allowance_pending",
+      "toState": "review_ready",
+      "route": "권한있는 원 결과 조회",
+      "guard": "standalone approve는 관측 후 실제 allowance 확인. bundled permit은 선정 profile의 exact token/spender/amount/nonce/deadline와 plan 결합 서명 검증으로 준비만 확인; quote 만료면 새검토",
+      "record": "approve 적용완료와 permit_prepared를 구분; permit 생성은 onchain allowance 적용 아님. 소비/실제 allowance·자산효과는 실행 receipt에서 확인; 로컬취소가 노출 permit을 무효화하지 않음"
+    },
+    {
+      "id": "MT-04",
+      "fromState": "quoted|review_ready",
+      "toState": "execution_pending",
+      "route": "API-058/API-061 + 미등록 market_action signer adapter",
+      "guard": "현 wallet/source·quote/price/position revision·fee/min/max/risk gate 재검사와 물리/MPC 승인",
+      "record": "실제 calldata와 표시 snapshot 결합; 제출은 원 source로만. adapter 미등록이면 실행 차단"
+    },
+    {
+      "id": "MT-05",
+      "fromState": "execution_pending",
+      "toState": "result_observed",
+      "route": "원 tx/UserOp typed reader 후보",
+      "guard": "receipt/개별 UserOp와 실제 action 효과·block/hash 검증",
+      "record": "실패/부분/성공과 내부호출별 효과 기록; receipt 성공만으로 전체 plan 성공 금지"
+    },
+    {
+      "id": "MT-06",
+      "fromState": "result_observed",
+      "toState": "completed",
+      "route": "해당 profile의 Indexer/업무 projection",
+      "guard": "선정 confirmation·결과 minima/한도·position/잔고 관측, 현재 revision CAS",
+      "record": "실제 수취/지분/포지션 변화 표시; indexer lag은 unknown/stale"
+    },
+    {
+      "id": "MT-07",
+      "fromState": "quoted|review_ready",
+      "toState": "expired",
+      "route": "quote deadline",
+      "guard": "새 서명 방지; 기생성/노출 서명 여부 별도 검사",
+      "record": "만료 후 새 quote는 새 검토. 이미 나온 서명을 무효화했다고 표시하지 않음"
+    },
+    {
+      "id": "MT-08",
+      "fromState": "allowance_pending|execution_pending|result_observed|completed",
+      "toState": "unknown",
+      "route": "응답유실/단절/reorg",
+      "guard": "원 execution/observation을 재조회하며 exposure 유지",
+      "record": "auto retry는 검증된 동일 payload 재전송만; nonce/new intent 자동생성 금지; 과거 완료 결과/이력은 보존하고 현재 유효성을 재확인, 원 effect identity로 보정"
+    },
+    {
+      "id": "MT-09",
+      "fromState": "draft|quoted|review_ready",
+      "toState": "cancelled_local",
+      "route": "사용자 취소",
+      "guard": "외부 서명/permit/order 노출 없음이 확인된 로컬 plan",
+      "record": "onchain allowance·주문 취소 아님; 노출 가능하면 unknown/pending 관측"
+    },
+    {
+      "id": "MT-10",
+      "fromState": "unknown",
+      "toState": "allowance_pending",
+      "route": "동일 원 operation의 typed recovery reader",
+      "guard": "resumePhase=allowance_pending; 원 approval/permit attempt가 아직 진행 중임을 확인; expectedRevision/sourceVector CAS",
+      "record": "같은 exposure를 재개; 새 approval 서명 생성 금지"
+    },
+    {
+      "id": "MT-11",
+      "fromState": "unknown",
+      "toState": "review_ready",
+      "route": "동일 원 operation의 typed recovery reader",
+      "guard": "resumePhase가 allowance_pending 또는 review_ready이고 실행 tx/UserOp/order 노출이 없음; 기존 allowance 적용 또는 동일 bundled permit 준비가 유효; quote/권한/risk 현재성 및 미소비 확인; expectedRevision/sourceVector CAS",
+      "record": "기존 검토의 유효성만 복구. 만료되면 이 상태로 복구하지 않고 MT-15 적용",
+      "allowedResumePhases": [
+        "allowance_pending",
+        "review_ready"
+      ],
+      "executionExposureMustBeAbsent": true
+    },
+    {
+      "id": "MT-12",
+      "fromState": "unknown",
+      "toState": "execution_pending",
+      "route": "동일 원 operation의 typed recovery reader",
+      "guard": "원 tx/UserOp/order가 현재 pending임을 확인; source/authority fence 보존; expectedRevision/sourceVector CAS",
+      "record": "동일 operation과nonce 추적; 새 intent 생성 금지"
+    },
+    {
+      "id": "MT-13",
+      "fromState": "unknown",
+      "toState": "result_observed",
+      "route": "동일 원 operation의 typed recovery reader",
+      "guard": "원 실행의 canonical receipt·개별 action 효과·sourceVector 확인; 부분 효과 포함; expectedRevision/sourceVector CAS",
+      "record": "원 businessEffectId로 재대사; completed는 MT-06의 별도확정조건 후에만"
+    },
+    {
+      "id": "MT-14",
+      "fromState": "unknown",
+      "toState": "failed_confirmed",
+      "route": "동일 원 operation의 typed recovery reader",
+      "guard": "원 실행의 확정 실패 및 잔여 노출 해소 증거; 부분 성공 없음; timeout만으로 판정 금지; expectedRevision/sourceVector CAS",
+      "record": "원 operation 실패 기록. 새 거래는 명시적 새 검토/승인을 거쳐야 함"
+    },
+    {
+      "id": "MT-15",
+      "fromState": "unknown",
+      "toState": "expired",
+      "route": "동일 원 operation의 typed recovery reader",
+      "guard": "실행 노출 없음 또는 해소를 확인했고 기존 quote 만료; allowance 잔존은 별도로 표시; expectedRevision/sourceVector CAS",
+      "record": "해소되지 않은 permit/order 노출은 unknown 유지. expired는 allowance 철회가 아님"
+    },
+    {
+      "id": "MT-16",
+      "fromState": "failed_confirmed",
+      "toState": "unknown",
+      "route": "확정 실패 근거의 reorg/상충",
+      "guard": "실패 근거 무효화 또는 새 상충 관측; expectedRevision CAS",
+      "record": "원 exposure/businessEffectId 추적 복원; 과거 실패 이력 보존"
+    }
+  ],
+  "priceActionMatrix": [
+    {
+      "id": "PA-01",
+      "action": "swap/FX quote·신규실행",
+      "requiredPriceState": "valid",
+      "onUnavailable": "새 견적/서명 보류, 명시적 새 검증 source 없이는 fallback 가격 금지"
+    },
+    {
+      "id": "PA-02",
+      "action": "유동성 추가",
+      "requiredPriceState": "valid",
+      "onUnavailable": "토큰별 최소치/range·가격 검증 전 보류"
+    },
+    {
+      "id": "PA-03",
+      "action": "유동성 회수/collect",
+      "requiredPriceState": "profile_specific",
+      "onUnavailable": "회수가 가격위험과 무관하다고 가정하지 않음; exact outputs/minima/profile 검증 가능 시만 신규승인"
+    },
+    {
+      "id": "PA-04",
+      "action": "Perp 신규/증액",
+      "requiredPriceState": "valid",
+      "onUnavailable": "신규 위험 증가 차단"
+    },
+    {
+      "id": "PA-05",
+      "action": "Perp 담보 인출",
+      "requiredPriceState": "valid_and_current_margin",
+      "onUnavailable": "health 계산 불가면 차단; stale cash와 available margin 혼동 금지"
+    },
+    {
+      "id": "PA-06",
+      "action": "Perp 담보 추가",
+      "requiredPriceState": "profile_specific",
+      "onUnavailable": "허용 asset/귀속·새입금 및 protocol 안전성 검증 시만 허용; 자동 안전 보장 없음"
+    },
+    {
+      "id": "PA-07",
+      "action": "Perp 축소/종료",
+      "requiredPriceState": "valid_or_explicit_emergency_profile",
+      "onUnavailable": "reduce-only가 가격오류를 없애지 않음; 비상가격/청산 충돌 규칙 미선정이면 보류·사유 표시"
+    },
+    {
+      "id": "PA-08",
+      "action": "펀딩 계산/반영",
+      "requiredPriceState": "funding_window_evidence",
+      "onUnavailable": "유효한 전체 기간/자료 없으면 근거없는 rate0/고정가격으로 덮지 않음; gap/pending 표시"
+    },
+    {
+      "id": "PA-09",
+      "action": "청산 실행",
+      "requiredPriceState": "valid_liquidation_evidence",
+      "onUnavailable": "오래된 가격/position으로 실행금지; 별도 비상 profile 없으면 검토필요"
+    },
+    {
+      "id": "PA-10",
+      "action": "상태조회/원거래 관측",
+      "requiredPriceState": "read_authority",
+      "onUnavailable": "시점·stale/unknown 유지; 신규 위험행위 차단 중에도 원실행 관측 지속"
+    }
+  ],
+  "keeperStages": [
+    {
+      "id": "KP-M01",
+      "stage": "trigger",
+      "rule": "market/policy/priceWindow/position snapshot으로 후보 관측",
+      "limit": "candidate는 청산/펀딩 발생 사실이 아님"
+    },
+    {
+      "id": "KP-M02",
+      "stage": "reserve",
+      "rule": "purpose+market+position/period+policy의 stable work key, lease/fence 예약",
+      "limit": "lease만으로 중복 온체인 실행 방지 보장 금지"
+    },
+    {
+      "id": "KP-M03",
+      "stage": "preflight",
+      "rule": "현재 price validity·position/risk revision·funding cursor·권한 재검사",
+      "limit": "조건 불일치면 no_action/stale 후보; 현재 데이터로 조용히 다른 행위 서명 금지"
+    },
+    {
+      "id": "KP-M04",
+      "stage": "submit",
+      "rule": "정확한 payload/hash/nonce와 exposure 영속화 후 제출",
+      "limit": "서버 fence를 외부서명/tx 회수로 오인하지 않음; contract-side period/cursor/precondition 중복방지 필요"
+    },
+    {
+      "id": "KP-M05",
+      "stage": "observe",
+      "rule": "개별 tx/UserOp·정확한 funding/liquidation event와 새 position 검증",
+      "limit": "모호하면 pending/unknown, keeper 성공로그로 사용자 포지션 변경 금지"
+    },
+    {
+      "id": "KP-M06",
+      "stage": "reconcile",
+      "rule": "canonical 변경/경합 close에 따라 원 effect identity를 보정",
+      "limit": "같은 funding period 재적용/이중청산·허위정산 금지; reorg 후 원증거·현재 engine 상태 대조"
+    }
+  ],
+  "policyInputs": [
+    {
+      "id": "MD-01",
+      "decisionRef": "D12",
+      "topic": "자산쌍·DEX/LP 모델",
+      "required": "pool/router/fee/range·토큰 특수동작·실제유동성",
+      "selection": null
+    },
+    {
+      "id": "MD-02",
+      "decisionRef": "D12",
+      "topic": "FX 모델",
+      "required": "현물 또는 파생·base/quote·가격/환산·수수료",
+      "selection": null
+    },
+    {
+      "id": "MD-03",
+      "decisionRef": "D12",
+      "topic": "가격·슬리피지/체결",
+      "required": "quote source·decimals·기한·최소/최대·부분체결·refund",
+      "selection": null
+    },
+    {
+      "id": "MD-04",
+      "decisionRef": "D13",
+      "topic": "Perp 계정/담보",
+      "required": "isolated/cross·linear/inverse·담보자산·position/netting",
+      "selection": null
+    },
+    {
+      "id": "MD-05",
+      "decisionRef": "D13",
+      "topic": "위험/가격 장애",
+      "required": "index/mark/execution source·유효기준·margin/레버리지·중단/비상정책",
+      "selection": null
+    },
+    {
+      "id": "MD-06",
+      "decisionRef": "D13",
+      "topic": "펀딩",
+      "required": "rate/index·sign convention·기간경계·취득가격·누락/backfill·상한",
+      "selection": null
+    },
+    {
+      "id": "MD-07",
+      "decisionRef": "D13",
+      "topic": "청산/부채",
+      "required": "trigger·부분/전액·수수료·잔여담보·보험/미회수부채·keeper 권한",
+      "selection": null
+    },
+    {
+      "id": "MD-08",
+      "decisionRef": "D19",
+      "topic": "운영/관측",
+      "required": "확정·worker 재시도·fence/lease·price/Indexing 지연·수치기준",
+      "selection": null
+    }
+  ],
+  "contractGaps": [
+    {
+      "id": "MG-01",
+      "apiRefs": [
+        "API-057",
+        "API-058"
+      ],
+      "topic": "액션별 quote/intent",
+      "needed": "swap exact in/out, LP add/remove/collect, FX model별 discriminated schema; quote/amountIn fields만으로 전부 실행금지"
+    },
+    {
+      "id": "MG-02",
+      "apiRefs": [
+        "API-058",
+        "API-061"
+      ],
+      "topic": "market_action 승인·제출·결과",
+      "needed": "현재 source adapter 미등록. wallet/source/hash/allowance-child/execution-child ancestry와 typed reader 필요; API018 EOA fallback 금지"
+    },
+    {
+      "id": "MG-03",
+      "apiRefs": [
+        "API-059"
+      ],
+      "topic": "LP 조회",
+      "needed": "fungible shares vs positionId/range/liquidity/fees owed·collectable/reorg 필드 분리"
+    },
+    {
+      "id": "MG-04",
+      "apiRefs": [
+        "API-060",
+        "API-061",
+        "API-062"
+      ],
+      "topic": "Perp 상태",
+      "needed": "position·intent/order·collateral·risk snapshot·funding index·liquidation 개별 상태/단위 및 revision"
+    },
+    {
+      "id": "MG-05",
+      "apiRefs": [
+        "API-061"
+      ],
+      "topic": "주문/취소·reduce-only",
+      "needed": "engine가 실제 pending order를 지원할 때만 cancel ABI/경합/증거 명세. 로컬 intent 취소와 구분; closing이 반대포지션 개설 금지"
+    },
+    {
+      "id": "MG-06",
+      "apiRefs": [
+        "API-060",
+        "API-062"
+      ],
+      "topic": "가격·keeper 운영",
+      "needed": "price provenance/invalid reason·period cursor·중복방지contract·exposure/재처리. 기존 O03 원천관측과 운영권한 분리"
+    }
+  ],
+  "arithmeticExamples": [
+    {
+      "id": "ME-01",
+      "kind": "exact_input_min",
+      "quoteAtomic": "1001",
+      "bps": 50,
+      "expectedAtomic": "996"
+    },
+    {
+      "id": "ME-02",
+      "kind": "exact_output_max",
+      "quoteAtomic": "1001",
+      "bps": 50,
+      "expectedAtomic": "1006"
+    },
+    {
+      "id": "ME-03",
+      "kind": "fx_units",
+      "amountInAtomic": "2000000",
+      "decimalsIn": 6,
+      "decimalsOut": 18,
+      "rateNum": "1350",
+      "rateDen": "1",
+      "expectedAtomic": "2700000000000000000000"
+    },
+    {
+      "id": "ME-04",
+      "kind": "linear_pnl_example",
+      "quantity": "2",
+      "entry": "100",
+      "exit": "110",
+      "collateral": "100",
+      "fees": "2",
+      "fundingCashflow": "-1",
+      "expectedPnl": "20",
+      "expectedEquity": "117"
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "MK-T01",
+      "scenario": "가짜symbol/decimals",
+      "expected": "manifest 불일치 거절",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T02",
+      "scenario": "견적중 route/spender 변경",
+      "expected": "새검토 없이는 실행 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T03",
+      "scenario": "allowance만 성공",
+      "expected": "승인완료·상품미실행 표시",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T04",
+      "scenario": "allowance후quote만료",
+      "expected": "잔존승인 표시·새견적 재검토",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T05",
+      "scenario": "최소수취미달",
+      "expected": "선정 contract 한도거절/실제결과 확인",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T06",
+      "scenario": "tiny amount 최소수취0",
+      "expected": "0보호를 묵시허용하지 않음; 명시unsupported/재입력",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T07",
+      "scenario": "exact-output 잔여입력",
+      "expected": "실제사용/미사용입력 반환과 recipient 증거 확인",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T08",
+      "scenario": "fee-on-transfer/rebase token",
+      "expected": "지원profile 없으면 거절; Transfer face amount만 실수취로 쓰지 않음",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T09",
+      "scenario": "범위LP shareAmount 혼동",
+      "expected": "position/range/liquidity별 schema검증",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T10",
+      "scenario": "LP remove 성공 collect 실패",
+      "expected": "별도 tx/실패허용 호출은 partial; 원자적 multicall 전체 revert는 양쪽 효과 rollback. 선택 ABI/receipt로 판정, 중복 remove 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T11",
+      "scenario": "FX 통화방향 역전",
+      "expected": "base/quote scale 검증·새견적",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T12",
+      "scenario": "FX spread/fee 중복차감",
+      "expected": "quote breakdown과 actual 일치, 이중차감 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T13",
+      "scenario": "고정 V2 reserve/Perp price",
+      "expected": "실제견적/가격으로 채택 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T14",
+      "scenario": "가격 stale 중 신규증액",
+      "expected": "차단·가격오류표시",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T15",
+      "scenario": "가격 stale 중 담보인출",
+      "expected": "위험검증 불가면 차단",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T16",
+      "scenario": "가격 stale 중 reduce-only",
+      "expected": "비상profile 없으면 성공보장금지/보류",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T17",
+      "scenario": "동시close와liquidation",
+      "expected": "현재onchain position/precondition으로 판정·이중종료금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T18",
+      "scenario": "reduce-only 크기가 남은position 초과",
+      "expected": "반대방향 position 개설금지; 선정 reject/cap profile 필요",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T19",
+      "scenario": "cross vs isolated 혼합",
+      "expected": "risk scope/담보범위 불일치 거절",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T20",
+      "scenario": "unrealized PnL 표시",
+      "expected": "가용출금액과 구분·가격시점/부호표시",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T21",
+      "scenario": "funding rate 0과 가격자료누락",
+      "expected": "0과unknown 구분·gap보류",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T22",
+      "scenario": "동일funding period keeper경쟁",
+      "expected": "contract cursor/precondition으로 한번적용",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T23",
+      "scenario": "lease만료후oldkeeper전송",
+      "expected": "기존노출추적·contract중복방지; lease회수로 tx무효주장금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T24",
+      "scenario": "funding 반영후reorg",
+      "expected": "effect보정·cursor정합성 확인, 중복차감금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T25",
+      "scenario": "청산후담보부족",
+      "expected": "미회수부채/정책보류 표시, 0으로 강제정리금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T26",
+      "scenario": "서명후앱종료",
+      "expected": "원tx/UserOp조회, 새서명자동실행금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T27",
+      "scenario": "같은bundle 부분실패",
+      "expected": "자식별실제결과로 partial/failed 판정",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T28",
+      "scenario": "quote→sign 중binding/epoch철회",
+      "expected": "현source/authority재검사 차단",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T29",
+      "scenario": "unknown 결과후새key재시도",
+      "expected": "원노출대사 전 중복position/swap 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T30",
+      "scenario": "시장중단후원결과관측",
+      "expected": "조회/보정 유지·신규액션정책분리",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T31",
+      "scenario": "시장adapter미등록",
+      "expected": "unsupported; personal_transfer 우회금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "MK-T32",
+      "scenario": "정상swap/LP/FX/Perp 흐름",
+      "expected": "각 선택profile의 정상·거절·복구 증거까지 있어야 완료",
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "externalReferences": [
+    {
+      "url": "https://developers.uniswap.org/docs/protocols/v3/guides/swapping/single-hop-swapping",
+      "checkedAt": "2026-09-19"
+    },
+    {
+      "url": "https://developers.uniswap.org/docs/get-started/concepts/liquidity-providers/concentrated-liquidity",
+      "checkedAt": "2026-09-19"
+    },
+    {
+      "url": "https://eips.ethereum.org/EIPS/eip-20",
+      "checkedAt": "2026-09-19"
+    }
+  ],
+  "nextDesign": "DS-06 DID·STO·x402 자격/지급 계약",
+  "recoveryContext": {
+    "required": [
+      "unknownReason",
+      "resumePhase",
+      "exposureRef",
+      "sourceVector",
+      "expectedRevision",
+      "operationId",
+      "businessEffectId"
+    ],
+    "rule": "unknown은 새 작업이 아닌 동일 작업의 관측 불확실성이다. 원 allowance/permit/order/tx/UserOp 노출을 조회한다. timeout 또는 mempool 부재만으로 실패를 확정하지 않는다.",
+    "terminalFailure": "선정 finality와 원 실행의 확정 실패·대체 여부·잔여 노출을 확인해야 failed_confirmed. 부분 효과가 있으면 result_observed로 가서 효과별 판정한다."
+  },
+  "declaredScopeRequirementRefs": [
+    11,
+    13
+  ],
+  "transitiveTaskImpactRequirementRefs": [
+    11,
+    13
+  ],
+  "requirementRefsMeaning": "legacy alias of declaredScopeRequirementRefs; not exhaustive impact or completion evidence"
+}

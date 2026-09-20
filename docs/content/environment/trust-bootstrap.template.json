@@ -1,0 +1,42 @@
+{
+  "status": "template_only_no_real_identity_or_key",
+  "checkpointId": "DF-20260920-01",
+  "roles": [
+    "security_admin",
+    "release_approver",
+    "privacy_operator",
+    "finance_reconciler",
+    "incident_commander",
+    "recovery_custodian"
+  ],
+  "workloads": [
+    "api",
+    "indexer",
+    "mpc_a",
+    "mpc_b",
+    "ai_worker",
+    "release_signer"
+  ],
+  "recordFields": [
+    "subjectId",
+    "role",
+    "publicKeyOrWorkloadIdentity",
+    "issuer",
+    "issuedAt",
+    "expiresAt",
+    "scope",
+    "evidenceDigest",
+    "revocationRef"
+  ],
+  "bootstrap": [
+    "verify independent out-of-band identity",
+    "two approvers sign initial registry",
+    "store registry and digest in separate protected locations",
+    "test revoke and recovery before activation"
+  ],
+  "prohibitions": [
+    "no private key in this file",
+    "no self-signed manifest as sole trust root",
+    "no one-person emergency unlock"
+  ]
+}

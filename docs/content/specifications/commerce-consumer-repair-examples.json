@@ -1,0 +1,329 @@
+{
+  "status": "synthetic_design_examples",
+  "runtimeTests": "not_run",
+  "contributionCases": [
+    {
+      "id": "CP-X01",
+      "before": {
+        "gross": "10",
+        "salesRefund": "0",
+        "receipts": "10",
+        "refundOutflow": "0"
+      },
+      "target": {
+        "gross": "10",
+        "salesRefund": "2",
+        "receipts": "10",
+        "refundOutflow": "2"
+      },
+      "expectedDelta": {
+        "gross": "0",
+        "salesRefund": "2",
+        "receipts": "0",
+        "refundOutflow": "2"
+      },
+      "expectedNetSales": "8",
+      "expectedNetCash": "8"
+    },
+    {
+      "id": "CP-X02",
+      "before": {
+        "gross": "10",
+        "salesRefund": "6",
+        "receipts": "10",
+        "refundOutflow": "6"
+      },
+      "target": {
+        "gross": "0",
+        "salesRefund": "6",
+        "receipts": "0",
+        "refundOutflow": "6"
+      },
+      "expectedDelta": {
+        "gross": "-10",
+        "salesRefund": "0",
+        "receipts": "-10",
+        "refundOutflow": "0"
+      },
+      "expectedNetSales": "-6",
+      "expectedNetCash": "-6"
+    },
+    {
+      "id": "CP-X03",
+      "before": {
+        "gross": "0",
+        "salesRefund": "6",
+        "receipts": "0",
+        "refundOutflow": "6"
+      },
+      "target": {
+        "gross": "10",
+        "salesRefund": "6",
+        "receipts": "10",
+        "refundOutflow": "6"
+      },
+      "expectedDelta": {
+        "gross": "10",
+        "salesRefund": "0",
+        "receipts": "10",
+        "refundOutflow": "0"
+      },
+      "expectedNetSales": "4",
+      "expectedNetCash": "4"
+    },
+    {
+      "id": "CP-X04",
+      "before": {
+        "gross": "0",
+        "salesRefund": "0",
+        "receipts": "5",
+        "refundOutflow": "0"
+      },
+      "target": {
+        "gross": "0",
+        "salesRefund": "0",
+        "receipts": "5",
+        "refundOutflow": "5"
+      },
+      "expectedDelta": {
+        "gross": "0",
+        "salesRefund": "0",
+        "receipts": "0",
+        "refundOutflow": "5"
+      },
+      "expectedNetSales": "0",
+      "expectedNetCash": "0"
+    },
+    {
+      "id": "CP-X05",
+      "before": {
+        "gross": "10",
+        "salesRefund": "6",
+        "receipts": "10",
+        "refundOutflow": "6"
+      },
+      "target": {
+        "gross": "10",
+        "salesRefund": "0",
+        "receipts": "10",
+        "refundOutflow": "0"
+      },
+      "expectedDelta": {
+        "gross": "0",
+        "salesRefund": "-6",
+        "receipts": "0",
+        "refundOutflow": "-6"
+      },
+      "expectedNetSales": "10",
+      "expectedNetCash": "10"
+    },
+    {
+      "id": "CP-X06",
+      "before": {
+        "gross": "10",
+        "salesRefund": "2",
+        "receipts": "10",
+        "refundOutflow": "2"
+      },
+      "target": {
+        "gross": "10",
+        "salesRefund": "2",
+        "receipts": "10",
+        "refundOutflow": "2"
+      },
+      "expectedDelta": {
+        "gross": "0",
+        "salesRefund": "0",
+        "receipts": "0",
+        "refundOutflow": "0"
+      },
+      "expectedNetSales": "8",
+      "expectedNetCash": "8"
+    }
+  ],
+  "benefitCases": [
+    {
+      "id": "CP-X07",
+      "oldTargetEarned": 1,
+      "newTargetEarned": 0,
+      "consumed": 1,
+      "expectedCorrection": -1,
+      "expectedBalance": -1,
+      "expectedDeficitHold": true
+    },
+    {
+      "id": "CP-X08",
+      "oldTargetEarned": 0,
+      "newTargetEarned": 1,
+      "consumed": 1,
+      "expectedCorrection": 1,
+      "expectedBalance": 0,
+      "expectedDeficitHold": false
+    },
+    {
+      "id": "CP-X09",
+      "oldTargetEarned": 1,
+      "newTargetEarned": 1,
+      "consumed": 1,
+      "expectedCorrection": 0,
+      "expectedBalance": 0,
+      "expectedDeficitHold": false
+    },
+    {
+      "id": "CP-X10",
+      "oldTargetEarned": 1,
+      "newTargetEarned": 0,
+      "consumed": 0,
+      "expectedCorrection": -1,
+      "expectedBalance": 0,
+      "expectedDeficitHold": false
+    }
+  ],
+  "publicationCases": [
+    {
+      "id": "CP-X11",
+      "complete": true,
+      "captured": {
+        "allocation:p": 4,
+        "refundSet:p": 3,
+        "privacy:u": 2
+      },
+      "current": {
+        "allocation:p": 4,
+        "refundSet:p": 3,
+        "privacy:u": 2
+      },
+      "expectedFence": 8,
+      "currentFence": 8,
+      "deny": false,
+      "expected": true
+    },
+    {
+      "id": "CP-X12",
+      "complete": false,
+      "captured": {
+        "allocation:p": 4
+      },
+      "current": {
+        "allocation:p": 4
+      },
+      "expectedFence": 8,
+      "currentFence": 8,
+      "deny": false,
+      "expected": false
+    },
+    {
+      "id": "CP-X13",
+      "complete": true,
+      "captured": {
+        "allocation:p": 4,
+        "refundSet:p": 3
+      },
+      "current": {
+        "allocation:p": 4,
+        "refundSet:p": 4
+      },
+      "expectedFence": 8,
+      "currentFence": 8,
+      "deny": false,
+      "expected": false
+    },
+    {
+      "id": "CP-X14",
+      "complete": true,
+      "captured": {
+        "allocation:p": 4
+      },
+      "current": {
+        "allocation:p": 4
+      },
+      "expectedFence": 7,
+      "currentFence": 8,
+      "deny": false,
+      "expected": false
+    },
+    {
+      "id": "CP-X15",
+      "complete": true,
+      "captured": {
+        "privacy:u": 2
+      },
+      "current": {
+        "privacy:u": 2
+      },
+      "expectedFence": 8,
+      "currentFence": 8,
+      "deny": true,
+      "expected": false
+    },
+    {
+      "id": "CP-X16",
+      "complete": true,
+      "captured": {
+        "allocation:p": 4,
+        "refund:r": 3
+      },
+      "current": {
+        "allocation:p": 3,
+        "refund:r": 4
+      },
+      "expectedFence": 8,
+      "currentFence": 8,
+      "deny": false,
+      "expected": false
+    },
+    {
+      "id": "CP-X22",
+      "complete": true,
+      "captured": {
+        "authorityEpoch:commerce": "epoch-old",
+        "allocation:p": 4
+      },
+      "current": {
+        "authorityEpoch:commerce": "epoch-new",
+        "allocation:p": 4
+      },
+      "expectedFence": 8,
+      "currentFence": 8,
+      "deny": false,
+      "expected": false
+    }
+  ],
+  "eventCases": [
+    {
+      "id": "CP-X17",
+      "appliedRevision": 4,
+      "incomingRevision": 4,
+      "sameDigest": true,
+      "expected": "duplicate"
+    },
+    {
+      "id": "CP-X18",
+      "appliedRevision": 4,
+      "incomingRevision": 4,
+      "sameDigest": false,
+      "expected": "quarantine"
+    },
+    {
+      "id": "CP-X19",
+      "appliedRevision": 4,
+      "incomingRevision": 3,
+      "sameDigest": true,
+      "expected": "stale_reconcile"
+    },
+    {
+      "id": "CP-X20",
+      "appliedRevision": 4,
+      "incomingRevision": 6,
+      "sameDigest": true,
+      "expected": "gap_reconcile"
+    },
+    {
+      "id": "CP-X21",
+      "appliedRevision": 4,
+      "incomingRevision": 5,
+      "sameDigest": true,
+      "expected": "capture_current_target"
+    }
+  ]
+}

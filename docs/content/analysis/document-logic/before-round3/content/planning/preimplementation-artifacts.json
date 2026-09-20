@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-19",
+  "status": "design_artifact_manifest_not_release",
+  "runtimeVerified": false,
+  "files": {
+    "content/specifications/credential-paid-resource-design.json": "47bebc8e03da93508de60fe95a58bf2428297aa71ae4a94fd18df2da63360585",
+    "content/specifications/credential-paid-resource-design.md": "d38c5739e5eefd6ceddc5ca6ec84fe749a29de028ede095871b718f1e395a4db",
+    "content/specifications/recording-travel-ai-design.json": "f45754f6fb12d9ed41c6abccacca337687e98d78cc16e0ae50f388d49fb1e666",
+    "content/specifications/recording-travel-ai-design.md": "c84c49c8421331e6b4662cce6d9448f0d453615e4e16fdc777a90fff7db70880",
+    "content/specifications/operations-release-acceptance-design.json": "fdaf8dad0e56ffc1a6cda92e9b58730de5afcd03db07e3497271dbf5289a2e5f",
+    "content/specifications/operations-release-acceptance-design.md": "a432c1f46d07fe54aa2239cd981bfa2b2fc2ef0a9b97b21d66c79e3f38e68a9e",
+    "content/specifications/preimplementation-contract-overlay.json": "2fd5d17fcbeb1707cb71b4a7f5573eec310f54261a9bbb0e55a85adc80d3424b",
+    "content/specifications/preimplementation-contract-overlay.md": "31867e61f1e84e5dd1aac9c29a0c536eb610b3d5958dcb15f04fa1a3da3d0ace",
+    "content/planning/preimplementation-handoff.json": "dd3c3523d851b64904ef79c1543db4a2578fd520396cfe3f9fbd64c9ba283f92",
+    "content/planning/preimplementation-handoff.md": "d3900e68f5f7d6ff6df37737fc22e389c042b90f1a83cce9bc7f35eb4105491c",
+    "content/planning/preimplementation-task-handoffs.md": "a6b12fe8e7bdf1801d7dad12f757e33f8643e3d0c9261af957a7f9b374d3f458",
+    "content/planning/preimplementation-evidence.template.json": "284beae3b0d511b278cb700fe7f51966079504c0d4378d05c057bf922ca10084",
+    "content/planning/validate_preimplementation_handoff.py": "1b04254b8d2bc12fca7ea7c65b8eb408b3a786fd8ed25530b0908c1ec99297e7",
+    "content/planning/preimplementation-validation.json": "6802343f2b4b8caf0efcf7cdabdbd5b6d69b756d3e1a1cc03c373a39558240db"
+  },
+  "revisionNote": "LG01..08 design corrections; earlier manifests preserved in analysis snapshots"
+}

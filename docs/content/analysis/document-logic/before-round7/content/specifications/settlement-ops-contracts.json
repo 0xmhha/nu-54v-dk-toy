@@ -1,0 +1,311 @@
+{
+  "status": "settlement_ops_full_contract_proposal_not_merged",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "schemaFile": "settlement-ops-contracts.schema.json",
+  "examplesFile": "settlement-ops-contracts.examples.json",
+  "contractVersion": "settlement-repair-v1-draft",
+  "baselineApiCount": 110,
+  "registeredNewApiCount": 0,
+  "operations": [
+    {
+      "id": "API-039",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/sales",
+      "authorization": "store_sales_read",
+      "screenRef": "K06",
+      "requestSchema": "API039Request",
+      "responseSchema": "API039Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "existing_route_proposed_new_version",
+      "note": "현재 snapshot 표시와 마감·보정 후보 참조"
+    },
+    {
+      "id": "API-040",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_settlement_manage",
+      "screenRef": "K06",
+      "requestSchema": "API040Request",
+      "responseSchema": "API040Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "existing_route_proposed_new_version",
+      "note": "manifest를 고정한 신규 마감"
+    },
+    {
+      "id": "API-041",
+      "method": "POST",
+      "path": "/v1/settlements/{settlementId}/corrections",
+      "authorization": "store_settlement_manage",
+      "screenRef": "K06",
+      "requestSchema": "API041Request",
+      "responseSchema": "API041Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "existing_route_proposed_new_version",
+      "note": "원snapshot 불변 새 보정version"
+    },
+    {
+      "id": "API-093",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_sales_read",
+      "screenRef": "K06",
+      "requestSchema": "API093Request",
+      "responseSchema": "API093Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "existing_route_proposed_new_version",
+      "note": "마감 이력+현재 원천 정합성"
+    },
+    {
+      "id": "API-087",
+      "method": "POST",
+      "path": "/v1/ops/reconciliation-jobs",
+      "authorization": "ops_reconcile",
+      "screenRef": "O03",
+      "requestSchema": "API087Request",
+      "responseSchema": "API087Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "existing_route_proposed_new_version",
+      "note": "source_refresh/preview only"
+    },
+    {
+      "id": "SR-01",
+      "method": "GET",
+      "path": "/v1/ops/reconciliation-jobs/{repairId}",
+      "authorization": "proposed_ops_repair_read",
+      "screenRef": "O03",
+      "requestSchema": "SR01Request",
+      "responseSchema": "SR01Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "alias_only_not_catalogued",
+      "note": "서버 저장repair 소속과현재ops범위확인"
+    },
+    {
+      "id": "SR-02",
+      "method": "POST",
+      "path": "/v1/ops/reconciliation-jobs/{repairId}/publications",
+      "authorization": "proposed_ops_repair_publish",
+      "screenRef": "O03",
+      "requestSchema": "SR02Request",
+      "responseSchema": "SR02Response",
+      "errorSchema": "ErrorResponse",
+      "registration": "alias_only_not_catalogued",
+      "note": "검토된 target의조건부발행"
+    }
+  ],
+  "guards": [
+    {
+      "id": "SO-G01",
+      "name": "scope/소속",
+      "rule": "현재 exact-store 권한을 먼저 검사. 경로 store, scope store/chain/environment/asset/period/policy, manifest와 원settlement가 일치해야 한다. URI ID/manifest digest는 권한이 아니다."
+    },
+    {
+      "id": "SO-G02",
+      "name": "current와ready 구분",
+      "rule": "freshness.current는 source cut의 최신성, candidate.ready는 완전성·정책·미해결보류·마감기간종료를 통과한 후보. 둘 중 하나만 참이면 마감불가. 현재 actor 권한은 mutation에서 별도 검사."
+    },
+    {
+      "id": "SO-G03",
+      "name": "금액 계산",
+      "rule": "서버 source target만 사용. net=원액-관련환불, signed정수 허용, 자산/환경분리. 미지/불완전 금액은 null+held/unavailable, 0으로 대체 금지."
+    },
+    {
+      "id": "SO-G04",
+      "name": "마감 단일성",
+      "rule": "normalized store/environment/chain/asset/period/policy scope gate와 revision 잠금. 동일 범위 신규마감은 유일; timezone 표시나 policy version 변경으로 같은 사업기간 중복마감 우회 금지. overlapping기간은 선택된 partition정책에 맞지 않으면 거절."
+    },
+    {
+      "id": "SO-G05",
+      "name": "마감/보정 원자경계",
+      "rule": "현재 authority gates→scope/settlement row→consumer manifest/checkpoint. expected revision/generation/target digest/source completeness/epoch/privacy 재확인 후 settlement snapshot/version,scope/list revision,idempotency,audit/outbox를 같은commit. 원천변경은 conflict, totals재계산 후 조용한자동승인 금지."
+    },
+    {
+      "id": "SO-G06",
+      "name": "멱등 복구",
+      "rule": "현재권한+같은scope/action/key의 저장 digest를 확인. 같은 요청은 원결과 반환(새 version 없음), 다른digest면 충돌. 이미같은target인 새로운key의보정은 NO_CHANGE; staleexpected값 검사로 원결과복구를 가로막지않음."
+    },
+    {
+      "id": "SO-G07",
+      "name": "운영 권한 분리",
+      "rule": "API087 기존 ops_reconcile는 원천 재조회/preview만. source_refresh가 기존 검증 대사기로 보내는 정상 원천 업데이트는 허용되지만 client 상태 강제/대체원장발행 불가. SR02는별도현재TrustPrincipal/TrustGrantRevision의 exactscope+consumer+effectclass publish권한 필요. 권한승격은기존TrustChangeRequest의서로다른요청/승인자원칙유지; 이API가자체승격하지않음."
+    },
+    {
+      "id": "SO-G08",
+      "name": "동일 검토안만 publish",
+      "rule": "server RepairRun에서 expectedRunRevision,scope,manifest,generation,fence,diffDigest,effectPlanDigest,consumer/effect allowlist를검증. preview만 가능한사용자는publish불가. review에는정책상미해결0/eligible가필요하며 stale면held/recapture,새diff를무승인재사용하지않음. 한 repair는 단일 consumer/projectionKey로 고정하며 mode=preview인 diff_ready만 발행한다. server저장consumer/projectionKey와해당checkpoint의generation/fence를검사한다."
+    },
+    {
+      "id": "SO-G09",
+      "name": "예약과 실제publication 분리",
+      "rule": "SR02의202는publication intent/outbox 등록만. run CAS로단일활성publication,현재권한을당시고정기록. worker의최종CP-B06에서도현재권한/철회/원천/deny/fence를재검사하고activepointer+newfence+contribution+correction+application+checkpoint+outbox를동일commit. queued는공개완료아님."
+    },
+    {
+      "id": "SO-G10",
+      "name": "효과 범위",
+      "rule": "view_replace/append_source_correction/mark_settlement_correction_pending/withhold_publication만검토. closed정산자동마감·자동보정승인·grant/consume/보상새지급·환불·서명·nonce할당·삭제취소 금지. 승인된원규칙에따른보정만 허용; 정책미정이면보류."
+    },
+    {
+      "id": "SO-G11",
+      "name": "보호 조회",
+      "rule": "SR01은current ops scope로매번검사;token/signedbytes/rawproof/개인위치/전체sourcevector제공안함. API020은기존general operation진행만사용,approval=null/approvalOperationId=null/resultRef=null. 상세결과는SR01;새resultURL우회없음."
+    },
+    {
+      "id": "SO-G12",
+      "name": "목록과읽기",
+      "rule": "API093 cursor는principal/store/filter/listRevision에결합. 현재close기록과source정합성status분리. API039 GET은기존검증manifest/projection을조회하며게시/승인작업생성안함;후보없으면null/held로표시."
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "SO-T01",
+      "scenario": "다른store manifest",
+      "expected": "거절",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T02",
+      "scenario": "원입금0/환불6",
+      "expected": "-6표시 및보류;0clamp금지",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T03",
+      "scenario": "환불목록누락",
+      "expected": "metrics미확정/null·candidate미승인",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T04",
+      "scenario": "조회후새환불",
+      "expected": "409 MANIFEST_STALE;원preview다시보기",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T05",
+      "scenario": "아직종료안된기간",
+      "expected": "마감보류",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T06",
+      "scenario": "동일scope동시마감",
+      "expected": "1개만commit;멱등/ALREADY_CLOSED",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T07",
+      "scenario": "마감commit후응답유실",
+      "expected": "현재권한후원결과;중복snapshot없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T08",
+      "scenario": "같은target로새key",
+      "expected": "NO_CHANGE;새version없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T09",
+      "scenario": "시간대표시로중복기간우회",
+      "expected": "정규화범위/정책거절",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T10",
+      "scenario": "ops_reconcile로SR02호출",
+      "expected": "403;승격자동허용없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T11",
+      "scenario": "검토후effectPlan변경",
+      "expected": "409 DIGEST_CONFLICT",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T12",
+      "scenario": "202후worker실행전운영권한철회",
+      "expected": "held/거절;발행없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T13",
+      "scenario": "동일run동시publish",
+      "expected": "CAS 단일intent;다른request충돌",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T14",
+      "scenario": "CP-B06완료후worker손실",
+      "expected": "원publication조회·재적립/보정없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T15",
+      "scenario": "preview후삭제",
+      "expected": "최신deny차단;재공개없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T16",
+      "scenario": "client가accepted=true전달",
+      "expected": "schema거절",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T17",
+      "scenario": "구버전서식",
+      "expected": "명시미지원;느슨한fallback없음",
+      "status": "not_run"
+    },
+    {
+      "id": "SO-T18",
+      "scenario": "구fenceworker잔존",
+      "expected": "DBcommit거절;이미허가외부효과추적",
+      "status": "not_run"
+    }
+  ],
+  "sourceHashes": {
+    "extended-dtos.schema.json": "ac4851a4a36699bd8f69d368d74f92454c18fd35a0942a9673b42ee8baf01def",
+    "approval-baseline.schema.json": "b206e5de3bfc12a9cd0e9e7128f51e67b085e50abd38de5bb66ec65d9baff635",
+    "commerce-reconciliation-integration.json": "218b155c2a700e61185724f10dd05982c130d8add648ea6ff6f1fb3043f72fa1",
+    "commerce-consumer-repair-design.json": "45417ff469fed8f8973994cda711f83bae27dbb007f9f20c712f03b14267c12d",
+    "api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "authorization-policies.json": "73d251b1dfdf8e735a4a3c071f76e22a5baff294ce0e1090730efed59a91a7f4",
+    "event-catalog.json": "8660d596fc893e0f79bbeb46e3969a3894e3870671c5cf791588a057844e1fba",
+    "screen-flows.json": "1db102661e79a3350e45a38e70c1cd354ef0259005ec3c026119cfc91077ae0f",
+    "security-storage-contracts.json": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8"
+  },
+  "pendingDecisions": [
+    "D02 version headers/manifest authority/storage protocol",
+    "D19 page default and operational thresholds",
+    "settlement partition/timezone/period attribution and correction authorization policy unselected",
+    "proposed_ops_repair_read/publish role scope/effect policy not provisioned",
+    "D08 benefit/travel rules remain unselected",
+    "RR-DEC-01 unchanged"
+  ],
+  "nextDesign": "설계 통합 등록부의 미병합 API·권한·화면·이벤트 변경 묶음과 수용 기준 정리",
+  "readSemantics": [
+    "API039 without settlementId returns close candidate only for unclosed normalized scope. With settlementId, derive exact original scope and return correction candidate; reject query/path mismatch. Candidate is a stored verified target, not client totals or a new permission.",
+    "API093 returns revision records keyed by settlementId+snapshotVersion; optional settlementId filter allows historical version lookup within current store permission. Cursor binds actor/store/all filters/listRevision. Old recordRevision is history; obtain current correction candidate before mutation.",
+    "API020 stays byte-identical and only general progress is planned for source-authorized ops. Mapping of operator scope into general operation ACL is an explicit integration task, not blanket existing access. Detail comes from SR01 only."
+  ],
+  "publicationScope": {
+    "cardinality": "one_consumer_one_projection_per_repair",
+    "consumerSource": "API087 consumer is a selector validated by current scope; server resolves exact projectionKey from subject/scope",
+    "storedBinding": [
+      "consumer",
+      "projectionKey",
+      "scope",
+      "generation",
+      "fence",
+      "manifest",
+      "diffDigest",
+      "effectPlanDigest"
+    ],
+    "multipleConsumers": "independent repair IDs and publication intents; no atomic group success; orchestration UI may show independent statuses",
+    "sourceRefresh": "source_refresh invokes existing verified source reconciler; its downstream events are normal source updates, not bulk publication; only mode=preview diff_ready can use SR02"
+  }
+}

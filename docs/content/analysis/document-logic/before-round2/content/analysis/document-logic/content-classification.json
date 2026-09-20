@@ -1,0 +1,209 @@
+{
+  "methodology": "neutral multi-label classification; x-theory mapping awaiting definition",
+  "records": [
+    {
+      "source": "content/specifications/device-coexistence-design.json",
+      "package": "DS-01",
+      "categories": [
+        "상태·동작",
+        "불변식·자원 제약",
+        "선택·측정 입력",
+        "시험 계획"
+      ],
+      "sectionEvidence": [
+        "admissionMatrix",
+        "resources",
+        "fotaTransitions",
+        "measurementVariables",
+        "runtimeCases"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/social-wallet-recovery-design.json",
+      "package": "DS-02",
+      "categories": [
+        "신뢰·권한",
+        "상태·동작",
+        "데이터·복구",
+        "선택·가정"
+      ],
+      "sectionEvidence": [
+        "authTransitions",
+        "mpcTransitions",
+        "authorityImpacts",
+        "logicalResources",
+        "selections",
+        "authContractRefs"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/kiosk-commerce-journey-design.json",
+      "package": "DS-03",
+      "categories": [
+        "사용자 여정",
+        "계약·화면",
+        "정책 입력",
+        "시험 계획"
+      ],
+      "sectionEvidence": [
+        "journeys",
+        "paymentDisplayStates",
+        "policyInputs",
+        "contractDeltas",
+        "runtimeCases"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/stablenet-compatibility-design.json",
+      "package": "DS-04",
+      "categories": [
+        "환경·호환성",
+        "자산·체인 원천",
+        "상태·동작",
+        "선택 입력"
+      ],
+      "sectionEvidence": [
+        "manifestComponents",
+        "assets",
+        "indexerStages",
+        "accountTransitions",
+        "selections"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/market-product-design.json",
+      "package": "DS-05",
+      "categories": [
+        "상품 의미",
+        "상태·동작",
+        "안전 제약",
+        "계산 예제",
+        "미연결 계약"
+      ],
+      "sectionEvidence": [
+        "productCards",
+        "tradeTransitions",
+        "priceActionMatrix",
+        "arithmeticExamples",
+        "contractGaps"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "package": "DS-06",
+      "categories": [
+        "신뢰·자격",
+        "상태·동작",
+        "지급·제공",
+        "논리 데이터",
+        "정책 입력"
+      ],
+      "sectionEvidence": [
+        "trustRules",
+        "credentialTransitions",
+        "paidResourceTransitions",
+        "logicalContracts",
+        "policyInputs",
+        "presentationTransitions",
+        "credentialObjects",
+        "paidResourcePredicates"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "package": "DS-07",
+      "categories": [
+        "데이터 목적·삭제",
+        "상태·동작",
+        "근거·출처",
+        "추천 평가"
+      ],
+      "sectionEvidence": [
+        "dataClasses",
+        "recordingStages",
+        "privacyTransitions",
+        "travelRules",
+        "evaluationSamples"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "package": "DS-08",
+      "categories": [
+        "책임·환경",
+        "운영·릴리스",
+        "복구 절차",
+        "증거 기준"
+      ],
+      "sectionEvidence": [
+        "serviceBoundaries",
+        "environmentLanes",
+        "releaseStages",
+        "runbooks",
+        "evidenceContract"
+      ],
+      "epistemicStatus": "design_candidate_not_runtime_evidence"
+    },
+    {
+      "source": "content/planning/work-breakdown.json",
+      "categories": [
+        "요구 추적",
+        "작업·의존성",
+        "열린 결정"
+      ],
+      "sectionEvidence": [
+        "tasks",
+        "decisions"
+      ],
+      "epistemicStatus": "planning_or_candidate_not_execution_evidence"
+    },
+    {
+      "source": "content/planning/full-scope-design-review.json",
+      "categories": [
+        "범위·계획",
+        "분류·추적"
+      ],
+      "sectionEvidence": [
+        "requirements",
+        "designPackages",
+        "compoundRequirementFacets"
+      ],
+      "epistemicStatus": "planning_or_candidate_not_execution_evidence"
+    },
+    {
+      "source": "content/planning/preimplementation-handoff.json",
+      "categories": [
+        "인계·판정 기준",
+        "미결정·잔여 작업"
+      ],
+      "sectionEvidence": [
+        "phaseGates",
+        "taskHandoffs",
+        "designResidualRegister"
+      ],
+      "epistemicStatus": "planning_or_candidate_not_execution_evidence"
+    },
+    {
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "categories": [
+        "계약 보완 후보",
+        "행위 타입",
+        "원자성·복구"
+      ],
+      "sectionEvidence": [
+        "routeContracts",
+        "actionVariants",
+        "storageAndAtomicity"
+      ],
+      "epistemicStatus": "planning_or_candidate_not_execution_evidence"
+    }
+  ],
+  "revision": "LG01..05 reflected"
+}

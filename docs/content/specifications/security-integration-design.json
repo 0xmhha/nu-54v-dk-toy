@@ -1,0 +1,576 @@
+{
+  "version": "0.1.0-draft",
+  "status": "proposed_not_implemented",
+  "scope": "five existing gaps; whole 12-week scope retained; no staffing/effort assignment",
+  "modules": [
+    {
+      "gapId": "GAP-01",
+      "title": "OAuth 보안 상태 저장",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "existingApiRefs": [
+        "API-001",
+        "API-002",
+        "API-003",
+        "API-006"
+      ],
+      "status": "design_specified",
+      "runtimeVerified": false,
+      "logicalRecords": [
+        "AuthFlow",
+        "RefreshFamily",
+        "RotationOutcome"
+      ],
+      "stateSubject": "AuthFlow; refresh generation/family lifecycle is a separate adapter contract",
+      "states": [
+        "issued",
+        "reserved",
+        "verified",
+        "consumed",
+        "expired",
+        "revoked",
+        "restart_required"
+      ],
+      "transitions": [
+        {
+          "source": "issued",
+          "target": "reserved",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "reserved",
+          "target": "verified",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "verified",
+          "target": "consumed",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "issued",
+          "target": "expired",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "issued",
+          "target": "revoked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "reserved",
+          "target": "restart_required",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "verified",
+          "target": "revoked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        }
+      ],
+      "commands": [
+        {
+          "name": "beginFlow",
+          "input": "providerProfile, purpose, redirectId, client binding, challenge parameters",
+          "output": "flowId, authorizationParameters, expiresAt",
+          "invariant": "registered provider/client/redirect; link purpose requires recent authentication"
+        },
+        {
+          "name": "reserveFlow",
+          "input": "flowId, requestDigest, verified initiator",
+          "output": "reservation or same-request status",
+          "invariant": "compare-and-set unexpired issued flow"
+        },
+        {
+          "name": "completeExchange",
+          "input": "reservation, verified provider subject, resultSessionId",
+          "output": "session reference",
+          "invariant": "unique flow consumption plus durable identity commit recovery"
+        },
+        {
+          "name": "rotateRefresh",
+          "input": "family, generation, token proof, optional sender proof",
+          "output": "new protected session result or reauthentication",
+          "invariant": "one generation wins; ambiguous bearer replay revokes family"
+        },
+        {
+          "name": "revokeFamily",
+          "input": "session owner or authorized account lifecycle command",
+          "output": "revocation revision",
+          "invariant": "no replay cache disclosure after revocation"
+        }
+      ],
+      "acceptanceRefs": [
+        "SEC-01-01",
+        "SEC-01-02",
+        "SEC-01-03",
+        "SEC-01-04",
+        "SEC-01-05",
+        "SEC-01-06"
+      ],
+      "openSelections": [
+        "provider/OS authentication profile",
+        "security state adapter",
+        "TTL and recovery binding profile"
+      ],
+      "integratedApiRefs": [
+        "API-103"
+      ],
+      "supplementalAliases": [
+        "SEC-API-01"
+      ]
+    },
+    {
+      "gapId": "GAP-02",
+      "title": "임시 결제 권한 수명",
+      "taskRefs": [
+        "HW-03",
+        "SHOP-01",
+        "SHOP-03",
+        "BASE-03"
+      ],
+      "existingApiRefs": [
+        "API-023",
+        "API-029",
+        "API-032",
+        "API-033",
+        "API-034",
+        "API-018",
+        "API-020",
+        "API-035"
+      ],
+      "status": "design_specified",
+      "runtimeVerified": false,
+      "logicalRecords": [
+        "ScopedCapability",
+        "CapabilityReservation"
+      ],
+      "stateSubject": "ScopedCapability; submitted chain transaction lifecycle is separate",
+      "states": [
+        "issued",
+        "reserved",
+        "consumed",
+        "expired",
+        "revoked"
+      ],
+      "transitions": [
+        {
+          "source": "issued",
+          "target": "reserved",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "reserved",
+          "target": "consumed",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "issued",
+          "target": "expired",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "issued",
+          "target": "revoked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "reserved",
+          "target": "revoked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        }
+      ],
+      "commands": [
+        {
+          "name": "issueCapability",
+          "input": "trusted parent proof, resource, scope, expiry policy",
+          "output": "credential + nonsecret metadata",
+          "invariant": "new write capability scope/expiry bounded by parent and action validity; read-result authority has independent verified scope/lifetime and compromise revocation"
+        },
+        {
+          "name": "reserveSubmit",
+          "input": "capability proof, intent, signed payload digest",
+          "output": "reservation/operation reference",
+          "invariant": "one payload per intent; current authority checked before new submission"
+        },
+        {
+          "name": "resolveSubmission",
+          "input": "durable submission reference, source proof",
+          "output": "known/unknown chain observation",
+          "invariant": "no automatic new nonce on timeout"
+        },
+        {
+          "name": "revokeScope",
+          "input": "device/terminal/rental revision, authorized trigger",
+          "output": "revoked write capabilities",
+          "invariant": "stop new writes; existing chain observer remains active"
+        },
+        {
+          "name": "readResult",
+          "input": "current scoped read proof, source ID",
+          "output": "safe status projection",
+          "invariant": "never grants new signing capability"
+        }
+      ],
+      "acceptanceRefs": [
+        "SEC-02-01",
+        "SEC-02-02",
+        "SEC-02-03",
+        "SEC-02-04",
+        "SEC-02-05",
+        "SEC-02-06"
+      ],
+      "openSelections": [
+        "BLE proof profile",
+        "TTL/revocation SLA",
+        "split-store reservation recovery adapter"
+      ],
+      "integratedApiRefs": [],
+      "supplementalAliases": []
+    },
+    {
+      "gapId": "GAP-03",
+      "title": "신뢰 주체 registry",
+      "taskRefs": [
+        "OPS-01",
+        "DID-01",
+        "DID-02",
+        "BASE-05"
+      ],
+      "existingApiRefs": [
+        "API-065",
+        "API-068",
+        "API-069",
+        "API-086",
+        "API-087",
+        "API-088"
+      ],
+      "status": "design_specified",
+      "runtimeVerified": false,
+      "logicalRecords": [
+        "TrustPrincipal",
+        "TrustGrantRevision",
+        "TrustChangeRequest"
+      ],
+      "stateSubject": "TrustGrantRevision; suspended to reviewed requires a new reviewed revision",
+      "states": [
+        "draft",
+        "reviewed",
+        "active",
+        "suspended",
+        "revoked"
+      ],
+      "transitions": [
+        {
+          "source": "draft",
+          "target": "reviewed",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "reviewed",
+          "target": "active",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "active",
+          "target": "suspended",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "active",
+          "target": "revoked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "suspended",
+          "target": "reviewed",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "suspended",
+          "target": "revoked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        }
+      ],
+      "commands": [
+        {
+          "name": "proposeGrant",
+          "input": "trusted requester, principal, exact scope, expectedRevision",
+          "output": "draft change",
+          "invariant": "requester cannot self-approve elevation"
+        },
+        {
+          "name": "approveGrant",
+          "input": "authorized distinct approver, change digest",
+          "output": "reviewed revision",
+          "invariant": "approval applies to exact content"
+        },
+        {
+          "name": "activateGrant",
+          "input": "reviewed revision, expectedRevision, audit reference",
+          "output": "active revision",
+          "invariant": "compare-and-set; audit durable with activation"
+        },
+        {
+          "name": "suspendGrant",
+          "input": "authorized emergency authority, reason",
+          "output": "suspended revision",
+          "invariant": "invalidates new privileged operations"
+        },
+        {
+          "name": "resolveTrust",
+          "input": "principal, environment, action, resource",
+          "output": "allow/deny plus policy revision",
+          "invariant": "stale/unavailable trust data rejects new sensitive action"
+        }
+      ],
+      "acceptanceRefs": [
+        "SEC-03-01",
+        "SEC-03-02",
+        "SEC-03-03",
+        "SEC-03-04",
+        "SEC-03-05",
+        "SEC-03-06"
+      ],
+      "openSelections": [
+        "bootstrap/deployment trust anchor",
+        "approver policy",
+        "service identity implementation"
+      ],
+      "integratedApiRefs": [],
+      "supplementalAliases": []
+    },
+    {
+      "gapId": "GAP-04",
+      "title": "기기 단독 결제 영수증 연결",
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "existingApiRefs": [
+        "API-034",
+        "API-042",
+        "API-043",
+        "API-046",
+        "API-047"
+      ],
+      "status": "design_specified",
+      "runtimeVerified": false,
+      "logicalRecords": [
+        "ReceiptEligibility",
+        "ReceiptClaim",
+        "ReceiptOwnership"
+      ],
+      "stateSubject": "ReceiptClaim; durable ownership and payment validity remain separate",
+      "states": [
+        "issued",
+        "verifying",
+        "linked",
+        "rejected",
+        "expired"
+      ],
+      "transitions": [
+        {
+          "source": "issued",
+          "target": "verifying",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "verifying",
+          "target": "linked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "verifying",
+          "target": "rejected",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "issued",
+          "target": "expired",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "verifying",
+          "target": "expired",
+          "guard": "validated actor/source and current revision; details in linked design"
+        }
+      ],
+      "commands": [
+        {
+          "name": "recordEligibility",
+          "input": "verified payment source, historical rental/binding, account or ticket evidence",
+          "output": "eligibility reference",
+          "invariant": "not inferred from current address control"
+        },
+        {
+          "name": "beginClaim",
+          "input": "current account, locator, historical eligibility proof",
+          "output": "claim challenge",
+          "invariant": "target-bound; no order enumeration"
+        },
+        {
+          "name": "confirmClaim",
+          "input": "current account, claim, approved proof profile",
+          "output": "ownership link reference",
+          "invariant": "unique per eligible payment; account-bound one-time challenge; anonymous new-travel-wallet claims completed before key reset; ticket export alone is insufficient"
+        },
+        {
+          "name": "readClaim",
+          "input": "current account, claimId",
+          "output": "own status",
+          "invariant": "other account receives no private details"
+        },
+        {
+          "name": "correctPaymentView",
+          "input": "canonical observation/refund revision, ownership link",
+          "output": "updated receipt/benefit/travel state",
+          "invariant": "does not mint duplicate reward from claim"
+        }
+      ],
+      "acceptanceRefs": [
+        "SEC-04-01",
+        "SEC-04-02",
+        "SEC-04-03",
+        "SEC-04-04",
+        "SEC-04-05",
+        "SEC-04-06"
+      ],
+      "openSelections": [
+        "historical claim credential storage/delivery",
+        "anonymous loss/support policy",
+        "EOA/smart account proof profiles"
+      ],
+      "integratedApiRefs": [
+        "API-104",
+        "API-105",
+        "API-106"
+      ],
+      "supplementalAliases": [
+        "SEC-API-02",
+        "SEC-API-03",
+        "SEC-API-04"
+      ]
+    },
+    {
+      "gapId": "GAP-05",
+      "title": "보호 결과 참조 저장",
+      "taskRefs": [
+        "SMART-01",
+        "SMART-03",
+        "APP-03",
+        "BASE-05"
+      ],
+      "existingApiRefs": [
+        "API-020",
+        "API-052",
+        "API-053",
+        "API-055",
+        "API-057",
+        "API-080",
+        "API-081",
+        "API-085"
+      ],
+      "status": "design_specified",
+      "runtimeVerified": false,
+      "logicalRecords": [
+        "ProtectedObject",
+        "ObjectPayload",
+        "DeletionTombstone"
+      ],
+      "stateSubject": "ProtectedObject metadata; payload cleanup retries retain deleting state",
+      "states": [
+        "staging",
+        "available",
+        "blocked",
+        "deleting",
+        "deleted",
+        "failed"
+      ],
+      "transitions": [
+        {
+          "source": "staging",
+          "target": "available",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "staging",
+          "target": "failed",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "available",
+          "target": "blocked",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "blocked",
+          "target": "deleting",
+          "guard": "validated actor/source and current revision; details in linked design"
+        },
+        {
+          "source": "deleting",
+          "target": "deleted",
+          "guard": "validated actor/source and current revision; details in linked design"
+        }
+      ],
+      "commands": [
+        {
+          "name": "allocateObject",
+          "input": "trusted producer, owner/source/purpose, schema/profile",
+          "output": "staging result ID",
+          "invariant": "producer-scoped upload, no arbitrary URL fetch"
+        },
+        {
+          "name": "publishObject",
+          "input": "object version, verified digest/schema, source revision",
+          "output": "available reference",
+          "invariant": "bytes exist; source and applicable consent still valid"
+        },
+        {
+          "name": "readObject",
+          "input": "current principal, purpose, resultId",
+          "output": "typed payload or protected stream",
+          "invariant": "actual-access ACL and expiry/digest checks"
+        },
+        {
+          "name": "blockObject",
+          "input": "owner consent withdrawal/privacy request or source invalidation",
+          "output": "blocked metadata revision",
+          "invariant": "blocks new reads before asynchronous byte deletion"
+        },
+        {
+          "name": "deleteObject",
+          "input": "authorized scope, lineage, tombstone",
+          "output": "deletion state",
+          "invariant": "restore must replay tombstones before publishing"
+        }
+      ],
+      "acceptanceRefs": [
+        "SEC-05-01",
+        "SEC-05-02",
+        "SEC-05-03",
+        "SEC-05-04",
+        "SEC-05-05",
+        "SEC-05-06"
+      ],
+      "openSelections": [
+        "object store/key management",
+        "retention and tombstone policy",
+        "gateway/stream transport"
+      ],
+      "integratedApiRefs": [
+        "API-107"
+      ],
+      "supplementalAliases": [
+        "SEC-API-05"
+      ]
+    }
+  ]
+}

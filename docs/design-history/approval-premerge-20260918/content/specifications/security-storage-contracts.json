@@ -1,0 +1,337 @@
+{
+  "status": "logical_storage_contracts_integrated",
+  "referenceSqlTableCount": 61,
+  "resources": [
+    {
+      "id": "AuthFlow",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "flowId",
+        "providerProfile",
+        "purpose",
+        "initiatorBinding",
+        "challengeHash",
+        "expiresAt",
+        "requestDigest",
+        "status",
+        "resultSessionId"
+      ],
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "invariant": "flowId single consumption; reserved verification plus durable session reconciliation",
+      "runtimeVerified": false
+    },
+    {
+      "id": "RefreshFamily",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "familyId",
+        "sessionId",
+        "generation",
+        "tokenHash",
+        "clientBinding",
+        "revokedRevision"
+      ],
+      "taskRefs": [
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "invariant": "familyId generation compare-and-set; logout invalidates replay results",
+      "runtimeVerified": false
+    },
+    {
+      "id": "RotationOutcome",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "familyId",
+        "generation",
+        "requestDigest",
+        "senderBinding",
+        "protectedResultRef",
+        "expiresAt"
+      ],
+      "taskRefs": [
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "invariant": "family+generation one result; no token in ordinary idempotency cache",
+      "runtimeVerified": false
+    },
+    {
+      "id": "ScopedCapability",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "capabilityId",
+        "tokenHash",
+        "parentId",
+        "resourceScope",
+        "issuer",
+        "audience",
+        "expiresAt",
+        "revision",
+        "revokedAt"
+      ],
+      "taskRefs": [
+        "HW-03",
+        "SHOP-01",
+        "SHOP-03",
+        "BASE-03"
+      ],
+      "invariant": "scope and resource binding; write expiry separate from result read lifetime",
+      "runtimeVerified": false
+    },
+    {
+      "id": "CapabilityReservation",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "reservationId",
+        "capabilityId",
+        "intentId",
+        "payloadDigest",
+        "operationId",
+        "status"
+      ],
+      "taskRefs": [
+        "PAY-02",
+        "BASE-03"
+      ],
+      "invariant": "one signed payload per intent; recover split-store commit without reopening for another payload",
+      "runtimeVerified": false
+    },
+    {
+      "id": "TrustPrincipal",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "principalId",
+        "kind",
+        "trustedIdentity",
+        "environment",
+        "status"
+      ],
+      "taskRefs": [
+        "OPS-01",
+        "DID-01",
+        "DID-02",
+        "BASE-05"
+      ],
+      "invariant": "trusted identity plus environment; no store-owner escalation",
+      "runtimeVerified": false
+    },
+    {
+      "id": "TrustGrantRevision",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "principalId",
+        "revision",
+        "scope",
+        "keyVersion",
+        "validity",
+        "state",
+        "auditRef"
+      ],
+      "taskRefs": [
+        "OPS-01",
+        "DID-01",
+        "DID-02",
+        "BASE-05"
+      ],
+      "invariant": "compare-and-set revision; exact content approval",
+      "runtimeVerified": false
+    },
+    {
+      "id": "TrustChangeRequest",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "changeId",
+        "requestDigest",
+        "requester",
+        "approver",
+        "expectedRevision",
+        "state"
+      ],
+      "taskRefs": [
+        "OPS-01",
+        "BASE-05"
+      ],
+      "invariant": "distinct elevation requester/approver; immutable approved digest",
+      "runtimeVerified": false
+    },
+    {
+      "id": "ReceiptEligibility",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "eligibilityId",
+        "receiptId",
+        "orderId",
+        "allocationId",
+        "payerSnapshot",
+        "chainId",
+        "signerModel",
+        "rentalBindingSnapshot",
+        "accountBinding",
+        "ticketVerifier",
+        "evidenceRevision"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "invariant": "one original eligibility per accepted payment allocation; historical source frozen; ticket reference is not proof",
+      "runtimeVerified": false
+    },
+    {
+      "id": "ReceiptClaim",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "claimId",
+        "eligibilityId",
+        "accountId",
+        "profileId",
+        "challengeDigest",
+        "expiresAt",
+        "state",
+        "requestDigest",
+        "resultLinkId"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "invariant": "claim bound to account/source/purpose; one-time consumption recoverable from ownership commit",
+      "runtimeVerified": false
+    },
+    {
+      "id": "ReceiptOwnership",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "linkId",
+        "receiptId",
+        "eligibilityId",
+        "accountId",
+        "proofAuditRef",
+        "revision",
+        "linkedAt"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "invariant": "unique eligibilityId ownership; same account retry returns prior result; never overwrite orders.account_id",
+      "runtimeVerified": false
+    },
+    {
+      "id": "ProtectedObject",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "resultId",
+        "kind",
+        "ownerScope",
+        "purpose",
+        "sourceId",
+        "sourceRevision",
+        "schemaProfile",
+        "version",
+        "payloadDigest",
+        "keyRef",
+        "consentRevision",
+        "expiry",
+        "state"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "APP-03",
+        "SMART-01",
+        "SMART-03",
+        "REC-03",
+        "AI-02"
+      ],
+      "invariant": "immutable source/version/digest; current access ACL; available only after bytes verified",
+      "runtimeVerified": false
+    },
+    {
+      "id": "ObjectPayload",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "objectId",
+        "version",
+        "bytesRef",
+        "encryptedPayload",
+        "keyRef"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "APP-03",
+        "REC-03",
+        "AI-02"
+      ],
+      "invariant": "bytes accessible only to scoped producer/gateway; no raw keys/MPC shares",
+      "runtimeVerified": false
+    },
+    {
+      "id": "DeletionTombstone",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "objectId",
+        "sourceScope",
+        "deletionRevision",
+        "blockedAt",
+        "deletionState"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "AUTH-04",
+        "REC-03"
+      ],
+      "invariant": "restore applies latest deny state before object publication",
+      "runtimeVerified": false
+    },
+    {
+      "id": "PendingBenefitEntitlement",
+      "kind": "logical_adapter_resource",
+      "physicalMapping": "pending_adapter_selection_not_reference_sql_table",
+      "fields": [
+        "entitlementId",
+        "eligibilityId",
+        "allocationId",
+        "ruleVersion",
+        "units",
+        "state",
+        "boundAccountId",
+        "materializedEntryId",
+        "revision"
+      ],
+      "taskRefs": [
+        "STAMP-01",
+        "STAMP-02",
+        "APP-04",
+        "PAY-04"
+      ],
+      "invariant": "unique eligibility+ruleVersion; unclaimed award recorded without fake account; bind exactly once to ReceiptOwnership.account, retry materialization with same source key; reorg/refund correct pending or materialized state",
+      "runtimeVerified": false
+    }
+  ]
+}

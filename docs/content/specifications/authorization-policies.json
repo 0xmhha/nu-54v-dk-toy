@@ -1,0 +1,807 @@
+{
+  "version": "0.1.0-draft",
+  "policies": [
+    {
+      "id": "public_auth_flow",
+      "principalKind": "provider_flow",
+      "predicate": "server AuthFlow binds provider/client/OS/purpose/initiator and applicable PKCE/state/nonce; registered providerProof verified before one-time consumption",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-001"
+      ]
+    },
+    {
+      "id": "account_recent_auth",
+      "principalKind": "account",
+      "predicate": "활성 계정·세션과 행위별 최근 인증 충족; 최근 인증만으로 지갑 서명 권한을 얻지 않음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-002",
+        "API-004",
+        "API-014",
+        "API-085"
+      ]
+    },
+    {
+      "id": "account",
+      "principalKind": "account",
+      "predicate": "활성 서버 계정·세션; accountId는 세션에서 도출",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-003",
+        "API-005",
+        "API-007",
+        "API-010",
+        "API-011",
+        "API-021",
+        "API-022",
+        "API-042",
+        "API-043",
+        "API-051",
+        "API-057",
+        "API-060",
+        "API-063",
+        "API-066",
+        "API-073",
+        "API-074",
+        "API-077",
+        "API-080",
+        "API-082",
+        "API-084",
+        "API-094",
+        "API-097"
+      ]
+    },
+    {
+      "id": "refresh_session",
+      "principalKind": "refresh_family",
+      "predicate": "refresh 계보·기한·회전 상태 검증; 다른 세션/회전된 토큰 재사용 차단",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-006"
+      ]
+    },
+    {
+      "id": "store_asset_read",
+      "principalKind": "account",
+      "predicate": "해당 store의 활성 소속과 자산 조회 권한; store wallet binding도 검사",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager",
+        "sales_viewer"
+      ],
+      "apiRefs": [
+        "API-008"
+      ]
+    },
+    {
+      "id": "wallet_read",
+      "principalKind": "account",
+      "predicate": "요청 wallet에 활성 개인 binding 또는 허용 store binding; 읽기만 허용; 매장 binding 경로는 wallet→store를 도출하고 호출자의 해당 store 활성 membership과 행위별 권한을 매 요청 검사. wallet-store 연결만으로 호출자를 허용하지 않음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-009",
+        "API-059",
+        "API-062",
+        "API-102"
+      ]
+    },
+    {
+      "id": "device_owner",
+      "principalKind": "account",
+      "predicate": "현 device binding의 account와 세션 일치; 대여 상태/철회 검사",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-012",
+        "API-013",
+        "API-048",
+        "API-090",
+        "API-098"
+      ]
+    },
+    {
+      "id": "wallet_sign_authorized",
+      "principalKind": "account",
+      "predicate": "wallet 접근·행위 승인 proof·intent digest·서명 주체/참여자 정책 모두 통과; 매장 binding 경로는 wallet→store를 도출하고 호출자의 해당 store 활성 membership과 행위별 권한을 매 요청 검사. wallet-store 연결만으로 호출자를 허용하지 않음; API015 approval-v1 requires exact personal/refund selected Cloud signer and current participant epoch; access grant alone cannot sign; other API056 adapter remains distinct",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-015",
+        "API-056"
+      ]
+    },
+    {
+      "id": "wallet_recovery_proof",
+      "principalKind": "recovery",
+      "predicate": "해당 wallet의 선택한 복구 profile 검증; 소셜 세션만으로 승인 불가",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-016"
+      ]
+    },
+    {
+      "id": "wallet_use",
+      "principalKind": "account",
+      "predicate": "선택 wallet의 사용 가능한 binding과 지원 action/profile; 지갑 소유 증명 없이 주소만 등록한 경우 불가; 매장 binding 경로는 wallet→store를 도출하고 호출자의 해당 store 활성 membership과 행위별 권한을 매 요청 검사. wallet-store 연결만으로 호출자를 허용하지 않음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-017",
+        "API-055",
+        "API-058",
+        "API-061",
+        "API-070"
+      ]
+    },
+    {
+      "id": "intent_submit_capability",
+      "principalKind": "scoped_capability",
+      "predicate": "Server-stored intent/source/version selects adapter; sender-bound submit_exact grant, current source/epoch/hold, exact signed payload and verified provenance required; SS-T03/04 gates; no proof-less downgrade; only the three registered approval-v1 source variants have this canonical DTO; other sources require their explicit typed adapter and are blocked until registered, never accepted via a loose legacy union",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-018"
+      ]
+    },
+    {
+      "id": "transaction_read",
+      "principalKind": "account_or_capability",
+      "predicate": "source intent/order/wallet에 대한 현재 조회 권한; txHash 자체는 비공개 원장 조회 권한이 아님; approval grant read_progress additionally requires exact context→dispatch→transactionRef association and current sender proof; same payer address is not enough",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-019"
+      ]
+    },
+    {
+      "id": "operation_owner_or_capability",
+      "principalKind": "account_or_capability",
+      "predicate": "Current source-specific ACL or exact sender-bound approval grant; progress/snapshot/signed result permissions separate; server ancestry classifies parent/child/general; parent/child resultRef null; requested unauthorized fields reject; generic operation existing protected ACL retained",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-020"
+      ]
+    },
+    {
+      "id": "store_terminal_manage",
+      "principalKind": "account",
+      "predicate": "해당 store의 단말 관리 권한·관리 모드; 고객 모드 capability로 발급 불가",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager"
+      ],
+      "apiRefs": [
+        "API-023"
+      ]
+    },
+    {
+      "id": "store_owner",
+      "principalKind": "account",
+      "predicate": "해당 store의 활성 owner; 마지막 owner 제거 및 동시 변경 방지",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner"
+      ],
+      "apiRefs": [
+        "API-024",
+        "API-025"
+      ]
+    },
+    {
+      "id": "store_customer_session",
+      "principalKind": "terminal",
+      "predicate": "서버가 발급한 해당 store/terminal의 고객 모드 세션; 메뉴/주문 scope만 허용",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-026",
+        "API-029"
+      ]
+    },
+    {
+      "id": "store_menu_manage",
+      "principalKind": "account",
+      "predicate": "해당 store의 메뉴 관리 권한; 가격/품절 대상도 같은 store",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager",
+        "menu_editor"
+      ],
+      "apiRefs": [
+        "API-027"
+      ]
+    },
+    {
+      "id": "store_funds_manage_recent_auth",
+      "principalKind": "account",
+      "predicate": "해당 store의 자금 관리 권한과 최근 인증; 업무 승인과 실제 signer 통제 분리; refund 경로에서는 refund→order.store에서 대상 매장을 도출",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner"
+      ],
+      "apiRefs": [
+        "API-028",
+        "API-037"
+      ]
+    },
+    {
+      "id": "order_read_or_capability",
+      "principalKind": "account_or_capability",
+      "predicate": "order.accountId 본인 또는 해당 store 주문 조회 역할 또는 정확한 order 읽기 capability 중 하나; 경로별 응답 projection 분리",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-030"
+      ]
+    },
+    {
+      "id": "order_cancel",
+      "principalKind": "account_or_capability",
+      "predicate": "해당 order 취소 scope 또는 store 취소 권한; 현재 지급 상태 검사",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-031"
+      ]
+    },
+    {
+      "id": "order_payment_capability",
+      "principalKind": "scoped_capability",
+      "predicate": "정확한 payable order·terminal/store 범위·새 결제 시도 생성 action",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-032"
+      ]
+    },
+    {
+      "id": "terminal_attempt_capability",
+      "principalKind": "terminal_capability",
+      "predicate": "현재 terminal/store/order/attempt 조합과 페어링 범위 일치",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-033"
+      ]
+    },
+    {
+      "id": "attempt_device_capability",
+      "principalKind": "device_capability",
+      "predicate": "attempt/session/device/terminal과 지급 주소 proof 결합; 폰 계정 로그인 필수 아님",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-034"
+      ]
+    },
+    {
+      "id": "attempt_read_capability",
+      "principalKind": "scoped_capability",
+      "predicate": "해당 attempt 읽기 action·기한·audience 일치; 다른 고객 attempt를 읽을 수 없음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-035"
+      ]
+    },
+    {
+      "id": "store_refund_request",
+      "principalKind": "account",
+      "predicate": "해당 store 환불 요청 권한·원주문 소속; 자금 승인/서명은 별도",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager",
+        "refund_requester"
+      ],
+      "apiRefs": [
+        "API-036"
+      ]
+    },
+    {
+      "id": "refund_read",
+      "principalKind": "account_or_capability",
+      "predicate": "환불 store의 허용 조회 역할 또는 원주문에 연결된 고객 또는 제한된 해당 환불 영수증 조회 proof",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-038"
+      ]
+    },
+    {
+      "id": "store_sales_read",
+      "principalKind": "account",
+      "predicate": "해당 store 매출/정산 읽기 권한; 지갑 키·고객 원음/위치 제외",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager",
+        "sales_viewer"
+      ],
+      "apiRefs": [
+        "API-039",
+        "API-093"
+      ]
+    },
+    {
+      "id": "store_settlement_manage",
+      "principalKind": "account",
+      "predicate": "해당 store 마감/보정 권한·최신 revision; 별도 자금 전송 권한으로 해석하지 않음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager"
+      ],
+      "apiRefs": [
+        "API-040",
+        "API-041"
+      ]
+    },
+    {
+      "id": "benefit_owner",
+      "principalKind": "account",
+      "predicate": "혜택의 account가 본인이고 주문 store/규칙/현재 사용 상태가 유효",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-044"
+      ]
+    },
+    {
+      "id": "rental_operator",
+      "principalKind": "operator",
+      "predicate": "운영 registry의 기기 대여 배정 권한; 고객 wallet 서명/초기화 권한 없음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-045"
+      ]
+    },
+    {
+      "id": "rental_owner_or_operator",
+      "principalKind": "account_or_operator",
+      "predicate": "현 대여 owner 또는 지정 rental 운영자; 운영자 projection에는 reset capability/proof 비밀 제외",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-046",
+        "API-091"
+      ]
+    },
+    {
+      "id": "rental_owner_and_clearance",
+      "principalKind": "account",
+      "predicate": "현 대여자·현재 binding·유효 clearance·물리적 승인/초기화 증거가 동일 작업으로 결합",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-047"
+      ]
+    },
+    {
+      "id": "firmware_release_operator",
+      "principalKind": "operator",
+      "predicate": "등록된 릴리스 권한·대상 모델/환경 범위; 일반 가게 owner는 불가",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-049",
+        "API-050"
+      ]
+    },
+    {
+      "id": "recording_owner_with_consent",
+      "principalKind": "account",
+      "predicate": "recording.account 본인·source 접근·해당 목적의 현재 동의; 처리 완료 때도 재검사",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-052"
+      ]
+    },
+    {
+      "id": "recording_owner",
+      "principalKind": "account",
+      "predicate": "recording.account 본인·접근 차단/삭제 상태 검사; 점주/운영 기본 권한 없음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-053",
+        "API-054"
+      ]
+    },
+    {
+      "id": "offering_actor",
+      "principalKind": "account_or_issuer",
+      "predicate": "정확한 offering action별 issuer 또는 holder 권한·wallet 통제·자격 유효성",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-064"
+      ]
+    },
+    {
+      "id": "credential_issuer",
+      "principalKind": "issuer",
+      "predicate": "신뢰 issuer registry와 대상 profile/type 일치; revoke는 기존 자격 issuer와도 일치",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-065",
+        "API-069"
+      ]
+    },
+    {
+      "id": "credential_owner",
+      "principalKind": "account",
+      "predicate": "subject/holder binding·현재 상태·제시 요청자/audience·목적별 동의",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-067"
+      ]
+    },
+    {
+      "id": "credential_verifier",
+      "principalKind": "verifier",
+      "predicate": "등록된 verifier·목적·challenge·최소 공개 범위; 전 계정 자격 DB 검색 권한 아님",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-068"
+      ]
+    },
+    {
+      "id": "request_owner",
+      "principalKind": "account",
+      "predicate": "paid resource request의 account 본인·resource/price/wallet binding 일치",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-071",
+        "API-072"
+      ]
+    },
+    {
+      "id": "review_owner",
+      "principalKind": "account",
+      "predicate": "후기 작성자 본인·visibility/revision; 운영자 삭제는 별도 권한 작업으로만",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-075",
+        "API-076"
+      ]
+    },
+    {
+      "id": "trip_owner",
+      "principalKind": "account",
+      "predicate": "trip.account 본인·현재 동의/삭제 상태; 방문 출처 진위는 별도 검증",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-078",
+        "API-079"
+      ]
+    },
+    {
+      "id": "itinerary_owner",
+      "principalKind": "account",
+      "predicate": "itinerary와 trip의 account 본인·revision·동의/접근 상태",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-081",
+        "API-095"
+      ]
+    },
+    {
+      "id": "participant",
+      "principalKind": "account",
+      "predicate": "participation과 trip의 account 본인·증거 account/trip도 동일",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-083",
+        "API-096"
+      ]
+    },
+    {
+      "id": "ops_exception_read",
+      "principalKind": "operator",
+      "predicate": "운영 registry의 결제 예외 조회 권한·업무 대상 범위·최소 projection",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-086"
+      ]
+    },
+    {
+      "id": "ops_reconcile",
+      "principalKind": "operator",
+      "predicate": "운영 registry의 원천 재조회 요청 권한·사유; 직접 accepted 상태 입력 불가",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-087"
+      ]
+    },
+    {
+      "id": "ops_audit_read",
+      "principalKind": "operator",
+      "predicate": "허용 audit 범위·민감 필드 제외; 감사 읽기로 자금 변경 불가",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-088"
+      ]
+    },
+    {
+      "id": "service_health_read",
+      "principalKind": "operator",
+      "predicate": "서비스 상태 조회 권한; credential/config 원문과 고객 내용을 응답하지 않음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-089"
+      ]
+    },
+    {
+      "id": "store_order_read",
+      "principalKind": "account",
+      "predicate": "해당 store의 주문 조회 권한·pagination/cursor 범위 결합",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [
+        "owner",
+        "manager",
+        "sales_viewer",
+        "refund_requester"
+      ],
+      "apiRefs": [
+        "API-092"
+      ]
+    },
+    {
+      "id": "ops_store_read",
+      "principalKind": "operator",
+      "predicate": "운영 registry의 가맹점 조회 범위; 가게 signer 통제 권한 없음",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-099"
+      ]
+    },
+    {
+      "id": "ops_device_read",
+      "principalKind": "operator",
+      "predicate": "운영 registry의 장비/대여 메타데이터 범위; owner secret/capability 제외",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-100"
+      ]
+    },
+    {
+      "id": "release_read",
+      "principalKind": "account_or_operator",
+      "predicate": "소유 장치에 호환되는 허용 릴리스 또는 릴리스 운영 권한; 비공개/철회 패키지 접근 별도 검사",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-101"
+      ]
+    },
+    {
+      "id": "auth_flow_bootstrap",
+      "principalKind": "provider_flow",
+      "predicate": "login is rate-limited bootstrap with registered provider/client/redirect; link requires current account recent authentication",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-103"
+      ]
+    },
+    {
+      "id": "receipt_claim_eligible",
+      "principalKind": "account",
+      "predicate": "current account plus verified original-payment eligibility proof; locator or current wallet address alone is insufficient",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-104"
+      ]
+    },
+    {
+      "id": "receipt_claim_confirm",
+      "principalKind": "account",
+      "predicate": "claim.account equals current account; original eligibility, purpose-bound approval and unconsumed challenge verified",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-105"
+      ]
+    },
+    {
+      "id": "receipt_claim_owner",
+      "principalKind": "account",
+      "predicate": "current account equals claim account; safe projection only",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-106"
+      ]
+    },
+    {
+      "id": "protected_result_read",
+      "principalKind": "account_or_scoped_capability",
+      "predicate": "current result/source owner scope and allowed purpose/consent, availability, version/digest and expiry; stream access repeats checks",
+      "defaultDecision": "deny",
+      "source": "server-resolved principal and resource relations",
+      "status": "proposed",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-107"
+      ]
+    },
+    {
+      "id": "approval_access_challenge",
+      "principalKind": "current_account_or_terminal_session",
+      "predicate": "현재 계정/terminal 인증과 원 context/actor/sender/action 및 predecessor 권한 확인",
+      "defaultDecision": "deny",
+      "source": "server-resolved source and grant lineage",
+      "status": "merged_design_runtime_unverified",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-108"
+      ]
+    },
+    {
+      "id": "approval_access_issue",
+      "principalKind": "current_account_or_terminal_session",
+      "predicate": "현재 인증+challenge/senderProof; gate 재검사; nonce 소비·단일 successor CAS·보호 응답 멱등 commit",
+      "defaultDecision": "deny",
+      "source": "server-resolved source and grant lineage",
+      "status": "merged_design_runtime_unverified",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-109"
+      ]
+    },
+    {
+      "id": "approval_access_revoke",
+      "principalKind": "current_account_or_terminal_session",
+      "predicate": "현재 동일 grant 주체 또는 명시 철회권; 읽기/서명권을 부여하지 않음",
+      "defaultDecision": "deny",
+      "source": "server-resolved source and grant lineage",
+      "status": "merged_design_runtime_unverified",
+      "storeRoleProposal": [],
+      "apiRefs": [
+        "API-110"
+      ]
+    }
+  ],
+  "note": "Role defaults are implementation proposals, not user-confirmed organization assignments. Operator/issuer/verifier registries are separate from store memberships."
+}

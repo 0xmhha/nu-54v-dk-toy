@@ -1,0 +1,1075 @@
+{
+  "status": "synthetic_shapes_not_runtime_evidence",
+  "valid": [
+    {
+      "name": "API039-request",
+      "schema": "API039Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft"
+        },
+        "query": {
+          "period": {
+            "from": "2026-09-17T15:00:00Z",
+            "to": "2026-09-18T15:00:00Z",
+            "timezone": "Asia/Seoul"
+          },
+          "assetId": "dummy-usdc"
+        }
+      }
+    },
+    {
+      "name": "API039-response",
+      "schema": "API039Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "scope": {
+              "storeId": "store-demo",
+              "environment": "testnet",
+              "chainId": 8283,
+              "assetId": "dummy-usdc",
+              "period": {
+                "from": "2026-09-17T15:00:00Z",
+                "to": "2026-09-18T15:00:00Z",
+                "timezone": "Asia/Seoul"
+              },
+              "periodPolicyVersion": "period-proposal-1"
+            },
+            "freshness": {
+              "state": "held",
+              "asOf": "2026-09-18T09:00:00Z",
+              "projectionRevision": 8,
+              "generation": "gen-2",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "reasonCodes": [
+                "payment_reobserving"
+              ]
+            },
+            "metrics": {
+              "grossAcceptedAtomic": "0",
+              "confirmedSalesRefundAtomic": "6",
+              "canonicalAttributedReceiptsAtomic": "0",
+              "allCanonicalRefundOutflowAtomic": "6",
+              "reservedRefundAtomic": "0",
+              "netSalesAtomic": "-6",
+              "netAttributedCashAtomic": "-6"
+            },
+            "candidate": null
+          }
+        }
+      }
+    },
+    {
+      "name": "API039-response-ready",
+      "schema": "API039Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "scope": {
+              "storeId": "store-demo",
+              "environment": "testnet",
+              "chainId": 8283,
+              "assetId": "dummy-usdc",
+              "period": {
+                "from": "2026-09-17T15:00:00Z",
+                "to": "2026-09-18T15:00:00Z",
+                "timezone": "Asia/Seoul"
+              },
+              "periodPolicyVersion": "period-proposal-1"
+            },
+            "freshness": {
+              "state": "current",
+              "asOf": "2026-09-18T09:00:00Z",
+              "projectionRevision": 8,
+              "generation": "gen-2",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "reasonCodes": []
+            },
+            "metrics": {
+              "grossAcceptedAtomic": "10",
+              "confirmedSalesRefundAtomic": "0",
+              "canonicalAttributedReceiptsAtomic": "10",
+              "allCanonicalRefundOutflowAtomic": "0",
+              "reservedRefundAtomic": "0",
+              "netSalesAtomic": "10",
+              "netAttributedCashAtomic": "10"
+            },
+            "candidate": {
+              "kind": "close",
+              "scope": {
+                "storeId": "store-demo",
+                "environment": "testnet",
+                "chainId": 8283,
+                "assetId": "dummy-usdc",
+                "period": {
+                  "from": "2026-09-17T15:00:00Z",
+                  "to": "2026-09-18T15:00:00Z",
+                  "timezone": "Asia/Seoul"
+                },
+                "periodPolicyVersion": "period-proposal-1"
+              },
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "projectionRevision": 8,
+              "generation": "gen-2",
+              "scopeRevision": 2,
+              "settlementId": null,
+              "settlementRevision": null,
+              "metrics": {
+                "grossAcceptedAtomic": "10",
+                "confirmedSalesRefundAtomic": "0",
+                "canonicalAttributedReceiptsAtomic": "10",
+                "allCanonicalRefundOutflowAtomic": "0",
+                "reservedRefundAtomic": "0",
+                "netSalesAtomic": "10",
+                "netAttributedCashAtomic": "10"
+              },
+              "targetDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+              "eligibility": "ready",
+              "blockReasons": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "API040-request",
+      "schema": "API040Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedScopeRevision": 2,
+          "expectedProjectionRevision": 8,
+          "expectedGeneration": "gen-2",
+          "targetDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "note": null
+        }
+      }
+    },
+    {
+      "name": "API040-response",
+      "schema": "API040Response",
+      "value": {
+        "statusCode": 201,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "settlement": {
+              "settlementId": "settlement-demo",
+              "scope": {
+                "storeId": "store-demo",
+                "environment": "testnet",
+                "chainId": 8283,
+                "assetId": "dummy-usdc",
+                "period": {
+                  "from": "2026-09-17T15:00:00Z",
+                  "to": "2026-09-18T15:00:00Z",
+                  "timezone": "Asia/Seoul"
+                },
+                "periodPolicyVersion": "period-proposal-1"
+              },
+              "recordRevision": 1,
+              "snapshotVersion": 0,
+              "previousVersion": null,
+              "status": "closed",
+              "closedAt": "2026-09-18T15:10:00Z",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "metrics": {
+                "grossAcceptedAtomic": "10",
+                "confirmedSalesRefundAtomic": "0",
+                "canonicalAttributedReceiptsAtomic": "10",
+                "allCanonicalRefundOutflowAtomic": "0",
+                "reservedRefundAtomic": "0",
+                "netSalesAtomic": "10",
+                "netAttributedCashAtomic": "10"
+              },
+              "snapshotDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+              "currentSourceStatus": "current"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "API041-request",
+      "schema": "API041Request",
+      "value": {
+        "path": {
+          "settlementId": "settlement-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedSettlementRevision": 1,
+          "expectedProjectionRevision": 8,
+          "expectedGeneration": "gen-2",
+          "targetDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "reason": "source revalidated"
+        }
+      }
+    },
+    {
+      "name": "API041-response",
+      "schema": "API041Response",
+      "value": {
+        "statusCode": 201,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "settlement": {
+              "settlementId": "settlement-demo",
+              "scope": {
+                "storeId": "store-demo",
+                "environment": "testnet",
+                "chainId": 8283,
+                "assetId": "dummy-usdc",
+                "period": {
+                  "from": "2026-09-17T15:00:00Z",
+                  "to": "2026-09-18T15:00:00Z",
+                  "timezone": "Asia/Seoul"
+                },
+                "periodPolicyVersion": "period-proposal-1"
+              },
+              "recordRevision": 2,
+              "snapshotVersion": 1,
+              "previousVersion": 0,
+              "status": "corrected",
+              "closedAt": "2026-09-18T15:10:00Z",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "metrics": {
+                "grossAcceptedAtomic": "10",
+                "confirmedSalesRefundAtomic": "0",
+                "canonicalAttributedReceiptsAtomic": "10",
+                "allCanonicalRefundOutflowAtomic": "0",
+                "reservedRefundAtomic": "0",
+                "netSalesAtomic": "10",
+                "netAttributedCashAtomic": "10"
+              },
+              "snapshotDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+              "currentSourceStatus": "current"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "API093-request",
+      "schema": "API093Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft"
+        },
+        "query": {
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "API093-response",
+      "schema": "API093Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "settlements": [
+              {
+                "settlementId": "settlement-demo",
+                "scope": {
+                  "storeId": "store-demo",
+                  "environment": "testnet",
+                  "chainId": 8283,
+                  "assetId": "dummy-usdc",
+                  "period": {
+                    "from": "2026-09-17T15:00:00Z",
+                    "to": "2026-09-18T15:00:00Z",
+                    "timezone": "Asia/Seoul"
+                  },
+                  "periodPolicyVersion": "period-proposal-1"
+                },
+                "recordRevision": 1,
+                "snapshotVersion": 0,
+                "previousVersion": null,
+                "status": "closed",
+                "closedAt": "2026-09-18T15:10:00Z",
+                "manifest": {
+                  "manifestId": "manifest-demo",
+                  "manifestVersion": 3,
+                  "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+                },
+                "metrics": {
+                  "grossAcceptedAtomic": "10",
+                  "confirmedSalesRefundAtomic": "0",
+                  "canonicalAttributedReceiptsAtomic": "10",
+                  "allCanonicalRefundOutflowAtomic": "0",
+                  "reservedRefundAtomic": "0",
+                  "netSalesAtomic": "10",
+                  "netAttributedCashAtomic": "10"
+                },
+                "snapshotDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+                "currentSourceStatus": "current"
+              }
+            ],
+            "nextCursor": null,
+            "listRevision": 3,
+            "freshness": {
+              "state": "current",
+              "asOf": "2026-09-18T09:00:00Z",
+              "projectionRevision": 8,
+              "generation": "gen-2",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "reasonCodes": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "API087-request",
+      "schema": "API087Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "subjectRef": "allocation-demo",
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "mode": "preview",
+          "reason": "review source mismatch",
+          "consumer": "sales"
+        }
+      }
+    },
+    {
+      "name": "API087-response",
+      "schema": "API087Response",
+      "value": {
+        "statusCode": 202,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "repair": {
+              "repairId": "repair-demo",
+              "operationId": "operation-demo",
+              "scope": {
+                "storeId": "store-demo",
+                "environment": "testnet",
+                "chainId": 8283,
+                "assetId": "dummy-usdc",
+                "period": {
+                  "from": "2026-09-17T15:00:00Z",
+                  "to": "2026-09-18T15:00:00Z",
+                  "timezone": "Asia/Seoul"
+                },
+                "periodPolicyVersion": "period-proposal-1"
+              },
+              "mode": "preview",
+              "state": "requested",
+              "revision": 0,
+              "review": null,
+              "safeReasonCodes": [],
+              "publicationOutcome": null,
+              "consumer": "sales",
+              "projectionKey": "sales-store-demo-usdc-period-demo"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "SR01-request",
+      "schema": "SR01Request",
+      "value": {
+        "path": {
+          "repairId": "repair-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "SR01-response",
+      "schema": "SR01Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "repair": {
+              "repairId": "repair-demo",
+              "operationId": "operation-demo",
+              "scope": {
+                "storeId": "store-demo",
+                "environment": "testnet",
+                "chainId": 8283,
+                "assetId": "dummy-usdc",
+                "period": {
+                  "from": "2026-09-17T15:00:00Z",
+                  "to": "2026-09-18T15:00:00Z",
+                  "timezone": "Asia/Seoul"
+                },
+                "periodPolicyVersion": "period-proposal-1"
+              },
+              "mode": "preview",
+              "state": "diff_ready",
+              "revision": 4,
+              "review": {
+                "repairId": "repair-demo",
+                "runRevision": 4,
+                "scope": {
+                  "storeId": "store-demo",
+                  "environment": "testnet",
+                  "chainId": 8283,
+                  "assetId": "dummy-usdc",
+                  "period": {
+                    "from": "2026-09-17T15:00:00Z",
+                    "to": "2026-09-18T15:00:00Z",
+                    "timezone": "Asia/Seoul"
+                  },
+                  "periodPolicyVersion": "period-proposal-1"
+                },
+                "manifest": {
+                  "manifestId": "manifest-demo",
+                  "manifestVersion": 3,
+                  "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+                },
+                "generation": "gen-2",
+                "expectedFence": 7,
+                "diffDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "effectPlanDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+                "effectClasses": [
+                  "view_replace"
+                ],
+                "unresolvedCount": 0,
+                "publishEligible": true,
+                "consumer": "sales",
+                "projectionKey": "sales-store-demo-usdc-period-demo"
+              },
+              "safeReasonCodes": [],
+              "publicationOutcome": null,
+              "consumer": "sales",
+              "projectionKey": "sales-store-demo-usdc-period-demo"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "SR02-request",
+      "schema": "SR02Request",
+      "value": {
+        "path": {
+          "repairId": "repair-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "expectedRunRevision": 4,
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedGeneration": "gen-2",
+          "expectedFence": 7,
+          "diffDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "effectPlanDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "reason": "publish reviewed view"
+        }
+      }
+    },
+    {
+      "name": "SR02-response",
+      "schema": "SR02Response",
+      "value": {
+        "statusCode": 202,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "repair": {
+              "repairId": "repair-demo",
+              "operationId": "operation-demo",
+              "scope": {
+                "storeId": "store-demo",
+                "environment": "testnet",
+                "chainId": 8283,
+                "assetId": "dummy-usdc",
+                "period": {
+                  "from": "2026-09-17T15:00:00Z",
+                  "to": "2026-09-18T15:00:00Z",
+                  "timezone": "Asia/Seoul"
+                },
+                "periodPolicyVersion": "period-proposal-1"
+              },
+              "mode": "preview",
+              "state": "publishing",
+              "revision": 5,
+              "review": {
+                "repairId": "repair-demo",
+                "runRevision": 4,
+                "scope": {
+                  "storeId": "store-demo",
+                  "environment": "testnet",
+                  "chainId": 8283,
+                  "assetId": "dummy-usdc",
+                  "period": {
+                    "from": "2026-09-17T15:00:00Z",
+                    "to": "2026-09-18T15:00:00Z",
+                    "timezone": "Asia/Seoul"
+                  },
+                  "periodPolicyVersion": "period-proposal-1"
+                },
+                "manifest": {
+                  "manifestId": "manifest-demo",
+                  "manifestVersion": 3,
+                  "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+                },
+                "generation": "gen-2",
+                "expectedFence": 7,
+                "diffDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "effectPlanDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+                "effectClasses": [
+                  "view_replace"
+                ],
+                "unresolvedCount": 0,
+                "publishEligible": true,
+                "consumer": "sales",
+                "projectionKey": "sales-store-demo-usdc-period-demo"
+              },
+              "safeReasonCodes": [],
+              "publicationOutcome": {
+                "publicationId": "pub-demo",
+                "operationId": "operation-pub",
+                "state": "queued"
+              },
+              "consumer": "sales",
+              "projectionKey": "sales-store-demo-usdc-period-demo"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unsigned-net-must-reject-decimal",
+      "schema": "API039Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "scope": {
+              "storeId": "store-demo",
+              "environment": "testnet",
+              "chainId": 8283,
+              "assetId": "dummy-usdc",
+              "period": {
+                "from": "2026-09-17T15:00:00Z",
+                "to": "2026-09-18T15:00:00Z",
+                "timezone": "Asia/Seoul"
+              },
+              "periodPolicyVersion": "period-proposal-1"
+            },
+            "freshness": {
+              "state": "held",
+              "asOf": "2026-09-18T09:00:00Z",
+              "projectionRevision": 8,
+              "generation": "gen-2",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "reasonCodes": [
+                "payment_reobserving"
+              ]
+            },
+            "metrics": {
+              "grossAcceptedAtomic": "0",
+              "confirmedSalesRefundAtomic": "6",
+              "canonicalAttributedReceiptsAtomic": "0",
+              "allCanonicalRefundOutflowAtomic": "6",
+              "reservedRefundAtomic": "0",
+              "netSalesAtomic": "-6.5",
+              "netAttributedCashAtomic": "-6"
+            },
+            "candidate": null
+          }
+        }
+      }
+    },
+    {
+      "name": "negative-raw-amount",
+      "schema": "API039Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "settlement-repair-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "scope": {
+              "storeId": "store-demo",
+              "environment": "testnet",
+              "chainId": 8283,
+              "assetId": "dummy-usdc",
+              "period": {
+                "from": "2026-09-17T15:00:00Z",
+                "to": "2026-09-18T15:00:00Z",
+                "timezone": "Asia/Seoul"
+              },
+              "periodPolicyVersion": "period-proposal-1"
+            },
+            "freshness": {
+              "state": "held",
+              "asOf": "2026-09-18T09:00:00Z",
+              "projectionRevision": 8,
+              "generation": "gen-2",
+              "manifest": {
+                "manifestId": "manifest-demo",
+                "manifestVersion": 3,
+                "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "reasonCodes": [
+                "payment_reobserving"
+              ]
+            },
+            "metrics": {
+              "grossAcceptedAtomic": "-6",
+              "confirmedSalesRefundAtomic": "6",
+              "canonicalAttributedReceiptsAtomic": "0",
+              "allCanonicalRefundOutflowAtomic": "6",
+              "reservedRefundAtomic": "0",
+              "netSalesAtomic": "-6",
+              "netAttributedCashAtomic": "-6"
+            },
+            "candidate": null
+          }
+        }
+      }
+    },
+    {
+      "name": "missing-manifest",
+      "schema": "API040Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "expectedScopeRevision": 2,
+          "expectedProjectionRevision": 8,
+          "expectedGeneration": "gen-2",
+          "targetDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "note": null
+        }
+      }
+    },
+    {
+      "name": "client-totals-forbidden",
+      "schema": "API040Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedScopeRevision": 2,
+          "expectedProjectionRevision": 8,
+          "expectedGeneration": "gen-2",
+          "targetDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "note": null,
+          "totals": {
+            "gross": "100"
+          }
+        }
+      }
+    },
+    {
+      "name": "missing-target-digest",
+      "schema": "API041Request",
+      "value": {
+        "path": {
+          "settlementId": "settlement-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedSettlementRevision": 1,
+          "expectedProjectionRevision": 8,
+          "expectedGeneration": "gen-2",
+          "reason": "source revalidated"
+        }
+      }
+    },
+    {
+      "name": "publish-not-a-requery-mode",
+      "schema": "API087Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "subjectRef": "allocation-demo",
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "mode": "publish",
+          "reason": "review source mismatch",
+          "consumer": "sales"
+        }
+      }
+    },
+    {
+      "name": "manual-chain-success-forbidden",
+      "schema": "API087Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "subjectRef": "allocation-demo",
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "mode": "preview",
+          "reason": "review source mismatch",
+          "accepted": true,
+          "consumer": "sales"
+        }
+      }
+    },
+    {
+      "name": "missing-effect-plan-digest",
+      "schema": "SR02Request",
+      "value": {
+        "path": {
+          "repairId": "repair-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "expectedRunRevision": 4,
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedGeneration": "gen-2",
+          "expectedFence": 7,
+          "diffDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "reason": "publish reviewed view"
+        }
+      }
+    },
+    {
+      "name": "missing-fence",
+      "schema": "SR02Request",
+      "value": {
+        "path": {
+          "repairId": "repair-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "expectedRunRevision": 4,
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedGeneration": "gen-2",
+          "diffDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "effectPlanDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "reason": "publish reviewed view"
+        }
+      }
+    },
+    {
+      "name": "missing-current-auth",
+      "schema": "SR01Request",
+      "value": {
+        "path": {
+          "repairId": "repair-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "contractVersion": "settlement-repair-v1-draft"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "unbounded-list",
+      "schema": "API093Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "settlement-repair-v1-draft"
+        },
+        "query": {
+          "limit": 101
+        }
+      }
+    },
+    {
+      "name": "version-downgrade",
+      "schema": "API040Request",
+      "value": {
+        "path": {
+          "storeId": "store-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "authorization": "Bearer synthetic",
+          "contractVersion": "legacy",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "scope": {
+            "storeId": "store-demo",
+            "environment": "testnet",
+            "chainId": 8283,
+            "assetId": "dummy-usdc",
+            "period": {
+              "from": "2026-09-17T15:00:00Z",
+              "to": "2026-09-18T15:00:00Z",
+              "timezone": "Asia/Seoul"
+            },
+            "periodPolicyVersion": "period-proposal-1"
+          },
+          "manifest": {
+            "manifestId": "manifest-demo",
+            "manifestVersion": 3,
+            "contentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectedScopeRevision": 2,
+          "expectedProjectionRevision": 8,
+          "expectedGeneration": "gen-2",
+          "targetDigest": "0x2222222222222222222222222222222222222222222222222222222222222222",
+          "note": null
+        }
+      }
+    }
+  ]
+}

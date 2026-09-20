@@ -1,0 +1,52 @@
+# Review draft against indexer-go 5baff647f3cfab935f73db1bbd742ad42317045f.
+# Not executed. Runtime scalar aliases are String, not SDL Address/Hash scalars.
+# Call the receipt operation separately when the list does not hydrate receipt.
+# Receipt status is execution status, not chain finality or cafe order approval.
+
+query CafeAddressTransactions($address: String!, $limit: Int, $offset: Int) {
+  transactionsByAddress(
+    address: $address
+    pagination: { limit: $limit, offset: $offset }
+  ) {
+    nodes {
+      hash
+      from
+      to
+      value
+      blockNumber
+      blockHash
+      blockTimestamp
+    }
+    pageInfo { hasNextPage }
+  }
+}
+
+query CafePaymentReceipt($hash: String!) {
+  receipt(transactionHash: $hash) {
+    transactionHash
+    blockNumber
+    blockHash
+    gasUsed
+    status
+  }
+}
+
+query CafeAddressTransfers($address: String!, $isFrom: Boolean!, $limit: Int, $offset: Int) {
+  erc20TransfersByAddress(
+    address: $address
+    isFrom: $isFrom
+    pagination: { limit: $limit, offset: $offset }
+  ) {
+    nodes {
+      contractAddress
+      from
+      to
+      value
+      transactionHash
+      logIndex
+      blockNumber
+      timestamp
+    }
+    pageInfo { hasNextPage }
+  }
+}

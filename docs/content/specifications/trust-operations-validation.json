@@ -1,0 +1,317 @@
+{
+  "status": "passed",
+  "scope": "finite_operating_workflow_and_projection_examples",
+  "casesPassed": 43,
+  "cases": [
+    {
+      "id": "approved_is_not_active",
+      "observed": [
+        "reviewed_not_active",
+        false
+      ],
+      "expected": [
+        "reviewed_not_active",
+        false
+      ]
+    },
+    {
+      "id": "commit_separate_service",
+      "observed": "committed_restricted",
+      "expected": "committed_restricted"
+    },
+    {
+      "id": "recovery_does_not_resume",
+      "observed": "recovered_restricted",
+      "expected": "recovered_restricted"
+    },
+    {
+      "id": "double_click_result_only",
+      "observed": [
+        "query_original",
+        1
+      ],
+      "expected": [
+        "query_original",
+        1
+      ]
+    },
+    {
+      "id": "review_authenticated",
+      "observed": [
+        "denied",
+        true
+      ],
+      "expected": [
+        "denied",
+        true
+      ]
+    },
+    {
+      "id": "review_current",
+      "observed": [
+        "denied",
+        true
+      ],
+      "expected": [
+        "denied",
+        true
+      ]
+    },
+    {
+      "id": "review_environment",
+      "observed": [
+        "denied",
+        true
+      ],
+      "expected": [
+        "denied",
+        true
+      ]
+    },
+    {
+      "id": "review_target",
+      "observed": [
+        "denied",
+        true
+      ],
+      "expected": [
+        "denied",
+        true
+      ]
+    },
+    {
+      "id": "requester_self_elevation",
+      "observed": "not_independent",
+      "expected": "not_independent"
+    },
+    {
+      "id": "alias_same_controller",
+      "observed": "not_independent",
+      "expected": "not_independent"
+    },
+    {
+      "id": "role_not_approval_store_owner",
+      "observed": "denied",
+      "expected": "denied"
+    },
+    {
+      "id": "role_not_approval_firmware_release",
+      "observed": "denied",
+      "expected": "denied"
+    },
+    {
+      "id": "role_not_approval_detail",
+      "observed": "denied",
+      "expected": "denied"
+    },
+    {
+      "id": "role_not_approval_custody",
+      "observed": "denied",
+      "expected": "denied"
+    },
+    {
+      "id": "edited_subject_old_approval",
+      "observed": "review_hold",
+      "expected": "review_hold"
+    },
+    {
+      "id": "stale_tab_old_digest",
+      "observed": "stale_review",
+      "expected": "stale_review"
+    },
+    {
+      "id": "concurrent_revision_change",
+      "observed": "stale_commit",
+      "expected": "stale_commit"
+    },
+    {
+      "id": "approval_revoked_after_review",
+      "observed": "review_hold",
+      "expected": "review_hold"
+    },
+    {
+      "id": "approval_expires_before_commit",
+      "observed": "review_hold",
+      "expected": "review_hold"
+    },
+    {
+      "id": "service_permission_revoked",
+      "observed": "denied",
+      "expected": "denied"
+    },
+    {
+      "id": "review_comment_not_cancel",
+      "observed": "response_recorded_not_cancelled",
+      "expected": "response_recorded_not_cancelled"
+    },
+    {
+      "id": "comment_preserves_approved_digest",
+      "observed": "digest-a",
+      "expected": "digest-a"
+    },
+    {
+      "id": "rejection_aggregation_unselected",
+      "observed": "rejection_policy_hold",
+      "expected": "rejection_policy_hold"
+    },
+    {
+      "id": "unknown_not_restart",
+      "observed": "query_original",
+      "expected": "query_original"
+    },
+    {
+      "id": "unknown_not_reapprove",
+      "observed": "query_original",
+      "expected": "query_original"
+    },
+    {
+      "id": "expired_mutation_evidence_read_still_scoped",
+      "observed": "committed",
+      "expected": "committed"
+    },
+    {
+      "id": "read_no_effect",
+      "observed": true,
+      "expected": true
+    },
+    {
+      "id": "detail_not_list",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "detail_not_export",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "detail_not_evidence",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "exact_request_not_list",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "exact_request_not_export",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "exact_request_not_evidence",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "exact_request_other_id",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "other_environment_projection",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "projection_allowlist",
+      "observed": [
+        "currentRestriction",
+        "originalOutcome",
+        "requestId",
+        "status"
+      ],
+      "expected": [
+        "currentRestriction",
+        "originalOutcome",
+        "requestId",
+        "status"
+      ]
+    },
+    {
+      "id": "session_revoked_projection",
+      "observed": {
+        "status": "denied"
+      },
+      "expected": {
+        "status": "denied"
+      }
+    },
+    {
+      "id": "policy_missing_blocks_new_review",
+      "observed": "policy_hold",
+      "expected": "policy_hold"
+    },
+    {
+      "id": "independent_restriction_still_allowed",
+      "observed": "restricted",
+      "expected": "restricted"
+    },
+    {
+      "id": "recovery_approval_not_resume",
+      "observed": "separate_approval_required",
+      "expected": "separate_approval_required"
+    },
+    {
+      "id": "consumer_not_ready",
+      "observed": "release_hold",
+      "expected": "release_hold"
+    },
+    {
+      "id": "incident_not_closed",
+      "observed": "release_hold",
+      "expected": "release_hold"
+    },
+    {
+      "id": "observer_cannot_resume",
+      "observed": "denied",
+      "expected": "denied"
+    }
+  ],
+  "runtimeVerified": false,
+  "canonicalMerged": false,
+  "assignedPeople": [],
+  "productImplementationPerformed": false,
+  "sourceHashes": {
+    "content/specifications/trust-operations-design.json": "5b0e299535a27de3726ab37f11d446596d8e3be9edfa00a6a00d6ae08a397aad"
+  },
+  "limitations": [
+    "Synthetic current authority, identity independence and signature validity; no IAM, cryptography or browser execution.",
+    "One eligible approval represents a prevalidated approval set, not a selected quorum.",
+    "Rejection/veto policy remains unselected; comment records do not implement a cancellation protocol.",
+    "Subset model does not prove bootstrap/recovery channel security, concurrent transactions, retention or actual resume execution."
+  ]
+}

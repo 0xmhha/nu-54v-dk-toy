@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "scope": "graph_and_design_only",
+  "findingsResolvedInDesign": 16,
+  "designRegressionChecks": 52,
+  "followupExamples": 16,
+  "round3Examples": 37,
+  "round4Examples": 63,
+  "round5Examples": 45,
+  "round6Examples": 41,
+  "existingValidatorsPassed": 20,
+  "nodes": 1495,
+  "edges": 6554,
+  "sourceHashChecks": 222,
+  "hashMismatches": 0,
+  "wbsCycles": 0,
+  "runtimeVerified": false,
+  "xTheoryApplied": false
+}

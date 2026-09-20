@@ -1,0 +1,466 @@
+{
+  "status": "bootstrap_and_pending_design_not_merged",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "policySelectionUnchanged": true,
+  "schemaFile": "lifecycle-bootstrap-contracts.schema.json",
+  "examplesFile": "lifecycle-bootstrap-contracts.examples.json",
+  "operations": [
+    {
+      "id": "EB01",
+      "method": "POST",
+      "path": "/v1/devices/{deviceId}/enrollment-invitations",
+      "authorization": "current scoped rental operator",
+      "requestSchema": "EB01Request",
+      "responseSchema": "EB01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "EB02",
+      "method": "POST",
+      "path": "/v1/enrollment-invitations/{invitationId}/recipient-challenges",
+      "authorization": "current recipient primary session + invitation secret; accountId derived from session",
+      "requestSchema": "EB02Request",
+      "responseSchema": "EB02Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "EB03",
+      "method": "POST",
+      "path": "/v1/enrollment-invitations/{invitationId}/consent-evidence",
+      "authorization": "same current recipient primary session and holder proof",
+      "requestSchema": "EB03Request",
+      "responseSchema": "EB03Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "EB04",
+      "method": "GET",
+      "path": "/v1/enrollment-invitations/{invitationId}",
+      "authorization": "creator operator in current scope or exact verified recipient; no secret/ticket disclosure",
+      "requestSchema": "EB04Request",
+      "responseSchema": "EB04Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "EB05",
+      "method": "POST",
+      "path": "/v1/enrollment-invitations/{invitationId}/revocation",
+      "authorization": "current creator operator or exact recipient",
+      "requestSchema": "EB05Request",
+      "responseSchema": "EB05Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "FG01",
+      "method": "POST",
+      "path": "/v1/ops/device-genesis-verifications",
+      "authorization": "dedicated provisioning verifier scope; not ordinary rental operator",
+      "requestSchema": "FG01Request",
+      "responseSchema": "FG01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "LW01",
+      "method": "GET",
+      "path": "/v1/lifecycle-work/{workId}",
+      "authorization": "same typed parent authorization; primary or exact relay authority plus sender proof",
+      "requestSchema": "LW01Request",
+      "responseSchema": "LW01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "WC01",
+      "method": "POST",
+      "path": "/v1/devices/{deviceId}/configuration-inventory-challenges",
+      "authorization": "current exact rental owner",
+      "requestSchema": "WC01Request",
+      "responseSchema": "WC01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "WC02",
+      "method": "POST",
+      "path": "/v1/devices/{deviceId}/configuration-inventories",
+      "authorization": "current exact rental owner",
+      "requestSchema": "WC02Request",
+      "responseSchema": "WC02Response",
+      "registration": "alias_not_catalogued"
+    }
+  ],
+  "bleCommands": [
+    {
+      "id": "EBB01",
+      "command": "enrollment.bootstrap.hello",
+      "requestSchema": "EBB01Request",
+      "responseSchema": "EBB01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "EBB02",
+      "command": "enrollment.bootstrap.approve",
+      "requestSchema": "EBB02Request",
+      "responseSchema": "EBB02Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "WCB01",
+      "command": "wallet.configuration.inspect",
+      "requestSchema": "WCB01Request",
+      "responseSchema": "WCB01Response",
+      "registration": "alias_not_catalogued"
+    }
+  ],
+  "guards": [
+    {
+      "id": "BC-G01",
+      "rule": "Invitation is not consent or enrollment authority. EB01 locks current device/inventory scope and records candidate digest, expiry, server issuer identity. Secret is high-entropy bearer rendezvous only, stored as verifier hash, never audit/outbox/raw URL logs. EB02 rate limits and authenticates recipient; accountId always from verified primary session."
+    },
+    {
+      "id": "BC-G02",
+      "rule": "EB02 challenge binds invitation/device/current epoch/gate/binding/candidate/inventory scope/recipient account/holder thumbprint/session/consent text+digest/expiry. Multiple pending challenges confer no winner; first fully verified EB03 claims invitation atomically, competing recipient rejected. No gate/admission reservation on mere invitation or challenge issuance."
+    },
+    {
+      "id": "BC-G03",
+      "rule": "Device server root and app device trust resolve authenticated registry/provisioning lineage, not key supplied by peer. EBB01 validates server-signed ticket and holder key thumbprint+proof, replies with fresh device/client nonces and authenticated ephemeral key. EBB02 same live session validates holder consent proof over exact ticket/hello/nonces/account/device/text; physical device confirmation binds same digest. Selected profile must define channel key agreement, transcript canonicalization and displayed confirmation; unsupported profile denies."
+    },
+    {
+      "id": "BC-G04",
+      "rule": "EB03 current exact recipient session + valid holder signature + device trusted identity, physical proof, current revisions and expiry required. Coherent context/digests/nonces across statement, ticket, hello, device approval mandatory; schema alone does not enforce this. Consent materialized only after full verification, one consumed challenge and one claimed invitation under shared gate."
+    },
+    {
+      "id": "BC-G05",
+      "rule": "API045 delta adds missing enrollmentProofRef. Server resolves both refs to same current consent/invitation/recipient/holder/session/device/candidate and proof registry; caller-supplied holder/session values only equality assertions. Atomically consume both refs and invitation with one admission/basis/rental reservation under same locks; different idempotency key cannot allocate again. Same business retry returns original reservation after current auth."
+    },
+    {
+      "id": "BC-G06",
+      "rule": "EB05 can revoke only before admission reservation. Revoke and API045 serialize on same invitation/device/authority gates. After consumed return conflict + original admission, never clear reservation. If revoked/stale before signature completion, no activation/delivery. GET requires exact relationship, returns no secret and no competing recipient details."
+    },
+    {
+      "id": "BC-G07",
+      "rule": "FG01 accepts only dedicated current provisioning verifier with fresh server-issued device challenge, trusted manufacturer/operator provisioning manifest, validated device identity, approved inventory and trusted non-rollback history watermark. Identifier references resolved server-side; no user-declared virgin flag. One genesis record per device, prior consumption/enrollment irrevocable. Incomplete provisioning trust/profile stays unverified/quarantined; concrete root enrollment and attestation profile still unselected."
+    },
+    {
+      "id": "BC-G08",
+      "rule": "Wallet disposition is read from trusted server configuration ledger and current device signed inventory. Unconfigured requires never configured in this binding, verified empty wallet/import staging, no unresolved wallet operation; NULL origin alone is not evidence. Any material/ever-configured/unknown forces configured lineage recovery or quarantine, never skips checks. Configuration/import/signing writers share current device/binding/configuration gate with inventory snapshot and reset commit."
+    },
+    {
+      "id": "BC-G09",
+      "rule": "Unconfigured return skips only nonexistent wallet backup/asset-drain checks. Still requires owner consent/physical approval, full data inventory/passkey/recording/session/receipt cleanup, selected erase profile and reset evidence, completion ACK and cleanup proof. Persist device identity and required journal/marker only by selected profile. RR-DEC-01 remains unresolved for new_travel wallets; no recovery policy inferred. No automatic export/delete of unrelated imported assets."
+    },
+    {
+      "id": "BC-G10",
+      "rule": "Pending response 202 is durable accepted work only, with typed parent/action/digest/business outcome and revision, not final device state. ready refers to one signer/verifier subtask; read actual parent outcome before UI success. Work target signed bytes never returned by generic LW01. resultRouteId is server enum from route mapping, never arbitrary URL; original route current ACL handles result."
+    },
+    {
+      "id": "BC-G11",
+      "rule": "LW01 authorization follows persisted exact parent kind/action, not a client-provided selector or workId possession; current relay authority + sender proof is allowed only for original relay actions, never reset execution/admission permits. GET consumes only auth anti-replay metadata if needed. Revoked/expired parent rights deny old cached outcomes; no API020 generic fallback. LW01 relay authorityId resolves immutable server-verified authority, signature/profile/state/expiry/current revision and registered holder public key; sender proof binds GET, exact path/workId, contract version, authorityId and freshness nonce. No authority-ID possession authentication; unknown/missing stored authority denies."
+    },
+    {
+      "id": "BC-G12",
+      "rule": "Each parent/action has a durable work lineage and same immutable payload. Child signer/verifier task IDs append under same outcome; retries do not recreate domain actions. Signer output-link and authority activation follow LST-T11; evidence pending/apply LST-T12 then exact apply unit. Current auth/revisions rechecked after slow work, orphan results quarantined, no auto sign/reset from polling."
+    },
+    {
+      "id": "BC-G13",
+      "rule": "Execution reservation makes grantBarrier reserved_irreversible before signing; RT01/GET ready cannot deliver after device prepare boot/session/freshness expired. Preserve barrier; blocked/support review, no auto cancel or new reset grant. Nonexecution challenge expiry before reservation can restart fresh challenge, never convert an existing admission into a new reservation."
+    },
+    {
+      "id": "BC-G15",
+      "rule": "WC01 binds current owner/rental/binding/epoch/configuration revision and expiry in signed challenge. WCB01 signs positive empty result only if protected inventory is complete and no key material, import staging or unresolved configuration operation; otherwise reports MATERIAL_PRESENT/STATE_UNKNOWN/unsupported. WC02 resolves current server history and verifies exact device challenge proof, records immutable inventory reference at configuration revision. API046 and reset commit recheck same revision under gate; never trust caller empty flag."
+    },
+    {
+      "id": "BC-G14",
+      "rule": "Ticket uses an enrollment bootstrap session identifier, not a current owner session. Device reboot/session loss invalidates pre-reservation handshake; after reservation use original admission recovery constraints. Session renewal/holder replacement after reservation requires separate explicit recovery design, not bearer permit replay."
+    },
+    {
+      "id": "BC-G16",
+      "rule": "After EB03 consent, EB04 may disclose minimal recipientAccountId/holder thumbprint/enrollment session and consent/proof references to the current invitation creator operator for exact API045 assertions. No pending/competing recipient identity is exposed; before consent recipientBinding is null. This disclosure is included in consent text; identity is not authentication. Signed tickets/proofs and invitation secret remain excluded from GET."
+    }
+  ],
+  "pendingRouteOverlays": [
+    {
+      "routeId": "API-046",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RT-01",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RT-03",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RT-05",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "API-047",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RT-06",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "API-045",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RL-02",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RL-03",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RC-01",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RC-02",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "RC-03",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "EB02",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "EB03",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "FG01",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "WC01",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    },
+    {
+      "routeId": "WC02",
+      "status": "proposed_response_overlay_not_adopted",
+      "pendingSchema": "PendingResponse",
+      "resultRule": "Poll same typed work; ready refetch original parent route under original current ACL; no automatic replay mutation"
+    }
+  ],
+  "deltas": [
+    {
+      "id": "BC-D01",
+      "source": "rental-admission-cancel.schema.json#API045Request",
+      "change": "enrollmentProofRef required in addition to assertions"
+    },
+    {
+      "id": "BC-D02",
+      "source": "return-route-contracts.schema.json#API046Request",
+      "change": "replace walletOrigin/externalAccessProof with discriminated WalletDisposition"
+    },
+    {
+      "id": "BC-D03",
+      "source": "return-route-contracts.schema.json#RT01Response and 16 related routes",
+      "change": "allow versioned 202 PendingResponse and protected work lookup; original ready response semantics remain"
+    },
+    {
+      "id": "BC-D04",
+      "source": "lifecycle-storage-design.json",
+      "change": "invitation/consent/proof/work registries are additional logical resource proposals; not physical tables yet"
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "BC-T01",
+      "trigger": "operator forges recipient id",
+      "expected": "EB02 ignores/rejects field, account from auth",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T02",
+      "trigger": "invitation secret leaked",
+      "expected": "no consent without current recipient + holder + device physical proof",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T03",
+      "trigger": "two recipients submit",
+      "expected": "single consent claim",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T04",
+      "trigger": "changed candidate after consent",
+      "expected": "API045 revision conflict, no reservation",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T05",
+      "trigger": "consent revoked races API045",
+      "expected": "one wins, consumed never released",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T06",
+      "trigger": "wrong holder public key",
+      "expected": "thumbprint/signature mismatch",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T07",
+      "trigger": "device identity self signed",
+      "expected": "deny absent trusted registry lineage",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T08",
+      "trigger": "replayed device approval",
+      "expected": "challenge/session/context exact and consumed",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T09",
+      "trigger": "API045 only caller session fields",
+      "expected": "missing proof reference rejected",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T10",
+      "trigger": "factory history restored old",
+      "expected": "quarantine without trusted latest watermark",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T11",
+      "trigger": "origin NULL but staged import exists",
+      "expected": "not unconfigured",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T12",
+      "trigger": "key deleted after previously configured",
+      "expected": "not unconfigured",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T13",
+      "trigger": "configuration races reset",
+      "expected": "shared gate/current revision rejects stale empty inventory",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T14",
+      "trigger": "empty wallet but recording/passkey present",
+      "expected": "full personal cleanup still required",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T15",
+      "trigger": "signer pending prepare expires",
+      "expected": "barrier stays, no stale grant delivery",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T16",
+      "trigger": "LW01 workId enumeration",
+      "expected": "current parent ACL denies",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T17",
+      "trigger": "relay polls execution permit work",
+      "expected": "scope denied",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T18",
+      "trigger": "ready verification pending ACK",
+      "expected": "parent incomplete, UI waits",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T19",
+      "trigger": "same retry new transport proof",
+      "expected": "one work/outcome, no repeated effect",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T20",
+      "trigger": "unsupported profile",
+      "expected": "no bootstrap or reset",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T21",
+      "trigger": "device reboot before consent",
+      "expected": "new pre-reservation handshake",
+      "status": "not_run"
+    },
+    {
+      "id": "BC-T22",
+      "trigger": "device reboot after admission",
+      "expected": "hold original reservation, no new recipient",
+      "status": "not_run"
+    }
+  ],
+  "sourceHashes": {
+    "lifecycle-storage-design.json": "2aa2b24d0b60db047a3c629f254b27debee5f15769416e50ae35024b11f35f10",
+    "rental-admission-cancel.json": "37e158924b96da20b2f8f36d4e5b32387cf2f82b72852795fbfdc834b7e5f80b",
+    "rental-admission-cancel.schema.json": "d83c59ac4e7a4df41b0656c0e0e20876d37ac364b345f5094cbcafb3d3f0b071",
+    "return-route-contracts.json": "b61e96958d2e3aac4c29b4bc479a13251943f62476c954f1bb5819e01e81a044",
+    "return-route-contracts.schema.json": "a6b0cc7652624e1ea9372d122de8db1bc5bdce0cab33d5d2896d097af9e74e68",
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "approval-baseline.json": "436bd5ab8c8a2d5b95a10ee31f66921998aac8718825edcbded3e1c4b3aa53b8"
+  },
+  "logicalResources": [
+    "EnrollmentInvitation",
+    "RecipientConsent",
+    "EnrollmentProof",
+    "DeviceConfigurationInventory",
+    "LifecycleWork"
+  ],
+  "remainingDesign": [
+    "selected profile/root provisioning, transcript encoding and physical confirmation UX",
+    "post-reservation holder/session renewal and consent withdrawal handling",
+    "logical registry physical mapping and canonical version/ACL adoption",
+    "board protected-state capabilities verified only in development"
+  ],
+  "nextDesign": "등록 세션 복구·동의 철회와 새 논리 자원의 저장/권한/버전 통합 수용표"
+}

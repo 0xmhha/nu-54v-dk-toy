@@ -1,0 +1,8 @@
+.DS_Store
+.ouroboros/
+.playwright-mcp/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example

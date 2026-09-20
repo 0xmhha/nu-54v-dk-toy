@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "status": "not_run",
+  "taskId": null,
+  "stepIds": [],
+  "partialDeliverableId": null,
+  "stage": null,
+  "runAt": null,
+  "sourceRevision": null,
+  "builds": {},
+  "environment": {},
+  "commandOrProcedure": null,
+  "usesMocks": null,
+  "acceptanceResults": [],
+  "artifacts": [],
+  "failureRecoveryResults": [],
+  "compatibilityRefs": [],
+  "technologyValidationRefs": [],
+  "redactionNotes": null,
+  "reviewResult": null
+}

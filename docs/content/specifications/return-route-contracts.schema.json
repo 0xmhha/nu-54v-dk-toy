@@ -1,0 +1,3369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:return:routes-draft",
+  "$defs": {
+    "R_Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "R_Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "R_Epoch": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "R_Digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "R_Proof": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "keyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "signedDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "proofBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "profileId",
+        "keyId",
+        "signedDigest",
+        "proofBytes"
+      ],
+      "additionalProperties": false
+    },
+    "R_Binding": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "previousBindingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "previousEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "checklistRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fenceRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "jobId",
+        "deviceId",
+        "rentalId",
+        "previousBindingId",
+        "previousEpoch",
+        "checklistRevision",
+        "fenceRevision"
+      ],
+      "additionalProperties": false
+    },
+    "R_Preparation": {
+      "type": "object",
+      "properties": {
+        "prepareId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "bootNonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "eraseProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceElapsedLimitMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "preparationDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "prepareId",
+        "bootNonce",
+        "sessionId",
+        "challengeDigest",
+        "eraseProfileId",
+        "deviceElapsedLimitMs",
+        "preparationDigest"
+      ],
+      "additionalProperties": false
+    },
+    "R_PrepareReportPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_prepare_report"
+        },
+        "audience": {
+          "const": "reset_coordinator"
+        },
+        "binding": {
+          "$ref": "#/$defs/R_Binding"
+        },
+        "preparation": {
+          "$ref": "#/$defs/R_Preparation"
+        },
+        "ownerApprovalDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "journalAccepted": {
+          "const": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "binding",
+        "preparation",
+        "ownerApprovalDigest",
+        "journalAccepted"
+      ],
+      "additionalProperties": false
+    },
+    "R_PrepareReport": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_PrepareReportPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_CommitRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "request_reset_execution"
+        },
+        "audience": {
+          "const": "reset_coordinator"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/R_Binding"
+        },
+        "clearanceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "prepareReport": {
+          "$ref": "#/$defs/R_PrepareReport"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "requestId",
+        "idempotencyKey",
+        "binding",
+        "clearanceId",
+        "prepareReport"
+      ],
+      "additionalProperties": false
+    },
+    "R_ExecutionGrantPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_execute"
+        },
+        "audienceDeviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/R_Binding"
+        },
+        "commitId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "clearanceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "preparation": {
+          "$ref": "#/$defs/R_Preparation"
+        },
+        "ownerApprovalDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "serverRecordedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audienceDeviceId",
+        "binding",
+        "commitId",
+        "clearanceId",
+        "preparation",
+        "ownerApprovalDigest",
+        "serverRecordedAt"
+      ],
+      "additionalProperties": false
+    },
+    "R_ExecutionGrant": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_ExecutionGrantPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_CommitResult": {
+      "type": "object",
+      "properties": {
+        "issuanceOutcome": {
+          "type": "string",
+          "enum": [
+            "issued",
+            "existing"
+          ]
+        },
+        "grant": {
+          "$ref": "#/$defs/R_ExecutionGrant"
+        },
+        "grantDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "deliveryAdvice": {
+          "type": "string",
+          "enum": [
+            "same_live_preparation_only",
+            "do_not_deliver",
+            "already_journaled"
+          ]
+        }
+      },
+      "required": [
+        "issuanceOutcome",
+        "grant",
+        "grantDigest",
+        "deliveryAdvice"
+      ],
+      "additionalProperties": false
+    },
+    "R_AuthorityPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_recovery_relay"
+        },
+        "audience": {
+          "const": "reset_recovery_gateway"
+        },
+        "authorityId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "holderKeyThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "allowedActions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "relay_evidence",
+              "relay_completion_ack",
+              "request_cleanup_proof",
+              "submit_cleanup_proof",
+              "read_job_progress"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authorizationRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "authorityId",
+        "jobId",
+        "deviceId",
+        "epoch",
+        "holderKeyThumbprint",
+        "allowedActions",
+        "expiresAt",
+        "authorizationRevision"
+      ],
+      "additionalProperties": false
+    },
+    "R_RelayAuthority": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_AuthorityPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_ProtectedEvidence": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "recipientKeyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "contextDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "ciphertext": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 131072
+        }
+      },
+      "required": [
+        "profileId",
+        "recipientKeyId",
+        "contextDigest",
+        "ciphertext"
+      ],
+      "additionalProperties": false
+    },
+    "R_EvidenceSubmit": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "submit_existing_reset_evidence"
+        },
+        "audience": {
+          "const": "reset_recovery_gateway"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "authority": {
+          "$ref": "#/$defs/R_RelayAuthority"
+        },
+        "requestChallenge": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "holderProof": {
+          "$ref": "#/$defs/R_Proof"
+        },
+        "protectedEvidence": {
+          "$ref": "#/$defs/R_ProtectedEvidence"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "requestId",
+        "idempotencyKey",
+        "jobId",
+        "authority",
+        "requestChallenge",
+        "holderProof",
+        "protectedEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "R_ResetEvidencePayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_execution_report"
+        },
+        "audience": {
+          "const": "reset_evidence_verifier"
+        },
+        "binding": {
+          "$ref": "#/$defs/R_Binding"
+        },
+        "commitId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "grantDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "preparationDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "deviceIdentityKeyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "firmwareMeasurementRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "eraseProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "journalDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "eraseResult": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "incomplete",
+            "unknown"
+          ]
+        },
+        "bootState": {
+          "type": "string",
+          "enum": [
+            "unprovisioned",
+            "recovery_required"
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "binding",
+        "commitId",
+        "grantDigest",
+        "preparationDigest",
+        "nextEpoch",
+        "deviceIdentityKeyId",
+        "firmwareMeasurementRef",
+        "eraseProfileId",
+        "journalDigest",
+        "eraseResult",
+        "bootState"
+      ],
+      "additionalProperties": false
+    },
+    "R_ResetEvidence": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_ResetEvidencePayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_EvidenceResult": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "already_accepted",
+            "verification_pending",
+            "quarantined"
+          ]
+        },
+        "serverReturnCompleted": {
+          "type": "boolean"
+        },
+        "reuseGate": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        },
+        "completionAck": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/R_CompletionAck"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "jobId",
+        "status",
+        "serverReturnCompleted",
+        "reuseGate",
+        "completionAck"
+      ],
+      "additionalProperties": false
+    },
+    "R_CompletionAckPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "acknowledge_reset_completion"
+        },
+        "audienceDeviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "commitId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "evidenceDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "completionHandle": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "cleanupProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "serverCompletionRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audienceDeviceId",
+        "jobId",
+        "commitId",
+        "evidenceDigest",
+        "nextEpoch",
+        "completionHandle",
+        "cleanupProfileId",
+        "serverCompletionRevision"
+      ],
+      "additionalProperties": false
+    },
+    "R_CompletionAck": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_CompletionAckPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_CleanupChallenge": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "request_cleanup_proof"
+        },
+        "audienceDeviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "completionHandle": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "ackDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audienceDeviceId",
+        "jobId",
+        "completionHandle",
+        "nextEpoch",
+        "ackDigest",
+        "challengeId",
+        "challengeDigest",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "R_SignedCleanupChallenge": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_CleanupChallenge"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_CleanupProofPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "report_cleanup_result"
+        },
+        "audience": {
+          "const": "reset_cleanup_verifier"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "completionHandle": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "ackDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "cleanupProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "cleanupResult": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "incomplete",
+            "marker_missing"
+          ]
+        },
+        "markerDigest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "deviceId",
+        "completionHandle",
+        "nextEpoch",
+        "ackDigest",
+        "cleanupProfileId",
+        "challengeId",
+        "challengeDigest",
+        "cleanupResult",
+        "markerDigest"
+      ],
+      "additionalProperties": false
+    },
+    "R_CleanupProof": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/R_CleanupProofPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "R_CleanupSubmit": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "submit_cleanup_proof"
+        },
+        "audience": {
+          "const": "reset_recovery_gateway"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "authority": {
+          "$ref": "#/$defs/R_RelayAuthority"
+        },
+        "holderProof": {
+          "$ref": "#/$defs/R_Proof"
+        },
+        "protectedCleanupProof": {
+          "$ref": "#/$defs/R_ProtectedEvidence"
+        },
+        "requestChallenge": {
+          "$ref": "#/$defs/R_Id"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "requestId",
+        "idempotencyKey",
+        "jobId",
+        "authority",
+        "holderProof",
+        "protectedCleanupProof",
+        "requestChallenge"
+      ],
+      "additionalProperties": false
+    },
+    "R_ReuseGateResult": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "serverReturnCompleted": {
+          "type": "boolean"
+        },
+        "cleanupVerified": {
+          "type": "boolean"
+        },
+        "currentDeviceEpochMatches": {
+          "type": "boolean"
+        },
+        "deviceEnrollmentState": {
+          "type": "string",
+          "enum": [
+            "awaiting_cleanup",
+            "unprovisioned_ready",
+            "assigned",
+            "quarantined"
+          ]
+        },
+        "reuseGate": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        },
+        "gateRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "jobId",
+        "deviceId",
+        "nextEpoch",
+        "serverReturnCompleted",
+        "cleanupVerified",
+        "currentDeviceEpochMatches",
+        "deviceEnrollmentState",
+        "reuseGate",
+        "gateRevision"
+      ],
+      "additionalProperties": false
+    },
+    "R_JobProgress": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "checking",
+            "prepared",
+            "commit_issued",
+            "device_started",
+            "evidence_pending",
+            "completed",
+            "aborted",
+            "quarantined"
+          ]
+        },
+        "grantIssued": {
+          "type": "boolean"
+        },
+        "jobRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reuseGate": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "recovery_policy_unresolved",
+              "checks_pending",
+              "prepare_stale",
+              "execution_unknown",
+              "proof_invalid",
+              "cleanup_pending",
+              "marker_missing",
+              "epoch_mismatch"
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "jobId",
+        "phase",
+        "grantIssued",
+        "jobRevision",
+        "reuseGate",
+        "reasonCodes"
+      ],
+      "additionalProperties": false
+    },
+    "R_OwnerJobStatus": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "owner"
+        },
+        "progress": {
+          "$ref": "#/$defs/R_JobProgress"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "checklistRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lateAssetRecovery": {
+          "type": "string",
+          "enum": [
+            "unresolved",
+            "verified_external_access",
+            "verified_recovery_profile",
+            "not_verified"
+          ]
+        }
+      },
+      "required": [
+        "projection",
+        "progress",
+        "rentalId",
+        "checklistRevision",
+        "lateAssetRecovery"
+      ],
+      "additionalProperties": false
+    },
+    "R_OperatorJobStatus": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "operator_safe"
+        },
+        "progress": {
+          "$ref": "#/$defs/R_JobProgress"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "projection",
+        "progress",
+        "deviceId"
+      ],
+      "additionalProperties": false
+    },
+    "R_JobStatus": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/R_OwnerJobStatus"
+        },
+        {
+          "$ref": "#/$defs/R_OperatorJobStatus"
+        }
+      ]
+    },
+    "R_ProtocolError": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "REVISION_CONFLICT",
+            "RECOVERY_POLICY_UNRESOLVED",
+            "PREPARE_EXPIRED",
+            "GRANT_ALREADY_ISSUED",
+            "JOB_SCOPE_MISMATCH",
+            "AUTHORITY_SCOPE_DENIED",
+            "PROOF_PROFILE_UNSUPPORTED",
+            "PROOF_INVALID",
+            "EPOCH_MISMATCH",
+            "MARKER_MISSING",
+            "VERIFICATION_PENDING"
+          ]
+        },
+        "retryAction": {
+          "type": "string",
+          "enum": [
+            "refresh_job",
+            "reauthenticate_relay",
+            "repeat_same_request",
+            "await_verification",
+            "quarantine_review",
+            "none"
+          ]
+        },
+        "safeJobRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "requestId",
+        "code",
+        "retryAction",
+        "safeJobRef"
+      ],
+      "additionalProperties": false
+    },
+    "SignedPreparationContext": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "purpose": {
+              "const": "prepare_reset_only"
+            },
+            "binding": {
+              "$ref": "#/$defs/R_Binding"
+            },
+            "clearanceId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "eraseProfileId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "challengeId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "challengeDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "purpose",
+            "binding",
+            "clearanceId",
+            "eraseProfileId",
+            "challengeId",
+            "challengeDigest",
+            "expiresAt"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "HolderKey": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "encodedPublicKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "thumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "profileId",
+        "encodedPublicKey",
+        "thumbprint"
+      ],
+      "additionalProperties": false
+    },
+    "SessionProof": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "nonce": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requestDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "proof": {
+          "$ref": "#/$defs/R_Proof"
+        }
+      },
+      "required": [
+        "profileId",
+        "nonce",
+        "issuedAt",
+        "requestDigest",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "RelayCredential": {
+      "type": "object",
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/R_RelayAuthority"
+        },
+        "senderProof": {
+          "$ref": "#/$defs/SessionProof"
+        }
+      },
+      "required": [
+        "authority",
+        "senderProof"
+      ],
+      "additionalProperties": false
+    },
+    "Readiness": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "deviceId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "jobRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "gateRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bindingRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "serverReturnCompleted": {
+          "type": "boolean"
+        },
+        "cleanupVerified": {
+          "type": "boolean"
+        },
+        "currentDeviceEpochMatches": {
+          "type": "boolean"
+        },
+        "hasActiveBinding": {
+          "type": "boolean"
+        },
+        "enrollmentState": {
+          "enum": [
+            "awaiting_cleanup",
+            "unprovisioned_ready",
+            "assigned",
+            "quarantined"
+          ]
+        },
+        "reuseGate": {
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        }
+      },
+      "required": [
+        "jobId",
+        "deviceId",
+        "nextEpoch",
+        "jobRevision",
+        "gateRevision",
+        "bindingRevision",
+        "serverReturnCompleted",
+        "cleanupVerified",
+        "currentDeviceEpochMatches",
+        "hasActiveBinding",
+        "enrollmentState",
+        "reuseGate"
+      ],
+      "additionalProperties": false
+    },
+    "ReturnView": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "enum": [
+            "owner",
+            "operator_safe",
+            "relay_progress"
+          ]
+        },
+        "rentalId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/R_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "progress": {
+          "$ref": "#/$defs/R_JobProgress"
+        },
+        "consistency": {
+          "type": "object",
+          "properties": {
+            "viewId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "sourceRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "observedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "currentness": {
+              "enum": [
+                "current",
+                "historical",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "viewId",
+            "sourceRevision",
+            "observedAt",
+            "currentness"
+          ],
+          "additionalProperties": false
+        },
+        "readiness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Readiness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ownerChecks": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "checklistRevision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "recoveryDisposition": {
+                  "enum": [
+                    "unresolved",
+                    "verified_external_access",
+                    "verified_recovery_profile",
+                    "not_verified"
+                  ]
+                },
+                "checkReasonCodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "checklistRevision",
+                "recoveryDisposition",
+                "checkReasonCodes"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "projection",
+        "rentalId",
+        "progress",
+        "consistency",
+        "readiness",
+        "ownerChecks"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "projection": {
+                "enum": [
+                  "operator_safe",
+                  "relay_progress"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ownerChecks": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "projection": {
+                "const": "relay_progress"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rentalId": {
+                "type": "null"
+              },
+              "readiness": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "consistency": {
+                "properties": {
+                  "currentness": {
+                    "enum": [
+                      "historical",
+                      "unknown"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "readiness": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "API046Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "rentalId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "rentalId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "walletOrigin": {
+              "enum": [
+                "new_travel",
+                "imported"
+              ]
+            },
+            "externalAccessProof": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProofReference"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "expectedRentalRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "walletOrigin",
+            "externalAccessProof",
+            "expectedRentalRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API046Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "view": {
+                  "$ref": "#/$defs/ReturnView"
+                },
+                "preparationContext": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SignedPreparationContext"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "view",
+                "preparationContext"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API047Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "rentalId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "rentalId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "credential": {
+          "$ref": "#/$defs/RelayCredential"
+        },
+        "body": {
+          "$ref": "#/$defs/R_EvidenceSubmit"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "credential",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API047Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/$defs/R_EvidenceResult"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API091Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "rentalId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "rentalId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "projection": {
+              "const": "return"
+            }
+          },
+          "required": [
+            "projection"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API091Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "view": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ReturnView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "view"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/R_CommitRequest"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/R_CommitResult"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT02Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "holderKey": {
+              "$ref": "#/$defs/HolderKey"
+            },
+            "requestedPurpose": {
+              "enum": [
+                "evidence_relay",
+                "completion_cleanup",
+                "read_progress"
+              ]
+            }
+          },
+          "required": [
+            "holderKey",
+            "requestedPurpose"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AuthorityChallenge": {
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "jobId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "holderKeyThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "challengeId",
+        "jobId",
+        "holderKeyThumbprint",
+        "challengeDigest",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "RT02Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/AuthorityChallenge"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT03Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "challengeId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "holderProof": {
+              "$ref": "#/$defs/R_Proof"
+            }
+          },
+          "required": [
+            "challengeId",
+            "holderProof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT03Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "authority": {
+                  "$ref": "#/$defs/R_RelayAuthority"
+                }
+              },
+              "required": [
+                "authority"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT04Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "credential": {
+          "$ref": "#/$defs/RelayCredential"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "enum": [
+                "submit_existing_reset_evidence",
+                "request_cleanup_challenge",
+                "submit_cleanup_proof"
+              ]
+            },
+            "businessPayloadDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "businessIdempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "action",
+            "businessPayloadDigest",
+            "businessIdempotencyKey"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "credential",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RequestChallenge": {
+      "type": "object",
+      "properties": {
+        "requestChallenge": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "jobId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "authorityId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "action": {
+          "enum": [
+            "submit_existing_reset_evidence",
+            "request_cleanup_challenge",
+            "submit_cleanup_proof"
+          ]
+        },
+        "businessPayloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "businessIdempotencyKey": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "requestChallenge",
+        "jobId",
+        "authorityId",
+        "action",
+        "businessPayloadDigest",
+        "businessIdempotencyKey",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "RT04Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/RequestChallenge"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT05Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "credential": {
+          "$ref": "#/$defs/RelayCredential"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "completionHandle": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "ackDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "requestChallenge": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "completionHandle",
+            "ackDigest",
+            "requestChallenge"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "credential",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT05Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/R_SignedCleanupChallenge"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT06Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "credential": {
+          "$ref": "#/$defs/RelayCredential"
+        },
+        "body": {
+          "$ref": "#/$defs/R_CleanupSubmit"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "credential",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT06Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/$defs/R_ReuseGateResult"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RT07Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "credential": {
+          "$ref": "#/$defs/RelayCredential"
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "credential",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "RT07Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "view": {
+                  "$ref": "#/$defs/ReturnView"
+                },
+                "completionAck": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/R_CompletionAck"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "view",
+                "completionAck"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "return-http-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "error": {
+              "$ref": "#/$defs/R_ProtocolError"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RB01Request": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "device.reset.prepare"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/SignedPreparationContext"
+            }
+          },
+          "required": [
+            "context"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RB01Response": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "device.reset.prepare"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "result": {
+          "$ref": "#/$defs/R_PrepareReport"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "RB02Request": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "device.reset.confirm"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "grant": {
+              "$ref": "#/$defs/R_ExecutionGrant"
+            }
+          },
+          "required": [
+            "grant"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RB02Response": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "device.reset.confirm"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "state": {
+              "enum": [
+                "journaled",
+                "evidence_pending"
+              ]
+            },
+            "protectedEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/R_ProtectedEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "jobId",
+            "state",
+            "protectedEvidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "RB03Request": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.recovery.open"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "authority": {
+              "$ref": "#/$defs/R_RelayAuthority"
+            },
+            "holderProof": {
+              "$ref": "#/$defs/R_Proof"
+            },
+            "deviceChallenge": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "holderKey": {
+              "$ref": "#/$defs/HolderKey"
+            }
+          },
+          "required": [
+            "authority",
+            "holderProof",
+            "deviceChallenge",
+            "holderKey"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RB03Response": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.recovery.open"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "deviceProof": {
+              "$ref": "#/$defs/R_Proof"
+            }
+          },
+          "required": [
+            "sessionId",
+            "jobId",
+            "epoch",
+            "deviceProof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "RB04Request": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.evidence.read"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RB04Response": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.evidence.read"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "protectedEvidence": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/R_ProtectedEvidence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "state": {
+              "enum": [
+                "available",
+                "pending",
+                "unavailable"
+              ]
+            }
+          },
+          "required": [
+            "jobId",
+            "protectedEvidence",
+            "state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "RB05Request": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.completion.ack"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "ack": {
+              "$ref": "#/$defs/R_CompletionAck"
+            }
+          },
+          "required": [
+            "ack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RB05Response": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.completion.ack"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "state": {
+              "enum": [
+                "ack_applied",
+                "already_applied",
+                "cleanup_pending"
+              ]
+            }
+          },
+          "required": [
+            "jobId",
+            "state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "RB06Request": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.cleanup.prove"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "challenge": {
+              "$ref": "#/$defs/R_SignedCleanupChallenge"
+            }
+          },
+          "required": [
+            "challenge"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RB06Response": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.cleanup.prove"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "$ref": "#/$defs/R_Id"
+            },
+            "protectedCleanupProof": {
+              "$ref": "#/$defs/R_ProtectedEvidence"
+            }
+          },
+          "required": [
+            "jobId",
+            "protectedCleanupProof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "RBError": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-ble-v1-draft"
+        },
+        "requestId": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "error": {
+          "$ref": "#/$defs/R_ProtocolError"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "requestId",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "ProofReference": {
+      "type": "object",
+      "properties": {
+        "proofId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "proofId",
+        "profileId"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

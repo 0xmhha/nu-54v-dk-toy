@@ -1,0 +1,584 @@
+{
+  "version": "0.1.0-draft",
+  "scope": "proposed endpoint authorization and business guard expectations; not executed security tests",
+  "scenarios": [
+    {
+      "id": "AZ-01",
+      "apiId": "API-027",
+      "policyId": "store_menu_manage",
+      "given": [
+        "동일 매장의 활성 menu_editor; 정상 menu 입력"
+      ],
+      "action": "메뉴 수정",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "해당 매장 메뉴만 변경"
+      ],
+      "forbiddenEffects": [
+        "타 매장 메뉴 변경"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-02",
+      "apiId": "API-027",
+      "policyId": "store_menu_manage",
+      "given": [
+        "매장 A menu_editor; 대상 메뉴는 매장 B"
+      ],
+      "action": "메뉴 수정",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "타 매장 메뉴 변경"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-03",
+      "apiId": "API-028",
+      "policyId": "store_funds_manage_recent_auth",
+      "given": [
+        "동일 매장 menu_editor; 최근 인증 완료"
+      ],
+      "action": "수취 주소 변경",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "최근 인증만으로 자금 권한 획득"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-04",
+      "apiId": "API-037",
+      "policyId": "store_funds_manage_recent_auth",
+      "given": [
+        "refund→order→매장 A; A owner; 최근 인증과 환불 조건 충족"
+      ],
+      "action": "환불 업무 승인",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "서명 검토 intent 생성"
+      ],
+      "forbiddenEffects": [
+        "자동 자금 서명 또는 전송"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-05",
+      "apiId": "API-037",
+      "policyId": "store_funds_manage_recent_auth",
+      "given": [
+        "refund는 A 소속; 호출자는 B owner"
+      ],
+      "action": "환불 업무 승인",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "다른 매장 owner 권한 전용"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-06",
+      "apiId": "API-037",
+      "policyId": "store_funds_manage_recent_auth",
+      "given": [
+        "환불 매장의 manager; 자금 승인 권한 없음"
+      ],
+      "action": "환불 업무 승인",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "manager를 signer로 간주"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-07",
+      "apiId": "API-034",
+      "policyId": "attempt_device_capability",
+      "given": [
+        "폰 로그인 없음; 현재 기기·단말·attempt 증명과 기한 및 입력 유효"
+      ],
+      "action": "결제 intent 생성",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "정확한 attempt의 검토 intent"
+      ],
+      "forbiddenEffects": [
+        "다른 attempt의 자금 승인"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-08",
+      "apiId": "API-034",
+      "policyId": "attempt_device_capability",
+      "given": [
+        "capability는 attempt A; 요청은 attempt B"
+      ],
+      "action": "결제 intent 생성",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "capability 대상 변경"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-09",
+      "apiId": "API-034",
+      "policyId": "attempt_device_capability",
+      "given": [
+        "기한 만료 또는 binding 철회된 capability"
+      ],
+      "action": "결제 intent 생성",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "새 쓰기 권한 부여"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-10",
+      "apiId": "API-018",
+      "policyId": "intent_submit_capability",
+      "given": [
+        "정확한 intent·source·digest의 유효 submit capability 및 signed payload"
+      ],
+      "action": "서명 제출",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "멱등 제출 작업 생성"
+      ],
+      "forbiddenEffects": [
+        "receipt 없이 결제 accepted 기록"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-11",
+      "apiId": "API-087",
+      "policyId": "ops_reconcile",
+      "given": [
+        "대상 업무 범위의 ops_reconcile 주체; 정상 재조회 요청"
+      ],
+      "action": "결제 재조회",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "operations 작업만 등록"
+      ],
+      "forbiddenEffects": [
+        "결제 상태 직접 accepted 변경"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-12",
+      "apiId": "API-087",
+      "policyId": "ops_reconcile",
+      "given": [
+        "ops_reconcile 주체가 입력에 임의 accepted 상태를 추가"
+      ],
+      "action": "결제 성공 강제 입력",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "입력 거부"
+      ],
+      "forbiddenEffects": [
+        "worker 원천 검증 우회"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-13",
+      "apiId": "API-047",
+      "policyId": "rental_owner_and_clearance",
+      "given": [
+        "운영자 로그인만 있고 owner 증명 없음"
+      ],
+      "action": "반납 완료",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "운영자 체크로 고객 기기 초기화 완료 간주"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-14",
+      "apiId": "API-047",
+      "policyId": "rental_owner_and_clearance",
+      "given": [
+        "대여 owner이나 reset clearance 증명 없음"
+      ],
+      "action": "반납 완료",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "증거 없이 binding 해제/반납 완료"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-15",
+      "apiId": "API-047",
+      "policyId": "rental_owner_and_clearance",
+      "given": [
+        "대여 A owner가 대여 B의 clearance 제출"
+      ],
+      "action": "반납 완료",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "타 대여 증명 재사용"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-16",
+      "apiId": "API-052",
+      "policyId": "recording_owner_with_consent",
+      "given": [
+        "녹음 owner; 처리 목적과 동의 revision 유효"
+      ],
+      "action": "전사/AI 요청",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "동의 revision에 결합한 job"
+      ],
+      "forbiddenEffects": [
+        "다른 사용자 원음 공개"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-17",
+      "apiId": "API-052",
+      "policyId": "recording_owner_with_consent",
+      "given": [
+        "매장 owner이지만 녹음은 고객 소유"
+      ],
+      "action": "고객 녹음 처리",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "매장 권한으로 고객 원음 열람"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-18",
+      "apiId": "API-052",
+      "policyId": "recording_owner_with_consent",
+      "given": [
+        "녹음 owner; 처리 동의가 철회됨"
+      ],
+      "action": "전사/AI 요청",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "철회 후 새 처리 실행"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-19",
+      "apiId": "API-009",
+      "policyId": "wallet_read",
+      "given": [
+        "wallet-store binding 존재; 호출자의 해당 매장 membership 없음"
+      ],
+      "action": "매장 지갑 잔액 조회",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "민감 응답 없음"
+      ],
+      "forbiddenEffects": [
+        "지갑-매장 연결을 호출자 소속으로 간주"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-20",
+      "apiId": "API-009",
+      "policyId": "wallet_read",
+      "given": [
+        "해당 매장의 활성 sales_viewer와 wallet binding"
+      ],
+      "action": "매장 지갑 잔액 조회",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "허용 자산 projection만 반환"
+      ],
+      "forbiddenEffects": [
+        "키/복구 자료 반환"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-21",
+      "apiId": "API-042",
+      "policyId": "account",
+      "given": [
+        "로그인 사용자가 타인의 지급 주소만 알고 있으며 영수증 소유 증명 없음"
+      ],
+      "action": "내 영수증 조회",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "검증된 본인 영수증만 반환"
+      ],
+      "forbiddenEffects": [
+        "주소만으로 타인 주문 자동 연결"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-22",
+      "apiId": "API-083",
+      "policyId": "participant",
+      "given": [
+        "본인 participation이지만 타인 소유 비공개 payment/travel evidence 제출"
+      ],
+      "action": "챌린지 증거 등록",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "타인 구매를 본인 발도장으로 간주"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-23",
+      "apiId": "API-027",
+      "policyId": "store_menu_manage",
+      "given": [
+        "조회 때는 membership 유효; commit 직전 철회됨"
+      ],
+      "action": "메뉴 수정",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "오래된 membership snapshot으로 쓰기"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-24",
+      "apiId": "API-069",
+      "policyId": "credential_issuer",
+      "given": [
+        "등록 issuer A가 issuer B credential 취소 요청"
+      ],
+      "action": "자격 취소",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "다른 issuer의 자격 취소"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-25",
+      "apiId": "API-068",
+      "policyId": "credential_verifier",
+      "given": [
+        "허용 verifier; 대상 presentation·목적·profile 증명 유효"
+      ],
+      "action": "자격 검증",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "최소 검증 결과 반환"
+      ],
+      "forbiddenEffects": [
+        "사용자의 전체 credential 목록 반환"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-26",
+      "apiId": "API-057",
+      "policyId": "account",
+      "given": [
+        "활성 계정; 지갑 미선택; 지원 market 입력"
+      ],
+      "action": "시장 견적 생성",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "시장 quote snapshot"
+      ],
+      "forbiddenEffects": [
+        "잔액/서명 권한을 가진 것으로 간주"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-27",
+      "apiId": "API-070",
+      "policyId": "wallet_use",
+      "given": [
+        "활성 계정; 선택 wallet은 타인 소유; 사용 binding 없음"
+      ],
+      "action": "유료 자원 요청 생성",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "변경 없음"
+      ],
+      "forbiddenEffects": [
+        "타인 지갑과 요청자 결합"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-28",
+      "apiId": "API-020",
+      "policyId": "operation_owner_or_capability",
+      "given": [
+        "멱등 재요청자가 원래 operation 조회 권한을 상실함"
+      ],
+      "action": "작업 결과 재조회",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "민감 응답 없음"
+      ],
+      "forbiddenEffects": [
+        "캐시된 과거 응답으로 권한 우회"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-29",
+      "apiId": "API-020",
+      "policyId": "operation_owner_or_capability",
+      "given": [
+        "자식 operation + approval=null; 일반 다운로드 권한 주장"
+      ],
+      "action": "승인 기준 권한 검사",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "원 부모 ancestry/current result ACL 확인"
+      ],
+      "forbiddenEffects": [
+        "resultRef signed bytes 공개"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-30",
+      "apiId": "API-108",
+      "policyId": "approval_access_challenge",
+      "given": [
+        "유효 guest terminal/attempt/session 및 검증된 peer; read_progress 요청"
+      ],
+      "action": "승인 기준 권한 검사",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "원 context challenge만 발급"
+      ],
+      "forbiddenEffects": [
+        "계정 강제/owner 권한"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-31",
+      "apiId": "API-109",
+      "policyId": "approval_access_issue",
+      "given": [
+        "원 predecessor 이미 교체됨; 다른 멱등키로 병렬 발급"
+      ],
+      "action": "승인 기준 권한 검사",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "기존 successor 대사 또는409"
+      ],
+      "forbiddenEffects": [
+        "형제 grant 활성화"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-32",
+      "apiId": "API-110",
+      "policyId": "approval_access_revoke",
+      "given": [
+        "현재 원 grant 철회권"
+      ],
+      "action": "승인 기준 권한 검사",
+      "expectedDecision": "allow",
+      "expectedEffects": [
+        "gate revision/철회 기록"
+      ],
+      "forbiddenEffects": [
+        "이미 노출된 EOA 서명 온체인 취소 주장"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-33",
+      "apiId": "API-018",
+      "policyId": "intent_submit_capability",
+      "given": [
+        "grant 유효하지만 다른 sender 또는 stale signer epoch"
+      ],
+      "action": "승인 기준 권한 검사",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "원 상태 유지"
+      ],
+      "forbiddenEffects": [
+        "새 permit/임의 payload 제출"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "AZ-34",
+      "apiId": "API-019",
+      "policyId": "transaction_read",
+      "given": [
+        "원 grant와 다른 source의 transactionRef"
+      ],
+      "action": "승인 기준 권한 검사",
+      "expectedDecision": "deny",
+      "expectedEffects": [
+        "비공개 거절"
+      ],
+      "forbiddenEffects": [
+        "다른 고객 원장 공개"
+      ],
+      "verificationStatus": "not_run"
+    }
+  ]
+}

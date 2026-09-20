@@ -1,0 +1,773 @@
+{
+  "date": "2026-09-19",
+  "status": "profile_control_mapping_candidate_not_adopted",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "registeredNewApis": 0,
+  "registeredNewBleCommands": 0,
+  "sourceHashes": {
+    "content/specifications/profile-adoption-protocol.json": "f790ab12574fcfb079753521c460ced84146fdf54f711080f8711a40a74c6d25",
+    "content/specifications/authorization-policies.json": "73d251b1dfdf8e735a4a3c071f76e22a5baff294ce0e1090730efed59a91a7f4",
+    "content/specifications/api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "content/specifications/ble-catalog.json": "ebd335ca7e3f5a875453bb9f8a70cc6717641c70836fdd28573531079746aedc",
+    "content/specifications/security-storage-contracts.json": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8",
+    "content/specifications/database/schema-catalog.json": "0dd7a141de2308c4b2eec77437160382eeeaea575ad68b259d25078eb7f29aaf",
+    "content/specifications/selection-action-gates.json": "cca94982e270311aaf29c1b48ee65528e769422d5f508bfa811b0d039d5c1996"
+  },
+  "purpose": "PRC-01~07의 관리 권한·오류·멱등 결과·BLE relay·논리 저장 변경을 기존 설계에 연결한다. 후보 경로는 실제 카탈로그/서버/기기에 등록하지 않는다.",
+  "authorityRules": [
+    "TrustPrincipal·TrustGrantRevision의 현재 환경·scope·key version·유효시간·상태를 서버에서 해석한다. 요청자가 보낸 role/owner/profileId는 권한 근거가 아니다.",
+    "profile author, activator, restriction issuer, observer, peer reporter는 별도 entitlement다. 동일 사람이 여러 권한을 가질 수 있지만 하나의 권한을 다른 권한으로 자동 확대하지 않는다.",
+    "target manifest 안의 새 신뢰 root/권한 목록이 자기 자신의 준비/활성화 권한을 발급할 수 없다. 이미 고정된 관리 신뢰 기준 또는 별도로 수립한 bootstrap 근거로 검증한다. bootstrap 입력 미정은 실행 보류다.",
+    "선정되지 않은 root/SDK/physical backend에 대한 자동 승인 또는 비밀 초기 설정을 수행하지 않는다. 현재 선택값 0개를 유지한다.",
+    "read 권한은 현재 scope의 제한 projection만 허용한다. prepare/report/activate/abort/restrict에 대한 변경 권한으로 전환되지 않는다.",
+    "현재 권한과 revision을 commit 직전 재검사한다. 사전 검증된 digest만 저장 lock 안에서 신뢰하고, 외부 registry이면 일관성 barrier/lease 근거가 없을 때 commit 보류다."
+  ],
+  "policyCandidates": [
+    {
+      "id": "PCP-01",
+      "name": "profile_change_author",
+      "principal": "현재 관리 principal의 environment+change scope+allowed profile kinds",
+      "operationRef": "PRC-01",
+      "boundary": "제안/준비 생성만; activation/restriction 권한 없음",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    },
+    {
+      "id": "PCP-02",
+      "name": "profile_peer_prepare_report",
+      "principal": "등록 peer 또는 명시된 증거 relay; own peer/boot/challenge/report 범위",
+      "operationRef": "PRC-02",
+      "boundary": "relay actor 인증과 원 peer 증거 인증 모두 필요; relay가 peer 권한을 소유하지 않음",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    },
+    {
+      "id": "PCP-03",
+      "name": "profile_change_activate",
+      "principal": "현재 관리 principal의 activation scope+action variant+current grant revision",
+      "operationRef": "PRC-03",
+      "boundary": "author/firmware operator/store owner만으로 자동 충족되지 않음",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    },
+    {
+      "id": "PCP-04",
+      "name": "profile_change_read",
+      "principal": "현재 관리 observer 또는 exact change/request read capability",
+      "operationRef": "PRC-04",
+      "boundary": "current read projection; 원 요청자의 이전 권한 snapshot만으로 허용하지 않음",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    },
+    {
+      "id": "PCP-05",
+      "name": "profile_peer_apply_report",
+      "principal": "등록 peer 또는 명시된 relay의 원 activation/own boot/own digest 범위",
+      "operationRef": "PRC-05",
+      "boundary": "단일 peer 적용 보고만; global head/다른 peer 상태 변경 금지",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    },
+    {
+      "id": "PCP-06",
+      "name": "profile_change_abort",
+      "principal": "현재 change scope에 명시된 preactivation abort 권한",
+      "operationRef": "PRC-06",
+      "boundary": "author 권한과 같게 배정할 수 있으나 명시 grant 필요; active head 삭제 권한 없음",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    },
+    {
+      "id": "PCP-07",
+      "name": "profile_scope_restrict",
+      "principal": "현재 environment/scope/action-mode 제한 issuer",
+      "operationRef": "PRC-07",
+      "boundary": "restriction을 줄이는 해제/rollback 권한을 포함하지 않음",
+      "defaultDecision": "deny",
+      "registration": "candidate_not_in_canonical_policy_catalog",
+      "trustResourceRefs": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "id": "PRC-01",
+      "candidateHttp": {
+        "method": "POST",
+        "path": "/v1/profile-rollouts",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-01",
+      "transactionRef": "TX-PC-01",
+      "readResourceRefs": [
+        "PR-01",
+        "PR-03",
+        "PCS-09"
+      ],
+      "writeResourceRefs": [
+        "PR-01",
+        "PR-03",
+        "PCS-09"
+      ],
+      "requestSpecificFields": [
+        "changeId",
+        "immutableManifest",
+        "expectedScopeRevision",
+        "requestId"
+      ],
+      "responseSpecificFields": [
+        "changeId",
+        "phase",
+        "manifestDigest",
+        "readinessRevision",
+        "operationRef"
+      ],
+      "guard": "원 manifest/changeId·author scope·선정 action slice; 준비 실패가 old head를 바꾸지 않음",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "original_request_identity_and_digest",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    },
+    {
+      "id": "PRC-02",
+      "candidateHttp": {
+        "method": "POST",
+        "path": "/v1/profile-rollouts/{changeId}/preparations",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-02",
+      "transactionRef": "TX-PC-02",
+      "readResourceRefs": [
+        "PR-01",
+        "PR-02",
+        "PR-03",
+        "PCS-10"
+      ],
+      "writeResourceRefs": [
+        "PR-02",
+        "PR-03",
+        "PCS-09"
+      ],
+      "requestSpecificFields": [
+        "peerEvidence",
+        "peerBinding",
+        "bootEpoch",
+        "challengeId",
+        "reportId"
+      ],
+      "responseSpecificFields": [
+        "reportOutcome",
+        "readinessRevision",
+        "ownPreparationStatus"
+      ],
+      "guard": "원 peer 증거·manifest·cohort·현재 incarnation·report digest. 변경 종료 후 늦은 보고는 관측 또는 거절이며 phase 부활 금지",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "original_request_identity_and_digest",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    },
+    {
+      "id": "PRC-03",
+      "candidateHttp": {
+        "method": "POST",
+        "path": "/v1/profile-rollouts/{changeId}/activations",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-03",
+      "transactionRef": "TX-PC-03",
+      "readResourceRefs": [
+        "PR-01",
+        "PR-03",
+        "PR-07",
+        "PCS-08",
+        "PCS-10"
+      ],
+      "writeResourceRefs": [
+        "PR-04",
+        "PCS-08",
+        "PCS-09"
+      ],
+      "requestSpecificFields": [
+        "activationRequestId",
+        "expectedHeadRevision",
+        "expectedFenceRevision",
+        "expectedReadinessRevision",
+        "expectedPeerRegistryRevision",
+        "cohortPlanRevision"
+      ],
+      "responseSpecificFields": [
+        "originalActivationRef",
+        "committedHeadRevision",
+        "currentHeadRevision",
+        "requestOutcome"
+      ],
+      "guard": "현재 authority/head/fence/registry/readiness/cohort CAS; ActivationRecord+head+outcome+outbox+required audit 원자 기록",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "original_request_identity_and_digest",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    },
+    {
+      "id": "PRC-04",
+      "candidateHttp": {
+        "method": "GET",
+        "path": "/v1/profile-rollouts/{changeId}",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-04",
+      "transactionRef": "READ-PC",
+      "readResourceRefs": [
+        "PR-01",
+        "PR-03",
+        "PR-04",
+        "PR-05",
+        "PR-07",
+        "PCS-08",
+        "PCS-09"
+      ],
+      "writeResourceRefs": [],
+      "requestSpecificFields": [
+        "originalRequestRef?",
+        "readProofRef?"
+      ],
+      "responseSpecificFields": [
+        "phase",
+        "originalRequestOutcome",
+        "originalActivationRef?",
+        "currentHeadRevision",
+        "currentFenceRevision",
+        "scopedReadinessSummary"
+      ],
+      "guard": "현재 read projection; 과거 success를 현재 활성/적용 success로 표시 금지; 없는 결과를 activation 재실행으로 복구 금지",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "read_only",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    },
+    {
+      "id": "PRC-05",
+      "candidateHttp": {
+        "method": "POST",
+        "path": "/v1/profile-rollouts/{changeId}/applied-reports",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-05",
+      "transactionRef": "TX-PC-05",
+      "readResourceRefs": [
+        "PR-01",
+        "PR-04",
+        "PR-05",
+        "PCS-10"
+      ],
+      "writeResourceRefs": [
+        "PR-05",
+        "PCS-09"
+      ],
+      "requestSpecificFields": [
+        "activationRecordRef",
+        "peerBinding",
+        "bootEpoch",
+        "localProfileDigest",
+        "capabilityDigest",
+        "reportId"
+      ],
+      "responseSpecificFields": [
+        "reportOutcome",
+        "ownLocalApplyState"
+      ],
+      "guard": "own peer의 원 activation 기록을 관측; old apply 보고로 current head 복원하지 않음",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "original_request_identity_and_digest",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    },
+    {
+      "id": "PRC-06",
+      "candidateHttp": {
+        "method": "POST",
+        "path": "/v1/profile-rollouts/{changeId}/abort",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-06",
+      "transactionRef": "TX-PC-06",
+      "readResourceRefs": [
+        "PR-01",
+        "PR-04",
+        "PCS-08",
+        "PCS-09"
+      ],
+      "writeResourceRefs": [
+        "PR-01",
+        "PCS-09"
+      ],
+      "requestSpecificFields": [
+        "requestId",
+        "expectedScopeRevision"
+      ],
+      "responseSpecificFields": [
+        "abortedOrAlreadyCommitted",
+        "originalActivationRef?",
+        "currentHeadRevision"
+      ],
+      "guard": "abort/activate를 같은 serialization boundary로 대조; 응답 timeout만으로 commit 없음 판정 금지",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "original_request_identity_and_digest",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    },
+    {
+      "id": "PRC-07",
+      "candidateHttp": {
+        "method": "POST",
+        "path": "/v1/profile-restrictions",
+        "status": "proposed_not_registered"
+      },
+      "policyRef": "PCP-07",
+      "transactionRef": "TX-PC-07",
+      "readResourceRefs": [
+        "PR-07",
+        "PCS-08"
+      ],
+      "writeResourceRefs": [
+        "PR-07",
+        "PCS-09"
+      ],
+      "requestSpecificFields": [
+        "scope",
+        "reason",
+        "affectedActionModes",
+        "requestId",
+        "expectedFenceRevision"
+      ],
+      "responseSpecificFields": [
+        "fenceRevision",
+        "effectiveRestrictions",
+        "deliveryState"
+      ],
+      "guard": "현재 issuer scope에서 restriction의 합집합/강화만; fence/outcome/outbox/audit 원자 기록. 이미 서명된 거래/오프라인 peer 즉시 차단을 보장하지 않음",
+      "operationClassCandidate": "profile_rollout_control",
+      "idempotencyMode": "original_request_identity_and_digest",
+      "infrastructure": "mutation은 outcome/audit을 같은 경계에 기록, 필요한 event는 outbox; PRC04는 domain write 없음"
+    }
+  ],
+  "bleCandidates": [
+    {
+      "id": "PCB-01",
+      "proposedCommand": "profile.prepare",
+      "status": "candidate_not_registered",
+      "existingCommandRefs": [
+        "session.open",
+        "session.confirm",
+        "device.info"
+      ],
+      "requestFields": [
+        "changeId",
+        "manifestDigest",
+        "peerBinding",
+        "challengeId",
+        "capabilityRequirements"
+      ],
+      "responseFields": [
+        "ownBootEpoch",
+        "ownPreparationEvidence",
+        "evidenceLevel",
+        "expiresAt"
+      ],
+      "guard": "검증된 기존 관리 신뢰와 인증 BLE session·own scope·선정 물리 확인. 준비만 하며 active pointer/키를 변경하지 않는다."
+    },
+    {
+      "id": "PCB-02",
+      "proposedCommand": "profile.apply",
+      "status": "candidate_not_registered",
+      "existingCommandRefs": [
+        "session.confirm",
+        "device.settings.update",
+        "fota.status"
+      ],
+      "requestFields": [
+        "activationReceipt",
+        "profileSetDigest",
+        "contractBundleDigest",
+        "peerBinding",
+        "expectedLocalRevision"
+      ],
+      "responseFields": [
+        "ownBootEpoch",
+        "localAppliedDigest",
+        "localRevision",
+        "reportId"
+      ],
+      "guard": "서버 activation receipt의 발행자·scope·digest·유효성·현재 gate를 검증. 일반 owner settings/update 권한을 서버 활성화 권한으로 확장하지 않는다."
+    },
+    {
+      "id": "PCB-03",
+      "proposedCommand": "profile.status",
+      "status": "candidate_not_registered",
+      "existingCommandRefs": [
+        "session.confirm",
+        "device.info",
+        "fota.status"
+      ],
+      "requestFields": [
+        "originalChangeRef",
+        "ownActivationRef?",
+        "projection"
+      ],
+      "responseFields": [
+        "ownBootEpoch",
+        "localProfileDigest",
+        "lastApplyOutcome",
+        "publicAvailability"
+      ],
+      "guard": "own 기기의 현재 허용 projection만. 결과 조회는 새 apply/reset/sign를 실행하지 않는다."
+    }
+  ],
+  "existingBindings": [
+    {
+      "apiRef": "API-020",
+      "reuseIntent": "원 operation 결과 조회 골격",
+      "requiredChangeOrRestriction": "profile_rollout_control whitelist/현재 observer ACL/typed reader/projection 채택 전에는 profile 결과를 반환하지 않음",
+      "adopted": false
+    },
+    {
+      "apiRef": "API-107",
+      "reuseIntent": "큰 보호 manifest/evidence 읽기 경로 후보",
+      "requiredChangeOrRestriction": "rollout 결과의 owner/scope/retention reader를 명시 등록하기 전 generic resultRef로 접근 우회 금지",
+      "adopted": false
+    },
+    {
+      "apiRef": "API-049",
+      "reuseIntent": "firmware release metadata 참조",
+      "requiredChangeOrRestriction": "firmware_release_operator는 PCP-03 권한을 대체하지 않음",
+      "adopted": false
+    },
+    {
+      "apiRef": "API-050",
+      "reuseIntent": "release 철회 event와 restriction 연동 후보",
+      "requiredChangeOrRestriction": "철회가 임의 profile activation rollback·device downgrade를 만들지 않음",
+      "adopted": false
+    },
+    {
+      "apiRef": "API-101",
+      "reuseIntent": "원 release 호환 정보 조회",
+      "requiredChangeOrRestriction": "release_read는 peer 집합·management manifest 전체 조회 권한 아님",
+      "adopted": false
+    },
+    {
+      "apiRef": "API-023",
+      "reuseIntent": "terminal identity/session 검토 입력",
+      "requiredChangeOrRestriction": "store_terminal_manage는 자기 단말 준비 범위와 global activate 권한을 분리",
+      "adopted": false
+    },
+    {
+      "apiRef": "API-088",
+      "reuseIntent": "감사 조회",
+      "requiredChangeOrRestriction": "ops_audit_read는 보이는 audit projection만; activation/abort/restrict 권한 없음",
+      "adopted": false
+    }
+  ],
+  "storageMappings": [
+    {
+      "id": "PR-01",
+      "logicalName": "ImmutableChangeManifest",
+      "sourceRecordRef": "PR-01",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [
+        "protocol_profiles"
+      ],
+      "missingPhysicalContract": "immutable manifest body/digest + lifecycle metadata는 별도 row/CAS. 본문 수정 금지, lifecycle phase는 versioned metadata로 변경 가능. protocol_profiles.state(draft/enabled/revoked)를 rollout phase 전체로 재사용 금지"
+    },
+    {
+      "id": "PR-02",
+      "logicalName": "PreparationEvidence",
+      "sourceRecordRef": "PR-02",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "peer identity/incarnation/challenge·manifest/report digest·evidence 만료·인증 수준·UNIQUE replay identity"
+    },
+    {
+      "id": "PR-03",
+      "logicalName": "ReadinessSnapshot",
+      "sourceRecordRef": "PR-03",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "cohort/readiness revision·required peer set·evaluated registry/fence revision·기한의 원자 snapshot"
+    },
+    {
+      "id": "PR-04",
+      "logicalName": "ActivationRecord",
+      "sourceRecordRef": "PR-04",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "scope별 증가하는 head와 immutable activation record·원 request outcome·outbox의 commit 경계"
+    },
+    {
+      "id": "PR-05",
+      "logicalName": "ParticipantAppliedReport",
+      "sourceRecordRef": "PR-05",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "own peer/boot/activation binding·멱등 report·과거 적용 관측과 현재 적용 상태 분리"
+    },
+    {
+      "id": "PR-06",
+      "logicalName": "OriginalOperationBinding",
+      "sourceRecordRef": "PR-06",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [
+        "operations"
+      ],
+      "missingPhysicalContract": "operations.kind+reader discriminator에 profile binding을 추가하는 후보. generic succeeded는 전체 peer 적용 완료가 아님"
+    },
+    {
+      "id": "PR-07",
+      "logicalName": "ScopedSecurityFence",
+      "sourceRecordRef": "PR-07",
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "scope/action mode별 단조 fence + 현재 issuer/원 request binding; activation head와 일관성 검사"
+    },
+    {
+      "id": "PCS-08",
+      "logicalName": "ProfileScopeHead",
+      "sourceRecordRef": null,
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "scope overlap 해석·head CAS·current profile digest·grant/fence/readiness/registry 검증의 저장 경계"
+    },
+    {
+      "id": "PCS-09",
+      "logicalName": "ProfileRequestOutcome",
+      "sourceRecordRef": null,
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [
+        "idempotency_records",
+        "operations"
+      ],
+      "missingPhysicalContract": "scope 포함 영속 요청 identity/digest·원 commit metadata/tombstone·cache expiry와 독립인 중복 방지"
+    },
+    {
+      "id": "PCS-10",
+      "logicalName": "CurrentPeerIncarnation",
+      "sourceRecordRef": null,
+      "physicalStatus": "pending_not_in_reference_sql",
+      "reuseCandidates": [],
+      "missingPhysicalContract": "TrustPrincipal의 identity와 연결하되 별도 boot/session/registry revision·재등록·증거 freshness를 관리"
+    }
+  ],
+  "errorRules": [
+    {
+      "code": "INVALID_INPUT",
+      "phase": "envelope/digest/known discriminator",
+      "retry": "correct_request",
+      "rule": "기본 형식 오류만, 내부 schema/비밀 값 반사 금지",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "phase": "authentication",
+      "retry": "authenticate",
+      "rule": "인증 부재/유효하지 않은 증명; 원 bearer 재전달 금지",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "FORBIDDEN",
+      "phase": "current authority/projection",
+      "retry": "no_automatic_retry",
+      "rule": "scope 부재·권한 철회. 존재하지 않는 객체와 보이지 않는 객체는 선택된 opaque projection으로 통일",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "POLICY_UNSELECTED",
+      "phase": "choice check",
+      "retry": "wait_for_selection",
+      "rule": "해당 action slice에 필요한 선택만 공개; 자동 권장값 채우기 금지",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "UNSUPPORTED_PROFILE",
+      "phase": "schema/reader/capability",
+      "retry": "wait_for_compatible_profile",
+      "rule": "최신 schema로 추정 parse 금지",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "IDEMPOTENCY_CONFLICT",
+      "phase": "same request identity",
+      "retry": "do_not_change_key_to_bypass",
+      "rule": "다른 body 또는 원 expected revisions 변경. 새 오류 별칭 후보, canonical 등록 전",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "REVISION_CONFLICT",
+      "phase": "head/fence/registry/readiness CAS",
+      "retry": "read_current_then_review",
+      "rule": "새 request 자동 발급/재활성화 금지",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "AUTHORITY_HELD",
+      "phase": "current security fence",
+      "retry": "restricted_read_only_if_authorized",
+      "rule": "과거 성공/원 author가 현재 활성 권한을 대신하지 않음",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "SOURCE_STALE",
+      "phase": "peer/challenge/expiry",
+      "retry": "refresh_evidence",
+      "rule": "기한 지난 ACK를 다시 제출해 현재 ready로 만들지 않음",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "RESULT_PENDING",
+      "phase": "original commit not yet resolved",
+      "retry": "read_original",
+      "rule": "timeout/missing reply는 abort나 실패 확정 아님",
+      "status": "design_error_mapping_not_registered"
+    },
+    {
+      "code": "ALREADY_APPLIED",
+      "phase": "duplicate commit/result",
+      "retry": "read_original_and_current",
+      "rule": "원 activation metadata와 현재 head를 구분; 전체 기기 적용 완료라는 뜻 아님",
+      "status": "design_error_mapping_not_registered"
+    }
+  ],
+  "idempotency": {
+    "identity": [
+      "environmentId",
+      "serverResolvedPrincipalScope",
+      "logicalOperation",
+      "parentChangeOrScope",
+      "requestId"
+    ],
+    "digest": "canonical immutable request body digest; actor/scope는 서버에서 확정하고 normalized_digest에 원 expected revision·manifest·peer binding도 포함한다.",
+    "newRequest": "최초 요청은 현재 mutation 권한과 semantic checks 후 outcome reservation/업무 commit을 같은 지정 경계로 묶는다. partial outcome만 남으면 원 operation 조회로 복구한다.",
+    "sameBody": "원 요청의 논리 결과를 현재 읽기/변경 권한에 맞게 재투영한다. 이전 응답의 bearer·peer 목록·보호 payload를 그대로 replay하지 않는다.",
+    "differentBody": "같은 identity + 다른 digest는 IDEMPOTENCY_CONFLICT 후보 오류. 새 requestId로 바꿔 expected revision 충돌이나 이미 노출된 원 작업을 우회하지 않는다.",
+    "afterPrivilegeLoss": "mutation 재요청은 현재 mutation 권한이 없으면 거절한다. 별도로 유효한 read/recovery 증명이 있으면 PRC-04로 제한 metadata만 조회 가능하다.",
+    "cacheExpiry": "idempotency_records.expires_at은 응답 cache 수명이지 실행 결과/중복 방지 기록의 삭제 허가가 아니다. 원 outcome/tombstone은 변경·늦은 요청·노출·복구 보존 규칙에 따라 유지한다.",
+    "prunedHistory": "원 outcome 존재 여부/원 request digest를 신뢰할 수 없으면 과거 mutation을 새 요청으로 실행하지 않는다. 원 request의 제한 관측 또는 hold로 처리한다.",
+    "getSideEffects": "PRC-04는 domain head/phase/fence/activation/outcome을 변경하지 않는다. 보안 replay 탐지·접근 감사 metadata 기록 여부는 읽기 계약과 구분한다.",
+    "peerSemanticIdentity": "전송 요청 idempotency와 별개로 preparation은 environment/change/peer/boot/challenge/reportId, applied 보고는 environment/activation/peer/boot/reportId를 도메인 unique identity로 둔다. relay가 바뀌거나 새 HTTP requestId로 재전송해도 같은 증거는 재소비하지 않고, 같은 semantic identity의 다른 digest는 충돌한다."
+  },
+  "projection": {
+    "operator": [
+      "changeId",
+      "phase",
+      "originalRequestOutcome",
+      "originalActivationRef",
+      "currentHeadRevision",
+      "currentFenceRevision",
+      "permittedReadinessSummary",
+      "publicError"
+    ],
+    "peer": [
+      "ownPeerBinding",
+      "ownBootEpoch",
+      "ownPreparationStatus",
+      "ownAppliedDigest",
+      "neededPublicAction"
+    ],
+    "user": [
+      "featureAvailability",
+      "publicReason",
+      "safeNextAction"
+    ],
+    "never": [
+      "private key/seed/share/backup secret",
+      "다른 tenant/peer의 비공개 토폴로지",
+      "원 사용자의 bearer/access token",
+      "타 scope의 상세 권한/존재 여부"
+    ],
+    "unknown": "원 commit을 확인할 수 없는 상태와 commit 실패를 구분한다. originalRequestOutcome=unknown은 현재 업무 head를 바꾸는 값이 아니다."
+  },
+  "adoptionBundle": {
+    "mustChangeTogether": [
+      "candidate route + operationClass discriminator",
+      "current scoped ACL + trust source",
+      "request/response/error schema + canonical digest rules",
+      "typed operation reader + safe projection",
+      "logical uniqueness/CAS/outcome retention/outbox mapping",
+      "authenticated BLE evidence relay + local journal policy",
+      "screen retry/recovery behavior + negative examples"
+    ],
+    "preserve": [
+      "API 110개·권한 정책 60개·BLE 명령 34개는 원본 유지",
+      "OC 후보 26개·PRC 관리 별칭 7개는 서로 다른 목록",
+      "SQL 61개 테이블·7개 migration 미수정",
+      "기존 사용자 결정·owner/effort·실행 상태 미변경"
+    ],
+    "notReadyToMerge": [
+      "정책·management trust profile·wire codec/limit·lease와 proof suite 미선정",
+      "물리 저장/registry 일관성·기기 journal/ACK 신뢰 수준 미검증",
+      "API020/107 typed reader 및 BLE 신규 command schema 미채택"
+    ]
+  },
+  "screenRefs": [
+    "O01",
+    "O02",
+    "O03",
+    "O04",
+    "U05",
+    "U06",
+    "K01",
+    "K03",
+    "D01",
+    "D02"
+  ],
+  "nextDesign": "이 mapping의 요청/응답과 error projection에 정상·권한 변경·충돌·결과 불명 예제를 붙이고, 관리 신뢰 bootstrap/갱신과 물리 저장 채택 조건을 구체화한다.",
+  "storageInfrastructure": {
+    "existingTableRefs": [
+      "operations",
+      "protocol_profiles",
+      "idempotency_records",
+      "audit_events",
+      "outbox"
+    ],
+    "externalTrustRefs": [
+      "TrustPrincipal",
+      "TrustGrantRevision"
+    ],
+    "atomicityRules": [
+      "activation+scope head+request outcome+outbox+필수 감사는 같은 논리 commit; 아직 물리 SQL로 증명하지 않음",
+      "정규화/서명 증거 검증을 lock 밖에서 수행하더라도 authority/fence/registry/expiry/head는 commit 직전 현재 값으로 대조",
+      "outbox 전달은 중복 가능. consumer는 eventId/aggregate revision으로 dedup하고 원 activation/current head를 확인; 메시지 수신이 activation 권한 아님",
+      "별도 저장소의 registry/보안 fence를 atomic하다고 가정하지 않음. 증명된 snapshot/lease/barrier가 없으면 해당 mutation hold",
+      "기존 61개 테이블의 존재를 새 자원 10개가 저장/검증된 근거로 사용하지 않음"
+    ]
+  },
+  "bleRelayRules": [
+    "app/키오스크의 HTTP caller 권한과 원 device evidence 인증을 따로 확인한다. relay 서명만으로 device 준비·적용을 증명하지 않는다.",
+    "PRC-02/05는 evidence의 device identity/boot/challenge/manifest/report digest·선정 anti-replay 조건을 대조한다. 증명 수준은 앱 보고/기기 인증/attestation을 구분하며 없는 보장을 표시하지 않는다.",
+    "프로세스/전원 중단 후 local digest와 journal outcome을 조회한다. local pointer 원자성·flash durability·boot epoch 보호는 별도 선택·실기 검증 대상이다.",
+    "BLE link 단절은 서버 abort/기기 rollback/체인 취소를 의미하지 않는다. 전달 실패를 원 상태 unknown으로 두고 읽기부터 복구한다.",
+    "신규 명령의 role/version/schema/MTU/분할/최대크기/lease/키보호 방식은 후속 profile 선정 때 고정. 기존 fota.apply/device.settings.update를 임의 overload하지 않는다.",
+    "device evidence의 semantic identity·digest 기록과 challenge 소비/readiness 변경을 같은 논리 경계로 처리한다. HTTP caller/requestId가 달라져도 원 device report를 중복 적용하지 않는다."
+  ],
+  "errorPrecedence": "기본 envelope 형식→인증→현재 scope/projection→허용된 객체 해석→identity/digest→semantic/current CAS. 인증/권한 실패 시 상세 missing peer/profile/fence 값을 노출하지 않는다. 이미 적용된 요청의 확인도 현재 read/mutation 권한에 맞춘다."
+}

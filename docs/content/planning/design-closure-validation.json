@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "scope": "design_closure_traceability_only",
+  "products": 10,
+  "requirements": 15,
+  "tasks": 104,
+  "steps": 320,
+  "compoundFacets": 16,
+  "acceptanceJourneys": 12,
+  "closureClasses": 6,
+  "adoptionFamilies": 4,
+  "openDecisions": 19,
+  "returnDecisionSelected": false,
+  "sourcePinChecks": 22,
+  "runtimeVerified": false,
+  "allImplementationReady": false,
+  "implementationAuthorized": false,
+  "sourceHashes": {
+    "content/planning/design-closure-review.json": "2a2e92c6d6ed2b9be9df08828a76b1a8118ceaadc9c24615a95a8d09ed7163cb"
+  },
+  "limitations": [
+    "Requirement-based task impact is not task ownership or a universal policy gate.",
+    "This is a document structure/source audit, not runtime tests, schedule estimation or full prose correctness proof."
+  ]
+}

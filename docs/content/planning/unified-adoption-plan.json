@@ -1,0 +1,1785 @@
+{
+  "date": "2026-09-20",
+  "status": "unified_adoption_checkpoint_plan",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "selectedCheckpoint": null,
+  "ownerAssignment": null,
+  "effortEstimates": null,
+  "purpose": "기존 DI/OC와 profile·관리 신뢰 보완을 하나의 문서 채택 checkpoint 계획으로 연결한다. 변경 파일·공유 검토·호환 조건·중단/복구 기준을 정의하며 이번 작업에서 기준 계약을 병합하거나 실행하지 않는다.",
+  "boundaries": [
+    "UA 묶음은 검토 분류이며 배포 단위·새 WBS·담당자·승인 threshold가 아니다. 기존 DI의 완료 의존 관계를 보존하고 공유 파일은 모든 관련 묶음의 검토가 끝나야 통합 기준으로 채택한다.",
+    "논리적으로 같은 checkpoint에서 문서/권한/reader/schema를 대조한다는 뜻이며 Git commit, 서버 DB, 기기 journal, 체인을 하나의 원자적 commit으로 묶는다는 뜻이 아니다.",
+    "문서 checkpoint의 일관성, runtime profile 준비, 서버 activation, 개별 peer 적용, 실제 수용 결과를 별도 기록한다. 아래 검토 순서는 서비스 기동/배포 순서가 아니다.",
+    "후보 HTTP 경로/명령/정책은 기존 등록 목록과 다른 namespace로 유지한다. 기존 operation ID를 임의 재활용하거나 TMC 보호 명령을 공개 REST endpoint로 해석하지 않는다.",
+    "미선택 profile·wire·물리 저장·인증 채널은 차단 사유로 남긴다. 일반 다음 진행을 선택·구현 지시로 해석하지 않는다. 기존 읽기/제한/원 요청 조정은 해당 현재 권한과 별도 지원 조건을 따른다.",
+    "새 rollout manifest는 자기 자신의 최초 신뢰 근거가 아니다. 기존 신뢰 경로 또는 사전 독립 bootstrap 근거가 없으면 staging/승인 문서만으로 activation을 허용하지 않는다."
+  ],
+  "baseline": {
+    "apis": 110,
+    "policies": 60,
+    "bleCommands": 34,
+    "screens": 37,
+    "events": 10,
+    "logicalSecurityResources": 28,
+    "physicalSqlTables": 61,
+    "referenceMigrations": 7,
+    "wbsTasks": 104,
+    "wbsSteps": 320,
+    "decisions": 19
+  },
+  "legacyDependencies": [
+    {
+      "id": "DI-01",
+      "finishDependsOn": []
+    },
+    {
+      "id": "DI-02",
+      "finishDependsOn": [
+        "DI-01"
+      ]
+    },
+    {
+      "id": "DI-03",
+      "finishDependsOn": [
+        "DI-01",
+        "DI-02"
+      ]
+    },
+    {
+      "id": "DI-04",
+      "finishDependsOn": []
+    },
+    {
+      "id": "DI-05",
+      "finishDependsOn": [
+        "DI-04"
+      ]
+    },
+    {
+      "id": "DI-06",
+      "finishDependsOn": [
+        "DI-04",
+        "DI-05"
+      ]
+    },
+    {
+      "id": "DI-07",
+      "finishDependsOn": [
+        "DI-01",
+        "DI-04",
+        "DI-06"
+      ]
+    },
+    {
+      "id": "DI-08",
+      "finishDependsOn": [
+        "DI-01",
+        "DI-02",
+        "DI-03",
+        "DI-04",
+        "DI-05",
+        "DI-06",
+        "DI-07"
+      ]
+    }
+  ],
+  "units": [
+    {
+      "id": "UA-01",
+      "name": "인증·MPC·보호 결과",
+      "diRefs": [],
+      "ocRefs": [
+        "OC-01",
+        "OC-02",
+        "OC-03",
+        "OC-16",
+        "OC-17",
+        "OC-18",
+        "OC-19",
+        "OC-20"
+      ],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/approval-source-dispatch.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/common-flows.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "refresh generation·logout/unlink·MPC 원 checkpoint·operationClass별 현재 ACL/reader",
+      "preserve": "이전 refresh로 최신 token 반환, 일반 operation 조회로 signed bytes/보호 객체 노출, 늦은 MPC 결과의 무권한 활성화 금지",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-02",
+      "name": "상거래·영수증·단말",
+      "diRefs": [
+        "DI-01"
+      ],
+      "ocRefs": [
+        "OC-04",
+        "OC-05",
+        "OC-06",
+        "OC-07",
+        "OC-08",
+        "OC-23",
+        "OC-24"
+      ],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/core.schema.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/event-catalog.json",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/screen-flows.json",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "order/recipient snapshot·allocation·fulfillment·환불/정산·영수증 귀속·단말 인계",
+      "preserve": "API018/020/037의 signer/source 의미 보존; 이전 단말 고객 결과 노출·원 지급 한도 초과·정산 덮어쓰기 금지",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-03",
+      "name": "대여·반납·기기 연속성",
+      "diRefs": [
+        "DI-04",
+        "DI-05",
+        "DI-06"
+      ],
+      "ocRefs": [],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/ble-catalog.json",
+        "content/specifications/compatibility-matrix.json",
+        "content/specifications/core.schema.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/database/004_device_lifecycle.sql",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/implementation-interfaces.json",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "RP별 실제 전송 경로·기기 journal·owner/relay·server returned/cleanup/재대여 gate",
+      "preserve": "미확정 reset을 새 job으로 재시작하지 않음; RR 미선택 분기 보류·import 지갑 전체 자산 강제 이체 없음",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-04",
+      "name": "시장·자격·유료 자원",
+      "diRefs": [],
+      "ocRefs": [
+        "OC-09",
+        "OC-10",
+        "OC-11",
+        "OC-12",
+        "OC-21",
+        "OC-22"
+      ],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/approval-source-dispatch.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/compatibility-matrix.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/event-catalog.json",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "market quote/keeper·DID/STO typed source·x402 payment/entitlement/delivery/refund",
+      "preserve": "미지원 signer를 EOA 일반 전송으로 대체하지 않음; 부분 성공/가격 만료·원 환불 한도·원 결과 재조회 구분",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-05",
+      "name": "녹음·여행·개인정보",
+      "diRefs": [],
+      "ocRefs": [
+        "OC-13",
+        "OC-14",
+        "OC-15",
+        "OC-25",
+        "OC-26"
+      ],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/common-flows.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/event-catalog.json",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/screen-flows.json",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "오디오 구간/owner·삭제 revision·코스 생성/편집/apply·구매/방문 근거",
+      "preserve": "삭제 뒤 늦은 AI 결과/백업 부활 차단; 수동 편집과 유료 생성 구분; 보상 효과 작성자 중복 금지",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-06",
+      "name": "설정 적용·관리 신뢰",
+      "diRefs": [],
+      "ocRefs": [],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/ble-catalog.json",
+        "content/specifications/common-flows.json",
+        "content/specifications/compatibility-matrix.json",
+        "content/specifications/core.schema.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/database/schema-catalog.json",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/implementation-interfaces.json",
+        "content/specifications/screen-flows.json",
+        "content/specifications/screen-flows.md",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "PC/PF/GA·PRC/PCP/PCB·TR/TE/TMC·역할/운영 패널의 현재 권한·증거·reader·저장 매핑",
+      "preserve": "API088 조회 의미 유지; profile author/점주/FOTA 담당을 activation 권한으로 해석하지 않음; 복구 후 제한 유지와 별도 resume",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-07",
+      "name": "공유 저장·이벤트·화면",
+      "diRefs": [
+        "DI-02",
+        "DI-03",
+        "DI-07"
+      ],
+      "ocRefs": [],
+      "targetPaths": [
+        "content/specifications/api-access-transactions.json",
+        "content/specifications/api-catalog.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/common-flows.json",
+        "content/specifications/core.schema.json",
+        "content/specifications/critical-dtos.json",
+        "content/specifications/critical-dtos.schema.json",
+        "content/specifications/database/README.md",
+        "content/specifications/database/schema-catalog.json",
+        "content/specifications/event-catalog.json",
+        "content/specifications/extended-dtos.json",
+        "content/specifications/extended-dtos.schema.json",
+        "content/specifications/screen-flows.json",
+        "content/specifications/screen-flows.md",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/storage-operations.md"
+      ],
+      "changeIntent": "원천/소비자 revision·v1/v2 adapter·중복키·outbox·현재 gate·화면 재시도/소유권·삭제/복원",
+      "preserve": "공유 파일의 마지막 작성자가 다른 묶음 의미를 덮어쓰지 않음; 같은 자원의 권위/최종 effect writer를 중복 생성하지 않음",
+      "state": "planned_not_adopted"
+    },
+    {
+      "id": "UA-08",
+      "name": "통합 검토·인계",
+      "diRefs": [
+        "DI-08"
+      ],
+      "ocRefs": [],
+      "targetPaths": [
+        "content/specifications/api-catalog.json",
+        "content/specifications/authorization-policies.json",
+        "content/specifications/compatibility-matrix.json",
+        "content/specifications/security-storage-contracts.json"
+      ],
+      "changeIntent": "전후 파일 hash·후보별 disposition·선택/미선택·호환 증거·제외/보류·generated views·회귀 목록",
+      "preserve": "부분 문서 검토를 전체 채택이나 실기 성공으로 표시하지 않음; 기존 15요구/104작업/320단계 유지",
+      "state": "planned_not_adopted"
+    }
+  ],
+  "targetInventory": [
+    {
+      "id": "AT-01",
+      "path": "content/specifications/api-access-transactions.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-01",
+        "DI-04",
+        "DI-06"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-02",
+      "path": "content/specifications/api-catalog.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07",
+        "UA-08"
+      ],
+      "diRefs": [
+        "DI-01",
+        "DI-04",
+        "DI-08"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "0c4353873a8e4a539bde0af783caf6478a35064804349b2740715bcfa2d335f0",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-03",
+      "path": "content/specifications/approval-source-dispatch.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-04"
+      ],
+      "diRefs": [],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "65a48dd3c4cafab89a7e181869998834d68fd92d79a7d01be97990b48d45eac9",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-04",
+      "path": "content/specifications/authorization-policies.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07",
+        "UA-08"
+      ],
+      "diRefs": [
+        "DI-01",
+        "DI-04",
+        "DI-08"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "73d251b1dfdf8e735a4a3c071f76e22a5baff294ce0e1090730efed59a91a7f4",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-05",
+      "path": "content/specifications/ble-catalog.json",
+      "unitRefs": [
+        "UA-03",
+        "UA-06"
+      ],
+      "diRefs": [
+        "DI-05"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "ebd335ca7e3f5a875453bb9f8a70cc6717641c70836fdd28573531079746aedc",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-06",
+      "path": "content/specifications/common-flows.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-07"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "c6a34e1d2f1a20721bd391511ac80601ca9f8443fff3b37dcc3067196490ff44",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-07",
+      "path": "content/specifications/compatibility-matrix.json",
+      "unitRefs": [
+        "UA-03",
+        "UA-04",
+        "UA-06",
+        "UA-08"
+      ],
+      "diRefs": [
+        "DI-05",
+        "DI-08"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "7087c771df49d12f47118b6a787d94dc39363498fc1fcdf9e0821f051f500a4e",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-08",
+      "path": "content/specifications/core.schema.json",
+      "unitRefs": [
+        "UA-02",
+        "UA-03",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-01",
+        "DI-02",
+        "DI-05"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "d4a620e5f2cdead56fe51acac8ccd839d557b66084a589274ff7c380d4c78443",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-09",
+      "path": "content/specifications/critical-dtos.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-01"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "301b0d824123f3b4ceb19df57fbf96d1177e79daf2cc2c1a3f52dfb572380511",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-10",
+      "path": "content/specifications/critical-dtos.schema.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-01",
+        "DI-04"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "be677ba55d10120c2c6199c3f7ee4219241c1f6c9f3460de22600c4fa9228d46",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-11",
+      "path": "content/specifications/database/004_device_lifecycle.sql",
+      "unitRefs": [
+        "UA-03"
+      ],
+      "diRefs": [
+        "DI-06"
+      ],
+      "mode": "reference_only_append_future_migration",
+      "sharedReviewRequired": false,
+      "changed": false,
+      "baselineHash": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2",
+      "acceptance": "참조 SQL은 보존하며 후속 migration 계획으로만 연결"
+    },
+    {
+      "id": "AT-12",
+      "path": "content/specifications/database/README.md",
+      "unitRefs": [
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-03"
+      ],
+      "mode": "review_generated_view_with_source",
+      "sharedReviewRequired": false,
+      "changed": false,
+      "baselineHash": "14d98eb7de3690383aa3ffe2667af8d91c6c40f0bb706f614c72dd43ae41143e",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-13",
+      "path": "content/specifications/database/schema-catalog.json",
+      "unitRefs": [
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-03"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "0dd7a141de2308c4b2eec77437160382eeeaea575ad68b259d25078eb7f29aaf",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-14",
+      "path": "content/specifications/event-catalog.json",
+      "unitRefs": [
+        "UA-02",
+        "UA-04",
+        "UA-05",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-02"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "8660d596fc893e0f79bbeb46e3969a3894e3870671c5cf791588a057844e1fba",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-15",
+      "path": "content/specifications/extended-dtos.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-01"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "0c8ce0042374921d936cde0dc66cf32827777fd2b3bfb77d425ab24865858ee5",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-16",
+      "path": "content/specifications/extended-dtos.schema.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-01",
+        "DI-04"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "ac4851a4a36699bd8f69d368d74f92454c18fd35a0942a9673b42ee8baf01def",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-17",
+      "path": "content/specifications/implementation-interfaces.json",
+      "unitRefs": [
+        "UA-03",
+        "UA-06"
+      ],
+      "diRefs": [
+        "DI-05"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "9fc4ccf7ad039860907863fae1653d50ffff6ee42187c67ab2545c3c194fc356",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-18",
+      "path": "content/specifications/screen-flows.json",
+      "unitRefs": [
+        "UA-02",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-02",
+        "DI-07"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "1db102661e79a3350e45a38e70c1cd354ef0259005ec3c026119cfc91077ae0f",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-19",
+      "path": "content/specifications/screen-flows.md",
+      "unitRefs": [
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-07"
+      ],
+      "mode": "review_generated_view_with_source",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "43b854352e8049e17680c7227d2326ec66eb5062e1cbb93bff02e4c116dc6246",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-20",
+      "path": "content/specifications/security-storage-contracts.json",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07",
+        "UA-08"
+      ],
+      "diRefs": [
+        "DI-03",
+        "DI-06",
+        "DI-08"
+      ],
+      "mode": "proposed_contract_amendment",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    },
+    {
+      "id": "AT-21",
+      "path": "content/specifications/storage-operations.md",
+      "unitRefs": [
+        "UA-01",
+        "UA-02",
+        "UA-03",
+        "UA-04",
+        "UA-05",
+        "UA-06",
+        "UA-07"
+      ],
+      "diRefs": [
+        "DI-02",
+        "DI-03",
+        "DI-06"
+      ],
+      "mode": "review_generated_view_with_source",
+      "sharedReviewRequired": true,
+      "changed": false,
+      "baselineHash": "ed94354c58d9cead9f767b92a9f02c24c1b5fb40fd8a718aabfa3e502ecf87a6",
+      "acceptance": "관련 UA의 계약/오류/권한/reader/저장/UI 변경을 한 파일의 통합 diff와 같은 checkpoint에서 대조"
+    }
+  ],
+  "candidateRegistry": [
+    {
+      "id": "CR-OC-01",
+      "candidateRef": "OC-01",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [
+        "API-103",
+        "API-001",
+        "API-002"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-02",
+      "candidateRef": "OC-02",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [
+        "API-003",
+        "API-004"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-03",
+      "candidateRef": "OC-03",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [
+        "API-014",
+        "API-016",
+        "API-020"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-04",
+      "candidateRef": "OC-04",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [
+        "API-023"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-05",
+      "candidateRef": "OC-05",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [
+        "API-027",
+        "API-028",
+        "API-029",
+        "API-032"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-06",
+      "candidateRef": "OC-06",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [
+        "API-030",
+        "API-092"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-07",
+      "candidateRef": "OC-07",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [
+        "API-042",
+        "API-043",
+        "API-044",
+        "API-104",
+        "API-105",
+        "API-106"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-08",
+      "candidateRef": "OC-08",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [
+        "API-039",
+        "API-040",
+        "API-041",
+        "API-093",
+        "API-087"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-09",
+      "candidateRef": "OC-09",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-04",
+      "existingApiRefs": [
+        "API-057",
+        "API-058",
+        "API-059",
+        "API-061",
+        "API-062"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-10",
+      "candidateRef": "OC-10",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-04",
+      "existingApiRefs": [
+        "API-060",
+        "API-061",
+        "API-062"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-11",
+      "candidateRef": "OC-11",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-04",
+      "existingApiRefs": [
+        "API-064",
+        "API-065",
+        "API-067",
+        "API-068",
+        "API-069"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-12",
+      "candidateRef": "OC-12",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-04",
+      "existingApiRefs": [
+        "API-070",
+        "API-071",
+        "API-072"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-13",
+      "candidateRef": "OC-13",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-05",
+      "existingApiRefs": [
+        "API-051",
+        "API-052",
+        "API-053",
+        "API-094",
+        "API-107"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-14",
+      "candidateRef": "OC-14",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-05",
+      "existingApiRefs": [
+        "API-073",
+        "API-074",
+        "API-075",
+        "API-076",
+        "API-077",
+        "API-078",
+        "API-079",
+        "API-080",
+        "API-081",
+        "API-082",
+        "API-083",
+        "API-095",
+        "API-096",
+        "API-097"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-15",
+      "candidateRef": "OC-15",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-05",
+      "existingApiRefs": [
+        "API-084",
+        "API-085",
+        "API-107"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-16",
+      "candidateRef": "OC-16",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [
+        "API-020",
+        "API-107"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-17",
+      "candidateRef": "OC-17",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-18",
+      "candidateRef": "OC-18",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-19",
+      "candidateRef": "OC-19",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-20",
+      "candidateRef": "OC-20",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-01",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-21",
+      "candidateRef": "OC-21",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-04",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-22",
+      "candidateRef": "OC-22",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-04",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-23",
+      "candidateRef": "OC-23",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-24",
+      "candidateRef": "OC-24",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-02",
+      "existingApiRefs": [],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-25",
+      "candidateRef": "OC-25",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-05",
+      "existingApiRefs": [
+        "API-080"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-OC-26",
+      "candidateRef": "OC-26",
+      "namespace": "OC",
+      "kind": "logical_route_contract",
+      "unitRef": "UA-05",
+      "existingApiRefs": [
+        "API-107"
+      ],
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-01",
+      "candidateRef": "PRC-01",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-02",
+      "candidateRef": "PRC-02",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-03",
+      "candidateRef": "PRC-03",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-04",
+      "candidateRef": "PRC-04",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-05",
+      "candidateRef": "PRC-05",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-06",
+      "candidateRef": "PRC-06",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PRC-07",
+      "candidateRef": "PRC-07",
+      "namespace": "PRC",
+      "kind": "profile_control",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-01",
+      "candidateRef": "PCP-01",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-02",
+      "candidateRef": "PCP-02",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-03",
+      "candidateRef": "PCP-03",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-04",
+      "candidateRef": "PCP-04",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-05",
+      "candidateRef": "PCP-05",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-06",
+      "candidateRef": "PCP-06",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCP-07",
+      "candidateRef": "PCP-07",
+      "namespace": "PCP",
+      "kind": "authorization_policy",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCB-01",
+      "candidateRef": "PCB-01",
+      "namespace": "PCB",
+      "kind": "ble_command",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCB-02",
+      "candidateRef": "PCB-02",
+      "namespace": "PCB",
+      "kind": "ble_command",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-PCB-03",
+      "candidateRef": "PCB-03",
+      "namespace": "PCB",
+      "kind": "ble_command",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/profile-control-adoption-map.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-01",
+      "candidateRef": "TMC-01",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-02",
+      "candidateRef": "TMC-02",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-03",
+      "candidateRef": "TMC-03",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-04",
+      "candidateRef": "TMC-04",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-05",
+      "candidateRef": "TMC-05",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-06",
+      "candidateRef": "TMC-06",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-07",
+      "candidateRef": "TMC-07",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    },
+    {
+      "id": "CR-TMC-08",
+      "candidateRef": "TMC-08",
+      "namespace": "TMC",
+      "kind": "privileged_internal_command_not_public_api",
+      "unitRef": "UA-06",
+      "existingApiRefs": [],
+      "source": "content/specifications/management-trust-lifecycle.json",
+      "adoptedIdentifier": null,
+      "disposition": "candidate_not_registered"
+    }
+  ],
+  "checkpointFields": [
+    {
+      "id": "CP-01",
+      "name": "identity",
+      "required": "checkpointId·scope·parentBaselineDigest·candidateBundleDigest·createdAt",
+      "rule": "작업 계획 ID와 runtime changeId/activationId를 분리",
+      "value": null
+    },
+    {
+      "id": "CP-02",
+      "name": "sourceAndTargets",
+      "required": "source file/hash·target before/after hash·UA별 diff·generated view/hash",
+      "rule": "실제 after hash는 채택 검토 시 생성. 지금은 baseline hash만 존재",
+      "value": null
+    },
+    {
+      "id": "CP-03",
+      "name": "decisions",
+      "required": "정확한 선택 record/profile/version·사용하는 PF/GA branch·미선택/hold 목록",
+      "rule": "미선택을 빈 값/기본값으로 정상화하지 않음",
+      "value": null
+    },
+    {
+      "id": "CP-04",
+      "name": "dispositions",
+      "required": "DI/OC/PRC/PCP/PCB/TMC별 유지/변경/신규/보류·실제 채택 ID/위치",
+      "rule": "개별 채택이 미해결이면 전체 채택 아님. namespace별 수량 분리",
+      "value": null
+    },
+    {
+      "id": "CP-05",
+      "name": "compatibility",
+      "required": "producer/consumer/profile 조합·reader/continuation·오류/거절·migration/cleanup 계획",
+      "rule": "부재를 호환으로 간주하지 않음. 단순 schema 유사성은 의미 호환 증거 아님",
+      "value": null
+    },
+    {
+      "id": "CP-06",
+      "name": "reviewEvidence",
+      "required": "검사 종류·명령/버전·입력 hash·결과·한계·현재 승인 scope/evidence 참조",
+      "rule": "문서 검사·실제 암호·DB·기기·종단 검증을 다른 종류로 기록",
+      "value": null
+    },
+    {
+      "id": "CP-07",
+      "name": "statusAndRecovery",
+      "required": "검토/채택 상태·보류 사유·원 결과 조회·후속 수정/제한 계획",
+      "rule": "채택됨과 runtime 준비/활성화/peer 적용/수용 완료는 별도 축",
+      "value": null
+    },
+    {
+      "id": "CP-08",
+      "name": "retention",
+      "required": "구 reader·원 요청·노출/체인 서명·미확정 작업·삭제/seal 의존성",
+      "rule": "retention 종료나 구버전 제거는 이 문서 채택의 자동 부수효과가 아님",
+      "value": null
+    }
+  ],
+  "compatibilityRules": [
+    {
+      "id": "UC-01",
+      "name": "구 client → 새 server",
+      "rule": "명시된 지원 version/operationClass만 adapter로 해석. 누락된 새 필드가 승인/권한 의미를 바꾸면 새 효과 거절. 기존 원 결과 읽기는 별도 현재 reader로 검토",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-02",
+      "name": "새 client → 구 server",
+      "rule": "capability/버전 미지원은 지원 대기. 통신 오류를 이유로 보호 약한 구 endpoint/다른 signer로 자동 fallback하지 않음",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-03",
+      "name": "일부 peer만 새 profile 적용",
+      "rule": "server activation과 필수 cohort별 적용 분리. 해당 새 효과만 hold; 현재 허용된 관측/제한/원 요청 조정 경로 보존",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-04",
+      "name": "기존 operation과 갱신된 권한",
+      "rule": "원 payload/source/parent·epoch/노출을 보존. 이전 승인으로 새 effect 생성하지 않음. 현재 read proof가 grant 재활성화로 확장되지 않음",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-05",
+      "name": "이벤트 v1/v2·중복/역순",
+      "rule": "명시 dispatcher와 원천 revision을 유지하고 소비자별 단일 effect writer 보존. event 이름만 같다고 payload 호환으로 판단하지 않음",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-06",
+      "name": "저장 확장·새 writer·구 reader",
+      "rule": "expand/호환 reader→writer 전환→관측→별도 정리. 실제 layout 미선정이면 물리 호환 미검증. 구 7 migration 수정/재적용 금지",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-07",
+      "name": "관리 root/키 교체·복구",
+      "rule": "현재 독립 신뢰와 purpose·scope·PoP·checkpoint·fence로 재검사. 구 공개키의 역사적 서명 검증은 현재 권한이 아님",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-08",
+      "name": "UI/권한/결과 경로",
+      "rule": "화면 버튼과 서버 권한 재검사 연결. pending/unknown/committed/current restriction을 분리. API020/107 typed reader와 API088 audit-only 의미 보존",
+      "status": "specified_not_runtime_verified"
+    },
+    {
+      "id": "UC-09",
+      "name": "되돌림 요구",
+      "rule": "문서 후보 폐기와 runtime rollback 구분. 활성화 후에는 현재 제약을 만족하는 더 높은 revision의 후속 변경; fence 감소·파괴적 down migration·외부 서명 취소 추정 금지",
+      "status": "specified_not_runtime_verified"
+    }
+  ],
+  "reviewStages": [
+    {
+      "id": "UP-01",
+      "name": "변경 대상과 기준 보존",
+      "dependsOn": [],
+      "output": "AT 목록·source pins·후보 namespace·기존 DI 의존성",
+      "guard": "기준 drift는 해당 범위를 재검토하며 과거 hash 덮어쓰기 금지",
+      "executed": false
+    },
+    {
+      "id": "UP-02",
+      "name": "행위별 정책·호환 입력 확인",
+      "dependsOn": [
+        "UP-01"
+      ],
+      "output": "선정/미선정 PF/GA·정확한 변경 scope·UC 조건",
+      "guard": "미선정 분기의 신규 효과는 hold. 해당 분기의 wire/수명/암호 조건을 임의 확정하지 않음",
+      "executed": false
+    },
+    {
+      "id": "UP-03",
+      "name": "계약·권한·reader·저장·화면 통합 diff",
+      "dependsOn": [
+        "UP-02"
+      ],
+      "output": "UA01~08 공동 검토·공유 AT별 reviewer 증거·CP 후보",
+      "guard": "이 단계부터 실제 계약 수정은 선택/입력이 충분한 범위의 별도 설계 채택 작업. 이번 계획에서는 수행 안 함",
+      "executed": false
+    },
+    {
+      "id": "UP-04",
+      "name": "후보별 disposition과 문서 검사",
+      "dependsOn": [
+        "UP-03"
+      ],
+      "output": "source/target hash·schema/ACL/reader·negative case·generated view·DI 완료 의존성 대조",
+      "guard": "호환 미입증/일부 실패를 남긴 checkpoint는 partial/held; 완전 채택으로 올리지 않음",
+      "executed": false
+    },
+    {
+      "id": "UP-05",
+      "name": "문서 기준 채택 기록",
+      "dependsOn": [
+        "UP-04"
+      ],
+      "output": "실제 변경과 검토 증거가 고정된 checkpoint·인계/원 기준 보존",
+      "guard": "문서 채택은 runtime activation·실기검증·구현 허가가 아님",
+      "executed": false
+    },
+    {
+      "id": "UP-06",
+      "name": "구현 이후 rollout 인계",
+      "dependsOn": [
+        "UP-05"
+      ],
+      "output": "명시적 구현 전환 후 환경·실증거→prepare→activation→peer apply→실제 수용",
+      "guard": "실제 적용은 PRC/TMC와 AD01~07 원 계약; 이 계획으로 원격 변경/SQL/키등록을 수행하지 않음",
+      "executed": false
+    }
+  ],
+  "stopRecoveryRules": [
+    {
+      "id": "UR-01",
+      "name": "문서 검토 전/중 source drift",
+      "rule": "해당 기준/diff 검토 보류·새 비교본 작성. 현재 canonical과 역사적 checkpoint를 임의 재기준화하지 않음"
+    },
+    {
+      "id": "UR-02",
+      "name": "문서 후보 일부 실패",
+      "rule": "미완성 후보를 held/partial로 기록·원 문서 유지. 선택된 범위에서 필요한 모든 관련 target이 정합해야 그 범위 채택 가능"
+    },
+    {
+      "id": "UR-03",
+      "name": "runtime staging 이후 abort",
+      "rule": "원 change/result와 commit 경합 확인. 미활성화가 확인된 staging만 중지; 응답 유실은 미실행 증거가 아님"
+    },
+    {
+      "id": "UR-04",
+      "name": "activation 이후 일부 적용/불명",
+      "rule": "원 activation 조회·현재 fence 유지·peer별 재검증. 전체 성공이나 head 감소를 하지 않음"
+    },
+    {
+      "id": "UR-05",
+      "name": "새 writer/외부 서명 이후 실패",
+      "rule": "노출/체인/저장 상태 조정과 호환 후속 변경. 파일 되돌림으로 이미 일어난 외부 효과를 없앴다고 하지 않음"
+    },
+    {
+      "id": "UR-06",
+      "name": "과거 reader·tombstone 폐기 요구",
+      "rule": "원 요청/노출/보존/복원·generation seal 의존성이 해소됐다는 현재 증거 필요. 미해결이면 읽기 adapter 또는 격리 유지"
+    }
+  ],
+  "sourceHashes": {
+    "content/planning/design-closure-review.json": "2a2e92c6d6ed2b9be9df08828a76b1a8118ceaadc9c24615a95a8d09ed7163cb",
+    "content/planning/integration-adoption-matrix.json": "8ddc0c064587b8828905c99318d5499b4da36dd20365a61d624d327a2ce5980a",
+    "content/specifications/api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "content/specifications/api-catalog.json": "0c4353873a8e4a539bde0af783caf6478a35064804349b2740715bcfa2d335f0",
+    "content/specifications/approval-source-dispatch.json": "65a48dd3c4cafab89a7e181869998834d68fd92d79a7d01be97990b48d45eac9",
+    "content/specifications/authorization-policies.json": "73d251b1dfdf8e735a4a3c071f76e22a5baff294ce0e1090730efed59a91a7f4",
+    "content/specifications/ble-catalog.json": "ebd335ca7e3f5a875453bb9f8a70cc6717641c70836fdd28573531079746aedc",
+    "content/specifications/common-flows.json": "c6a34e1d2f1a20721bd391511ac80601ca9f8443fff3b37dcc3067196490ff44",
+    "content/specifications/compatibility-matrix.json": "7087c771df49d12f47118b6a787d94dc39363498fc1fcdf9e0821f051f500a4e",
+    "content/specifications/core.schema.json": "d4a620e5f2cdead56fe51acac8ccd839d557b66084a589274ff7c380d4c78443",
+    "content/specifications/critical-dtos.json": "301b0d824123f3b4ceb19df57fbf96d1177e79daf2cc2c1a3f52dfb572380511",
+    "content/specifications/critical-dtos.schema.json": "be677ba55d10120c2c6199c3f7ee4219241c1f6c9f3460de22600c4fa9228d46",
+    "content/specifications/database/004_device_lifecycle.sql": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2",
+    "content/specifications/database/README.md": "14d98eb7de3690383aa3ffe2667af8d91c6c40f0bb706f614c72dd43ae41143e",
+    "content/specifications/database/schema-catalog.json": "0dd7a141de2308c4b2eec77437160382eeeaea575ad68b259d25078eb7f29aaf",
+    "content/specifications/event-catalog.json": "8660d596fc893e0f79bbeb46e3969a3894e3870671c5cf791588a057844e1fba",
+    "content/specifications/extended-dtos.json": "0c8ce0042374921d936cde0dc66cf32827777fd2b3bfb77d425ab24865858ee5",
+    "content/specifications/extended-dtos.schema.json": "ac4851a4a36699bd8f69d368d74f92454c18fd35a0942a9673b42ee8baf01def",
+    "content/specifications/implementation-interfaces.json": "9fc4ccf7ad039860907863fae1653d50ffff6ee42187c67ab2545c3c194fc356",
+    "content/specifications/management-trust-evidence.json": "d749e09852b31a77aafb6c122357017d17e53802c54b52331516b6edcd4389b4",
+    "content/specifications/management-trust-lifecycle.json": "d0681180d0d0f867432debf91fe25af25eecbf86534bd9f70389638a49d8e5f0",
+    "content/specifications/preimplementation-contract-overlay.json": "31df189970849ffb4fe38b1b0e773f671a6d4905f49268644bba030a27ae5e97",
+    "content/specifications/profile-adoption-protocol.json": "f790ab12574fcfb079753521c460ced84146fdf54f711080f8711a40a74c6d25",
+    "content/specifications/profile-control-adoption-map.json": "cca8d74080ccb492487d92e5a77cc6fde5b1927499c29d64a707e3be6cd6768e",
+    "content/specifications/screen-flows.json": "1db102661e79a3350e45a38e70c1cd354ef0259005ec3c026119cfc91077ae0f",
+    "content/specifications/screen-flows.md": "43b854352e8049e17680c7227d2326ec66eb5062e1cbb93bff02e4c116dc6246",
+    "content/specifications/security-storage-contracts.json": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8",
+    "content/specifications/selection-action-gates.json": "cca94982e270311aaf29c1b48ee65528e769422d5f508bfa811b0d039d5c1996",
+    "content/specifications/selection-profile-contract.json": "8225719c5478e47cd41f909ffd38aefc7a9e54ceec006bc6ffc39ee25bafa9c1",
+    "content/specifications/storage-operations.md": "ed94354c58d9cead9f767b92a9f02c24c1b5fb40fd8a718aabfa3e502ecf87a6",
+    "content/specifications/trust-operations-design.json": "5b0e299535a27de3726ab37f11d446596d8e3be9edfa00a6a00d6ae08a397aad"
+  },
+  "nextAction": "후속 설계에서는 공유 AT의 충돌 가능 지점을 실제 필드/연산 단위로 대조한다. 새 정책값을 정하지 않고 변경 책임·보존 의미·검토 차단 사유를 구체화하며, 선택에 의존하는 항목은 미확정으로 유지한다.",
+  "legacyDispositions": [
+    {
+      "kind": "existing_http",
+      "id": "API-030",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "commerce-reconciliation-integration.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-035",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "commerce-reconciliation-integration.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-036",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "commerce-reconciliation-integration.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-037",
+      "disposition": "preserve_current_schema_semantic_guard_alignment",
+      "bundle": "DI-01",
+      "source": "commerce-reconciliation-integration.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-038",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "commerce-reconciliation-integration.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-039",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-040",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-041",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-093",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "existing_http",
+      "id": "API-087",
+      "disposition": "proposed_full_envelope_replacement",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "uncatalogued_http_alias",
+      "id": "SR-01",
+      "disposition": "needs_identifier_policy_and_catalog_adoption",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "uncatalogued_http_alias",
+      "id": "SR-02",
+      "disposition": "needs_identifier_policy_and_catalog_adoption",
+      "bundle": "DI-01",
+      "source": "settlement-ops-contracts.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-01",
+      "existingApiRefs": [
+        "API-046"
+      ],
+      "existingBleRefs": [
+        "device.reset.prepare"
+      ],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-02",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-03",
+      "existingApiRefs": [
+        "API-047"
+      ],
+      "existingBleRefs": [],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-04",
+      "existingApiRefs": [],
+      "existingBleRefs": [
+        "device.reset.confirm"
+      ],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-05",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-06",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-07",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    },
+    {
+      "kind": "logical_return_protocol",
+      "id": "RP-08",
+      "existingApiRefs": [
+        "API-091"
+      ],
+      "existingBleRefs": [],
+      "disposition": "transport_direction_and_full_route_mapping_pending",
+      "bundle": "DI-04",
+      "source": "return-protocol-candidate.json"
+    }
+  ],
+  "registryBoundary": "CR 목록은 OC/PRC/PCP/PCB/TMC의 namespace별 연결이다. 기존 20개 disposition의 SR/RP 등 분류를 대체하거나 중복 합산하지 않는다. TR/TE/PCS 논리 저장 기록과 TO 역할/패널은 UA-06 검토 대상이며 HTTP endpoint 수에 포함하지 않는다."
+}

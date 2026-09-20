@@ -1,0 +1,52 @@
+{
+  "scope": "design_only",
+  "runtimeTests": "not_run",
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_return_routes.py",
+      "status": "fulfilled",
+      "chunk_id": "052b02",
+      "wall_time_seconds": 0.112272833,
+      "exit_code": 0,
+      "original_token_count": 51,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 10, \"blePairs\": 6, \"validShapes\": 33, \"invalidShapes\": 12, \"readinessLogicExamples\": 11, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 10, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_return_screens.py",
+      "status": "fulfilled",
+      "chunk_id": "9281e3",
+      "wall_time_seconds": 0.000001125,
+      "exit_code": 0,
+      "original_token_count": 43,
+      "output": "{\"baseStates\": 11, \"overlays\": 6, \"guardedActions\": 12, \"declarativeCases\": 13, \"affectedScreens\": 5, \"canonicalScreens\": 37, \"runtimeUiAndAuthorizationTests\": \"not_run\"}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "status": "fulfilled",
+      "chunk_id": "016c50",
+      "wall_time_seconds": 0.000001333,
+      "exit_code": 0,
+      "original_token_count": 26,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "status": "fulfilled",
+      "chunk_id": "c6a00a",
+      "wall_time_seconds": 0.000001417,
+      "exit_code": 0,
+      "original_token_count": 60,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_approval_baseline.py",
+      "status": "fulfilled",
+      "chunk_id": "481c0e",
+      "wall_time_seconds": 0.204088125,
+      "exit_code": 0,
+      "original_token_count": 72,
+      "output": "{\"scope\": \"current_canonical_design_only\", \"api\": 110, \"approvalHttpRoutes\": 13, \"blePairs\": 5, \"validShapes\": 43, \"invalidShapes\": 17, \"checkpointFilesVerified\": 174, \"historicalChecks\": 10, \"storageMappings\": 13, \"canonicalMerged\": true, \"sqlApplied\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "note": "Approval baseline verifies archive hashes for 174 files; historicalChecks=10 reports preserved historical results, not a fresh rerun. Return route validator includes follow-up reviewed guard assertions."
+}

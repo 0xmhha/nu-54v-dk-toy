@@ -1,0 +1,11 @@
+status=PASS
+products=10
+wbs_packages=57
+authoritative_tasks=104
+assigned_tasks=104
+missing=0
+extra=0
+duplicated=0
+cycles=0
+late_predecessors=0
+weeks=1..12

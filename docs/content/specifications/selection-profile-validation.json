@@ -1,0 +1,1249 @@
+{
+  "status": "passed",
+  "scope": "finite_design_gate_examples_only",
+  "profiles": 20,
+  "fields": 82,
+  "crossConstraints": 16,
+  "representativeActions": 53,
+  "casesPassed": 73,
+  "cases": [
+    {
+      "id": "unknown_action",
+      "actionId": "GA-unknown",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {},
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "unknown_branch",
+      "actionId": "GA-44",
+      "variant": "unknown",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {},
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-02_no_authority",
+      "actionId": "GA-02",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "authorized": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-02_stale_context",
+      "actionId": "GA-02",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "contextCurrent": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-02_untrusted_reader_or_writer",
+      "actionId": "GA-02",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-02_current_security_denial",
+      "actionId": "GA-02",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "securityAllowsThisMode": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "GA-03_no_authority",
+      "actionId": "GA-03",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "authorized": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-03_stale_context",
+      "actionId": "GA-03",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "contextCurrent": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-03_untrusted_reader_or_writer",
+      "actionId": "GA-03",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-03_current_security_denial",
+      "actionId": "GA-03",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "securityAllowsThisMode": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "GA-27_no_authority",
+      "actionId": "GA-27",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "authorized": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-27_stale_context",
+      "actionId": "GA-27",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "contextCurrent": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-27_untrusted_reader_or_writer",
+      "actionId": "GA-27",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-27_current_security_denial",
+      "actionId": "GA-27",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "securityAllowsThisMode": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "GA-07_no_authority",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "authorized": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-07_stale_context",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "contextCurrent": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-07_untrusted_reader_or_writer",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-07_current_security_denial",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "securityAllowsThisMode": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "GA-19_no_authority",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "authorized": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-19_stale_context",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "contextCurrent": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-19_untrusted_reader_or_writer",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-19_current_security_denial",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "securityAllowsThisMode": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "GA-41_no_authority",
+      "actionId": "GA-41",
+      "variant": "imported_wallet_copy_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "authorized": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-41_stale_context",
+      "actionId": "GA-41",
+      "variant": "imported_wallet_copy_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "contextCurrent": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "GA-41_untrusted_reader_or_writer",
+      "actionId": "GA-41",
+      "variant": "imported_wallet_copy_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "GA-41_current_security_denial",
+      "actionId": "GA-41",
+      "variant": "imported_wallet_copy_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "securityAllowsThisMode": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "read_without_new_policy",
+      "actionId": "GA-20",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [],
+        "profileActiveForAction": false
+      },
+      "expected": "read_only",
+      "observed": "read_only"
+    },
+    {
+      "id": "read_original_unknown_not_new_payment",
+      "actionId": "GA-20",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "originalExposureUnknown": true
+      },
+      "expected": "read_only",
+      "observed": "read_only"
+    },
+    {
+      "id": "read_denied_by_current_projection",
+      "actionId": "GA-17",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "readProjectionAllowed": false
+      },
+      "expected": "hold:PRIVACY_DENIED",
+      "observed": "hold:PRIVACY_DENIED"
+    },
+    {
+      "id": "refresh_scoped_recovery_proof",
+      "actionId": "GA-53",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [],
+        "profileActiveForAction": false
+      },
+      "expected": "read_only",
+      "observed": "read_only"
+    },
+    {
+      "id": "logout_without_new_policy",
+      "actionId": "GA-03",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [],
+        "profileActiveForAction": false
+      },
+      "expected": "restriction_only",
+      "observed": "restriction_only"
+    },
+    {
+      "id": "withdraw_without_retention_choice",
+      "actionId": "GA-47",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "restriction_only",
+      "observed": "restriction_only"
+    },
+    {
+      "id": "stop_audio_even_if_new_use_denied",
+      "actionId": "GA-15",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [],
+        "readProjectionAllowed": false
+      },
+      "expected": "restriction_only",
+      "observed": "restriction_only"
+    },
+    {
+      "id": "logout_cannot_expand_to_key_erase",
+      "actionId": "GA-03",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "restrictionIsNarrow": false
+      },
+      "expected": "hold:FORBIDDEN",
+      "observed": "hold:FORBIDDEN"
+    },
+    {
+      "id": "terminal_scoped_cleanup_without_new_policy",
+      "actionId": "GA-27",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "cleanup_only",
+      "observed": "cleanup_only"
+    },
+    {
+      "id": "delete_existing_approved_scope",
+      "actionId": "GA-51",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "cleanup_only",
+      "observed": "cleanup_only"
+    },
+    {
+      "id": "delete_no_plan",
+      "actionId": "GA-51",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "scopedPlanCurrent": false
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "delete_late_new_target",
+      "actionId": "GA-51",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "planTargetsCurrent": false
+      },
+      "expected": "hold:REVISION_CONFLICT",
+      "observed": "hold:REVISION_CONFLICT"
+    },
+    {
+      "id": "delete_retention_hold",
+      "actionId": "GA-51",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "domainGuardsPass": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "new_payment_no_choice",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "proposal_values_not_active",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "profileActiveForAction": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "contract_validated_not_runtime",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "runtimeEvidenceForAction": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "profile_switch_before_commit",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "activationHeadCurrent": false
+      },
+      "expected": "hold:REVISION_CONFLICT",
+      "observed": "hold:REVISION_CONFLICT"
+    },
+    {
+      "id": "unknown_original_payout",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "originalExposureUnknown": true
+      },
+      "expected": "hold:EXPOSURE_UNKNOWN",
+      "observed": "hold:EXPOSURE_UNKNOWN"
+    },
+    {
+      "id": "new_payment_domain_still_checked",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "domainGuardsPass": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "positive_fixture_is_only_eligibility",
+      "actionId": "GA-19",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {},
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "resume_original_retired_profile",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [],
+        "profileActiveForAction": false
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "resume_cannot_guess_latest_profile",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "originalProfileKnown": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "resume_wrong_original_digest",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "originalBindingMatches": false
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "resume_incomplete_original_fields",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "originalFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "resume_requires_current_permission",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "continuationAllowed": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "resume_cannot_start_new_dkg",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "wouldCreateNewEffect": true
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "resume_unknown_commit",
+      "actionId": "GA-07",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "originalExposureUnknown": true
+      },
+      "expected": "hold:EXPOSURE_UNKNOWN",
+      "observed": "hold:EXPOSURE_UNKNOWN"
+    },
+    {
+      "id": "refund_not_a_read",
+      "actionId": "GA-21",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "perp_close_not_a_read",
+      "actionId": "GA-33",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "export_not_a_read",
+      "actionId": "GA-18",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "consent_grant_not_withdrawal",
+      "actionId": "GA-50",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "reset_without_choice",
+      "actionId": "GA-41",
+      "variant": "new_travel_backup_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": []
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "backup_choice_without_recovery",
+      "actionId": "GA-41",
+      "variant": "new_travel_backup_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "independentRecoveryVerified": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "backup_path_wrong_policy",
+      "actionId": "GA-41",
+      "variant": "new_travel_backup_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "returnPolicy": "hold_reset_without_recovery"
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "hold_policy_never_erases",
+      "actionId": "GA-41",
+      "variant": "new_travel_hold_without_recovery",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "returnPolicy": "hold_reset_without_recovery"
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "import_does_not_need_travel_backup",
+      "actionId": "GA-41",
+      "variant": "imported_wallet_copy_reset",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D12-04",
+          "PF-D06-01",
+          "PF-D12-02",
+          "PF-D17-04",
+          "PF-D05-01",
+          "PF-D17-02",
+          "PF-D14-04",
+          "PF-D03-01",
+          "PF-D07-03",
+          "PF-D03-03",
+          "PF-D15-04",
+          "PF-D17-01",
+          "PF-D05-04",
+          "PF-D13-01",
+          "PF-D15-03",
+          "PF-D01-01",
+          "PF-D05-03",
+          "PF-D10-04",
+          "PF-D18-04",
+          "PF-D04-03",
+          "PF-D02-03",
+          "PF-D02-02",
+          "PF-D13-04",
+          "PF-D19-05",
+          "PF-D08-05",
+          "PF-D08-02",
+          "PF-D04-02",
+          "PF-D07-01",
+          "PF-D12-03",
+          "PF-D15-01",
+          "PF-D13-02",
+          "PF-D16-02",
+          "PF-D04-01",
+          "PF-D16-04",
+          "PF-D06-02",
+          "PF-D16-03",
+          "PF-D18-03",
+          "PF-D09-01",
+          "PF-D01-02",
+          "PF-D10-01",
+          "PF-D01-03",
+          "PF-D09-02",
+          "PF-D14-03",
+          "PF-D08-01",
+          "PF-D06-04",
+          "PF-D16-01",
+          "PF-D18-02",
+          "PF-D19-02",
+          "PF-D09-04",
+          "PF-D08-04",
+          "PF-D13-03",
+          "PF-D11-04",
+          "PF-D11-02",
+          "PF-D02-04",
+          "PF-D18-01",
+          "PF-D04-04",
+          "PF-D15-02",
+          "PF-D05-02",
+          "PF-D11-01",
+          "PF-D14-02",
+          "PF-D09-03",
+          "PF-D02-01",
+          "PF-D14-01",
+          "PF-D11-03",
+          "PF-D10-03",
+          "PF-D17-03",
+          "PF-D01-04",
+          "PF-D10-02",
+          "PF-D12-01",
+          "PF-D08-03",
+          "PF-D19-01",
+          "PF-D19-03",
+          "PF-D19-04",
+          "PF-D07-02",
+          "PF-D03-02",
+          "PF-D06-03",
+          "PF-D07-04"
+        ]
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "new_rental_independent_of_refund_rules",
+      "actionId": "GA-40",
+      "variant": "new_rental",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D03-03",
+          "PF-D09-03",
+          "PF-D19-04"
+        ]
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "readmit_requires_cleanup_evidence",
+      "actionId": "GA-40",
+      "variant": "complete_return_or_readmit",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "inventoryOrCleanupProven": false
+      },
+      "expected": "hold:AUTHORITY_HELD",
+      "observed": "hold:AUTHORITY_HELD"
+    },
+    {
+      "id": "manual_edit_without_ai_provider",
+      "actionId": "GA-44",
+      "variant": "manual_edit",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D02-03",
+          "PF-D17-03",
+          "PF-D18-01"
+        ]
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "generation_needs_ai_provider",
+      "actionId": "GA-44",
+      "variant": "generate_candidate",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D12-04",
+          "PF-D06-01",
+          "PF-D12-02",
+          "PF-D03-04",
+          "PF-RR-DEC-01-04",
+          "PF-D17-04",
+          "PF-D05-01",
+          "PF-D17-02",
+          "PF-D14-04",
+          "PF-D03-01",
+          "PF-D07-03",
+          "PF-D03-03",
+          "PF-RR-DEC-01-03",
+          "PF-D15-04",
+          "PF-D17-01",
+          "PF-D05-04",
+          "PF-D13-01",
+          "PF-D15-03",
+          "PF-D01-01",
+          "PF-D05-03",
+          "PF-D10-04",
+          "PF-D18-04",
+          "PF-D04-03",
+          "PF-D02-03",
+          "PF-D02-02",
+          "PF-D13-04",
+          "PF-D19-05",
+          "PF-D08-05",
+          "PF-D08-02",
+          "PF-D04-02",
+          "PF-D07-01",
+          "PF-D12-03",
+          "PF-D15-01",
+          "PF-D13-02",
+          "PF-RR-DEC-01-02",
+          "PF-D16-02",
+          "PF-D04-01",
+          "PF-D16-04",
+          "PF-D06-02",
+          "PF-D16-03",
+          "PF-D18-03",
+          "PF-D09-01",
+          "PF-D01-02",
+          "PF-D10-01",
+          "PF-D01-03",
+          "PF-D09-02",
+          "PF-D14-03",
+          "PF-D08-01",
+          "PF-D06-04",
+          "PF-D16-01",
+          "PF-D19-02",
+          "PF-D09-04",
+          "PF-D08-04",
+          "PF-D13-03",
+          "PF-D11-04",
+          "PF-D11-02",
+          "PF-D02-04",
+          "PF-D18-01",
+          "PF-D04-04",
+          "PF-D15-02",
+          "PF-D05-02",
+          "PF-D11-01",
+          "PF-D14-02",
+          "PF-D09-03",
+          "PF-D02-01",
+          "PF-D14-01",
+          "PF-D11-03",
+          "PF-D10-03",
+          "PF-D17-03",
+          "PF-D01-04",
+          "PF-D10-02",
+          "PF-D12-01",
+          "PF-RR-DEC-01-01",
+          "PF-D08-03",
+          "PF-D19-01",
+          "PF-D19-03",
+          "PF-D19-04",
+          "PF-D07-02",
+          "PF-D03-02",
+          "PF-D06-03",
+          "PF-D07-04"
+        ]
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "late_candidate_cannot_overwrite_edit",
+      "actionId": "GA-44",
+      "variant": "apply_candidate",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "candidateBaseCurrent": false
+      },
+      "expected": "hold:REVISION_CONFLICT",
+      "observed": "hold:REVISION_CONFLICT"
+    },
+    {
+      "id": "server_verify_without_device_signer",
+      "actionId": "GA-35",
+      "variant": "verify_presentation",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D15-01",
+          "PF-D15-02",
+          "PF-D15-03",
+          "PF-D15-04"
+        ]
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "device_signature_needs_key_profile",
+      "actionId": "GA-35",
+      "variant": "issue_or_present_with_device",
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D15-01",
+          "PF-D15-02",
+          "PF-D15-03",
+          "PF-D15-04"
+        ]
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "alert_independent_of_ranging",
+      "actionId": "GA-08",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D12-04",
+          "PF-D06-01",
+          "PF-D12-02",
+          "PF-D03-04",
+          "PF-RR-DEC-01-04",
+          "PF-D17-04",
+          "PF-D05-01",
+          "PF-D17-02",
+          "PF-D14-04",
+          "PF-D03-01",
+          "PF-D07-03",
+          "PF-D03-03",
+          "PF-RR-DEC-01-03",
+          "PF-D15-04",
+          "PF-D17-01",
+          "PF-D05-04",
+          "PF-D13-01",
+          "PF-D15-03",
+          "PF-D01-01",
+          "PF-D05-03",
+          "PF-D10-04",
+          "PF-D18-04",
+          "PF-D04-03",
+          "PF-D02-03",
+          "PF-D02-02",
+          "PF-D13-04",
+          "PF-D19-05",
+          "PF-D08-05",
+          "PF-D08-02",
+          "PF-D04-02",
+          "PF-D07-01",
+          "PF-D12-03",
+          "PF-D15-01",
+          "PF-D13-02",
+          "PF-RR-DEC-01-02",
+          "PF-D16-02",
+          "PF-D04-01",
+          "PF-D16-04",
+          "PF-D06-02",
+          "PF-D16-03",
+          "PF-D18-03",
+          "PF-D09-01",
+          "PF-D01-02",
+          "PF-D10-01",
+          "PF-D01-03",
+          "PF-D09-02",
+          "PF-D14-03",
+          "PF-D08-01",
+          "PF-D06-04",
+          "PF-D16-01",
+          "PF-D18-02",
+          "PF-D19-02",
+          "PF-D09-04",
+          "PF-D08-04",
+          "PF-D13-03",
+          "PF-D11-04",
+          "PF-D11-02",
+          "PF-D02-04",
+          "PF-D18-01",
+          "PF-D04-04",
+          "PF-D15-02",
+          "PF-D05-02",
+          "PF-D11-01",
+          "PF-D14-02",
+          "PF-D09-03",
+          "PF-D02-01",
+          "PF-D14-01",
+          "PF-D11-03",
+          "PF-D10-03",
+          "PF-D17-03",
+          "PF-D01-04",
+          "PF-D10-02",
+          "PF-D12-01",
+          "PF-RR-DEC-01-01",
+          "PF-D08-03",
+          "PF-D19-01",
+          "PF-D19-03",
+          "PF-D19-04",
+          "PF-D07-02",
+          "PF-D03-02",
+          "PF-D06-03"
+        ]
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "ranging_requires_measurement_profile",
+      "actionId": "GA-09",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D12-04",
+          "PF-D06-01",
+          "PF-D12-02",
+          "PF-D03-04",
+          "PF-RR-DEC-01-04",
+          "PF-D17-04",
+          "PF-D05-01",
+          "PF-D17-02",
+          "PF-D14-04",
+          "PF-D03-01",
+          "PF-D07-03",
+          "PF-D03-03",
+          "PF-RR-DEC-01-03",
+          "PF-D15-04",
+          "PF-D17-01",
+          "PF-D05-04",
+          "PF-D13-01",
+          "PF-D15-03",
+          "PF-D01-01",
+          "PF-D05-03",
+          "PF-D10-04",
+          "PF-D18-04",
+          "PF-D04-03",
+          "PF-D02-03",
+          "PF-D02-02",
+          "PF-D13-04",
+          "PF-D19-05",
+          "PF-D08-05",
+          "PF-D08-02",
+          "PF-D04-02",
+          "PF-D07-01",
+          "PF-D12-03",
+          "PF-D15-01",
+          "PF-D13-02",
+          "PF-RR-DEC-01-02",
+          "PF-D16-02",
+          "PF-D04-01",
+          "PF-D16-04",
+          "PF-D06-02",
+          "PF-D16-03",
+          "PF-D18-03",
+          "PF-D09-01",
+          "PF-D01-02",
+          "PF-D10-01",
+          "PF-D01-03",
+          "PF-D09-02",
+          "PF-D14-03",
+          "PF-D08-01",
+          "PF-D06-04",
+          "PF-D16-01",
+          "PF-D18-02",
+          "PF-D19-02",
+          "PF-D09-04",
+          "PF-D08-04",
+          "PF-D13-03",
+          "PF-D11-04",
+          "PF-D11-02",
+          "PF-D02-04",
+          "PF-D18-01",
+          "PF-D04-04",
+          "PF-D15-02",
+          "PF-D05-02",
+          "PF-D11-01",
+          "PF-D14-02",
+          "PF-D09-03",
+          "PF-D02-01",
+          "PF-D14-01",
+          "PF-D11-03",
+          "PF-D10-03",
+          "PF-D17-03",
+          "PF-D01-04",
+          "PF-D10-02",
+          "PF-D12-01",
+          "PF-RR-DEC-01-01",
+          "PF-D08-03",
+          "PF-D19-01",
+          "PF-D19-03",
+          "PF-D19-04",
+          "PF-D07-02",
+          "PF-D03-02",
+          "PF-D06-03"
+        ]
+      },
+      "expected": "hold:POLICY_UNSELECTED",
+      "observed": "hold:POLICY_UNSELECTED"
+    },
+    {
+      "id": "defi_independent_of_perp_selection",
+      "actionId": "GA-32",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "selectedFields": [
+          "PF-D12-04",
+          "PF-D06-01",
+          "PF-D12-02",
+          "PF-D03-04",
+          "PF-RR-DEC-01-04",
+          "PF-D17-04",
+          "PF-D05-01",
+          "PF-D17-02",
+          "PF-D14-04",
+          "PF-D03-01",
+          "PF-D07-03",
+          "PF-D03-03",
+          "PF-RR-DEC-01-03",
+          "PF-D15-04",
+          "PF-D17-01",
+          "PF-D05-04",
+          "PF-D15-03",
+          "PF-D01-01",
+          "PF-D05-03",
+          "PF-D10-04",
+          "PF-D18-04",
+          "PF-D04-03",
+          "PF-D02-03",
+          "PF-D02-02",
+          "PF-D19-05",
+          "PF-D08-05",
+          "PF-D08-02",
+          "PF-D04-02",
+          "PF-D07-01",
+          "PF-D12-03",
+          "PF-D15-01",
+          "PF-RR-DEC-01-02",
+          "PF-D16-02",
+          "PF-D04-01",
+          "PF-D16-04",
+          "PF-D06-02",
+          "PF-D16-03",
+          "PF-D18-03",
+          "PF-D09-01",
+          "PF-D01-02",
+          "PF-D10-01",
+          "PF-D01-03",
+          "PF-D09-02",
+          "PF-D14-03",
+          "PF-D08-01",
+          "PF-D06-04",
+          "PF-D16-01",
+          "PF-D18-02",
+          "PF-D19-02",
+          "PF-D09-04",
+          "PF-D08-04",
+          "PF-D11-04",
+          "PF-D11-02",
+          "PF-D02-04",
+          "PF-D18-01",
+          "PF-D04-04",
+          "PF-D15-02",
+          "PF-D05-02",
+          "PF-D11-01",
+          "PF-D14-02",
+          "PF-D09-03",
+          "PF-D02-01",
+          "PF-D14-01",
+          "PF-D11-03",
+          "PF-D10-03",
+          "PF-D17-03",
+          "PF-D01-04",
+          "PF-D10-02",
+          "PF-D12-01",
+          "PF-RR-DEC-01-01",
+          "PF-D08-03",
+          "PF-D19-01",
+          "PF-D19-03",
+          "PF-D19-04",
+          "PF-D07-02",
+          "PF-D03-02",
+          "PF-D06-03",
+          "PF-D07-04"
+        ]
+      },
+      "expected": "eligible_for_domain_checks",
+      "observed": "eligible_for_domain_checks"
+    },
+    {
+      "id": "scope_filtered_read_requires_reader",
+      "actionId": "GA-02",
+      "variant": null,
+      "syntheticBaseline": "all_required_evidence_true_fixture_not_runtime",
+      "changes": {
+        "trustedCapability": false,
+        "selectedFields": []
+      },
+      "expected": "hold:UNSUPPORTED_PROFILE",
+      "observed": "hold:UNSUPPORTED_PROFILE"
+    }
+  ],
+  "selectedValues": 0,
+  "runtimeVerified": false,
+  "productImplementationPerformed": false,
+  "canonicalMerged": false,
+  "limitations": [
+    "The evaluator is a documentation truth table, not runtime middleware.",
+    "Boolean evidence stands for independently verified authority/capability, not a client input.",
+    "Cross-constraint prose and all action subtypes are not formally proven by these cases.",
+    "No crypto, hardware, provider, persistence race or on-chain execution was performed."
+  ],
+  "sourceHashes": {
+    "content/specifications/selection-profile-contract.json": "8225719c5478e47cd41f909ffd38aefc7a9e54ceec006bc6ffc39ee25bafa9c1",
+    "content/specifications/selection-action-gates.json": "cca94982e270311aaf29c1b48ee65528e769422d5f508bfa811b0d039d5c1996"
+  }
+}

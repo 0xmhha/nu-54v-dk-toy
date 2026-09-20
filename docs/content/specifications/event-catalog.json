@@ -1,0 +1,177 @@
+{
+  "version": "0.1.0-draft",
+  "date": "2026-09-18",
+  "status": "design_proposal_not_implemented",
+  "source": "content/planning/work-breakdown.json",
+  "scope": "all_15_requirements_app_integrated_within_12_weeks",
+  "events": [
+    {
+      "type": "payment.observation.changed",
+      "taskRefs": [
+        "INDEX-03",
+        "INDEX-06"
+      ],
+      "producer": "indexer_adapter",
+      "consumers": [
+        "payment_reconciler"
+      ],
+      "payloadFields": [
+        "chainRef",
+        "canonicality",
+        "revision"
+      ]
+    },
+    {
+      "type": "payment.acceptance.changed",
+      "taskRefs": [
+        "PAY-04",
+        "INDEX-06"
+      ],
+      "producer": "payment_reconciler",
+      "consumers": [
+        "sales",
+        "benefits",
+        "receipts",
+        "travel"
+      ],
+      "payloadFields": [
+        "paymentId",
+        "previousState",
+        "newState",
+        "evidenceRevision"
+      ]
+    },
+    {
+      "type": "refund.state.changed",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "producer": "refund_service",
+      "consumers": [
+        "sales",
+        "benefits",
+        "receipts"
+      ],
+      "payloadFields": [
+        "refundId",
+        "paymentId",
+        "state",
+        "amount"
+      ]
+    },
+    {
+      "type": "benefit.ledger.changed",
+      "taskRefs": [
+        "STAMP-01"
+      ],
+      "producer": "benefit_service",
+      "consumers": [
+        "app",
+        "device_sync",
+        "challenges"
+      ],
+      "payloadFields": [
+        "accountId",
+        "entryId",
+        "revision"
+      ]
+    },
+    {
+      "type": "device.binding.revoked",
+      "taskRefs": [
+        "HW-03",
+        "STAMP-04"
+      ],
+      "producer": "device_registry",
+      "consumers": [
+        "session_service",
+        "app"
+      ],
+      "payloadFields": [
+        "deviceId",
+        "bindingId",
+        "revision"
+      ]
+    },
+    {
+      "type": "firmware.release.withdrawn",
+      "taskRefs": [
+        "OTA-04"
+      ],
+      "producer": "release_service",
+      "consumers": [
+        "app",
+        "ops"
+      ],
+      "payloadFields": [
+        "releaseId",
+        "reason",
+        "revision"
+      ]
+    },
+    {
+      "type": "recording.processing.changed",
+      "taskRefs": [
+        "REC-03"
+      ],
+      "producer": "recording_worker",
+      "consumers": [
+        "owner_app"
+      ],
+      "payloadFields": [
+        "recordingId",
+        "jobId",
+        "state"
+      ]
+    },
+    {
+      "type": "credential.status.changed",
+      "taskRefs": [
+        "DID-02"
+      ],
+      "producer": "credential_service",
+      "consumers": [
+        "holder_app",
+        "eligibility"
+      ],
+      "payloadFields": [
+        "credentialId",
+        "status",
+        "revision"
+      ]
+    },
+    {
+      "type": "travel.evidence.changed",
+      "taskRefs": [
+        "TRIP-04",
+        "INDEX-06"
+      ],
+      "producer": "travel_service",
+      "consumers": [
+        "itinerary",
+        "challenges"
+      ],
+      "payloadFields": [
+        "evidenceId",
+        "validity",
+        "revision"
+      ]
+    },
+    {
+      "type": "privacy.request.changed",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "producer": "privacy_service",
+      "consumers": [
+        "data_processors",
+        "owner_app"
+      ],
+      "payloadFields": [
+        "requestId",
+        "scope",
+        "state"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "scope": "design_only",
+  "runtimeTests": "not_run",
+  "canonicalMerged": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_rental_admission_cancel.py",
+      "chunk_id": "340b70",
+      "wall_time_seconds": 0.070692333,
+      "exit_code": 0,
+      "original_token_count": 48,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 9, \"blePairs\": 4, \"validShapes\": 36, \"invalidShapes\": 12, \"finiteModelCases\": 29, \"runtimeCasesNotRun\": 23, \"pinnedInputs\": 8, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_return_routes.py",
+      "chunk_id": "7c92b0",
+      "wall_time_seconds": 0.100249583,
+      "exit_code": 0,
+      "original_token_count": 51,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 10, \"blePairs\": 6, \"validShapes\": 33, \"invalidShapes\": 12, \"readinessLogicExamples\": 11, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 10, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_return_screens.py",
+      "chunk_id": "614339",
+      "wall_time_seconds": 0.000001375,
+      "exit_code": 0,
+      "original_token_count": 43,
+      "output": "{\"baseStates\": 11, \"overlays\": 6, \"guardedActions\": 12, \"declarativeCases\": 13, \"affectedScreens\": 5, \"canonicalScreens\": 37, \"runtimeUiAndAuthorizationTests\": \"not_run\"}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "chunk_id": "f8a683",
+      "wall_time_seconds": 0.000001333,
+      "exit_code": 0,
+      "original_token_count": 26,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "chunk_id": "841980",
+      "wall_time_seconds": 0.000001333,
+      "exit_code": 0,
+      "original_token_count": 60,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "mustFixCount": 1,
+    "resolved": "Single immutable cancellation lineage per job, including different idempotency keys; final reviewer confirmed.",
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "Schema fixtures do not verify cryptography or device state.",
+    "Finite serial models assume real atomic locking and durable storage; no runtime concurrency test.",
+    "Recipient consent, enrollment session, factory genesis profiles remain adoption prerequisites."
+  ]
+}

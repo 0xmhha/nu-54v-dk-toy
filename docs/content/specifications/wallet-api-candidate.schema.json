@@ -1,0 +1,1235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:wallet:approval:candidate:1",
+  "title": "Full logical HTTP envelopes; unmerged profile-dependent design, not executable OpenAPI",
+  "$defs": {
+    "Context": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "personal"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "store"
+            },
+            "storeId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "kind",
+            "storeId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ContextQuery": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "contextKind": {
+              "const": "personal"
+            }
+          },
+          "required": [
+            "contextKind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contextKind": {
+              "const": "store"
+            },
+            "storeId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "contextKind",
+            "storeId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SignerAvailability": {
+      "type": "object",
+      "properties": {
+        "signerRef": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "hardware_eoa",
+            "cloud_mpc_eoa",
+            "smart_account"
+          ]
+        },
+        "epoch": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/UInt"
+        },
+        "profileId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "supportedRequestKinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "eoa_transaction",
+              "typed_data",
+              "user_operation",
+              "credential_proof"
+            ]
+          }
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "available",
+            "requires_device_check",
+            "recovery_pending",
+            "blocked",
+            "unsupported"
+          ]
+        },
+        "observedAt": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+        }
+      },
+      "required": [
+        "signerRef",
+        "kind",
+        "epoch",
+        "profileId",
+        "supportedRequestKinds",
+        "state",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    },
+    "WalletChoice": {
+      "type": "object",
+      "properties": {
+        "wallet": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/WalletView"
+        },
+        "context": {
+          "$ref": "#/$defs/Context"
+        },
+        "bindingId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "bindingRevision": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Revision"
+        },
+        "signers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SignerAvailability"
+          }
+        }
+      },
+      "required": [
+        "wallet",
+        "context",
+        "bindingId",
+        "bindingRevision",
+        "signers"
+      ],
+      "additionalProperties": false
+    },
+    "Selection": {
+      "type": "object",
+      "properties": {
+        "walletId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "context": {
+          "$ref": "#/$defs/Context"
+        },
+        "bindingId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "expectedBindingRevision": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Revision"
+        },
+        "expectedWalletRevision": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Revision"
+        },
+        "signerRef": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "expectedSignerEpoch": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/UInt"
+        }
+      },
+      "required": [
+        "walletId",
+        "context",
+        "bindingId",
+        "expectedBindingRevision",
+        "expectedWalletRevision",
+        "signerRef",
+        "expectedSignerEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "TransferInput": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Address"
+        },
+        "assetId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      },
+      "required": [
+        "recipient",
+        "assetId",
+        "atomicAmount"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "intentId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "operationId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "chainId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/ChainId"
+        },
+        "payerAddress": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Address"
+        },
+        "sourceKind": {
+          "const": "personal_transfer"
+        },
+        "sourceId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Hash"
+        },
+        "reviewDigest": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Hash"
+        },
+        "profileId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "expiresAt": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "intentId",
+        "operationId",
+        "selection",
+        "chainId",
+        "payerAddress",
+        "sourceKind",
+        "sourceId",
+        "requestKind",
+        "payloadDigest",
+        "reviewDigest",
+        "profileId",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "SigningProgress": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "intentId": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "review_ready",
+            "signing",
+            "signature_unknown",
+            "signed",
+            "submission_unknown",
+            "submitted",
+            "closed"
+          ]
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observedAt": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "intentId",
+        "phase",
+        "transactionRef",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalEvidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "device_result"
+            },
+            "profileId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "proof": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/ProfileInput"
+            }
+          },
+          "required": [
+            "kind",
+            "profileId",
+            "proof"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "mpc_session"
+            },
+            "operationId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "kind",
+            "operationId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "API007Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API007Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "wallets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WalletChoice"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshotId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                }
+              },
+              "required": [
+                "wallets",
+                "nextCursor",
+                "snapshotId",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API008Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API008Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "wallets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/WalletChoice"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshotId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                }
+              },
+              "required": [
+                "wallets",
+                "nextCursor",
+                "snapshotId",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API009Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "walletId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "$ref": "#/$defs/ContextQuery"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API009Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                },
+                "context": {
+                  "$ref": "#/$defs/Context"
+                },
+                "chainId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/ChainId"
+                },
+                "address": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Address"
+                },
+                "assets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:nu:wallet:baseline#/$defs/BalanceView"
+                  }
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                },
+                "blockRef": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:wallet:baseline#/$defs/BlockRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "walletId",
+                "context",
+                "chainId",
+                "address",
+                "assets",
+                "observedAt",
+                "blockRef"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API017Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "chainId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/ChainId"
+            },
+            "action": {
+              "const": "personal_transfer"
+            },
+            "actionInput": {
+              "$ref": "#/$defs/TransferInput"
+            },
+            "selection": {
+              "$ref": "#/$defs/Selection"
+            }
+          },
+          "required": [
+            "walletId",
+            "chainId",
+            "action",
+            "actionInput",
+            "selection"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API017Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "intent": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/IntentView"
+                },
+                "review": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/ReviewView"
+                },
+                "expiry": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                },
+                "approvalContext": {
+                  "$ref": "#/$defs/ApprovalContext"
+                },
+                "operation": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Operation"
+                }
+              },
+              "required": [
+                "intent",
+                "review",
+                "expiry",
+                "approvalContext",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API015Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "walletId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "intentId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "approvalContextId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "approvalProof": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/ProfileInput"
+            }
+          },
+          "required": [
+            "intentId",
+            "approvalContextId",
+            "approvalProof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API015Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Operation"
+                },
+                "signing": {
+                  "$ref": "#/$defs/SigningProgress"
+                }
+              },
+              "required": [
+                "operation",
+                "signing"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API018Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "intentId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "signedPayload": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})+$"
+            },
+            "approvalEvidence": {
+              "$ref": "#/$defs/ApprovalEvidence"
+            }
+          },
+          "required": [
+            "intentId",
+            "signedPayload"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API018Response": {
+      "$ref": "urn:nu:wallet:baseline#/$defs/SubmitTransactionResponse"
+    },
+    "API019Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "transactionRef": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "transactionRef"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API019Response": {
+      "$ref": "urn:nu:wallet:baseline#/$defs/API019Response"
+    },
+    "API020Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "operationId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "operationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "wallet-approval-candidate-1"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API020Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Operation"
+                },
+                "walletFlow": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/SigningProgress"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "approvalSnapshot": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ApprovalSnapshot"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "operation",
+                "walletFlow",
+                "approvalSnapshot"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "error": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ApprovalSnapshot": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/IntentView"
+        },
+        "review": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/ReviewView"
+        },
+        "expiry": {
+          "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+        },
+        "approvalContext": {
+          "$ref": "#/$defs/ApprovalContext"
+        }
+      },
+      "required": [
+        "intent",
+        "review",
+        "expiry",
+        "approvalContext"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

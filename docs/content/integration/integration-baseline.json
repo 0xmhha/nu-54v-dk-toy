@@ -1,0 +1,498 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Planning and static source review; not a deployment configuration",
+  "reviewDate": "2026-09-17",
+  "runtimeValidated": false,
+  "repositories": [
+    {
+      "name": "indexer-go",
+      "url": "https://github.com/0xmhha/indexer-go",
+      "reviewedCommit": "5baff647f3cfab935f73db1bbd742ad42317045f"
+    },
+    {
+      "name": "indexer-frontend",
+      "url": "https://github.com/0xmhha/indexer-frontend",
+      "reviewedCommit": "e0f8100f94cf9c3862b02f4132fb542bdeae0ae9"
+    },
+    {
+      "name": "stable-poc-contract",
+      "url": "https://github.com/0xmhha/stable-poc-contract",
+      "reviewedCommit": "5d9d6550ef572bd86a036fe92c730e4ff0a1ca94"
+    },
+    {
+      "name": "poc-platform",
+      "url": "https://github.com/0xmhha/poc-platform",
+      "reviewedCommit": "fcad7900de5ceea5e3ef586774609ad00739b760"
+    }
+  ],
+  "decisions": {
+    "chainId": 8283,
+    "networkName": "StableNet test network (user-designated RPC)",
+    "accountMode": "eoa",
+    "feePayer": "customer",
+    "finalityPolicy": null,
+    "realAssetPilotRequired": null,
+    "feePaymentAsset": "native",
+    "feePaymentMethod": "customer_native_gas",
+    "sponsorship": {
+      "phase": "follow_up",
+      "payer": "service_operator",
+      "policy": null,
+      "rolloutDate": null
+    },
+    "smartAccount": {
+      "phase": "after_eoa_within_12_week_scope",
+      "migrationMethod": null,
+      "rolloutDate": null,
+      "implementation": null,
+      "supportDepth": "app_integrated_within_12_week_scope"
+    },
+    "cloudWallet": {
+      "required": true,
+      "keyManagement": "MPC",
+      "providers": [
+        "google",
+        "apple"
+      ],
+      "mpcProvider": null,
+      "threshold": null,
+      "shareCustodians": null,
+      "recoveryPolicy": null,
+      "relationshipToHardwareWallet": "separate requirements; address/key linkage undecided"
+    },
+    "firmware": {
+      "firmwareBase": "Zephyr",
+      "source": "user",
+      "statement": "펌웨어는 zephyr 기반으로 할꺼야.",
+      "status": "confirmed",
+      "sdkDistribution": null,
+      "zephyrRevision": null,
+      "boardTarget": null,
+      "runtimeVerified": false
+    }
+  },
+  "deployment": {
+    "tokenAddress": null,
+    "entryPointAddress": null,
+    "paymasterAddress": null,
+    "rpcUrl": "https://api.test.stablenet.network/",
+    "indexerUrl": null,
+    "bundlerUrl": null,
+    "explorerUrl": "https://explorer.stablenet.network/"
+  },
+  "testToken": {
+    "purpose": "development_demo",
+    "proposedName": "MockUSDC",
+    "proposedSymbol": "mUSDC",
+    "proposedDecimals": 6,
+    "specApproved": false
+  },
+  "observations": [
+    {
+      "id": "INDEXER-RPC",
+      "status": "static_mismatch",
+      "summary": "SDK array params/raw-array response vs server object params/transfers wrapper"
+    },
+    {
+      "id": "INDEXER-GQL",
+      "status": "static_mismatch",
+      "summary": "SDK transaction status/gasUsed/timestamp fields vs server Receipt fields and blockTimestamp"
+    },
+    {
+      "id": "PAYMASTER-FORMAT",
+      "status": "static_mismatch",
+      "summary": "Platform envelope/hash differs from reviewed contract local VerifyingPaymaster"
+    },
+    {
+      "id": "ENTRYPOINT-HASH",
+      "status": "runtime_unverified",
+      "summary": "SDK default v0.9 hash; deployment scripts use submodules; compare actual deployed getUserOpHash"
+    },
+    {
+      "id": "NU-SIGNER",
+      "status": "development_validation_deferred",
+      "summary": "Hardware available; user explicitly defers device verification until development"
+    }
+  ],
+  "nativeCurrency": {
+    "displaySymbol": "WKRC",
+    "symbolEvidence": "Explorer HTML and reviewed SDK config",
+    "configuredDecimals": 18,
+    "decimalsEvidence": "Reviewed SDK config; not returned by RPC"
+  },
+  "networkIdentityVerified": true,
+  "initialPaymentPath": {
+    "signer": "NU-54V-DK",
+    "transaction": "EOA token transfer",
+    "fee": "customer native gas",
+    "bundlerRequired": false,
+    "paymasterRequired": false,
+    "submissionRelay": "kiosk or connected service (implementation pending)"
+  },
+  "scopeUpdatedDate": "2026-09-18",
+  "scope": {
+    "version": 3,
+    "weeks": 12,
+    "authoritativeDocument": "content/twelve-week-completion-scope-v3.md",
+    "acceptanceCriteriaStatus": "proposed",
+    "supportDepth": "all_15_requirements_integrated_into_apps",
+    "staffing": {
+      "headcount": 3,
+      "confirmed": true,
+      "individualAssignments": null,
+      "weeklyHoursPerPerson": null,
+      "skillsPerPerson": null,
+      "allocationStatus": "deferred_until_work_breakdown_refined",
+      "allocationDocument": "content/three-person-delivery-plan.md",
+      "roles": {
+        "A": "Device firmware, BLE/native bridge and mobile device settings",
+        "B": "User/merchant apps, business backend, backoffice and traveler services",
+        "C": "Onchain contracts, wallet/MPC service, DEX and indexer"
+      },
+      "allocationDocumentStatus": "historical_proposal_not_current_assignment"
+    },
+    "mandatoryRequirementNumbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "hardwareFeatures": [
+      "wallet",
+      "FOTA",
+      "passkey",
+      "recorder",
+      "device_finding",
+      "payment_stamps"
+    ],
+    "contractDomains": [
+      "USDC",
+      "WKRC",
+      "DeFi",
+      "smart_account",
+      "FX",
+      "perpetual",
+      "STO",
+      "DID",
+      "x402"
+    ],
+    "dexDomains": [
+      "DeFi",
+      "FX",
+      "perpetual"
+    ],
+    "travelerFeatures": [
+      "location_restaurant_search",
+      "payment_history",
+      "travel_trails",
+      "AI_routes",
+      "user_reviews",
+      "follow_route_challenges",
+      "travel_stamps"
+    ],
+    "actualPaymentDataDefinition": null,
+    "externalInterviewSync": "not performed; external review call rejected by auto-review",
+    "planningStage": "work_breakdown_before_estimation_and_assignment",
+    "workBreakdown": {
+      "source": "content/planning/work-breakdown.json",
+      "guide": "content/work-breakdown-plan.md",
+      "taskCount": 104,
+      "epicCount": 26,
+      "decisionGroups": 19,
+      "status": "refined_proposal",
+      "ownersAssigned": false,
+      "effortEstimated": false,
+      "datesScheduled": false,
+      "subtaskCount": 320,
+      "scenarioCount": 19,
+      "executionSpecification": "content/planning/functional-execution-spec.md",
+      "subtasksCsv": "content/planning/implementation-steps.csv",
+      "planningConstraint": "all_15_requirements_with_app_integration_within_12_weeks"
+    },
+    "interfaceContracts": {
+      "status": "design_proposal_not_implemented",
+      "guide": "content/specifications/interface-contracts.md",
+      "apiOperations": 107,
+      "bleLogicalCommands": 34,
+      "domainEvents": 10,
+      "sharedSchemas": 16,
+      "syntheticExamples": 19,
+      "runtimeVerified": false,
+      "screenFlows": 37,
+      "detailedApiContracts": 8,
+      "detailedSyntheticExamples": 30,
+      "semanticCases": 2,
+      "screenSpecification": "content/specifications/screen-flows.md",
+      "detailedApiSpecification": "content/specifications/critical-dtos.md",
+      "extendedApiContracts": 99,
+      "typedApiEnvelopes": 107,
+      "storageOperations": 16,
+      "extendedSyntheticExamples": 24,
+      "extendedApiSpecification": "content/specifications/extended-contracts.md",
+      "storageOperationSpecification": "content/specifications/storage-operations.md",
+      "protocolProfilesFinalized": false
+    },
+    "databaseReference": {
+      "status": "reference_design_validated_in_disposable_database",
+      "engineProposal": "PostgreSQL",
+      "engineConfirmed": false,
+      "businessTables": 61,
+      "migrations": 7,
+      "constraintCasesPassed": 19,
+      "validationMode": "single_user_not_concurrency_test",
+      "productionApplied": false,
+      "guide": "content/specifications/database/README.md",
+      "report": "content/specifications/database/validation-result.json"
+    }
+  },
+  "accessControlPlanning": {
+    "specification": "../specifications/access-transactions.md",
+    "apiCount": 107,
+    "policyCount": 57,
+    "scenarioCount": 28,
+    "pendingSecurityInputs": 5,
+    "runtimeVerified": false
+  },
+  "securityIntegrationPlanning": {
+    "specification": "../specifications/security-integration-design.md",
+    "detailedGaps": 5,
+    "acceptanceSpecifications": 30,
+    "supplementalApiProposals": 5,
+    "baselineApiCount": 102,
+    "pendingSchemaMerge": false,
+    "runtimeVerified": false,
+    "canonicalApiCount": 107,
+    "canonicalApiIds": [
+      "API-103",
+      "API-104",
+      "API-105",
+      "API-106",
+      "API-107"
+    ],
+    "logicalAdapterResources": 15,
+    "schemaMergeStatus": "integrated_design_runtime_unverified"
+  },
+  "technologySelectionPlanning": {
+    "specification": "../planning/technology-selection.md",
+    "technologyChoices": 19,
+    "validationCards": 23,
+    "decisionGroupsCovered": 19,
+    "selectedVersions": null,
+    "runtimeVerified": false
+  },
+  "implementationInterfacePlanning": {
+    "firmwareBase": "Zephyr",
+    "sdkDistribution": null,
+    "zephyrRevision": null,
+    "interfaceCount": 14,
+    "compatibilityRows": 26,
+    "specification": "../specifications/implementation-interfaces.md",
+    "manifestTemplate": "../specifications/compatibility-manifest.template.json",
+    "runtimeVerified": false
+  },
+  "executionReadinessPlanning": {
+    "status": "planning_only",
+    "sequence": "content/planning/implementation-sequence.json",
+    "readinessCards": "content/planning/execution-readiness.json",
+    "evidenceTemplate": "content/planning/execution-evidence.template.json",
+    "packageCount": 104,
+    "subtaskCount": 320,
+    "originalDependencyEdges": 272,
+    "partialDeliverableCount": 10,
+    "runtimeValidated": false,
+    "assignmentAndEstimation": "deferred"
+  },
+  "phaseControl": {
+    "currentPhase": "detailed_design",
+    "implementation": "deferred_by_user",
+    "genericContinuationMeans": "continue_design",
+    "implementationTransition": "requires_user_instruction",
+    "userStatement": "그래 구현은 아직이야. 아직은 설계가 더 필요해."
+  },
+  "commerceLifecycleDesign": {
+    "design": "content/specifications/commerce-lifecycle-design.md",
+    "cases": "content/specifications/commerce-lifecycle-cases.json",
+    "status": "design_proposal_not_implemented",
+    "caseCount": 12,
+    "pendingDesignGaps": 5
+  },
+  "commerceContractCandidate": {
+    "document": "content/specifications/commerce-contract-changes.md",
+    "candidate": "content/specifications/commerce-contract-candidate.json",
+    "status": "review_candidate_not_merged",
+    "apiCount": 5,
+    "eventCount": 2,
+    "logicalResourceCount": 4,
+    "runtimeVerified": false
+  },
+  "returnRecoveryDesign": {
+    "document": "content/specifications/return-recovery-design.md",
+    "contract": "content/specifications/return-recovery-contract.json",
+    "status": "review_candidate_not_merged",
+    "caseCount": 16,
+    "implementation": "deferred_by_user"
+  },
+  "returnProtocolCandidate": {
+    "document": "content/specifications/return-protocol-contracts.md",
+    "candidate": "content/specifications/return-protocol-candidate.json",
+    "schema": "content/specifications/return-protocol-candidate.schema.json",
+    "status": "review_candidate_not_merged",
+    "messageGroupCount": 8,
+    "runtimeVerified": false,
+    "lateAssetRecoveryPolicy": "unresolved"
+  },
+  "returnScreenDesign": {
+    "document": "content/specifications/return-screen-design.md",
+    "source": "content/specifications/return-screen-design.json",
+    "status": "design_candidate_not_implemented",
+    "baseStates": 11,
+    "overlays": 6,
+    "actions": 12,
+    "reviewCases": 13,
+    "affectedScreens": [
+      "U24",
+      "D01",
+      "O01",
+      "U04",
+      "U05"
+    ],
+    "runtimeVerified": false
+  },
+  "designIntegrationRegister": {
+    "status": "design_consolidation_not_implementation",
+    "document": "content/planning/design-integration-register.md",
+    "source": "content/planning/design-integration-register.json",
+    "decisionCount": 19,
+    "requirementCount": 15,
+    "integrationBundleCount": 8,
+    "differenceCount": 5,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true
+  },
+  "walletControlRecoveryDesign": {
+    "status": "design_candidate_not_merged",
+    "document": "content/specifications/wallet-control-recovery-design.md",
+    "source": "content/specifications/wallet-control-recovery-design.json",
+    "policyCandidateCount": 4,
+    "invariantCount": 11,
+    "contractImpactCount": 7,
+    "reviewCaseCount": 21,
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true
+  },
+  "walletApiContractCandidate": {
+    "status": "review_candidate_not_merged",
+    "document": "content/specifications/wallet-api-contracts.md",
+    "source": "content/specifications/wallet-api-candidate.json",
+    "endpointCount": 8,
+    "validShapeCount": 18,
+    "invalidShapeCount": 11,
+    "reviewCaseCount": 16,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "signingSubmissionStorageDesign": {
+    "status": "design_candidate_not_merged",
+    "document": "content/specifications/signing-submission-storage-design.md",
+    "source": "content/specifications/signing-submission-storage-design.json",
+    "logicalResourceCount": 8,
+    "sourceAdapterCount": 3,
+    "atomicUnitCount": 6,
+    "reviewCaseCount": 20,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "sourceApprovalContractCandidate": {
+    "status": "review_candidate_not_merged",
+    "document": "content/specifications/source-approval-contracts.md",
+    "source": "content/specifications/source-approval-candidate.json",
+    "httpCandidateCount": 5,
+    "logicalBlePairCount": 5,
+    "validShapeCount": 24,
+    "invalidShapeCount": 11,
+    "fieldConsistencyExampleCount": 8,
+    "reviewCaseCount": 16,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "approvalContractMergePlan": {
+    "status": "merge_scope_defined_not_applied",
+    "document": "content/specifications/approval-contract-merge-plan.md",
+    "source": "content/specifications/approval-contract-merge-plan.json",
+    "directApiCount": 10,
+    "sharedApiCount": 3,
+    "bleCommandCount": 5,
+    "referencingScreenCount": 17,
+    "conflictCount": 8,
+    "mergeBundleCount": 5,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "approvalAccessContractCandidate": {
+    "status": "common_schema_and_access_candidate_not_merged",
+    "document": "content/specifications/approval-access-contracts.md",
+    "source": "content/specifications/approval-access-candidate.json",
+    "schema": "content/specifications/approval-contracts.schema.json",
+    "sourceKindCount": 3,
+    "proposedAccessRouteCount": 3,
+    "reviewCaseCount": 22,
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true
+  },
+  "approvalIntegrationCandidate": {
+    "status": "http_authorization_screen_storage_candidate_not_applied",
+    "document": "content/specifications/approval-integration-contracts.md",
+    "source": "content/specifications/approval-integration-candidate.json",
+    "schema": "content/specifications/approval-integration.schema.json",
+    "httpRouteCount": 13,
+    "existingApiCount": 10,
+    "proposedAccessRouteCount": 3,
+    "screenMappingCount": 17,
+    "storageResourceCount": 5,
+    "atomicUnitCount": 5,
+    "reviewCaseCount": 19,
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true
+  },
+  "approvalAdoptionPlan": {
+    "status": "adoption_sequence_and_acceptance_design_not_applied",
+    "document": "content/specifications/approval-adoption-plan.md",
+    "source": "content/specifications/approval-adoption-plan.json",
+    "adoptionStageCount": 6,
+    "profileAreaCount": 11,
+    "acceptanceRowCount": 24,
+    "referencedCompatibilityCount": 26,
+    "archiveCreated": false,
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true
+  },
+  "approvalCanonicalBaseline": {
+    "status": "canonical_design_integrated_runtime_unverified",
+    "document": "content/specifications/approval-baseline.md",
+    "source": "content/specifications/approval-baseline.json",
+    "checkpoint": "design-history/approval-premerge-20260918/checkpoint.json",
+    "apiCount": 110,
+    "authorizationPolicyCount": 60,
+    "logicalStorageCount": 28,
+    "canonicalMerged": true,
+    "archiveCreated": true,
+    "runtimeVerified": false,
+    "physicalSqlChanged": false,
+    "policySelectionUnchanged": true
+  }
+}

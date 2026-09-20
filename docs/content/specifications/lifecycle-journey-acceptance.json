@@ -1,0 +1,2285 @@
+{
+  "status": "lifecycle_journey_acceptance_design_only",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "policySelectionUnchanged": true,
+  "scope": "device rental lifecycle; not acceptance of whole 15-requirement product",
+  "journeys": [
+    {
+      "id": "LJ-01",
+      "title": "출고 기기 최초 등록",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "신뢰된 출고 신원·현재 virgin 증거와 rollback되지 않은 이력",
+        "현재 운영자 재고 권한·수령인 계정"
+      ],
+      "steps": [
+        "FG01에서 출고 증거 검증",
+        "RL-01 현재 후보 조회 후 EB01 초대",
+        "수령인 EB02/EBB01/EBB02/EB03 동의",
+        "API045 예약, LB01/RL02 저장 확인, LB02/RL03 활성화"
+      ],
+      "expectedEnd": "원 수령인에게 한 대여·binding만 active. 지갑 설정 완료는 별도다.",
+      "forbiddenOutcomes": [
+        "이력 없음/재설치를 출고 증거로 인정",
+        "운영자 확인만으로 기기·수령인 승인 생략"
+      ],
+      "caseRefs": [
+        "RLC-T03",
+        "BC-T07",
+        "BC-T10",
+        "LST-R19"
+      ],
+      "routeRefs": [
+        "FG01",
+        "RL-01",
+        "EB01",
+        "EB02",
+        "EBB01",
+        "EBB02",
+        "EB03",
+        "API-045",
+        "LB01",
+        "RL-02",
+        "LB02",
+        "RL-03"
+      ],
+      "atomicRefs": [
+        "LST-T05",
+        "LST-T06",
+        "ECT06",
+        "ECT07"
+      ],
+      "openPrerequisites": [
+        "trusted_genesis_profile",
+        "root_and_device_profile"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "기기 등록 완료",
+        "userVisibleSuccessWhen": "원 rental/binding 활성화가 서버와 기기 증거로 확인됨; 지갑 설정 완료와 별도"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "신뢰된 출고 표본이 같은 수령인 active binding까지 완료",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-02",
+      "title": "반납 완료 기기 재등록과 동시 예약",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "원 기기의 최신 cleanup 검증 및 현재 eligible 근거",
+        "다른 제한·활성/대기 대여 없음"
+      ],
+      "steps": [
+        "RL-01 후보를 두 운영자가 읽음",
+        "서로 다른 요청으로 같은 근거의 API045 동시 시도",
+        "성공한 원 예약만 기기 저장·활성화",
+        "실패자는 최신 상태 조회"
+      ],
+      "expectedEnd": "현재 근거를 한 번 소비한 대여만 진행. 경쟁자는 충돌로 종료.",
+      "forbiddenOutcomes": [
+        "오래된 조회로 두 번째 예약",
+        "서버 반납 완료만으로 cleanup 우회"
+      ],
+      "caseRefs": [
+        "RLC-T01",
+        "RLC-T02",
+        "RLC-T20",
+        "RRR-T14",
+        "RRR-T15",
+        "LST-R04",
+        "LST-R05",
+        "LST-R06",
+        "LST-R25"
+      ],
+      "routeRefs": [
+        "RL-01",
+        "API-045",
+        "API-091",
+        "LB01",
+        "RL-02",
+        "LB02",
+        "RL-03"
+      ],
+      "atomicRefs": [
+        "LST-T04",
+        "LST-T05",
+        "ECT07"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "기기 등록 완료",
+        "userVisibleSuccessWhen": "새 원 rental/binding 활성화 확인; 후보 조회/예약만으로 완료 금지"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "반납/정리 완료 표본을 다음 수령인의 active binding으로 등록",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-03",
+      "title": "초대·수령인 동의·권한 바꿔치기 거절",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "현재 초대와 기기/후보/수령인/holder 문맥"
+      ],
+      "steps": [
+        "현재 수령인 세션으로 EB02 ticket 요청",
+        "초대 유출/다른 accountId/holder/device proof/다른 후보를 각각 대입",
+        "EB03 중복·경쟁 동의 및 EB05와 API045 경쟁",
+        "동의/proof 두 참조가 같은 원 예약에 소비됐는지 확인"
+      ],
+      "expectedEnd": "완전한 원 증거를 가진 한 수령인만 동의/예약. 거절은 기기 소유권을 바꾸지 않음.",
+      "forbiddenOutcomes": [
+        "초대 코드 소유만으로 등록",
+        "서버 검증 참조 없는 holder/session 문자열 신뢰"
+      ],
+      "caseRefs": [
+        "BC-T01",
+        "BC-T02",
+        "BC-T03",
+        "BC-T04",
+        "BC-T05",
+        "BC-T06",
+        "BC-T08",
+        "BC-T09",
+        "RLC-T08"
+      ],
+      "routeRefs": [
+        "EB01",
+        "EB02",
+        "EB03",
+        "EB04",
+        "EB05",
+        "EBB01",
+        "EBB02",
+        "API-045"
+      ],
+      "atomicRefs": [
+        "ECT06",
+        "ECT07"
+      ],
+      "openPrerequisites": [
+        "consent_text_and_profile"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "수령인 동의 확인",
+        "userVisibleSuccessWhen": "현재 exact consent/proof 검증 및 참조 확정; 기기 활성화 완료를 뜻하지 않음"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "정상 초대/동의 증거가 한 번만 예약에 소비",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-04",
+      "title": "예약·저장·활성화 응답 유실",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "원 동의와 한 admission 예약",
+        "단계별 영속 기기 증거"
+      ],
+      "steps": [
+        "API045 응답을 유실하고 같은 멱등 키로 재조회",
+        "LB01/RL02/LB02/RL03 경계에서 각각 응답 유실",
+        "RL04/LW01과 원 증거로 같은 예약을 복구",
+        "활성화 후 wallet configuration 상태를 별도 확인"
+      ],
+      "expectedEnd": "하나의 예약을 active까지 복구하거나 확인 대기. 새 사용자 재배정 없음.",
+      "forbiddenOutcomes": [
+        "timeout을 예약 해제로 처리",
+        "active binding을 곧바로 configured wallet로 표시"
+      ],
+      "caseRefs": [
+        "RLC-T04",
+        "RLC-T05",
+        "RLC-T06",
+        "RLC-T07",
+        "LST-R07",
+        "LST-R08",
+        "BC-T22"
+      ],
+      "routeRefs": [
+        "API-045",
+        "LB01",
+        "RL-02",
+        "LB02",
+        "RL-03",
+        "RL-04",
+        "LW01"
+      ],
+      "atomicRefs": [
+        "LST-T05",
+        "LST-T06",
+        "LST-T12",
+        "ECT07"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "기기 등록 완료",
+        "userVisibleSuccessWhen": "동일 admission의 ActivationReceipt 검증 및 서버 active 확인"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "응답 유실 후 같은 admission이 active까지 복구",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-05",
+      "title": "원 holder의 등록 세션 복구",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "원 수령인 기본 인증과 원 holder 키",
+        "원 admission/epoch/immutable context 보존"
+      ],
+      "steps": [
+        "ER01 두 재연결 요청을 경쟁시킴",
+        "ERB01 준비 표식 후 재부팅/중단 주입",
+        "ER02/ERB02/ER03으로 원 lease/증거를 재전달",
+        "이전 세션/이전 generation으로 stage/activate 시도"
+      ],
+      "expectedEnd": "한 successor generation만 확정. 서버 미확인 상태는 대기이며 원 예약 유지.",
+      "forbiddenOutcomes": [
+        "소셜 로그인만으로 holder 교체",
+        "원 permit 내용을 바꿔 새 예약처럼 처리"
+      ],
+      "caseRefs": [
+        "ECR-01",
+        "ECR-02",
+        "ECR-03",
+        "ECR-04",
+        "ECR-05",
+        "ECR-06",
+        "ECR-07",
+        "ECR-10",
+        "BC-T21"
+      ],
+      "routeRefs": [
+        "ER01",
+        "ER02",
+        "ER03",
+        "ER05",
+        "ERB01",
+        "ERB02",
+        "LB01",
+        "LB02"
+      ],
+      "atomicRefs": [
+        "ECT01",
+        "ECT02",
+        "ECT03"
+      ],
+      "openPrerequisites": [
+        "continuation_profile",
+        "holder_loss_recovery_unselected"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "등록 연결 복구 완료",
+        "userVisibleSuccessWhen": "기기 적용 증거로 현재 continuation generation이 서버에서 확정; 원 등록 완료와 별도"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "원 holder가 같은 admission의 새 세션 generation으로 확인 완료",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-06",
+      "title": "예약 후 등록 승인 철회",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "현재 원 수령인과 정확한 consent/admission",
+        "기기 연결됨/불명확/이미 active를 각각 준비"
+      ],
+      "steps": [
+        "ER04와 서명/복구/활성화를 경쟁시킴",
+        "같은 철회를 다른 키로 재시도",
+        "가능한 경우 ERB03과 ER03 hold proof 전달",
+        "운영자 제한 전달과 수령인 전용 권한을 비교"
+      ],
+      "expectedEnd": "새 enrollment mutation 차단; 기기 확인 여부 별도. 지갑 소유권과 원 예약 보존.",
+      "forbiddenOutcomes": [
+        "전역 지갑 권한 철회나 자동 wipe",
+        "device unreachable을 미실행으로 단정",
+        "철회 완료를 재대여 가능으로 표시"
+      ],
+      "caseRefs": [
+        "ECR-08",
+        "ECR-09",
+        "ECR-11",
+        "ECR-12",
+        "ECR-13",
+        "ECR-14"
+      ],
+      "routeRefs": [
+        "ER04",
+        "ER05",
+        "ER03",
+        "ERB03"
+      ],
+      "atomicRefs": [
+        "ECT03",
+        "ECT04"
+      ],
+      "openPrerequisites": [
+        "renewed_authorization_unselected",
+        "uncertain_admission_return_path"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "등록 승인 철회 접수",
+        "userVisibleSuccessWhen": "서버 enrollment 승인 revision이 withdrawn으로 확정. device unknown이면 기기 제한 미확인 표시를 유지; hold 증거 확인 전 기기 반영 완료 표시 금지"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "현재 수령인의 철회로 서버 등록 승인 차단 및 연결된 기기의 hold 증거 확인",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-07",
+      "title": "설정된 지갑 반납의 자산·복구 점검",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "configured wallet과 실제 원천/키 통제 이력",
+        "new_travel과 imported를 별도 표본으로 준비"
+      ],
+      "steps": [
+        "API046 configured 분기에서 현재 원천/외부 접근 증거 확인",
+        "new_travel 필수 복구 조건 미결정 표본은 새 commit 거절",
+        "imported의 무관한 외부 자산 이체 없이 기기 사본 범위 점검",
+        "미확정 거래/노출된 서명/자격/개인 데이터 확인 후 허용된 표본만 다음 단계"
+      ],
+      "expectedEnd": "선택된 정책과 실제 증거가 있는 표본만 준비 가능. 미선택 정책은 안전한 보류가 성공 기대값.",
+      "forbiddenOutcomes": [
+        "RR-DEC-01을 임의 선택",
+        "import 지갑 전체 자산 sweep 강제",
+        "다른 Cloud Wallet 소유권 철회"
+      ],
+      "caseRefs": [
+        "RRR-T01",
+        "RRR-T02",
+        "RLC-T21"
+      ],
+      "routeRefs": [
+        "API-046",
+        "RT-01",
+        "API-091"
+      ],
+      "atomicRefs": [
+        "LST-T01",
+        "LST-T02"
+      ],
+      "openPrerequisites": [
+        "RR-DEC-01",
+        "wallet_setup_and_external_access_evidence",
+        "pending_transaction_policy"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "반납 사전 점검 완료",
+        "userVisibleSuccessWhen": "현재 선택된 정책/자산/외부접근/개인정보 조건 충족으로 실제 prepare 허용; 보류/거절은 완료 아님"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "정책/자산/외부 접근 조건이 충족된 configured 표본에서 초기화 준비 완료",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-08",
+      "title": "미설정 지갑 증거와 개인 데이터 반납",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "보호된 configuration 이력과 현재 기기 상태",
+        "미설정/잔여 import/과거 설정 후 삭제/unknown 표본"
+      ],
+      "steps": [
+        "WC01/WCB01/WC02로 현재 재고 증거 확보",
+        "빈 상태 검증 후 import와 reset commit 경쟁",
+        "API046 unconfigured 분기 점검",
+        "녹음/패스키 등 개인 데이터 삭제 profile을 전체 반납 흐름에 적용"
+      ],
+      "expectedEnd": "검증된 미설정 표본만 지갑 점검을 생략. 나머지는 configured 경로 또는 격리.",
+      "forbiddenOutcomes": [
+        "NULL wallet_origin을 증거로 사용",
+        "지갑이 없다는 이유로 다른 개인정보 삭제 생략"
+      ],
+      "caseRefs": [
+        "BC-T11",
+        "BC-T12",
+        "BC-T13",
+        "BC-T14",
+        "LST-R24",
+        "ECR-16"
+      ],
+      "routeRefs": [
+        "WC01",
+        "WC02",
+        "WCB01",
+        "API-046",
+        "RT-01",
+        "RB01",
+        "RB02"
+      ],
+      "atomicRefs": [
+        "LST-T01",
+        "LST-T02",
+        "ECT08"
+      ],
+      "openPrerequisites": [
+        "configuration_inventory_profile",
+        "erase_profile"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "반납 사전 점검 완료",
+        "userVisibleSuccessWhen": "현재 verified_empty와 전체 개인정보 점검/profile 조건 충족; unknown/material_present는 완료 아님"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "검증된 미설정 표본의 전체 개인 데이터 반납 준비 완료",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-09",
+      "title": "초기화 발급 전 취소와 양측 제한 해제",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "checking/prepared, grant가 한 번도 발급되지 않음",
+        "다른 FOTA/관리 제한도 별도 표본으로 준비"
+      ],
+      "steps": [
+        "RC01을 다른 키 두 개로 호출",
+        "CB01/RC02에서 준비 무효화와 release permit 확인",
+        "CB02 응답 유실 후 같은 release receipt로 RC03 재시도",
+        "재요청/오래된 취소/새 반납 job을 각각 확인"
+      ],
+      "expectedEnd": "job은 aborted, 원 대여·binding 유지. 해당 반납 제한만 해제; 새 반납은 새 job.",
+      "forbiddenOutcomes": [
+        "취소된 반납을 eligible 재고로 전환",
+        "다른 제한 해제",
+        "잃어버린 표식을 깨끗함으로 간주"
+      ],
+      "caseRefs": [
+        "RLC-T10",
+        "RLC-T12",
+        "RLC-T13",
+        "RLC-T14",
+        "RLC-T15",
+        "RLC-T16",
+        "RLC-T17",
+        "RLC-T18",
+        "RLC-T19",
+        "RLC-T22",
+        "RLC-T23",
+        "LST-R09",
+        "LST-R11",
+        "LST-R12",
+        "LST-R13"
+      ],
+      "routeRefs": [
+        "RC-01",
+        "RC-02",
+        "RC-03",
+        "RC-04",
+        "CB01",
+        "CB02"
+      ],
+      "atomicRefs": [
+        "LST-T07",
+        "LST-T08",
+        "LST-T09"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "반납 취소 완료",
+        "userVisibleSuccessWhen": "정확한 기기 ReleaseReceipt 검증 + 서버 own return fence 해제 + 원 job aborted; 다른 제한 별도 표시"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "never-issued 취소가 양측 제한 해제까지 완료, 원 대여 보존",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-10",
+      "title": "초기화 발급 장벽·만료·취소 경쟁",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "현재 prepare/물리 승인/정책 점검",
+        "발급 reservation 이전과 이후를 구분"
+      ],
+      "steps": [
+        "RT01과 RC01 동시 실행",
+        "발급 예약 뒤 signer 중단/응답 유실",
+        "서명 대기 동안 prepare 만료/재부팅",
+        "원 결과 재조회와 취소 시도를 비교"
+      ],
+      "expectedEnd": "발급이 먼저면 barrier 보존, 만료해도 취소/새 삭제 발급 없음. 취소가 먼저면 commit 거절.",
+      "forbiddenOutcomes": [
+        "서명 bytes 없음으로 grantIssued=false 복원",
+        "만료된 prepare에 늦은 grant 전달"
+      ],
+      "caseRefs": [
+        "RRR-T03",
+        "RRR-T04",
+        "RRR-T16",
+        "RLC-T09",
+        "RLC-T11",
+        "BC-T15",
+        "LST-R01",
+        "LST-R10"
+      ],
+      "routeRefs": [
+        "RT-01",
+        "RC-01",
+        "RB02",
+        "LW01",
+        "API-091"
+      ],
+      "atomicRefs": [
+        "LST-T02",
+        "LST-T07",
+        "LST-T11"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "초기화 허가 준비됨",
+        "userVisibleSuccessWhen": "신선한 동일 prepare에 전달 가능한 원 grant bytes 확인; 실제 삭제나 반납 완료를 뜻하지 않음"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "발급 정상 표본에서 신선한 원 grant 전달; 경쟁 표본은 단일 승자",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-11",
+      "title": "기기 초기화 중 전원 중단",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "기기가 동일 grant를 영속 수락한 저널",
+        "실제 erase/epoch 보호 profile"
+      ],
+      "steps": [
+        "RB02 수락 후 각 삭제 checkpoint에서 전원 중단",
+        "동일 job 저널로만 재개",
+        "이전 세대/손상 저널/삭제 미완료 상태를 주입",
+        "보호 증거를 만들어 원 작업에 연결"
+      ],
+      "expectedEnd": "완료 증거가 검증되거나 격리/대기. 모르는 상태를 완료로 만들지 않음.",
+      "forbiddenOutcomes": [
+        "새 job을 자동 발급",
+        "실기 없이 삭제/antirollback 통과 처리"
+      ],
+      "caseRefs": [
+        "RRR-T05",
+        "RRR-T12",
+        "LST-R18"
+      ],
+      "routeRefs": [
+        "RB02",
+        "RB04",
+        "API-047"
+      ],
+      "atomicRefs": [
+        "LST-T03",
+        "LST-T12"
+      ],
+      "openPrerequisites": [
+        "real_device_power_loss_evidence",
+        "erase_profile"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "초기화 증거 준비됨",
+        "userVisibleSuccessWhen": "동일 job의 실제 완료 reset evidence가 기기에서 생성됨; unknown/incomplete/격리는 완료 아님"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "지원 profile의 정상/복구 가능 중단 표본에서 동일 job reset 증거 생성",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-12",
+      "title": "초기화 후 중계 권한·기존 증거 복구",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "원 job/grant/암호문 보존",
+        "독립적인 현재 기본 인증으로 제한 중계 권한 발급"
+      ],
+      "steps": [
+        "RT02/03과 RB03로 제한 중계 세션 구성",
+        "RB04 원 암호문을 얻고 RT04 challenge 후 API047 제출",
+        "만료된 clearance/교체된 authority/새 proof 멱등 재시도",
+        "job/rental/nonce/proof 바꿔치기와 wallet sign 시도"
+      ],
+      "expectedEnd": "기존 증거만 현재 제한 권한으로 전달. 새 삭제나 소유자 서명 권한 없음.",
+      "forbiddenOutcomes": [
+        "평문 증거 공개",
+        "expired authority로 새 권한 bootstrap",
+        "ciphertext에 새 challenge를 넣어 순환 구성"
+      ],
+      "caseRefs": [
+        "RRR-T06",
+        "RRR-T08",
+        "RRR-T09",
+        "RRR-T10",
+        "RRR-T17",
+        "RRR-T18",
+        "LST-R15",
+        "LST-R23"
+      ],
+      "routeRefs": [
+        "RT-02",
+        "RT-03",
+        "RT-04",
+        "RB03",
+        "RB04",
+        "API-047"
+      ],
+      "atomicRefs": [
+        "LST-T10",
+        "LST-T12",
+        "LST-T03"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "서버 반납 접수 완료",
+        "userVisibleSuccessWhen": "원 reset evidence 검증과 rental 반환 확인; cleanup/재대여 완료 아님"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "현재 제한 relay로 원 증거 접수, 원 ACK 획득",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-13",
+      "title": "서버 반납 완료→ACK→정리 검증",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "원 reset evidence가 검증됨",
+        "서버완료/기기정리 상태 분리"
+      ],
+      "steps": [
+        "API047 성공 뒤 ACK 응답 유실",
+        "RT07 원 ACK를 얻고 RB05 전달",
+        "RT05/RB06/RT06에서 새 cleanup challenge/proof",
+        "표식 없음/옛 proof/다른 제한 상태를 비교"
+      ],
+      "expectedEnd": "cleanup 현재성 검증 후에만 재대여 근거 eligible. 다른 제한은 별도 유지.",
+      "forbiddenOutcomes": [
+        "serverReturnCompleted를 곧바로 eligible로 표시",
+        "marker 없음으로 정리 완료 추론"
+      ],
+      "caseRefs": [
+        "RRR-T11",
+        "RRR-T12",
+        "RRR-T13",
+        "LST-R04",
+        "LST-R05",
+        "LST-R14"
+      ],
+      "routeRefs": [
+        "API-047",
+        "RT-07",
+        "RB05",
+        "RT-04",
+        "RT-05",
+        "RB06",
+        "RT-06",
+        "API-091"
+      ],
+      "atomicRefs": [
+        "LST-T03",
+        "LST-T04",
+        "LST-T11",
+        "LST-T12"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "기기 정리 확인",
+        "userVisibleSuccessWhen": "정확한 현재 cleanup proof 확인; 재대여 조건 충족 표시는 다른 모든 gate까지 통과한 현재 조회일 때만"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "서버 완료부터 기기 정리 검증과 현재 재대여 조건까지 진행",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-14",
+      "title": "다음 대여자 격리와 이전 소유자 조회",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "정리 후 새 수령인으로 다음 대여/epoch 존재"
+      ],
+      "steps": [
+        "API091 역사 조회와 현재 조회 비교",
+        "이전 holder/job/cleanup proof로 BLE/HTTP 재시도",
+        "조회 직후 API045와 새 binding 변경 경쟁",
+        "이전 계정이 다음 수령인 상태를 읽는지 검사"
+      ],
+      "expectedEnd": "이전 사용자는 허용된 원 이력만 조회, 새 세대 조작/새 계정 정보 없음.",
+      "forbiddenOutcomes": [
+        "옛 cleanup proof로 current gate 개방",
+        "서로 다른 시점의 상태를 섞어 eligible 추론"
+      ],
+      "caseRefs": [
+        "RRR-T07",
+        "RRR-T14",
+        "RRR-T15",
+        "LST-R20",
+        "LST-R25"
+      ],
+      "routeRefs": [
+        "API-091",
+        "API-045",
+        "RT-06",
+        "RB03",
+        "RB05",
+        "ER05"
+      ],
+      "atomicRefs": [
+        "LST-T04",
+        "LST-T05",
+        "ECT05"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "새 대여 활성 상태",
+        "userVisibleSuccessWhen": "새 원 소유자 활성화 증거 확인; 이전 사용자는 허용된 원 이력만 표시"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "다음 수령인 정상 사용과 이전 수령인의 제한된 역사 조회 병행",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-15",
+      "title": "비동기 작업·객체·백업 복구",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "typed work/immutable outcome/authority watermark 기록",
+        "staging/검증/서명/link/apply를 구분"
+      ],
+      "steps": [
+        "객체 staging과 signed link 경계에서 중단",
+        "GC와 reference 생성, 오래된 worker와 새 worker 경쟁",
+        "캐시 만료/중복 outbox/서명 bytes 충돌 주입",
+        "DB를 오래된 backup으로 복구하고 current device evidence 대조"
+      ],
+      "expectedEnd": "원 작업/장벽 유지, stale worker 반영 거절, 최신 신뢰 기준 없으면 보류.",
+      "forbiddenOutcomes": [
+        "outbox나 work ready를 거래 권한으로 사용",
+        "옛 backup에서 virgin/open/grant false 생성",
+        "일반 result URL로 보호 결과 노출"
+      ],
+      "caseRefs": [
+        "LST-R02",
+        "LST-R03",
+        "LST-R16",
+        "LST-R17",
+        "LST-R21",
+        "LST-R26",
+        "BC-T16",
+        "BC-T17",
+        "BC-T18",
+        "BC-T19",
+        "ECR-15",
+        "ECR-18"
+      ],
+      "routeRefs": [
+        "LW01",
+        "RT-07",
+        "RL-04",
+        "ER05",
+        "API-091"
+      ],
+      "atomicRefs": [
+        "LST-T11",
+        "LST-T12",
+        "ECT08"
+      ],
+      "openPrerequisites": [],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "작업 결과 확인",
+        "userVisibleSuccessWhen": "하위 work ready만으로 성공 금지; 원 parent/action의 실제 완료 조건이 충족된 경우에만 해당 업무 성공 표시"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "정상 worker는 원 결과를 반영하고 복구 가능한 중단 표본은 같은 결과 회수",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    },
+    {
+      "id": "LJ-16",
+      "title": "지원하지 않는 조합과 권한 경계",
+      "actors": [
+        "수령인 앱",
+        "NU-54V-DK",
+        "대여/반납 서버",
+        "허용된 운영 화면"
+      ],
+      "preconditions": [
+        "버전/profile/실제 보드 tuple",
+        "정상/구형/누락/미지원 조합 각각 준비"
+      ],
+      "steps": [
+        "서버·앱·펌웨어 버전 조합과 capabilities 비교",
+        "지원되지 않는 holder/profile/proof/frame/저장 기능 요청",
+        "운영자에게 owner/continuation 권한이 없는지 검사",
+        "API046 준비 및 signing 기존 writer 우회 차단 확인"
+      ],
+      "expectedEnd": "미지원 기능을 사용 가능으로 표시하지 않고 명시적으로 보류/거절. 기존 기능의 별도 권한 유지.",
+      "forbiddenOutcomes": [
+        "legacy bearer/owner 세션으로 자동 downgrade",
+        "mock 성공을 실기 tuple 증거로 표시"
+      ],
+      "caseRefs": [
+        "BC-T20",
+        "LST-R22",
+        "ECR-17",
+        "RRR-T02"
+      ],
+      "routeRefs": [
+        "API-046",
+        "EBB01",
+        "ERB01",
+        "ERB02",
+        "ERB03",
+        "LW01"
+      ],
+      "atomicRefs": [
+        "LST-T01",
+        "ECT01",
+        "ECT04"
+      ],
+      "openPrerequisites": [
+        "selected_full_compatibility_tuple"
+      ],
+      "evidenceRefs": [],
+      "runtimeStatus": "not_run",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "VERIFY-01"
+      ],
+      "scope": "device_rental_lifecycle_only",
+      "uiOracle": {
+        "pendingWhen": "delivery/verification/device execution uncertain; no automatic repeated destructive action",
+        "errorWhen": "required identity/profile/policy/context fails; preserve original lineage",
+        "successLabel": "해당 기능 사용 가능",
+        "userVisibleSuccessWhen": "선택된 지원 tuple과 해당 기능의 실제 현재 사전조건 확인; 미지원 거절은 사용 가능 아님"
+      },
+      "evidenceRequirements": [
+        "run manifest and selected compatibility tuple",
+        "redacted authoritative pre/post state and revisions",
+        "ordered HTTP/BLE trace with exact context/digest identifiers",
+        "device durable marker/proof or explicit absent/unavailable record",
+        "fault injection location and retry/idempotency outcomes",
+        "negative assertion: no extra rental/grant/release or private data exposure"
+      ],
+      "normalControlExpected": "지원 tuple 대조 표본은 허용, 미지원 tuple은 거절",
+      "verdictRule": "Normal/control branch must satisfy normalControlExpected; unexpected pending/quarantine is blocked/failed, never pass. Fault branch must match the specific source case expected outcome and no forbidden outcome; one safety denial cannot mark whole journey or product passed.",
+      "testPassWhen": "Branch-specific oracle, including safe denial/hold for injected faults, is met with runtime evidence. Full journey pass additionally requires all normal controls and required branches. Passing a negative test never authorizes a success UI."
+    }
+  ],
+  "caseCoverage": [
+    {
+      "caseId": "RRR-T01",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-07"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T02",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-07",
+        "LJ-16"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T03",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T04",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T05",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-11"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T06",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T07",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-14"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T08",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T09",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T10",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T11",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-13"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T12",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-11",
+        "LJ-13"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T13",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-13"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T14",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-02",
+        "LJ-14"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T15",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-02",
+        "LJ-14"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T16",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T17",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RRR-T18",
+      "sourceFile": "return-route-contracts.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T01",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-02"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T02",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-02"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T03",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-01"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T04",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T05",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T06",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T07",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T08",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T09",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T10",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T11",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T12",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T13",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T14",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T15",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T16",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T17",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T18",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T19",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T20",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-02"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T21",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-07"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T22",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "RLC-T23",
+      "sourceFile": "rental-admission-cancel.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T01",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T02",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T03",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T04",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T05",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T06",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T07",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-01"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T08",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T09",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-03"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T10",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-01"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T11",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-08"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T12",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-08"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T13",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-08"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T14",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-08"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T15",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T16",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T17",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T18",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T19",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T20",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-16"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T21",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "BC-T22",
+      "sourceFile": "lifecycle-bootstrap-contracts.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R01",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R02",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R03",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R04",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-02",
+        "LJ-13"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R05",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-02",
+        "LJ-13"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R06",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-02"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R07",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R08",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-04"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R09",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R10",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-10"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R11",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R12",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R13",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-09"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R14",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-13"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R15",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R16",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R17",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R18",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-11"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R19",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-01"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R20",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-14"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R21",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R22",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-16"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R23",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-12"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R24",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-08"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R25",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-02",
+        "LJ-14"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "LST-R26",
+      "sourceFile": "lifecycle-storage-design.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-01",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-02",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-03",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-04",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-05",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-06",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-07",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-08",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-06"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-09",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-06"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-10",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-05"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-11",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-06"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-12",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-06"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-13",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-06"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-14",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-06"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-15",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-16",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-08"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-17",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-16"
+      ],
+      "sourceStatus": "not_run"
+    },
+    {
+      "caseId": "ECR-18",
+      "sourceFile": "enrollment-continuity-adoption.json",
+      "journeyRefs": [
+        "LJ-15"
+      ],
+      "sourceStatus": "not_run"
+    }
+  ],
+  "adoptionPackages": [
+    {
+      "id": "LJP-01",
+      "title": "버전·DTO·권한 공동 계약",
+      "sources": [
+        "return-route-contracts.json",
+        "rental-admission-cancel.json",
+        "lifecycle-bootstrap-contracts.json",
+        "enrollment-continuity-adoption.json"
+      ],
+      "dependsOn": [],
+      "gate": "resolve logical/wire/version delta including immutable evidence and continuation; current parent-specific ACL; no unsupported fallback",
+      "designStatus": "proposed_not_adopted",
+      "runtimeStatus": "not_run",
+      "implementationAuthorized": false
+    },
+    {
+      "id": "LJP-02",
+      "title": "기존+신규 저장·gate writer",
+      "sources": [
+        "lifecycle-storage-design.json",
+        "enrollment-continuity-adoption.json",
+        "approval-physical-storage-design.json"
+      ],
+      "dependsOn": [
+        "LJP-01"
+      ],
+      "gate": "full commit sets, kinds/FKs, nullable wallet_origin, generation, all old writers switched; SQL rehearsal later",
+      "designStatus": "proposed_not_adopted",
+      "runtimeStatus": "not_run",
+      "implementationAuthorized": false
+    },
+    {
+      "id": "LJP-03",
+      "title": "기기 profile·영속 저널·증거",
+      "sources": [
+        "return-route-contracts.json",
+        "rental-admission-cancel.json",
+        "enrollment-continuity-adoption.json"
+      ],
+      "dependsOn": [
+        "LJP-01"
+      ],
+      "gate": "Zephyr chosen board/SDK tuple, authenticated framing, erase/marker/generation and power-loss proof; real hardware unverified",
+      "designStatus": "proposed_not_adopted",
+      "runtimeStatus": "not_run",
+      "implementationAuthorized": false
+    },
+    {
+      "id": "LJP-04",
+      "title": "사용자·운영 화면과 완료 판정",
+      "sources": [
+        "return-screen-design.json",
+        "lifecycle-bootstrap-contracts.json",
+        "enrollment-continuity-adoption.json"
+      ],
+      "dependsOn": [
+        "LJP-01",
+        "LJP-02",
+        "LJP-03"
+      ],
+      "gate": "server completion vs cleanup vs admission vs wallet ready; safe role projection and pending/unsupported UX",
+      "designStatus": "proposed_not_adopted",
+      "runtimeStatus": "not_run",
+      "implementationAuthorized": false
+    },
+    {
+      "id": "LJP-05",
+      "title": "종단 증거·복구·출시 판단",
+      "sources": [
+        "lifecycle-storage-design.json",
+        "enrollment-continuity-adoption.json"
+      ],
+      "dependsOn": [
+        "LJP-02",
+        "LJP-03",
+        "LJP-04"
+      ],
+      "gate": "run journeys with manifest and trace, restore drills; policy/profile evidence before runtime approval; no scope reduction",
+      "designStatus": "proposed_not_adopted",
+      "runtimeStatus": "not_run",
+      "implementationAuthorized": false
+    }
+  ],
+  "openGaps": [
+    {
+      "id": "LJG-01",
+      "title": "신규 여행 지갑 복구 정책",
+      "source": "return-recovery-contract.json#RR-DEC-01",
+      "status": "awaiting_user_preference",
+      "effect": "LJ07 configured new_travel destructive branch held; denial scenario specified, no inferred decision"
+    },
+    {
+      "id": "LJG-02",
+      "title": "원 holder 키 상실/철회 후 재승인",
+      "source": "enrollment-continuity-adoption.json#remaining",
+      "status": "design_open",
+      "effect": "LJ05/06 safe hold defined, successful replacement/reconsent not designed"
+    },
+    {
+      "id": "LJG-03",
+      "title": "staged/unknown 등록의 안전한 회수",
+      "source": "enrollment-continuity-adoption.json#remaining",
+      "status": "design_open",
+      "effect": "no automatic reuse; support/reset completion path still needed"
+    },
+    {
+      "id": "LJG-04",
+      "title": "실제 profile과 출고 root/erase/영속 기능",
+      "source": "lifecycle-bootstrap-contracts.json#remainingDesign",
+      "status": "selection_and_runtime_open",
+      "effect": "all real-device success paths await selected profile and evidence"
+    },
+    {
+      "id": "LJG-05",
+      "title": "최종 wire/SQL/권한/화면 공동 채택",
+      "source": "enrollment-continuity-adoption.json#contractDeltas",
+      "status": "adoption_open",
+      "effect": "route aliases and logical fields not yet callable implementation contracts"
+    }
+  ],
+  "runManifestTemplate": {
+    "runId": null,
+    "journeyId": null,
+    "executedAt": null,
+    "result": "not_run",
+    "selectedTuple": {
+      "boardModel": "NU-54V-DK",
+      "boardIdentityRef": null,
+      "firmwareDigest": null,
+      "zephyrVersion": null,
+      "sdkVersion": null,
+      "boardTarget": null,
+      "appBuild": null,
+      "serverBuild": null,
+      "schemaVersion": null,
+      "httpBleVersions": null,
+      "proofProfile": null,
+      "eraseProfile": null,
+      "databaseMigrationVersion": null
+    },
+    "evidenceRefs": [],
+    "assertionResults": [],
+    "policyRefs": [],
+    "faultSchedule": [],
+    "note": "Template only. Do not fill fabricated firmware/proof/run evidence. No keys, mnemonic, raw private recording or bearer secret in report."
+  },
+  "baseline": {
+    "api": 110,
+    "ble": 34,
+    "tables": 61,
+    "migrations": 7,
+    "requirements": 15,
+    "wbsTasks": 104,
+    "wbsSteps": 320
+  },
+  "sourceHashes": {
+    "return-route-contracts.json": "b61e96958d2e3aac4c29b4bc479a13251943f62476c954f1bb5819e01e81a044",
+    "rental-admission-cancel.json": "37e158924b96da20b2f8f36d4e5b32387cf2f82b72852795fbfdc834b7e5f80b",
+    "lifecycle-bootstrap-contracts.json": "002cae234c5f2769858e664a8d69fb127e2a2728e389b5b94977a0c7d25d9ba0",
+    "lifecycle-storage-design.json": "2aa2b24d0b60db047a3c629f254b27debee5f15769416e50ae35024b11f35f10",
+    "enrollment-continuity-adoption.json": "ae124b712aa446cab65f13eb6b594e29c09dde7052e097afcb4ea45350c51b21",
+    "return-screen-design.json": "096d55684aa4ed0a5526145a124fbd18b9865c999af5b5326ce5604b70fa8795",
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "approval-physical-storage-design.json": "f997bb61ce886835346c0277521f9a8a807502f0d13f73fc0ede1707233d1b0f"
+  },
+  "sourceWbsHash": "6c7dd2e443ad4278a82adf6fe42782ca7954507cbf95ed48562cc69b9643fa68",
+  "completionVocabulary": [
+    {
+      "name": "device_active",
+      "means": "exact device/binding activation confirmed",
+      "doesNotMean": "wallet setup or all product functions ready"
+    },
+    {
+      "name": "wallet_ready",
+      "means": "separate wallet setup/key control/permission acceptance satisfied",
+      "doesNotMean": "payment or chain finality achieved by activation alone"
+    },
+    {
+      "name": "server_return_completed",
+      "means": "original reset evidence accepted and prior rental/binding retired",
+      "doesNotMean": "device cleanup or reuse eligible"
+    },
+    {
+      "name": "cleanup_verified",
+      "means": "exact ACK/marker/epoch cleanup verified",
+      "doesNotMean": "other holds removed or new rental authorized"
+    },
+    {
+      "name": "admission_eligible",
+      "means": "current consistent gate and lineage qualify for mutation check",
+      "doesNotMean": "snapshot grants future admission permission"
+    }
+  ],
+  "nextDesign": "지금까지의 설계 미완성 항목과 전체 15개 요구사항의 연결을 점검해 다음 상세 설계 우선순위 정리",
+  "verdictPolicy": {
+    "allowedResults": [
+      "not_run",
+      "blocked",
+      "failed",
+      "passed"
+    ],
+    "passed": "all defined normal controls and selected fault cases executed with matching evidence; no pending required branch or missing policy/profile",
+    "blocked": "required contract/profile/policy/environment absent; preserve work without fabricated evidence",
+    "failed": "executed behavior contradicts oracle, unauthorized exposure/duplicate effect, or normal/control fails under its stated prerequisites",
+    "not_run": "no actual run evidence",
+    "partialEvidence": "store branch-level results but do not mark entire journey passed",
+    "sourceCoverageMeaning": "reference coverage only; 107 linked does not mean 107 executed or validated runtime"
+  }
+}

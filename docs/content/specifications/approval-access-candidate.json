@@ -1,0 +1,214 @@
+{
+  "status": "common_schema_and_access_candidate_not_merged",
+  "contractVersion": "approval-v1-draft",
+  "bleVersion": "approval-ble-v1-draft",
+  "schemaFile": "approval-contracts.schema.json",
+  "examplesFile": "approval-contract-examples.json",
+  "document": "approval-access-contracts.md",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "implementation": "deferred_by_user",
+  "policySelectionUnchanged": true,
+  "externalSchemaBindings": {
+    "urn:nu:approval:baseline": "extended-dtos.schema.json"
+  },
+  "baselineFiles": {
+    "approval-contract-merge-plan.json": "7aabe55b0ba792918404653e15896e2e83cde2d40eca0aebb367993ed15ae968",
+    "source-approval-candidate.schema.json": "f62c13617b0da22a4d17b772bc2aedd755c8c91bf48da0e45f727bb39a870442",
+    "wallet-api-candidate.schema.json": "8838c3c87e66acf7bfc23c6e2763e5348d6b131385b2e5d461513deb43bbc1cc",
+    "extended-dtos.schema.json": "98d909f06ae9e4fab3289d2f67186d4364260b2f2e274ea57fcc1fdb02f77c68",
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a",
+    "authorization-policies.json": "6d193d0899b6019655b247367ddec6b04f83ac86bbf0e3d60caee1dd6985cbb3",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d",
+    "signing-submission-storage-design.json": "879f15ddc32fcac79dca40fe02f1a10c7f4f3311897a85976526ce11859181b3"
+  },
+  "sourceKinds": [
+    "personal_transfer",
+    "payment",
+    "merchant_refund"
+  ],
+  "proposedAccessRoutes": [
+    {
+      "id": "AC-01",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-challenges",
+      "requestSchema": "AccessChallengeRequest",
+      "responseSchema": "AccessChallengeResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false
+    },
+    {
+      "id": "AC-02",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants",
+      "requestSchema": "IssueAccessRequest",
+      "responseSchema": "IssueAccessResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false
+    },
+    {
+      "id": "AC-03",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants/{grantId}/revoke",
+      "requestSchema": "RevokeAccessRequest",
+      "responseSchema": "RevokeAccessResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false
+    }
+  ],
+  "existingApiIntegration": [
+    "API-015",
+    "API-017",
+    "API-018",
+    "API-020",
+    "API-032",
+    "API-034",
+    "API-037"
+  ],
+  "reviewCases": [
+    {
+      "id": "AC-C01",
+      "trigger": "토큰 탈취",
+      "expected": "다른 sender의 요청은 거절; 전달 중 TLS와 요청 proof를 각각 검증",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C02",
+      "trigger": "challenge 재사용",
+      "expected": "다른 body/key/actor의 재사용은 거절, 동일 멱등 요청만 원 응답",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C03",
+      "trigger": "발급 직전 철회",
+      "expected": "challenge 후 권한 철회 시 AC-02에서 거절",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C04",
+      "trigger": "권한 확대",
+      "expected": "read_progress 자격으로 결과 조회/제출 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C05",
+      "trigger": "guest 부트스트랩",
+      "expected": "원 API-032/034의 인증된 terminal/attempt/session과 검증 identify를 대조; 계정 강제 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C06",
+      "trigger": "guest 세션 교체",
+      "expected": "새 세션/단말/초기화 기기에는 원 결과 자격 자동 발급 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C07",
+      "trigger": "환불 승인자와 signer",
+      "expected": "업무 승인자의 권한만으로 실제 signer 결과/제출권 발급 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C08",
+      "trigger": "Cloud 결과 복구",
+      "expected": "원 부모 operation과 완료 MPC 자식/epoch/bytes를 대조, 현재 signer 권한으로 결과 조회",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C09",
+      "trigger": "서버에 HW 결과 없음",
+      "expected": "null/unknown 유지, 서명 원문 생성/자동 새 결제 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C10",
+      "trigger": "결과 노출 후 철회",
+      "expected": "플랫폼 접근을 차단하되 이미 공개된 EOA 서명의 외부 실행 가능성 유지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C11",
+      "trigger": "발급 응답 유실",
+      "expected": "동일 sender·멱등키·현재 권한일 때만 보호된 원 응답 재전달",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C12",
+      "trigger": "결과 복구 기한",
+      "expected": "승인 기한 후 read-only 재인증 허용 여부와 submit gate를 분리",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C13",
+      "trigger": "원 source 바꾸기",
+      "expected": "요청 source나 버전으로 저장된 adapter/권한을 바꾸지 못함",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C14",
+      "trigger": "signer 세대 변경",
+      "expected": "기존 credential과 증거로 새 서명/전송 불가; 원 관측은 유지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C15",
+      "trigger": "일반 operation",
+      "expected": "approval=null에서도 녹음/FOTA 기존 결과 권한 유지",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C16",
+      "trigger": "permit 경쟁",
+      "expected": "SS-T04와 철회를 직렬화, 이미 허가/노출된 결과의 취소를 보장하지 않음",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C17",
+      "trigger": "BLE 역할 바꾸기",
+      "expected": "payment_terminal로 개인/환불 owner 명령 호출 거절",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C18",
+      "trigger": "미지원 profile",
+      "expected": "증거/송신자 profile 미선정·미지원은 실행 차단",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C19",
+      "trigger": "잔액/hold 변경",
+      "expected": "유효 submit credential만으로 원 source/funding gate를 우회하지 못함",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C20",
+      "trigger": "미선택 반납 복구",
+      "expected": "RR-DEC-01 미응답을 키 백업/초기화 승인으로 해석하지 않음",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C21",
+      "trigger": "발급 응답 전체 및 보호 캐시 유실",
+      "expected": "인증된 원 발급 멱등키로 AC-01에서 predecessor를 조회하고 교체, 토큰/서명 비밀 공개 없음",
+      "status": "not_run"
+    },
+    {
+      "id": "AC-C22",
+      "trigger": "동일 grant의 병렬 교체·철회 경쟁",
+      "expected": "predecessor revision/state CAS로 successor 하나만 허용; 철회된 lineage 부활 금지",
+      "status": "not_run"
+    }
+  ],
+  "remainingIntegration": [
+    "full_http_envelopes_and_error_projection",
+    "authorization_catalog_and_screen_integration",
+    "credential_storage_and_atomicity_mapping",
+    "cryptographic_profiles_and_bootstrap_proof_binding",
+    "new_guest_session_recovery_policy"
+  ],
+  "pendingUserDecision": "RR-DEC-01"
+}

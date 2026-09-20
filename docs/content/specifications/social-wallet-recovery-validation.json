@@ -1,0 +1,49 @@
+{
+  "scope": "design_inventory_and_reference_checks_only",
+  "date": "2026-09-19",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_social_wallet_recovery.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_inventory_and_source_references_only\", \"authTransitions\": 11, \"mpcTransitions\": 11, \"authorityImpacts\": 8, \"logicalResources\": 8, \"contractDeltas\": 6, \"runtimeCases\": 32, \"sourceFilesPreserved\": 10, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_device_coexistence.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_inventory_and_reference_checks_only\", \"operations\": 10, \"directionalPairs\": 100, \"fotaTransitions\": 10, \"resources\": 11, \"runtimeCasesNotRun\": 28, \"sourceFilesPreserved\": 9, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/validate_full_scope_design.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exit_code": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": [
+      "AuthFlow start separated from current account session state.",
+      "Result persistence separated from release; current rights, source gate and signer epoch checked.",
+      "Epoch commit rechecks recovery authority and policy/security revision.",
+      "Required activation ACKs exclude inaccessible lost phone; physical deletion not assumed.",
+      "Late signing result cannot overwrite recovery/security hold; active return uses same-epoch state CAS.",
+      "Hold resumes only original durable phase/commit; no direct active transition."
+    ],
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "32 runtime cases not run; no login/crypto/device execution.",
+    "Provider/threshold/participant operators/address and recovery policies remain unselected.",
+    "API-020 create/recovery typed reader and new unlink/security adapters remain unregistered; no canonical schema/SQL changes."
+  ]
+}

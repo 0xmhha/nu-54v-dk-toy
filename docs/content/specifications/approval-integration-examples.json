@@ -1,0 +1,2029 @@
+{
+  "notice": "Synthetic HTTP shape examples; no cryptographic, authorization, concurrency or hardware execution evidence",
+  "valid": [
+    {
+      "name": "request_007",
+      "schema": "API007Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "response_007",
+      "schema": "API007Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "wallets": [
+              {
+                "wallet": {
+                  "walletId": "wallet_a",
+                  "kind": "cloud_mpc_eoa",
+                  "chainId": 8283,
+                  "address": "0x1111111111111111111111111111111111111111",
+                  "signerRef": "signer_a",
+                  "revision": 1
+                },
+                "context": {
+                  "kind": "personal"
+                },
+                "bindingId": "binding_a",
+                "bindingRevision": 2,
+                "signers": [
+                  {
+                    "signerRef": "signer_a",
+                    "kind": "cloud_mpc_eoa",
+                    "epoch": "3",
+                    "profileId": "synthetic",
+                    "supportedRequestKinds": [
+                      "eoa_transaction"
+                    ],
+                    "state": "available",
+                    "observedAt": "2026-09-18T06:00:00Z"
+                  }
+                ]
+              }
+            ],
+            "nextCursor": null,
+            "snapshotId": "snapshot_a",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "request_008",
+      "schema": "API008Request",
+      "value": {
+        "path": {
+          "storeId": "store_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "response_008",
+      "schema": "API008Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "wallets": [],
+            "nextCursor": null,
+            "snapshotId": "snapshot_b",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "request_009",
+      "schema": "API009Request",
+      "value": {
+        "path": {
+          "walletId": "wallet_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {
+          "contextKind": "personal"
+        }
+      }
+    },
+    {
+      "name": "response_009",
+      "schema": "API009Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "chainId": 8283,
+            "address": "0x1111111111111111111111111111111111111111",
+            "assets": [],
+            "observedAt": "2026-09-18T06:00:00Z",
+            "blockRef": null
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "request_017",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "personal_transfer",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "1000000"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "request_019",
+      "schema": "API019Request",
+      "value": {
+        "path": {
+          "transactionRef": "tx_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "response_019",
+      "schema": "API019Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "execution": "pending",
+            "canonicality": "canonical",
+            "confirmation": "observed",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "request_015",
+      "schema": "API015Request",
+      "value": {
+        "path": {
+          "walletId": "merchant_wallet"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalContextId": "approval_a",
+          "approvalProof": {
+            "profileId": "synthetic_profile",
+            "evidenceBytes": "U1lOVEhFVElD"
+          }
+        }
+      }
+    },
+    {
+      "name": "request_018",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a",
+          "senderProof": {
+            "profileId": "synthetic_profile",
+            "evidenceBytes": "U1lOVEhFVElD"
+          }
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalContextId": "approval_a",
+          "signedPayload": "0x1234",
+          "approvalEvidence": {
+            "kind": "device_result",
+            "approvalContextId": "approval_a",
+            "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "signedPayloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "reviewId": "review_a",
+            "deviceSessionRef": "peer_a",
+            "deviceEpoch": "3",
+            "proof": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "request_020",
+      "schema": "API020Request",
+      "value": {
+        "path": {
+          "operationId": "op_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {
+          "includeSnapshot": true,
+          "includeSigningResult": false
+        }
+      }
+    },
+    {
+      "name": "request_034",
+      "schema": "API034Request",
+      "value": {
+        "path": {
+          "attemptId": "attempt_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "signerAddress": "0x1111111111111111111111111111111111111111",
+          "sessionId": "session_a",
+          "ownershipEvidence": {
+            "binding": {
+              "chainId": 8283,
+              "storeId": "store_a",
+              "orderId": "order_a",
+              "attemptId": "attempt_a",
+              "terminalId": "terminal_a",
+              "sessionId": "session_a",
+              "deviceSessionRef": "peer_a",
+              "challengeId": "challenge_a",
+              "challenge": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "payerAddress": "0x1111111111111111111111111111111111111111",
+              "expiresAt": "2026-09-18T08:00:00Z"
+            },
+            "proof": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "request_037",
+      "schema": "API037Request",
+      "value": {
+        "path": {
+          "refundId": "refund_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "expectedRevision": 1,
+          "expectedFundingRevision": 5,
+          "merchantSigner": {
+            "walletId": "merchant_wallet",
+            "walletBindingId": "merchant_binding",
+            "expectedWalletRevision": 2,
+            "expectedBindingRevision": 4,
+            "signerRef": "merchant_signer",
+            "signerKind": "hardware_eoa",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "response_017",
+      "schema": "API017Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "snapshot": {
+              "sourceKind": "personal_transfer",
+              "intent": {
+                "intentId": "intent_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "recipientAddress": "0x2222222222222222222222222222222222222222",
+                "asset": {
+                  "assetId": "dummy_usdc",
+                  "chainId": 8283,
+                  "kind": "erc20",
+                  "tokenAddress": "0x3333333333333333333333333333333333333333",
+                  "decimals": 6,
+                  "displaySymbol": "tUSDC",
+                  "isTestAsset": true
+                },
+                "atomicAmount": "1000000",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "encodingProfile": "synthetic_profile",
+                "transaction": {
+                  "to": "0x3333333333333333333333333333333333333333",
+                  "value": "0",
+                  "data": "0x",
+                  "nonce": "1",
+                  "gasLimit": "100000",
+                  "feeParameters": {}
+                },
+                "sourceId": "transfer_a"
+              },
+              "context": {
+                "approvalContextId": "approval_a",
+                "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requestKind": "eoa_transaction",
+                "profileId": "synthetic_profile",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "sourceKind": "personal_transfer",
+                "sourceId": "transfer_a",
+                "accountBindingId": "account_binding_a",
+                "selection": {
+                  "walletId": "wallet_a",
+                  "walletBindingId": "binding_a",
+                  "walletRevision": 2,
+                  "bindingRevision": 4,
+                  "signerRef": "signer_a",
+                  "signerKind": "hardware_eoa",
+                  "epoch": {
+                    "kind": "device",
+                    "deviceEpoch": "3"
+                  }
+                },
+                "contractVersions": {
+                  "http": "approval-v1-draft",
+                  "ble": "approval-ble-v1-draft",
+                  "evidenceProfile": "synthetic_profile"
+                }
+              },
+              "reviewProof": {
+                "profileId": "synthetic_profile",
+                "evidenceBytes": "U1lOVEhFVElD"
+              }
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_034",
+      "schema": "API034Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "snapshot": {
+              "sourceKind": "payment",
+              "intent": {
+                "intentId": "intent_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "recipientAddress": "0x2222222222222222222222222222222222222222",
+                "asset": {
+                  "assetId": "dummy_usdc",
+                  "chainId": 8283,
+                  "kind": "erc20",
+                  "tokenAddress": "0x3333333333333333333333333333333333333333",
+                  "decimals": 6,
+                  "displaySymbol": "tUSDC",
+                  "isTestAsset": true
+                },
+                "atomicAmount": "1000000",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "encodingProfile": "synthetic_profile",
+                "transaction": {
+                  "to": "0x3333333333333333333333333333333333333333",
+                  "value": "0",
+                  "data": "0x",
+                  "nonce": "1",
+                  "gasLimit": "100000",
+                  "feeParameters": {}
+                },
+                "merchantDisplay": {
+                  "storeId": "store_a",
+                  "name": "Test Cafe"
+                },
+                "attemptId": "attempt_a"
+              },
+              "context": {
+                "approvalContextId": "approval_a",
+                "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requestKind": "eoa_transaction",
+                "profileId": "synthetic_profile",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "sourceKind": "payment",
+                "storeId": "store_a",
+                "orderId": "order_a",
+                "attemptId": "attempt_a",
+                "attemptRevision": 1,
+                "terminalId": "terminal_a",
+                "sessionId": "session_a",
+                "deviceSessionRef": "peer_a",
+                "deviceEpoch": "3",
+                "identifyEvidenceId": "identify_a",
+                "proximityPolicyId": "proximity_policy_a",
+                "proximityRequired": true,
+                "contractVersions": {
+                  "http": "approval-v1-draft",
+                  "ble": "approval-ble-v1-draft",
+                  "evidenceProfile": "synthetic_profile"
+                }
+              },
+              "reviewProof": {
+                "profileId": "synthetic_profile",
+                "evidenceBytes": "U1lOVEhFVElD"
+              }
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_037",
+      "schema": "API037Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "snapshot": {
+              "sourceKind": "merchant_refund",
+              "intent": {
+                "intentId": "intent_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "recipientAddress": "0x2222222222222222222222222222222222222222",
+                "asset": {
+                  "assetId": "dummy_usdc",
+                  "chainId": 8283,
+                  "kind": "erc20",
+                  "tokenAddress": "0x3333333333333333333333333333333333333333",
+                  "decimals": 6,
+                  "displaySymbol": "tUSDC",
+                  "isTestAsset": true
+                },
+                "atomicAmount": "1000000",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "encodingProfile": "synthetic_profile",
+                "transaction": {
+                  "to": "0x3333333333333333333333333333333333333333",
+                  "value": "0",
+                  "data": "0x",
+                  "nonce": "1",
+                  "gasLimit": "100000",
+                  "feeParameters": {}
+                },
+                "merchantDisplay": {
+                  "storeId": "store_a",
+                  "name": "Test Cafe"
+                },
+                "refundId": "refund_a"
+              },
+              "context": {
+                "approvalContextId": "approval_a",
+                "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requestKind": "eoa_transaction",
+                "profileId": "synthetic_profile",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "sourceKind": "merchant_refund",
+                "storeId": "store_a",
+                "refundId": "refund_a",
+                "paymentId": "allocation_a",
+                "reservationId": "reservation_a",
+                "authorizedRefundRevision": 2,
+                "authorizedFundingRevision": 5,
+                "merchantAuthorizationId": "authorization_a",
+                "selection": {
+                  "walletId": "wallet_a",
+                  "walletBindingId": "binding_a",
+                  "walletRevision": 2,
+                  "bindingRevision": 4,
+                  "signerRef": "signer_a",
+                  "signerKind": "hardware_eoa",
+                  "epoch": {
+                    "kind": "device",
+                    "deviceEpoch": "3"
+                  }
+                },
+                "contractVersions": {
+                  "http": "approval-v1-draft",
+                  "ble": "approval-ble-v1-draft",
+                  "evidenceProfile": "synthetic_profile"
+                }
+              },
+              "reviewProof": {
+                "profileId": "synthetic_profile",
+                "evidenceBytes": "U1lOVEhFVElD"
+              }
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "refund": {
+              "refundId": "refund_a",
+              "paymentId": "allocation_a",
+              "orderId": "order_a",
+              "assetId": "dummy_usdc",
+              "atomicAmount": "1000000",
+              "destinationAddress": "0x2222222222222222222222222222222222222222",
+              "state": "authorized",
+              "revision": 2
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_015",
+      "schema": "API015Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "mpc_child_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "progress": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "phase": "signed",
+              "transactionRef": null,
+              "observedAt": "2026-09-18T08:00:00Z"
+            },
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_018",
+      "schema": "API018Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "transactionRef": "tx_a",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_020_projection_personal",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": {
+              "sourceKind": "personal_transfer",
+              "progress": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "phase": "signature_unknown",
+                "transactionRef": null,
+                "observedAt": "2026-09-18T07:50:00Z"
+              },
+              "snapshot": {
+                "sourceKind": "personal_transfer",
+                "intent": {
+                  "intentId": "intent_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "recipientAddress": "0x2222222222222222222222222222222222222222",
+                  "asset": {
+                    "assetId": "dummy_usdc",
+                    "chainId": 8283,
+                    "kind": "erc20",
+                    "tokenAddress": "0x3333333333333333333333333333333333333333",
+                    "decimals": 6,
+                    "displaySymbol": "tUSDC",
+                    "isTestAsset": true
+                  },
+                  "atomicAmount": "1000000",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "encodingProfile": "synthetic_profile",
+                  "transaction": {
+                    "to": "0x3333333333333333333333333333333333333333",
+                    "value": "0",
+                    "data": "0x",
+                    "nonce": "1",
+                    "gasLimit": "100000",
+                    "feeParameters": {}
+                  },
+                  "sourceId": "transfer_a"
+                },
+                "context": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "intentId": "intent_a",
+                  "operationId": "op_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "requestKind": "eoa_transaction",
+                  "profileId": "synthetic_profile",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "sourceKind": "personal_transfer",
+                  "sourceId": "transfer_a",
+                  "accountBindingId": "account_binding_a",
+                  "selection": {
+                    "walletId": "wallet_a",
+                    "walletBindingId": "binding_a",
+                    "walletRevision": 2,
+                    "bindingRevision": 4,
+                    "signerRef": "signer_a",
+                    "signerKind": "hardware_eoa",
+                    "epoch": {
+                      "kind": "device",
+                      "deviceEpoch": "3"
+                    }
+                  },
+                  "contractVersions": {
+                    "http": "approval-v1-draft",
+                    "ble": "approval-ble-v1-draft",
+                    "evidenceProfile": "synthetic_profile"
+                  }
+                },
+                "reviewProof": {
+                  "profileId": "synthetic_profile",
+                  "evidenceBytes": "U1lOVEhFVElD"
+                }
+              },
+              "signingResult": null
+            },
+            "operationClass": "approval_parent",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_020_projection_payment",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": {
+              "sourceKind": "payment",
+              "progress": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "phase": "signature_unknown",
+                "transactionRef": null,
+                "observedAt": "2026-09-18T07:50:00Z"
+              },
+              "snapshot": {
+                "sourceKind": "payment",
+                "intent": {
+                  "intentId": "intent_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "recipientAddress": "0x2222222222222222222222222222222222222222",
+                  "asset": {
+                    "assetId": "dummy_usdc",
+                    "chainId": 8283,
+                    "kind": "erc20",
+                    "tokenAddress": "0x3333333333333333333333333333333333333333",
+                    "decimals": 6,
+                    "displaySymbol": "tUSDC",
+                    "isTestAsset": true
+                  },
+                  "atomicAmount": "1000000",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "encodingProfile": "synthetic_profile",
+                  "transaction": {
+                    "to": "0x3333333333333333333333333333333333333333",
+                    "value": "0",
+                    "data": "0x",
+                    "nonce": "1",
+                    "gasLimit": "100000",
+                    "feeParameters": {}
+                  },
+                  "merchantDisplay": {
+                    "storeId": "store_a",
+                    "name": "Test Cafe"
+                  },
+                  "attemptId": "attempt_a"
+                },
+                "context": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "intentId": "intent_a",
+                  "operationId": "op_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "requestKind": "eoa_transaction",
+                  "profileId": "synthetic_profile",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "sourceKind": "payment",
+                  "storeId": "store_a",
+                  "orderId": "order_a",
+                  "attemptId": "attempt_a",
+                  "attemptRevision": 1,
+                  "terminalId": "terminal_a",
+                  "sessionId": "session_a",
+                  "deviceSessionRef": "peer_a",
+                  "deviceEpoch": "3",
+                  "identifyEvidenceId": "identify_a",
+                  "proximityPolicyId": "proximity_policy_a",
+                  "proximityRequired": true,
+                  "contractVersions": {
+                    "http": "approval-v1-draft",
+                    "ble": "approval-ble-v1-draft",
+                    "evidenceProfile": "synthetic_profile"
+                  }
+                },
+                "reviewProof": {
+                  "profileId": "synthetic_profile",
+                  "evidenceBytes": "U1lOVEhFVElD"
+                }
+              },
+              "signingResult": null
+            },
+            "operationClass": "approval_parent",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_020_projection_refund",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": {
+              "sourceKind": "merchant_refund",
+              "progress": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "phase": "signature_unknown",
+                "transactionRef": null,
+                "observedAt": "2026-09-18T07:50:00Z"
+              },
+              "snapshot": {
+                "sourceKind": "merchant_refund",
+                "intent": {
+                  "intentId": "intent_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "recipientAddress": "0x2222222222222222222222222222222222222222",
+                  "asset": {
+                    "assetId": "dummy_usdc",
+                    "chainId": 8283,
+                    "kind": "erc20",
+                    "tokenAddress": "0x3333333333333333333333333333333333333333",
+                    "decimals": 6,
+                    "displaySymbol": "tUSDC",
+                    "isTestAsset": true
+                  },
+                  "atomicAmount": "1000000",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "encodingProfile": "synthetic_profile",
+                  "transaction": {
+                    "to": "0x3333333333333333333333333333333333333333",
+                    "value": "0",
+                    "data": "0x",
+                    "nonce": "1",
+                    "gasLimit": "100000",
+                    "feeParameters": {}
+                  },
+                  "merchantDisplay": {
+                    "storeId": "store_a",
+                    "name": "Test Cafe"
+                  },
+                  "refundId": "refund_a"
+                },
+                "context": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "intentId": "intent_a",
+                  "operationId": "op_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "requestKind": "eoa_transaction",
+                  "profileId": "synthetic_profile",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "sourceKind": "merchant_refund",
+                  "storeId": "store_a",
+                  "refundId": "refund_a",
+                  "paymentId": "allocation_a",
+                  "reservationId": "reservation_a",
+                  "authorizedRefundRevision": 2,
+                  "authorizedFundingRevision": 5,
+                  "merchantAuthorizationId": "authorization_a",
+                  "selection": {
+                    "walletId": "wallet_a",
+                    "walletBindingId": "binding_a",
+                    "walletRevision": 2,
+                    "bindingRevision": 4,
+                    "signerRef": "signer_a",
+                    "signerKind": "hardware_eoa",
+                    "epoch": {
+                      "kind": "device",
+                      "deviceEpoch": "3"
+                    }
+                  },
+                  "contractVersions": {
+                    "http": "approval-v1-draft",
+                    "ble": "approval-ble-v1-draft",
+                    "evidenceProfile": "synthetic_profile"
+                  }
+                },
+                "reviewProof": {
+                  "profileId": "synthetic_profile",
+                  "evidenceBytes": "U1lOVEhFVElD"
+                }
+              },
+              "signingResult": null
+            },
+            "operationClass": "approval_parent",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_020_generic_operation",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "summary_operation_a",
+              "kind": "recording_summary",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": null,
+            "operationClass": "general",
+            "approvalOperationId": null
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_020_personal_cloud_result",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": {
+              "sourceKind": "personal_transfer",
+              "progress": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "phase": "signature_unknown",
+                "transactionRef": null,
+                "observedAt": "2026-09-18T07:50:00Z"
+              },
+              "snapshot": {
+                "sourceKind": "personal_transfer",
+                "intent": {
+                  "intentId": "intent_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "recipientAddress": "0x2222222222222222222222222222222222222222",
+                  "asset": {
+                    "assetId": "dummy_usdc",
+                    "chainId": 8283,
+                    "kind": "erc20",
+                    "tokenAddress": "0x3333333333333333333333333333333333333333",
+                    "decimals": 6,
+                    "displaySymbol": "tUSDC",
+                    "isTestAsset": true
+                  },
+                  "atomicAmount": "1000000",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "encodingProfile": "synthetic_profile",
+                  "transaction": {
+                    "to": "0x3333333333333333333333333333333333333333",
+                    "value": "0",
+                    "data": "0x",
+                    "nonce": "1",
+                    "gasLimit": "100000",
+                    "feeParameters": {}
+                  },
+                  "sourceId": "transfer_a"
+                },
+                "context": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "intentId": "intent_a",
+                  "operationId": "op_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "requestKind": "eoa_transaction",
+                  "profileId": "synthetic_profile",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "sourceKind": "personal_transfer",
+                  "sourceId": "transfer_a",
+                  "accountBindingId": "account_binding_a",
+                  "selection": {
+                    "walletId": "wallet_a",
+                    "walletBindingId": "binding_a",
+                    "walletRevision": 2,
+                    "bindingRevision": 4,
+                    "signerRef": "signer_a",
+                    "signerKind": "cloud_mpc_eoa",
+                    "epoch": {
+                      "kind": "mpc",
+                      "participantEpoch": "7"
+                    }
+                  },
+                  "contractVersions": {
+                    "http": "approval-v1-draft",
+                    "ble": "approval-ble-v1-draft",
+                    "evidenceProfile": "synthetic_profile"
+                  }
+                },
+                "reviewProof": {
+                  "profileId": "synthetic_profile",
+                  "evidenceBytes": "U1lOVEhFVElD"
+                }
+              },
+              "signingResult": {
+                "intentId": "intent_a",
+                "approvalContextId": "approval_a",
+                "signedPayload": "0x1234",
+                "approvalEvidence": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "signedPayloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "kind": "mpc_session",
+                  "operationId": "mpc_op",
+                  "participantEpoch": "3"
+                }
+              }
+            },
+            "operationClass": "approval_parent",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "AccessChallenge_req",
+      "schema": "AccessChallengeRequest",
+      "value": {
+        "path": {
+          "approvalContextId": "approval_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "requestedActions": [
+            "read_progress",
+            "read_signing_result"
+          ],
+          "senderBinding": {
+            "profileId": "synthetic_profile",
+            "publicBinding": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          },
+          "replacement": null
+        }
+      }
+    },
+    {
+      "name": "AccessChallenge_res",
+      "schema": "AccessChallengeResponse",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "challengeId": "challenge_a",
+            "nonce": "SYNTHETIC_NONCE_NOT_RANDOM",
+            "expiresAt": "2026-09-18T07:55:00Z",
+            "target": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "operationId": "op_a",
+              "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "sourceKind": "personal_transfer"
+            },
+            "eligibleActions": [
+              "read_progress",
+              "read_signing_result"
+            ],
+            "senderBindingDigest": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "authorizationRevision": 4,
+            "replacesGrantId": null
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "IssueAccess_req",
+      "schema": "IssueAccessRequest",
+      "value": {
+        "path": {
+          "approvalContextId": "approval_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "challengeId": "challenge_a",
+          "senderProof": {
+            "profileId": "synthetic_profile",
+            "evidenceBytes": "U1lOVEhFVElD"
+          }
+        }
+      }
+    },
+    {
+      "name": "IssueAccess_res",
+      "schema": "IssueAccessResponse",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "grant": {
+              "grantId": "grant_a",
+              "issuer": "approval_authority",
+              "audience": "approval_api",
+              "target": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "sourceKind": "personal_transfer"
+              },
+              "actions": [
+                "read_progress",
+                "read_signing_result"
+              ],
+              "principal": {
+                "kind": "account_session",
+                "accountId": "account_a",
+                "authSessionId": "auth_a"
+              },
+              "senderBindingDigest": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "authorizationRevision": 4,
+              "issuedAt": "2026-09-18T07:50:00Z",
+              "expiresAt": "2026-09-18T07:55:00Z",
+              "replacesGrantId": null
+            },
+            "tokenType": "sender_bound_opaque",
+            "accessToken": "SYNTHETIC_NOT_A_USABLE_TOKEN_000000000",
+            "proofProfileId": "synthetic_profile"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "RevokeAccess_req",
+      "schema": "RevokeAccessRequest",
+      "value": {
+        "path": {
+          "approvalContextId": "approval_a",
+          "grantId": "grant_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "reason": "user_requested"
+        }
+      }
+    },
+    {
+      "name": "RevokeAccess_res",
+      "schema": "RevokeAccessResponse",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "grantId": "grant_a",
+            "state": "revoked",
+            "revokedAt": "2026-09-18T07:54:00Z"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "error",
+      "schema": "ErrorResponse",
+      "value": {
+        "statusCode": 409,
+        "body": {
+          "requestId": "req_a",
+          "error": {
+            "code": "SOURCE_REVISION_CONFLICT",
+            "retryable": false,
+            "operationId": null,
+            "safeMessage": "Review the source state again.",
+            "nextAction": "review_again"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "response_020_approval_child",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "mpc_child_a",
+              "kind": "mpc_signing",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": null,
+            "operationClass": "approval_child",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "submit_without_proof",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalContextId": "approval_a",
+          "signedPayload": "0x1234",
+          "approvalEvidence": {
+            "kind": "device_result",
+            "approvalContextId": "approval_a",
+            "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "signedPayloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "reviewId": "review_a",
+            "deviceSessionRef": "peer_a",
+            "deviceEpoch": "3",
+            "proof": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "submit_without_evidence",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a",
+          "senderProof": {
+            "profileId": "synthetic_profile",
+            "evidenceBytes": "U1lOVEhFVElD"
+          }
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalContextId": "approval_a",
+          "signedPayload": "0x1234"
+        }
+      }
+    },
+    {
+      "name": "submit_without_context",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a",
+          "senderProof": {
+            "profileId": "synthetic_profile",
+            "evidenceBytes": "U1lOVEhFVElD"
+          }
+        },
+        "body": {
+          "intentId": "intent_a",
+          "signedPayload": "0x1234",
+          "approvalEvidence": {
+            "kind": "device_result",
+            "approvalContextId": "approval_a",
+            "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "signedPayloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "reviewId": "review_a",
+            "deviceSessionRef": "peer_a",
+            "deviceEpoch": "3",
+            "proof": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refund_no_signer",
+      "schema": "API037Request",
+      "value": {
+        "path": {
+          "refundId": "refund_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "expectedRevision": 1,
+          "expectedFundingRevision": 5
+        }
+      }
+    },
+    {
+      "name": "old_version",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "personal_transfer",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "1000000"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "query_string",
+      "schema": "API020Request",
+      "value": {
+        "path": {
+          "operationId": "op_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {
+          "includeSnapshot": "true",
+          "includeSigningResult": false
+        }
+      }
+    },
+    {
+      "name": "query_unknown",
+      "schema": "API020Request",
+      "value": {
+        "path": {
+          "operationId": "op_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft"
+        },
+        "query": {
+          "includeSnapshot": true,
+          "includeSigningResult": false,
+          "downloadToken": true
+        }
+      }
+    },
+    {
+      "name": "no_parent",
+      "schema": "API015Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "mpc_child_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "progress": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "phase": "signed",
+              "transactionRef": null,
+              "observedAt": "2026-09-18T08:00:00Z"
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "snapshot_source_mix",
+      "schema": "API017Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "snapshot": {
+              "sourceKind": "merchant_refund",
+              "intent": {
+                "intentId": "intent_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "recipientAddress": "0x2222222222222222222222222222222222222222",
+                "asset": {
+                  "assetId": "dummy_usdc",
+                  "chainId": 8283,
+                  "kind": "erc20",
+                  "tokenAddress": "0x3333333333333333333333333333333333333333",
+                  "decimals": 6,
+                  "displaySymbol": "tUSDC",
+                  "isTestAsset": true
+                },
+                "atomicAmount": "1000000",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "encodingProfile": "synthetic_profile",
+                "transaction": {
+                  "to": "0x3333333333333333333333333333333333333333",
+                  "value": "0",
+                  "data": "0x",
+                  "nonce": "1",
+                  "gasLimit": "100000",
+                  "feeParameters": {}
+                },
+                "merchantDisplay": {
+                  "storeId": "store_a",
+                  "name": "Test Cafe"
+                },
+                "refundId": "refund_a"
+              },
+              "context": {
+                "approvalContextId": "approval_a",
+                "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requestKind": "eoa_transaction",
+                "profileId": "synthetic_profile",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "sourceKind": "merchant_refund",
+                "storeId": "store_a",
+                "refundId": "refund_a",
+                "paymentId": "allocation_a",
+                "reservationId": "reservation_a",
+                "authorizedRefundRevision": 2,
+                "authorizedFundingRevision": 5,
+                "merchantAuthorizationId": "authorization_a",
+                "selection": {
+                  "walletId": "wallet_a",
+                  "walletBindingId": "binding_a",
+                  "walletRevision": 2,
+                  "bindingRevision": 4,
+                  "signerRef": "signer_a",
+                  "signerKind": "hardware_eoa",
+                  "epoch": {
+                    "kind": "device",
+                    "deviceEpoch": "3"
+                  }
+                },
+                "contractVersions": {
+                  "http": "approval-v1-draft",
+                  "ble": "approval-ble-v1-draft",
+                  "evidenceProfile": "synthetic_profile"
+                }
+              },
+              "reviewProof": {
+                "profileId": "synthetic_profile",
+                "evidenceBytes": "U1lOVEhFVElD"
+              }
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "signed_bytes_url",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": "https://invalid.example/signed-bytes",
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": {
+              "sourceKind": "personal_transfer",
+              "progress": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "phase": "signature_unknown",
+                "transactionRef": null,
+                "observedAt": "2026-09-18T07:50:00Z"
+              },
+              "snapshot": {
+                "sourceKind": "personal_transfer",
+                "intent": {
+                  "intentId": "intent_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "recipientAddress": "0x2222222222222222222222222222222222222222",
+                  "asset": {
+                    "assetId": "dummy_usdc",
+                    "chainId": 8283,
+                    "kind": "erc20",
+                    "tokenAddress": "0x3333333333333333333333333333333333333333",
+                    "decimals": 6,
+                    "displaySymbol": "tUSDC",
+                    "isTestAsset": true
+                  },
+                  "atomicAmount": "1000000",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "encodingProfile": "synthetic_profile",
+                  "transaction": {
+                    "to": "0x3333333333333333333333333333333333333333",
+                    "value": "0",
+                    "data": "0x",
+                    "nonce": "1",
+                    "gasLimit": "100000",
+                    "feeParameters": {}
+                  },
+                  "sourceId": "transfer_a"
+                },
+                "context": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "intentId": "intent_a",
+                  "operationId": "op_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "requestKind": "eoa_transaction",
+                  "profileId": "synthetic_profile",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "sourceKind": "personal_transfer",
+                  "sourceId": "transfer_a",
+                  "accountBindingId": "account_binding_a",
+                  "selection": {
+                    "walletId": "wallet_a",
+                    "walletBindingId": "binding_a",
+                    "walletRevision": 2,
+                    "bindingRevision": 4,
+                    "signerRef": "signer_a",
+                    "signerKind": "hardware_eoa",
+                    "epoch": {
+                      "kind": "device",
+                      "deviceEpoch": "3"
+                    }
+                  },
+                  "contractVersions": {
+                    "http": "approval-v1-draft",
+                    "ble": "approval-ble-v1-draft",
+                    "evidenceProfile": "synthetic_profile"
+                  }
+                },
+                "reviewProof": {
+                  "profileId": "synthetic_profile",
+                  "evidenceBytes": "U1lOVEhFVElD"
+                }
+              },
+              "signingResult": null
+            },
+            "operationClass": "approval_parent",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "legacy_response",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": {
+              "sourceKind": "personal_transfer",
+              "progress": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "phase": "signature_unknown",
+                "transactionRef": null,
+                "observedAt": "2026-09-18T07:50:00Z"
+              },
+              "snapshot": {
+                "sourceKind": "personal_transfer",
+                "intent": {
+                  "intentId": "intent_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "recipientAddress": "0x2222222222222222222222222222222222222222",
+                  "asset": {
+                    "assetId": "dummy_usdc",
+                    "chainId": 8283,
+                    "kind": "erc20",
+                    "tokenAddress": "0x3333333333333333333333333333333333333333",
+                    "decimals": 6,
+                    "displaySymbol": "tUSDC",
+                    "isTestAsset": true
+                  },
+                  "atomicAmount": "1000000",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "encodingProfile": "synthetic_profile",
+                  "transaction": {
+                    "to": "0x3333333333333333333333333333333333333333",
+                    "value": "0",
+                    "data": "0x",
+                    "nonce": "1",
+                    "gasLimit": "100000",
+                    "feeParameters": {}
+                  },
+                  "sourceId": "transfer_a"
+                },
+                "context": {
+                  "approvalContextId": "approval_a",
+                  "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "intentId": "intent_a",
+                  "operationId": "op_a",
+                  "chainId": 8283,
+                  "payerAddress": "0x1111111111111111111111111111111111111111",
+                  "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "requestKind": "eoa_transaction",
+                  "profileId": "synthetic_profile",
+                  "expiresAt": "2026-09-18T08:00:00Z",
+                  "sourceKind": "personal_transfer",
+                  "sourceId": "transfer_a",
+                  "accountBindingId": "account_binding_a",
+                  "selection": {
+                    "walletId": "wallet_a",
+                    "walletBindingId": "binding_a",
+                    "walletRevision": 2,
+                    "bindingRevision": 4,
+                    "signerRef": "signer_a",
+                    "signerKind": "hardware_eoa",
+                    "epoch": {
+                      "kind": "device",
+                      "deviceEpoch": "3"
+                    }
+                  },
+                  "contractVersions": {
+                    "http": "approval-v1-draft",
+                    "ble": "approval-ble-v1-draft",
+                    "evidenceProfile": "synthetic_profile"
+                  }
+                },
+                "reviewProof": {
+                  "profileId": "synthetic_profile",
+                  "evidenceBytes": "U1lOVEhFVElD"
+                }
+              },
+              "signingResult": null
+            },
+            "walletFlow": {},
+            "operationClass": "approval_parent",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "submit_source_override",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a",
+          "senderProof": {
+            "profileId": "synthetic_profile",
+            "evidenceBytes": "U1lOVEhFVElD"
+          }
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalContextId": "approval_a",
+          "signedPayload": "0x1234",
+          "approvalEvidence": {
+            "kind": "device_result",
+            "approvalContextId": "approval_a",
+            "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "signedPayloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "reviewId": "review_a",
+            "deviceSessionRef": "peer_a",
+            "deviceEpoch": "3",
+            "proof": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          },
+          "sourceKind": "personal_transfer"
+        }
+      }
+    },
+    {
+      "name": "child_resultref_leak",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "mpc_child_a",
+              "kind": "mpc_signing",
+              "state": "running",
+              "revision": 1,
+              "resultRef": "https://invalid.example/child-secret",
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": null,
+            "operationClass": "approval_child",
+            "approvalOperationId": "op_a"
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "child_without_parent_ref",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "mpc_child_a",
+              "kind": "mpc_signing",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "approval": null,
+            "operationClass": "approval_child",
+            "approvalOperationId": null
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    }
+  ]
+}

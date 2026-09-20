@@ -1,0 +1,48 @@
+{
+  "scope": "design_inventory_and_reference_checks_only",
+  "date": "2026-09-19",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_device_coexistence.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_inventory_and_reference_checks_only\", \"operations\": 10, \"directionalPairs\": 100, \"fotaTransitions\": 10, \"resources\": 11, \"runtimeCasesNotRun\": 28, \"sourceFilesPreserved\": 9, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/validate_full_scope_design.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_journeys.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"journey_traceability_only\", \"journeys\": 16, \"uniqueSourceCasesLinked\": 107, \"adoptionPackages\": 5, \"openGaps\": 5, \"sourceFilesPreserved\": 8, \"wbsTasks\": 104, \"wbsSteps\": 320, \"runtimeRuns\": 0, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exit_code": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": [
+      "Same-approval child ranging separated from independent ranging requests.",
+      "Apply preparation separated from final device confirmation; active review/import blocks preparation.",
+      "All mutable leases must quiesce before boot target commit.",
+      "Recheck current update authority, inventory, manifest eligibility, power and fence revisions immediately before boot target change."
+    ],
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "28 runtime cases remain not_run; no firmware, wire or DB implementation.",
+    "Board/SDK/profile and all 14 measured values remain unselected.",
+    "Existing source hashes, 104 tasks, 320 steps and 19 unresolved decisions preserved."
+  ]
+}

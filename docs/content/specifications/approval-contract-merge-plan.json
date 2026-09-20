@@ -1,0 +1,617 @@
+{
+  "date": "2026-09-18",
+  "status": "merge_scope_defined_not_applied",
+  "implementation": "deferred_by_user",
+  "document": "content/specifications/approval-contract-merge-plan.md",
+  "targetContractLabel": "approval-v1-draft",
+  "targetContractStatus": "planned_design_label_not_a_released_protocol",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "baselineFiles": {
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a",
+    "authorization-policies.json": "6d193d0899b6019655b247367ddec6b04f83ac86bbf0e3d60caee1dd6985cbb3",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d",
+    "wallet-api-candidate.json": "3863ffd6a870abbad51ef070de81b0dffbf951e00ab360d917859ba124f88295",
+    "wallet-api-candidate.schema.json": "8838c3c87e66acf7bfc23c6e2763e5348d6b131385b2e5d461513deb43bbc1cc",
+    "source-approval-candidate.json": "77ad68359f18d87a4f8221649d6d4ca48fea05edd966f0dfae68c2cb54dc0d9e",
+    "source-approval-candidate.schema.json": "f62c13617b0da22a4d17b772bc2aedd755c8c91bf48da0e45f727bb39a870442",
+    "commerce-contract-candidate.schema.json": "b85ac9c2a1c5ba8401a3549aa7b559a249e2ca415eab0a26626c2a6769e75e27",
+    "signing-submission-storage-design.json": "879f15ddc32fcac79dca40fe02f1a10c7f4f3311897a85976526ce11859181b3"
+  },
+  "decisionRefs": [
+    "D02",
+    "D03",
+    "D04",
+    "D08",
+    "D09",
+    "D19"
+  ],
+  "apiMergeScope": [
+    {
+      "apiId": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "authorization": "account",
+      "candidateFamilies": [
+        "wallet"
+      ],
+      "target": "개인 문맥 WalletChoice와 목록/권한",
+      "taskRefs": [
+        "APP-02"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "authorization": "store_asset_read",
+      "candidateFamilies": [
+        "wallet"
+      ],
+      "target": "정확한 매장 문맥 WalletChoice",
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "authorization": "wallet_read",
+      "candidateFamilies": [
+        "wallet"
+      ],
+      "target": "선택 문맥·주소·자산 조회",
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "authorization": "wallet_sign_authorized",
+      "candidateFamilies": [
+        "wallet",
+        "source"
+      ],
+      "target": "개인/매장 Cloud source별 승인 및 proof운반/응답 명칭 통합",
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "authorization": "wallet_use",
+      "candidateFamilies": [
+        "wallet"
+      ],
+      "target": "개인 EOA source만 검토 생성",
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "authorization": "intent_submit_capability",
+      "candidateFamilies": [
+        "wallet",
+        "source"
+      ],
+      "target": "저장된 source/버전의 context/provenance/submit권한; 약한 schema로 우회 금지",
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "authorization": "transaction_read",
+      "candidateFamilies": [
+        "wallet"
+      ],
+      "target": "기존 체인 관측 응답·권한 보존",
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "authorization": "operation_owner_or_capability",
+      "candidateFamilies": [
+        "wallet",
+        "source"
+      ],
+      "target": "operation + approval projection, source별 별도 signed-result ACL",
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-034",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/intents",
+      "authorization": "attempt_device_capability",
+      "candidateFamilies": [
+        "source"
+      ],
+      "target": "guest identify evidence와 계정 없는 승인 snapshot",
+      "taskRefs": [
+        "PAY-01",
+        "HW-05"
+      ],
+      "status": "planned_not_applied"
+    },
+    {
+      "apiId": "API-037",
+      "method": "POST",
+      "path": "/v1/refunds/{refundId}/authorize",
+      "authorization": "store_funds_manage_recent_auth",
+      "candidateFamilies": [
+        "source"
+      ],
+      "target": "strict 합성 body와 승인 후 revision/선택 signer",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "status": "planned_not_applied"
+    }
+  ],
+  "sharedApiIds": [
+    "API-015",
+    "API-018",
+    "API-020"
+  ],
+  "bleMergeScope": [
+    {
+      "command": "payment.identify",
+      "role": "payment_terminal",
+      "requestSchema": "PaymentIdentifyRequest",
+      "responseSchema": "PaymentIdentifyResponse",
+      "status": "planned_not_applied",
+      "target": "guest_payment_variant"
+    },
+    {
+      "command": "payment.prepare",
+      "role": "payment_terminal",
+      "requestSchema": "PaymentPrepareRequest",
+      "responseSchema": "PaymentPrepareResponse",
+      "status": "planned_not_applied",
+      "target": "guest_payment_variant"
+    },
+    {
+      "command": "payment.result",
+      "role": "payment_terminal",
+      "requestSchema": "PaymentResultRequest",
+      "responseSchema": "PaymentResultResponse",
+      "status": "planned_not_applied",
+      "target": "guest_payment_variant"
+    },
+    {
+      "command": "wallet.sign.prepare",
+      "role": "owner",
+      "requestSchema": "WalletSignPrepareRequest",
+      "responseSchema": "WalletSignPrepareResponse",
+      "status": "planned_not_applied",
+      "target": "personal_and_refund_owner_variants"
+    },
+    {
+      "command": "wallet.sign.result",
+      "role": "owner",
+      "requestSchema": "WalletSignResultRequest",
+      "responseSchema": "WalletSignResultResponse",
+      "status": "planned_not_applied",
+      "target": "personal_and_refund_owner_variants"
+    }
+  ],
+  "sourceRoutes": [
+    {
+      "sourceKind": "personal_transfer",
+      "creationApi": "API-017",
+      "signing": [
+        "hardware_owner",
+        "cloud_personal"
+      ],
+      "requiresAppAccount": true,
+      "notEquivalentTo": [
+        "payment",
+        "merchant_refund"
+      ]
+    },
+    {
+      "sourceKind": "payment",
+      "creationApi": "API-034",
+      "signing": [
+        "hardware_payment_terminal"
+      ],
+      "requiresAppAccount": false,
+      "notEquivalentTo": [
+        "logged_in_cloud_cafe_payment"
+      ]
+    },
+    {
+      "sourceKind": "merchant_refund",
+      "creationApi": "API-037",
+      "signing": [
+        "hardware_owner",
+        "cloud_merchant"
+      ],
+      "requiresAppAccount": true,
+      "authorizerMustEqualSigner": false,
+      "independentSignerAuthorizationRequired": true
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "AM-C01",
+      "title": "API015 proof/response 형식",
+      "apiRefs": [
+        "API-015"
+      ],
+      "resolutionPlan": "원천별 verifier를 가진 공통 증명 운반 타입과 progress 명칭; 무검증 필드변환 금지",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C02",
+      "title": "API018 context/evidence 필수 여부",
+      "apiRefs": [
+        "API-018"
+      ],
+      "resolutionPlan": "새 승인 source 모두 context/evidence 필수, 서버 원 intent로 버전검사",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C03",
+      "title": "API020 projection/결과 ACL",
+      "apiRefs": [
+        "API-020"
+      ],
+      "resolutionPlan": "operation 유지, approval 객체로 공통 projection; 비승인 operation은 null",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C04",
+      "title": "상태·문맥·세대 의미",
+      "apiRefs": [
+        "API-015",
+        "API-017",
+        "API-020",
+        "API-034",
+        "API-037"
+      ],
+      "resolutionPlan": "closed/blocked 분리, 검증된 snapshot revision과 typed epoch; 없는 provenance 생성 금지",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C05",
+      "title": "개인 wallet.sign 상세 variant 부재",
+      "apiRefs": [
+        "API-017",
+        "API-018"
+      ],
+      "resolutionPlan": "owner BLE에 개인/환불 variant를 모두 추가해야 함",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C06",
+      "title": "commerce/source API037 strict body 충돌",
+      "apiRefs": [
+        "API-037"
+      ],
+      "resolutionPlan": "단순 allOf 대신 revision2개+merchantSigner의 합성 strict body; 원장조건 모두 보존",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C07",
+      "title": "버전·멱등·기준 해시 이력",
+      "apiRefs": [
+        "API-015",
+        "API-018",
+        "API-020"
+      ],
+      "resolutionPlan": "version header는 권한 아님, 원 source/version으로 검증; baseline 역사보존",
+      "status": "addressed_in_merge_plan_not_merged"
+    },
+    {
+      "id": "AM-C08",
+      "title": "권한 자격 발급/갱신의 미완성 경계",
+      "apiRefs": [
+        "API-017",
+        "API-034",
+        "API-037",
+        "API-018",
+        "API-020"
+      ],
+      "resolutionPlan": "issuer/audience/action/expiry/전달/복구를 새 공통 schema에서 명시; Bearer문자열로 발급증명 금지",
+      "status": "addressed_in_merge_plan_not_merged"
+    }
+  ],
+  "mergeBundles": [
+    {
+      "id": "AM-B01",
+      "title": "공통 타입·버전",
+      "existingTargets": [
+        "core.schema.json",
+        "critical-dtos.schema.json",
+        "critical-dtos.json",
+        "extended-dtos.schema.json",
+        "extended-dtos.json",
+        "api-catalog.json"
+      ],
+      "plannedNewTargets": [
+        "approval-contracts.schema.json"
+      ],
+      "status": "not_applied",
+      "runtimeEvidence": []
+    },
+    {
+      "id": "AM-B02",
+      "title": "권한·조회",
+      "existingTargets": [
+        "authorization-policies.json",
+        "api-access-transactions.json",
+        "authorization-scenarios.json",
+        "common-flows.json"
+      ],
+      "plannedNewTargets": [],
+      "status": "not_applied",
+      "runtimeEvidence": []
+    },
+    {
+      "id": "AM-B03",
+      "title": "BLE·화면",
+      "existingTargets": [
+        "ble-catalog.json",
+        "core.schema.json",
+        "screen-flows.json",
+        "implementation-interfaces.json",
+        "compatibility-matrix.json"
+      ],
+      "plannedNewTargets": [],
+      "status": "not_applied",
+      "runtimeEvidence": []
+    },
+    {
+      "id": "AM-B04",
+      "title": "저장·원장",
+      "existingTargets": [
+        "storage-operations.md",
+        "database/001_identity_foundation.sql",
+        "database/002_wallet_device.sql",
+        "database/003_commerce_ledger.sql",
+        "security-storage-contracts.json"
+      ],
+      "plannedNewTargets": [],
+      "status": "not_applied",
+      "runtimeEvidence": []
+    },
+    {
+      "id": "AM-B05",
+      "title": "회귀·이력",
+      "existingTargets": [
+        "validate_specs.py",
+        "render_spec_views.py",
+        "examples.json",
+        "extended-examples.json",
+        "compatibility-manifest.examples.json"
+      ],
+      "plannedNewTargets": [],
+      "status": "not_applied",
+      "runtimeEvidence": []
+    }
+  ],
+  "connectedDependencies": [
+    "API-030",
+    "API-032",
+    "API-035",
+    "API-036",
+    "API-038",
+    "API-056"
+  ],
+  "directlyReferencingScreens": [
+    {
+      "screenId": "U02",
+      "apiRefs": [
+        "API-007",
+        "API-008",
+        "API-009"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U03",
+      "apiRefs": [
+        "API-015",
+        "API-017",
+        "API-018",
+        "API-019",
+        "API-020"
+      ],
+      "bleRefs": [
+        "wallet.sign.prepare",
+        "wallet.sign.result"
+      ],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U09",
+      "apiRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U11",
+      "apiRefs": [
+        "API-019"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U12",
+      "apiRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U13",
+      "apiRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U14",
+      "apiRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U15",
+      "apiRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U16",
+      "apiRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U17",
+      "apiRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U19",
+      "apiRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U22",
+      "apiRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "U25",
+      "apiRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "K03",
+      "apiRefs": [
+        "API-018",
+        "API-034"
+      ],
+      "bleRefs": [
+        "payment.identify",
+        "payment.prepare",
+        "payment.result"
+      ],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "K05",
+      "apiRefs": [
+        "API-018",
+        "API-037"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "O03",
+      "apiRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    },
+    {
+      "screenId": "D01",
+      "apiRefs": [],
+      "bleRefs": [
+        "payment.prepare",
+        "payment.result",
+        "wallet.sign.prepare",
+        "wallet.sign.result"
+      ],
+      "meaning": "regression_review_scope_not_all_new_source_support"
+    }
+  ],
+  "nextDesignDeliverables": [
+    "공통 승인 schema와 개인/guest/refund tagged variants",
+    "capability 발급·보호 전달·갱신/재조회 계약",
+    "source별 정책·조회 projection과 BLE variant 병합 검토"
+  ],
+  "openUserPolicyRefs": [
+    "D03",
+    "D04",
+    "D08",
+    "D09"
+  ],
+  "pendingRecoveryDecision": {
+    "sourceFile": "return-recovery-contract.json",
+    "entryId": "RR-DEC-01",
+    "selection": null,
+    "status": "awaiting_user_preference"
+  },
+  "nonGoals": [
+    "제품 코드/SDK설치/배포",
+    "기준API/schema/권한/SQL실제병합",
+    "증거 없는 legacy서명을 새provenance로승격",
+    "개인별배정/공수산정",
+    "사용자정책자동선택"
+  ]
+}

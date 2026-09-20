@@ -1,0 +1,632 @@
+{
+  "date": "2026-09-19",
+  "status": "contract_overlay_candidate_not_registered",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "wireSchemasFrozen": false,
+  "sourceHashes": {
+    "content/specifications/device-coexistence-design.json": "ecf437a3224a051353747e1f01069a593242b001d9c2f6d8a5b34ee3a958c2e5",
+    "content/specifications/social-wallet-recovery-design.json": "7699ddfaca0dd8a5dc342cd4532480ad94795f344429d85b6721921a61ee721c",
+    "content/specifications/kiosk-commerce-journey-design.json": "a33351b37f6b3fe54606f492d78d181c030f48833959ec2e2111a15811da42cb",
+    "content/specifications/stablenet-compatibility-design.json": "8f59d25e577dc2e274368f8b1e16a341cfb5c4761d6839e34f30088b14ad42f5",
+    "content/specifications/market-product-design.json": "d691895072bba650722fbb9cba8517f4abcffc1ed0d42ed59a89fa7a1887a43f",
+    "content/specifications/credential-paid-resource-design.json": "47bebc8e03da93508de60fe95a58bf2428297aa71ae4a94fd18df2da63360585",
+    "content/specifications/recording-travel-ai-design.json": "f45754f6fb12d9ed41c6abccacca337687e98d78cc16e0ae50f388d49fb1e666",
+    "content/specifications/operations-release-acceptance-design.json": "fdaf8dad0e56ffc1a6cda92e9b58730de5afcd03db07e3497271dbf5289a2e5f",
+    "content/specifications/api-catalog.json": "0c4353873a8e4a539bde0af783caf6478a35064804349b2740715bcfa2d335f0",
+    "content/specifications/approval-source-dispatch.json": "65a48dd3c4cafab89a7e181869998834d68fd92d79a7d01be97990b48d45eac9",
+    "content/specifications/return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761"
+  },
+  "purpose": "DS01~08의 제품 간 경계를 구체화하는 미병합 계약 보완안. 모든 미등록 adapter의 카탈로그 채택 완료를 뜻하지 않는다. OC-17~20은 세션 갱신·로그인 수단 해제 및 각각의 제한된 결과 조회를 정의한다. API 번호/실제 서비스 구현은 아직 등록하지 않았다.",
+  "envelope": {
+    "request": [
+      "schemaVersion",
+      "environmentId",
+      "requestId",
+      "idempotencyKey(for mutation)",
+      "expectedRevision(for existing mutable object)",
+      "typedBody"
+    ],
+    "response": [
+      "operationId",
+      "operationClass",
+      "parentRef",
+      "status",
+      "revision",
+      "resultRef(optional)",
+      "error(optional)"
+    ],
+    "identity": "idempotency scope = environment + authenticated actor/scope + route + idempotencyKey; canonical request digest 불일치 CONFLICT",
+    "versioning": "unknown version/discriminator/additional security fields 거절. field optional/required·wire encoding·limits는 선택 protocol schema로 고정. 클라이언트가 보낸 actor/role/owner는 권한 근거 아님.",
+    "amount": "chain/environment + asset identity + amountAtomic 정수 문자열; display decimals는 manifest에서만. floating point 금액 금지.",
+    "errors": [
+      "INVALID_INPUT",
+      "UNSUPPORTED_PROFILE",
+      "UNAUTHORIZED",
+      "FORBIDDEN",
+      "REVISION_CONFLICT",
+      "SOURCE_STALE",
+      "POLICY_UNSELECTED",
+      "AUTHORITY_HELD",
+      "EXPOSURE_UNKNOWN",
+      "ALREADY_APPLIED",
+      "PRIVACY_DENIED",
+      "RESULT_PENDING"
+    ],
+    "retry": "네트워크 실패는 실패확정이 아니다. 동일 operation/idem 조회부터 수행; 원 노출의 결론 없이 새로운 signer payload/nonce/payment 생성 금지."
+  },
+  "routeContracts": [
+    {
+      "id": "OC-01",
+      "name": "auth provider flow와identity",
+      "existingApiRefs": [
+        "API-103",
+        "API-001",
+        "API-002"
+      ],
+      "candidateRoute": "현재 경로의 provider-discriminated adapter",
+      "authority": "선정 client/OS의 provider flow binding+nonce/state/PKCE profile,현재 account link 권한",
+      "requestFields": "provider,flowId,clientProfile,authorizationResponse,linkIntentRef?,expectedAccountRevision?",
+      "responseFields": "accountRef,sessionRef,identityRef,linkState,operationRef",
+      "atomicBoundary": "issuer+subject unique와link claim; 계정생성/연결을 이메일로 자동병합 금지",
+      "recovery": "응답유실은flowId 원결과. auth response 재교환/재연결 무한재시도 금지"
+    },
+    {
+      "id": "OC-02",
+      "name": "session revoke/logout scope",
+      "existingApiRefs": [
+        "API-003",
+        "API-004"
+      ],
+      "candidateRoute": "후보 POST /v1/session-revocations",
+      "authority": "current session owner;all_sessions는 recent-auth scope; account_security_hold는 별도권한",
+      "requestFields": "scope=this_session|all_sessions,expectedAccountRevision,reason",
+      "responseFields": "revocationId,scope,sessionEpoch,affectedCount,status",
+      "atomicBoundary": "session epoch+outbox CAS; 클라이언트locallogout과서버globalrevoke구별",
+      "recovery": "불명응답에서도로컬노출차단;로그아웃으로이미서명된tx를없애지않음"
+    },
+    {
+      "id": "OC-03",
+      "name": "Cloud 생성·복구 parent",
+      "existingApiRefs": [
+        "API-014",
+        "API-016",
+        "API-020"
+      ],
+      "candidateRoute": "API014/016의 lifecycle 요청 확장 + 후보 GET /v1/wallet-lifecycle-operations/{operationId}",
+      "authority": "account owner 또는 operation-bound recovery read credential; 후자는 서명/자금권한 없음",
+      "requestFields": "POST: createRequestId 또는 recoveryRequestId,expectedParticipantEpoch,mode,proofRef,newParticipantRef,protocolProfile. GET: path operationId, 별도 body 없음",
+      "responseFields": "operationClass=cloud_wallet_lifecycle,phase,walletRef,publicKey,participantEpoch,holdReasons,addressOutcome,revision",
+      "atomicBoundary": "verified recovery권한 후fence→prepared→commit→requiredACK→verify→release ownfence;current policy/authority CAS",
+      "recovery": "read credential environment/op/expiry/read-only 결합·발급때복구증명 확인. accountsession상실시임의조회토큰발급금지"
+    },
+    {
+      "id": "OC-04",
+      "name": "terminal provisioning·종료",
+      "existingApiRefs": [
+        "API-023"
+      ],
+      "candidateRoute": "후보 POST /v1/stores/{storeId}/terminal-enrollments; POST /v1/terminal-sessions/{id}/end",
+      "authority": "current store terminal admin+physical enrollment proof;guest는자기session종료만",
+      "requestFields": "terminalPublicKey,challengeRef,proof,mode,expectedTerminalRevision;end:expectedSessionRevision",
+      "responseFields": "terminalId,grantRef,sessionId,closedAt,clearanceStatus",
+      "atomicBoundary": "store-bound terminalgrant+epoch unique;end는customercontextdeny/outbox와원자",
+      "recovery": "guest가주문결과를다시볼ticket은order/session-bound별도능력. terminal분실현재grantrevoke"
+    },
+    {
+      "id": "OC-05",
+      "name": "order snapshot·recipient cut",
+      "existingApiRefs": [
+        "API-027",
+        "API-028",
+        "API-029",
+        "API-032"
+      ],
+      "candidateRoute": "현재 경로 확장 후보",
+      "authority": "current store menu/address role와order actor; 수취주소변경은signer통제증명",
+      "requestFields": "menuRevision,items/options,recipientRevision,assetRef,quoteRef,expectedStoreRevision",
+      "responseFields": "orderId,immutableItemTotals,recipientSnapshot,assetUnits,priceVersion,quoteExpiry",
+      "atomicBoundary": "order commit때current menu/recipient snapshot고정. concurrent변경은conflict·새가격확인",
+      "recovery": "기존order주소를새설정으로rewrite금지;expired quote새승인. nativegas별도 표시"
+    },
+    {
+      "id": "OC-06",
+      "name": "fulfillment 명령",
+      "existingApiRefs": [
+        "API-030",
+        "API-092"
+      ],
+      "candidateRoute": "후보 POST /v1/stores/{storeId}/orders/{orderId}/fulfillment-actions",
+      "authority": "current exact-store fulfillment role;customer/ops readonly에mutation승격금지",
+      "requestFields": "action=prepare|ready|handover|cancel_preparation,expectedOrderRevision,expectedPaymentRevision,reason",
+      "responseFields": "fulfillmentState,revision,actorAuditRef,paymentDisplayState",
+      "atomicBoundary": "payment accepted/hold 정책과currentrevision 검사+state/outbox atomic;handover는한번효과",
+      "recovery": "payment reorg가실물인도를되돌리지는않음;fulfilled 유지+payment_exception 별도"
+    },
+    {
+      "id": "OC-07",
+      "name": "guest receipt·claim ticket",
+      "existingApiRefs": [
+        "API-042",
+        "API-043",
+        "API-044",
+        "API-104",
+        "API-105",
+        "API-106"
+      ],
+      "candidateRoute": "기존 claim 경로의 proof-bound 전달/조회 후보",
+      "authority": "guest session proof와claimant current account/walletbinding;order번호단독불가",
+      "requestFields": "ticketId,claimChallenge,holderProof,expectedClaimRevision,selectedBenefitPolicy",
+      "responseFields": "claimId,receiptProjection,benefitState,sourceVector,privacyRevision",
+      "atomicBoundary": "single claim+benefit effect원장;잘못된소유자claim차단",
+      "recovery": "앱/기기간응답유실동일claim조회;ticket만유출돼도임의owner가되지않음"
+    },
+    {
+      "id": "OC-08",
+      "name": "settlement correction/read/publish",
+      "existingApiRefs": [
+        "API-039",
+        "API-040",
+        "API-041",
+        "API-093",
+        "API-087"
+      ],
+      "candidateRoute": "기존 settlement-ops SR-01/SR-02 후보 참조",
+      "authority": "read/preview/source_refresh와publish 역할분리;exact store currentpolicy",
+      "requestFields": "sourceVectorDigest,expectedProjectionRevision,reason,preparedCorrectionRef",
+      "responseFields": "prepared|published|stale,projectionRevision,signedDelta,auditRef",
+      "atomicBoundary": "CP-B05 prepare→CP-B06 singleconsumer atomic publish;API087자동publish금지",
+      "recovery": "재시도는원correction;은행지급/merchant서명자동생성금지"
+    },
+    {
+      "id": "OC-09",
+      "name": "market quote/action",
+      "existingApiRefs": [
+        "API-057",
+        "API-058",
+        "API-059",
+        "API-061",
+        "API-062"
+      ],
+      "candidateRoute": "현재 경로의 action-discriminated market adapter",
+      "authority": "current wallet_use/market actor+typedapproval/source/currentrisk",
+      "requestFields": "marketProfile,actionVariant,quoteRef,expectedPositionRevision,priceSnapshot,allowancePlan,executionPlan,reviewDigest",
+      "responseFields": "quote|review_ready|allowance_pending|execution_pending|result_observed|completed|unknown,actualEffects,sourceVector",
+      "atomicBoundary": "allowance child와execution child ancestry;standaloneapprove 관측 vs bundledpermit 준비구별",
+      "recovery": "UserOp/bundle내실제효과 확인. readonly결과와새시장행위권 분리"
+    },
+    {
+      "id": "OC-10",
+      "name": "market order cancel/keeper",
+      "existingApiRefs": [
+        "API-060",
+        "API-061",
+        "API-062"
+      ],
+      "candidateRoute": "후보 POST /v1/market-orders/{id}/cancel; 내부 keeper command",
+      "authority": "owner currentordercontrol;keeper는등록market/period/contractscope",
+      "requestFields": "orderId,expectedOrderRevision,cancelPlan;keeper:periodId,positionRevision,priceEvidence",
+      "responseFields": "cancel_requested|cancelled|filled|partial|unknown,exposureRef,actualEffects",
+      "atomicBoundary": "cancel은contractcapability존재시만. fill/cancel경합최종체인판정;keepercontract idempotency필수",
+      "recovery": "timeout은cancel완료아님;반대매매자동실행금지"
+    },
+    {
+      "id": "OC-11",
+      "name": "credential/offering typed source",
+      "existingApiRefs": [
+        "API-064",
+        "API-065",
+        "API-067",
+        "API-068",
+        "API-069"
+      ],
+      "candidateRoute": "현재 경로의 credential_proof 및 offering_action adapter 후보",
+      "authority": "issuer/verifier/holder 각각 현재trust/scope;offering actor와wallet통제추가",
+      "requestFields": "DS06 CC01~04,challenge/audience/rightsVersion/sourceVector",
+      "responseFields": "credential|verification|offeringAction,eligibilityReasons,statusEvidence,operationRef",
+      "atomicBoundary": "challenge단회소비와currenttrust/status;offeringcontract에서직접호출제약",
+      "recovery": "offering_action은기존sourceKind없음.typed등록없이personal_transfer또는market_actionfallback금지"
+    },
+    {
+      "id": "OC-12",
+      "name": "x402 binding·entitlement",
+      "existingApiRefs": [
+        "API-070",
+        "API-071",
+        "API-072"
+      ],
+      "candidateRoute": "실제 유료 resource HTTP adapter + 기존 lifecycle 경로",
+      "authority": "owner/request+paid_resource currentapproval;외부x402 client는선정구매주체binding별도",
+      "requestFields": "DS06 CC05~06+protocolHeaderMapping,schemeProof,attemptRef",
+      "responseFields": "paymentRequirement,settlementState,entitlementState,deliveryState,receipt,resultRef",
+      "atomicBoundary": "payment/refund/entitlement/delivery독립축CAS+outbox. refund예약과generation/publish가동일entitlementrevision/fence검사. proof와settlement구별",
+      "recovery": "일반APIwrapper만으로x402상호운용주장불가.실제402wire→proof→settle→result시험필수"
+    },
+    {
+      "id": "OC-13",
+      "name": "audio upload/processing",
+      "existingApiRefs": [
+        "API-051",
+        "API-052",
+        "API-053",
+        "API-094",
+        "API-107"
+      ],
+      "candidateRoute": "후보 POST /v1/recordings/{id}/uploads; POST .../uploads/{uploadId}/complete",
+      "authority": "owner currentpurposeconsent+registeredsource;crossownerobject거절",
+      "requestFields": "manifestDigest,byteLength,formatProfile,chunkChecksums,expectedRecordingRevision,consentRevision",
+      "responseFields": "uploadId,scopedObjectRef,receivedParts,processingJob,protectedResultRef",
+      "atomicBoundary": "complete는stored bytes/checksum검사후sourceobjectregister;metadata POST로업로드승인추정금지",
+      "recovery": "resume동일upload;공간부족/파일손상partial;외부STT요청직전동의재검사"
+    },
+    {
+      "id": "OC-14",
+      "name": "travel evidence/recommendation",
+      "existingApiRefs": [
+        "API-073",
+        "API-074",
+        "API-075",
+        "API-076",
+        "API-077",
+        "API-078",
+        "API-079",
+        "API-080",
+        "API-081",
+        "API-082",
+        "API-083",
+        "API-095",
+        "API-096",
+        "API-097"
+      ],
+      "candidateRoute": "현재경로 typed evidence와job/result 확장",
+      "authority": "owner/review_author/trip_owner/participant currentprivacy;placeprovider신뢰 별도",
+      "requestFields": "DS07 TC03~05+constraints/sourceVector/placeMappingRevision",
+      "responseFields": "provenanceKind,validationReasons,courseRevision,stepValidity,rewardState",
+      "atomicBoundary": "현재source/privacy/revision으로publish;챌린지step과rewardeffect각unique",
+      "recovery": "payment correction은badge/혜택재판정만;원후기/독립위치자동삭제금지"
+    },
+    {
+      "id": "OC-15",
+      "name": "privacy request progress",
+      "existingApiRefs": [
+        "API-084",
+        "API-085",
+        "API-107"
+      ],
+      "candidateRoute": "후보 GET /v1/me/data-requests/{requestId}",
+      "authority": "current owner+recent-auth exportpolicy;account삭제후한정receipt는별도readcredential",
+      "requestFields": "scopeSnapshot,consentRevision,privacyRevision,artifactGraphRef,actionKind=revoke_purpose|delete_scope,purposeRefs,deletionPlanRef?,deletionAuthorizationRevision?",
+      "responseFields": "denyEffectiveAt,targetStatuses,pendingExternal,retentionExceptions,receiptRef",
+      "atomicBoundary": "deny/tombstone+outbox먼저CAS;삭제target별revision/attempt;모든read/publish최신deny검사; purpose deny와 object deletion tombstone을 분리한다. deletionPlan 승인이 없으면 원문 파괴적 삭제 예약 금지.",
+      "recovery": "privacy원장복구불가면외부서비스재개차단. lateartifact도원job/source삭제scope에자동추가·증거갱신;새동의로부활금지"
+    },
+    {
+      "id": "OC-16",
+      "name": "protected result / operation readers",
+      "existingApiRefs": [
+        "API-020",
+        "API-107"
+      ],
+      "candidateRoute": "현재경로 typed registry 확장",
+      "authority": "current parent object/actor/session/epoch/purpose 검증;worker결과작성권과사용자읽기권분리",
+      "requestFields": "operationClass,parentRef,resultId,sourceVector,authorityEpoch,privacyRevision",
+      "responseFields": "typed status,redacted reason,permitted resultRef,poll policy",
+      "atomicBoundary": "등록된class+parentloader+ACL+immutableartifactmetadata만조회.unknownclass거절",
+      "recovery": "원부모삭제/철회는읽기차단;임의URL/resultId소지만으로접근불가"
+    },
+    {
+      "id": "OC-17",
+      "name": "session refresh rotation",
+      "existingApiRefs": [],
+      "candidateRoute": "후보 POST /v1/session-refreshes",
+      "authority": "access token 만료를 허용하되 유효 refresh family/generation와 등록 client의 sender proof가 필요; 클라이언트가 주장한 accountId는 권한 아님",
+      "requestFields": "refreshRequestId,refreshCredential(protected),expectedGeneration,clientProfile,senderProof,requestDigest",
+      "responseFields": "operationClass=session_refresh,parentRef=refreshFamily,rotationState,newGeneration,protectedSessionResultRef",
+      "atomicBoundary": "family/currentGeneration CAS+단일 successor+idem digest+보호된 결과/outbox 원자 저장. 같은 generation의 서로 다른 두 successor 금지",
+      "recovery": "같은 requestId/digest와같은sender 재시도는 원 결과. 미결 응답은 OC18 조회; 오래된 refresh bearer만으로 최신 token 반환 금지; 직접 POST 재시도 응답도 OC18 generation/epoch 공개 정책을 동일 적용하며 superseded token을 재전달하지 않는다."
+    },
+    {
+      "id": "OC-18",
+      "name": "session refresh result",
+      "existingApiRefs": [],
+      "candidateRoute": "후보 GET /v1/session-refreshes/{refreshRequestId}",
+      "authority": "OC17 시작 시 결합된 sender possession 또는 별도 등록된 operation-bound recovery proof; requestId/bearer 단독 불가",
+      "requestFields": "path refreshRequestId,senderProof,currentClientProfile;body 없음",
+      "responseFields": "operationClass=session_refresh,state=pending|rotated|revoked|restart_required|superseded|held,generation,protectedSessionResultRef?",
+      "atomicBoundary": "반환 직전 현재 family/session revoke epoch 재검사; 원 결과 identity 불변; protected result 반환은 family/session epoch와 resultGeneration=currentFamilyGeneration을 원자 검사한 경우만. 이후 회전과 경합해 전달 시점에 이미 stale일 수 있으므로 클라이언트도 local generation 단조 조건으로 수용한다.",
+      "recovery": "보호 결과 만료·sender 상실이면 새 로그인. 이미 철회된 family의 이전 성공결과로 세션 부활 금지; resultGeneration<current는 superseded 상태만 반환하고 token/resultRef 없음. resultGeneration>current는 held로 무결성 조사. 이전 결과를 최신 토큰으로 바꿔 반환하거나 새 회전을 생성하지 않는다."
+    },
+    {
+      "id": "OC-19",
+      "name": "identity unlink",
+      "existingApiRefs": [],
+      "candidateRoute": "후보 POST /v1/me/identity-unlinks",
+      "authority": "현재 account recent-auth+선택 identity ownership; 잔존 독립 로그인/복구 경로의 실제 증명 필요",
+      "requestFields": "identityId,unlinkRequestId,expectedAccountRevision,expectedIdentityRevision,remainingAccessProofRef",
+      "responseFields": "operationClass=identity_unlink,parentRef=account,identityId,state=requested|unlinked|rejected|pending_external,affectedSessionScopes,revision",
+      "atomicBoundary": "모든 login수단의 동시 제거를 account-level revision/CAS로 직렬화; identity link 제거+관련flow/session fencing+audit/outbox 원자 저장",
+      "recovery": "provider token revoke가 필요한 profile은 outbox 별도 상태; 외부 실패를 로컬unlink rollback으로 처리하지 않음. 소셜 unlink는 MPC share/지갑 삭제가 아님"
+    },
+    {
+      "id": "OC-20",
+      "name": "identity unlink result",
+      "existingApiRefs": [],
+      "candidateRoute": "후보 GET /v1/me/identity-unlinks/{unlinkRequestId}",
+      "authority": "남은 로그인 수단의 현재 account session/recent-auth 또는 unlink 전에 검증·발급한 account/op-bound read credential; 후자는 서명/설정 권한 없음",
+      "requestFields": "path unlinkRequestId,readProof?; body 없음",
+      "responseFields": "operationClass=identity_unlink,state,localLinkState,sessionImpact,externalRevocationState,revision",
+      "atomicBoundary": "typed account parent와현재 read 권한 검사; 식별자만으로 private account 정보 공개 금지",
+      "recovery": "원 unlink 결과 조회, account 삭제/보호 hold 조건 적용; 응답유실로 다른 identity 제거 요청 생성 금지"
+    }
+  ],
+  "actionVariants": [
+    {
+      "id": "AV-01",
+      "tag": "swap_exact_input",
+      "requiredFields": "tokenIn,tokenOut,amountInAtomic,minOutAtomic,route,recipient,deadline",
+      "effectEvidence": "actual in/out,router/pool evidence",
+      "restriction": "quote 단위·route/code allowlist"
+    },
+    {
+      "id": "AV-02",
+      "tag": "swap_exact_output",
+      "requiredFields": "tokenIn,tokenOut,amountOutAtomic,maxInAtomic,route,recipient,deadline",
+      "effectEvidence": "actual out 및 최대지출 준수",
+      "restriction": "잔여 allowance 별도 표시"
+    },
+    {
+      "id": "AV-03",
+      "tag": "liquidity_add",
+      "requiredFields": "poolRef,positionKind,tokens/maxima,sharesOrLiquidityMin,range(if supported)",
+      "effectEvidence": "실제 투입과 LP/position 증가",
+      "restriction": "fungible shares와NFT/range schema분리"
+    },
+    {
+      "id": "AV-04",
+      "tag": "liquidity_remove",
+      "requiredFields": "positionRef,amountKind=shares|liquidity,amount,minima,recipient",
+      "effectEvidence": "지분축소와실제수취 별도",
+      "restriction": "collect 별도면 회수완료에수수료포함추정금지"
+    },
+    {
+      "id": "AV-05",
+      "tag": "fee_collect",
+      "requiredFields": "positionRef,tokens,requestedMaxima,recipient",
+      "effectEvidence": "fees owed 변화와실제수취",
+      "restriction": "범위형외모델은capability확인"
+    },
+    {
+      "id": "AV-06",
+      "tag": "fx_spot",
+      "requiredFields": "baseAsset,quoteAsset,direction,rateNum,rateDen,amounts,validity",
+      "effectEvidence": "해당모델swap실제효과",
+      "restriction": "FX파생선정시별도tag/schema필요"
+    },
+    {
+      "id": "AV-07",
+      "tag": "perp_change",
+      "requiredFields": "market,positionId,side,sizeDelta,reduceOnly,collateral,priceLimit,riskRevision",
+      "effectEvidence": "position 전후·fee/funding·collateral",
+      "restriction": "linear/inverse/cross/isolated profile선정필수"
+    },
+    {
+      "id": "AV-08",
+      "tag": "collateral_change",
+      "requiredFields": "position/accountRef,direction,asset,amount,healthSnapshot",
+      "effectEvidence": "실제담보전후와remaininghealth",
+      "restriction": "withdraw는현재risk검사"
+    },
+    {
+      "id": "AV-09",
+      "tag": "offering_action",
+      "requiredFields": "offeringId,rightsVersion,action,quantity,recipient,eligibilityRefs",
+      "effectEvidence": "issuance/transfer/burn와지급각효과",
+      "restriction": "STO를금전이체tag로위장금지"
+    },
+    {
+      "id": "AV-10",
+      "tag": "credential_presentation",
+      "requiredFields": "requestRef,challengeRef,audience,disclosureDigest,holderBinding,expiry",
+      "effectEvidence": "verificationRecord,challenge consumption",
+      "restriction": "tx nonce/gas와무관한domain 분리"
+    },
+    {
+      "id": "AV-11",
+      "tag": "paid_resource",
+      "requiredFields": "requestId,resourceVersion,inputDigest,paymentRequirementDigest,attemptRef",
+      "effectEvidence": "settlementReceipt+entitlement+delivery",
+      "restriction": "자동재요청이새지급승인이아님"
+    }
+  ],
+  "storageAndAtomicity": [
+    {
+      "id": "AC-01",
+      "unit": "typed operation",
+      "records": "operation,typed parent,idem digest,source vector",
+      "uniqueOrCas": "environment+actor+route+idem;operationclass/parent immutable",
+      "transaction": "권한/revision확인+예약+outbox",
+      "outsideTransaction": "network call은commit후,외부결과는currentguard다시확인"
+    },
+    {
+      "id": "AC-02",
+      "unit": "terminal/customer boundary",
+      "records": "terminalgrant,session,customercontext",
+      "uniqueOrCas": "terminal epoch+session revision",
+      "transaction": "종료deny+clearqueue",
+      "outsideTransaction": "단말ack없으면clearance pending,고객재사용금지"
+    },
+    {
+      "id": "AC-03",
+      "unit": "fulfillment",
+      "records": "order/payment snapshot,fulfillment log",
+      "uniqueOrCas": "order revision+action idem",
+      "transaction": "현재권한/허용상태+history+outbox",
+      "outsideTransaction": "실물인도는DBrollback불가,확인기록별도"
+    },
+    {
+      "id": "AC-04",
+      "unit": "credential verify",
+      "records": "challenge,verification,trust/statusvector",
+      "uniqueOrCas": "(environment,verifier,challengeRef) 단회소비 unique/CAS; proofDigest는 동일 재시도 비교값",
+      "transaction": "challengeconsume와result저장",
+      "outsideTransaction": "외부status조회시점/정책유효성재검사;unknown이면거절"
+    },
+    {
+      "id": "AC-05",
+      "unit": "paid resource",
+      "records": "attempt,exposure,paymenteffect,entitlement,delivery",
+      "uniqueOrCas": "payment effect exclusive allocation+request/version",
+      "transaction": "receipt할당/권리부여/outbox",
+      "outsideTransaction": "facilitator/chain/generator는원자DB밖;정확히한번외부실행주장금지"
+    },
+    {
+      "id": "AC-06",
+      "unit": "content upload",
+      "records": "uploadsession,parts,artifactmetadata",
+      "uniqueOrCas": "owner+upload+partchecksum",
+      "transaction": "finalize CAS후source등록",
+      "outsideTransaction": "objectbytes저장은외부;orphan수거는privacy정책내"
+    },
+    {
+      "id": "AC-07",
+      "unit": "privacy",
+      "records": "deny,tombstone,artifactgraph,deletiontargets",
+      "uniqueOrCas": "privacyrevision monotonic+targetrevision",
+      "transaction": "즉시deny와삭제queue",
+      "outsideTransaction": "backup/provider/phone비동기확인,실패는pending"
+    },
+    {
+      "id": "AC-08",
+      "unit": "reward/consumer publish",
+      "records": "sourcevector,prepared projection,benefiteffect",
+      "uniqueOrCas": "stable entitlement/reward business source identity는 sourceVector와 분리; correctionId unique,expectedprojectionrevision/sourceVector CAS",
+      "transaction": "동일 stable effect의 목표-반영량 delta와 CP-B06 단일consumerpublish; 새sourceVector가새보상을생성하지않음",
+      "outsideTransaction": "새환불/이체/서명 자동발생금지"
+    }
+  ],
+  "adoptionProcedure": [
+    "각 OC를 기존 route 확장 또는 새 route로 분류하고 API 번호·operationClass·discriminated request/response를 함께 부여한다. 스키마/DTO/access/source dispatch/typed reader/화면/저장 매핑 중 하나만 반영하지 않는다.",
+    "SDK·board·provider·contract model 선택값을 profile manifest로 pin한 뒤 wire codecs/limits/신뢰체인을 구체화한다. 미선정 profile은 문서placeholder를 실행값으로 사용하지 않는다.",
+    "기존 DI01..08와lifecycle 후보의fullenvelope를 보존하고 이 overlay의새입력을충돌대조한다. API037 merchantSigner·expectedRevision·expectedFundingRevision과현재approvalgate는필수보존.",
+    "새물리DDL은논리키/unique/CAS/권한/삭제정책을매핑한후별도migration문서로작성·검토. 기존61business tables/7migrations를설계문서작성으로변경했다고표시하지않는다.",
+    "valid/invalid/duplicate/reordered/lostresponse/revoked/reorg/restore 예제를각route/actiontag별준비하고schema/ACL/semanticchecks를같이실행한다.",
+    "baseline hash를새checkpoint에기록하고기존후보를superseded reference로남긴다. 원본자료자동삭제/기존hash상태덮어쓰기금지. 기준계약채택은제품구현/외부배포승인이아니다."
+  ],
+  "finiteReviewCases": [
+    {
+      "id": "FC-01",
+      "case": "동일idem 다른payload",
+      "expected": "CONFLICT,외부호출0"
+    },
+    {
+      "id": "FC-02",
+      "case": "동일idem 같은payload 응답유실",
+      "expected": "원operation조회,새operation0"
+    },
+    {
+      "id": "FC-03",
+      "case": "허용되지않은sourceKind",
+      "expected": "UNSUPPORTED_PROFILE,서명0"
+    },
+    {
+      "id": "FC-04",
+      "case": "원source개정뒤늦은worker",
+      "expected": "SOURCE_STALE,공개0"
+    },
+    {
+      "id": "FC-05",
+      "case": "철회된issuer인데유효서명",
+      "expected": "현재trust거절,새자격사용0"
+    },
+    {
+      "id": "FC-06",
+      "case": "settlement timeout",
+      "expected": "EXPOSURE_UNKNOWN,새결제0"
+    },
+    {
+      "id": "FC-07",
+      "case": "delivery failed after paid",
+      "expected": "원entitlement 유지,새결제0"
+    },
+    {
+      "id": "FC-08",
+      "case": "fulfilled order payment reorg",
+      "expected": "fulfillment유지,paymentexception표시"
+    },
+    {
+      "id": "FC-09",
+      "case": "delete tombstone then backup restore",
+      "expected": "PRIVACY_DENIED,원문공개0"
+    },
+    {
+      "id": "FC-10",
+      "case": "permitprepared notmined",
+      "expected": "allowanceapplied로표시0"
+    },
+    {
+      "id": "FC-11",
+      "case": "다른store fulfillment",
+      "expected": "FORBIDDEN,mutation0"
+    },
+    {
+      "id": "FC-12",
+      "case": "확인안된방문을realpurchase로",
+      "expected": "INVALID_INPUT,실제구매배지0"
+    }
+  ],
+  "authRecoveryRules": {
+    "refreshConflict": "같은 family/generation에서 다른 request가 경합하면 CAS 승자만 회전. 패자는 새 token을 받지 않는다. 검증된 재사용/탈취 신호에 따른 family hold 정책과 단순 병렬경합을 분리한다.",
+    "idempotency": "보호 결과 보관 TTL과sender proofprofile은 선택 입력. 안전 재전달을 증명하지 못하면 restart_required, 이전 bearer만으로 최신token 공개 금지.",
+    "unlinkConcurrency": "마지막 접근수단 보존 검사를 account-level lock/revision 아래에서 수행. 서로 다른 identity unlink 두 건이 개별 검사만 통과해 모두 삭제되는 경우 금지.",
+    "scope": "OC17..20은 논리 계약 후보이며 기존 API020/107 dispatch 등록으로 간주하지 않음. 현재 카탈로그/ACL/보호 결과 reader는 채택 전 지원불가를 반환해야 한다."
+  },
+  "refreshResultPolicy": {
+    "priority": [
+      "caller_bound_proof",
+      "family_session_epoch",
+      "result_generation",
+      "result_material_lifetime"
+    ],
+    "rules": [
+      {
+        "id": "RR-01",
+        "condition": "caller proof 또는 operation binding 불일치",
+        "state": "forbidden",
+        "returnToken": false
+      },
+      {
+        "id": "RR-02",
+        "condition": "family/session revoked 또는 epoch 불일치",
+        "state": "revoked",
+        "returnToken": false
+      },
+      {
+        "id": "RR-03",
+        "condition": "resultGeneration < currentFamilyGeneration",
+        "state": "superseded",
+        "returnToken": false
+      },
+      {
+        "id": "RR-04",
+        "condition": "resultGeneration > currentFamilyGeneration",
+        "state": "held",
+        "returnToken": false
+      },
+      {
+        "id": "RR-05",
+        "condition": "세대 동일하지만 보호 결과 만료 또는 복구 sender 상실",
+        "state": "restart_required",
+        "returnToken": false
+      },
+      {
+        "id": "RR-06",
+        "condition": "세대 동일·현재권한·epoch·유효보호결과와sender proof 모두 확인",
+        "state": "rotated",
+        "returnToken": true
+      }
+    ],
+    "clientRule": "응답의 family/epoch/generation을 현재 local state와 CAS 비교한다. 더 낮은 generation 또는 logout epoch의 늦은 응답은 설치하지 않는다. 조회는 회전 작업이 아니므로 재사용 공격으로 자동 집계하지 않는다.",
+    "pending": "아직 회전 결과가 없으면 현재 권한 확인 후 pending metadata만. tokenRef/token bytes 없음."
+  }
+}

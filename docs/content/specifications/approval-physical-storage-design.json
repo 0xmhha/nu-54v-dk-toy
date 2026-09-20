@@ -1,0 +1,1409 @@
+{
+  "status": "physical_storage_design_proposal_not_applied",
+  "date": "2026-09-18",
+  "implementation": "deferred_by_user",
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "referenceEngine": "PostgreSQL 15 (proposal; production engine unselected)",
+  "resourceMappingFile": "approval-storage-mapping.json",
+  "tables": [
+    {
+      "name": "approval_bindings",
+      "resourceRefs": [
+        "ApprovalBinding"
+      ],
+      "columns": [
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "context_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "parent_operation_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "source_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "source_ref",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "contract_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "profile_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "payload_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "signer_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "signer_ref",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "signer_epoch",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "account_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "wallet_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "attempt_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "refund_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "device_session_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "merchant_approver_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "context_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "review_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "snapshot_object_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "snapshot_object_version",
+          "type": "app_id",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(intent_id); FK intent_id → transaction_intents.id",
+        "UNIQUE(context_id); UNIQUE(parent_operation_id); FK parent_operation_id → operations.id",
+        "FK profile_id → protocol_profiles.id; FK nullable account/wallet/attempt/refund/merchant_approver → existing accounts/wallets/payment_attempts/refunds/accounts",
+        "UNIQUE(intent_id, context_id); UNIQUE(intent_id, parent_operation_id)",
+        "CHECK source_kind IN (personal_transfer,payment,merchant_refund); signer_kind IN (hardware,cloud_mpc); signer_epoch >= 0; revision >= 0",
+        "CHECK personal_transfer requires account_id/wallet_id, no attempt/refund/merchant_approver; payment requires attempt_id/device_session_id, signer_kind=hardware, account_id/wallet_id/refund_id/merchant_approver_id NULL; merchant_refund requires refund_id/wallet_id/merchant_approver_id, no attempt/device_session",
+        "CHECK payment source_ref=attempt_id; merchant_refund source_ref=refund_id",
+        "FK(snapshot_object_id,snapshot_object_version) → approval_protected_objects PK (objects created before binding or FK added afterward)"
+      ],
+      "transactionResponsibilities": [
+        "Immutable approved context, source, profile, digest and signer epoch. Source equality with transaction_intents and parent ancestry is checked in same transaction.",
+        "Actual signer ownership is independent from merchant approver. Device session and signer_ref resolve through authenticated registry adapters; do not invent guest accounts.",
+        "Personal source_ref semantics follow current source contract; do not infer it equals wallet_id.",
+        "Snapshot object kind=approval_snapshot contains exact immutable source-specific reviewProof/reviewSnapshot, context, contractVersions, VerifiedSigner selection and its revision, source associations and expiry under the existing canonical schema. Verify context/review/payload digests by selected encoding profile, never reconstruct from current state.",
+        "transaction_intents.review_payload_ref resolves to the same versioned protected snapshot as binding.snapshot_object_id/version. Commit object metadata, intent, parent, binding and link atomically; object staged first. Binding context/review digests duplicate only verified canonical values."
+      ]
+    },
+    {
+      "name": "approval_operation_links",
+      "resourceRefs": [
+        "ApprovalBinding"
+      ],
+      "columns": [
+        {
+          "name": "operation_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "role",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(operation_id); FK operation_id → operations.id; FK intent_id → approval_bindings.intent_id",
+        "CHECK role IN (parent,signing_child,submission_child); partial UNIQUE(intent_id) WHERE role=parent"
+      ],
+      "transactionResponsibilities": [
+        "Insert parent operation, intent, binding, then parent link in one transaction; children link before response.",
+        "Parent operation_id must equal binding.parent_operation_id; all approval-linked operations.result_ref must be NULL. Cross-table service check (future constrained writer/trigger), not row CHECK.",
+        "Missing ancestry is denied/quarantined, never classified general by absence alone. General classification requires known operation kind/provenance."
+      ]
+    },
+    {
+      "name": "approval_protected_objects",
+      "resourceRefs": [
+        "SignedPayloadObject",
+        "ProtectedIssuanceResponse"
+      ],
+      "columns": [
+        {
+          "name": "object_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "object_version",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "opaque_store_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "content_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "byte_length",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "encryption_key_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "replay_expires_at",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(object_id,object_version); UNIQUE(opaque_store_ref); CHECK byte_length>0; revision>=0",
+        "CHECK kind IN (approval_snapshot,signed_payload,issuance_response); state IN (linked,delete_pending,deleted,missing); issuance_response requires replay_expires_at"
+      ],
+      "transactionResponsibilities": [
+        "Encrypted bytes durably staged and digest/length checked before reference commit; storage adapter has no public URL.",
+        "Staged unlinked blobs live outside this table under upload ID. Orphan cleanup checks committed reference and in-flight staging grace; deletion is idempotent and does not remove evidence metadata.",
+        "Signed payload retention is independent of issuance response TTL. Key reference is not key material. Missing bytes cannot erase signature exposure.",
+        "approval_snapshot is immutable canonical-schema content with encrypted storage and digest/length metadata; snapshot retention is independent of issuance replay TTL."
+      ]
+    },
+    {
+      "name": "approval_provenance",
+      "resourceRefs": [
+        "SignatureProvenance"
+      ],
+      "columns": [
+        {
+          "name": "evidence_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "verifier_profile_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "verifier_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "signed_payload_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "device_epoch",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "signing_session_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "proof_object_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "verified_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(evidence_id); FK intent_id → approval_bindings.intent_id; FK verifier_profile_id → protocol_profiles.id; FK device_id → devices.id; FK signing_session_id → signing_sessions.id",
+        "UNIQUE(evidence_id,intent_id,signed_payload_digest)",
+        "CHECK kind=hardware requires device_id/device_epoch>=0 and signing_session_id NULL; kind=cloud_mpc requires signing_session_id and device_id/device_epoch NULL"
+      ],
+      "transactionResponsibilities": [
+        "Recompute signature, decoded transaction and approved payload equality with selected verifier; profile/version and current signer epoch validated.",
+        "Hardware guest evidence has no invented signing_sessions or wallets row. proof_object_ref uses protected evidence adapter with access/retention contract."
+      ]
+    },
+    {
+      "name": "approval_authorization_gates",
+      "resourceRefs": [
+        "AuthorizationGate",
+        "SourceExecutionGate"
+      ],
+      "columns": [
+        {
+          "name": "gate_key",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "scope_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "generation",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(gate_key); UNIQUE(scope_kind,scope_ref); CHECK generation>=0; revision>=0; state IN (open,held,revoked)"
+      ],
+      "transactionResponsibilities": [
+        "Shared authority for source and access. No independent source-gate shadow. Scope registry covers account, auth session, terminal session, device binding/epoch, membership, source and grant lineage.",
+        "Every revocation/source transition writer locks and updates these same gates with actual authority rows in one transaction. External identity events put relevant gate on hold until reconciled.",
+        "Missing gate is denial, never implicit open. Generation increments on new authority; old rows/generation never resurrect grants."
+      ]
+    },
+    {
+      "name": "approval_access_challenges",
+      "resourceRefs": [
+        "AccessChallenge"
+      ],
+      "columns": [
+        {
+          "name": "challenge_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "context_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "actor_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "sender_key_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "actions",
+          "type": "text[]",
+          "nullable": false
+        },
+        {
+          "name": "nonce_hash",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "request_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "predecessor_grant_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "predecessor_revision",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(challenge_id); FK(intent_id,context_id) → approval_bindings(intent_id,context_id)",
+        "UNIQUE(challenge_id,intent_id,actor_kind,actor_ref,sender_key_digest); UNIQUE(nonce_hash)",
+        "FK predecessor_grant_id → approval_access_grants.grant_id (added after both tables exist)",
+        "CHECK actor_kind IN (account,terminal); actions nonempty subset of read_progress/read_snapshot/read_signing_result/submit_exact; state IN (open,consumed,cancelled,expired); expires_at>created_at",
+        "CHECK predecessor_grant_id and predecessor_revision are both NULL or both NOT NULL"
+      ],
+      "transactionResponsibilities": [
+        "actor_ref is server-canonical logical account or exact terminal session; registry/auth adapters verify it. Challenge snapshots source/device/session generations through gate snapshots.",
+        "Replacement issuance_key is resolved server-side to original grant before creating challenge; never uses expired grant as primary auth.",
+        "Consumed challenge ↔ one issuance outcome checked at commit; no consumedIssuanceId back-reference needed."
+      ]
+    },
+    {
+      "name": "approval_access_grants",
+      "resourceRefs": [
+        "AccessGrantLineage"
+      ],
+      "columns": [
+        {
+          "name": "grant_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "challenge_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "actor_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "sender_key_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "actions",
+          "type": "text[]",
+          "nullable": false
+        },
+        {
+          "name": "token_verifier_hash",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "predecessor_grant_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(grant_id); UNIQUE(token_verifier_hash); UNIQUE(challenge_id); UNIQUE(predecessor_grant_id) WHERE predecessor_grant_id IS NOT NULL",
+        "UNIQUE(grant_id,intent_id,actor_kind,actor_ref,sender_key_digest)",
+        "FK(challenge_id,intent_id,actor_kind,actor_ref,sender_key_digest) → approval_access_challenges(challenge_id,intent_id,actor_kind,actor_ref,sender_key_digest)",
+        "FK(predecessor_grant_id,intent_id,actor_kind,actor_ref,sender_key_digest) → approval_access_grants(grant_id,intent_id,actor_kind,actor_ref,sender_key_digest)",
+        "CHECK state IN (active,replaced,revoked,expired,compromised); revision>=0; expires_at>created_at; predecessor_grant_id<>grant_id when present; actions allowed nonempty subset"
+      ],
+      "transactionResponsibilities": [
+        "Root predecessor NULL may repeat. Successor is derived by predecessor index; avoid reciprocal successor_id cycle.",
+        "Under lineage gate, predecessor CAS on expected revision/state; new node must not exist, parent immutable. Check action scope, lineage generations and challenge predecessor equality; no cycle or revoked/compromised ancestry resurrection.",
+        "One successor and one challenge consumption do not alone authorize issuance; current primary actor/sender/authority rechecked."
+      ]
+    },
+    {
+      "name": "approval_issuance_outcomes",
+      "resourceRefs": [
+        "ProtectedIssuanceResponse"
+      ],
+      "columns": [
+        {
+          "name": "issuance_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "challenge_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "grant_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "actor_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "actor_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "sender_key_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "request_key",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "request_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "response_object_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "response_object_version",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(issuance_id); UNIQUE(challenge_id); UNIQUE(grant_id)",
+        "UNIQUE(actor_kind,actor_ref,action,intent_id,sender_key_digest,request_key)",
+        "FK(challenge_id,intent_id,actor_kind,actor_ref,sender_key_digest) → approval_access_challenges composite key; FK(grant_id,intent_id,actor_kind,actor_ref,sender_key_digest) → approval_access_grants composite key",
+        "FK(response_object_id,response_object_version) → approval_protected_objects PK; CHECK action=issue_access"
+      ],
+      "transactionResponsibilities": [
+        "Grant.challenge_id must equal outcome.challenge_id; encrypted response references original grant token, never a newly minted retry token.",
+        "Same business key + different request_digest conflicts. Same logical actor can reauthenticate in another session; guest retains exact original terminal/session/attempt/device epoch.",
+        "Metadata retained independently from expiring blob and ordinary idempotency_records. Blob deletion does not delete locator; current authorization required for replay and issuance_key recovery."
+      ]
+    },
+    {
+      "name": "approval_gate_snapshots",
+      "resourceRefs": [
+        "AuthorizationGate",
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "SubmissionDispatch"
+      ],
+      "columns": [
+        {
+          "name": "snapshot_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "gate_key",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "generation",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "gate_revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "challenge_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "grant_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "dispatch_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "release_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "phase",
+          "type": "text",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(snapshot_id); FK gate_key → approval_authorization_gates.gate_key; FK nonnull owner to corresponding approval table",
+        "CHECK exactly one of challenge_id/grant_id/dispatch_id/release_id is nonnull; generation>=0; gate_revision>=0",
+        "Partial UNIQUE(owner_id,phase,gate_key) for each of four owner kinds"
+      ],
+      "transactionResponsibilities": [
+        "Persist complete server-resolved required gate set, not client supplied subset. Dispatch phases prepared/permit distinguished.",
+        "Stored revision is historical decision evidence, not permission cache. Lock and check latest gates at every issue/replace/release/permit."
+      ]
+    },
+    {
+      "name": "approval_sender_replay",
+      "resourceRefs": [
+        "SenderProofReplay"
+      ],
+      "columns": [
+        {
+          "name": "replay_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "profile_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "namespace_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "namespace_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "nonce_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "request_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "reject_until",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "outcome_ref",
+          "type": "app_id",
+          "nullable": true
+        }
+      ],
+      "databaseConstraints": [
+        "PK(replay_id); FK profile_id → protocol_profiles.id; UNIQUE(profile_id,namespace_kind,namespace_id,nonce_digest)",
+        "CHECK namespace_kind IN (challenge,grant); reject_until>consumed_at"
+      ],
+      "transactionResponsibilities": [
+        "Namespace target is validated under same transaction; profile fixes freshness/skew/max lifetime so collection cannot admit still-valid proof.",
+        "Same transport proof is rejected even for same business request; recover idempotent outcome with fresh proof/current authorization. Business GET may write only authorization metadata.",
+        "Replay consume and associated issuance/release/permit decision commit atomically; proof validation alone does not consume business nonce."
+      ]
+    },
+    {
+      "name": "approval_release_decisions",
+      "resourceRefs": [
+        "AuthorizationGate",
+        "SignedPayloadObject",
+        "ProtectedIssuanceResponse"
+      ],
+      "columns": [
+        {
+          "name": "release_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "grant_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "actor_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "actor_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "sender_key_digest",
+          "type": "hash32",
+          "nullable": true
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "object_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "object_version",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "decision_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "committed_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "delivery_state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "auth_path",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "primary_session_ref",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "databaseConstraints": [
+        "PK(release_id); FK intent_id → approval_bindings.intent_id; FK(grant_id,intent_id,actor_kind,actor_ref,sender_key_digest) → approval_access_grants composite key",
+        "FK(object_id,object_version) → approval_protected_objects PK; CHECK object_id/object_version both null or both nonnull",
+        "CHECK action IN (read_progress,read_snapshot,read_signing_result,replay_issuance); delivery_state IN (not_observed,delivery_attempted,acknowledged)",
+        "CHECK auth_path IN (primary,grant); primary requires primary_session_ref and grant_id NULL; grant requires grant_id/sender_key_digest and primary_session_ref NULL; replay_issuance requires sender_key_digest"
+      ],
+      "transactionResponsibilities": [
+        "Commit is release authorization linearization point after gate/primary or grant checks. A revoke committed before it prevents release; after it cannot recall permitted bytes.",
+        "Decision is not a reusable download capability. Every retry/new response requires fresh authorization. A crash after decision is possible exposure even without delivery ACK.",
+        "Snapshot/progress release records may omit object reference; signed bytes/replay require correct protected object kind and exact digest.",
+        "Approval API019/020 primary account/source ACL reads may have no sender key: store real authenticated session and NULL sender_key_digest, never synthetic digest. Grant path requires actual sender proof. Generic nonapproval operations remain outside this table.",
+        "primary_session_ref resolves to current authenticated account or terminal session through authority adapter; optional sender proof, when present, is verified and replay-consumed. Replay issuance uses current primary auth plus original sender binding."
+      ]
+    },
+    {
+      "name": "approval_dispatches",
+      "resourceRefs": [
+        "SubmissionDispatch"
+      ],
+      "columns": [
+        {
+          "name": "dispatch_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "submission_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "operation_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "evidence_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "signed_payload_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "object_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "object_version",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "permit_issued_at",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "permit_revision",
+          "type": "bigint",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(dispatch_id); UNIQUE(intent_id); UNIQUE(submission_id); UNIQUE(operation_id)",
+        "FK intent_id → approval_bindings.intent_id; FK submission_id → transaction_submissions.id; FK operation_id → approval_operation_links.operation_id",
+        "FK(evidence_id,intent_id,signed_payload_digest) → approval_provenance composite key; FK(object_id,object_version) → approval_protected_objects PK",
+        "CHECK state IN (prepared,permitted,broadcast_unknown,observed,rejected); permit_issued_at/permit_revision both null or both nonnull; revision>=0"
+      ],
+      "transactionResponsibilities": [
+        "One accepted payload per immutable intent; changing payload requires new approval, not overwrite. Verify submission.intent_id and operation link intent/role and protected object digest/kind in transaction.",
+        "SS-T03 prepares only. SS-T04 locks current gates/source/reservations/nonce slot, appends permit snapshots and sets permit once. Nonnull permit never cleared or replaced.",
+        "Existing EOA tx hash uniqueness retained; submission generic state does not replace dispatch authority. Outbox wake-up cannot grant permit."
+      ]
+    },
+    {
+      "name": "approval_dispatch_attempts",
+      "resourceRefs": [
+        "DispatchAttempt"
+      ],
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "dispatch_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "attempt_number",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "fence",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "worker_ref",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "lease_until",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "permit_revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "request_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "response_ref",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(attempt_id); UNIQUE(dispatch_id,attempt_number); FK dispatch_id → approval_dispatches.dispatch_id; CHECK attempt_number>0; fence>0",
+        "CHECK state IN (claimed,rpc_possible,rpc_returned,uncertain,completed)"
+      ],
+      "transactionResponsibilities": [
+        "Only permitted dispatch can create send attempt; permit revision and exact payload must match. CAS lease/fence protects DB updates.",
+        "Record rpc_possible before remote call; crash or timeout after that is uncertain. External RPC cannot participate in DB transaction or be undone by newer fence.",
+        "Retry only exact raw transaction after reconciliation; do not allocate new nonce or new spend automatically."
+      ]
+    },
+    {
+      "name": "approval_nonce_slots",
+      "resourceRefs": [
+        "AddressNonceTrack"
+      ],
+      "columns": [
+        {
+          "name": "slot_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "chain_id",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "payer",
+          "type": "evm_address",
+          "nullable": false
+        },
+        {
+          "name": "nonce",
+          "type": "uint256_amount",
+          "nullable": false
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(slot_id); UNIQUE(chain_id,payer,nonce); CHECK chain_id=8283; revision>=0"
+      ],
+      "transactionResponsibilities": [
+        "EOA nonce slot only; smart account nonce namespace needs separate typed adapter. Not an external-wallet lock."
+      ]
+    },
+    {
+      "name": "approval_nonce_claims",
+      "resourceRefs": [
+        "AddressNonceTrack"
+      ],
+      "columns": [
+        {
+          "name": "claim_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "slot_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "tx_hash",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "intent_id",
+          "type": "app_id",
+          "nullable": true
+        },
+        {
+          "name": "origin",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(claim_id); FK slot_id → approval_nonce_slots.slot_id; FK intent_id → approval_bindings.intent_id; UNIQUE(slot_id,tx_hash)",
+        "CHECK origin IN (local,external); local requires intent_id; CHECK state IN (possible,pending,canonical,orphaned,replaced)"
+      ],
+      "transactionResponsibilities": [
+        "Allow competing hashes in same slot. Decode/verify chain,payer,nonce against slot, prove replacement via current canonical observation; notfound alone not proof.",
+        "One tx can have reorg history in observations. Privacy permissions remain intent/source-bound, never shared solely by address/nonce."
+      ]
+    },
+    {
+      "name": "approval_observation_applications",
+      "resourceRefs": [
+        "ObservationApplication"
+      ],
+      "columns": [
+        {
+          "name": "application_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "source_kind",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "source_ref",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "observation_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "observation_revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "prior_ledger_revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "applied_ledger_revision",
+          "type": "bigint",
+          "nullable": false
+        },
+        {
+          "name": "effect_digest",
+          "type": "hash32",
+          "nullable": false
+        },
+        {
+          "name": "outbox_id",
+          "type": "app_id",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "databaseConstraints": [
+        "PK(application_id); FK observation_id → chain_observations.id; FK outbox_id → outbox.id",
+        "UNIQUE(source_kind,source_ref,observation_id,observation_revision); CHECK observation_revision>=0; applied_ledger_revision>prior_ledger_revision"
+      ],
+      "transactionResponsibilities": [
+        "Revision event is applied only with locked current source/canonicality and ledger revision. Existing chain_observations row is mutable: archive validated event revision in inbox/evidence adapter; FK alone does not prove historical revision.",
+        "Duplicate application has no ledger effect. Out-of-order events cannot overwrite newer state; reconcile current observation or hold for missing history.",
+        "Refund reorg moves confirmed back to reserved atomically with reservation/balance/refund/outbox. Never free capacity while exposure remains."
+      ]
+    }
+  ],
+  "migrations": [
+    {
+      "id": "APS-M01",
+      "dependsOn": [],
+      "phase": "inventory_and_freeze",
+      "procedure": "Record SQL hashes, counts, source/operation classifications and active workers; select reference engine/version for later rehearsal. Inventory ambiguous signatures/permits; hold affected sources.",
+      "exitGate": "No execution enabled; RR-DEC-01 unchanged."
+    },
+    {
+      "id": "APS-M02",
+      "dependsOn": [
+        "APS-M01"
+      ],
+      "phase": "expand_storage",
+      "procedure": "Propose new tables in dependency groups: object/gate/nonce slot then binding; operation links/provenance; challenges+grants without cross FKs then add; outcomes/releases/dispatch; attempts/claims/applications/snapshots/replay. Table creation order differs from row insertion order.",
+      "exitGate": "All FK targets expose full PK/UNIQUE keys. Partial successor uniqueness is not used as an FK target. Existing seven migrations immutable."
+    },
+    {
+      "id": "APS-M03",
+      "dependsOn": [
+        "APS-M02"
+      ],
+      "phase": "coordinate_writers",
+      "procedure": "Route authority/source/revoke writers through shared gate protocol; quiesce incompatible workers during switch. New records atomically write companion records and existing rows. Queue messages carry contract version; old sender cannot bypass permit.",
+      "exitGate": "No eventual dual-write for gates/lineage. Reject unknown/new approval work on old writers; preserve existing authorized observers."
+    },
+    {
+      "id": "APS-M04",
+      "dependsOn": [
+        "APS-M03"
+      ],
+      "phase": "classify_and_backfill",
+      "procedure": "Batch with source revision+cursor+digest; concurrent change causes retry. Categories: verified_complete, observation_only, quarantine. Backfill only independently present identity/context/provenance; preserve actual existing exposure.",
+      "exitGate": "No generated historical signatures, epochs, permits or guest accounts. NULL unknown is classification outside active binding, not fake zero. Legacy rows lacking proof remain blocked for new execution."
+    },
+    {
+      "id": "APS-M05",
+      "dependsOn": [
+        "APS-M04"
+      ],
+      "phase": "validate_constraints",
+      "procedure": "Reconcile counts and source ownership; scan duplicates and missing ancestors. Future migration rehearsal must verify constraints and lock impact. NOT VALID/VALIDATE applies only eligible constraints; unique indexes require separate duplicate remediation.",
+      "exitGate": "All enabled-source records satisfy constraints; quarantined old records excluded from execution, not discarded. Time/lock budget and recovery checkpoints required before real rollout."
+    },
+    {
+      "id": "APS-M06",
+      "dependsOn": [
+        "APS-M05"
+      ],
+      "phase": "cutover_per_source",
+      "procedure": "Enable typed personal/payment/refund source adapters separately; readers select persisted version. Compare projections; switch current authority/permit writer together. Unsupported smart-account/market/DID/x402 sources remain execution blocked pending their adapters.",
+      "exitGate": "Runtime evidence is mandatory later; this design does not authorize live cutover. No generic fallback for failed/new approval records."
+    },
+    {
+      "id": "APS-M07",
+      "dependsOn": [
+        "APS-M06"
+      ],
+      "phase": "observe_and_retain",
+      "procedure": "Track denied stale grants, uncertain broadcasts, replay conflicts, reconciliation lag and object availability with secret-free metrics. Preserve issuance metadata, lineage and exposure until retention policy permits disposal.",
+      "exitGate": "No arbitrary TTL selected. RR-DEC-01 and deletion/recovery policies retained; cleanup requires auditable eligibility."
+    },
+    {
+      "id": "APS-M08",
+      "dependsOn": [
+        "APS-M07"
+      ],
+      "phase": "forward_recovery_or_reader_rollback",
+      "procedure": "On fault disable new release/permit, keep observations and reconcile. Restore only a compatible reader that understands blocked/new records. Recover with forward fix; retain grants/revocations/permit history and object tombstones.",
+      "exitGate": "Never rollback to writer that ignores gates; never truncate exposure history or re-enable revoked tokens. No destructive down migration."
+    }
+  ],
+  "recoveryCases": [
+    {
+      "id": "APS-R01",
+      "title": "Concurrent replacements of one grant",
+      "atomicUnit": "AI-T02",
+      "trigger": "Two challenges target same predecessor revision.",
+      "expected": "Only one successor commits; loser conflict, fresh auth and reread; no second token response.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R02",
+      "title": "Revoke wins before issuance/release",
+      "atomicUnit": "AI-T03/04",
+      "trigger": "Revocation commits before gate lock decision.",
+      "expected": "Issuance/release denied; no protected response; independent observation continues.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R03",
+      "title": "Release wins before revoke",
+      "atomicUnit": "AI-T04",
+      "trigger": "Release decision commits, then revoke, before socket delivery.",
+      "expected": "Possible exposure persists; cannot promise recalled bytes. Subsequent response/replay needs current authorization.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R04",
+      "title": "Staged object then process crash",
+      "atomicUnit": "AI-T02/SS-T03",
+      "trigger": "Encrypted blob durable, no SQL commit.",
+      "expected": "No authority granted. Orphan GC checks transaction reference/grace; retry uses business key without inventing commit.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R05",
+      "title": "Issuance committed, response lost",
+      "atomicUnit": "AI-T02/05",
+      "trigger": "Grant/outcome/challenge commit then connection loss.",
+      "expected": "Fresh sender proof + current primary auth resolves original outcome; exact response while retained, otherwise issuance_key replacement through single-successor check.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R06",
+      "title": "Response blob expired",
+      "atomicUnit": "AI-T05",
+      "trigger": "Token verifier remains but encrypted replay object deleted.",
+      "expected": "Keep issuance locator; cannot reconstruct token from verifier; authenticated replacement only; revoked lineage stays revoked.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R07",
+      "title": "Prepared worker wakes late",
+      "atomicUnit": "SS-T03/04",
+      "trigger": "Outbox delivered after epoch/source revoked.",
+      "expected": "Prepared is no permit. Latest gate rejects SS-T04; outbox itself never authorizes broadcast.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R08",
+      "title": "Permit committed, RPC result lost",
+      "atomicUnit": "SS-T04",
+      "trigger": "rpc_possible marker exists; response/worker disappears.",
+      "expected": "Mark uncertain; query original hash and nonce claims. Exact-byte retry only under reconciliation policy; no new spend or refund reservation release.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R09",
+      "title": "Old worker outlives lease",
+      "atomicUnit": "SS-T04",
+      "trigger": "New fence assigned while old worker reaches RPC.",
+      "expected": "Reject stale DB updates; external duplicate broadcast remains possible. Same raw transaction hash, preserve all attempts; lease does not revoke permit.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R10",
+      "title": "Duplicate or reversed observations",
+      "atomicUnit": "ObservationApplication",
+      "trigger": "Same revision redelivered or older revision arrives late.",
+      "expected": "Application unique key deduplicates; locked ledger/current observation rejects stale overwrite; reconcile missing revision history.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R11",
+      "title": "Refund confirmation becomes orphaned",
+      "atomicUnit": "ObservationApplication",
+      "trigger": "Limit10/reserved2/confirmed6/available2 before reorg.",
+      "expected": "Atomic result reserved8/confirmed0/available2; keep exposure, no free refund capacity; emit compensating outbox.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R12",
+      "title": "Foreign transaction consumes nonce",
+      "atomicUnit": "AddressNonceTrack",
+      "trigger": "Different hash observed for same payer+nonce.",
+      "expected": "Preserve competing claims; verify canonical receipt/finality and source obligations before terminal replacement decision. Never inherit other intent ACL.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R13",
+      "title": "Backup omits recent revocation",
+      "atomicUnit": "AuthorizationGate",
+      "trigger": "Restore snapshot older than latest gate/revoke/permit.",
+      "expected": "Hold affected scopes and all protected release/permit until authoritative recovery watermark proven. Reconcile external chain independently; absent log is not evidence of no revoke/exposure.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R14",
+      "title": "Database deadlock or serialization retry",
+      "atomicUnit": "AI-T02/SS-T04",
+      "trigger": "Transaction aborted during multiple-source lock contention.",
+      "expected": "Retry bounded whole transaction with same business key and fresh authorization; never repeat external side effect inside retry closure.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R15",
+      "title": "Backfill overlaps live change",
+      "atomicUnit": "Migration",
+      "trigger": "Source revision differs from cursor snapshot.",
+      "expected": "CAS rejects stale write; reclassify/retry; no overwrite of newer signer epoch or ancestry.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R16",
+      "title": "Linked payload disappears",
+      "atomicUnit": "SignedPayloadObject",
+      "trigger": "Blob/key unavailable after reference commit.",
+      "expected": "Hold release/broadcast and repair availability; keep digest/provenance/permit/possible exposure. Do not report unsigned or release reservation.",
+      "status": "not_run"
+    },
+    {
+      "id": "APS-R17",
+      "title": "Rollback sees unfamiliar operation",
+      "atomicUnit": "Migration",
+      "trigger": "Old reader cannot interpret approval child or source.",
+      "expected": "Block incompatible endpoint while keeping supported observation path; never generic resultRef or legacy signing fallback.",
+      "status": "not_run"
+    }
+  ],
+  "referenceSqlHashes": {
+    "001_identity_foundation.sql": "55d0b6d62b0b5bceee378502667de41508921f608af625237deeefef571049dd",
+    "002_wallet_device.sql": "4cf3ac3de2fde4d984f1a0f0b1c01742642a63384a3cf115d174140c4b2c81c3",
+    "003_commerce_ledger.sql": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+    "004_device_lifecycle.sql": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2",
+    "005_privacy_recording.sql": "8ed77bba97d44fc5fceae6a72f6aaabb28e960529d4276d0e601546623617602",
+    "006_onchain_services.sql": "66b69ed4f6dccb9125e310eb075dc2d35d400cdf87ee96a703e11b7b88ccaca7",
+    "007_travel_challenges.sql": "e4fad1246d9f6e7dbd5d6c11b6a428c5132edd0228edd92fb5040686767e82f9"
+  },
+  "pendingDecisions": [
+    "RR-DEC-01 unchanged",
+    "production database and topology",
+    "crypto verifier/profile and MPC composition",
+    "retention periods and restore authority/watermarks"
+  ],
+  "nextDesign": "commerce reconciliation candidate integration and migration boundary"
+}

@@ -1,0 +1,165 @@
+{
+  "status": "review_candidate_not_merged",
+  "version": "return-candidate-1",
+  "runtimeVerified": false,
+  "document": "return-protocol-contracts.md",
+  "schema": "return-protocol-candidate.schema.json",
+  "scope": [
+    "RR-01",
+    "RR-02",
+    "RR-03",
+    "RR-04",
+    "RR-05",
+    "RR-06"
+  ],
+  "baselineHashes": {
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "core.schema.json": "d731a2dc418e039aaf8a0c20d7d70477bd105b05e852eb43328f0359516a24cf",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a"
+  },
+  "operations": [
+    {
+      "id": "RP-01",
+      "name": "device preparation report",
+      "authorization": "owner + physical approval",
+      "requestSchema": null,
+      "responseSchema": "PrepareReport",
+      "existingApiRefs": [
+        "API-046"
+      ],
+      "existingBleRefs": [
+        "device.reset.prepare"
+      ],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-02",
+      "name": "online execution commit",
+      "authorization": "current rental owner; server verifies current checklist/fence and device physical approval",
+      "requestSchema": "CommitRequest",
+      "responseSchema": "CommitResult",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-03",
+      "name": "recover existing evidence",
+      "authorization": "scoped relay with fresh holder proof; no new execution power",
+      "requestSchema": "EvidenceSubmit",
+      "responseSchema": "EvidenceResult",
+      "existingApiRefs": [
+        "API-047"
+      ],
+      "existingBleRefs": [],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-04",
+      "name": "post-reset evidence body",
+      "authorization": "trusted enrolled device identity; encrypted to server verifier",
+      "requestSchema": null,
+      "responseSchema": "ResetEvidence",
+      "existingApiRefs": [],
+      "existingBleRefs": [
+        "device.reset.confirm"
+      ],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-05",
+      "name": "server completion ACK",
+      "authorization": "trusted server signature; device verifies exact job/epoch/evidence",
+      "requestSchema": null,
+      "responseSchema": "CompletionAck",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-06",
+      "name": "request cleanup proof",
+      "authorization": "scoped cleanup relay; server signs fresh challenge; no new reset",
+      "requestSchema": "SignedCleanupChallenge",
+      "responseSchema": "CleanupProof",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-07",
+      "name": "verify cleanup and read gate",
+      "authorization": "scoped cleanup relay and holder proof",
+      "requestSchema": "CleanupSubmit",
+      "responseSchema": "ReuseGateResult",
+      "existingApiRefs": [],
+      "existingBleRefs": [],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    },
+    {
+      "id": "RP-08",
+      "name": "read job progress",
+      "authorization": "current owner or allowed operator; projection selected by server",
+      "requestSchema": null,
+      "responseSchema": "JobStatus",
+      "existingApiRefs": [
+        "API-091"
+      ],
+      "existingBleRefs": [],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03",
+        "HW-02"
+      ]
+    }
+  ],
+  "authorityIssuance": {
+    "status": "logical_contract_not_endpoint",
+    "request": "authenticated owner/operator + exact job reference + holder proof; policy selects actions, never client-supplied role",
+    "responseSchema": "RelayAuthority",
+    "conditions": [
+      "completed jobs may reissue cleanup-only authority while gate awaiting_cleanup",
+      "evidence relay epoch refers to original grant previousEpoch; cleanup relay uses verified nextEpoch",
+      "no public deviceId-only grant issue",
+      "device/server separately verify purpose, holder and current job scope"
+    ]
+  },
+  "lateAssetRecoveryPolicy": "unresolved",
+  "commitGuard": "required recovery check unresolved => reject new commit; all structural samples assume an independent approved policy profile, not user selection",
+  "deviceCapabilitiesVerified": false,
+  "canonicalCounts": {
+    "apis": 107,
+    "bleCommands": 34
+  },
+  "canonicalMerged": false,
+  "evidenceRefs": []
+}

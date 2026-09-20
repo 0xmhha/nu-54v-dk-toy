@@ -1,0 +1,426 @@
+{
+  "status": "passed",
+  "scope": "finite_serialized_design_model_only",
+  "casesPassed": 74,
+  "cases": [
+    {
+      "id": "activate_authority",
+      "expected": "forbidden",
+      "observed": "forbidden"
+    },
+    {
+      "id": "no_head_change_authority",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "activate_selected",
+      "expected": "policy_unselected",
+      "observed": "policy_unselected"
+    },
+    {
+      "id": "no_head_change_selected",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "activate_schemaCompatible",
+      "expected": "unsupported",
+      "observed": "unsupported"
+    },
+    {
+      "id": "no_head_change_schemaCompatible",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "activate_runtimeEvidence",
+      "expected": "unsupported",
+      "observed": "unsupported"
+    },
+    {
+      "id": "no_head_change_runtimeEvidence",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "activate_securityAllowed",
+      "expected": "restricted",
+      "observed": "restricted"
+    },
+    {
+      "id": "no_head_change_securityAllowed",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "activate_phase",
+      "expected": "not_prepared",
+      "observed": "not_prepared"
+    },
+    {
+      "id": "no_head_change_phase",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "activate_now",
+      "expected": "expired",
+      "observed": "expired"
+    },
+    {
+      "id": "no_head_change_now",
+      "expected": 7,
+      "observed": 7
+    },
+    {
+      "id": "stale_head",
+      "expected": "revision_conflict",
+      "observed": "revision_conflict"
+    },
+    {
+      "id": "stale_fence",
+      "expected": "revision_conflict",
+      "observed": "revision_conflict"
+    },
+    {
+      "id": "stale_registry",
+      "expected": "revision_conflict",
+      "observed": "revision_conflict"
+    },
+    {
+      "id": "stale_readiness",
+      "expected": "revision_conflict",
+      "observed": "revision_conflict"
+    },
+    {
+      "id": "stale_plan",
+      "expected": "revision_conflict",
+      "observed": "revision_conflict"
+    },
+    {
+      "id": "wrong_manifest",
+      "expected": "manifest_mismatch",
+      "observed": "manifest_mismatch"
+    },
+    {
+      "id": "peer_authenticated",
+      "expected": "invalid_peer_proof",
+      "observed": "invalid_peer_proof"
+    },
+    {
+      "id": "peer_role",
+      "expected": "invalid_peer_proof",
+      "observed": "invalid_peer_proof"
+    },
+    {
+      "id": "peer_challenge",
+      "expected": "invalid_peer_proof",
+      "observed": "invalid_peer_proof"
+    },
+    {
+      "id": "peer_capability",
+      "expected": "incompatible_peer",
+      "observed": "incompatible_peer"
+    },
+    {
+      "id": "peer_digest",
+      "expected": "incompatible_peer",
+      "observed": "incompatible_peer"
+    },
+    {
+      "id": "peer_boot",
+      "expected": "stale_boot",
+      "observed": "stale_boot"
+    },
+    {
+      "id": "peer_expiresAt",
+      "expected": "expired_peer",
+      "observed": "expired_peer"
+    },
+    {
+      "id": "optional_cannot_replace_required",
+      "expected": "missing_peer",
+      "observed": "missing_peer"
+    },
+    {
+      "id": "irrelevant_optional_does_not_block",
+      "expected": "committed",
+      "observed": "committed"
+    },
+    {
+      "id": "observed_reboot_invalidates_ack",
+      "expected": "stale_boot",
+      "observed": "stale_boot"
+    },
+    {
+      "id": "peer_registry_changed_before_commit",
+      "expected": "revision_conflict",
+      "observed": "revision_conflict"
+    },
+    {
+      "id": "first_commit",
+      "expected": "committed",
+      "observed": "committed"
+    },
+    {
+      "id": "same_request_after_lost_response",
+      "expected": "original_commit_metadata",
+      "observed": "original_commit_metadata"
+    },
+    {
+      "id": "exactly_one_head_increment",
+      "expected": 8,
+      "observed": 8
+    },
+    {
+      "id": "same_key_altered_body",
+      "expected": "idempotency_conflict",
+      "observed": "idempotency_conflict"
+    },
+    {
+      "id": "server_commit_not_peer_apply",
+      "expected": 0,
+      "observed": 0
+    },
+    {
+      "id": "partial_apply_not_enabled",
+      "expected": "peer_not_applied",
+      "observed": "peer_not_applied"
+    },
+    {
+      "id": "report_backend",
+      "expected": "reported",
+      "observed": "reported"
+    },
+    {
+      "id": "report_app",
+      "expected": "reported",
+      "observed": "reported"
+    },
+    {
+      "id": "report_device",
+      "expected": "reported",
+      "observed": "reported"
+    },
+    {
+      "id": "all_bound_peers_ready",
+      "expected": "eligible_not_executed",
+      "observed": "eligible_not_executed"
+    },
+    {
+      "id": "duplicate_applied_report",
+      "expected": "reported",
+      "observed": "reported"
+    },
+    {
+      "id": "duplicate_report_not_reactivation",
+      "expected": 8,
+      "observed": 8
+    },
+    {
+      "id": "old_digest_request",
+      "expected": "stale_profile",
+      "observed": "stale_profile"
+    },
+    {
+      "id": "wrong_digest_same_revision",
+      "expected": "stale_profile",
+      "observed": "stale_profile"
+    },
+    {
+      "id": "online_mode_offline",
+      "expected": "held_online_required",
+      "observed": "held_online_required"
+    },
+    {
+      "id": "reboot_after_apply",
+      "expected": "peer_not_applied",
+      "observed": "peer_not_applied"
+    },
+    {
+      "id": "old_boot_report_rejected",
+      "expected": "stale_boot",
+      "observed": "stale_boot"
+    },
+    {
+      "id": "new_peer_cannot_inherit",
+      "expected": "unsupported",
+      "observed": "unsupported"
+    },
+    {
+      "id": "abort_first",
+      "expected": "aborted",
+      "observed": "aborted"
+    },
+    {
+      "id": "late_activation_after_abort",
+      "expected": "not_prepared",
+      "observed": "not_prepared"
+    },
+    {
+      "id": "abort_preserves_old_head",
+      "expected": [
+        7,
+        "old"
+      ],
+      "observed": [
+        7,
+        "old"
+      ]
+    },
+    {
+      "id": "commit_first_abort",
+      "expected": "already_committed",
+      "observed": "already_committed"
+    },
+    {
+      "id": "abort_after_commit_keeps_head",
+      "expected": 8,
+      "observed": 8
+    },
+    {
+      "id": "active_but_revoked",
+      "expected": "held",
+      "observed": "held"
+    },
+    {
+      "id": "result_read_preserves_old_commit",
+      "expected": 8,
+      "observed": 8
+    },
+    {
+      "id": "result_read_reports_current_denial",
+      "expected": false,
+      "observed": false
+    },
+    {
+      "id": "result_read_has_no_mutation",
+      "expected": "unchanged_synthetic_state",
+      "observed": "unchanged_synthetic_state"
+    },
+    {
+      "id": "no_read_authority",
+      "expected": "read_denied",
+      "observed": "read_denied"
+    },
+    {
+      "id": "missing_old_reader_not_latest_parse",
+      "expected": "read_denied",
+      "observed": "read_denied"
+    },
+    {
+      "id": "return_old_content_new_commit",
+      "expected": "committed",
+      "observed": "committed"
+    },
+    {
+      "id": "rollback_is_new_revision",
+      "expected": [
+        9,
+        "old"
+      ],
+      "observed": [
+        9,
+        "old"
+      ]
+    },
+    {
+      "id": "old_operation_binding_preserved",
+      "expected": {
+        "request": {
+          "id": "request-1",
+          "digest": "new",
+          "head": 7,
+          "fence": 3,
+          "registry": 4,
+          "readiness": 5,
+          "plan": 2
+        },
+        "head": 8,
+        "digest": "new"
+      },
+      "observed": {
+        "request": {
+          "id": "request-1",
+          "digest": "new",
+          "head": 7,
+          "fence": 3,
+          "registry": 4,
+          "readiness": 5,
+          "plan": 2
+        },
+        "head": 8,
+        "digest": "new"
+      }
+    },
+    {
+      "id": "read_old_success_not_current_activation",
+      "expected": 9,
+      "observed": 9
+    },
+    {
+      "id": "old_apply_report_cannot_restore_head",
+      "expected": "historical_report_only",
+      "observed": "historical_report_only"
+    },
+    {
+      "id": "old_apply_keeps_new_head",
+      "expected": 9,
+      "observed": 9
+    },
+    {
+      "id": "old_request_retry_no_restore",
+      "expected": "original_commit_metadata",
+      "observed": "original_commit_metadata"
+    },
+    {
+      "id": "old_retry_keeps_new_head",
+      "expected": 9,
+      "observed": 9
+    },
+    {
+      "id": "revoked_old_content_not_reactivated",
+      "expected": "restricted",
+      "observed": "restricted"
+    },
+    {
+      "id": "continuation_70",
+      "expected": "original_continuation_candidate",
+      "observed": "original_continuation_candidate"
+    },
+    {
+      "id": "continuation_71",
+      "expected": "hold",
+      "observed": "hold"
+    },
+    {
+      "id": "continuation_72",
+      "expected": "hold",
+      "observed": "hold"
+    },
+    {
+      "id": "continuation_73",
+      "expected": "hold",
+      "observed": "hold"
+    },
+    {
+      "id": "continuation_74",
+      "expected": "observe_original_only",
+      "observed": "observe_original_only"
+    }
+  ],
+  "runtimeVerified": false,
+  "productImplementationPerformed": false,
+  "activeRollouts": 0,
+  "canonicalMerged": false,
+  "sourceHashes": {
+    "content/specifications/profile-adoption-protocol.json": "f790ab12574fcfb079753521c460ced84146fdf54f711080f8711a40a74c6d25"
+  },
+  "limitations": [
+    "Synthetic peer evidence and sequential CAS model; no distributed race/crypto proof.",
+    "Current boot means observed registry state, not instantaneous detection of remote reboot.",
+    "Offline revocation and already signed/propagated transaction cancellation are not guaranteed.",
+    "No schema/DB migration, deployment, lease implementation or hardware capability was exercised."
+  ]
+}

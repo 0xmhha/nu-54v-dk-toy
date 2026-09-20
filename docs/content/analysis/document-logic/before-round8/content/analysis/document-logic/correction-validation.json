@@ -1,0 +1,2098 @@
+{
+  "status": "passed",
+  "scope": "design_correction_and_finite_examples_only",
+  "findingsResolved": 17,
+  "newFindings": [
+    "LG-17"
+  ],
+  "regression": {
+    "scope": "design_regression_only",
+    "checksPassed": 52,
+    "checks": [
+      "LG01_unknown_to_original_completion",
+      "LG01_failure_reorg_reconciliation",
+      "LG01_no_resign_after_execution_exposure",
+      "LG01_allowance_recovery",
+      "LG01_preserved_identity",
+      "LG02_credential_has_no_session_states",
+      "LG02_independent_repeat_presentations",
+      "LG02_revocation_from_current_or_unknown",
+      "LG02_unknown_verification_can_recover",
+      "LG03_PX-05_common_guard",
+      "LG03_PX-06_common_guard",
+      "LG03_PX-07_common_guard",
+      "LG03_PX-11_common_guard",
+      "LG03_PR-GENERATE_normal",
+      "LG03_PR-GENERATE_deny_authority_current",
+      "LG03_PR-GENERATE_deny_entitlement_revision_matches",
+      "LG03_PR-GENERATE_deny_privacy_allowed",
+      "LG03_PR-GENERATE_deny_refund_clear",
+      "LG03_PR-GENERATE_deny_request_revision_matches",
+      "LG03_PR-GENERATE_deny_resource_terms_current",
+      "LG03_PR-GENERATE_deny_source_current",
+      "LG03_PR-PUBLISH_normal",
+      "LG03_PR-PUBLISH_deny_authority_current",
+      "LG03_PR-PUBLISH_deny_entitlement_revision_matches",
+      "LG03_PR-PUBLISH_deny_privacy_allowed",
+      "LG03_PR-PUBLISH_deny_refund_clear",
+      "LG03_PR-PUBLISH_deny_request_revision_matches",
+      "LG03_PR-PUBLISH_deny_resource_terms_current",
+      "LG03_PR-PUBLISH_deny_source_current",
+      "LG04_four_explicit_contracts",
+      "LG04_AU-06_wired",
+      "LG04_AU-09_wired",
+      "LG04_AU-12_wired",
+      "LG04_OC-17_complete_fields",
+      "LG04_OC-18_complete_fields",
+      "LG04_OC-19_complete_fields",
+      "LG04_OC-20_complete_fields",
+      "LG04_readers_do_not_require_valid_access_token",
+      "LG05_DS-01_same_typed_scope",
+      "LG05_DS-02_same_typed_scope",
+      "LG05_DS-03_same_typed_scope",
+      "LG05_DS-04_same_typed_scope",
+      "LG05_DS-05_same_typed_scope",
+      "LG05_DS-06_same_typed_scope",
+      "LG05_DS-07_same_typed_scope",
+      "LG05_DS-08_same_typed_scope",
+      "LG05_DS07_app_impact_preserved",
+      "no_policy_or_execution_inferred",
+      "before_LG01_counterexample_reproduced",
+      "before_LG02_counterexample_reproduced",
+      "before_LG03_guard_omission_reproduced",
+      "before_LG04_missing_contract_reproduced"
+    ],
+    "findingsResolvedInDesign": 5,
+    "runtimeVerified": false
+  },
+  "followup": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 16,
+    "cases": [
+      {
+        "id": "LG06-normal",
+        "meaning": "현재 지급 확정과 모든 조건 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-reorg-before-generation",
+        "meaning": "entitlement active여도 지급 불확실이면 시작 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-reorg-before-publish",
+        "meaning": "이미 생성된 결과도 현재 지급 불확실이면 공개 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-restore-with-refund",
+        "meaning": "지급 복구가 환불 제한을 해제하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-restore-with-privacy",
+        "meaning": "지급 복구가 삭제/동의 제한을 해제하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-revision-race",
+        "meaning": "먼저 본 지급 상태가 맞아도 CAS 세대 불일치 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-normal",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "rotated",
+          true
+        ],
+        "expected": [
+          "rotated",
+          true
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-old-generation",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "superseded",
+          false
+        ],
+        "expected": [
+          "superseded",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-future-generation",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "held",
+          false
+        ],
+        "expected": [
+          "held",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-logout-race",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "revoked",
+          false
+        ],
+        "expected": [
+          "revoked",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-lost-sender",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "forbidden",
+          false
+        ],
+        "expected": [
+          "forbidden",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-expired-result",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "restart_required",
+          false
+        ],
+        "expected": [
+          "restart_required",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-withdraw-only",
+        "meaning": "동의 철회만으로 파일 삭제 불가",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-outside-plan",
+        "meaning": "요약 대상 삭제 권한으로 개인 원음까지 확대 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-authorized-scope",
+        "meaning": "명시 삭제 계획과 현재 권한·범위·revision 일치",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-stale-plan",
+        "meaning": "이전 scope/revision으로 파괴적 삭제 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false
+  },
+  "existingValidators": [
+    {
+      "command": "content/planning/validate_preimplementation_handoff.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_source_integrity_only\", \"packages\": {\"DS-06\": {\"tasks\": 9, \"runtimeCasesNotRun\": 24, \"policyInputsUnselected\": 6}, \"DS-07\": {\"tasks\": 8, \"runtimeCasesNotRun\": 24, \"policyInputsUnselected\": 6}, \"DS-08\": {\"tasks\": 15, \"runtimeCasesNotRun\": 16, \"policyInputsUnselected\": 5}}, \"handoffTasks\": 104, \"handoffSteps\": 320, \"requirements\": 15, \"compoundFacets\": 16, \"openDecisions\": 19, \"overlayRoutes\": 24, \"actionVariants\": 11, \"runtimeCasesAddedNotRun\": 64, \"runtimeVerified\": false, \"implementationReady\": false}"
+    },
+    {
+      "command": "content/planning/validate_full_scope_design.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/planning/render_design_register.py --check",
+      "exitCode": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only"
+    },
+    {
+      "command": "content/planning/render_integration_adoption.py --check",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_device_coexistence.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_reference_checks_only\", \"operations\": 10, \"directionalPairs\": 100, \"fotaTransitions\": 10, \"resources\": 11, \"runtimeCasesNotRun\": 28, \"sourceFilesPreserved\": 9, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_social_wallet_recovery.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_source_references_only\", \"authTransitions\": 12, \"mpcTransitions\": 11, \"authorityImpacts\": 8, \"logicalResources\": 8, \"contractDeltas\": 6, \"runtimeCases\": 32, \"mpcResumeTransitions\": 7, \"mpcPredicates\": 2, \"sourceFilesPreserved\": 10, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_kiosk_commerce_journeys.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"journey_inventory_and_reference_checks_only\", \"journeys\": 12, \"paymentDisplayStates\": 10, \"policyInputs\": 7, \"contractDeltas\": 7, \"runtimeCases\": 34, \"sourceFilesPreserved\": 12, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_stablenet_compatibility.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_pinned_references_only\", \"manifestComponents\": 8, \"assets\": 4, \"domainCoverage\": 9, \"indexerStages\": 8, \"accountTransitions\": 7, \"runtimeCases\": 34, \"preservedSources\": 12, \"liveRpcVerified\": false, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_market_products.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_illustrative_arithmetic_only\", \"productCards\": 4, \"tradeTransitions\": 16, \"priceActionMatrix\": 10, \"keeperStages\": 6, \"policyInputs\": 8, \"contractGaps\": 6, \"arithmeticExamples\": 4, \"runtimeCases\": 32, \"preservedSources\": 10, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_approval_baseline.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"current_canonical_design_only\", \"api\": 110, \"approvalHttpRoutes\": 13, \"blePairs\": 5, \"validShapes\": 43, \"invalidShapes\": 17, \"checkpointFilesVerified\": 174, \"historicalChecks\": 10, \"storageMappings\": 13, \"canonicalMerged\": true, \"sqlApplied\": false, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_approval_physical_storage.py",
+      "exitCode": 0,
+      "output": "Approval physical design OK: 13 resources, 16 table proposals, 8 migration phases, 17 NOT RUN cases; 7 SQL hashes unchanged. No DB/runtime verification."
+    },
+    {
+      "command": "content/specifications/validate_commerce_reconciliation.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 5, \"schemaDefinitions\": 71, \"validShapes\": 17, \"invalidShapes\": 12, \"semanticExamples\": 16, \"runtimeCasesNotRun\": 15, \"pinnedSources\": 15, \"canonicalMerged\": false, \"sqlApplied\": false}"
+    },
+    {
+      "command": "content/specifications/validate_commerce_consumer_repair.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_links_and_finite_examples_only\", \"consumers\": 5, \"logicalResources\": 6, \"rebuildSteps\": 7, \"syntheticExamples\": 22, \"runtimeCasesNotRun\": 22, \"unchangedSourceFiles\": 9, \"canonicalMerged\": false, \"sqlApplied\": false}"
+    },
+    {
+      "command": "content/specifications/validate_settlement_ops.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"existingRoutes\": 5, \"proposedUnregisteredRoutes\": 2, \"validShapes\": 15, \"invalidShapes\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 9, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_return_routes.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 10, \"blePairs\": 6, \"validShapes\": 33, \"invalidShapes\": 12, \"readinessLogicExamples\": 11, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 10, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_rental_admission_cancel.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 9, \"blePairs\": 4, \"validShapes\": 36, \"invalidShapes\": 12, \"finiteModelCases\": 29, \"runtimeCasesNotRun\": 23, \"pinnedInputs\": 8, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_lifecycle_storage.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"storage_design_inventory_only\", \"proposedTables\": 14, \"atomicUnits\": 12, \"firmwareStores\": 4, \"migrationPhasesNotRun\": 8, \"runtimeCasesNotRun\": 26, \"unchangedSqlTables\": 61, \"unchangedSqlFiles\": 7, \"pinnedDesignInputs\": 9, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_lifecycle_bootstrap.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_shapes_and_references_only\", \"httpAliases\": 9, \"bleAliases\": 3, \"pendingRouteOverlays\": 17, \"validShapes\": 36, \"invalidShapes\": 13, \"unchangedInputs\": 8, \"runtimeCasesNotRun\": 22, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_enrollment_continuity.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_references_only\", \"httpAliases\": 5, \"bleAliases\": 3, \"signedMessageSpecifications\": 6, \"registryTableProposals\": 7, \"atomicMappings\": 8, \"adoptionCriteria\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 8, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_lifecycle_journeys.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"journey_traceability_only\", \"journeys\": 16, \"uniqueSourceCasesLinked\": 107, \"adoptionPackages\": 5, \"openGaps\": 5, \"sourceFilesPreserved\": 8, \"wbsTasks\": 104, \"wbsSteps\": 320, \"runtimeRuns\": 0, \"canonicalMerged\": false}"
+    }
+  ],
+  "existingValidatorsPassed": 20,
+  "runtimeVerified": false,
+  "productImplementationPerformed": false,
+  "canonicalApiRegistrationPerformed": false,
+  "originalDesignChanged": true,
+  "archiveChanged": false,
+  "xTheoryDefinition": "unconfirmed",
+  "priorReport": "content/analysis/document-logic/before-round7/content/analysis/document-logic/correction-validation.json",
+  "round3": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 37,
+    "cases": [
+      {
+        "id": "LG09-invalid-unexposed",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-invalid-exposed",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-expiry-no-exposure",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-timeout-exposure-unknown",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-failure-confirmed",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-partial-payment",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-failure-no-exposure-proof",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-already-paid-cannot-expire",
+        "meaning": "설계의 requires와 원 상태를 통한 지급 종료 판정",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-PA-03",
+        "meaning": "원 attempt 성공·pending·실패근거 reorg의 복구 경로",
+        "observed": [
+          true,
+          "paid"
+        ],
+        "expected": [
+          true,
+          "paid"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-PA-07",
+        "meaning": "원 attempt 성공·pending·실패근거 reorg의 복구 경로",
+        "observed": [
+          true,
+          "settlement_pending"
+        ],
+        "expected": [
+          true,
+          "settlement_pending"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG09-PA-09",
+        "meaning": "원 attempt 성공·pending·실패근거 reorg의 복구 경로",
+        "observed": [
+          true,
+          "unknown"
+        ],
+        "expected": [
+          true,
+          "unknown"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-reservation",
+        "meaning": "60 예약 후 잔액 40",
+        "observed": 40,
+        "expected": 40,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-response-loss",
+        "meaning": "응답 유실 후 unknown 노출 60 유지",
+        "observed": 40,
+        "expected": 40,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-repeat-query",
+        "meaning": "동일 attempt 조회는 예약을 추가하지 않음",
+        "observed": [
+          40,
+          40,
+          40
+        ],
+        "expected": [
+          40,
+          40,
+          40
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-second-refund-budget",
+        "meaning": "미확정 환불이 있는 동안 잔액보다 큰 추가 환불 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-confirmed-single-charge",
+        "meaning": "확정 시 예약에서 확정 반환으로 이동하며 한 번만 차감",
+        "observed": 40,
+        "expected": 40,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-refund-reorg",
+        "meaning": "환불 reorg도 동일 attempt 예약으로 노출 유지",
+        "observed": 40,
+        "expected": 40,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-partial-not-failed",
+        "meaning": "부분 반환을 확정 실패로 처리해 전액 예약 해제 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-cancel-exposed",
+        "meaning": "서명/전송 노출이 있으면 미노출 취소 불가",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-final-failure-evidence",
+        "meaning": "세 근거가 갖춰진 경우에만 실패 종료",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-failure-releases-own",
+        "meaning": "확정 실패한 원 attempt의 예약 해제",
+        "observed": 100,
+        "expected": 100,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-failure-proof-reorg-deficit",
+        "meaning": "실패 근거 reorg 시 노출 복원; 과거 환불을 지우지 않고 deficit 표시",
+        "observed": -40,
+        "expected": -40,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-source-reorg-deficit",
+        "meaning": "원 지급 감소도 음수 한도를 숨기지 않음",
+        "observed": -90,
+        "expected": -90,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG10-create-binds-parent-and-ledger",
+        "meaning": "환불 생성은 원 funding·signer·목적지·정책·현재 원장과 결합",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-current-complete",
+        "meaning": "현재 대상 집합·증거·원천 종료가 모두 확인됨",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-deny-all_targets_terminal_with_evidence",
+        "meaning": "완료에 필요한 각 조건이 빠지면 완료 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-deny-target_set_revision_matches",
+        "meaning": "완료에 필요한 각 조건이 빠지면 완료 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-deny-deletion_revision_matches",
+        "meaning": "완료에 필요한 각 조건이 빠지면 완료 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-deny-discovery_queue_empty",
+        "meaning": "완료에 필요한 각 조건이 빠지면 완료 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-deny-producer_closure_accounted",
+        "meaning": "완료에 필요한 각 조건이 빠지면 완료 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-add-before-complete",
+        "meaning": "rev4 대상 추가 후 rev3 근거로 완료 처리 불가",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-fresh-complete",
+        "meaning": "추가 대상까지 삭제 후 현재 revision으로 완료",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-complete-before-add",
+        "meaning": "완료 후 대상 추가는 현재 상태를 pending으로 바꾸고 과거 receipt 보존",
+        "observed": [
+          "pending",
+          [
+            4
+          ]
+        ],
+        "expected": [
+          "pending",
+          [
+            4
+          ]
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG11-duplicate-artifact",
+        "meaning": "같은 artifact 재통지는 대상 집합 revision을 중복 증가시키지 않음",
+        "observed": [
+          5,
+          10
+        ],
+        "expected": [
+          5,
+          10
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-paymentAttemptTransitions",
+        "meaning": "수정 전 계약 누락을 보존한 원본에서 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-refundAttemptTransitions",
+        "meaning": "수정 전 계약 누락을 보존한 원본에서 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-deletionCompletionContract",
+        "meaning": "수정 전 계약 누락을 보존한 원본에서 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false,
+    "implementationReady": false
+  },
+  "round4": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 63,
+    "cases": [
+      {
+        "id": "LG12-MR-01-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "enrolling",
+        "expected": "enrolling",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-01-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-01-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-01-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-02-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "dkg_pending",
+        "expected": "dkg_pending",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-02-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-02-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-02-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-03-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "signing",
+        "expected": "signing",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-03-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-03-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-03-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-04-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "recovery_proving",
+        "expected": "recovery_proving",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-04-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-04-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-04-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-05-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "replacement_prepared",
+        "expected": "replacement_prepared",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-05-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-05-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-05-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-06-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "epoch_committed",
+        "expected": "epoch_committed",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-06-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-06-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-06-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-07-resume",
+        "meaning": "원 operation의 증명된 단계와 일치하는 epoch로만 재개",
+        "observed": "verifying",
+        "expected": "verifying",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-07-unknown-commit",
+        "meaning": "commit 여부를 모르면 추정하지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-07-opposite-commit",
+        "meaning": "단계와 commit 증거가 모순이면 재개 불가",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-MR-07-wrong-epoch",
+        "meaning": "다른 participant epoch의 응답 혼입 차단",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-original_operation_matches",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-checkpoint_revision_matches",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-resume_phase_proven",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-commit_disposition_proven",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-current_mutation_authority",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-policy_profile_current",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-blocking_cause_resolved",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-other_security_holds_clear",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-deny-material_history_preserved",
+        "meaning": "현재 권한·원 작업·checkpoint·제한·material 조건을 각각 검사",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-no-target-active",
+        "meaning": "전이표 밖 단계 또는 active로 바로 이동 금지",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-no-target-absent",
+        "meaning": "전이표 밖 단계 또는 active로 바로 이동 금지",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-no-target-unknown",
+        "meaning": "전이표 밖 단계 또는 active로 바로 이동 금지",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG12-no-target-client_selected_phase",
+        "meaning": "전이표 밖 단계 또는 active로 바로 이동 금지",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-activation-wired",
+        "meaning": "MP03이 활성화 공통 guard를 직접 참조",
+        "observed": [
+          "MPC-ACTIVATE"
+        ],
+        "expected": [
+          "MPC-ACTIVATE"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-normal-activation",
+        "meaning": "DKG 완료와 현재 활성화 조건 모두 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-original_operation_matches",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-expected_dkg_phase_current",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-operation_revision_matches",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-participant_epoch_matches",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-protocol_completion_verified",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-public_key_address_bound",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-required_storage_receipts_verified",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-current_enrollment_authority",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-policy_profile_current",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-deny-security_holds_clear",
+        "meaning": "프로토콜 완료만으로 현재 권한·상태 검사를 생략하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-restriction-before-completion",
+        "meaning": "늦은 완료 사실은 보존하되 보류 상태를 활성화로 덮지 않음",
+        "observed": [
+          true,
+          false
+        ],
+        "expected": [
+          true,
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-restriction-after-activation",
+        "meaning": "과거 활성화 성공 이력이 현재 공개 권한을 보장하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-relogin-without-mutation-proof",
+        "meaning": "재로그인 사실만으로 원 enrollment 재개 권한을 만들지 않음",
+        "observed": "recovery_hold",
+        "expected": "recovery_hold",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-read-proof-cannot-create",
+        "meaning": "결과 조회 증명과 변경 권한 분리",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-read-proof-cannot-recover",
+        "meaning": "결과 조회 증명과 변경 권한 분리",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-read-proof-cannot-resume_or_activate",
+        "meaning": "결과 조회 증명과 변경 권한 분리",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-get-no-side-effect",
+        "meaning": "조회가 재개·서명·활성화를 만들지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG13-scoped-read-retained",
+        "meaning": "허용된 원 operation 결과 조회 경로는 유지",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-LG12-no-resume-table",
+        "meaning": "기존 원칙만 있던 상태표 공백 재현",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-LG13-no-activation-predicate",
+        "meaning": "수정 전 최초 활성화의 명시 현재성 조건 누락 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false,
+    "implementationReady": false
+  },
+  "round5": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 45,
+    "cases": [
+      {
+        "id": "LG14-original-binding",
+        "meaning": "원 녹음의 소유자·대여·기기·세대 일치",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-ownerRef",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-deviceId",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-rentalId",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-bindingRevision",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-deviceEpoch",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-deviceSessionId",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-recordingId",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-formatEpoch",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-other-streamGeneration",
+        "meaning": "한 binding 성분만 달라도 다른 녹음으로 수용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-capture_binding_matches",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-authenticated_frame",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-receive_lease_current",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-capture_generation_matches",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-recording_purpose_allowed",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-capture_phase_accepts_frames",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-frame_identity_consistent",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-deny-local_owner_namespace_matches",
+        "meaning": "시작 시 인증과 별개로 durable 수신 commit 시 각 조건 검사",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-first-commit",
+        "meaning": "원 namespace에 저장 후 해당 digest ACK",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-identical-retransmit",
+        "meaning": "동일 frame 재전송은 저장된 한 건만 유지",
+        "observed": [
+          true,
+          1
+        ],
+        "expected": [
+          true,
+          1
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-conflicting-payload",
+        "meaning": "같은 sequence의 다른 payload는 기존 파일을 덮지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-switch-before-delayed-commit",
+        "meaning": "차단 이후 old worker가 원 namespace에도 새 수신 commit 불가",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-switch-no-late-ack",
+        "meaning": "저장하지 않은 늦은 청크의 durable ACK 없음",
+        "observed": 2,
+        "expected": 2,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-no-reroute-to-new-account",
+        "meaning": "새 계정 화면으로 전환해도 기존 녹음 owner는 A",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG14-prior-file-preserved",
+        "meaning": "계정 전환을 원 파일 삭제나 소유권 이전으로 해석하지 않음",
+        "observed": [
+          "A",
+          1
+        ],
+        "expected": [
+          "A",
+          1
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-complete-capture",
+        "meaning": "인증 종료 범위와 durable frame 구간이 정확히 일치",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-tail-missing",
+        "meaning": "재생 가능 여부만으로 전체 범위 수신을 추정하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-middle-missing",
+        "meaning": "재생 가능 여부만으로 전체 범위 수신을 추정하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-overlap",
+        "meaning": "재생 가능 여부만으로 전체 범위 수신을 추정하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-extra-tail",
+        "meaning": "재생 가능 여부만으로 전체 범위 수신을 추정하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-wrong-sequence",
+        "meaning": "재생 가능 여부만으로 전체 범위 수신을 추정하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-out-of-order-arrival",
+        "meaning": "동일 binding 아래 순서만 바뀐 수신은 정렬 후 구간 대조",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-identical-duplicate",
+        "meaning": "동일 frame 재전송을 두 번 수신한 길이로 계산하지 않음",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-authenticated_end_marker",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-end_binding_matches",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-exact_durable_interval_coverage",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-frame_integrity_consistent",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-no_unresolved_gaps",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-container_finalized",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-decode_verified",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-deny-manifest_revision_matches",
+        "meaning": "종료 표식·binding·구간·파일·revision 중 어느 하나라도 불충족이면 complete 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-playable-truncation",
+        "meaning": "정상 decode된 후미 유실 파일도 partial",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG15-upload-does-not-upgrade",
+        "meaning": "부분 녹음 파일 전체가 업로드되어도 capture의 partial 표시 유지",
+        "observed": [
+          "partial",
+          "complete"
+        ],
+        "expected": [
+          "partial",
+          "complete"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-recordingCaptureContract",
+        "meaning": "수정 전 상세 경계 계약 누락을 보존한 원본에서 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-recordingCompletionContract",
+        "meaning": "수정 전 상세 경계 계약 누락을 보존한 원본에서 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false,
+    "implementationReady": false
+  },
+  "round6": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 41,
+    "cases": [
+      {
+        "id": "TERM-CLEAR-normal",
+        "meaning": "각 단계의 명시 조건을 모두 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-end_operation_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-terminal_control_proof_current",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-terminal_grant_epoch_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-customer_generation_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-current_boot_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-clearance_challenge_current",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-session_deny_committed",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-local_clearance_manifest_verified",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-callback_generation_invalidated",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-CLEAR-deny-expected_revisions_match",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-normal",
+        "meaning": "각 단계의 명시 조건을 모두 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-current_store_terminal_authority",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-terminal_head_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-clearance_current",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-clearance_unconsumed",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-current_boot_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-no_other_terminal_holds",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-NEXT-deny-expected_revisions_match",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-normal",
+        "meaning": "각 단계의 명시 조건을 모두 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-deny-current_local_customer_context",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-deny-response_ancestry_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-deny-view_generation_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-deny-boot_generation_matches",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-deny-current_read_authority",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "TERM-RENDER-deny-response_revision_not_older",
+        "meaning": "원 작업·현재 세대·권한·revision 조건 중 하나라도 없으면 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-clearance-pending-not-ready",
+        "meaning": "서버 종료 수락만으로 다음 고객 진입 불가",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-first-admission",
+        "meaning": "현재 clearance 소비와 단일 새 session 발급",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-parallel-second-admission",
+        "meaning": "같은 revision으로 경쟁한 두 번째 admission 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-one-successor",
+        "meaning": "하나의 clearance에서 새 session 하나만 생성",
+        "observed": 1,
+        "expected": 1,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-old-cleared-receipt",
+        "meaning": "과거 receipt가 남아 있어도 현재 재사용 허가로 간주하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-previous-boot-ack",
+        "meaning": "재시작 전 정리 ACK가 새 boot의 정리 완료가 될 수 없음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-held-resume",
+        "meaning": "원 종료 작업의 새 challenge로 정리를 다시 확인",
+        "observed": "clearance_pending",
+        "expected": "clearance_pending",
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-superseded-challenge",
+        "meaning": "같은 endRequest라도 이전 challenge의 ACK 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-ack-replay-current-head-changed",
+        "meaning": "ACK 재전송의 과거 성공은 변경된 현재 head를 덮지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-authority-revoked-after-clear",
+        "meaning": "정리 이후 terminal 권한 철회가 발생하면 새 고객 발급 차단",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-late-paid-new-customer",
+        "meaning": "원 거래 대사는 유지하되 다음 고객 화면에 결과를 적용하지 않음",
+        "observed": [
+          "paid",
+          false
+        ],
+        "expected": [
+          "paid",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-old-poll-current-customer",
+        "meaning": "같은 고객이라도 오래된 poll이 새 결과를 덮지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-reorg-higher-revision",
+        "meaning": "같은 ancestry의 최신 reorg 상태는 이전 paid보다 낮은 단계여도 수용 가능",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG16-claim-profile-unselected",
+        "meaning": "조회 증명 전달 profile을 선택 완료로 간주하지 않음",
+        "observed": null,
+        "expected": null,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-LG16-no-handoff-table",
+        "meaning": "수정 전 원칙과 ACK 필요 문구는 있었지만 상세 전이표가 없었음을 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false,
+    "implementationReady": false
+  },
+  "round7": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 35,
+    "cases": [
+      {
+        "id": "LG17-normal",
+        "meaning": "현재 원천과 원 entitlement 조건 모두 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-registered_internal_program",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-typed_source_identity_valid",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-original_rule_binding_current",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-source_cut_complete_and_current",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-owner_or_pending_eligibility_current",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-privacy_and_source_use_allowed",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-assessment_not_stale_or_conflicting",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-writer_is_benefits",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-deny-expected_effect_revision_matches",
+        "meaning": "각 적용 조건 누락 시 효과 갱신 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-key-excludes-consumerGeneration",
+        "meaning": "전달 이벤트·재구축·연결 계정·mutable revision 변경으로 새 효과를 만들지 않음",
+        "observed": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "expected": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-key-excludes-eventId",
+        "meaning": "전달 이벤트·재구축·연결 계정·mutable revision 변경으로 새 효과를 만들지 않음",
+        "observed": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "expected": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-key-excludes-sourceVector",
+        "meaning": "전달 이벤트·재구축·연결 계정·mutable revision 변경으로 새 효과를 만들지 않음",
+        "observed": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "expected": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-key-excludes-assessmentRevision",
+        "meaning": "전달 이벤트·재구축·연결 계정·mutable revision 변경으로 새 효과를 만들지 않음",
+        "observed": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "expected": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-key-excludes-claimAccountId",
+        "meaning": "전달 이벤트·재구축·연결 계정·mutable revision 변경으로 새 효과를 만들지 않음",
+        "observed": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "expected": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-key-excludes-mutablePolicyRevision",
+        "meaning": "전달 이벤트·재구축·연결 계정·mutable revision 변경으로 새 효과를 만들지 않음",
+        "observed": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "expected": [
+          "test",
+          "cafe-stamp",
+          "purchase_eligibility",
+          "elig-1"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-legitimate-programs-separated",
+        "meaning": "같은 지급에서 유래해도 선정된 구매 스탬프와 챌린지 프로그램은 별도 혜택",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-typed-source-collision",
+        "meaning": "문자열 sourceId가 같더라도 purchase/challenge namespace 혼합 금지",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-cross-environment",
+        "meaning": "다른 환경의 효과 원장을 혼합하지 않음",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-registered-source-variants",
+        "meaning": "challenge에 가짜 purchase eligibility를 요구하지 않음",
+        "observed": [
+          "challenge_entitlement",
+          "purchase_eligibility"
+        ],
+        "expected": [
+          "challenge_entitlement",
+          "purchase_eligibility"
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-travel-cannot-write-ledger",
+        "meaning": "여행 assessment writer가 grant/correction을 직접 적용하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-single-writer-refund-correction",
+        "meaning": "현재 선정 규칙이 목표 0인 경우 단일 보정",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-consumed-history-deficit",
+        "meaning": "사용 이력을 지우지 않고 deficit를 표시; 자산 인출 없음",
+        "observed": [
+          -1,
+          1
+        ],
+        "expected": [
+          -1,
+          1
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-second-consumer-replay",
+        "meaning": "동일 이전 revision 재적용은 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-current-duplicate-zero-delta",
+        "meaning": "현 상태 재조회 후 같은 목표는 추가 보정 없음",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-only-one-negative-delta",
+        "meaning": "중복/재전달로 두 번 차감하지 않음",
+        "observed": [
+          -1
+        ],
+        "expected": [
+          -1
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-source-reconfirmed",
+        "meaning": "재확정 목표를 원 효과에 복구 보정",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-no-new-grant-on-rebuild",
+        "meaning": "복구 후에도 기존 consume 보존, 새 grant로 이중 적립하지 않음",
+        "observed": [
+          [
+            -1,
+            1
+          ],
+          0
+        ],
+        "expected": [
+          [
+            -1,
+            1
+          ],
+          0
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-unknown-not-zero",
+        "meaning": "알 수 없는 목표는 보류",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-unknown-preserves-ledger",
+        "meaning": "unknown을 0으로 처리해 과거 적립을 차감하지 않음",
+        "observed": [
+          1,
+          1,
+          [
+            -1,
+            1
+          ]
+        ],
+        "expected": [
+          1,
+          1,
+          [
+            -1,
+            1
+          ]
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-late-assessment-source-stale",
+        "meaning": "늦은 평가 메시지도 현재 원천이 바뀌면 적용 차단",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-marketing-rule-change",
+        "meaning": "새 마케팅 규칙으로 기존 entitlement를 자동 재발급하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-completion-not-reward",
+        "meaning": "챌린지 완료와 원장 효과 적용 분리",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG17-visit-review-not-deleted",
+        "meaning": "보상 보정이 독립 방문/후기 삭제 권한을 부여하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "before-LG17-writer-contract-absent",
+        "meaning": "수정 전 consumer별 규칙과 구분해 writer/tagged identity 계약 공백 확인",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false,
+    "implementationReady": false
+  }
+}

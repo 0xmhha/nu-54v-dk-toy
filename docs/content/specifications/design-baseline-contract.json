@@ -1,0 +1,99 @@
+{
+  "date": "2026-09-20",
+  "checkpointId": "DF-20260920-01",
+  "status": "canonical_design_baseline_adopted",
+  "authority": "This overlay is the implementation-entry authority for selected values and joint contract rules. Existing catalog files remain the detailed field inventory until implementation migrations are authored.",
+  "runtimeActive": false,
+  "databaseApplied": false,
+  "firmwareApplied": false,
+  "chainApplied": false,
+  "wireVersion": {
+    "http": "v1-json-jcs",
+    "ble": "v1-deterministic-cbor",
+    "profile": "v1"
+  },
+  "bundles": [
+    {
+      "id": "UA-01",
+      "title": "인증·MPC·보호 결과",
+      "adopts": "OC-01~03, OC-16~20",
+      "rules": "refresh generation, logout/unlink revocation, mobile approval capability, MPC epoch/quorum, typed protected result reader를 v1 기준으로 채택",
+      "preserve": "과거 token 반환·일반 reader의 signed bytes 노출·늦은 MPC 결과의 무권한 활성화를 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-02",
+      "title": "상거래·영수증·단말",
+      "adopts": "DI-01, OC-04~08, OC-23~24",
+      "rules": "order/recipient snapshot, exact payment allocation, fulfillment, refund, settlement correction, receipt ownership, terminal handover를 채택",
+      "preserve": "원 지급 한도 초과·전 단말의 고객 결과 접근·마감 덮어쓰기를 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-03",
+      "title": "대여·반납·기기 연속성",
+      "adopts": "DI-04~06",
+      "rules": "enrollment holder, BLE/HTTP owner, reset journal, returned/cleanup/reuse gate와 RR-DEC-01 백업 확인을 채택",
+      "preserve": "불명 reset 재시작·import 자산 강제 sweep·증거 없는 재대여를 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-04",
+      "title": "시장·자격·유료 자원",
+      "adopts": "OC-09~12, OC-21~22",
+      "rules": "quote/keeper, DID/status, restricted membership, x402 payment-entitlement-delivery-refund의 typed source를 채택",
+      "preserve": "unsupported signer의 EOA 우회·만료 quote 재서명·지급과 전달 결과 합치기를 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-05",
+      "title": "녹음·여행·개인정보",
+      "adopts": "OC-13~15, OC-25~26",
+      "rules": "audio owner/segment, transcript/AI provenance, consent/deletion generation, itinerary draft/apply, verified visit/review를 채택",
+      "preserve": "삭제 뒤 AI 결과·backup 부활, 수동 편집의 AI 결과 위장, 보상 writer 중복을 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-06",
+      "title": "설정 적용·관리 신뢰",
+      "adopts": "PRC 7, PCP 7, BLE candidate 3, TMC 8",
+      "rules": "profile stage/approve/activate/apply, 독립 bootstrap, key rotation, restriction/recovery 및 O03/O04 reader를 채택",
+      "preserve": "manifest self-bootstrap·단독 emergency unlock·구 authority 재활성화를 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-07",
+      "title": "공유 저장·이벤트·화면",
+      "adopts": "DI-02, DI-03, DI-07",
+      "rules": "event v1/v2, transaction+outbox, consumer checkpoint, single effect writer, unknown-result UI와 rebuild generation을 채택",
+      "preserve": "double effect, cursor 세대 혼용, 처리 성공을 화면 성공으로 추정하는 것을 금지",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    },
+    {
+      "id": "UA-08",
+      "title": "통합 checkpoint",
+      "adopts": "UA-01~07 and 21 shared target files",
+      "rules": "DF-20260920-01를 implementation-entry design baseline으로 채택하고 각 candidate는 preserve/change/add/hold disposition을 가진다",
+      "preserve": "기존 7 migration은 불변이며 후속 migration 번호를 사용한다. 문서 채택을 runtime·SQL·device·chain activation으로 간주하지 않는다.",
+      "status": "adopted_design_baseline",
+      "runtimeActive": false
+    }
+  ],
+  "globalInvariants": [
+    "No raw mnemonic, private key, MPC share or signed transaction bytes in general logs, analytics or public readers.",
+    "Same idempotency key and digest returns the original result; a different digest conflicts.",
+    "Authority is checked at issuance, execution and protected-result release.",
+    "Chain submission, canonical observation and business finality remain distinct states.",
+    "Deletion, revocation, return and profile rollback cannot be undone by delayed workers or backup restore.",
+    "Unregistered contract address, decoder, signer, board profile or provider is disabled by default."
+  ],
+  "migrationPolicy": "Preserve the seven reference migrations. Add new expand migrations, dual-read/write observation, activation checkpoint and later cleanup migration; no in-place rewrite.",
+  "activationGate": "Implementation, generated schemas, migrations, deployed profiles and runtime acceptance evidence must all pass before any bundle becomes runtime-active."
+}

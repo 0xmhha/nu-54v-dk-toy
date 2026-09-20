@@ -1,0 +1,452 @@
+{
+  "status": "passed",
+  "scope": "finite_trust_evidence_design_examples",
+  "casesPassed": 55,
+  "cases": [
+    {
+      "id": "valid_recovery",
+      "observed": "committed",
+      "expected": "committed"
+    },
+    {
+      "id": "recovery_preserves_restriction",
+      "observed": [
+        "recovered_restricted",
+        3
+      ],
+      "expected": [
+        "recovered_restricted",
+        3
+      ]
+    },
+    {
+      "id": "deny_schema_2",
+      "observed": [
+        "schema_denied",
+        true
+      ],
+      "expected": [
+        "schema_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_domain_3",
+      "observed": [
+        "binding_denied",
+        true
+      ],
+      "expected": [
+        "binding_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_audience_4",
+      "observed": [
+        "binding_denied",
+        true
+      ],
+      "expected": [
+        "binding_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_command_5",
+      "observed": [
+        "binding_denied",
+        true
+      ],
+      "expected": [
+        "binding_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_case_6",
+      "observed": [
+        "binding_denied",
+        true
+      ],
+      "expected": [
+        "binding_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_policySelected_7",
+      "observed": [
+        "policy_hold",
+        true
+      ],
+      "expected": [
+        "policy_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_policy_8",
+      "observed": [
+        "policy_hold",
+        true
+      ],
+      "expected": [
+        "policy_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_proof_9",
+      "observed": [
+        "proof_denied",
+        true
+      ],
+      "expected": [
+        "proof_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_pop_10",
+      "observed": [
+        "proof_denied",
+        true
+      ],
+      "expected": [
+        "proof_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_recoveryIndependent_11",
+      "observed": [
+        "recovery_denied",
+        true
+      ],
+      "expected": [
+        "recovery_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_currentAuthority_12",
+      "observed": [
+        "authority_denied",
+        true
+      ],
+      "expected": [
+        "authority_denied",
+        true
+      ]
+    },
+    {
+      "id": "deny_trustedClock_13",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_clock_14",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_clock_15",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_clock_16",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_issued_17",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_exp_18",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_exp_19",
+      "observed": [
+        "time_hold",
+        true
+      ],
+      "expected": [
+        "time_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_subject_20",
+      "observed": [
+        "approval_hold",
+        true
+      ],
+      "expected": [
+        "approval_hold",
+        true
+      ]
+    },
+    {
+      "id": "deny_epoch_21",
+      "observed": [
+        "revision_conflict",
+        true
+      ],
+      "expected": [
+        "revision_conflict",
+        true
+      ]
+    },
+    {
+      "id": "deny_grant_22",
+      "observed": [
+        "revision_conflict",
+        true
+      ],
+      "expected": [
+        "revision_conflict",
+        true
+      ]
+    },
+    {
+      "id": "deny_fence_23",
+      "observed": [
+        "revision_conflict",
+        true
+      ],
+      "expected": [
+        "revision_conflict",
+        true
+      ]
+    },
+    {
+      "id": "deny_auditDurable_24",
+      "observed": [
+        "audit_hold",
+        true
+      ],
+      "expected": [
+        "audit_hold",
+        true
+      ]
+    },
+    {
+      "id": "not_before_inclusive",
+      "observed": "committed",
+      "expected": "committed"
+    },
+    {
+      "id": "strictly_before_expiry",
+      "observed": "committed",
+      "expected": "committed"
+    },
+    {
+      "id": "alias",
+      "observed": "approval_hold",
+      "expected": "approval_hold"
+    },
+    {
+      "id": "same_key",
+      "observed": "approval_hold",
+      "expected": "approval_hold"
+    },
+    {
+      "id": "self_approval",
+      "observed": "approval_hold",
+      "expected": "approval_hold"
+    },
+    {
+      "id": "revoked",
+      "observed": "approval_hold",
+      "expected": "approval_hold"
+    },
+    {
+      "id": "invalid_extra_vote_not_counted",
+      "observed": "committed",
+      "expected": "committed"
+    },
+    {
+      "id": "precheck_valid",
+      "observed": "eligible",
+      "expected": "eligible"
+    },
+    {
+      "id": "grant_changes_after_precheck",
+      "observed": "revision_conflict",
+      "expected": "revision_conflict"
+    },
+    {
+      "id": "expires_after_precheck",
+      "observed": "time_hold",
+      "expected": "time_hold"
+    },
+    {
+      "id": "lost_response_no_repeat",
+      "observed": [
+        "query_original",
+        1
+      ],
+      "expected": [
+        "query_original",
+        1
+      ]
+    },
+    {
+      "id": "expired_approval_current_reader",
+      "observed": "original_committed",
+      "expected": "original_committed"
+    },
+    {
+      "id": "read_does_not_resume",
+      "observed": true,
+      "expected": true
+    },
+    {
+      "id": "original_result_other_deployment",
+      "observed": "binding_denied",
+      "expected": "binding_denied"
+    },
+    {
+      "id": "original_result_other_case",
+      "observed": "binding_denied",
+      "expected": "binding_denied"
+    },
+    {
+      "id": "recovery_approval_not_resume",
+      "observed": "binding_denied",
+      "expected": "binding_denied"
+    },
+    {
+      "id": "old_approval_not_read_authority",
+      "observed": "read_denied",
+      "expected": "read_denied"
+    },
+    {
+      "id": "same_identity_different_digest",
+      "observed": "digest_conflict",
+      "expected": "digest_conflict"
+    },
+    {
+      "id": "consumed_case_new_request",
+      "observed": "case_consumed",
+      "expected": "case_consumed"
+    },
+    {
+      "id": "pruned_payload_metadata_only",
+      "observed": "committed_metadata_only",
+      "expected": "committed_metadata_only"
+    },
+    {
+      "id": "pruned_payload_no_reexecution",
+      "observed": [
+        "query_original",
+        1
+      ],
+      "expected": [
+        "query_original",
+        1
+      ]
+    },
+    {
+      "id": "external_unknown",
+      "observed": "unknown",
+      "expected": "unknown"
+    },
+    {
+      "id": "unknown_expiry_not_release",
+      "observed": "reconcile_original",
+      "expected": "reconcile_original"
+    },
+    {
+      "id": "unknown_new_id_cannot_bypass",
+      "observed": "case_reserved",
+      "expected": "case_reserved"
+    },
+    {
+      "id": "unknown_prevents_retirement",
+      "observed": "retention_hold",
+      "expected": "retention_hold"
+    },
+    {
+      "id": "tombstone_no_seal",
+      "observed": "retention_hold",
+      "expected": "retention_hold"
+    },
+    {
+      "id": "tombstone_open_dependencies",
+      "observed": "retention_hold",
+      "expected": "retention_hold"
+    },
+    {
+      "id": "closed_generation_retirement",
+      "observed": "generation_retired",
+      "expected": "generation_retired"
+    },
+    {
+      "id": "deleted_outcome_not_fresh",
+      "observed": "generation_closed",
+      "expected": "generation_closed"
+    },
+    {
+      "id": "old_backup_without_consumption",
+      "observed": "restore_hold",
+      "expected": "restore_hold"
+    }
+  ],
+  "runtimeVerified": false,
+  "productImplementationPerformed": false,
+  "canonicalMerged": false,
+  "fixtureQuorumIsPolicySelection": false,
+  "activeTrustChanges": 0,
+  "sourceHashes": {
+    "content/specifications/management-trust-evidence.json": "d749e09852b31a77aafb6c122357017d17e53802c54b52331516b6edcd4389b4"
+  },
+  "limitations": [
+    "Synthetic signature, identity, time and checkpoint inputs; no cryptography or live authority verification.",
+    "Serialized single-case model; does not prove distributed commit, concurrent CAS or safe garbage collection.",
+    "Unknown external effects stay unresolved in this model; it cannot manufacture commit evidence.",
+    "No actual retention duration, approval quorum, key suite or public API was selected."
+  ]
+}

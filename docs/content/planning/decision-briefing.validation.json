@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "scope": "decision_material_structure_and_source_integrity_only",
+  "cards": 20,
+  "groups": 5,
+  "sourceHashChecks": 7,
+  "technologyCandidates": 19,
+  "experimentPlans": 23,
+  "sourceDecisionsUnchanged": true,
+  "selectedOptions": 0,
+  "proposedMeasurementTargets": 3,
+  "productImplementationPerformed": false,
+  "runtimeVerified": false
+}

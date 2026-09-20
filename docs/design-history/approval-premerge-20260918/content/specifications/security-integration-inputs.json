@@ -1,0 +1,121 @@
+{
+  "status": "design_specified_pending_adapter",
+  "scope": "existing product scope; no staffing or effort assignment",
+  "inputs": [
+    {
+      "id": "GAP-01",
+      "title": "OAuth 보안 상태 저장",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "deliverable": "PKCE/flow 일회 소비와 만료, refresh 계보·철회 저장 adapter 및 실패/재시도 계약",
+      "status": "design_specified_pending_adapter",
+      "runtimeVerified": false,
+      "designRef": "security-integration-design.md",
+      "contractRef": "security-integration-design.json",
+      "acceptanceRefs": [
+        "SEC-01-01",
+        "SEC-01-02",
+        "SEC-01-03",
+        "SEC-01-04",
+        "SEC-01-05",
+        "SEC-01-06"
+      ]
+    },
+    {
+      "id": "GAP-02",
+      "title": "임시 결제 권한 수명",
+      "taskRefs": [
+        "HW-03",
+        "SHOP-01",
+        "SHOP-03",
+        "BASE-03"
+      ],
+      "deliverable": "terminal/order/attempt/submit/operation 발급·검증·갱신·철회와 원자 소비 계약",
+      "status": "design_specified_pending_adapter",
+      "runtimeVerified": false,
+      "designRef": "security-integration-design.md",
+      "contractRef": "security-integration-design.json",
+      "acceptanceRefs": [
+        "SEC-02-01",
+        "SEC-02-02",
+        "SEC-02-03",
+        "SEC-02-04",
+        "SEC-02-05",
+        "SEC-02-06"
+      ]
+    },
+    {
+      "id": "GAP-03",
+      "title": "신뢰 주체 registry",
+      "taskRefs": [
+        "OPS-01",
+        "DID-01",
+        "DID-02",
+        "BASE-05"
+      ],
+      "deliverable": "운영자·issuer·verifier 등록/변경 승인·감사·서비스 역할 분리",
+      "status": "design_specified_pending_adapter",
+      "runtimeVerified": false,
+      "designRef": "security-integration-design.md",
+      "contractRef": "security-integration-design.json",
+      "acceptanceRefs": [
+        "SEC-03-01",
+        "SEC-03-02",
+        "SEC-03-03",
+        "SEC-03-04",
+        "SEC-03-05",
+        "SEC-03-06"
+      ]
+    },
+    {
+      "id": "GAP-04",
+      "title": "기기 단독 결제 영수증 연결",
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "deliverable": "로그인 계정에 주문/지급 소유 증명, 재사용·중복 연결 방지 API와 보관 방식",
+      "status": "design_specified_pending_adapter",
+      "runtimeVerified": false,
+      "designRef": "security-integration-design.md",
+      "contractRef": "security-integration-design.json",
+      "acceptanceRefs": [
+        "SEC-04-01",
+        "SEC-04-02",
+        "SEC-04-03",
+        "SEC-04-04",
+        "SEC-04-05",
+        "SEC-04-06"
+      ]
+    },
+    {
+      "id": "GAP-05",
+      "title": "보호 결과 참조 저장",
+      "taskRefs": [
+        "SMART-01",
+        "SMART-03",
+        "APP-03",
+        "BASE-05"
+      ],
+      "deliverable": "quote/transition plan/result 내용의 소유 ACL·수명·무결성 및 삭제/복구 계약",
+      "status": "design_specified_pending_adapter",
+      "runtimeVerified": false,
+      "designRef": "security-integration-design.md",
+      "contractRef": "security-integration-design.json",
+      "acceptanceRefs": [
+        "SEC-05-01",
+        "SEC-05-02",
+        "SEC-05-03",
+        "SEC-05-04",
+        "SEC-05-05",
+        "SEC-05-06"
+      ]
+    }
+  ]
+}

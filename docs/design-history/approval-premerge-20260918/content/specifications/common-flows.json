@@ -1,0 +1,43 @@
+{
+  "flows": [
+    {
+      "id": "F-SIGN",
+      "status": "design_proposal",
+      "presentationHost": "U03 reusable review/progress components; do not rewrite intent as a simple transfer",
+      "sourceKinds": [
+        "personal_transfer",
+        "payment",
+        "merchant_refund",
+        "smart_account",
+        "market_action",
+        "credential_proof",
+        "paid_resource"
+      ],
+      "steps": [
+        "resolve immutable intent/source and authorized wallet",
+        "render action-specific fields and verify supported signer profile",
+        "request physical approval for HW or MPC participant policy for Cloud",
+        "verify returned proof/signature against intended payload",
+        "submit only through the source-specific adapter",
+        "resume using intent/operation/transaction or protocol request reference"
+      ],
+      "apiRefs": [
+        "API-015",
+        "API-018",
+        "API-019",
+        "API-020"
+      ],
+      "bleCommands": [
+        "wallet.sign.prepare",
+        "wallet.sign.result"
+      ],
+      "constraints": [
+        "merchant_refund uses merchant-authorized signer, never customer payment.prepare",
+        "DID/x402 use their selected protocol proof adapter; not all proofs are raw transactions",
+        "smart-account submission DTO is separate from the EOA DTO subset",
+        "unsupported signature formats are rejected; no blind-signing fallback",
+        "no private keys in navigation parameters"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,634 @@
+{
+  "status": "consumer_projection_repair_design_proposal",
+  "date": "2026-09-18",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "policySelectionUnchanged": true,
+  "baseline": {
+    "api": 110,
+    "events": 10,
+    "physicalSqlTables": 61
+  },
+  "sourceFiles": {
+    "commerce-reconciliation-integration.json": "218b155c2a700e61185724f10dd05982c130d8add648ea6ff6f1fb3043f72fa1",
+    "commerce-reconciliation-integration.schema.json": "016b3f10d821e659fd30e42078b93315eea57f92452e3776e71ad0519a31f9b2",
+    "approval-physical-storage-design.json": "f997bb61ce886835346c0277521f9a8a807502f0d13f73fc0ede1707233d1b0f",
+    "event-catalog.json": "8660d596fc893e0f79bbeb46e3969a3894e3870671c5cf791588a057844e1fba",
+    "extended-dtos.schema.json": "ac4851a4a36699bd8f69d368d74f92454c18fd35a0942a9673b42ee8baf01def",
+    "security-storage-contracts.json": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8",
+    "database/003_commerce_ledger.sql": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+    "database/007_travel_challenges.sql": "e4fad1246d9f6e7dbd5d6c11b6a428c5132edd0228edd92fb5040686767e82f9",
+    "database/005_privacy_recording.sql": "8ed77bba97d44fc5fceae6a72f6aaabb28e960529d4276d0e601546623617602"
+  },
+  "consumers": [
+    {
+      "id": "CP-SALES",
+      "title": "매출",
+      "consumer": "sales",
+      "eventTypes": [
+        "payment.acceptance.changed",
+        "refund.state.changed"
+      ],
+      "projectionKey": "storeId/assetId/paymentId",
+      "anchors": [
+        "orders",
+        "payment_allocations",
+        "payment_evidence",
+        "refund_balances",
+        "refunds",
+        "refund_reservations"
+      ],
+      "targetRules": [
+        "유효 주수락 지급의 grossAcceptedAtomic, 일반 매출 지급에 연결된 confirmedSalesRefundAtomic, 예외 지급 수취/반환을 각각 분리한다.",
+        "수취액과 매출을 혼용하지 않는다. canonicalAttributedReceiptsAtomic에는 확인된 예외 수취도 들어갈 수 있지만 grossAcceptedAtomic에는 포함하지 않는다.",
+        "netSalesAtomic=grossAcceptedAtomic-confirmedSalesRefundAtomic; netAttributedCashAtomic=canonicalAttributedReceiptsAtomic-allCanonicalRefundOutflowAtomic. 두 net은 signed integer로 표현하며 음수/미해결 차이를 0으로 숨기지 않는다.",
+        "기존 SalesTotals는 모든 필드가 UInt이므로 새 net/유효성/진행 정보는 후속 DTO 변경 대상이다. receivedAtomic의 의미를 새 net으로 몰래 바꾸지 않는다."
+      ],
+      "repairRules": [
+        "현재 원천 snapshot에서 지급별 목표 기여분을 계산하고 이전 목표와의 차이만 한 번 반영. 주수락 이력은 원환불의 sales/exception 분류를 유지한다.",
+        "source reorg 후 outgoing refund만 canonical이면 음수 차이와 review_required로 표시; 새로운 판매/환불을 자동 생성하지 않음.",
+        "자산·chain·환경별 독립 집계. 주문 KRW 가격은 이력 표시이며 token 수량과 합산/자동 환전하지 않음."
+      ],
+      "apiRefs": [
+        "API-039"
+      ],
+      "forbidden": [
+        "원지급과 다른 자산 환불 합산 금지",
+        "메뉴 현재 가격으로 과거 매출 재계산 금지",
+        "지갑의 주문 외 입금을 매출로 처리 금지"
+      ],
+      "status": "design_proposed_not_implemented"
+    },
+    {
+      "id": "CP-SETTLEMENT",
+      "title": "정산",
+      "consumer": "settlements",
+      "eventTypes": [
+        "payment.acceptance.changed",
+        "refund.state.changed"
+      ],
+      "projectionKey": "storeId/period/assetId/settlementId",
+      "anchors": [
+        "settlements",
+        "settlement_revisions"
+      ],
+      "targetRules": [
+        "정산은 가맹점 코인 수취·환불 대조 기록이며 자동 지급/원화 전환 작업이 아니다.",
+        "마감은 완전성 검증된 SourceManifest와 계산된 합계를 고정한다. settlement_revisions.source_revision은 manifest의 로컬 버전으로 연결할 제안이며 모든 원천 revision의 max가 아니다.",
+        "마감 후 보정은 이전 version과 새 manifest를 가리키는 새 settlement revision. 원마감 totals_snapshot은 불변.",
+        "periodStart<=businessEffectiveAt<periodEnd, 매장 timezone과 period 정책 버전 고정. event 수신 시각으로 날짜를 재배정하지 않는다. 최초 수락/확정의 신뢰 가능한 업무 시각이 없으면 backfill 보류."
+      ],
+      "repairRules": [
+        "open 기간은 목표 projection 갱신; closed 기간은 correction_pending으로 표시하고 exact-store settlement_manage 승인 후 동일 원기간 새 version을 만든다는 제안. 자동 승인 정책은 미선정.",
+        "같은 target manifest 재처리는 새 보정 version을 만들지 않는다. 동시 마감/보정은 settlement revision CAS와 consumer fence 검사.",
+        "기간/자산별 시각 정책상 sales cohort와 cash movement period가 다를 수 있으므로 각 metric의 attribution manifest를 따로 남긴다. 다음 기간에도 동일 조정을 이중 반영하지 않는다."
+      ],
+      "apiRefs": [
+        "API-040",
+        "API-041",
+        "API-093"
+      ],
+      "forbidden": [
+        "gap/hold/unknown watermark 상태에서 정상 마감 금지",
+        "자동 자금 이동 금지",
+        "원마감 기록 덮어쓰기 금지"
+      ],
+      "status": "design_proposed_not_implemented"
+    },
+    {
+      "id": "CP-BENEFITS",
+      "title": "혜택·스탬프",
+      "consumer": "benefits",
+      "eventTypes": [
+        "payment.acceptance.changed",
+        "refund.state.changed"
+      ],
+      "projectionKey": "eligibilityId/ruleVersion/benefitKind",
+      "anchors": [
+        "benefit_entries",
+        "benefit_redemptions",
+        "ReceiptEligibility",
+        "ReceiptOwnership",
+        "PendingBenefitEntitlement"
+      ],
+      "targetRules": [
+        "지급별 목표 적립량은 저장된 ruleVersion으로 계산하며 현재 마케팅 규칙으로 과거 보상을 재발급하지 않는다. 부분환불/이미 사용한 혜택 처리 정책이 없으면 policy_pending.",
+        "계정 없는 guest는 PendingBenefitEntitlement에만 기록하고 가짜 계정을 만들지 않는다. 소유 연결 확정 후 같은 source identity로 계정 원장에 한 번 materialize한다.",
+        "원장 순혜택=sum(grant+correction+consume). consume 이력은 보정 계산에서 유지한다. 적립 목표만 바뀌므로 사용 이력을 지우거나 자동 재사용권으로 바꾸지 않는다.",
+        "보정 후 잔량<0이면 화면에서 deficit/review_required와 추가사용 보류로 표현하는 제안. 돈을 청구하거나 다른 지갑 자산을 차감하지 않는다. 회수/면제 정책은 미정."
+      ],
+      "repairRules": [
+        "reorg로 목표 적립량 1→0이면 correction -1; 재확정 0→1이면 correction +1. stable entitlement identity 유지, 새 grant 중복 생성 금지.",
+        "claim과 reorg/환불이 겹치면 현재 eligibility/owner/target를 잠금·revision으로 재검사하고 unclaimed 또는 materialized 정확히 한 경로에만 반영.",
+        "실제 혜택 사용은 projection 최신성만 믿지 않고 현재 source/eligibility gate를 직렬화해 확인; 원천 무효화 후 소비자 지연 동안 사용 불가."
+      ],
+      "apiRefs": [
+        "API-044",
+        "API-104",
+        "API-105",
+        "API-106"
+      ],
+      "forbidden": [
+        "generation 교체로 중복 적립 금지",
+        "이미 소비한 상품 자동 취소 금지",
+        "정책 미선정 상태에서 부분환불 비율 임의 적용 금지"
+      ],
+      "status": "design_proposed_not_implemented"
+    },
+    {
+      "id": "CP-RECEIPTS",
+      "title": "영수증",
+      "consumer": "receipts",
+      "eventTypes": [
+        "payment.acceptance.changed",
+        "refund.state.changed"
+      ],
+      "projectionKey": "receiptId/eligibilityId/allocationId",
+      "anchors": [
+        "ReceiptEligibility",
+        "ReceiptOwnership",
+        "ReceiptClaim"
+      ],
+      "targetRules": [
+        "원영수증 발행 시각·지급자 snapshot·claim 이력과 현재 payment/refund validity를 분리한다. chain reorg로 원소유 기록을 다른 계정에 재할당하지 않는다.",
+        "같은 주문이라도 현재 소유/eligibility로 허용된 allocation과 그 환불만 표시한다. order.account_id를 claim으로 덮어쓰지 않는다.",
+        "결제 유효성 재확인과 소유권 revision은 별개다. receipt data revision/freshness와 ownershipRevision을 구분해야 한다."
+      ],
+      "repairRules": [
+        "영수증을 삭제 후 재발급하는 대신 동일 receipt identity에서 validity/환불 projection을 갱신한다. claim eligibility의 현재 사용 가능성은 원권한 엔진이 재판정한다.",
+        "API-042/038과 SSE 전달 시 현재 ACL/삭제 상태를 재검사. 이전 snapshot이 존재해도 회수된 접근권을 복원하지 않는다.",
+        "ownership 연결은 보기/혜택 materialization의 추가 trigger; claim 자체가 새 지급/매출/스탬프 원천은 아니다."
+      ],
+      "apiRefs": [
+        "API-042",
+        "API-038",
+        "API-104",
+        "API-105",
+        "API-106"
+      ],
+      "forbidden": [
+        "주문 단위 공유로 타 payer 환불 노출 금지",
+        "receipt rebuild로 revoke된 소유권 복원 금지",
+        "보호 proof/민감 payer 자료를 고객 이벤트에 복사 금지"
+      ],
+      "status": "design_proposed_not_implemented"
+    },
+    {
+      "id": "CP-TRAVEL",
+      "title": "여행·챌린지",
+      "consumer": "travel",
+      "eventTypes": [
+        "payment.acceptance.changed",
+        "refund.state.changed"
+      ],
+      "projectionKey": "travelEvidenceId/sourceType/sourceRef",
+      "anchors": [
+        "travel_evidence",
+        "reviews",
+        "challenge_entries",
+        "participations",
+        "itineraries"
+      ],
+      "targetRules": [
+        "location_visit/user_report와 testnet_payment/commercial_purchase는 서로 다른 증거다. 결제 reorg는 결제 증거와 이에 의존한 badge/challenge만 재판정한다. 실제 방문 위치·사용자 작성 후기를 자동 삭제하지 않는다.",
+        "testnet dummy 지급은 commercial_purchase로 승격하지 않으며 추천/통계에 테스트넷 출처를 보존한다.",
+        "환불이 실제 방문을 부정하지 않는다. 구매 인증/혜택 자격을 계속 인정할지는 저장된 여행/챌린지 ruleVersion으로 판정, 미선정이면 해당 badge/reward 보류.",
+        "AI가 생성한 코스와 사용자 작성 데이터는 자동 덮어쓰기 대상이 아니다. 영향을 받은 evidence dependency를 stale/검증대기로 표시하고 현재 동의가 있을 때만 재생성 제안."
+      ],
+      "repairRules": [
+        "payment/refund/consent/삭제 변경을 받은 경우 관련 evidence 현재 validity와 revision을 계산, downstream travel.evidence.changed를 outbox로 발행.",
+        "챌린지 단계는 의존 evidence revision을 다시 확인한다. 이미 지급한 reward는 동일 reward_key 보정 정책으로 처리하고 재구축 때 새 reward 지급 금지.",
+        "삭제 tombstone/동의 철회는 오래된 payment event보다 우선한다. 캐시/검색/추천 재생성도 같은 publication gate를 통과해야 한다."
+      ],
+      "apiRefs": [
+        "API-082"
+      ],
+      "forbidden": [
+        "결제 무효화로 모든 방문 이력 삭제 금지",
+        "테스트 결제를 상업 구매로 변환 금지",
+        "AI 재생성 자동 실행/동의 복원 금지"
+      ],
+      "status": "design_proposed_not_implemented"
+    }
+  ],
+  "resources": [
+    {
+      "id": "CP-R01",
+      "name": "SourceManifest",
+      "key": "manifestId/version",
+      "fields": [
+        "scope: {storeId, environment, chainId, assetId, period?, timezone?, periodPolicyVersion?}",
+        "sourceVector: [{authority, authorityEpoch, resourceType, resourceId, revision}]",
+        "completenessProof: {providerId, snapshotId, collectionMembershipRevisions, complete, count, contentDigest}",
+        "policyVersions",
+        "ownership/privacyRevisions",
+        "contentDigest",
+        "createdAt"
+      ],
+      "invariant": "immutable snapshot + exact member listing/tombstones or same-DB snapshot boundary; missing refund row is not zero. Duplicate vector members rejected; partial/paged union without stable cut is incomplete. Provider identity/authentication and scope must be verified; a caller-supplied complete=true/hash is not proof. Every vector member carries authorityEpoch, so restored/recreated authority cannot reuse old revision numbers unnoticed.",
+      "physicalMapping": "logical_adapter_proposal_no_SQL",
+      "runtimeVerified": false
+    },
+    {
+      "id": "CP-R02",
+      "name": "ConsumerCheckpoint",
+      "key": "consumer/projectionKey/generation",
+      "fields": [
+        "activeGeneration",
+        "fence",
+        "sourceManifestId",
+        "appliedProjectionRevision",
+        "status",
+        "watermark",
+        "lastErrorCode"
+      ],
+      "invariant": "one active generation per projection; fence CAS + current source/privacy guard recheck. Broker offset is transport progress, not business currentness.",
+      "physicalMapping": "logical_adapter_proposal_no_SQL",
+      "runtimeVerified": false
+    },
+    {
+      "id": "CP-R03",
+      "name": "SourceContribution",
+      "key": "consumer/projectionKey/sourceIdentity",
+      "fields": [
+        "targetVersion",
+        "sourceManifestId",
+        "metricAmounts",
+        "assetId",
+        "policyVersion",
+        "contentDigest",
+        "revision"
+      ],
+      "invariant": "unique source identity independent of rebuild generation; immutable version history + current pointer; newTarget-oldTarget is signed delta. Store old value even if target becomes zero.",
+      "physicalMapping": "logical_adapter_proposal_no_SQL",
+      "runtimeVerified": false
+    },
+    {
+      "id": "CP-R04",
+      "name": "ConsumerApplication",
+      "key": "consumer/aggregateType/aggregateId/aggregateRevision",
+      "fields": [
+        "eventIds",
+        "normalizedContentDigest",
+        "status",
+        "manifestId",
+        "projectionRevision",
+        "appliedAt"
+      ],
+      "invariant": "logical unique key excludes digest; same revision different digest quarantines. Event receipt can be durable pending; applied marker commits only with actual target change/checkpoint/outbox.",
+      "physicalMapping": "logical_adapter_proposal_no_SQL",
+      "runtimeVerified": false
+    },
+    {
+      "id": "CP-R05",
+      "name": "CorrectionRecord",
+      "key": "consumer/projectionKey/targetManifestId/correctionKind",
+      "fields": [
+        "previousRevision",
+        "newRevision",
+        "signedDeltaOrStateChange",
+        "reason",
+        "sourceRefs",
+        "policyVersion",
+        "operatorRef?",
+        "createdAt"
+      ],
+      "invariant": "append-only effect identity independent of eventId/generation. Financial/effect ledger unique key remains across rebuild, while derived read views may be recreated.",
+      "physicalMapping": "logical_adapter_proposal_no_SQL",
+      "runtimeVerified": false
+    },
+    {
+      "id": "CP-R06",
+      "name": "RepairRun",
+      "key": "runId",
+      "fields": [
+        "scope",
+        "reason",
+        "dryRun",
+        "currentGeneration",
+        "candidateGeneration",
+        "sourceManifestId",
+        "diffDigest",
+        "fence",
+        "status",
+        "unresolvedSources",
+        "publicationDecision",
+        "checkpoint"
+      ],
+      "invariant": "states requested→capturing→building→diff_ready→publishing→completed; any failure→held/quarantined. Completion is not permission to perform external effects.",
+      "physicalMapping": "logical_adapter_proposal_no_SQL",
+      "runtimeVerified": false
+    }
+  ],
+  "rebuildSteps": [
+    {
+      "id": "CP-B01",
+      "title": "원인·범위 고정",
+      "rule": "원천 누락/버전 전환/백업/계산 오류를 기록하고 exact-store 운영권한·projection 범위를 고정; 외부 지급/보상 실행 권한과 분리.",
+      "dependsOn": []
+    },
+    {
+      "id": "CP-B02",
+      "title": "권위 snapshot 확보",
+      "rule": "완전성·source vector·policy·privacy/ownership revision을 갖는 불변 manifest 확보. refund 목록 일부 누락/unknown hold이면 중단.",
+      "dependsOn": [
+        "CP-B01"
+      ]
+    },
+    {
+      "id": "CP-B03",
+      "title": "후보 generation 계산",
+      "rule": "원본 증거와 원규칙으로 shadow 계산. live writer는 유지해도 외부효과/효력있는 적립·사용·정산마감은 shadow에서 금지.",
+      "dependsOn": [
+        "CP-B02"
+      ]
+    },
+    {
+      "id": "CP-B04",
+      "title": "차이 검토",
+      "rule": "기존 기여분 대비 signed delta, 누락/추가 evidence, 이미 사용한 보상, closed period 영향·삭제 충돌 목록 생성. 정책 미정은 held.",
+      "dependsOn": [
+        "CP-B03"
+      ]
+    },
+    {
+      "id": "CP-B05",
+      "title": "최신성 재확인",
+      "rule": "현재 gate/vector와 후보 manifest를 대조해 전환 준비만 한다. source/소유권/삭제 변경 시 recapture. 이 단계는 active pointer/fence를 바꾸거나 공개 권한을 만들지 않는다.",
+      "dependsOn": [
+        "CP-B04"
+      ]
+    },
+    {
+      "id": "CP-B06",
+      "title": "보정·발행",
+      "rule": "publication transaction 안에서 최신 source/privacy/fence를 다시 확인하고 active generation pointer·새 fence·기여분·보정·application·checkpoint·outbox를 함께 commit한다. 불변 shadow view는 미리 작성 가능하지만 pointer 전환은 마지막 commit에만 포함한다. immutable ledger는 동일 논리 effect key의 보정만 append하며 외부 알림은 commit 이후 현재 권한으로 전달한다. 큰 rebuild 분할이 필요하면 publication held/resume protocol을 별도 설계하기 전 공개를 차단한다.",
+      "dependsOn": [
+        "CP-B05"
+      ]
+    },
+    {
+      "id": "CP-B07",
+      "title": "증거·복구 종료",
+      "rule": "before/after manifest/diff/effect key/결과 checkpoint 보관. rollback은 검증된 view/fence만 전환하며 이미 발행한 원장 보정/권한 철회/삭제를 되돌리지 않음.",
+      "dependsOn": [
+        "CP-B06"
+      ]
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "CP-T01",
+      "scenario": "중복 eventId",
+      "expected": "동일 consumer에서 pending 또는 applied 결과 반환; 금액·혜택 추가 반영 없음.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T02",
+      "scenario": "v1/v2의 다른 eventId·같은 원천 revision",
+      "expected": "동일 논리 application 한 번; 다른 내용은 격리.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T03",
+      "scenario": "누락·역순 이벤트",
+      "expected": "부분 delta 덧셈 금지; 완전한 snapshot 기반 목표로 재계산.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T04",
+      "scenario": "동일 revision의 다른 digest",
+      "expected": "한쪽을 자동 최신으로 선택하지 않고 source 재검증·격리.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T05",
+      "scenario": "원입금 reorg 후 환불만 유효",
+      "expected": "영업 이력 보존; 현재 입금0/환불6이면 cash net -6 및 차이 보류; 0으로 clamp 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T06",
+      "scenario": "예외 지급 수취와 반환",
+      "expected": "실수취 대조에 포함하지만 정상 매출/매출 환불로 이중 분류하지 않음.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T07",
+      "scenario": "원천 snapshot에서 refund 페이지 누락",
+      "expected": "complete=false 처리; 누락 환불0으로 계산 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T08",
+      "scenario": "마감 후 원지급 재확인",
+      "expected": "원마감 snapshot 보존; 원기간 correction_pending 및 새 manifest. 신규 자금 지급 없음.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T09",
+      "scenario": "동시 마감·보정",
+      "expected": "settlement revision/fence CAS 한 경로만 성공; stale 결과 다시 조회.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T10",
+      "scenario": "다중 자산·테스트넷 혼재",
+      "expected": "chain/environment/asset별 분리; decimals 동일해도 단순합산 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T11",
+      "scenario": "guest claim과 reorg 경합",
+      "expected": "실제 owner와 현재 target를 함께 검사; pending/materialized 한 경로만 보정.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T12",
+      "scenario": "사용한 스탬프의 원지급 무효화",
+      "expected": "consume 이력 유지; 보정 후 deficit와 추가사용 보류, 자동 금전청구 없음.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T13",
+      "scenario": "동일 지급 재확정",
+      "expected": "original entitlement target 복구 보정 한 번; 새 grant/새 reward_key 생성 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T14",
+      "scenario": "원천 차단 직후 혜택 사용",
+      "expected": "consumer 지연과 무관하게 현재 eligibility/source gate에서 거절.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T15",
+      "scenario": "영수증 소유권 회수 후 과거 snapshot 재생",
+      "expected": "현재 ACL이 거절; 이전 snapshot으로 소유권/공개 복원 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T16",
+      "scenario": "결제 무효화와 독립 위치 방문",
+      "expected": "결제 badge만 재판정; 위치 방문·사용자 후기는 보존하며 규칙/동의에 따라 표기.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T17",
+      "scenario": "부분환불과 미선정 여행 규칙",
+      "expected": "방문은 자동 삭제하지 않고 해당 구매 badge/reward를 policy_pending 처리.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T18",
+      "scenario": "사용자 삭제 뒤 오래된 이벤트",
+      "expected": "tombstone 우선, 공개 view/AI입력/보상 수신자 자동 복원 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T19",
+      "scenario": "재구축 중 신규 환불 도착",
+      "expected": "publication 전 vector/목록revision 불일치로 recapture; 과거 target로 덮어쓰기 금지.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T20",
+      "scenario": "commit 성공 후 worker/응답 소실",
+      "expected": "checkpoint/effect key로 완료를 확인; 다시 consume/grant/보정하지 않음.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T21",
+      "scenario": "구 generation worker 생존",
+      "expected": "stale fence DB commit 거절; 이미 허가된 외부효과는 추적하고 취소 완료로 간주하지 않음.",
+      "status": "not_run"
+    },
+    {
+      "id": "CP-T22",
+      "scenario": "복구 snapshot에 최근 삭제/철회 누락",
+      "expected": "최신 deny 권위를 복원할 때까지 publication/신규 사용 보류; 미검증 backup으로 재공개 금지.",
+      "status": "not_run"
+    }
+  ],
+  "subscriptionDeltas": [
+    {
+      "event": "payment.acceptance.changed",
+      "addConsumers": [
+        "settlements"
+      ],
+      "existingConsumers": [
+        "sales",
+        "benefits",
+        "receipts",
+        "travel"
+      ],
+      "status": "catalog_change_proposed_not_applied"
+    },
+    {
+      "event": "refund.state.changed",
+      "addConsumers": [
+        "settlements",
+        "travel"
+      ],
+      "existingConsumers": [
+        "sales",
+        "benefits",
+        "receipts"
+      ],
+      "status": "catalog_change_proposed_not_applied"
+    }
+  ],
+  "auxiliaryTriggers": [
+    {
+      "trigger": "ReceiptOwnership commit",
+      "consumers": [
+        "receipts",
+        "benefits",
+        "travel"
+      ],
+      "rule": "source transaction durable outbox/reconciliation work item; stable eligibility identity; original claim auth unchanged",
+      "catalogStatus": "explicit_adapter_contract_needed_not_registered_event"
+    },
+    {
+      "trigger": "benefit redemption commit",
+      "consumers": [
+        "benefits"
+      ],
+      "rule": "existing benefit.ledger.changed plus current redemption/source gates; immutable consume contribution"
+    },
+    {
+      "trigger": "privacy.request.changed / consent authority change",
+      "consumers": [
+        "receipts",
+        "travel"
+      ],
+      "rule": "latest deny/tombstone blocks read/publication; causal event lag cannot temporarily restore access"
+    },
+    {
+      "trigger": "settlement close/correction command",
+      "consumers": [
+        "settlements"
+      ],
+      "rule": "current store permission and manifest/fence CAS; actor decision audited"
+    }
+  ],
+  "atomicApply": [
+    "Persist received event as pending with eventId dedup; do not ACK semantic application before verifying version/source scope. Transport ACK after durable pending is separate from applied state.",
+    "Resolve authoritative snapshot manifest; cross-resource reads need same source transaction cut or an immutable complete manifest protocol. Unknown or incomparable vectors -> hold/recapture, never max(revisions).",
+    "Compute target from current stored policy; lock current shared source/eligibility/privacy gates, then consumer checkpoint and effect/contribution keys in stable order. Check captured versions and completeness again.",
+    "Commit target contribution, signed correction or view update, application marker, checkpoint/projection revision and downstream outbox atomically within consumer store. Cross-store effects use durable deduped effect intent; no distributed atomicity assumed.",
+    "External messages/device sync/search/AI are outbox deliveries with their own effect identity and current publication authorization. A stale worker fence only prevents DB writes, not previously permitted remote effects."
+  ],
+  "pendingPolicies": [
+    "D08 최초수락/부분지급/예외반환 정책 미정",
+    "이미 소비한 혜택·부분환불·챌린지 보상 보정 정책과 규칙 버전 미정",
+    "정산 기간별 attribution/마감 요건/보정 승인 규칙 제안 상태",
+    "D02 source manifest provider·일관성 모델·물리 저장/메시지 브로커 미선정",
+    "D19 지연/격리 경보 임계값·운영 보관 기간 미정",
+    "RR-DEC-01 변경 없음"
+  ],
+  "nextDesign": "매출·정산 조회/마감/보정 API의 freshness·manifest·음수 차이 응답과 운영 재처리 명령 계약",
+  "sourceCutContract": {
+    "required": [
+      "verifiedProviderIdentity",
+      "exactScope",
+      "authorityEpochs",
+      "consistentSnapshotId",
+      "collectionMembershipRevisions",
+      "completeMemberSetOrVerifiablePagination",
+      "sourceVector",
+      "policyVersions",
+      "currentDenyAuthority"
+    ],
+    "rules": [
+      "Immutable vector is not automatically a consistent cut. Provider must attest to same-DB snapshot or a documented cross-service cut protocol; mixed unsynchronized reads stay incomplete.",
+      "Concurrent additions/removals require collection membership revision/tombstones, including refund lists and ownership/consent dependencies. Count/digest alone cannot prove no omission.",
+      "An unavailable latest deny/epoch authority blocks publication and current use. Rebuild cannot infer authority from old snapshot or broker offset."
+    ]
+  },
+  "publicationAtomicUnit": {
+    "preparationStep": "CP-B05",
+    "commitStep": "CP-B06",
+    "preparationMayPublish": false,
+    "finalRecheck": [
+      "sourceVector",
+      "authorityEpochs",
+      "privacyOwnership",
+      "consumerFence",
+      "scopeCompleteness"
+    ],
+    "sameCommit": [
+      "activeGenerationPointer",
+      "newFence",
+      "sourceContributions",
+      "correctionRecords",
+      "consumerApplications",
+      "checkpoint",
+      "outbox"
+    ],
+    "crossStoreAtomicityAssumed": false,
+    "splitPublicationProtocol": "not_designed; block until specified"
+  }
+}

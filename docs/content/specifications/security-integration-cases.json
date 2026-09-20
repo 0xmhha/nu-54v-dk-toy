@@ -1,0 +1,425 @@
+{
+  "scope": "acceptance specifications; runtime not executed",
+  "cases": [
+    {
+      "id": "SEC-01-01",
+      "gapId": "GAP-01",
+      "kind": "concurrency",
+      "when": "동일 callback 동시 전달",
+      "expected": "계정/세션 연결을 한 번만 반영; 다른 digest 재사용 거절",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-01-02",
+      "gapId": "GAP-01",
+      "kind": "reject",
+      "when": "provider 또는 redirect/client/nonce 불일치",
+      "expected": "인증 실패; 기존 계정 연결 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-01-03",
+      "gapId": "GAP-01",
+      "kind": "recovery",
+      "when": "refresh 회전 응답 유실; sender binding 없음",
+      "expected": "이전 bearer만으로 새 token 제공 금지; family 철회 및 재로그인",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-01-04",
+      "gapId": "GAP-01",
+      "kind": "concurrency",
+      "when": "두 refresh 병렬·앱 재시작",
+      "expected": "중복 generation 생성 없음; 승인한 복구 profile 또는 재로그인",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-01-05",
+      "gapId": "GAP-01",
+      "kind": "reject",
+      "when": "보호 재시도 결과 저장 중 logout",
+      "expected": "family 철회 뒤 결과 cache에서 token 제공 금지",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-01-06",
+      "gapId": "GAP-01",
+      "kind": "integration",
+      "when": "Google/Apple 대상 OS 로그인·취소·계정 연결·재진입",
+      "expected": "각 provider profile대로 로그인/연결/취소 결과가 앱에 반영",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-02-01",
+      "gapId": "GAP-02",
+      "kind": "concurrency",
+      "when": "동일 intent와 payload를 두 번 제출",
+      "expected": "durable submission 한 개; 중복 자금 이동 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-02-02",
+      "gapId": "GAP-02",
+      "kind": "reject",
+      "when": "다른 attempt·terminal·device의 capability 제출",
+      "expected": "거절; 다른 사용자 세션 권한 전용 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-02-03",
+      "gapId": "GAP-02",
+      "kind": "recovery",
+      "when": "broadcast 응답 유실 후 권한 만료",
+      "expected": "hash로 기존 거래 추적; 새 nonce 결제 자동 생성 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-02-04",
+      "gapId": "GAP-02",
+      "kind": "integration",
+      "when": "write 철회 직전 방송·철회 후 확정",
+      "expected": "원천 검증 후 매출/환불한도/혜택 반영; 조회는 현재 권한 검사",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-02-05",
+      "gapId": "GAP-02",
+      "kind": "recovery",
+      "when": "예약 저장 후 DB commit 전 또는 commit 후 응답 전 장애",
+      "expected": "operation/intent 고유키로 복구; 다른 payload에 권한 재사용 금지",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-02-06",
+      "gapId": "GAP-02",
+      "kind": "reject",
+      "when": "근접 조건 실패·반납·재대여",
+      "expected": "새 승인 차단; 새 대여자에게 과거 사용자의 결과 공개 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-03-01",
+      "gapId": "GAP-03",
+      "kind": "reject",
+      "when": "owner가 운영자 registry 없이 운영 API 접근",
+      "expected": "거절; 점주 membership을 운영 권한으로 변환하지 않음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-03-02",
+      "gapId": "GAP-03",
+      "kind": "reject",
+      "when": "권한 상승 요청자가 스스로 승인",
+      "expected": "거절; 실제 별도 승인 주체 필요",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-03-03",
+      "gapId": "GAP-03",
+      "kind": "reject",
+      "when": "issuer A가 B의 credential을 철회",
+      "expected": "거절; issuer 대상 범위 보존",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-03-04",
+      "gapId": "GAP-03",
+      "kind": "recovery",
+      "when": "worker 권한 철회 또는 registry 조회 장애",
+      "expected": "새 민감 job 수행 거절; 기존 관측 복구 책임을 대체 유효 worker에 유지",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-03-05",
+      "gapId": "GAP-03",
+      "kind": "concurrency",
+      "when": "동일 expectedRevision의 권한 변경 경쟁",
+      "expected": "한 revision만 활성화; 실패 요청 재검토",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-03-06",
+      "gapId": "GAP-03",
+      "kind": "integration",
+      "when": "키 교체·비상 중지·감사 실패",
+      "expected": "허용 버전 규칙에 따라 검증; 감사 없는 상승 미반영; 재활성화 재검토",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-04-01",
+      "gapId": "GAP-04",
+      "kind": "integration",
+      "when": "기기 단독 결제 후 앱 로그인·영수증 연결",
+      "expected": "당시 eligibility와 본인 증명으로 API-042에서 한 번 조회",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-04-02",
+      "gapId": "GAP-04",
+      "kind": "reject",
+      "when": "기기 재대여자가 현재 키/장치로 과거 주문 claim",
+      "expected": "거절; 현재 소유만으로 과거 구매자 판정 금지",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-04-03",
+      "gapId": "GAP-04",
+      "kind": "concurrency",
+      "when": "같은 eligibility를 두 계정이 동시에 claim",
+      "expected": "검증된 자격에 한하여 단일 소유 연결; 다른 계정 충돌; 같은 계정은 멱등",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-04-04",
+      "gapId": "GAP-04",
+      "kind": "reject",
+      "when": "nonce/account/domain 바꿔 proof replay",
+      "expected": "거절; claim을 결제/자금 승인으로 전용 불가",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-04-05",
+      "gapId": "GAP-04",
+      "kind": "recovery",
+      "when": "반납 후 원계정 조회 및 익명 ticket 소실",
+      "expected": "원계정 연결 유지; 증거 없는 자동 연결 거절·안내; 다음 대여자 접근 거절; 신규 익명 여행 지갑은 초기화 전 claim 완료, ticket만 보유하고 payer 키 삭제 시 자동 claim 불가",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-04-06",
+      "gapId": "GAP-04",
+      "kind": "integration",
+      "when": "claim 이후 환불/reorg·이벤트 재전송",
+      "expected": "영수증 상태·혜택 보정; 소유 감사 유지; 중복 스탬프 없음; anonymous entitlement retained pending and bound once after claim, not lost or issued twice",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-05-01",
+      "gapId": "GAP-05",
+      "kind": "reject",
+      "when": "타 계정 resultId 또는 발급 후 계정 전환",
+      "expected": "실제 조회 시 거절; 발급 당시 ACL을 재사용하지 않음; metadata allowed then consent revoked before opening stream -> reject stream request",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-05-02",
+      "gapId": "GAP-05",
+      "kind": "reject",
+      "when": "동일 object ID의 bytes 교체·누락·만료",
+      "expected": "digest/version/expiry 실패; intent 생성에 사용 불가",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-05-03",
+      "gapId": "GAP-05",
+      "kind": "concurrency",
+      "when": "동의 철회와 worker publish 경쟁",
+      "expected": "source/consent revision 재검사; 새 결과 미공개",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-05-04",
+      "gapId": "GAP-05",
+      "kind": "recovery",
+      "when": "staging 후 장애·metadata commit 응답 유실",
+      "expected": "고유 source/version으로 복구; 미검증 객체 공개 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-05-05",
+      "gapId": "GAP-05",
+      "kind": "recovery",
+      "when": "삭제 후 오래된 backup 복원",
+      "expected": "최신 tombstone 적용 전 비공개; 원음/파생물 재공개 없음",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    },
+    {
+      "id": "SEC-05-06",
+      "gapId": "GAP-05",
+      "kind": "integration",
+      "when": "quote·전환 계획 재조회부터 앱 승인까지",
+      "expected": "immutable digest가 review/intent에 결합; 변경된 계획 서명 거절",
+      "evidenceRequired": [
+        "environment/profile/build revision",
+        "redacted service trace",
+        "app result or explicit rejection",
+        "reproduction steps"
+      ],
+      "verificationStatus": "not_run"
+    }
+  ]
+}

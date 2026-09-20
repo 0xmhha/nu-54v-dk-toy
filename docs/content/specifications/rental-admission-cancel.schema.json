@@ -1,0 +1,2224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:rental:lifecycle:draft",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "Epoch": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "Proof": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "keyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "signedDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "proofBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "profileId",
+        "keyId",
+        "signedDigest",
+        "proofBytes"
+      ],
+      "additionalProperties": false
+    },
+    "AdmissionBasis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "factory_genesis"
+            },
+            "genesisRecordId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "genesisRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "genesisRecordId",
+            "genesisRevision"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "returned_device"
+            },
+            "returnJobId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "completionHandle": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "cleanupEvidenceDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "kind",
+            "returnJobId",
+            "completionHandle",
+            "cleanupEvidenceDigest"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AdmissionContext": {
+      "type": "object",
+      "properties": {
+        "admissionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "accountId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "bindingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expectedEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expectedGateRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expectedBindingRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reservationRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recipientConsentRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "enrollmentHolderThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "enrollmentSessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "basis": {
+          "$ref": "#/$defs/AdmissionBasis"
+        }
+      },
+      "required": [
+        "admissionId",
+        "deviceId",
+        "accountId",
+        "rentalId",
+        "bindingId",
+        "expectedEpoch",
+        "expectedGateRevision",
+        "expectedBindingRevision",
+        "reservationRevision",
+        "recipientConsentRef",
+        "enrollmentHolderThumbprint",
+        "enrollmentSessionId",
+        "basis"
+      ],
+      "additionalProperties": false
+    },
+    "CancelContext": {
+      "type": "object",
+      "properties": {
+        "cancelId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "bindingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "jobRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "returnFenceRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cancelRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "cancelId",
+        "jobId",
+        "deviceId",
+        "rentalId",
+        "bindingId",
+        "deviceEpoch",
+        "jobRevision",
+        "returnFenceRevision",
+        "cancelRevision"
+      ],
+      "additionalProperties": false
+    },
+    "AdmissionPermitPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "reserve_device_binding"
+        },
+        "context": {
+          "$ref": "#/$defs/AdmissionContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "candidateDigest"
+      ],
+      "additionalProperties": false
+    },
+    "AdmissionPermit": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/AdmissionPermitPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "BindingReceiptPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "device_binding_stored"
+        },
+        "context": {
+          "$ref": "#/$defs/AdmissionContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "permitDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "deviceChallenge": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "permitDigest",
+        "deviceChallenge"
+      ],
+      "additionalProperties": false
+    },
+    "BindingReceipt": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/BindingReceiptPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ActivationPermitPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "activate_device_binding"
+        },
+        "context": {
+          "$ref": "#/$defs/AdmissionContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "bindingReceiptDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "activationRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "bindingReceiptDigest",
+        "activationRevision"
+      ],
+      "additionalProperties": false
+    },
+    "ActivationPermit": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/ActivationPermitPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ActivationReceiptPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "device_binding_activated"
+        },
+        "context": {
+          "$ref": "#/$defs/AdmissionContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "activationPermitDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "activationRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "activationPermitDigest",
+        "activationRevision"
+      ],
+      "additionalProperties": false
+    },
+    "ActivationReceipt": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/ActivationReceiptPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CancelPermitPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "invalidate_prepare_keep_fence"
+        },
+        "context": {
+          "$ref": "#/$defs/CancelContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "grantIssued": {
+          "const": false
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "grantIssued"
+      ],
+      "additionalProperties": false
+    },
+    "CancelPermit": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/CancelPermitPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CancelPreparedPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "prepare_invalidated_fence_held"
+        },
+        "context": {
+          "$ref": "#/$defs/CancelContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "permitDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "acceptedExecutionGrant": {
+          "const": false
+        },
+        "prepareInvalidated": {
+          "const": true
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "permitDigest",
+        "acceptedExecutionGrant",
+        "prepareInvalidated"
+      ],
+      "additionalProperties": false
+    },
+    "CancelPrepared": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/CancelPreparedPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ReleasePermitPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "release_exact_return_fence"
+        },
+        "context": {
+          "$ref": "#/$defs/CancelContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "preparedReceiptDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "preparedReceiptDigest"
+      ],
+      "additionalProperties": false
+    },
+    "ReleasePermit": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/ReleasePermitPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseReceiptPayload": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-lifecycle-v1-draft"
+        },
+        "purpose": {
+          "const": "exact_return_fence_released"
+        },
+        "context": {
+          "$ref": "#/$defs/CancelContext"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "releasePermitDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "remainingRestriction": {
+          "enum": [
+            "none",
+            "other_fences_held"
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "purpose",
+        "context",
+        "challengeId",
+        "releasePermitDigest",
+        "remainingRestriction"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseReceipt": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/ReleaseReceiptPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "AdmissionView": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/AdmissionContext"
+        },
+        "state": {
+          "enum": [
+            "reserved",
+            "activation_issued",
+            "active",
+            "quarantined"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deviceActivationVerified": {
+          "type": "boolean"
+        },
+        "permit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdmissionPermit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ActivationPermit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "context",
+        "state",
+        "revision",
+        "deviceActivationVerified",
+        "permit",
+        "activation"
+      ],
+      "additionalProperties": false
+    },
+    "CancelView": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/CancelContext"
+        },
+        "state": {
+          "enum": [
+            "intent_recorded",
+            "release_issued",
+            "completed",
+            "quarantined"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "serverReturnFenceHeld": {
+          "type": "boolean"
+        },
+        "deviceReleaseVerified": {
+          "type": "boolean"
+        },
+        "cancelPermit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CancelPermit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "releasePermit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReleasePermit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "context",
+        "state",
+        "revision",
+        "serverReturnFenceHeld",
+        "deviceReleaseVerified",
+        "cancelPermit",
+        "releasePermit"
+      ],
+      "additionalProperties": false
+    },
+    "Candidate": {
+      "type": "object",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "observedEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "gateRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bindingRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sourceRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "basis": {
+          "$ref": "#/$defs/AdmissionBasis"
+        },
+        "eligible": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "deviceId",
+        "observedEpoch",
+        "gateRevision",
+        "bindingRevision",
+        "sourceRevision",
+        "candidateDigest",
+        "expiresAt",
+        "basis",
+        "eligible",
+        "reasonCodes"
+      ],
+      "additionalProperties": false
+    },
+    "RL01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "RL01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "candidate": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Candidate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "candidate"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API045Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "accountId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "expectedEpoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "expectedGateRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expectedBindingRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "candidateDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "recipientConsentRef": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "enrollmentHolderThumbprint": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "enrollmentSessionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "basis": {
+              "$ref": "#/$defs/AdmissionBasis"
+            }
+          },
+          "required": [
+            "deviceId",
+            "accountId",
+            "expectedEpoch",
+            "expectedGateRevision",
+            "expectedBindingRevision",
+            "candidateDigest",
+            "recipientConsentRef",
+            "enrollmentHolderThumbprint",
+            "enrollmentSessionId",
+            "basis"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API045Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "admission": {
+                  "$ref": "#/$defs/AdmissionView"
+                }
+              },
+              "required": [
+                "admission"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RL02Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "admissionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "admissionId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/BindingReceipt"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "receipt",
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RL02Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "admission": {
+                  "$ref": "#/$defs/AdmissionView"
+                }
+              },
+              "required": [
+                "admission"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RL03Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "admissionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "admissionId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/ActivationReceipt"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "receipt",
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RL03Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "admission": {
+                  "$ref": "#/$defs/AdmissionView"
+                }
+              },
+              "required": [
+                "admission"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RL04Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "admissionId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "admissionId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "RL04Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "admission": {
+                  "$ref": "#/$defs/AdmissionView"
+                }
+              },
+              "required": [
+                "admission"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "jobId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "jobId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "expectedJobRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expectedReturnFenceRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expectedEpoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          },
+          "required": [
+            "expectedJobRevision",
+            "expectedReturnFenceRevision",
+            "expectedEpoch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "cancellation": {
+                  "$ref": "#/$defs/CancelView"
+                }
+              },
+              "required": [
+                "cancellation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC02Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "cancelId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "cancelId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/CancelPrepared"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "receipt",
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC02Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "cancellation": {
+                  "$ref": "#/$defs/CancelView"
+                }
+              },
+              "required": [
+                "cancellation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC03Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "cancelId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "cancelId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "receipt": {
+              "$ref": "#/$defs/ReleaseReceipt"
+            },
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "receipt",
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC03Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "cancellation": {
+                  "$ref": "#/$defs/CancelView"
+                }
+              },
+              "required": [
+                "cancellation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RC04Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "cancelId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "cancelId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "RC04Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "contractVersion": {
+              "const": "rental-lifecycle-v1-draft"
+            }
+          },
+          "required": [
+            "cacheControl",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "cancellation": {
+                  "$ref": "#/$defs/CancelView"
+                }
+              },
+              "required": [
+                "cancellation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "LB01Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "rental.binding.stage"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "$ref": "#/$defs/AdmissionPermit"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "LB01Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "rental.binding.stage"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "$ref": "#/$defs/BindingReceipt"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "LB02Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "rental.binding.activate"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "$ref": "#/$defs/ActivationPermit"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "LB02Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "rental.binding.activate"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "$ref": "#/$defs/ActivationReceipt"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "CB01Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.cancel.prepare"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "$ref": "#/$defs/CancelPermit"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "CB01Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.cancel.prepare"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "$ref": "#/$defs/CancelPrepared"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "CB02Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.cancel.release"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "$ref": "#/$defs/ReleasePermit"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "sessionId",
+        "requestId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "CB02Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "rental-ble-v1-draft"
+        },
+        "command": {
+          "const": "reset.cancel.release"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "$ref": "#/$defs/ReleaseReceipt"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "REVISION_CONFLICT",
+            "DEVICE_UNAVAILABLE",
+            "BASIS_INVALID",
+            "CONSENT_INVALID",
+            "GRANT_ALREADY_ISSUED",
+            "CANCELLATION_PENDING",
+            "DEVICE_STATE_UNKNOWN",
+            "AUTH_REQUIRED",
+            "SCOPE_DENIED",
+            "PROOF_INVALID",
+            "PROFILE_UNSUPPORTED"
+          ]
+        },
+        "retryAction": {
+          "enum": [
+            "refresh_same_operation",
+            "reauthenticate",
+            "retry_same_payload",
+            "support_review",
+            "none"
+          ]
+        },
+        "safeOperationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "retryAction",
+        "safeOperationId"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            503
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "error": {
+              "$ref": "#/$defs/Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

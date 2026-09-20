@@ -1,0 +1,755 @@
+{
+  "status": "design_candidate_not_implemented",
+  "document": "return-screen-design.md",
+  "screenRefs": [
+    "U24",
+    "D01",
+    "O01",
+    "U04",
+    "U05"
+  ],
+  "taskRefs": [
+    "STAMP-03",
+    "STAMP-04",
+    "HW-02",
+    "HW-03",
+    "HW-07",
+    "OPS-02"
+  ],
+  "actions": [
+    {
+      "id": "RA-01",
+      "labelKo": "상태 다시 확인",
+      "labelEn": "Check status",
+      "category": "read",
+      "guard": "현재 권한으로 원job 조회; 새 작업 생성 없음",
+      "protocolRefs": [
+        "RP-08"
+      ]
+    },
+    {
+      "id": "RA-02",
+      "labelKo": "기기 다시 연결",
+      "labelEn": "Reconnect device",
+      "category": "connect",
+      "guard": "원job/현재 epoch 확인; 단계에 따라 owner 또는 제한 relay; 자동 create/import 없음",
+      "protocolRefs": [
+        "RP-08",
+        "RP-03",
+        "RP-06"
+      ]
+    },
+    {
+      "id": "RA-03",
+      "labelKo": "필요한 확인 진행",
+      "labelEn": "Complete checks",
+      "category": "precheck",
+      "guard": "현재 출처·정책에 맞는 회수/외부 접근/자격/영수증 확인; 결과 후 checklist 갱신",
+      "protocolRefs": []
+    },
+    {
+      "id": "RA-04",
+      "labelKo": "기기에서 확인",
+      "labelEn": "Confirm on device",
+      "category": "commit",
+      "guard": "지원 profile·최신 점검·fence·복구 조건·grant 미발급·소유자와 물리 승인 확인",
+      "protocolRefs": [
+        "RP-01",
+        "RP-02"
+      ]
+    },
+    {
+      "id": "RA-05",
+      "labelKo": "반납 신청 취소",
+      "labelEn": "Cancel return request",
+      "category": "abort",
+      "guard": "grant 미발급이 확실하고 서버/기기 제한 해제 동기화 확인; 결과 전 낙관적 사용 재개 금지",
+      "protocolRefs": []
+    },
+    {
+      "id": "RA-06",
+      "labelKo": "초기화 결과 확인",
+      "labelEn": "Verify reset result",
+      "category": "evidence",
+      "guard": "제한된 권한으로 같은 job 증거 재접수; 새 삭제 허가 없음",
+      "protocolRefs": [
+        "RP-03",
+        "RP-04"
+      ]
+    },
+    {
+      "id": "RA-07",
+      "labelKo": "기기 정리 다시 확인",
+      "labelEn": "Verify device cleanup",
+      "category": "cleanup",
+      "guard": "같은 완료 ACK/정리 profile와 fresh challenge; 허용된 relay만 사용",
+      "protocolRefs": [
+        "RP-05",
+        "RP-06",
+        "RP-07"
+      ]
+    },
+    {
+      "id": "RA-08",
+      "labelKo": "반납 도움 받기",
+      "labelEn": "Get return help",
+      "category": "support",
+      "guard": "권한 있는 지원 경로의 안전한 job 참조만; 사용자 원음/키/자산 자료 자동 첨부 금지",
+      "protocolRefs": []
+    },
+    {
+      "id": "RA-09",
+      "labelKo": "내 기록 보기",
+      "labelEn": "View my records",
+      "category": "owner_read",
+      "guard": "현재 계정 및 원지급 ReceiptOwnership/Eligibility로 접근",
+      "protocolRefs": []
+    },
+    {
+      "id": "RA-10",
+      "labelKo": "화면 나가기",
+      "labelEn": "Leave this screen",
+      "category": "navigation",
+      "guard": "화면 이탈은 job 취소가 아님; 진행 상태는 원천에서 재조회",
+      "protocolRefs": []
+    },
+    {
+      "id": "RA-11",
+      "labelKo": "새 대여 시작",
+      "labelEn": "Start new rental",
+      "category": "enroll",
+      "guard": "운영 권한·최신 eligible gate·epoch·미등록 상태를 서버 mutation 직전 재검증",
+      "protocolRefs": []
+    },
+    {
+      "id": "RA-12",
+      "labelKo": "복구 진단 보기",
+      "labelEn": "View recovery diagnostics",
+      "category": "ops_read",
+      "guard": "operator_safe projection; 안전한 사유와 원job만 표시",
+      "protocolRefs": [
+        "RP-08"
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "RU-01",
+      "jobPhases": [
+        "checking"
+      ],
+      "entryCondition": "fresh job; grantIssued=false; required checks incomplete",
+      "user": {
+        "titleKo": "반납 전 확인이 필요해요",
+        "titleEn": "Checks needed before return",
+        "bodyKo": "남은 거래와 지갑 접근, 자격 정리 상태를 확인해 주세요.",
+        "actions": [
+          "RA-03",
+          "RA-05",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "반납 준비\n앱에서 확인",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "점검 대기",
+        "actions": [
+          "RA-01",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-02",
+      "jobPhases": [
+        "prepared"
+      ],
+      "entryCondition": "fresh job; grantIssued=false; all required checks passed; compatible app/device; recovery disposition resolved",
+      "user": {
+        "titleKo": "기기에서 반납을 확인해 주세요",
+        "titleEn": "Confirm the return on your device",
+        "bodyKo": "화면의 삭제 항목을 확인한 뒤 기기의 버튼으로 승인해 주세요.",
+        "actions": [
+          "RA-04",
+          "RA-05",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "이 기기의 지갑·자격 삭제\n기기 버튼으로 확인",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "사용자 확인 대기",
+        "actions": [
+          "RA-01",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-03",
+      "jobPhases": [
+        "commit_issued"
+      ],
+      "entryCondition": "grant exists; device acceptance may be unknown",
+      "user": {
+        "titleKo": "초기화 진행 상태를 확인하고 있어요",
+        "titleEn": "Checking reset progress",
+        "bodyKo": "다시 초기화하지 말고 기기를 연결해 상태를 확인해 주세요.",
+        "actions": [
+          "RA-01",
+          "RA-02",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "처리 상태 확인 중\n앱 연결 유지",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "허가 발급 · 기기 응답 확인 중",
+        "actions": [
+          "RA-01",
+          "RA-12",
+          "RA-08"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-04",
+      "jobPhases": [
+        "device_started"
+      ],
+      "entryCondition": "same job durable journal accepted; erasure/verification in progress",
+      "user": {
+        "titleKo": "기기의 지갑 정보를 지우고 있어요",
+        "titleEn": "Clearing wallet data on the device",
+        "bodyKo": "전원을 유지해 주세요. 완료 여부는 기기의 결과를 확인한 뒤 표시합니다.",
+        "actions": [
+          "RA-01",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "초기화 진행 중\n전원 유지",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "기기 초기화 진행 중",
+        "actions": [
+          "RA-01",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-05",
+      "jobPhases": [
+        "evidence_pending"
+      ],
+      "entryCondition": "same job result awaits evidence transport/verification",
+      "user": {
+        "titleKo": "초기화 결과를 확인하고 있어요",
+        "titleEn": "Verifying the reset result",
+        "bodyKo": "기기를 가까이 두고 연결을 유지해 주세요.",
+        "actions": [
+          "RA-06",
+          "RA-02",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "초기화 결과 확인 중\n연결 유지",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "삭제 증거 확인 중",
+        "actions": [
+          "RA-01",
+          "RA-06",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-06",
+      "jobPhases": [
+        "completed"
+      ],
+      "entryCondition": "serverReturnCompleted=true; reuseGate=awaiting_cleanup; same current epoch",
+      "user": {
+        "titleKo": "반납 접수 완료 · 기기 정리 중",
+        "titleEn": "Return recorded · Finishing device cleanup",
+        "bodyKo": "반납 접수는 끝났습니다. 기기 정리 확인이 남아 있으니 연결을 유지해 주세요.",
+        "actions": [
+          "RA-07",
+          "RA-02",
+          "RA-09",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "지갑 초기화 확인됨\n기기 정리 확인 중",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "반납 접수 완료 · 재대여 대기",
+        "actions": [
+          "RA-07",
+          "RA-01",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-07",
+      "jobPhases": [
+        "completed"
+      ],
+      "entryCondition": "fresh eligible gate; cleanup verified; current epoch matches; no new binding",
+      "user": {
+        "titleKo": "반납이 완료됐어요",
+        "titleEn": "Return complete",
+        "bodyKo": "이 기기와의 연결이 해제됐습니다. 내 기록은 앱에서 확인할 수 있어요.",
+        "actions": [
+          "RA-09",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "반납 완료\n새 등록 대기",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "재대여 준비 완료",
+        "actions": [
+          "RA-11",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-08",
+      "jobPhases": [
+        "aborted"
+      ],
+      "entryCondition": "grant never issued; server/device fence release confirmed",
+      "user": {
+        "titleKo": "반납 신청을 취소했어요",
+        "titleEn": "Return request cancelled",
+        "bodyKo": "기기를 계속 사용할 수 있습니다.",
+        "actions": [
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "사용 가능\n기존 설정 유지",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "반납 신청 취소됨",
+        "actions": [
+          "RA-01",
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-09",
+      "jobPhases": [
+        "quarantined"
+      ],
+      "entryCondition": "server trust/state conflict; no assumption of erase success",
+      "user": {
+        "titleKo": "반납 상태를 확인해야 해요",
+        "titleEn": "Your return needs a check",
+        "bodyKo": "기기를 다시 초기화하지 말고 도움을 요청해 주세요.",
+        "actions": [
+          "RA-01",
+          "RA-08",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "확인 필요\n앱에서 도움 요청",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "기기 격리 · 재대여 불가",
+        "actions": [
+          "RA-12",
+          "RA-08"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-10",
+      "jobPhases": [
+        "completed"
+      ],
+      "entryCondition": "historical job completed; newer epoch or binding already exists",
+      "user": {
+        "titleKo": "이전 반납 기록이에요",
+        "titleEn": "This is a past return",
+        "bodyKo": "완료된 반납 기록입니다. 현재 기기에 작업을 보내지 않습니다.",
+        "actions": [
+          "RA-09",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "현재 대여 상태 유지",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "이전 반납 완료 · 현재 배정 별도",
+        "actions": [
+          "RA-12"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    },
+    {
+      "id": "RU-11",
+      "jobPhases": [
+        "completed"
+      ],
+      "entryCondition": "same current job/epoch; server return completed but device cleanup verification failed/marker missing or device quarantined; reuseGate=closed",
+      "user": {
+        "titleKo": "반납 접수 완료 · 기기 확인이 필요해요",
+        "titleEn": "Return recorded · Device check needed",
+        "bodyKo": "반납 접수는 끝났지만 기기 정리를 확인하지 못했습니다. 다시 초기화하지 말고 도움을 요청해 주세요.",
+        "actions": [
+          "RA-01",
+          "RA-08",
+          "RA-09",
+          "RA-10"
+        ]
+      },
+      "device": {
+        "textKo": "기기 확인 필요\n앱에서 도움 요청",
+        "exposesPrivateHistory": false
+      },
+      "operator": {
+        "statusKo": "반납 접수 완료 · 기기 정리 실패 · 재대여 불가",
+        "actions": [
+          "RA-12",
+          "RA-08"
+        ],
+        "projection": "operator_safe"
+      },
+      "runtimeVerified": false
+    }
+  ],
+  "overlays": [
+    {
+      "id": "RO-01",
+      "condition": "not currently authenticated for this job",
+      "effect": "mask private job state; sign-in or authorized support route only",
+      "forbiddenActions": [
+        "RA-01",
+        "RA-02",
+        "RA-03",
+        "RA-04",
+        "RA-05",
+        "RA-06",
+        "RA-07",
+        "RA-09",
+        "RA-11",
+        "RA-12"
+      ],
+      "copyKo": "로그인 후 반납 상태를 확인해 주세요.",
+      "priority": 1
+    },
+    {
+      "id": "RO-02",
+      "condition": "job/epoch/identity contradiction",
+      "effect": "show safe verification state; no device mutation or enrollment",
+      "forbiddenActions": [
+        "RA-03",
+        "RA-04",
+        "RA-05",
+        "RA-11",
+        "RA-02",
+        "RA-06",
+        "RA-07"
+      ],
+      "copyKo": "기기 정보를 다시 확인해야 합니다.",
+      "priority": 2
+    },
+    {
+      "id": "RO-03",
+      "condition": "server state stale/offline or grant issuance unknown",
+      "effect": "replace current success/ready claims with last-known state plus timestamp; remove freshness-dependent actions, then fetch original job before any resubmission",
+      "forbiddenActions": [
+        "RA-03",
+        "RA-04",
+        "RA-05",
+        "RA-11",
+        "RA-06",
+        "RA-07"
+      ],
+      "copyKo": "연결이 끊겼습니다. 마지막으로 확인한 상태를 표시하고 있어요.",
+      "priority": 3
+    },
+    {
+      "id": "RO-04",
+      "condition": "app/device protocol combination not approved",
+      "effect": "read/support only until compatibility resolved; no fallback reset protocol",
+      "forbiddenActions": [
+        "RA-03",
+        "RA-04",
+        "RA-05",
+        "RA-06",
+        "RA-07",
+        "RA-11"
+      ],
+      "copyKo": "이 기기와 앱의 연결을 확인해야 합니다.",
+      "priority": 4
+    },
+    {
+      "id": "RO-05",
+      "condition": "device unreachable",
+      "effect": "server read may continue; reconnect/support; no evidence or local approval inferred",
+      "forbiddenActions": [
+        "RA-04",
+        "RA-06",
+        "RA-07",
+        "RA-11"
+      ],
+      "copyKo": "기기 연결이 필요합니다. 기기를 가까이 두고 다시 연결해 주세요.",
+      "priority": 5
+    },
+    {
+      "id": "RO-06",
+      "condition": "required recovery check not verified",
+      "effect": "precheck only before grant; no backup selection inferred; unresolved product policy is release-design blocker",
+      "forbiddenActions": [
+        "RA-04"
+      ],
+      "copyKo": "기기 밖에서 지갑에 접근할 수 있는지 먼저 확인해 주세요.",
+      "priority": 6
+    }
+  ],
+  "cases": [
+    {
+      "id": "RUX-01",
+      "title": "grant 발급 응답 유실",
+      "baseState": "RU-03",
+      "overlayRefs": [
+        "RO-03"
+      ],
+      "mustNotOffer": [
+        "RA-04",
+        "RA-05",
+        "RA-11"
+      ],
+      "expected": "원job 확인만, 화면 이탈은 취소 아님",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-02",
+      "title": "캐시에는 재대여 가능",
+      "baseState": "RU-07",
+      "overlayRefs": [
+        "RO-03"
+      ],
+      "mustNotOffer": [
+        "RA-11"
+      ],
+      "expected": "최신 gate 재조회 전 신규 배정 비활성",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-03",
+      "title": "서버 반납 완료·정리 미확인",
+      "baseState": "RU-06",
+      "overlayRefs": [],
+      "mustNotOffer": [
+        "RA-11"
+      ],
+      "expected": "성공 문구에 정리 대기와 재대여 제한 표시",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-04",
+      "title": "구대여 job을 새 대여 뒤 열기",
+      "baseState": "RU-10",
+      "overlayRefs": [],
+      "mustNotOffer": [
+        "RA-02",
+        "RA-04",
+        "RA-06",
+        "RA-07",
+        "RA-11"
+      ],
+      "expected": "현재 기기에 원job 동작 전송 없음",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-05",
+      "title": "기기 연결 안 됨",
+      "baseState": "RU-02",
+      "overlayRefs": [
+        "RO-05"
+      ],
+      "mustNotOffer": [
+        "RA-04"
+      ],
+      "expected": "화면 버튼만으로 물리 승인 대체 불가",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-06",
+      "title": "복구 정책 미정/확인 미완료",
+      "baseState": "RU-02",
+      "overlayRefs": [
+        "RO-06"
+      ],
+      "mustNotOffer": [
+        "RA-04"
+      ],
+      "expected": "새 백업 기능·초기화 승인 추정 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-07",
+      "title": "운영자 격리 기기 지원",
+      "baseState": "RU-09",
+      "overlayRefs": [],
+      "mustNotOffer": [
+        "RA-04",
+        "RA-05",
+        "RA-11"
+      ],
+      "expected": "진단/도움만, 완료 처리 버튼 없음",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-08",
+      "title": "구버전 앱 호환 미확인",
+      "baseState": "RU-05",
+      "overlayRefs": [
+        "RO-04"
+      ],
+      "mustNotOffer": [
+        "RA-06",
+        "RA-07",
+        "RA-11"
+      ],
+      "expected": "기존 reset.confirm으로 우회하지 않음",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-09",
+      "title": "로그아웃된 이전 사용자",
+      "baseState": "RU-06",
+      "overlayRefs": [
+        "RO-01"
+      ],
+      "mustNotOffer": [
+        "RA-07",
+        "RA-09"
+      ],
+      "expected": "개인 job/기록은 재인증 전 감춤",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-10",
+      "title": "초기화 journal 재개",
+      "baseState": "RU-04",
+      "overlayRefs": [],
+      "mustNotOffer": [
+        "RA-04",
+        "RA-05"
+      ],
+      "expected": "기기 동일 job 재개와 새 승인 실행 구분",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-11",
+      "title": "취소 요청 결과 미확인",
+      "baseState": "RU-08",
+      "overlayRefs": [
+        "RO-03"
+      ],
+      "mustNotOffer": [
+        "RA-04",
+        "RA-05",
+        "RA-11"
+      ],
+      "expected": "사용 가능 확정 문구 대신 상태 재확인",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-12",
+      "title": "epoch 불일치",
+      "baseState": "RU-07",
+      "overlayRefs": [
+        "RO-02"
+      ],
+      "mustNotOffer": [
+        "RA-04",
+        "RA-11"
+      ],
+      "expected": "재대여 완료 카드보다 불일치 제한 우선",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RUX-13",
+      "title": "서버 완료 후 표식 유실·기기 격리",
+      "baseState": "RU-11",
+      "overlayRefs": [],
+      "mustNotOffer": [
+        "RA-02",
+        "RA-04",
+        "RA-05",
+        "RA-06",
+        "RA-07",
+        "RA-11"
+      ],
+      "expected": "job completed 보존, 정리 확인 실패와 재대여 불가 표시, 진단/지원만",
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "renderingRule": "derive base from current authorized same-job/epoch source, then intersect all guards/overlays; overlays remove actions and may replace stale completion copy; never add permission",
+  "openPolicy": "lateAssetRecovery unresolved; no new backup UI approved",
+  "canonicalScreenCount": 37,
+  "runtimeVerified": false,
+  "layoutStatus": "text_wireframe_not_final_visual_design"
+}

@@ -1,0 +1,5264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1.0"
+    },
+    "manifestId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "draft",
+        "review_candidate"
+      ]
+    },
+    "firmwareBase": {
+      "const": "Zephyr"
+    },
+    "boardModel": {
+      "const": "NU-54V-DK"
+    },
+    "chainId": {
+      "const": 8283
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 26,
+      "maxItems": 26,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-01"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "boardRevision": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "boardTarget": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "zephyrCommit": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "distributionCommit": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "toolchainVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "devicetreeDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kconfigDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "boardRevision",
+                  "boardTarget",
+                  "zephyrCommit",
+                  "distributionCommit",
+                  "toolchainVersion",
+                  "devicetreeDigest",
+                  "kconfigDigest"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "boardRevision": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "boardTarget": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "zephyrCommit": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "distributionCommit": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "toolchainVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "devicetreeDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "kconfigDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-02"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cryptoProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cryptoBackendVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "keyStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "keyPolicyVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "secureBoundaryDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "cryptoProfile",
+                  "cryptoBackendVersion",
+                  "keyStoreSchema",
+                  "keyPolicyVersion",
+                  "secureBoundaryDigest"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "cryptoProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "cryptoBackendVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "keyStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "keyPolicyVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "secureBoundaryDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-03"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "controlProtocol": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "handshakeProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rolePolicyVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "controllerVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "transportProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "controlProtocol",
+                  "handshakeProfile",
+                  "rolePolicyVersion",
+                  "controllerVersion",
+                  "transportProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "controlProtocol": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "handshakeProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rolePolicyVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "controllerVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "transportProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-04"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "intentSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signatureProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "keyPolicyVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "controlProtocol": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "intentSchema",
+                  "reviewSchema",
+                  "signatureProfile",
+                  "keyPolicyVersion",
+                  "controlProtocol"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "intentSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "signatureProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "keyPolicyVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "controlProtocol": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-05"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "boardRevision": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "bootloaderCommit": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "imageFormat": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "partitionDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "updateProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "keyStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "migrationVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "boardRevision",
+                  "bootloaderCommit",
+                  "imageFormat",
+                  "partitionDigest",
+                  "updateProfile",
+                  "keyStoreSchema",
+                  "migrationVersion"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "boardRevision": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "bootloaderCommit": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "imageFormat": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "partitionDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "updateProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "keyStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "migrationVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-06"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ctapVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "transportProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rpPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "authenticatorAlgorithms": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "residentStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "ctapVersion",
+                  "transportProfile",
+                  "rpPolicy",
+                  "authenticatorAlgorithms",
+                  "residentStoreSchema"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "ctapVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "transportProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rpPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "authenticatorAlgorithms": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "residentStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-07"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "audioProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "frameSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sequencePolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "resourcePolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "stampProjectionSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "audioProfile",
+                  "frameSchema",
+                  "sequencePolicy",
+                  "resourcePolicy",
+                  "stampProjectionSchema"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "audioProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "frameSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sequencePolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "resourcePolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "stampProjectionSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-08"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rnVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nativeBridgeVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "androidSdk": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "iosSdk": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "transportProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lifecyclePolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "rnVersion",
+                  "nativeBridgeVersion",
+                  "androidSdk",
+                  "iosSdk",
+                  "transportProfile",
+                  "lifecyclePolicy"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rnVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nativeBridgeVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "androidSdk": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "iosSdk": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "transportProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "lifecyclePolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-09"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "apiSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "policyVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "storageSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "capabilityProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "providerProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "apiSchema",
+                  "policyVersion",
+                  "storageSchema",
+                  "capabilityProfile",
+                  "providerProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "apiSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "policyVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "storageSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "capabilityProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "providerProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-10"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signerProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "intentSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signatureProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "submissionProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "signerProfile",
+                  "intentSchema",
+                  "reviewSchema",
+                  "signatureProfile",
+                  "submissionProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "signerProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "intentSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "signatureProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "submissionProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-11"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "mpcProtocol": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "libraryCommit": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "participantEpoch": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "recoveryProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "transcriptFormat": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "mpcProtocol",
+                  "libraryCommit",
+                  "participantEpoch",
+                  "recoveryProfile",
+                  "transcriptFormat"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "mpcProtocol": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "libraryCommit": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "participantEpoch": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "recoveryProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "transcriptFormat": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-12"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "chainId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "chainFork": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "contractCodeHash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "abiDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "indexerDecoder": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "entryPointCodeHash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "userOpProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tokenProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "chainId",
+                  "chainFork",
+                  "contractCodeHash",
+                  "abiDigest",
+                  "indexerDecoder",
+                  "entryPointCodeHash",
+                  "userOpProfile",
+                  "tokenProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "chainId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "chainFork": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "contractCodeHash": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "abiDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "indexerDecoder": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "entryPointCodeHash": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "userOpProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "tokenProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-13"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "resultSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "objectDigestProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sourceSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "modelDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consentPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "gatewayProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "resultSchema",
+                  "objectDigestProfile",
+                  "sourceSchema",
+                  "modelDigest",
+                  "consentPolicy",
+                  "gatewayProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "resultSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "objectDigestProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sourceSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "modelDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consentPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "gatewayProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-14"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "returnPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "resetEvidenceProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "keyStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "credentialStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "claimProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "returnPolicy",
+                  "resetEvidenceProfile",
+                  "keyStoreSchema",
+                  "credentialStoreSchema",
+                  "claimProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "returnPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "resetEvidenceProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "keyStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "credentialStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "claimProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-15"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fromFirmwareBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "toFirmwareBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fromKeyStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "toKeyStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "partitionDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "bootloaderCommit": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "migrationProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "fromFirmwareBuild",
+                  "toFirmwareBuild",
+                  "fromKeyStoreSchema",
+                  "toKeyStoreSchema",
+                  "partitionDigest",
+                  "bootloaderCommit",
+                  "migrationProfile"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "fromFirmwareBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "toFirmwareBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "fromKeyStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "toKeyStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "partitionDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "bootloaderCommit": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "migrationProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-16"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "failedFirmwareBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rollbackFirmwareBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fromKeyStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rollbackReadableSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rollbackPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "partitionDigest": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "failedFirmwareBuild",
+                  "rollbackFirmwareBuild",
+                  "fromKeyStoreSchema",
+                  "rollbackReadableSchema",
+                  "rollbackPolicy",
+                  "partitionDigest"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "failedFirmwareBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rollbackFirmwareBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "fromKeyStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rollbackReadableSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rollbackPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "partitionDigest": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-17"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "oldAppBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "newFirmwareBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nativeBridgeVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "controlProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "smpProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "firmwareOfferSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "oldAppBuild",
+                  "newFirmwareBuild",
+                  "nativeBridgeVersion",
+                  "controlProfile",
+                  "smpProfile",
+                  "firmwareOfferSchema"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "oldAppBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "newFirmwareBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nativeBridgeVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "controlProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "smpProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "firmwareOfferSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-18"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ownerAppBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "osBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nativeBridgeVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deviceFirmware": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "controlProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "handshakeProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ownerScope": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "smpAccessPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "ownerAppBuild",
+                  "osBuild",
+                  "nativeBridgeVersion",
+                  "deviceFirmware",
+                  "controlProfile",
+                  "handshakeProfile",
+                  "ownerScope",
+                  "smpAccessPolicy"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "ownerAppBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "osBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nativeBridgeVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "deviceFirmware": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "controlProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "handshakeProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "ownerScope": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "smpAccessPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-19"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kioskBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "osBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nativeBridgeVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deviceFirmware": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "controlProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "handshakeProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "attemptScope": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "smpAccessPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "kioskBuild",
+                  "osBuild",
+                  "nativeBridgeVersion",
+                  "deviceFirmware",
+                  "controlProfile",
+                  "handshakeProfile",
+                  "attemptScope",
+                  "smpAccessPolicy"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "kioskBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "osBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nativeBridgeVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "deviceFirmware": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "controlProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "handshakeProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "attemptScope": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "smpAccessPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-20"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "peerBoardRevision": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "peerFirmware": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deviceFirmware": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rasProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "handshakeProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "observationFreshness": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "roleScope": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "peerBoardRevision",
+                  "peerFirmware",
+                  "deviceFirmware",
+                  "rasProfile",
+                  "handshakeProfile",
+                  "observationFreshness",
+                  "roleScope"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "peerBoardRevision": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "peerFirmware": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "deviceFirmware": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rasProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "handshakeProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "observationFreshness": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "roleScope": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-21"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "curve": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hashAlgorithm": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "transactionEncoding": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "chainId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewDecoder": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deviceSignerProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "validatorVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "curve",
+                  "hashAlgorithm",
+                  "transactionEncoding",
+                  "chainId",
+                  "reviewDecoder",
+                  "deviceSignerProfile",
+                  "validatorVersion"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "curve": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "hashAlgorithm": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "transactionEncoding": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "chainId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewDecoder": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "deviceSignerProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "validatorVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-22"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "curve": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hashAlgorithm": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "domainProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "typedDataEncoding": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewDecoder": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signerProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "verifierAddress": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "verifierCodeHash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "curve",
+                  "hashAlgorithm",
+                  "domainProfile",
+                  "typedDataEncoding",
+                  "reviewDecoder",
+                  "signerProfile",
+                  "verifierAddress",
+                  "verifierCodeHash"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "curve": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "hashAlgorithm": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "domainProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "typedDataEncoding": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewDecoder": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "signerProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "verifierAddress": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "verifierCodeHash": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-23"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "curve": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "hashAlgorithm": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "userOpPacking": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "userOpHashVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "chainId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "entryPointAddress": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "entryPointCodeHash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "accountCodeHash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewDecoder": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "curve",
+                  "hashAlgorithm",
+                  "userOpPacking",
+                  "userOpHashVersion",
+                  "chainId",
+                  "entryPointAddress",
+                  "entryPointCodeHash",
+                  "accountCodeHash",
+                  "reviewDecoder"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "curve": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "hashAlgorithm": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "userOpPacking": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "userOpHashVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "chainId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "entryPointAddress": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "entryPointCodeHash": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "accountCodeHash": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewDecoder": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-24"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rpId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "clientDataProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "authenticatorDataProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "coseAlgorithm": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ctapTransport": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "uvPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "credentialStoreSchema": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "rpId",
+                  "clientDataProfile",
+                  "authenticatorDataProfile",
+                  "coseAlgorithm",
+                  "ctapTransport",
+                  "uvPolicy",
+                  "credentialStoreSchema"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "rpId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "clientDataProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "authenticatorDataProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "coseAlgorithm": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "ctapTransport": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "uvPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "credentialStoreSchema": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-25"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "credentialProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "didMethod": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "proofSuite": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "statusProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "issuerKeyVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "verifierVersion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewDecoder": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "credentialProfile",
+                  "didMethod",
+                  "proofSuite",
+                  "statusProfile",
+                  "issuerKeyVersion",
+                  "verifierVersion",
+                  "reviewDecoder"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "credentialProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "didMethod": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "proofSuite": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "statusProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "issuerKeyVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "verifierVersion": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewDecoder": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "matrixId": {
+                "const": "COMP-26"
+              },
+              "pins": {
+                "type": "object",
+                "properties": {
+                  "producerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "consumerBuild": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "x402Version": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "mechanism": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "network": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tokenAddress": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tokenCodeHash": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "authorizationMethod": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nonceProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "signerProfile": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "settlementVerifier": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "gasPolicy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reviewDecoder": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "producerBuild",
+                  "consumerBuild",
+                  "x402Version",
+                  "mechanism",
+                  "network",
+                  "tokenAddress",
+                  "tokenCodeHash",
+                  "authorizationMethod",
+                  "nonceProfile",
+                  "signerProfile",
+                  "settlementVerifier",
+                  "gasPolicy",
+                  "reviewDecoder"
+                ],
+                "additionalProperties": false
+              },
+              "compatibility": {
+                "enum": [
+                  "unverified",
+                  "compatible",
+                  "incompatible"
+                ]
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "matrixId",
+              "pins",
+              "compatibility",
+              "evidenceRefs"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "compatibility": {
+                      "enum": [
+                        "compatible",
+                        "incompatible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "pins": {
+                      "properties": {
+                        "producerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "consumerBuild": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "x402Version": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "mechanism": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "network": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "tokenAddress": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "tokenCodeHash": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "authorizationMethod": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nonceProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "signerProfile": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "settlementVerifier": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "gasPolicy": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "reviewDecoder": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "evidenceRefs": {
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "manifestId",
+    "state",
+    "firmwareBase",
+    "boardModel",
+    "chainId",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "review_candidate"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "items": {
+              "properties": {
+                "compatibility": {
+                  "enum": [
+                    "compatible",
+                    "incompatible"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

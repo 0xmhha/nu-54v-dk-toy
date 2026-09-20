@@ -1,0 +1,68 @@
+{
+  "status": "prepared_synthetic_only",
+  "namespace": "df20260920",
+  "fixtures": {
+    "stores": [
+      {
+        "id": "store-demo-seoul-01",
+        "synthetic": true,
+        "timezone": "Asia/Seoul"
+      }
+    ],
+    "menus": [
+      {
+        "id": "menu-coffee-01",
+        "priceKRW": 5000
+      },
+      {
+        "id": "menu-tea-01",
+        "priceKRW": 4500
+      }
+    ],
+    "devices": [
+      {
+        "id": "nu-demo-01",
+        "profile": "unmeasured",
+        "rentalState": "available"
+      }
+    ],
+    "users": [
+      {
+        "id": "traveler-a",
+        "walletMode": "import"
+      },
+      {
+        "id": "traveler-b",
+        "walletMode": "new_with_recovery"
+      },
+      {
+        "id": "merchant-a",
+        "role": "owner"
+      }
+    ],
+    "places": [
+      {
+        "id": "place-synthetic-01",
+        "source": "synthetic",
+        "lat": 37.5665,
+        "lon": 126.978
+      }
+    ],
+    "commerce": {
+      "fxKRWPerUSD": "1400.00",
+      "quoteTTLSeconds": 60,
+      "refundCases": [
+        "full",
+        "partial",
+        "reorg",
+        "duplicate"
+      ],
+      "stampThreshold": 10
+    }
+  },
+  "classification": {
+    "synthetic": "safe_to_reset",
+    "provider_cache": "delete_by_provider_terms",
+    "personal": "never_seed_into_shared_environment"
+  }
+}

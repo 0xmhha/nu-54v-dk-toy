@@ -1,0 +1,29 @@
+{
+  "status": "revisions_pinned_runtime_not_deployed",
+  "chainEnvironment": "stablenet-test-8283",
+  "backend": {
+    "repo": "https://github.com/0xmhha/indexer-go",
+    "revision": "5baff647f3cfab935f73db1bbd742ad42317045f",
+    "endpoint": null,
+    "databaseSecretRef": "secret://indexer/postgres",
+    "rpc": "https://api.test.stablenet.network/"
+  },
+  "frontend": {
+    "repo": "https://github.com/0xmhha/indexer-frontend",
+    "revision": "e0f8100f94cf9c3862b02f4132fb542bdeae0ae9",
+    "endpoint": null
+  },
+  "policy": {
+    "paymentConfirmations": 2,
+    "startBlock": null,
+    "activeDecoderGeneration": null,
+    "cursorBinds": [
+      "chainId",
+      "deploymentRevision",
+      "decoderGeneration",
+      "filterDigest"
+    ],
+    "rebuildMode": "new_generation_then_atomic_reader_switch"
+  },
+  "activationRule": "No startBlock or decoder is inferred. Register deployed contract manifest first, then backfill and compare completeness before serving product reads."
+}

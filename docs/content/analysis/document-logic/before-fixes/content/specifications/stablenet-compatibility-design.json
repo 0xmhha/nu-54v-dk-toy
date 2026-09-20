@@ -1,0 +1,757 @@
+{
+  "date": "2026-09-19",
+  "status": "design_proposal_not_merged",
+  "packageRef": "DS-04",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "requirementRefs": [
+    11,
+    12,
+    13
+  ],
+  "taskRefs": [
+    "BASE-04",
+    "INDEX-01",
+    "INDEX-02",
+    "INDEX-03",
+    "INDEX-04",
+    "INDEX-05",
+    "INDEX-06",
+    "SMART-01",
+    "SMART-02",
+    "SMART-03",
+    "TOKEN-01",
+    "TOKEN-02",
+    "TOKEN-03"
+  ],
+  "decisionRefs": [
+    "D02",
+    "D08",
+    "D09",
+    "D10",
+    "D11",
+    "D17",
+    "D19"
+  ],
+  "sourceHashes": {
+    "content/planning/full-scope-design-review.json": "9191d5192053e807546f48013926628f5c13ae1442e96c013e28c60830dfd605",
+    "content/planning/work-breakdown.json": "6c7dd2e443ad4278a82adf6fe42782ca7954507cbf95ed48562cc69b9643fa68",
+    "content/stablenet-testnet-baseline.md": "14a380b78853c046c4dd0a35dbe8d5ed7a13a6fc0271097f744f359fbf890c17",
+    "content/indexer-integration-and-test-token.md": "2685ac84bf0f01f3b5aa8b8643d89fbad47a6fedf3404d0bd4b58a16a4bff133",
+    "content/stable-contract-reuse-plan.md": "68bfecc19f495a246b827fd62893c6214c56982ab53a2b54b577616b268e02a9",
+    "content/poc-platform-reuse-plan.md": "f268ca39ea4465f92331a2ea1533362b8c48b65ad90d617b4bb12bcf1bcc127c",
+    "content/expanded-scope-reuse-inventory.md": "ea68941b5487767f71c004a2e5f323ce7cc7fbb696a281b441d0fc483d636a66",
+    "content/specifications/approval-source-dispatch.json": "65a48dd3c4cafab89a7e181869998834d68fd92d79a7d01be97990b48d45eac9",
+    "content/specifications/implementation-interfaces.json": "9fc4ccf7ad039860907863fae1653d50ffff6ee42187c67ab2545c3c194fc356",
+    "content/specifications/commerce-consumer-repair-design.json": "45417ff469fed8f8973994cda711f83bae27dbb007f9f20c712f03b14267c12d",
+    "content/specifications/kiosk-commerce-journey-design.json": "63eb7aa7140067c9f0d08ed7766425e12e60cf46eda3c5559e3aaa1c7a186a9a",
+    "content/specifications/social-wallet-recovery-design.json": "e49cedb03b20f213c45e9a86fb22654cb112560c58dc6e2168292b8841ae68dc"
+  },
+  "network": {
+    "userSelectedRpc": "https://api.test.stablenet.network/",
+    "userSelectedExplorer": "https://explorer.stablenet.network/",
+    "historicallyObservedChainId": 8283,
+    "observationDate": "2026-09-17",
+    "liveVerifiedThisTurn": false,
+    "environmentId": null,
+    "genesisHash": null,
+    "checkpointHash": null,
+    "indexerEndpoint": null
+  },
+  "manifestComponents": [
+    {
+      "id": "CM-01",
+      "title": "네트워크 신원",
+      "requiredFields": [
+        "environmentId",
+        "chainId",
+        "genesisHash",
+        "checkpointNumber",
+        "checkpointHash",
+        "rpcIdentity",
+        "forkFeatureProfile"
+      ],
+      "values": {
+        "environmentId": null,
+        "chainId": null,
+        "genesisHash": null,
+        "checkpointNumber": null,
+        "checkpointHash": null,
+        "rpcIdentity": null,
+        "forkFeatureProfile": null
+      },
+      "rule": "chainId만 일치하면 통과하지 않음; RPC/Indexer/탐색기의 같은 높이 canonical hash와 환경을 확인",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-02",
+      "title": "자산",
+      "requiredFields": [
+        "assetKind",
+        "contractAddress",
+        "codeHash",
+        "proxyImplementation",
+        "abiDigest",
+        "decimals",
+        "mintBurnPolicy",
+        "symbolLabel"
+      ],
+      "values": {
+        "assetKind": null,
+        "contractAddress": null,
+        "codeHash": null,
+        "proxyImplementation": null,
+        "abiDigest": null,
+        "decimals": null,
+        "mintBurnPolicy": null,
+        "symbolLabel": null
+      },
+      "rule": "native는 ERC20 주소 없음; token symbol만으로 식별 금지. proxy 구현/권한 변경 관측 필요",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-03",
+      "title": "계약 배포",
+      "requiredFields": [
+        "sourceCommit",
+        "compilerVersion",
+        "evmTarget",
+        "buildSettingsDigest",
+        "libraryLinks",
+        "dependencyCommits",
+        "runtimeCodeHash",
+        "deploymentBlockHash",
+        "deploymentAddress"
+      ],
+      "values": {
+        "sourceCommit": null,
+        "compilerVersion": null,
+        "evmTarget": null,
+        "buildSettingsDigest": null,
+        "libraryLinks": null,
+        "dependencyCommits": null,
+        "runtimeCodeHash": null,
+        "deploymentBlockHash": null,
+        "deploymentAddress": null
+      },
+      "rule": "로컬 파일/배포 import 경로·submodule/실행 bytecode 일치. 생성/링크/immutable 차이는 검증된 mapping으로 대조",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-04",
+      "title": "스마트계정",
+      "requiredFields": [
+        "accountModel",
+        "accountAddress",
+        "factoryAddress",
+        "implementationHash",
+        "entryPointAddress",
+        "entryPointCodeHash",
+        "entryPointVersion",
+        "validatorVersion",
+        "moduleConfigDigest"
+      ],
+      "values": {
+        "accountModel": null,
+        "accountAddress": null,
+        "factoryAddress": null,
+        "implementationHash": null,
+        "entryPointAddress": null,
+        "entryPointCodeHash": null,
+        "entryPointVersion": null,
+        "validatorVersion": null,
+        "moduleConfigDigest": null
+      },
+      "rule": "지원 version/검증정책/초기화/주소 예측/실제코드 확인. EOA→AA 주소 동일 자동보장 금지",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-05",
+      "title": "서명·제출",
+      "requiredFields": [
+        "signerProfile",
+        "reviewDecoderDigest",
+        "userOpCodecVersion",
+        "hashDomainVersion",
+        "sdkCommit",
+        "bundlerIdentity",
+        "bundlerEntryPoints",
+        "gasMode",
+        "paymasterEnvelopeVersion"
+      ],
+      "values": {
+        "signerProfile": null,
+        "reviewDecoderDigest": null,
+        "userOpCodecVersion": null,
+        "hashDomainVersion": null,
+        "sdkCommit": null,
+        "bundlerIdentity": null,
+        "bundlerEntryPoints": null,
+        "gasMode": null,
+        "paymasterEnvelopeVersion": null
+      },
+      "rule": "curve/domain/encoding/version 정확히 일치; EOA 서명을 UserOp 승인으로 재사용 금지",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-06",
+      "title": "Indexer·decoder",
+      "requiredFields": [
+        "indexerCommit",
+        "schemaDigest",
+        "deploymentId",
+        "abiDigest",
+        "decoderVersion",
+        "effectivePosition",
+        "rpcIdentity",
+        "backfillRange",
+        "completenessPolicy"
+      ],
+      "values": {
+        "indexerCommit": null,
+        "schemaDigest": null,
+        "deploymentId": null,
+        "abiDigest": null,
+        "decoderVersion": null,
+        "effectivePosition": null,
+        "rpcIdentity": null,
+        "backfillRange": null,
+        "completenessPolicy": null
+      },
+      "rule": "blockNumber뿐 아니라 tx/log 순서·upgrade 효과시점 필요; 누락 구간은 complete 아님",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-07",
+      "title": "조회·소비자",
+      "requiredFields": [
+        "apiSchemaVersion",
+        "projectionGeneration",
+        "authorityEpoch",
+        "sourceManifestVersion",
+        "cursorCodecVersion",
+        "ownershipPolicyVersion"
+      ],
+      "values": {
+        "apiSchemaVersion": null,
+        "projectionGeneration": null,
+        "authorityEpoch": null,
+        "sourceManifestVersion": null,
+        "cursorCodecVersion": null,
+        "ownershipPolicyVersion": null
+      },
+      "rule": "체인관측과 업무/개인정보 권한분리. 과거cursor/권한cache만으로 공개 금지",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "id": "CM-08",
+      "title": "호환 증거",
+      "requiredFields": [
+        "producerBuild",
+        "consumerBuild",
+        "testCaseRefs",
+        "evidenceDigests",
+        "observedAt",
+        "revocationRevision"
+      ],
+      "values": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "testCaseRefs": null,
+        "evidenceDigests": null,
+        "observedAt": null,
+        "revocationRevision": null
+      },
+      "rule": "정확한 조합에서 정상/실패·복구 증거 필요. null 동등/서버 응답200은 호환 증거 아님",
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    }
+  ],
+  "assets": [
+    {
+      "id": "native_gas",
+      "label": "사용자가 지정한 네이티브 가스 자산",
+      "kind": "native",
+      "address": null,
+      "decimals": null,
+      "note": "기존 SDK의 WKRC/18 표시는 스냅샷 근거; 현재 네트워크 metadata/기능으로 재검증 필요",
+      "status": "unverified"
+    },
+    {
+      "id": "dummy_usdc",
+      "label": "시연용 더미 USDC",
+      "kind": "erc20",
+      "address": null,
+      "decimals": null,
+      "note": "6 decimals·MockUSDC 이름은 제안만; 공동시연 mint/burn 권한 검증, 실제 USDC 동등성 주장 금지",
+      "status": "unverified"
+    },
+    {
+      "id": "target_usdc",
+      "label": "후속 실제 목표 USDC",
+      "kind": "erc20",
+      "address": null,
+      "decimals": null,
+      "note": "StableNet 지원/공식 주소/관리 기능/자산운영 조건 미확인. 배포 존재를 가정하지 않음",
+      "status": "unverified"
+    },
+    {
+      "id": "wrapped_native",
+      "label": "WKRC wrapped 후보",
+      "kind": "erc20",
+      "address": null,
+      "decimals": null,
+      "note": "native와 별도 contract/balance; wrap/unwrap 코드·이벤트·가스 조달 동작 검증",
+      "status": "unverified"
+    }
+  ],
+  "domainCoverage": [
+    {
+      "id": "OD-01",
+      "domain": "USDC/더미",
+      "observations": "허용 token의 Transfer/Approval·receipt 및 token별 권한/동작",
+      "readModel": "자산잔고·전송·지급관측",
+      "limit": "ERC20 Transfer에 주문ID 없음; 원 intent와 정확한 emitter/from/to/atomic amount/log provenance 확인",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-02",
+      "domain": "WKRC/native/wrapped",
+      "observations": "native 거래/잔고·필요 시 trace, wrapped의 검증된 ABI 이벤트",
+      "readModel": "native 가스·wrapped 잔고/입출금",
+      "limit": "native 비용에 ERC20 Transfer를 요구하지 않음; trace 없는 내부 native 이동은 완전하다고 주장 금지",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-03",
+      "domain": "DeFi",
+      "observations": "선정 pool/router의 swap·유동성·수수료 이벤트와 시점별 상태",
+      "readModel": "시장/견적/포지션·실행이력",
+      "limit": "정확한 상품·ABI 미정. Transfer만으로 swap 가격/성공/포지션을 확정하지 않음",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-04",
+      "domain": "스마트계정",
+      "observations": "EntryPoint/UserOp·계정/모듈/validator 변경과 실행근거",
+      "readModel": "개별 UserOp 결과·계정권한 이력",
+      "limit": "bundle receipt와 UserOp 성공 구분; UserOp 안의 지급/내부실패도 별도 확인",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-05",
+      "domain": "FX",
+      "observations": "선정 통화쌍 spot 또는 파생상품 ABI/가격원",
+      "readModel": "FX quote/체결·포지션",
+      "limit": "상품 모델·가격/환산규칙은 DS05 미정; DeFi 이벤트를 이름만 FX로 변경 금지",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-06",
+      "domain": "Perpetual",
+      "observations": "선정 엔진 position/margin/funding/liquidation·가격근거",
+      "readModel": "포지션·증거금·펀딩·청산 이력",
+      "limit": "고정가격/TODO 코드를 완료로 인정하지 않음; offchain keeper 시도와 onchain 실행 구분",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-07",
+      "domain": "STO",
+      "observations": "선정 발행물의 발행/전송/제한·권리변경",
+      "readModel": "보유/이전제약·권리 상태",
+      "limit": "토큰 전송만으로 법적 권리·자격 확정 금지; DS06 시험상품 기준 필요",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-08",
+      "domain": "DID",
+      "observations": "선정 registry/credential status의 발급·철회 관측과 offchain 검증자료",
+      "readModel": "자격상태·제시 검증 참조",
+      "limit": "개인 credential 원문 onchain/공개Indexer에 저장 금지; 모든 DID가 chain event를 갖는다고 가정하지 않음",
+      "status": "design_mapping_not_deployed"
+    },
+    {
+      "id": "OD-09",
+      "domain": "x402",
+      "observations": "선정 결제 방식 settlement 증거와 HTTP/facilitator 결과",
+      "readModel": "유료자원 지불·제공 상태",
+      "limit": "자원제공 성공은 chain receipt만으로 알 수 없음; protocol version/지원자산·실제 지급 주체 별도",
+      "status": "design_mapping_not_deployed"
+    }
+  ],
+  "indexerStages": [
+    {
+      "id": "IX-01",
+      "stage": "환경/배포 확인",
+      "rule": "CM01/03의 신원·checkpoint/code/권한 검증 후 source 등록. 체인 mismatch면 affected ingestion/새승인 hold",
+      "output": "검증된 environment/deployment revision"
+    },
+    {
+      "id": "IX-02",
+      "stage": "원시 관측 보존",
+      "rule": "block hash/parent·tx receipt/log와 원천 range를 보존. subscription은 알림이며 canonical range 재조회가 기준",
+      "output": "observationId=(environment,blockHash,txHash,logIndex), native/trace는 별도 typed key"
+    },
+    {
+      "id": "IX-03",
+      "stage": "누락/재구성 탐지",
+      "rule": "cursor의 hash ancestry 대조, 공통조상까지 검증 후 새 branch 읽기. finality 가정 밖 재구성은 격리·전체영향검토",
+      "output": "contiguous complete range; highest block만으로 checkpoint 전진 금지"
+    },
+    {
+      "id": "IX-04",
+      "stage": "버전별 decoding",
+      "rule": "배포주소/code/proxy upgrade position에 맞는 ABI/decoder 적용. 같은 block의 upgrade 전후 순서 불명하면 해당범위 hold",
+      "output": "immutable decode version + 원 raw digest + decoded/unsupported/invalid 상태"
+    },
+    {
+      "id": "IX-05",
+      "stage": "실행 귀속",
+      "rule": "EOA tx와 UserOp를 구분하고 expected payload/실제 log를 결합. 동일 bundle 내 매칭 모호하면 hold",
+      "output": "source execution ref와 exact evidence mapping; timestamp/amount만으로 연결 금지"
+    },
+    {
+      "id": "IX-06",
+      "stage": "업무 대사",
+      "rule": "현재 canonicality/confirmation/원 policy와 원 주문·환불 provenance 검사; shared gate와 funding hold 원자변경",
+      "output": "기존 allocation/effect identity 유지, observation revision 한번 적용; chain 이벤트가 주문승인을 대체하지 않음"
+    },
+    {
+      "id": "IX-07",
+      "stage": "조회 projection",
+      "rule": "source cut/authorityEpoch/completeness/ownership를 확인해 consumer별 기여분과 generation 반영",
+      "output": "앱 asOf/freshness/held와 cursor; stale/unknown을 0/failed로 변환 금지"
+    },
+    {
+      "id": "IX-08",
+      "stage": "decoder 교체·재처리",
+      "rule": "새 decoder로 shadow build/diff→검토→현재권한/source/generation/fence 재확인→단일consumer atomic publish",
+      "output": "기존 CP-B06 준수; raw 이력/원마감 보존, 재처리로 신규지급/보상/환불 생성 금지"
+    }
+  ],
+  "accountTransitions": [
+    {
+      "id": "AA-01",
+      "fromState": "eoa_active",
+      "toState": "plan_ready",
+      "guard": "선택된 account model, 원 signer/지갑·목표주소/validator/가스·자산/권한 차이 검토",
+      "record": "planDigest와 원 account/binding/source revision 고정, 잔여원거래·nonce 노출 목록"
+    },
+    {
+      "id": "AA-02",
+      "fromState": "plan_ready",
+      "toState": "authorized",
+      "guard": "기기/Cloud의 모델별 명시 승인; current profile/주소/정책/가스 재검사",
+      "record": "EOA transfer, UserOp, 7702 authorization을 별도 목적/서명형식으로 승인"
+    },
+    {
+      "id": "AA-03",
+      "fromState": "authorized",
+      "toState": "execution_pending",
+      "guard": "등록된 smart_account adapter와 exact EntryPoint/bundler/validator 조합",
+      "record": "operation/account/authorization/UserOp/tx별 추적. 제출unknown이면 같은결과 조회"
+    },
+    {
+      "id": "AA-04",
+      "fromState": "execution_pending",
+      "toState": "account_verified",
+      "guard": "예측주소 아닌 실제 코드/초기화/validator·owner 권한 및 실행관측 검증",
+      "record": "새계정 사용가능성과 자산 이전완료 분리; onchain 변경 전 서버 UI만 owner 바꾸지 않음"
+    },
+    {
+      "id": "AA-05",
+      "fromState": "account_verified",
+      "toState": "migration_pending",
+      "guard": "선택 자산 이동과 기존 allowance 유지/철회·새주소 allowance 신규승인 및 권한변경을 각각 plan으로 검토/승인; 가스/잔여작업 재검토",
+      "record": "원주소와 신규주소별 transfer/권한 결과 추적. import unrelated 자산 sweep 금지"
+    },
+    {
+      "id": "AA-06",
+      "fromState": "account_verified|migration_pending",
+      "toState": "ready",
+      "guard": "선택 model의 정상승인/거절·잔고/권한/가스/미결과 확인. 자산이전 없음도 명시적 plan 결과; 현재 account/binding/config revision과 모든 제한 재검사",
+      "record": "원 EOA 주소/과거영수증/진행거래 유지; 선택한 계획의 완료만 표시; expected plan/state revision CAS, 늦은 결과가 held 상태를 덮어쓰지 않음"
+    },
+    {
+      "id": "AA-07",
+      "fromState": "plan_ready|authorized|execution_pending|account_verified|migration_pending",
+      "toState": "held",
+      "guard": "불일치/철회/reorg/만료/응답유실",
+      "record": "원 단계/노출/commit 관측 후 재개. 원 EOA를 자동삭제하거나 새 plan 자동서명 금지"
+    }
+  ],
+  "selections": {
+    "smartAccountModel": null,
+    "entryPointVersion": null,
+    "dummyContract": null,
+    "actualUsdcContract": null,
+    "gasFundingRoute": null,
+    "confirmationPolicy": null,
+    "abiUpgradeBoundaryProfile": null,
+    "paymasterPolicy": null
+  },
+  "runtimeCases": [
+    {
+      "id": "SC-T01",
+      "scenario": "같은 chainId 다른 genesis/checkpoint",
+      "expected": "environment mismatch 차단",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T02",
+      "scenario": "탐색기만 다른 RPC",
+      "expected": "관측 불일치 표시·링크 동일성 미검증; 서비스 endpoint 추정 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T03",
+      "scenario": "동명 토큰 다른 주소",
+      "expected": "다른 asset, 결제 허용목록 거절",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T04",
+      "scenario": "wrapped 잔고만 충분",
+      "expected": "native gas 부족 구분",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T05",
+      "scenario": "토큰 decimals 6→18 차이",
+      "expected": "manifest conflict·금액재검토, 과거 atomic 해석 덮어쓰기 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T06",
+      "scenario": "무권한 mint/burn mock",
+      "expected": "공동시연 manifest 검증 실패; 테스트전용 제한 후 별도검증",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T07",
+      "scenario": "proxy 같은 주소 구현 변경",
+      "expected": "새 code/ABI interval 검증, 미지원범위 hold",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T08",
+      "scenario": "스크립트 @kernel과 로컬 Kernel 차이",
+      "expected": "실제 dependency build 검증 전 호환불가",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T09",
+      "scenario": "Prague/7702 지원 불명",
+      "expected": "해당 opcode/계정경로 enable 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T10",
+      "scenario": "bundler EntryPoint 버전 불일치",
+      "expected": "UserOp 제출 거절; legacy 자동하향 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T11",
+      "scenario": "paymaster envelope 불일치",
+      "expected": "후원미지원, 사용자 추가승인 없이 fee payer 변경 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T12",
+      "scenario": "정상 EOA 토큰 지급",
+      "expected": "원 tx+exact log·현재 confirmation·업무정책으로 귀속/수락",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T13",
+      "scenario": "receipt 성공·token Transfer 없음",
+      "expected": "지급미충족/검토; receipt만 paid 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T14",
+      "scenario": "한 bundle 두 UserOp 한개 실패",
+      "expected": "개별success/증거로 판정, txstatus 전체성공 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T15",
+      "scenario": "동일 bundle 동일금액 여러전송",
+      "expected": "검증된 UserOp 귀속 없으면 hold",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T16",
+      "scenario": "다른 EntryPoint에서 같은 hash 주장",
+      "expected": "domain/source mismatch 거절",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T17",
+      "scenario": "서명뒤 account module 변경",
+      "expected": "현validator/config 재검사·기존노출추적",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T18",
+      "scenario": "AA 주소만 예측된 상태",
+      "expected": "설치/사용가능 완료로 표시 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T19",
+      "scenario": "7702 위임 제거 후 과거효과",
+      "expected": "과거자산이동/allowance/서명소급취소 주장 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T20",
+      "scenario": "EOA→새계정 일부이전 실패",
+      "expected": "partial/원주소잔고·gas 남김, 전체완료 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T21",
+      "scenario": "구독 장기단절",
+      "expected": "해시커서/범위겹침 backfill·중복제거, replayLast만으로 완료 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T22",
+      "scenario": "중복/역순 logs",
+      "expected": "같은관측 version 한번반영·빈구간checkpoint 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T23",
+      "scenario": "reorg 후 동일 tx 재포함",
+      "expected": "old 관측 invalidated·new관측 재검증, stable 업무source 중복효과 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T24",
+      "scenario": "재실행된 tx의 logs 변경",
+      "expected": "semantic provenance 재검사, 이전 logIndex를 무조건 동일지급으로 취급 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T25",
+      "scenario": "같은 block 중 upgrade",
+      "expected": "tx/log 효과순서 불명 decoder hold",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T26",
+      "scenario": "원입금 reorg 환불유효",
+      "expected": "funding hold·signed 음수 차이/환불노출 보존",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T27",
+      "scenario": "decoder 재처리후 stamp",
+      "expected": "같은entitlement 보정, 새 grant 자동생성 없음",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T28",
+      "scenario": "old backup/cursor 복원",
+      "expected": "최신authorityEpoch/fence/삭제기록 대조 전 공개/쓰기 hold",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T29",
+      "scenario": "Indexer lag",
+      "expected": "unknown/stale 표시, 결제실패/잔고0 추정 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T30",
+      "scenario": "frontend transfer 응답 logIndex 누락",
+      "expected": "결제대사 증거로 단독사용 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T31",
+      "scenario": "DID offchain 자격",
+      "expected": "발급/철회 검증 참조 별도, 없는 chain event 제조 금지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T32",
+      "scenario": "x402 지급성공 자원실패",
+      "expected": "settlement와 delivery 상태 분리",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T33",
+      "scenario": "public explorer 타인 주문정보",
+      "expected": "체인공개자료와 사적 주문/위치 ACL 분리",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SC-T34",
+      "scenario": "정상 AA 계정+UserOp 조회",
+      "expected": "선택 exact tuple 정상/실패 증거와 source adapter 채택 후만 compatible",
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "externalReferences": [
+    {
+      "url": "https://eips.ethereum.org/EIPS/eip-20",
+      "checkedAt": "2026-09-19"
+    },
+    {
+      "url": "https://eips.ethereum.org/EIPS/eip-4337",
+      "checkedAt": "2026-09-19"
+    },
+    {
+      "url": "https://eips.ethereum.org/EIPS/eip-7702",
+      "checkedAt": "2026-09-19"
+    }
+  ],
+  "nextDesign": "DS-05 DeFi·FX·Perpetual 상품별 상태/위험 계약"
+}

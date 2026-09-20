@@ -1,0 +1,31 @@
+{
+  "date": "2026-09-19",
+  "status": "design_artifact_manifest_not_release",
+  "runtimeVerified": false,
+  "files": {
+    "content/specifications/credential-paid-resource-design.json": "b474d7d9ef58bd9251d87845530554cc27a80c19e9d2eecae7b45bbb319911b6",
+    "content/specifications/credential-paid-resource-design.md": "7e77b860e7dc32aa4c94bfe55ef90b32e3e4e43241894d8f03e749e0ddfa582a",
+    "content/specifications/recording-travel-ai-design.json": "8a4a9073cfc0cb197e255d2ecd64bce4d1f2bfd931dca4bce2c98627bf47a430",
+    "content/specifications/recording-travel-ai-design.md": "134209ca38f010c069dc78f5eae3c4f2c8963fb3d2c68e2d9e29e64e2e7cc6a7",
+    "content/specifications/operations-release-acceptance-design.json": "f2f425bae3a7b8be7e3dd2db287a9b2a4ae0ab02633a2cd9217a2762bd7fae3e",
+    "content/specifications/operations-release-acceptance-design.md": "c9102b1de1003f0a41d7662ff9a5655f50eafa7d878fefda300301371585dbc2",
+    "content/specifications/preimplementation-contract-overlay.json": "31df189970849ffb4fe38b1b0e773f671a6d4905f49268644bba030a27ae5e97",
+    "content/specifications/preimplementation-contract-overlay.md": "07a59bc7eb92dbfad5f42bbe799b49b010bb1b7ed341128fef0fe0280f81881b",
+    "content/planning/preimplementation-handoff.json": "213c69e4ae80d0613745fb72909e1681589106eb13cb3165b7740a430063ca14",
+    "content/planning/preimplementation-handoff.md": "01a6ec42496874f4fa31f2a5b5e44ae201cff637105b868409745081a8b69a6f",
+    "content/planning/preimplementation-task-handoffs.md": "a6b12fe8e7bdf1801d7dad12f757e33f8643e3d0c9261af957a7f9b374d3f458",
+    "content/planning/preimplementation-evidence.template.json": "284beae3b0d511b278cb700fe7f51966079504c0d4378d05c057bf922ca10084",
+    "content/planning/validate_preimplementation_handoff.py": "3fd77af09f36c84319f4432841d32066cb2774b5cd24b112695b0f0ba4adbf64",
+    "content/planning/preimplementation-validation.json": "920fd6c5a0f87df9e52874497a288b8057f0d4489f4b9580926411e5ea1acaa5",
+    "content/specifications/social-wallet-recovery-design.json": "ad7c09ce997202be28fa87401afad16fafbfd5a05b9e47b31349c1ebc3dcdba8",
+    "content/specifications/social-wallet-recovery-design.md": "95066fbc57316e8fcdcf2b2d16141e6876fb1bb31709a7c1627610ff3f6ee8db",
+    "content/specifications/validate_social_wallet_recovery.py": "d7280198135d8ed1449775874a52965ee26a0bda97efd8e3506c73e210b33b28",
+    "content/specifications/device-coexistence-design.json": "1e26ec86fbcf7d1f5416f8cf8ff69ea742ea24860ede6d82cbc3b2d7c70a581d",
+    "content/specifications/device-coexistence-design.md": "096b8c53fabd15ce4075509bcb1510a6cb133bc0e7078dcf961a0246aced2ac5",
+    "content/specifications/kiosk-commerce-journey-design.json": "4309427c40213e9ab90d49f2aa7ed45b2eaa40f3e59b560a1ccfe88a61293d1b",
+    "content/specifications/kiosk-commerce-journey-design.md": "ae5b7855cd77edd9ef68c7ae6f161f385af81bb1465d6063e1f5caf80ae1ca7c",
+    "content/specifications/commerce-consumer-repair-design.json": "9a6741499264e0e94ddb10167260399687de7e1aaacfa91e121b1ee3f3745b81",
+    "content/specifications/commerce-consumer-repair-design.md": "b46510c7d9fb62623fbed433e31fc38bb64a12977d165c35467f40686a03793e"
+  },
+  "revisionNote": "LG01..18 design corrections; earlier manifests preserved in analysis snapshots"
+}

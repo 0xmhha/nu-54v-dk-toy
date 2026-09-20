@@ -1,0 +1,64 @@
+{
+  "scope": "journey_traceability_and_reference_validation_only",
+  "canonicalMerged": false,
+  "runtimeRuns": 0,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_lifecycle_journeys.py",
+      "chunk_id": "9792a8",
+      "wall_time_seconds": 0.000002833,
+      "exit_code": 0,
+      "original_token_count": 58,
+      "output": "{\"scope\": \"journey_traceability_only\", \"journeys\": 16, \"uniqueSourceCasesLinked\": 107, \"adoptionPackages\": 5, \"openGaps\": 5, \"sourceFilesPreserved\": 8, \"wbsTasks\": 104, \"wbsSteps\": 320, \"runtimeRuns\": 0, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_enrollment_continuity.py",
+      "chunk_id": "ae1a0f",
+      "wall_time_seconds": 0.000001417,
+      "exit_code": 0,
+      "original_token_count": 67,
+      "output": "{\"scope\": \"design_inventory_and_references_only\", \"httpAliases\": 5, \"bleAliases\": 3, \"signedMessageSpecifications\": 6, \"registryTableProposals\": 7, \"atomicMappings\": 8, \"adoptionCriteria\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 8, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_bootstrap.py",
+      "chunk_id": "e7d551",
+      "wall_time_seconds": 0.072220625,
+      "exit_code": 0,
+      "original_token_count": 56,
+      "output": "{\"scope\": \"design_shapes_and_references_only\", \"httpAliases\": 9, \"bleAliases\": 3, \"pendingRouteOverlays\": 17, \"validShapes\": 36, \"invalidShapes\": 13, \"unchangedInputs\": 8, \"runtimeCasesNotRun\": 22, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_storage.py",
+      "chunk_id": "84f4cd",
+      "wall_time_seconds": 0.000001209,
+      "exit_code": 0,
+      "original_token_count": 65,
+      "output": "{\"scope\": \"storage_design_inventory_only\", \"proposedTables\": 14, \"atomicUnits\": 12, \"firmwareStores\": 4, \"migrationPhasesNotRun\": 8, \"runtimeCasesNotRun\": 26, \"unchangedSqlTables\": 61, \"unchangedSqlFiles\": 7, \"pinnedDesignInputs\": 9, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "chunk_id": "ac17f1",
+      "wall_time_seconds": 0.00000125,
+      "exit_code": 0,
+      "original_token_count": 26,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "chunk_id": "c41995",
+      "wall_time_seconds": 0.000001167,
+      "exit_code": 0,
+      "original_token_count": 60,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": "Separated branch test pass criteria from concrete user-visible completion for all16 journeys; normal controls mandatory for full pass",
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "107 case references are coverage, not runtime tests",
+    "Five explicit open gaps remain",
+    "This acceptance document covers rental lifecycle only, not whole15-requirement product"
+  ]
+}

@@ -1,0 +1,668 @@
+{
+  "version": "0.1.0-draft",
+  "firmwareBase": "Zephyr",
+  "scope": "component interfaces; not actual C ABI, GATT layout or provider protocol",
+  "interfaces": [
+    {
+      "id": "IF-01",
+      "title": "NU 보드·장치 드라이버",
+      "producer": "Zephyr board/drivers",
+      "consumer": "firmware services",
+      "taskRefs": [
+        "HW-01",
+        "HW-07"
+      ],
+      "technologyRefs": [
+        "TECH-06"
+      ],
+      "apiRefs": [],
+      "bleCommands": [
+        "device.info"
+      ],
+      "methods": [
+        {
+          "name": "initialize",
+          "inputShape": "BoardConfig",
+          "outputShape": "DeviceCapabilities"
+        },
+        {
+          "name": "read_sensor",
+          "inputShape": "SensorHandle, deadline",
+          "outputShape": "SensorSample"
+        },
+        {
+          "name": "set_output",
+          "inputShape": "OutputCommand, deadline",
+          "outputShape": "OutputResult"
+        }
+      ],
+      "invariant": "보드 리비전·핀·전원과 capability 일치; Nordic DK 식별자로 NU의 핀 구성을 대체하지 않음",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-02",
+      "title": "키 저장·암호 서비스",
+      "producer": "isolated firmware key service",
+      "consumer": "wallet/passkey service",
+      "taskRefs": [
+        "HW-02",
+        "HW-04",
+        "HW-05",
+        "KEY-02"
+      ],
+      "technologyRefs": [
+        "TECH-07"
+      ],
+      "apiRefs": [],
+      "bleCommands": [
+        "wallet.create",
+        "wallet.import.begin",
+        "wallet.import.chunk",
+        "wallet.import.commit",
+        "wallet.import.abort",
+        "wallet.address"
+      ],
+      "methods": [
+        {
+          "name": "create",
+          "inputShape": "KeyPolicy",
+          "outputShape": "KeyHandle, publicMetadata"
+        },
+        {
+          "name": "import_secure",
+          "inputShape": "AuthenticatedImportSession, encryptedChunk",
+          "outputShape": "ImportProgress"
+        },
+        {
+          "name": "sign_authorized",
+          "inputShape": "KeyHandle, ApprovedPayload",
+          "outputShape": "SignatureResult"
+        },
+        {
+          "name": "erase",
+          "inputShape": "OwnerResetAuthorization",
+          "outputShape": "EraseEvidence"
+        }
+      ],
+      "invariant": "호출자가 handle을 안다는 것만으로 서명 불가; purpose/actor 승인 검사; 키 원문·MPC share 반환 없음",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-03",
+      "title": "인증 세션·BLE 전송",
+      "producer": "firmware session service",
+      "consumer": "RN native bridge / kiosk / ranging peer",
+      "taskRefs": [
+        "HW-03",
+        "HW-06",
+        "BASE-03"
+      ],
+      "technologyRefs": [
+        "TECH-09"
+      ],
+      "apiRefs": [
+        "API-033",
+        "API-034"
+      ],
+      "bleCommands": [
+        "session.open",
+        "session.confirm",
+        "session.close",
+        "proximity.observe"
+      ],
+      "methods": [
+        {
+          "name": "open",
+          "inputShape": "PeerProof, requestedRole, protocolOffer",
+          "outputShape": "HandshakeResult"
+        },
+        {
+          "name": "dispatch",
+          "inputShape": "AuthenticatedFrame",
+          "outputShape": "RequestReceipt"
+        },
+        {
+          "name": "close",
+          "inputShape": "SessionHandle, reason",
+          "outputShape": "ClosedState"
+        }
+      ],
+      "invariant": "role·transcript·sequence·scope·capability를 인증된 세션에 결합; unauthenticated feature 광고만으로 허용 금지; approval-baseline schema/ancestry/current action rights are mandatory; draft labels are not tested compatibility",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-04",
+      "title": "기기 검토·서명 승인",
+      "producer": "firmware approval service",
+      "consumer": "wallet service / payment peer",
+      "taskRefs": [
+        "HW-05",
+        "HW-07",
+        "PAY-05"
+      ],
+      "technologyRefs": [
+        "TECH-07",
+        "TECH-13"
+      ],
+      "apiRefs": [
+        "API-034",
+        "API-018"
+      ],
+      "bleCommands": [
+        "payment.identify",
+        "payment.prepare",
+        "payment.result",
+        "wallet.sign.prepare",
+        "wallet.sign.result",
+        "request.cancel"
+      ],
+      "methods": [
+        {
+          "name": "prepare",
+          "inputShape": "TypedIntent, session",
+          "outputShape": "ReviewHandle"
+        },
+        {
+          "name": "approve",
+          "inputShape": "ReviewHandle, physicalAction",
+          "outputShape": "ApprovalEvidence"
+        },
+        {
+          "name": "result",
+          "inputShape": "RequestId, currentReadAuthority",
+          "outputShape": "SignatureOrState"
+        }
+      ],
+      "invariant": "review의 표시 필드와 실제 payload digest를 결합; 불투명 hash의 blind sign fallback 금지; 취소가 이미 전송된 거래를 취소하지 않음; approval-baseline schema/ancestry/current action rights are mandatory; draft labels are not tested compatibility",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-05",
+      "title": "FOTA·부트·설정 migration",
+      "producer": "Zephyr update service / bootloader",
+      "consumer": "RN update bridge",
+      "taskRefs": [
+        "OTA-01",
+        "OTA-02",
+        "OTA-03",
+        "OTA-04"
+      ],
+      "technologyRefs": [
+        "TECH-08"
+      ],
+      "apiRefs": [
+        "API-048",
+        "API-049",
+        "API-101"
+      ],
+      "bleCommands": [
+        "fota.begin",
+        "fota.chunk",
+        "fota.finalize",
+        "fota.apply",
+        "fota.status"
+      ],
+      "methods": [
+        {
+          "name": "offer",
+          "inputShape": "SignedUpdateManifest, currentInventory",
+          "outputShape": "CompatibilityDecision"
+        },
+        {
+          "name": "upload",
+          "inputShape": "ImageChunk, transferState",
+          "outputShape": "VerifiedProgress"
+        },
+        {
+          "name": "apply",
+          "inputShape": "ReadyImage, policy",
+          "outputShape": "RebootIntent"
+        },
+        {
+          "name": "confirm_boot",
+          "inputShape": "SelfTestResult, migratedSettings",
+          "outputShape": "BootHealth"
+        }
+      ],
+      "invariant": "논리 fota.*가 SMP wire 자체는 아님; 검증된 MCUmgr image 관리 adapter에 매핑. 전송 완료와 image 검증/부팅 확인을 구분",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-06",
+      "title": "표준 패스키 인증기",
+      "producer": "firmware CTAP authenticator",
+      "consumer": "verified CTAP transport / RP client",
+      "taskRefs": [
+        "KEY-01",
+        "KEY-02",
+        "KEY-03",
+        "STAMP-04"
+      ],
+      "technologyRefs": [
+        "TECH-10"
+      ],
+      "apiRefs": [],
+      "bleCommands": [
+        "credentials.list",
+        "credentials.delete"
+      ],
+      "methods": [
+        {
+          "name": "make_credential",
+          "inputShape": "ValidatedCtapRequest",
+          "outputShape": "AttestedCredentialResult"
+        },
+        {
+          "name": "get_assertion",
+          "inputShape": "ValidatedCtapRequest",
+          "outputShape": "AssertionResult"
+        },
+        {
+          "name": "manage_credential",
+          "inputShape": "OwnerAuthorization, CredentialId",
+          "outputShape": "CredentialState"
+        }
+      ],
+      "invariant": "credentials.list/delete는 앱 관리 명령; RP 인증은 CTAP 경로로 수행. 외부 bridge는 transport이고 private key 보관자가 아님",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-07",
+      "title": "녹음·찾기·스탬프와 중재",
+      "producer": "firmware feature services",
+      "consumer": "native audio/storage / user app",
+      "taskRefs": [
+        "REC-01",
+        "REC-02",
+        "FIND-01",
+        "STAMP-02",
+        "HW-07"
+      ],
+      "technologyRefs": [
+        "TECH-11",
+        "TECH-09"
+      ],
+      "apiRefs": [
+        "API-043",
+        "API-051"
+      ],
+      "bleCommands": [
+        "recording.start",
+        "recording.stop",
+        "audio.frame",
+        "audio.flow-control",
+        "find.start",
+        "find.stop",
+        "passport.sync",
+        "device.settings.update"
+      ],
+      "methods": [
+        {
+          "name": "acquire",
+          "inputShape": "FeatureRequest, deadline",
+          "outputShape": "LeaseOrBusy"
+        },
+        {
+          "name": "emit_audio",
+          "inputShape": "RecordingHandle, sequence, timestamp, bytes",
+          "outputShape": "FrameReceipt"
+        },
+        {
+          "name": "stop",
+          "inputShape": "FeatureHandle",
+          "outputShape": "FinalFeatureState"
+        }
+      ],
+      "invariant": "control/approval/audio/flash 자원 예산과 우선순위 명시; 누락 오디오는 원음으로 채우지 않음; 미귀속 stamp는 사용 가능으로 표시 금지",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-08",
+      "title": "RN native 기능 경계",
+      "producer": "Android/iOS native modules",
+      "consumer": "RN TypeScript app",
+      "taskRefs": [
+        "APP-01",
+        "SHOP-01",
+        "REC-02",
+        "OTA-03"
+      ],
+      "technologyRefs": [
+        "TECH-01",
+        "TECH-09",
+        "TECH-11"
+      ],
+      "apiRefs": [
+        "API-103",
+        "API-001"
+      ],
+      "bleCommands": [],
+      "methods": [
+        {
+          "name": "connect_device",
+          "inputShape": "DeviceSelector, expectedProfile",
+          "outputShape": "ConnectionHandle"
+        },
+        {
+          "name": "execute",
+          "inputShape": "LogicalCommand, requestId",
+          "outputShape": "AsyncOperation"
+        },
+        {
+          "name": "subscribe",
+          "inputShape": "ConnectionHandle, eventType",
+          "outputShape": "EventSubscription"
+        },
+        {
+          "name": "dispose",
+          "inputShape": "OwnerContext",
+          "outputShape": "Disposed"
+        }
+      ],
+      "invariant": "JS bridge에 니모닉·key handle의 무제한 서명권을 노출하지 않음; 실제 import 입력 보호 및 lifecycle 별도; 같은 request 재연결 시 자동 재서명 금지",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-09",
+      "title": "계정·정책·저장 서비스",
+      "producer": "business API / security adapters",
+      "consumer": "user/kiosk/backoffice",
+      "taskRefs": [
+        "AUTH-01",
+        "AUTH-04",
+        "BASE-05",
+        "OPS-01"
+      ],
+      "technologyRefs": [
+        "TECH-02",
+        "TECH-03",
+        "TECH-04"
+      ],
+      "apiRefs": [
+        "API-001",
+        "API-006",
+        "API-103",
+        "API-104",
+        "API-105",
+        "API-106",
+        "API-108",
+        "API-109",
+        "API-110"
+      ],
+      "bleCommands": [],
+      "methods": [
+        {
+          "name": "authorize",
+          "inputShape": "VerifiedPrincipal, ResourceAction",
+          "outputShape": "PolicyDecision"
+        },
+        {
+          "name": "commit_command",
+          "inputShape": "IdempotentCommand, expectedRevision",
+          "outputShape": "DurableResult"
+        },
+        {
+          "name": "resolve_claim",
+          "inputShape": "AccountProof, HistoricalEligibility",
+          "outputShape": "ClaimState"
+        }
+      ],
+      "invariant": "107 API 계약·57 정책·15 논리 저장 자원에 연결; key material은 일반 업무 저장소로 이동하지 않음; approval-baseline schema/ancestry/current action rights are mandatory; draft labels are not tested compatibility",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-10",
+      "title": "HW/Cloud/스마트 계정 signer 선택",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "taskRefs": [
+        "BASE-06",
+        "APP-03",
+        "MPC-03",
+        "SMART-03"
+      ],
+      "technologyRefs": [
+        "TECH-12",
+        "TECH-13",
+        "TECH-14"
+      ],
+      "apiRefs": [
+        "API-015",
+        "API-017",
+        "API-018",
+        "API-056",
+        "API-108",
+        "API-109",
+        "API-110"
+      ],
+      "bleCommands": [],
+      "methods": [
+        {
+          "name": "describe_support",
+          "inputShape": "WalletBinding",
+          "outputShape": "SignerCapabilities"
+        },
+        {
+          "name": "prepare",
+          "inputShape": "CanonicalIntent",
+          "outputShape": "ReviewRequest"
+        },
+        {
+          "name": "sign",
+          "inputShape": "ApprovedIntent, signerProfile",
+          "outputShape": "TypedSignature"
+        },
+        {
+          "name": "resume",
+          "inputShape": "OperationId, authority",
+          "outputShape": "OperationState"
+        }
+      ],
+      "invariant": "EOA tx·typed data·UserOp·credential proof를 구분; 지원하지 않는 형식은 거절. HW 승인에 Cloud MPC quorum을 강제하지 않음; approval-baseline schema/ancestry/current action rights are mandatory; draft labels are not tested compatibility",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-11",
+      "title": "MPC 참여자·복구",
+      "producer": "isolated MPC engine",
+      "consumer": "cloud signing coordinator / mobile participant",
+      "taskRefs": [
+        "MPC-01",
+        "MPC-02",
+        "MPC-03",
+        "MPC-04",
+        "MPC-05"
+      ],
+      "technologyRefs": [
+        "TECH-12"
+      ],
+      "apiRefs": [
+        "API-014",
+        "API-015",
+        "API-016"
+      ],
+      "bleCommands": [],
+      "methods": [
+        {
+          "name": "begin_round",
+          "inputShape": "ProtocolSession, authenticatedParticipants",
+          "outputShape": "RoundState"
+        },
+        {
+          "name": "advance",
+          "inputShape": "BoundRoundMessage",
+          "outputShape": "RoundState"
+        },
+        {
+          "name": "finish",
+          "inputShape": "QuorumTranscript",
+          "outputShape": "PublicKeyOrSignature"
+        },
+        {
+          "name": "recover",
+          "inputShape": "RecoveryPolicyProof",
+          "outputShape": "NewParticipantEpoch"
+        }
+      ],
+      "invariant": "세션/round/participant epoch 재사용 방지; 앱/server/recovery 신뢰 경계; 전체키 재조립을 임계 서명으로 대체하지 않음",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-12",
+      "title": "체인·계약·Indexer",
+      "producer": "chain adapter / contracts / indexer",
+      "consumer": "payment and market services",
+      "taskRefs": [
+        "TOKEN-01",
+        "INDEX-02",
+        "INDEX-04",
+        "INDEX-06",
+        "PAY-04",
+        "SMART-02",
+        "X402-02"
+      ],
+      "technologyRefs": [
+        "TECH-13",
+        "TECH-14",
+        "TECH-15",
+        "TECH-17",
+        "TECH-19"
+      ],
+      "apiRefs": [
+        "API-019",
+        "API-058",
+        "API-061",
+        "API-064",
+        "API-071"
+      ],
+      "bleCommands": [],
+      "methods": [
+        {
+          "name": "encode",
+          "inputShape": "ActionProfile, manifest",
+          "outputShape": "SignablePayload"
+        },
+        {
+          "name": "submit",
+          "inputShape": "SignedPayload, expectedChain",
+          "outputShape": "TransactionReference"
+        },
+        {
+          "name": "observe",
+          "inputShape": "SourceRef, cursor",
+          "outputShape": "CanonicalObservation"
+        },
+        {
+          "name": "project",
+          "inputShape": "VerifiedEvent, revision",
+          "outputShape": "ProjectionUpdate"
+        }
+      ],
+      "invariant": "chain 8283·ABI/code hash·asset units·EntryPoint/hash一致를 검사; receipt/개별 UserOp/event 귀속 확인 전 성공 처리 금지",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-13",
+      "title": "보호 결과·전사·추천",
+      "producer": "trusted worker / object gateway",
+      "consumer": "app / travel services",
+      "taskRefs": [
+        "REC-03",
+        "AI-01",
+        "AI-02",
+        "TRIP-04",
+        "BASE-05"
+      ],
+      "technologyRefs": [
+        "TECH-05",
+        "TECH-18"
+      ],
+      "apiRefs": [
+        "API-053",
+        "API-081",
+        "API-085",
+        "API-107"
+      ],
+      "bleCommands": [],
+      "methods": [
+        {
+          "name": "publish",
+          "inputShape": "SourceRevision, ObjectVersion, payload",
+          "outputShape": "ProtectedResultRef"
+        },
+        {
+          "name": "read",
+          "inputShape": "CurrentPrincipal, purpose, resultId",
+          "outputShape": "PayloadOrStream"
+        },
+        {
+          "name": "retract",
+          "inputShape": "ConsentOrSourceRevision",
+          "outputShape": "BlockedState"
+        }
+      ],
+      "invariant": "source/profile/model/object version과 동의를 보존; gateway stream에서 실제 열람 ACL 재검사; 참고자료 없이 결제 사실을 생성하지 않음",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    },
+    {
+      "id": "IF-14",
+      "title": "반납·초기화·사용자 데이터",
+      "producer": "rental coordinator / device reset service",
+      "consumer": "user app / ops safe projection",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04",
+        "HW-02",
+        "KEY-03"
+      ],
+      "technologyRefs": [
+        "TECH-04",
+        "TECH-07",
+        "TECH-10"
+      ],
+      "apiRefs": [
+        "API-046",
+        "API-047",
+        "API-104",
+        "API-105"
+      ],
+      "bleCommands": [
+        "device.reset.prepare",
+        "device.reset.confirm"
+      ],
+      "methods": [
+        {
+          "name": "check_return",
+          "inputShape": "RentalBinding, walletOrigin",
+          "outputShape": "VersionedChecklist"
+        },
+        {
+          "name": "authorize_reset",
+          "inputShape": "CompletedChecks, OwnerApproval",
+          "outputShape": "ResetClearance"
+        },
+        {
+          "name": "confirm_reset",
+          "inputShape": "Clearance, DeviceEvidence",
+          "outputShape": "ReturnResult"
+        }
+      ],
+      "invariant": "new travel/import 분기, pending tx·claim·passkey 처리와 reset evidence를 결합; 이전 키/기록을 새 대여자에게 제공하지 않음",
+      "status": "logical_contract_not_implemented",
+      "abiFrozen": false
+    }
+  ]
+}

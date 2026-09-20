@@ -1,0 +1,605 @@
+{
+  "date": "2026-09-18",
+  "status": "design_candidate_not_merged",
+  "document": "content/specifications/signing-submission-storage-design.md",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "baselineFiles": {
+    "wallet-api-candidate.json": "3863ffd6a870abbad51ef070de81b0dffbf951e00ab360d917859ba124f88295",
+    "commerce-contract-candidate.json": "3d68ab8e94dbcb1ecb0b5e457692e8c747dcfb4c186d43f67f363fba09d183e9",
+    "database/003_commerce_ledger.sql": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+    "database/001_identity_foundation.sql": "55d0b6d62b0b5bceee378502667de41508921f608af625237deeefef571049dd",
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a",
+    "screen-flows.json": "0b969346170895875e807ccd5948ea9951aca07eaeffc434456c89f8ffbd2fa0"
+  },
+  "decisionRefs": [
+    "D02",
+    "D03",
+    "D04",
+    "D08",
+    "D09",
+    "D19"
+  ],
+  "taskRefs": [
+    "BASE-03",
+    "BASE-06",
+    "AUTH-01",
+    "APP-03",
+    "HW-05",
+    "MPC-03",
+    "PAY-01",
+    "PAY-02",
+    "PAY-04",
+    "SHOP-04",
+    "INDEX-05",
+    "INDEX-06",
+    "OPS-03"
+  ],
+  "resources": [
+    {
+      "id": "SS-R01",
+      "title": "ApprovalBinding",
+      "logicalKey": [
+        "intentId"
+      ],
+      "existingAnchor": "transaction_intents",
+      "invariant": "Immutable intent/source/actor/profile/payer/signer/epoch/digests/revisions; no synthetic guest account",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R02",
+      "title": "SignatureProvenance",
+      "logicalKey": [
+        "evidenceId"
+      ],
+      "existingAnchor": "signing_sessions + device evidence adapter",
+      "invariant": "Bind verifier-accepted proof to exact intent and signature result; not EOA provenance inference",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R03",
+      "title": "SignedPayloadObject",
+      "logicalKey": [
+        "objectId",
+        "version"
+      ],
+      "existingAnchor": "transaction_submissions.signed_payload_ref",
+      "invariant": "Restricted immutable bytes/digest; staged external object is not committed DB state",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R04",
+      "title": "SubmissionDispatch",
+      "logicalKey": [
+        "submissionId"
+      ],
+      "existingAnchor": "transaction_submissions + operations + outbox",
+      "invariant": "One accepted payload per intent; chain/hash provenance immutable; monotonic permitIssued",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R05",
+      "title": "DispatchAttempt",
+      "logicalKey": [
+        "dispatchId",
+        "attemptId"
+      ],
+      "existingAnchor": "worker attempt record candidate",
+      "invariant": "Fenced DB writes cannot fence external RPC; same authorized bytes across retries",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R06",
+      "title": "AddressNonceTrack",
+      "logicalKey": [
+        "chainId",
+        "payerAddress",
+        "nonce"
+      ],
+      "existingAnchor": "address/nonce coordination candidate",
+      "invariant": "Track competing intents/hashes and external activity without private permission merging",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R07",
+      "title": "SourceExecutionGate",
+      "logicalKey": [
+        "sourceKind",
+        "sourceId"
+      ],
+      "existingAnchor": "binding/order/attempt/refund/balance guard",
+      "invariant": "Latest authority and holds checked at permit commit; cannot freeze external chain state",
+      "physicalMapping": "pending"
+    },
+    {
+      "id": "SS-R08",
+      "title": "ObservationApplication",
+      "logicalKey": [
+        "sourceKind",
+        "sourceId",
+        "observationId",
+        "revision"
+      ],
+      "existingAnchor": "chain_observations + inbox + ledger",
+      "invariant": "One application per accepted observation revision, reconcile gaps/reversal",
+      "physicalMapping": "pending"
+    }
+  ],
+  "adapters": [
+    {
+      "id": "SS-A01",
+      "title": "개인 EOA 송금",
+      "apiRefs": [
+        "API-017",
+        "API-015",
+        "API-018",
+        "API-019",
+        "API-020"
+      ],
+      "actor": "account_wallet_binding",
+      "requiredAccount": true,
+      "resourceRefs": [
+        "SS-R01",
+        "SS-R02",
+        "SS-R04",
+        "SS-R07"
+      ],
+      "businessEffect": "personal_transfer_only",
+      "status": "storage_adapter_design_candidate"
+    },
+    {
+      "id": "SS-A02",
+      "title": "NU guest 키오스크 결제",
+      "apiRefs": [
+        "API-034",
+        "API-018",
+        "API-035"
+      ],
+      "actor": "attempt_device_session_capability",
+      "requiredAccount": false,
+      "resourceRefs": [
+        "SS-R01",
+        "SS-R02",
+        "SS-R04",
+        "SS-R07",
+        "SS-R08"
+      ],
+      "businessEffect": "TX-04_source_verified_allocation",
+      "status": "full_actor_proof_dto_pending"
+    },
+    {
+      "id": "SS-A03",
+      "title": "점주 환불",
+      "apiRefs": [
+        "API-036",
+        "API-037",
+        "API-018",
+        "API-038"
+      ],
+      "actor": "store_refund_authority_and_funds_signer",
+      "requiredAccount": true,
+      "resourceRefs": [
+        "SS-R01",
+        "SS-R02",
+        "SS-R04",
+        "SS-R07",
+        "SS-R08"
+      ],
+      "businessEffect": "TX-05_source_reservation_confirm_or_reverse",
+      "status": "full_actor_proof_dto_pending"
+    }
+  ],
+  "atomicUnits": [
+    {
+      "id": "SS-T01",
+      "title": "검토 snapshot 생성",
+      "resourceRefs": [
+        "SS-R01",
+        "SS-R07"
+      ],
+      "apiRefs": [
+        "API-017",
+        "API-034",
+        "API-037"
+      ],
+      "writes": [
+        "intent",
+        "approvalBinding",
+        "parentOperation",
+        "idempotencyResult"
+      ],
+      "limitation": "No network/MPC/device calls inside DB boundary"
+    },
+    {
+      "id": "SS-T02",
+      "title": "승인 증거 수락",
+      "resourceRefs": [
+        "SS-R01",
+        "SS-R02",
+        "SS-R07"
+      ],
+      "apiRefs": [
+        "API-015",
+        "API-018"
+      ],
+      "writes": [
+        "verifiedEvidenceBinding",
+        "operationProgress"
+      ],
+      "limitation": "Recheck gate/epoch before persisting external verifier result"
+    },
+    {
+      "id": "SS-T03",
+      "title": "제출 준비 commit",
+      "resourceRefs": [
+        "SS-R01",
+        "SS-R02",
+        "SS-R03",
+        "SS-R04",
+        "SS-R06",
+        "SS-R07"
+      ],
+      "apiRefs": [
+        "API-018"
+      ],
+      "writes": [
+        "submission",
+        "preparedDispatch",
+        "operation",
+        "idempotencyResult",
+        "outboxNotification"
+      ],
+      "limitation": "Signed object verified first; no network call; not a dispatch permit"
+    },
+    {
+      "id": "SS-T04",
+      "title": "전송 허가 commit",
+      "resourceRefs": [
+        "SS-R04",
+        "SS-R05",
+        "SS-R07"
+      ],
+      "apiRefs": [
+        "API-018"
+      ],
+      "writes": [
+        "permitId",
+        "permitIssued",
+        "gateRevision",
+        "dispatchRevision",
+        "attempt"
+      ],
+      "limitation": "Serialize with gate/hold changes; after permit, external exposure cannot be rolled back"
+    },
+    {
+      "id": "SS-T05",
+      "title": "외부 결과 기록",
+      "resourceRefs": [
+        "SS-R04",
+        "SS-R05"
+      ],
+      "apiRefs": [
+        "API-019",
+        "API-020"
+      ],
+      "writes": [
+        "appendAttemptResult",
+        "fencedDispatchObservation"
+      ],
+      "limitation": "Lease timeout does not release money or nonce; RPC result is not chain finality"
+    },
+    {
+      "id": "SS-T06",
+      "title": "관측 적용·보정",
+      "resourceRefs": [
+        "SS-R04",
+        "SS-R07",
+        "SS-R08"
+      ],
+      "apiRefs": [
+        "API-019",
+        "API-035",
+        "API-038"
+      ],
+      "writes": [
+        "inbox",
+        "observationCheckpoint",
+        "allocationOrRefundLedger",
+        "sourceRevision",
+        "outbox"
+      ],
+      "limitation": "Preserve source identity; refund confirmed/reserved reversal atomically, no duplicate accounting"
+    }
+  ],
+  "dispatchStates": [
+    "prepared",
+    "blocked",
+    "permitted",
+    "broadcast_unknown",
+    "submitted",
+    "observed"
+  ],
+  "signatureExposureStates": [
+    "not_requested",
+    "possible",
+    "verified"
+  ],
+  "permitInvariant": "Once permitIssued becomes true, later blocking, reorg, lease expiry and retries never set it false.",
+  "revocationBoundary": "Gate change before permit commit rejects permit. Gate change after commit blocks fresh retry authorization but cannot guarantee preventing already-authorized external send; retain reservation and observe.",
+  "lockRank": [
+    "control_gates",
+    "source_order_attempt_allocation_balance_refund",
+    "chain_address_nonce",
+    "intent_evidence_dispatch",
+    "idempotency_inbox_outbox"
+  ],
+  "openIntegrationPoints": [
+    "Physical unique/FK relationships for intent/evidence/payload/source binding",
+    "Atomic gate/permit boundary when authorization registry or object store is external",
+    "Guest/refund actor and provenance transport DTOs, device/MPC verifier profiles",
+    "Reservation release proof, observation confirmation policy and source holds under D08",
+    "Signed payload/proof retention, backup restore fences and operational RPO/RTO under D19"
+  ],
+  "cases": [
+    {
+      "id": "SS-C01",
+      "title": "준비 commit 뒤 철회",
+      "trigger": "prepared 뒤 source hold가 먼저 commit",
+      "expected": "SS-T04에서 permit 거절; prepared의 outbox만으로 전송하지 않음",
+      "unitRefs": [
+        "SS-T03",
+        "SS-T04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C02",
+      "title": "허가 commit 뒤 철회",
+      "trigger": "permitIssued=true 이후 hold 저장, RPC 여부 불명확",
+      "expected": "새 재전송 허가 중단·기존 전송 가능성 관측·환불예약 유지",
+      "unitRefs": [
+        "SS-T04",
+        "SS-T05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C03",
+      "title": "프로세스 중단",
+      "trigger": "permit commit 뒤 RPC 호출 전후를 구별 못함",
+      "expected": "원 dispatch/hash 관측; not_sent로 가정해 새 거래 생성 금지",
+      "unitRefs": [
+        "SS-T04",
+        "SS-T05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C04",
+      "title": "worker lease 만료",
+      "trigger": "이전 worker가 멈췄다가 나중에 같은 bytes 전송",
+      "expected": "DB fencing으로 구세대 덮어쓰기 제한, 외부 중복 전송 가능성은 원dispatch 대사",
+      "unitRefs": [
+        "SS-T04",
+        "SS-T05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C05",
+      "title": "같은 intent 다른 key",
+      "trigger": "서로 다른 멱등키로 동일 intent/bytes 동시 접수",
+      "expected": "하나의 submission으로 수렴, 중복 outbox 효과 방지",
+      "unitRefs": [
+        "SS-T03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C06",
+      "title": "다른 intent 같은 txHash",
+      "trigger": "다른 고객이 공개 raw transaction을 복사해 제출",
+      "expected": "재귀속·다른 고객 operation 반환 금지; 권한 확인 후 비공개 충돌",
+      "unitRefs": [
+        "SS-T03",
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C07",
+      "title": "가스/nonce 변경",
+      "trigger": "원 intent에 다른 bytes를 재시도",
+      "expected": "충돌; 기존 서명의 외부실행 가능성 유지, 새 검토 필요",
+      "unitRefs": [
+        "SS-T03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C08",
+      "title": "증거 바꿔 끼우기",
+      "trigger": "같은 EOA 서명이나 다른 기기/MPC epoch 결과 사용",
+      "expected": "원 intent/context/profile/정확한 결과 증거 미일치 거절",
+      "unitRefs": [
+        "SS-T02",
+        "SS-T03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C09",
+      "title": "보호 객체 유실",
+      "trigger": "DB 참조는 있으나 bytes 또는 버전/digest 확인 불가",
+      "expected": "전송 차단·원 bytes 복구; 객체 없음으로 서명 폐기 판정 금지",
+      "unitRefs": [
+        "SS-T03",
+        "SS-T04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C10",
+      "title": "게스트 결제",
+      "trigger": "계정 없이 attempt/device/session capability로 NU 서명",
+      "expected": "해당 원천 검증 후 허용 경로; 가짜 wallet/account 요구 금지",
+      "unitRefs": [
+        "SS-T01",
+        "SS-T02",
+        "SS-T03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C11",
+      "title": "환불 원천 보류",
+      "trigger": "API037 이후 fundingRevision 변경·원지급 무효화",
+      "expected": "최신 hold/예약/권한 재검사, 새허가 차단; 기존 노출 예약 유지",
+      "unitRefs": [
+        "SS-T03",
+        "SS-T04",
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C12",
+      "title": "원장 우회 송금",
+      "trigger": "개인 송금 수취/금액이 환불과 같음",
+      "expected": "원 refund에 자동 귀속하거나 예약 소진하지 않음",
+      "unitRefs": [
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C13",
+      "title": "확정 관측 중복",
+      "trigger": "환불 q confirmed 관측 같은revision 두 번 도착",
+      "expected": "한 번만 reserved→confirmed, 상태/revision/outbox 일관",
+      "unitRefs": [
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C14",
+      "title": "확정 철회",
+      "trigger": "환불이 정규 블록에서 이탈",
+      "expected": "confirmed→reserved, reservation active 및 원장/checkpoint/outbox 함께 복구",
+      "unitRefs": [
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C15",
+      "title": "역순 관측",
+      "trigger": "철회 적용 후 오래된 confirmed 이벤트 도착",
+      "expected": "낮은revision 무시 또는 원천재조회; 이중 확정 금지",
+      "unitRefs": [
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C16",
+      "title": "외부 nonce 경쟁",
+      "trigger": "같은import주소 외부지갑이 다른 거래 전송",
+      "expected": "chain/address/nonce 관측; node not-found만으로 예약해제 금지",
+      "unitRefs": [
+        "SS-T03",
+        "SS-T05",
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C17",
+      "title": "UI 취소/기한 만료",
+      "trigger": "서명 노출 possible 또는 verified인 환불 종료 요청",
+      "expected": "실행 불가능 근거 전까지 예약 유지; 사용자 화면 이탈과 자금해제 분리",
+      "unitRefs": [
+        "SS-T02",
+        "SS-T05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C18",
+      "title": "DB 백업 복원",
+      "trigger": "과거 outbox 미처리·예전 gate 상태 복원",
+      "expected": "현재 철회/gate/체인/원장 재대사 전 신규송금 재개 금지",
+      "unitRefs": [
+        "SS-T04",
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C19",
+      "title": "관측 선도착",
+      "trigger": "체인관측 뒤 늦은 RPC timeout응답 도착",
+      "expected": "검증된 관측을 오래된 worker응답으로 unknown으로 덮어쓰지 않음",
+      "unitRefs": [
+        "SS-T05",
+        "SS-T06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "SS-C20",
+      "title": "승인·취소 경쟁",
+      "trigger": "환불 승인요청 전달과 서명 전 취소를 직렬 판정 못함",
+      "expected": "안전한 미서명 중단으로 간주하지 않고 possible·예약 유지",
+      "unitRefs": [
+        "SS-T01",
+        "SS-T02"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "accountingExamples": [
+    {
+      "id": "SS-AC01",
+      "cap": "10",
+      "before": {
+        "reserved": "2",
+        "confirmed": "6"
+      },
+      "afterReversal": {
+        "reserved": "8",
+        "confirmed": "0"
+      },
+      "afterReconfirm": {
+        "reserved": "2",
+        "confirmed": "6"
+      },
+      "expectedAvailable": "2",
+      "status": "arithmetic_example_not_runtime_test"
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+{
+  "status": "passed",
+  "scope": "finite_authority_and_idempotency_design_examples",
+  "casesPassed": 92,
+  "cases": [
+    {
+      "id": "PRC-01_exact_grant",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-01_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-01_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-01_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-01_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-01_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-02_exact_grant",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-02_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-02_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-02_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-02_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-02_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-03_exact_grant",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-03_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-03_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-03_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-03_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-03_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-04_exact_grant",
+      "observed": "READ_PROJECTION",
+      "expected": "READ_PROJECTION"
+    },
+    {
+      "id": "PRC-04_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-04_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-04_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-04_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-04_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-05_exact_grant",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-05_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-05_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-05_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-05_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-05_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-06_exact_grant",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-06_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-06_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-06_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-06_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-06_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-07_exact_grant",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-07_authenticated",
+      "observed": "UNAUTHORIZED",
+      "expected": "UNAUTHORIZED"
+    },
+    {
+      "id": "PRC-07_grantTrusted",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-07_grantCurrent",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-07_env",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-07_scope",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "existing_firmware_release_operator_not_activator",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "existing_store_terminal_manage_not_activator",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "existing_store_owner_not_activator",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "existing_ops_audit_read_not_activator",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "existing_release_read_not_activator",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "self_claimed_admin_denied",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "scoped_read_capability",
+      "observed": "READ_PROJECTION",
+      "expected": "READ_PROJECTION"
+    },
+    {
+      "id": "read_capability_cannot_activate",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "read_capability_exact_change",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "target_manifest_cannot_bootstrap_authority",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "activation_first",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "activation_retry",
+      "observed": "CURRENT_PROJECTION_OF_ORIGINAL",
+      "expected": "CURRENT_PROJECTION_OF_ORIGINAL"
+    },
+    {
+      "id": "activation_once",
+      "observed": 5,
+      "expected": 5
+    },
+    {
+      "id": "same_id_changed_body",
+      "observed": "IDEMPOTENCY_CONFLICT",
+      "expected": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "id": "cache_expired_outcome_retained",
+      "observed": "CURRENT_PROJECTION_OF_ORIGINAL",
+      "expected": "CURRENT_PROJECTION_OF_ORIGINAL"
+    },
+    {
+      "id": "no_cache_expiry_reexecution",
+      "observed": 1,
+      "expected": 1
+    },
+    {
+      "id": "lost_mutation_role_no_replay",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "current_read_after_role_loss",
+      "observed": "READ_PROJECTION",
+      "expected": "READ_PROJECTION"
+    },
+    {
+      "id": "read_domain_unchanged",
+      "observed": true,
+      "expected": true
+    },
+    {
+      "id": "lost_all_authority_no_original_payload",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "pruned_unknown_not_new_mutation",
+      "observed": "RESULT_PENDING",
+      "expected": "RESULT_PENDING"
+    },
+    {
+      "id": "unknown_history_no_effect",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "unknown_history_read_pending",
+      "observed": "RESULT_PENDING",
+      "expected": "RESULT_PENDING"
+    },
+    {
+      "id": "profileSupported",
+      "observed": "UNSUPPORTED_PROFILE",
+      "expected": "UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "profileSupported_no_effect",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "choiceSelected",
+      "observed": "POLICY_UNSELECTED",
+      "expected": "POLICY_UNSELECTED"
+    },
+    {
+      "id": "choiceSelected_no_effect",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "restricted",
+      "observed": "AUTHORITY_HELD",
+      "expected": "AUTHORITY_HELD"
+    },
+    {
+      "id": "restricted_no_effect",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "currentRevision",
+      "observed": "REVISION_CONFLICT",
+      "expected": "REVISION_CONFLICT"
+    },
+    {
+      "id": "currentRevision_no_effect",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "PRC-02_relay_first",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-02_relay_changed_no_duplicate",
+      "observed": "ORIGINAL_PEER_REPORT",
+      "expected": "ORIGINAL_PEER_REPORT"
+    },
+    {
+      "id": "PRC-02_one_evidence_effect",
+      "observed": 1,
+      "expected": 1
+    },
+    {
+      "id": "PRC-02_same_semantic_identity_changed_evidence",
+      "observed": "IDEMPOTENCY_CONFLICT",
+      "expected": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "id": "PRC-02_proofValid",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-02_boot",
+      "observed": "SOURCE_STALE",
+      "expected": "SOURCE_STALE"
+    },
+    {
+      "id": "PRC-02_challengeCurrent",
+      "observed": "SOURCE_STALE",
+      "expected": "SOURCE_STALE"
+    },
+    {
+      "id": "PRC-02_http_role_not_peer_identity",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-05_relay_first",
+      "observed": "COMMIT_CANDIDATE",
+      "expected": "COMMIT_CANDIDATE"
+    },
+    {
+      "id": "PRC-05_relay_changed_no_duplicate",
+      "observed": "ORIGINAL_PEER_REPORT",
+      "expected": "ORIGINAL_PEER_REPORT"
+    },
+    {
+      "id": "PRC-05_one_evidence_effect",
+      "observed": 1,
+      "expected": 1
+    },
+    {
+      "id": "PRC-05_same_semantic_identity_changed_evidence",
+      "observed": "IDEMPOTENCY_CONFLICT",
+      "expected": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "id": "PRC-05_proofValid",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "PRC-05_boot",
+      "observed": "SOURCE_STALE",
+      "expected": "SOURCE_STALE"
+    },
+    {
+      "id": "PRC-05_challengeCurrent",
+      "observed": "SOURCE_STALE",
+      "expected": "SOURCE_STALE"
+    },
+    {
+      "id": "PRC-05_http_role_not_peer_identity",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "restriction_cannot_release_fence",
+      "observed": "FORBIDDEN",
+      "expected": "FORBIDDEN"
+    },
+    {
+      "id": "typed_reader_registered_False",
+      "observed": "UNSUPPORTED_PROFILE",
+      "expected": "UNSUPPORTED_PROFILE"
+    },
+    {
+      "id": "typed_reader_registered_True",
+      "observed": "TYPED_READER_CANDIDATE",
+      "expected": "TYPED_READER_CANDIDATE"
+    }
+  ],
+  "runtimeVerified": false,
+  "productImplementationPerformed": false,
+  "canonicalMerged": false,
+  "sourceHashes": {
+    "content/specifications/profile-control-adoption-map.json": "cca8d74080ccb492487d92e5a77cc6fde5b1927499c29d64a707e3be6cd6768e"
+  },
+  "limitations": [
+    "Boolean trust/capability flags are synthetic verifier results, never client claims.",
+    "No cryptography, HTTP/BLE handler, secure storage, database race or deployment was exercised.",
+    "Serialized examples cover listed authority/idempotency branches, not all action semantics or wire schemas.",
+    "Original operation/activation peer-state protocol is specified separately and is not replaced by this model."
+  ]
+}

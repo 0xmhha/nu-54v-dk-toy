@@ -1,0 +1,88 @@
+{
+  "environmentId": "stablenet-test-8283",
+  "status": "chain_verified_contracts_disabled",
+  "observedAt": "2026-09-20",
+  "chain": {
+    "rpc": "https://api.test.stablenet.network/",
+    "explorer": "https://explorer.stablenet.network/",
+    "chainId": 8283,
+    "chainIdHex": "0x205b",
+    "nativeCurrency": {
+      "symbol": "WKRC",
+      "decimals": 18
+    },
+    "observedBlockHex": "0x13435dd"
+  },
+  "contracts": [
+    {
+      "id": "dummyUSDC",
+      "address": null,
+      "decimals": 6,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "entryPoint",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "kernelFactory",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "amm",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "perpetual",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "membershipSTO",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "didStatus",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    },
+    {
+      "id": "x402Facilitator",
+      "address": null,
+      "abiDigest": null,
+      "codeHash": null,
+      "deploymentBlock": null,
+      "enabled": false
+    }
+  ],
+  "rejectedCandidate": {
+    "address": "0xEf6817fe73741A8F10088f9511c64b666a338A14",
+    "reason": "eth_getCode returned 0x on the selected RPC at inspection time"
+  },
+  "activationRule": "enabled requires address, ABI digest, runtime code hash, deployment block, admin-role evidence and indexer decoder registration."
+}

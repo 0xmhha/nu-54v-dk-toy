@@ -1,0 +1,1094 @@
+{
+  "status": "enrollment_continuity_adoption_design_not_merged",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "sqlApplied": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "operations": [
+    {
+      "id": "ER01",
+      "method": "POST",
+      "path": "/v1/rental-admissions/{admissionId}/resume-challenges",
+      "auth": "recipient_and_original_holder",
+      "request": [
+        "expectedAdmissionRevision",
+        "expectedConsentRevision",
+        "expectedGeneration",
+        "holderKey",
+        "senderProof",
+        "clientNonce"
+      ],
+      "response": "ResumeChallenge or PendingResponse",
+      "unit": "ECT01",
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "contractVersion=enrollment-continuity-v1-draft, requestId; POST idempotencyKey + business digest; no-store response; typed auth and nonce proof per profile"
+    },
+    {
+      "id": "ER02",
+      "method": "POST",
+      "path": "/v1/rental-admissions/{admissionId}/continuations",
+      "auth": "recipient_and_original_holder",
+      "request": [
+        "resumePrepared",
+        "holderProof",
+        "expectedRevision"
+      ],
+      "response": "ContinuationLease or PendingResponse",
+      "unit": "ECT02",
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "contractVersion=enrollment-continuity-v1-draft, requestId; POST idempotencyKey + business digest; no-store response; typed auth and nonce proof per profile"
+    },
+    {
+      "id": "ER03",
+      "method": "POST",
+      "path": "/v1/rental-admissions/{admissionId}/recovery-evidence",
+      "auth": "typed_receipt_recipient_or_hold_operator",
+      "request": [
+        "kind=continuation_applied|withdrawal_hold",
+        "signedEvidence",
+        "expectedRevision"
+      ],
+      "response": "RecoveryView or PendingResponse",
+      "unit": "ECT03",
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "contractVersion=enrollment-continuity-v1-draft, requestId; POST idempotencyKey + business digest; no-store response; typed auth and nonce proof per profile"
+    },
+    {
+      "id": "ER04",
+      "method": "POST",
+      "path": "/v1/rental-admissions/{admissionId}/authorization-withdrawals",
+      "auth": "exact_recipient_primary",
+      "request": [
+        "expectedConsentRevision",
+        "expectedAdmissionRevision"
+      ],
+      "response": "WithdrawalView with nullable HoldInstruction or PendingResponse",
+      "unit": "ECT04",
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "contractVersion=enrollment-continuity-v1-draft, requestId; POST idempotencyKey + business digest; no-store response; typed auth and nonce proof per profile"
+    },
+    {
+      "id": "ER05",
+      "method": "GET",
+      "path": "/v1/rental-admissions/{admissionId}/recovery",
+      "auth": "current_parent_projection",
+      "request": [],
+      "response": "RecoveryView/WithdrawalView; current ACL-filtered instruction/lease",
+      "unit": "ECT05",
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "contractVersion=enrollment-continuity-v1-draft, requestId; POST idempotencyKey + business digest; no-store response; typed auth and nonce proof per profile"
+    }
+  ],
+  "bleCommands": [
+    {
+      "id": "ERB01",
+      "command": "enrollment.resume.prepare",
+      "request": "ResumeChallenge + original HolderKey + holder transcript proof",
+      "response": "ResumePrepared",
+      "guardRefs": [
+        "EC-G03",
+        "EC-G04"
+      ],
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "version=enrollment-continuity-ble-v1-draft; requestId/sessionId/sequence; selected authenticated frame profile"
+    },
+    {
+      "id": "ERB02",
+      "command": "enrollment.resume.apply",
+      "request": "ContinuationLease + holder transcript proof",
+      "response": "ContinuationApplied",
+      "guardRefs": [
+        "EC-G05",
+        "EC-G07"
+      ],
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "version=enrollment-continuity-ble-v1-draft; requestId/sessionId/sequence; selected authenticated frame profile"
+    },
+    {
+      "id": "ERB03",
+      "command": "enrollment.authorization.hold",
+      "request": "HoldInstruction",
+      "response": "HoldApplied",
+      "guardRefs": [
+        "EC-G09",
+        "EC-G10"
+      ],
+      "registration": "alias_not_catalogued",
+      "commonEnvelope": "version=enrollment-continuity-ble-v1-draft; requestId/sessionId/sequence; selected authenticated frame profile"
+    }
+  ],
+  "messages": [
+    {
+      "name": "ResumeChallenge",
+      "issuer": "server",
+      "purpose": "resume_prepare_only",
+      "requiredPayloadFields": [
+        "continuationId",
+        "admissionId",
+        "originalContextDigest",
+        "deviceId",
+        "bindingId",
+        "accountId",
+        "epoch",
+        "originalHolderThumbprint",
+        "predecessorGeneration",
+        "nextGeneration",
+        "consentAuthorizationRevision",
+        "challengeId",
+        "clientNonce",
+        "expiresAt"
+      ],
+      "envelope": [
+        "version",
+        "purpose",
+        "payload",
+        "proof(profileId,keyId,signedDigest,proofBytes)"
+      ],
+      "constraints": [
+        "exact parent/context and digest chain verified, not ID presence only",
+        "generation/revision exact nonnegative integers, epoch exact decimal string",
+        "scope when present is enrollment_mutations_only",
+        "observedEnrollmentPhase when present is unprovisioned|staged|active|unknown"
+      ],
+      "profileStatus": "unselected"
+    },
+    {
+      "name": "ResumePrepared",
+      "issuer": "device",
+      "purpose": "enrollment_transport_prepared",
+      "requiredPayloadFields": [
+        "continuationId",
+        "admissionId",
+        "originalContextDigest",
+        "challengeDigest",
+        "predecessorGeneration",
+        "nextGeneration",
+        "consentAuthorizationRevision",
+        "newSessionId",
+        "bootNonce",
+        "deviceNonce",
+        "clientNonce",
+        "observedEnrollmentPhase"
+      ],
+      "envelope": [
+        "version",
+        "purpose",
+        "payload",
+        "proof(profileId,keyId,signedDigest,proofBytes)"
+      ],
+      "constraints": [
+        "exact parent/context and digest chain verified, not ID presence only",
+        "generation/revision exact nonnegative integers, epoch exact decimal string",
+        "scope when present is enrollment_mutations_only",
+        "observedEnrollmentPhase when present is unprovisioned|staged|active|unknown"
+      ],
+      "profileStatus": "unselected"
+    },
+    {
+      "name": "ContinuationLease",
+      "issuer": "server",
+      "purpose": "continue_same_enrollment",
+      "requiredPayloadFields": [
+        "continuationId",
+        "admissionId",
+        "originalContextDigest",
+        "originalHolderThumbprint",
+        "preparedEvidenceDigest",
+        "deviceId",
+        "bindingId",
+        "epoch",
+        "generation",
+        "newSessionId",
+        "bootNonce",
+        "deviceNonce",
+        "clientNonce",
+        "consentAuthorizationRevision",
+        "expiresAt"
+      ],
+      "envelope": [
+        "version",
+        "purpose",
+        "payload",
+        "proof(profileId,keyId,signedDigest,proofBytes)"
+      ],
+      "constraints": [
+        "exact parent/context and digest chain verified, not ID presence only",
+        "generation/revision exact nonnegative integers, epoch exact decimal string",
+        "scope when present is enrollment_mutations_only",
+        "observedEnrollmentPhase when present is unprovisioned|staged|active|unknown"
+      ],
+      "profileStatus": "unselected"
+    },
+    {
+      "name": "ContinuationApplied",
+      "issuer": "device",
+      "purpose": "enrollment_transport_applied",
+      "requiredPayloadFields": [
+        "continuationId",
+        "admissionId",
+        "leaseDigest",
+        "originalContextDigest",
+        "generation",
+        "newSessionId",
+        "bootNonce",
+        "consentAuthorizationRevision"
+      ],
+      "envelope": [
+        "version",
+        "purpose",
+        "payload",
+        "proof(profileId,keyId,signedDigest,proofBytes)"
+      ],
+      "constraints": [
+        "exact parent/context and digest chain verified, not ID presence only",
+        "generation/revision exact nonnegative integers, epoch exact decimal string",
+        "scope when present is enrollment_mutations_only",
+        "observedEnrollmentPhase when present is unprovisioned|staged|active|unknown"
+      ],
+      "profileStatus": "unselected"
+    },
+    {
+      "name": "HoldInstruction",
+      "issuer": "server",
+      "purpose": "hold_enrollment_mutations_only",
+      "requiredPayloadFields": [
+        "withdrawalId",
+        "admissionId",
+        "deviceId",
+        "bindingId",
+        "epoch",
+        "originalContextDigest",
+        "consentAuthorizationRevision",
+        "scope"
+      ],
+      "envelope": [
+        "version",
+        "purpose",
+        "payload",
+        "proof(profileId,keyId,signedDigest,proofBytes)"
+      ],
+      "constraints": [
+        "exact parent/context and digest chain verified, not ID presence only",
+        "generation/revision exact nonnegative integers, epoch exact decimal string",
+        "scope when present is enrollment_mutations_only",
+        "observedEnrollmentPhase when present is unprovisioned|staged|active|unknown"
+      ],
+      "profileStatus": "unselected"
+    },
+    {
+      "name": "HoldApplied",
+      "issuer": "device",
+      "purpose": "enrollment_hold_applied",
+      "requiredPayloadFields": [
+        "withdrawalId",
+        "admissionId",
+        "instructionDigest",
+        "deviceId",
+        "bindingId",
+        "epoch",
+        "consentAuthorizationRevision",
+        "observedEnrollmentPhase",
+        "scope"
+      ],
+      "envelope": [
+        "version",
+        "purpose",
+        "payload",
+        "proof(profileId,keyId,signedDigest,proofBytes)"
+      ],
+      "constraints": [
+        "exact parent/context and digest chain verified, not ID presence only",
+        "generation/revision exact nonnegative integers, epoch exact decimal string",
+        "scope when present is enrollment_mutations_only",
+        "observedEnrollmentPhase when present is unprovisioned|staged|active|unknown"
+      ],
+      "profileStatus": "unselected"
+    }
+  ],
+  "guards": [
+    {
+      "id": "EC-G01",
+      "rule": "Only current exact recipient primary authentication plus proof of original enrollment holder key permits transport recovery. Operator cannot replace recipient/holder; lost original holder key routes support/hold, no substitute from social login alone. No keys exported or mnemonic imported in this flow."
+    },
+    {
+      "id": "EC-G02",
+      "rule": "Immutable original AdmissionContext, permit digests, rental/binding/account/device and epoch stay fixed. Continuation lease is additional signed authorization of transport generation/session, not replacement AdmissionPermit/ActivationPermit. Firmware and server must adopt the paired adapter; old firmware must not accept original permits outside their original live session."
+    },
+    {
+      "id": "EC-G03",
+      "rule": "ER01 sender proof binds current account, original holder, method/path/admissionId/request digest and client nonce. Server authenticates current consent/scope/profile, reserves one continuation per admission+predecessor generation under same device/authority gates, returns original lineage on retries. Different keys cannot allocate competing successors; unresolved continuation never expires into a free generation."
+    },
+    {
+      "id": "EC-G04",
+      "rule": "ERB01 verifies server-signed challenge and original holder key thumbprint/proof, exact original admission/epoch/binding and device identity. Under device lock create durable resume-prepared record, invalidate old enrollment transport and persist new generation intent before returning signed proof with fresh boot/device/client nonces and intended new session. Only this one prepared lineage proceeds; crash/unknown history holds enrollment. No stage/activate during resume-prepared."
+    },
+    {
+      "id": "EC-G05",
+      "rule": "ER02 verifies device resume proof + current owner/holder/consent/current revisions, then reserves immutable ContinuationLease in same lineage; signer completion rechecks current predicates. Lease binds original context digest, exact generation successor, prepared proof digest/boot/nonces/new session/expiry/purpose. ERB02 applies only same durable prepared state, persists generation/session and immutable receipt before exposing continuation; old sessions and mismatched leases rejected."
+    },
+    {
+      "id": "EC-G06",
+      "rule": "ER03 verifies exact device applied receipt and current lineage then confirms server generation, work and outcome atomically. Until confirmed, server-dependent enrollment stage/activation submissions are blocked. Local application can precede server receipt, so uncertainty keeps exclusive original admission. Reboot after prepare/apply never infers ready; selected profile defines durable generation and live session freshness. Expired continuation cannot silently advance generation; same pending lineage stays held for authorized recovery."
+    },
+    {
+      "id": "EC-G07",
+      "rule": "Each stage/activate request carries original immutable permit plus current continuation lease where resumed; verify original holder proof on this transport, exact persisted device generation, session/boot and original binding context. No mutation of original consent/proof refs; server records used continuation generation on resulting evidence/outcome. Protocol/version transition must reject legacy bearer replay; already exposed old permit may have executed before invalidation, record uncertainty."
+    },
+    {
+      "id": "EC-G08",
+      "rule": "ER04 records technical enrollment authorization withdrawal for the exact recipient/admission, atomically advances consent authorization revision and holds future enrollment/resume/signature delivery; preserves historical consumed consent and reservation. Does not revoke completed wallet ownership, blockchain signatures, privacy consent or all device functions. No automatic deletion, reset, reassignment or refund. Other domain consents separate."
+    },
+    {
+      "id": "EC-G09",
+      "rule": "Withdrawal wins vs API045/resume/activation at shared authority+invitation/device/consent gates. Before reservation EB05 remains applicable; after reservation ER04 records withdrawal irrespective of prior device receipt. Already-issued permits/continuation leases may have acted offline; server cannot promise recall. A signed enrollment-only HoldInstruction may be delivered; applied device proof confirms enrollment mutation fence, not wipe or rollback."
+    },
+    {
+      "id": "EC-G10",
+      "rule": "ERB03 hold instruction uses monotonic consent revision, exact account/admission/binding/device epoch and scope enrollment_mutations_only. Device journals hold before ACK, blocks stage/activate/resume for that lineage, preserves wallet/use ownership and recovery evidence. Does not erase current generation or falsely revert activated binding. Newer epoch/new admission does not accept old hold. Device hold receipt reports observed enrollment phase for reconciliation, never invents server phase."
+    },
+    {
+      "id": "EC-G11",
+      "rule": "ER03 withdrawal_hold receipt may be relayed by exact recipient or currently scoped operator with only submit_hold_evidence capability; continuation_applied requires recipient+original holder. Operator does not gain resume/activation/withdrawal issuance authority. GET ER05 current parent ACL, only safe status to operator; raw lease/hold instruction only separately authorized exact recipient or scoped hold-delivery operator for hold only."
+    },
+    {
+      "id": "EC-G12",
+      "rule": "Missing device after withdrawal remains device_execution_unknown; rental/basis remain consumed/reserved. Active rental needs original return checks/owner proofs; uncertain or staged admission must be reconciled under explicit reset/return support contract before inventory reuse. Same user cannot merely toggle withdrawn to active; renewed enrollment consent/recovery is a separate unadopted decision, no automatic reactivation."
+    },
+    {
+      "id": "EC-G13",
+      "rule": "Registry/writes form one enforceable SQL transaction domain with lifecycle heads and approval_authorization_gates. Gate list recomputed after locks; missing rows use parent scope lock and unique constraint. No split-store eventual consistency for consumption, generation or withdrawal. Existing 61-table/7-migration SQL untouched; new table types/nullable/durable fields are proposals."
+    },
+    {
+      "id": "EC-G14",
+      "rule": "Current crypto/firmware tuple must explicitly support immutable permit+continuation, consent-revision holds and protected generation storage. Unknown/old profile fails closed; BLE capability negotiation is not trust proof. No automatic downgrade to original enrollment bearer/owner session. Profile selection and device tests remain unperformed."
+    },
+    {
+      "id": "EC-G15",
+      "rule": "Withdrawal locks shared device/invitation/consent/authority scopes but mutates an enrollment-action-specific authorization gate; never set a global wallet/device deny merely from enrollment withdrawal. Device hold applies only to stage/activate/resume of exact lineage. Active binding stays active; continuation after active may reconcile original receipts only, cannot restage/recreate wallet or transfer ownership."
+    }
+  ],
+  "tables": [
+    {
+      "resource": "EnrollmentInvitation",
+      "table": "enrollment_invitations",
+      "primaryKey": [
+        "invitation_id"
+      ],
+      "fields": [
+        "device_id",
+        "issuer_scope_id",
+        "candidate_digest",
+        "secret_verifier_hash",
+        "state",
+        "revision",
+        "claimed_account_id?",
+        "consent_id?",
+        "consumed_admission_id?",
+        "expires_at"
+      ],
+      "constraints": [
+        "UNIQUE invitation_id; one atomic successful claim",
+        "secret is high-entropy rendezvous, hash only; encrypted replay object separate",
+        "state transitions preserve consumed history"
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "resource": "RecipientConsent",
+      "table": "recipient_enrollment_consents",
+      "primaryKey": [
+        "consent_id"
+      ],
+      "fields": [
+        "invitation_id",
+        "account_id",
+        "holder_thumbprint",
+        "session_id",
+        "consent_text_version",
+        "consent_digest",
+        "context_digest",
+        "authorization_revision",
+        "state",
+        "consumed_admission_id?",
+        "withdrawal_id?"
+      ],
+      "constraints": [
+        "UNIQUE invitation_id for materialized successful consent",
+        "historical accepted/consumed receipt immutable; current authorization state/revision separate",
+        "consumed does not mean authorization can never be withdrawn"
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "resource": "EnrollmentProof",
+      "table": "enrollment_proofs",
+      "primaryKey": [
+        "proof_id"
+      ],
+      "fields": [
+        "consent_id",
+        "device_id",
+        "epoch",
+        "candidate_digest",
+        "holder_thumbprint",
+        "session_id",
+        "verified_object_ref",
+        "verification_profile",
+        "consumed_admission_id?",
+        "revision"
+      ],
+      "constraints": [
+        "UNIQUE consent_id for accepted root proof",
+        "challenge duplicates append evidence; exact identity/context verified before root materialization",
+        "proof and consent co-consume with API045 in same commit"
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "resource": "DeviceConfigurationInventory",
+      "table": "device_configuration_inventories",
+      "primaryKey": [
+        "inventory_id"
+      ],
+      "fields": [
+        "device_id",
+        "binding_id",
+        "epoch",
+        "configuration_revision",
+        "challenge_id",
+        "evidence_object_ref",
+        "server_history_digest",
+        "result",
+        "verification_profile",
+        "revision"
+      ],
+      "constraints": [
+        "UNIQUE challenge_id for accepted inventory result",
+        "result verified_empty|material_present|unknown; reference not a current authorization",
+        "reset commit rechecks configuration revision and immutable signed evidence"
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "resource": "LifecycleWork",
+      "table": "lifecycle_work_items",
+      "primaryKey": [
+        "work_id"
+      ],
+      "fields": [
+        "parent_kind",
+        "parent_id",
+        "action",
+        "business_outcome_id",
+        "payload_digest",
+        "state",
+        "attempt_generation",
+        "current_worker_fence",
+        "result_ref?",
+        "revision"
+      ],
+      "constraints": [
+        "UNIQUE parent_kind,parent_id,action,business_outcome_id for logical work",
+        "attempt append under work, no duplicate business effect; parent kind enum validated FK/adapters",
+        "apply CAS current worker fence plus current parent/gates; stale worker cannot publish"
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "resource": "EnrollmentContinuation",
+      "table": "enrollment_continuations",
+      "primaryKey": [
+        "continuation_id"
+      ],
+      "fields": [
+        "admission_id",
+        "original_context_digest",
+        "original_holder_thumbprint",
+        "predecessor_generation",
+        "next_generation",
+        "consent_authorization_revision",
+        "challenge_ref",
+        "prepared_evidence_ref?",
+        "lease_object_ref?",
+        "applied_evidence_ref?",
+        "state",
+        "revision"
+      ],
+      "constraints": [
+        "UNIQUE admission_id,predecessor_generation across all states; next=predecessor+1",
+        "original root context preserved; unresolved lineage never deleted to retry",
+        "first signed lease immutable; current generation materialized atomically with confirmation"
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "resource": "AdmissionWithdrawal",
+      "table": "admission_authorization_withdrawals",
+      "primaryKey": [
+        "withdrawal_id"
+      ],
+      "fields": [
+        "admission_id",
+        "consent_id",
+        "authorization_revision",
+        "actor_account_id",
+        "instruction_ref?",
+        "device_hold_evidence_ref?",
+        "state",
+        "observed_device_phase?",
+        "revision"
+      ],
+      "constraints": [
+        "UNIQUE admission_id,authorization_revision; retry resolves original withdrawal",
+        "current withdrawn admission has one effective withdrawal, new idempotency key does not increment endlessly",
+        "reservation/consumed basis unaffected; unknown execution explicit"
+      ],
+      "status": "proposed_not_created"
+    }
+  ],
+  "atomicUnits": [
+    {
+      "id": "ECT01",
+      "routes": [
+        "ER01"
+      ],
+      "rule": "Current recipient/holder/consent + unique predecessor; reserve challenge and pending work, no account replacement; same gate as withdrawal",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "enrollment_continuations"
+      ],
+      "existingCandidateWrites": [
+        "lifecycle_admissions"
+      ],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT02",
+      "routes": [
+        "ER02"
+      ],
+      "rule": "Verify device prepared proof and exact current consent; persist immutable lease reservation. Signer completion rechecks and links first lease under same current gate",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "enrollment_continuations"
+      ],
+      "existingCandidateWrites": [],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT03",
+      "routes": [
+        "ER03"
+      ],
+      "rule": "Typed evidence: continuation receipt confirms server generation only for current recipient/holder/consent; hold receipt only updates withdrawal evidence under restricted hold authority. Branch writes only matching table; unknown physical activation never rolled back",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "enrollment_continuations",
+        "admission_authorization_withdrawals"
+      ],
+      "existingCandidateWrites": [
+        "lifecycle_admissions",
+        "device_lifecycle_heads"
+      ],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT04",
+      "routes": [
+        "ER04"
+      ],
+      "rule": "Increment technical enrollment authorization revision once and mark withdrawn; block future signer/activation/resume; persist hold instruction work and known exposure; no basis/rental release",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "recipient_enrollment_consents",
+        "admission_authorization_withdrawals"
+      ],
+      "existingCandidateWrites": [
+        "lifecycle_admissions",
+        "device_lifecycle_heads"
+      ],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT05",
+      "routes": [
+        "ER05"
+      ],
+      "rule": "Current ACL projected state; no new signing/generation or domain mutation on GET; protected result delivery checked separately",
+      "sharedWrites": [],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [],
+      "existingCandidateWrites": [],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT06",
+      "routes": [
+        "EB01",
+        "EB02",
+        "EB03",
+        "EB05"
+      ],
+      "rule": "EB03 root consent/proof + claim/challenge/outcome atomic; EB05 only before admission; routes mutate applicable subset",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "enrollment_invitations",
+        "recipient_enrollment_consents",
+        "enrollment_proofs"
+      ],
+      "existingCandidateWrites": [],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT07",
+      "routes": [
+        "API-045"
+      ],
+      "rule": "Extend LST-T05 commit with co-consumption of invitation/consent/proof; pending enrollment state and original context retained",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "enrollment_invitations",
+        "recipient_enrollment_consents",
+        "enrollment_proofs"
+      ],
+      "existingCandidateWrites": [
+        "lifecycle_admissions",
+        "lifecycle_binding_states",
+        "device_lifecycle_heads",
+        "lifecycle_genesis_records",
+        "lifecycle_reuse_gates"
+      ],
+      "existingSqlWrites": [
+        "rentals",
+        "device_bindings",
+        "devices"
+      ],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    },
+    {
+      "id": "ECT08",
+      "routes": [
+        "WC01",
+        "WC02",
+        "LW01"
+      ],
+      "rule": "WC02 verified inventory apply and work outcome under current device configuration gate; LW01 read-only except auth replay metadata; work writer CAS required on signer/verifier completion",
+      "sharedWrites": [
+        "approval_authorization_gates",
+        "lifecycle_outcomes",
+        "lifecycle_challenges",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_permits",
+        "audit_events",
+        "outbox",
+        "lifecycle_work_items"
+      ],
+      "mutationRule": "Applicable branch only; reads never create work. Complete commit includes named existing LST unit effects where extended.",
+      "runtimeVerified": false,
+      "registryWrites": [
+        "device_configuration_inventories",
+        "lifecycle_work_items"
+      ],
+      "existingCandidateWrites": [],
+      "existingSqlWrites": [],
+      "completeCommitSet": "registryWrites + existingCandidateWrites + existingSqlWrites + sharedWrites; only selected route/branch effects, no external signer or device I/O inside transaction"
+    }
+  ],
+  "acceptance": [
+    {
+      "id": "ECA-01",
+      "area": "versions",
+      "requirement": "immutable permit plus continuation verified together; reject unsupported tuple",
+      "evidenceRequired": "version contract fixtures and later old-firmware rejection evidence",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-02",
+      "area": "holder",
+      "requirement": "original holder+current recipient; no social-login-only key replacement",
+      "evidenceRequired": "auth matrix + wrong holder denial case",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-03",
+      "area": "generation",
+      "requirement": "one successor and device durable prepared/applied receipts",
+      "evidenceRequired": "unique constraints + later reboot/race evidence",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-04",
+      "area": "withdrawal",
+      "requirement": "future enrollment block separate from prior execution/ownership",
+      "evidenceRequired": "state scenarios + offline prior permit evidence",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-05",
+      "area": "storage",
+      "requirement": "seven logical-to-physical mappings and common gate adoption",
+      "evidenceRequired": "new future DDL/FK/index review; no current SQL applied",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-06",
+      "area": "work",
+      "requirement": "typed parent scope, worker fence and no generic result leak",
+      "evidenceRequired": "cross-parent/read/duplicate worker cases",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-07",
+      "area": "configuration",
+      "requirement": "configuration gate participates in import/reset race",
+      "evidenceRequired": "inventory revision and gate mapping",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-08",
+      "area": "migration",
+      "requirement": "all old writers stopped or adapted; no default eligible generation",
+      "evidenceRequired": "future backfill/rehearsal and restore watermark evidence",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-09",
+      "area": "privacy",
+      "requirement": "secret verifier/opaque evidence only, deletion/retention unresolved",
+      "evidenceRequired": "data handling review with chosen policy",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-10",
+      "area": "firmware",
+      "requirement": "protected generation/tombstone/hold survive reboot",
+      "evidenceRequired": "actual board/Zephyr profile proof, not mocks",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-11",
+      "area": "policy",
+      "requirement": "RR-DEC-01 remains unselected; holder-loss not automatic recovery",
+      "evidenceRequired": "decision ledger and unsupported branch visible",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    },
+    {
+      "id": "ECA-12",
+      "area": "scope",
+      "requirement": "canonical API110/BLE34/SQL61/7 unchanged until adoption",
+      "evidenceRequired": "hash/reference inventory",
+      "designStatus": "specified_pending_joint_adoption",
+      "runtimeStatus": "not_run"
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "ECR-01",
+      "trigger": "original holder reconnects",
+      "expected": "same admission new transport",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-02",
+      "trigger": "social login without holder",
+      "expected": "hold/support, no replacement",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-03",
+      "trigger": "two resume requests",
+      "expected": "one predecessor successor",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-04",
+      "trigger": "device reboot after prepare",
+      "expected": "durable hold, no old-session use",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-05",
+      "trigger": "lease reply lost",
+      "expected": "same immutable lease current auth",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-06",
+      "trigger": "device applied response lost",
+      "expected": "same receipt, server remains blocked until confirm",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-07",
+      "trigger": "old lease after newer generation",
+      "expected": "rejected",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-08",
+      "trigger": "withdraw wins while signer runs",
+      "expected": "no new lease link/delivery; record possible prior exposure",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-09",
+      "trigger": "lease used before device hold",
+      "expected": "execution unknown/observed, no rollback claim",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-10",
+      "trigger": "operator resumes",
+      "expected": "denied",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-11",
+      "trigger": "operator relays hold proof",
+      "expected": "only exact permitted hold evidence",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-12",
+      "trigger": "active wallet after withdrawal",
+      "expected": "ownership intact; enrollment mutations only",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-13",
+      "trigger": "missing device withdrawn",
+      "expected": "reserved not reusable",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-14",
+      "trigger": "repeated withdrawal new key",
+      "expected": "same effective withdrawal",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-15",
+      "trigger": "old worker completion",
+      "expected": "fence rejects stale publication",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-16",
+      "trigger": "inventory races import",
+      "expected": "stale empty evidence denied",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-17",
+      "trigger": "old firmware lacks continuation",
+      "expected": "fail closed",
+      "status": "not_run"
+    },
+    {
+      "id": "ECR-18",
+      "trigger": "old DB restore",
+      "expected": "hold until trusted generation reconciliation",
+      "status": "not_run"
+    }
+  ],
+  "sourceHashes": {
+    "lifecycle-bootstrap-contracts.json": "002cae234c5f2769858e664a8d69fb127e2a2728e389b5b94977a0c7d25d9ba0",
+    "lifecycle-bootstrap-contracts.schema.json": "aa69af24759ff3d867c7e6d6550768f39fe22596c1ac243d83c73e8815d5bbcc",
+    "lifecycle-storage-design.json": "2aa2b24d0b60db047a3c629f254b27debee5f15769416e50ae35024b11f35f10",
+    "rental-admission-cancel.json": "37e158924b96da20b2f8f36d4e5b32387cf2f82b72852795fbfdc834b7e5f80b",
+    "rental-admission-cancel.schema.json": "d83c59ac4e7a4df41b0656c0e0e20876d37ac364b345f5094cbcafb3d3f0b071",
+    "return-route-contracts.json": "b61e96958d2e3aac4c29b4bc479a13251943f62476c954f1bb5819e01e81a044",
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "approval-physical-storage-design.json": "f997bb61ce886835346c0277521f9a8a807502f0d13f73fc0ede1707233d1b0f"
+  },
+  "baseline": {
+    "api": 110,
+    "ble": 34,
+    "tables": 61,
+    "migrations": 7
+  },
+  "contractDeltas": [
+    {
+      "id": "ECD01",
+      "target": "LB01/LB02 request and resulting device evidence",
+      "proposal": "original permit plus optional current ContinuationLease; mandatory after resumed transport; used generation proof attached"
+    },
+    {
+      "id": "ECD02",
+      "target": "lifecycle_admissions/current head",
+      "proposal": "add transport generation/session/current continuation and enrollment authorization revision; original context stays immutable"
+    },
+    {
+      "id": "ECD03",
+      "target": "lifecycle_permits owner/purpose enum and uniqueness",
+      "proposal": "add continuation owner and resume challenge/lease; withdrawal owner and enrollment-only hold. Owner ID is unique continuation/withdrawal lineage, never overwrite original admission permit"
+    },
+    {
+      "id": "ECD04",
+      "target": "lifecycle_challenges.kind and LW01 parent/action mapping",
+      "proposal": "enrollment_resume challenge; work parent remains admission with exact typed actions; no untyped generic authorization"
+    },
+    {
+      "id": "ECD05",
+      "target": "shared gate writer adoption",
+      "proposal": "invitation/consent/configuration/generation scopes share existing rank0; new registry rows ordered deterministically under lifecycle rank15; all dependent writers switch together"
+    },
+    {
+      "id": "ECD06",
+      "target": "lifecycle_evidence.owner_kind/kind and parent integrity",
+      "proposal": "Add owner_kind continuation/withdrawal; kinds enrollment_resume_prepared and enrollment_continuation_applied use continuation_id; enrollment_hold_applied uses withdrawal_id. Resolve parent to same admission/device/binding/epoch/original context, validate exact purpose, generation and consent revision. Never relabel as binding_active or cancel_prepared. Existing object protection and per-kind semantic idempotency preserved."
+    }
+  ],
+  "remaining": [
+    "selected crypto/wire schema and device protected-state verification",
+    "original holder loss or renewed authorization after withdrawal requires separate approved recovery model",
+    "uncertain/staged admission return requires explicit safe support/reset path before reuse",
+    "future DDL/ACL/version adoption and full product runtime tests"
+  ],
+  "nextDesign": "등록·반납 전체 흐름의 정상/중단 시나리오와 공동 채택 범위를 종단 수용 명세로 통합",
+  "guardedStates": [
+    {
+      "state": "original_session_alive",
+      "action": "use original permit only in original live authenticated session under current server predicates"
+    },
+    {
+      "state": "resume_prepared",
+      "action": "enrollment mutations held; only exact pending continuation apply or scoped hold evidence"
+    },
+    {
+      "state": "continuation_device_applied_server_pending",
+      "action": "same evidence retry; server-dependent mutation held; no new reservation"
+    },
+    {
+      "state": "continuation_confirmed",
+      "action": "original permit plus current continuation, exact holder/session/generation and current enrollment authorization"
+    },
+    {
+      "state": "withdrawn_device_unknown",
+      "action": "server enrollment scope held; preserve reservation; no claim old permits recalled"
+    },
+    {
+      "state": "withdrawn_device_hold_verified",
+      "action": "enrollment-only fence confirmed; reconcile observed phase; no wipe/reuse inference"
+    },
+    {
+      "state": "active_binding",
+      "action": "preserve wallet ownership; recovery may reconcile original evidence, never re-enroll"
+    }
+  ],
+  "evidenceParentMapping": [
+    {
+      "message": "ResumePrepared",
+      "kind": "enrollment_resume_prepared",
+      "ownerKind": "continuation",
+      "ownerTable": "enrollment_continuations",
+      "parentKey": "continuation_id"
+    },
+    {
+      "message": "ContinuationApplied",
+      "kind": "enrollment_continuation_applied",
+      "ownerKind": "continuation",
+      "ownerTable": "enrollment_continuations",
+      "parentKey": "continuation_id"
+    },
+    {
+      "message": "HoldApplied",
+      "kind": "enrollment_hold_applied",
+      "ownerKind": "withdrawal",
+      "ownerTable": "admission_authorization_withdrawals",
+      "parentKey": "withdrawal_id"
+    }
+  ]
+}

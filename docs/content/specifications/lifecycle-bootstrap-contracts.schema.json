@@ -1,0 +1,2545 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:lifecycle:bootstrap:draft",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "Epoch": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "Proof": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "keyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "signedDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "proofBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "profileId",
+        "keyId",
+        "signedDigest",
+        "proofBytes"
+      ],
+      "additionalProperties": false
+    },
+    "HolderKey": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/Id"
+        },
+        "encodedPublicKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "thumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "profileId",
+        "encodedPublicKey",
+        "thumbprint"
+      ],
+      "additionalProperties": false
+    },
+    "TicketContext": {
+      "type": "object",
+      "properties": {
+        "invitationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "accountId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "inventoryScopeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "deviceEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "gateRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bindingRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "holderThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "enrollmentSessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "consentTextVersion": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "consentDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "invitationId",
+        "challengeId",
+        "deviceId",
+        "accountId",
+        "inventoryScopeId",
+        "candidateDigest",
+        "deviceEpoch",
+        "gateRevision",
+        "bindingRevision",
+        "holderThumbprint",
+        "enrollmentSessionId",
+        "consentTextVersion",
+        "consentDigest",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "Ticket": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "purpose": {
+              "const": "enrollment_bootstrap_only"
+            },
+            "context": {
+              "$ref": "#/$defs/TicketContext"
+            },
+            "serverNonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "deviceIdentityRef": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "version",
+            "purpose",
+            "context",
+            "serverNonce",
+            "deviceIdentityRef"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceHello": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "purpose": {
+              "const": "enrollment_device_hello"
+            },
+            "ticketDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "deviceEpoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "deviceNonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "clientNonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "deviceEphemeralKey": {
+              "$ref": "#/$defs/HolderKey"
+            },
+            "firmwareProfileRef": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "purpose",
+            "ticketDigest",
+            "deviceId",
+            "deviceEpoch",
+            "deviceNonce",
+            "clientNonce",
+            "deviceEphemeralKey",
+            "firmwareProfileRef"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ConsentStatement": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "const": "accept_exact_device_rental"
+        },
+        "ticketDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "deviceHelloDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "context": {
+          "$ref": "#/$defs/TicketContext"
+        },
+        "clientNonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceNonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "accepted": {
+          "const": true
+        }
+      },
+      "required": [
+        "purpose",
+        "ticketDigest",
+        "deviceHelloDigest",
+        "context",
+        "clientNonce",
+        "deviceNonce",
+        "accepted"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceApproval": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "purpose": {
+              "const": "approve_exact_enrollment"
+            },
+            "ticketDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "deviceHelloDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "consentDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "holderProofDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "context": {
+              "$ref": "#/$defs/TicketContext"
+            },
+            "deviceNonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "clientNonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "physicalApproval": {
+              "const": true
+            }
+          },
+          "required": [
+            "purpose",
+            "ticketDigest",
+            "deviceHelloDigest",
+            "consentDigest",
+            "holderProofDigest",
+            "context",
+            "deviceNonce",
+            "clientNonce",
+            "physicalApproval"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ConsentResult": {
+      "type": "object",
+      "properties": {
+        "invitationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "accountId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "recipientConsentRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "enrollmentProofRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "enrollmentSessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "holderThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "enum": [
+            "available",
+            "consumed",
+            "revoked",
+            "expired"
+          ]
+        }
+      },
+      "required": [
+        "invitationId",
+        "accountId",
+        "recipientConsentRef",
+        "enrollmentProofRef",
+        "enrollmentSessionId",
+        "holderThumbprint",
+        "deviceId",
+        "candidateDigest",
+        "revision",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "InvitationView": {
+      "type": "object",
+      "properties": {
+        "invitationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "inventoryScopeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "enum": [
+            "open",
+            "consented",
+            "consumed",
+            "revoked",
+            "expired"
+          ]
+        },
+        "recipientConsentRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enrollmentProofRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recipientBinding": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "accountId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "holderThumbprint": {
+                  "type": "string",
+                  "pattern": "^0x[0-9a-f]{64}$"
+                },
+                "enrollmentSessionId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                }
+              },
+              "required": [
+                "accountId",
+                "holderThumbprint",
+                "enrollmentSessionId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "invitationId",
+        "deviceId",
+        "inventoryScopeId",
+        "candidateDigest",
+        "revision",
+        "state",
+        "recipientConsentRef",
+        "enrollmentProofRef",
+        "recipientBinding"
+      ],
+      "additionalProperties": false
+    },
+    "WorkView": {
+      "type": "object",
+      "properties": {
+        "workId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "parentKind": {
+          "enum": [
+            "invitation",
+            "genesis",
+            "admission",
+            "reset",
+            "cancellation"
+          ]
+        },
+        "parentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "action": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "requestDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "businessOutcomeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "workRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "enum": [
+            "pending_signing",
+            "pending_verification",
+            "ready",
+            "blocked",
+            "rejected",
+            "quarantined"
+          ]
+        },
+        "domainRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "grantBarrier": {
+          "enum": [
+            "not_applicable",
+            "not_reserved",
+            "reserved_irreversible"
+          ]
+        },
+        "retryAction": {
+          "enum": [
+            "poll_same_work",
+            "refetch_original_route",
+            "reauthenticate",
+            "support_review",
+            "none"
+          ]
+        },
+        "resultRouteId": {
+          "anyOf": [
+            {
+              "enum": [
+                "API-046",
+                "RT-01",
+                "RT-03",
+                "RT-05",
+                "API-047",
+                "RT-06",
+                "API-045",
+                "RL-02",
+                "RL-03",
+                "RC-01",
+                "RC-02",
+                "RC-03",
+                "EB02",
+                "EB03",
+                "FG01",
+                "WC01",
+                "WC02"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "workId",
+        "parentKind",
+        "parentId",
+        "action",
+        "requestDigest",
+        "businessOutcomeId",
+        "workRevision",
+        "state",
+        "domainRevision",
+        "grantBarrier",
+        "retryAction",
+        "resultRouteId"
+      ],
+      "additionalProperties": false
+    },
+    "PendingResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            },
+            "retryAfterSeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl",
+            "retryAfterSeconds"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "work": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/WorkView"
+                },
+                {
+                  "properties": {
+                    "state": {
+                      "enum": [
+                        "pending_signing",
+                        "pending_verification"
+                      ]
+                    },
+                    "retryAction": {
+                      "const": "poll_same_work"
+                    },
+                    "resultRouteId": {
+                      "type": "null"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "work"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "WalletDisposition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "configured"
+            },
+            "origin": {
+              "enum": [
+                "new_travel",
+                "imported"
+              ]
+            },
+            "configurationRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "externalAccessProof": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "proofId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "profileId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    }
+                  },
+                  "required": [
+                    "proofId",
+                    "profileId"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "origin",
+            "configurationRevision",
+            "externalAccessProof"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unconfigured"
+            },
+            "configurationRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "emptyStateEvidenceRef": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "kind",
+            "configurationRevision",
+            "emptyStateEvidenceRef"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "EmptyStateEvidence": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "purpose": {
+              "const": "report_unconfigured_wallet_state"
+            },
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "rentalId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "bindingId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "deviceEpoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "configurationRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "challengeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "profileId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "everConfiguredInBinding": {
+              "const": false
+            },
+            "walletKeySlots": {
+              "enum": [
+                "verified_empty"
+              ]
+            },
+            "stagedImports": {
+              "enum": [
+                "verified_empty"
+              ]
+            },
+            "unresolvedWalletOperations": {
+              "const": false
+            },
+            "privateDataInventoryDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "purpose",
+            "deviceId",
+            "rentalId",
+            "bindingId",
+            "deviceEpoch",
+            "configurationRevision",
+            "challengeId",
+            "profileId",
+            "everConfiguredInBinding",
+            "walletKeySlots",
+            "stagedImports",
+            "unresolvedWalletOperations",
+            "privateDataInventoryDigest"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "API046RequestDelta": {
+      "type": "object",
+      "properties": {
+        "expectedRentalRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "walletDisposition": {
+          "$ref": "#/$defs/WalletDisposition"
+        }
+      },
+      "required": [
+        "expectedRentalRevision",
+        "walletDisposition"
+      ],
+      "additionalProperties": false
+    },
+    "AdmissionBasis": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "factory_genesis"
+            },
+            "genesisRecordId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "genesisRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "genesisRecordId",
+            "genesisRevision"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "returned_device"
+            },
+            "returnJobId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "completionHandle": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "cleanupEvidenceDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "kind",
+            "returnJobId",
+            "completionHandle",
+            "cleanupEvidenceDigest"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "API045RequestDelta": {
+      "type": "object",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "accountId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expectedEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expectedGateRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expectedBindingRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "recipientConsentRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "enrollmentHolderThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "enrollmentSessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "basis": {
+          "$ref": "#/$defs/AdmissionBasis"
+        },
+        "enrollmentProofRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "deviceId",
+        "accountId",
+        "expectedEpoch",
+        "expectedGateRevision",
+        "expectedBindingRevision",
+        "candidateDigest",
+        "recipientConsentRef",
+        "enrollmentHolderThumbprint",
+        "enrollmentSessionId",
+        "basis",
+        "enrollmentProofRef"
+      ],
+      "additionalProperties": false
+    },
+    "GenesisEvidence": {
+      "type": "object",
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "inventoryScopeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "provisioningManifestRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceIdentityRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "attestationObjectRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "historyWatermarkRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "proofProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "deviceId",
+        "inventoryScopeId",
+        "provisioningManifestRef",
+        "deviceIdentityRef",
+        "challengeId",
+        "attestationObjectRef",
+        "historyWatermarkRef",
+        "proofProfileId"
+      ],
+      "additionalProperties": false
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            "AUTH_REQUIRED",
+            "SCOPE_DENIED",
+            "INVITATION_EXPIRED",
+            "CONTEXT_MISMATCH",
+            "CONSENT_REQUIRED",
+            "CONSENT_CONSUMED",
+            "PROOF_INVALID",
+            "PROFILE_UNSUPPORTED",
+            "REVISION_CONFLICT",
+            "WALLET_STATE_UNKNOWN",
+            "MATERIAL_PRESENT",
+            "WORK_NOT_VISIBLE"
+          ]
+        },
+        "retryAction": {
+          "enum": [
+            "restart_before_reservation",
+            "poll_same_work",
+            "reauthenticate",
+            "support_review",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "retryAction"
+      ],
+      "additionalProperties": false
+    },
+    "EB01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "candidateDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "expectedGateRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expectedBindingRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "candidateDigest",
+            "expectedGateRevision",
+            "expectedBindingRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "invitation": {
+                  "$ref": "#/$defs/InvitationView"
+                },
+                "invitationSecret": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                }
+              },
+              "required": [
+                "invitation",
+                "invitationSecret"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB02Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "invitationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "invitationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "invitationSecret": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "candidateDigest": {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            "holderKey": {
+              "$ref": "#/$defs/HolderKey"
+            }
+          },
+          "required": [
+            "invitationSecret",
+            "candidateDigest",
+            "holderKey"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB02Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "ticket": {
+                  "$ref": "#/$defs/Ticket"
+                }
+              },
+              "required": [
+                "ticket"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB03Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "invitationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "invitationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "statement": {
+              "$ref": "#/$defs/ConsentStatement"
+            },
+            "holderKey": {
+              "$ref": "#/$defs/HolderKey"
+            },
+            "holderProof": {
+              "$ref": "#/$defs/Proof"
+            },
+            "deviceHello": {
+              "$ref": "#/$defs/DeviceHello"
+            },
+            "deviceApproval": {
+              "$ref": "#/$defs/DeviceApproval"
+            }
+          },
+          "required": [
+            "statement",
+            "holderKey",
+            "holderProof",
+            "deviceHello",
+            "deviceApproval"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB03Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "consent": {
+                  "$ref": "#/$defs/ConsentResult"
+                }
+              },
+              "required": [
+                "consent"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB04Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "invitationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "invitationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "EB04Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "invitation": {
+                  "$ref": "#/$defs/InvitationView"
+                }
+              },
+              "required": [
+                "invitation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB05Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "invitationId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "invitationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "expectedRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "expectedRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EB05Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "invitation": {
+                  "$ref": "#/$defs/InvitationView"
+                }
+              },
+              "required": [
+                "invitation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "FG01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "evidence": {
+              "$ref": "#/$defs/GenesisEvidence"
+            },
+            "expectedInventoryRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "evidence",
+            "expectedInventoryRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "FG01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "genesisRecordId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "state": {
+                  "enum": [
+                    "verified",
+                    "quarantined"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "genesisRecordId",
+                "state",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "LW01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "workId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "workId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "contractVersion": {
+                  "const": "lifecycle-bootstrap-v1-draft"
+                },
+                "authKind": {
+                  "const": "primary"
+                },
+                "bearer": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "requestId",
+                "contractVersion",
+                "authKind",
+                "bearer"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "contractVersion": {
+                  "const": "lifecycle-bootstrap-v1-draft"
+                },
+                "authKind": {
+                  "const": "relay"
+                },
+                "authorityId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "senderProof": {
+                  "type": "object",
+                  "properties": {
+                    "nonce": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "issuedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "requestDigest": {
+                      "type": "string",
+                      "pattern": "^0x[0-9a-f]{64}$"
+                    },
+                    "proof": {
+                      "$ref": "#/$defs/Proof"
+                    }
+                  },
+                  "required": [
+                    "nonce",
+                    "issuedAt",
+                    "requestDigest",
+                    "proof"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "requestId",
+                "contractVersion",
+                "authKind",
+                "authorityId",
+                "senderProof"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "LW01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "work": {
+                  "$ref": "#/$defs/WorkView"
+                }
+              },
+              "required": [
+                "work"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "EBB01Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "lifecycle-bootstrap-ble-v1-draft"
+        },
+        "command": {
+          "const": "enrollment.bootstrap.hello"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "ticket": {
+              "$ref": "#/$defs/Ticket"
+            },
+            "holderKey": {
+              "$ref": "#/$defs/HolderKey"
+            },
+            "holderProof": {
+              "$ref": "#/$defs/Proof"
+            },
+            "clientNonce": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "ticket",
+            "holderKey",
+            "holderProof",
+            "clientNonce"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "sessionId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "EBB01Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "lifecycle-bootstrap-ble-v1-draft"
+        },
+        "command": {
+          "const": "enrollment.bootstrap.hello"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "$ref": "#/$defs/DeviceHello"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "EBB02Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "lifecycle-bootstrap-ble-v1-draft"
+        },
+        "command": {
+          "const": "enrollment.bootstrap.approve"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "ticket": {
+              "$ref": "#/$defs/Ticket"
+            },
+            "statement": {
+              "$ref": "#/$defs/ConsentStatement"
+            },
+            "holderProof": {
+              "$ref": "#/$defs/Proof"
+            }
+          },
+          "required": [
+            "ticket",
+            "statement",
+            "holderProof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "sessionId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "EBB02Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "lifecycle-bootstrap-ble-v1-draft"
+        },
+        "command": {
+          "const": "enrollment.bootstrap.approve"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "$ref": "#/$defs/DeviceApproval"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "InventoryChallenge": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "purpose": {
+              "const": "inspect_wallet_configuration"
+            },
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "rentalId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "bindingId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "deviceEpoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "configurationRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "challengeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "purpose",
+            "deviceId",
+            "rentalId",
+            "bindingId",
+            "deviceEpoch",
+            "configurationRevision",
+            "challengeId",
+            "expiresAt"
+          ],
+          "additionalProperties": false
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "WC01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "expectedBindingRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expectedConfigurationRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "expectedBindingRevision",
+            "expectedConfigurationRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "WC01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "challenge": {
+                  "$ref": "#/$defs/InventoryChallenge"
+                }
+              },
+              "required": [
+                "challenge"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "WC02Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "deviceId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "minLength": 1
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "contractVersion",
+            "authorization",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "evidence": {
+              "$ref": "#/$defs/EmptyStateEvidence"
+            }
+          },
+          "required": [
+            "evidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "WC02Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "lifecycle-bootstrap-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "emptyStateEvidenceRef": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "configurationRevision": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "state": {
+                  "enum": [
+                    "verified_empty",
+                    "rejected",
+                    "quarantined"
+                  ]
+                }
+              },
+              "required": [
+                "emptyStateEvidenceRef",
+                "configurationRevision",
+                "state"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "WCB01Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "lifecycle-bootstrap-ble-v1-draft"
+        },
+        "command": {
+          "const": "wallet.configuration.inspect"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload": {
+          "$ref": "#/$defs/InventoryChallenge"
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "sessionId",
+        "sequence",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "WCB01Response": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "lifecycle-bootstrap-ble-v1-draft"
+        },
+        "command": {
+          "const": "wallet.configuration.inspect"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "result": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EmptyStateEvidence"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "enum": [
+                    "MATERIAL_PRESENT",
+                    "STATE_UNKNOWN",
+                    "PROFILE_UNSUPPORTED"
+                  ]
+                }
+              },
+              "required": [
+                "error"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "command",
+        "requestId",
+        "result"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

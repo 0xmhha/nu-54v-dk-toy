@@ -1,0 +1,51 @@
+{
+  "date": "2026-09-19",
+  "scope": "design_inventory_and_reference_validation_only",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "liveRpcVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_stablenet_compatibility.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_inventory_and_pinned_references_only\", \"manifestComponents\": 8, \"assets\": 4, \"domainCoverage\": 9, \"indexerStages\": 8, \"accountTransitions\": 7, \"runtimeCases\": 34, \"preservedSources\": 12, \"liveRpcVerified\": false, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_kiosk_commerce_journeys.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"journey_inventory_and_reference_checks_only\", \"journeys\": 12, \"paymentDisplayStates\": 10, \"policyInputs\": 7, \"contractDeltas\": 7, \"runtimeCases\": 34, \"sourceFilesPreserved\": 12, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_commerce_consumer_repair.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_links_and_finite_examples_only\", \"consumers\": 5, \"logicalResources\": 6, \"rebuildSteps\": 7, \"syntheticExamples\": 22, \"runtimeCasesNotRun\": 22, \"unchangedSourceFiles\": 9, \"canonicalMerged\": false, \"sqlApplied\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/validate_full_scope_design.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exit_code": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": [
+      "Existing allowance retention/revocation separated from new-address approval; same-address 7702 allowance persistence explicit.",
+      "AA completion rechecks current authority/config/holds and uses expected plan/state revision CAS."
+    ],
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "34 runtime cases are not_run; no current RPC, repository HEAD, deployment, signing or indexer recovery execution verified.",
+    "All manifest pins/compatibility evidence and eight selections remain unselected.",
+    "Smart account source adapter, exact deployment/decoder registry and typed APIs remain adoption work."
+  ]
+}

@@ -1,0 +1,1004 @@
+{
+  "notice": "Synthetic shape fixtures and declarative review cases; not cryptographic or authorization runtime tests",
+  "valid": [
+    {
+      "name": "request_007",
+      "schema": "API007Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "request_008",
+      "schema": "API008Request",
+      "value": {
+        "path": {
+          "storeId": "store_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "request_009",
+      "schema": "API009Request",
+      "value": {
+        "path": {
+          "walletId": "wallet_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {
+          "contextKind": "personal"
+        }
+      }
+    },
+    {
+      "name": "request_019",
+      "schema": "API019Request",
+      "value": {
+        "path": {
+          "transactionRef": "tx_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "request_020",
+      "schema": "API020Request",
+      "value": {
+        "path": {
+          "operationId": "op_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "request_017",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "personal_transfer",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "1000000"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "request_015",
+      "schema": "API015Request",
+      "value": {
+        "path": {
+          "walletId": "wallet_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalContextId": "approval_a",
+          "approvalProof": {
+            "profileId": "synthetic",
+            "data": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "request_018_guest_shape",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "guest_intent",
+          "signedPayload": "0x1234"
+        }
+      }
+    },
+    {
+      "name": "request_018_owned_shape",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "intent_a",
+          "signedPayload": "0x1234",
+          "approvalEvidence": {
+            "kind": "mpc_session",
+            "operationId": "mpc_op"
+          }
+        }
+      }
+    },
+    {
+      "name": "response_007",
+      "schema": "API007Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "wallets": [
+              {
+                "wallet": {
+                  "walletId": "wallet_a",
+                  "kind": "cloud_mpc_eoa",
+                  "chainId": 8283,
+                  "address": "0x1111111111111111111111111111111111111111",
+                  "signerRef": "signer_a",
+                  "revision": 1
+                },
+                "context": {
+                  "kind": "personal"
+                },
+                "bindingId": "binding_a",
+                "bindingRevision": 2,
+                "signers": [
+                  {
+                    "signerRef": "signer_a",
+                    "kind": "cloud_mpc_eoa",
+                    "epoch": "3",
+                    "profileId": "synthetic",
+                    "supportedRequestKinds": [
+                      "eoa_transaction"
+                    ],
+                    "state": "available",
+                    "observedAt": "2026-09-18T06:00:00Z"
+                  }
+                ]
+              }
+            ],
+            "nextCursor": null,
+            "snapshotId": "snapshot_a",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "response_008",
+      "schema": "API008Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "wallets": [],
+            "nextCursor": null,
+            "snapshotId": "snapshot_b",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "response_009",
+      "schema": "API009Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "chainId": 8283,
+            "address": "0x1111111111111111111111111111111111111111",
+            "assets": [],
+            "observedAt": "2026-09-18T06:00:00Z",
+            "blockRef": null
+          }
+        }
+      }
+    },
+    {
+      "name": "response_015",
+      "schema": "API015Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "mpc_op",
+              "kind": "wallet_flow",
+              "state": "running",
+              "revision": 0,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T06:00:00Z"
+            },
+            "signing": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "phase": "signing",
+              "transactionRef": null,
+              "observedAt": "2026-09-18T06:00:00Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "response_017",
+      "schema": "API017Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "intent": {
+              "intentId": "intent_a",
+              "sourceKind": "personal_transfer",
+              "sourceId": "source_a",
+              "walletId": "wallet_a",
+              "profile": {
+                "profileId": "synthetic",
+                "data": {}
+              },
+              "expiresAt": "2026-09-18T06:00:00Z",
+              "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "review": {
+              "reviewId": "review_a",
+              "kind": "personal_transfer",
+              "digest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "requiresPhysicalApproval": false,
+              "display": {
+                "profileId": "synthetic",
+                "data": {}
+              }
+            },
+            "expiry": "2026-09-18T06:00:00Z",
+            "approvalContext": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "operationId": "op_a",
+              "selection": {
+                "walletId": "wallet_a",
+                "context": {
+                  "kind": "personal"
+                },
+                "bindingId": "binding_a",
+                "expectedBindingRevision": 2,
+                "expectedWalletRevision": 1,
+                "signerRef": "signer_a",
+                "expectedSignerEpoch": "3"
+              },
+              "chainId": 8283,
+              "payerAddress": "0x1111111111111111111111111111111111111111",
+              "sourceKind": "personal_transfer",
+              "sourceId": "source_a",
+              "requestKind": "eoa_transaction",
+              "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "profileId": "synthetic",
+              "expiresAt": "2026-09-18T06:00:00Z"
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "wallet_flow",
+              "state": "running",
+              "revision": 0,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T06:00:00Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "response_018",
+      "schema": "API018Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "wallet_flow",
+              "state": "running",
+              "revision": 0,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T06:00:00Z"
+            },
+            "transactionRef": "tx_a"
+          }
+        }
+      }
+    },
+    {
+      "name": "response_019",
+      "schema": "API019Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "execution": "pending",
+            "canonicality": "canonical",
+            "confirmation": "observed",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "response_020",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "wallet_flow",
+              "state": "running",
+              "revision": 0,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T06:00:00Z"
+            },
+            "walletFlow": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "phase": "review_ready",
+              "transactionRef": null,
+              "observedAt": "2026-09-18T06:00:00Z"
+            },
+            "approvalSnapshot": {
+              "intent": {
+                "intentId": "intent_a",
+                "sourceKind": "personal_transfer",
+                "sourceId": "source_a",
+                "walletId": "wallet_a",
+                "profile": {
+                  "profileId": "synthetic",
+                  "data": {}
+                },
+                "expiresAt": "2026-09-18T06:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "review": {
+                "reviewId": "review_a",
+                "kind": "personal_transfer",
+                "digest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requiresPhysicalApproval": false,
+                "display": {
+                  "profileId": "synthetic",
+                  "data": {}
+                }
+              },
+              "expiry": "2026-09-18T06:00:00Z",
+              "approvalContext": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "selection": {
+                  "walletId": "wallet_a",
+                  "context": {
+                    "kind": "personal"
+                  },
+                  "bindingId": "binding_a",
+                  "expectedBindingRevision": 2,
+                  "expectedWalletRevision": 1,
+                  "signerRef": "signer_a",
+                  "expectedSignerEpoch": "3"
+                },
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "sourceKind": "personal_transfer",
+                "sourceId": "source_a",
+                "requestKind": "eoa_transaction",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "profileId": "synthetic",
+                "expiresAt": "2026-09-18T06:00:00Z"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "error_selection_stale",
+      "schema": "ErrorResponse",
+      "value": {
+        "statusCode": 409,
+        "body": {
+          "requestId": "req_a",
+          "error": {
+            "code": "SELECTION_STALE",
+            "retryable": false,
+            "operationId": null,
+            "safeMessage": "Review the selected wallet again.",
+            "nextAction": "review_again"
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "refund_smuggled_as_action",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "merchant_refund",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "1000000"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "client_source_override",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "personal_transfer",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "1000000"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          },
+          "sourceId": "refund_a"
+        }
+      }
+    },
+    {
+      "name": "negative_amount",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "personal_transfer",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "-1"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "no_idempotency",
+      "schema": "API017Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "body": {
+          "walletId": "wallet_a",
+          "chainId": 8283,
+          "action": "personal_transfer",
+          "actionInput": {
+            "recipient": "0x1111111111111111111111111111111111111111",
+            "assetId": "dummy_usdc",
+            "atomicAmount": "1000000"
+          },
+          "selection": {
+            "walletId": "wallet_a",
+            "context": {
+              "kind": "personal"
+            },
+            "bindingId": "binding_a",
+            "expectedBindingRevision": 2,
+            "expectedWalletRevision": 1,
+            "signerRef": "signer_a",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "personal_with_store",
+      "schema": "API009Request",
+      "value": {
+        "path": {
+          "walletId": "wallet_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {
+          "contextKind": "personal",
+          "storeId": "store_a"
+        }
+      }
+    },
+    {
+      "name": "private_key_in_query",
+      "schema": "API008Request",
+      "value": {
+        "path": {
+          "storeId": "store_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1"
+        },
+        "query": {
+          "limit": 20,
+          "privateKey": "synthetic"
+        }
+      }
+    },
+    {
+      "name": "missing_context",
+      "schema": "API015Request",
+      "value": {
+        "path": {
+          "walletId": "wallet_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "intent_a",
+          "approvalProof": {
+            "profileId": "synthetic",
+            "data": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "client_signer_override",
+      "schema": "API018Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "wallet-approval-candidate-1",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "intentId": "intent_a",
+          "signedPayload": "0x1234",
+          "approvalEvidence": {
+            "kind": "mpc_session",
+            "operationId": "mpc_op"
+          },
+          "signerRef": "signer_b"
+        }
+      }
+    },
+    {
+      "name": "response_without_binding",
+      "schema": "API017Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "intent": {
+              "intentId": "intent_a",
+              "sourceKind": "personal_transfer",
+              "sourceId": "source_a",
+              "walletId": "wallet_a",
+              "profile": {
+                "profileId": "synthetic",
+                "data": {}
+              },
+              "expiresAt": "2026-09-18T06:00:00Z",
+              "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "review": {
+              "reviewId": "review_a",
+              "kind": "personal_transfer",
+              "digest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "requiresPhysicalApproval": false,
+              "display": {
+                "profileId": "synthetic",
+                "data": {}
+              }
+            },
+            "expiry": "2026-09-18T06:00:00Z",
+            "approvalContext": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "operationId": "op_a",
+              "chainId": 8283,
+              "payerAddress": "0x1111111111111111111111111111111111111111",
+              "sourceKind": "personal_transfer",
+              "sourceId": "source_a",
+              "requestKind": "eoa_transaction",
+              "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "profileId": "synthetic",
+              "expiresAt": "2026-09-18T06:00:00Z"
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "wallet_flow",
+              "state": "running",
+              "revision": 0,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T06:00:00Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "availability_claims_key",
+      "schema": "API007Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "wallets": [
+              {
+                "wallet": {
+                  "walletId": "wallet_a",
+                  "kind": "cloud_mpc_eoa",
+                  "chainId": 8283,
+                  "address": "0x1111111111111111111111111111111111111111",
+                  "signerRef": "signer_a",
+                  "revision": 1
+                },
+                "context": {
+                  "kind": "personal"
+                },
+                "bindingId": "binding_a",
+                "bindingRevision": 2,
+                "signers": [
+                  {
+                    "signerRef": "signer_a",
+                    "kind": "cloud_mpc_eoa",
+                    "epoch": "3",
+                    "profileId": "synthetic",
+                    "supportedRequestKinds": [
+                      "eoa_transaction"
+                    ],
+                    "state": "available",
+                    "observedAt": "2026-09-18T06:00:00Z",
+                    "privateKey": "synthetic"
+                  }
+                ]
+              }
+            ],
+            "nextCursor": null,
+            "snapshotId": "snapshot_a",
+            "observedAt": "2026-09-18T06:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "operation_exposes_proof",
+      "schema": "API020Response",
+      "value": {
+        "statusCode": 202,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "wallet_flow",
+              "state": "running",
+              "revision": 0,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T06:00:00Z"
+            },
+            "walletFlow": {
+              "approvalContextId": "approval_a",
+              "intentId": "intent_a",
+              "phase": "review_ready",
+              "transactionRef": null,
+              "observedAt": "2026-09-18T06:00:00Z",
+              "proof": "synthetic"
+            },
+            "approvalSnapshot": {
+              "intent": {
+                "intentId": "intent_a",
+                "sourceKind": "personal_transfer",
+                "sourceId": "source_a",
+                "walletId": "wallet_a",
+                "profile": {
+                  "profileId": "synthetic",
+                  "data": {}
+                },
+                "expiresAt": "2026-09-18T06:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "review": {
+                "reviewId": "review_a",
+                "kind": "personal_transfer",
+                "digest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requiresPhysicalApproval": false,
+                "display": {
+                  "profileId": "synthetic",
+                  "data": {}
+                }
+              },
+              "expiry": "2026-09-18T06:00:00Z",
+              "approvalContext": {
+                "approvalContextId": "approval_a",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "selection": {
+                  "walletId": "wallet_a",
+                  "context": {
+                    "kind": "personal"
+                  },
+                  "bindingId": "binding_a",
+                  "expectedBindingRevision": 2,
+                  "expectedWalletRevision": 1,
+                  "signerRef": "signer_a",
+                  "expectedSignerEpoch": "3"
+                },
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "sourceKind": "personal_transfer",
+                "sourceId": "source_a",
+                "requestKind": "eoa_transaction",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "profileId": "synthetic",
+                "expiresAt": "2026-09-18T06:00:00Z"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "reviewCases": [
+    {
+      "id": "WA-01",
+      "title": "same selection",
+      "trigger": "No changes to wallet/binding/context/signer/profile/digest",
+      "expected": "allow_after_real_verifiers",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-02",
+      "title": "different wallet path",
+      "trigger": "API015 path wallet differs from stored intent",
+      "expected": "reject",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-03",
+      "title": "same EOA different device",
+      "trigger": "EOA signature valid but no selected device provenance proof",
+      "expected": "reject_provenance_claim",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-04",
+      "title": "stale signer epoch",
+      "trigger": "MPC participant replaced after review",
+      "expected": "reject_fresh_signing",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-05",
+      "title": "read-only store user",
+      "trigger": "Wallet visible but no funds/signing authority",
+      "expected": "reject",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-06",
+      "title": "old context",
+      "trigger": "UI switches personal to store without new review",
+      "expected": "reject",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-07",
+      "title": "guest kiosk",
+      "trigger": "API034 intent with valid limited capability and session evidence; no app account",
+      "expected": "preserve_guest_path",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-08",
+      "title": "forged refund via transfer",
+      "trigger": "Personal token transfer has same amount/payee as refund",
+      "expected": "no_refund_ledger_completion",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-09",
+      "title": "identical retry after acceptance",
+      "trigger": "Same intent/bytes accepted before expiry, response lost; current read authority valid",
+      "expected": "return_original_no_new_dispatch",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-10",
+      "title": "expired unaccepted submission",
+      "trigger": "No durable accepted record, intent expired",
+      "expected": "reject_new_dispatch_keep_observation",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-11",
+      "title": "payload changed on retry",
+      "trigger": "Same intent with new fee/nonce/signature bytes",
+      "expected": "conflict_review_new_intent",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-12",
+      "title": "same address external nonce",
+      "trigger": "External imported wallet uses nonce first",
+      "expected": "reconcile_not_automatic_replacement",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-13",
+      "title": "revoked actor asks old result",
+      "trigger": "Read capability/account no longer valid",
+      "expected": "deny_private_result_keep_internal_observation",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-14",
+      "title": "unknown local signing",
+      "trigger": "App loses BLE result after request delivered",
+      "expected": "possible_signature_no_auto_repayment",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-15",
+      "title": "unavailable profile",
+      "trigger": "No verified device-result or MPC adapter for selected route",
+      "expected": "reject_no_EOA_only_fallback",
+      "status": "not_run"
+    },
+    {
+      "id": "WA-16",
+      "title": "cursor on another store",
+      "trigger": "Valid opaque cursor reused by another context/principal",
+      "expected": "reject_before_private_projection",
+      "status": "not_run"
+    }
+  ]
+}

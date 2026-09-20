@@ -1,0 +1,368 @@
+{
+  "version": "0.1.0-draft",
+  "baselineApiCount": 102,
+  "supplementalApiCount": 5,
+  "totalProposedPaths": 110,
+  "status": "merged_into_canonical_design",
+  "typeLegend": {
+    "Id": "nonempty opaque identifier; bounded length by merged schema",
+    "Timestamp": "RFC3339 UTC timestamp",
+    "NonnegativeInteger": "integer >= 0",
+    "Digest": "algorithm-tagged fixed-length digest; algorithm chosen by profile",
+    "ProfilePayload": "selected strict profile schema and verifier required, unresolved profiles rejected",
+    "ProofReference": "existing proofId/profileId shape with caller/source scoped resolution",
+    "NullableId": "Id or null",
+    "NullableText": "bounded safe text or null",
+    "NullableProfilePayload": "ProfilePayload or null"
+  },
+  "operations": [
+    {
+      "id": "SEC-API-01",
+      "gapId": "GAP-01",
+      "method": "POST",
+      "path": "/v1/auth/flows",
+      "authorization": "public rate-limited login bootstrap; recent authenticated account for link purpose",
+      "inputFields": [
+        {
+          "name": "provider",
+          "type": "enum:google|apple",
+          "required": true,
+          "meaning": "server allowlisted provider"
+        },
+        {
+          "name": "purpose",
+          "type": "enum:login|link",
+          "required": true,
+          "meaning": "link requires recent session; never caller-chosen accountId"
+        },
+        {
+          "name": "clientProfileId",
+          "type": "Id",
+          "required": true,
+          "meaning": "registered provider/OS/client/redirect and exact proof rules"
+        },
+        {
+          "name": "redirectId",
+          "type": "Id",
+          "required": true,
+          "meaning": "allowlist identifier, not arbitrary URI"
+        },
+        {
+          "name": "challengeParameters",
+          "type": "ProfilePayload",
+          "required": true,
+          "meaning": "profile-specific PKCE/state/nonce binding; strict provider schema required"
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "flowId",
+          "type": "Id",
+          "required": true,
+          "meaning": "one flow"
+        },
+        {
+          "name": "authorizationParameters",
+          "type": "ProfilePayload",
+          "required": true,
+          "meaning": "public SDK/browser arguments only; no client secret/verifier"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Timestamp",
+          "required": true,
+          "meaning": "server clock"
+        }
+      ],
+      "errors": [
+        "AUTH_FLOW_INVALID",
+        "AUTH_REQUIRED",
+        "RATE_LIMITED",
+        "UNSUPPORTED_PROFILE"
+      ],
+      "idempotency": "required",
+      "commitRule": "atomic flow issue; existing API-001/002 consume it; provider field revision pending",
+      "status": "merged_into_canonical_design",
+      "runtimeVerified": false,
+      "canonicalApiId": "API-103",
+      "normalizationNotes": "Canonical path fields are separated from body/query; see extended DTO for current fields and conditional rules."
+    },
+    {
+      "id": "SEC-API-02",
+      "gapId": "GAP-04",
+      "method": "POST",
+      "path": "/v1/receipt-claims/challenges",
+      "authorization": "active account and validated historical eligibility proof",
+      "inputFields": [
+        {
+          "name": "receiptLocator",
+          "type": "Id",
+          "required": true,
+          "meaning": "nonsecret lookup; no authority"
+        },
+        {
+          "name": "eligibilityProofRef",
+          "type": "ProofReference",
+          "required": true,
+          "meaning": "protected proof captured for original payment; account scope verified"
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "claimId",
+          "type": "Id",
+          "required": true,
+          "meaning": "account-bound claim"
+        },
+        {
+          "name": "challenge",
+          "type": "ProfilePayload",
+          "required": true,
+          "meaning": "purpose, domain/audience, chain, account/source binding, nonce and expiry in selected proof schema"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Timestamp",
+          "required": true,
+          "meaning": "server clock"
+        }
+      ],
+      "errors": [
+        "CLAIM_NOT_ELIGIBLE",
+        "UNSUPPORTED_PROFILE",
+        "RATE_LIMITED"
+      ],
+      "idempotency": "required",
+      "commitRule": "verify historical eligibility before disclosing details; reserve account-bound one-time claim",
+      "status": "merged_into_canonical_design",
+      "runtimeVerified": false,
+      "canonicalApiId": "API-104",
+      "normalizationNotes": "Canonical path fields are separated from body/query; see extended DTO for current fields and conditional rules. eligibilityProofRef replaced with inline registered eligibilityProof to avoid an undefined upload/reference issuer."
+    },
+    {
+      "id": "SEC-API-03",
+      "gapId": "GAP-04",
+      "method": "POST",
+      "path": "/v1/receipt-claims/{claimId}/confirm",
+      "authorization": "claim account plus profile-specific original eligibility and approval proof",
+      "inputFields": [
+        {
+          "name": "claimId",
+          "type": "Id",
+          "required": true,
+          "meaning": "path"
+        },
+        {
+          "name": "approvalProof",
+          "type": "ProfilePayload",
+          "required": true,
+          "meaning": "selected recent-auth or ticket-plus-signer profile; not arbitrary accepted bytes"
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "claimId",
+          "type": "Id",
+          "required": true,
+          "meaning": "stable identifier"
+        },
+        {
+          "name": "state",
+          "type": "enum:linked",
+          "required": true,
+          "meaning": "successful commit"
+        },
+        {
+          "name": "receiptId",
+          "type": "Id",
+          "required": true,
+          "meaning": "safe receipt projection"
+        },
+        {
+          "name": "ownershipRevision",
+          "type": "NonnegativeInteger",
+          "required": true,
+          "meaning": "receipt ownership revision"
+        }
+      ],
+      "errors": [
+        "CLAIM_EXPIRED",
+        "PROOF_INVALID",
+        "CLAIM_CONFLICT",
+        "CLAIM_NOT_ELIGIBLE"
+      ],
+      "idempotency": "required",
+      "commitRule": "same-account retry same result; unique ownership for eligible payment; atomic link plus outbox, separate challenge store recoverable by claimId",
+      "status": "merged_into_canonical_design",
+      "runtimeVerified": false,
+      "canonicalApiId": "API-105",
+      "normalizationNotes": "Canonical path fields are separated from body/query; see extended DTO for current fields and conditional rules."
+    },
+    {
+      "id": "SEC-API-04",
+      "gapId": "GAP-04",
+      "method": "GET",
+      "path": "/v1/receipt-claims/{claimId}",
+      "authorization": "current claim account",
+      "inputFields": [
+        {
+          "name": "claimId",
+          "type": "Id",
+          "required": true,
+          "meaning": "path"
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "claimId",
+          "type": "Id",
+          "required": true,
+          "meaning": "own claim only"
+        },
+        {
+          "name": "state",
+          "type": "enum:issued|verifying|linked|rejected|expired",
+          "required": true,
+          "meaning": "no other-owner details"
+        },
+        {
+          "name": "receiptId",
+          "type": "NullableId",
+          "required": true,
+          "meaning": "non-null only when linked"
+        },
+        {
+          "name": "safeErrorCode",
+          "type": "NullableText",
+          "required": true,
+          "meaning": "non-sensitive failure"
+        }
+      ],
+      "errors": [
+        "NOT_FOUND_OR_FORBIDDEN"
+      ],
+      "idempotency": "not_applicable",
+      "commitRule": "read only; current principal verified even after idempotent confirmation",
+      "status": "merged_into_canonical_design",
+      "runtimeVerified": false,
+      "canonicalApiId": "API-106",
+      "normalizationNotes": "Canonical path fields are separated from body/query; see extended DTO for current fields and conditional rules."
+    },
+    {
+      "id": "SEC-API-05",
+      "gapId": "GAP-05",
+      "method": "GET",
+      "path": "/v1/protected-results/{resultId}",
+      "authorization": "current owner/source permission and applicable purpose/consent",
+      "inputFields": [
+        {
+          "name": "resultId",
+          "type": "Id",
+          "required": true,
+          "meaning": "path"
+        },
+        {
+          "name": "purpose",
+          "type": "Id",
+          "required": true,
+          "meaning": "query; checked against allowed stored purpose, not authority"
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "resultId",
+          "type": "Id",
+          "required": true,
+          "meaning": "stable source-bound ID"
+        },
+        {
+          "name": "kind",
+          "type": "Id",
+          "required": true,
+          "meaning": "allowlisted result schema kind"
+        },
+        {
+          "name": "version",
+          "type": "Id",
+          "required": true,
+          "meaning": "immutable version"
+        },
+        {
+          "name": "payloadDigest",
+          "type": "Digest",
+          "required": true,
+          "meaning": "content digest"
+        },
+        {
+          "name": "delivery",
+          "type": "enum:inline|gateway_stream",
+          "required": true,
+          "meaning": "exclusive payload vs streamRef"
+        },
+        {
+          "name": "payload",
+          "type": "NullableProfilePayload",
+          "required": true,
+          "meaning": "strict kind schema, non-null only inline"
+        },
+        {
+          "name": "streamRef",
+          "type": "NullableId",
+          "required": true,
+          "meaning": "authenticated gateway reference only when gateway_stream; not public bearer URL"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Timestamp",
+          "required": true,
+          "meaning": "result validity"
+        }
+      ],
+      "errors": [
+        "NOT_FOUND_OR_FORBIDDEN",
+        "RESULT_EXPIRED",
+        "RESULT_UNAVAILABLE",
+        "CONSENT_REVOKED"
+      ],
+      "idempotency": "not_applicable",
+      "commitRule": "no domain mutation; actual read ACL and digest verified, gateway rechecks before streaming",
+      "status": "merged_into_canonical_design",
+      "runtimeVerified": false,
+      "canonicalApiId": "API-107",
+      "normalizationNotes": "Canonical path fields are separated from body/query; see extended DTO for current fields and conditional rules."
+    }
+  ],
+  "integrationChanges": [
+    {
+      "apiRefs": [
+        "API-001",
+        "API-002"
+      ],
+      "change": "provider/OS-specific proof fields and callback binding; existing required pkceVerifier is not proof of Apple adapter compatibility",
+      "status": "integrated_design_runtime_unverified"
+    },
+    {
+      "apiRefs": [
+        "API-042",
+        "API-043",
+        "API-046",
+        "API-047"
+      ],
+      "change": "historical receipt eligibility/ownership and pre-return export UI",
+      "status": "integrated_design_runtime_unverified"
+    },
+    {
+      "apiRefs": [
+        "API-020",
+        "API-053",
+        "API-055",
+        "API-081"
+      ],
+      "change": "result reference resolution and actual-access ACL",
+      "status": "integrated_design_runtime_unverified"
+    }
+  ],
+  "canonicalApiCount": 110,
+  "mergeDocument": "security-api-integration.md",
+  "subsequentApprovalApiCount": 3
+}

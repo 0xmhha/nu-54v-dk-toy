@@ -1,0 +1,295 @@
+{
+  "status": "canonical_logical_to_physical_mapping_design",
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "referenceSqlUnchanged": true,
+  "referenceSqlTableCount": 61,
+  "resources": [
+    {
+      "resourceId": "ApprovalBinding",
+      "existingTables": [
+        "transaction_intents",
+        "operations"
+      ],
+      "plannedPhysicalStructure": "approval_bindings",
+      "plannedConstraint": "intentId unique FK intents; approvalContextId unique; parentOperationId FK operations; source/context/version/digest/epoch immutable",
+      "serviceResponsibility": "Guest account/wallet may be absent; require actual source actor variant; parent ancestry committed with creation",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_bindings",
+        "approval_operation_links"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "SignatureProvenance",
+      "existingTables": [
+        "signing_sessions",
+        "transaction_intents"
+      ],
+      "plannedPhysicalStructure": "approval_provenance",
+      "plannedConstraint": "evidenceId PK; intentId FK binding; signedPayloadDigest/verifierProfile/version; device or MPC variant",
+      "serviceResponsibility": "Require actual verified proof; HW does not need fictitious MPC signing_session; selected epoch current at acceptance",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_provenance"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "SignedPayloadObject",
+      "existingTables": [
+        "transaction_submissions"
+      ],
+      "plannedPhysicalStructure": "ProtectedObject adapter",
+      "plannedConstraint": "objectId+version unique; exact bytes digest/length; immutable reference only",
+      "serviceResponsibility": "Stage then commit verified reference; never ordinary result URL; missing object does not prove no signature",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_protected_objects",
+        "approval_release_decisions"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "SubmissionDispatch",
+      "existingTables": [
+        "transaction_submissions",
+        "operations",
+        "outbox"
+      ],
+      "plannedPhysicalStructure": "approval_dispatches",
+      "plannedConstraint": "submissionId FK; one accepted payload per intent; permitIssued monotonic; gateRevision, parent ancestry",
+      "serviceResponsibility": "Preserve existing txHash ownership; separate prepared/permitted/unknown; original general submission state is not the full dispatch state",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_gate_snapshots",
+        "approval_dispatches"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "DispatchAttempt",
+      "existingTables": [
+        "transaction_submissions"
+      ],
+      "plannedPhysicalStructure": "approval_dispatch_attempts",
+      "plannedConstraint": "dispatchId+attemptId unique; lease/fence/permit references",
+      "serviceResponsibility": "Fences database writes only; external RPC cannot be undone by lease expiry",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_dispatch_attempts"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "AddressNonceTrack",
+      "existingTables": [
+        "transaction_intents"
+      ],
+      "plannedPhysicalStructure": "approval_nonce_slots + approval_nonce_claims",
+      "plannedConstraint": "slot unique chain+normalizedPayer+nonce; claims link slot and intent/observed transaction",
+      "serviceResponsibility": "Permit competing transaction history; do not merge privacy rights or pretend to lock external wallets",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_nonce_slots",
+        "approval_nonce_claims"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "SourceExecutionGate",
+      "existingTables": [
+        "wallet_bindings",
+        "payment_attempts",
+        "refunds",
+        "refund_balances"
+      ],
+      "plannedPhysicalStructure": "approval_authorization_gates shared source view",
+      "plannedConstraint": "gateKey PK; current revision/hold/epoch; same revision authority as AuthorizationGate",
+      "serviceResponsibility": "Latest source guard and reservation facts checked in SS-T03/04; no copied stale gate shadow",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_authorization_gates"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "ObservationApplication",
+      "existingTables": [
+        "chain_observations",
+        "payment_allocations",
+        "refunds",
+        "refund_reservations",
+        "inbox",
+        "outbox"
+      ],
+      "plannedPhysicalStructure": "observation application adapter",
+      "plannedConstraint": "source+observationId+observationRevision unique; applied ledger revision",
+      "serviceResponsibility": "Reorg compensation preserves remaining exposure: confirmed refund becomes reserved, not free balance",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_observation_applications"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "AccessChallenge",
+      "existingTables": [
+        "operations",
+        "transaction_intents"
+      ],
+      "plannedPhysicalStructure": "approval_access_challenges",
+      "plannedConstraint": "challengeId PK; actor/context/sender/action/nonceHash/expiry/authRevision/predecessorRevision; consumedIssuanceId",
+      "serviceResponsibility": "Current authorization rechecked at issue; one-time effect with idempotent protected replay",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_access_challenges",
+        "approval_gate_snapshots"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "AccessGrantLineage",
+      "existingTables": [
+        "operations",
+        "transaction_intents"
+      ],
+      "plannedPhysicalStructure": "approval_access_grants",
+      "plannedConstraint": "grantId PK; tokenVerifierHash unique; predecessor partial unique; successor FK; state/revision/expiry",
+      "serviceResponsibility": "CAS single successor; revoked/compromised lineage cannot be resurrected; independent actor/sender check",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_access_grants",
+        "approval_gate_snapshots"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "ProtectedIssuanceResponse",
+      "existingTables": [
+        "idempotency_records"
+      ],
+      "plannedPhysicalStructure": "approval_issuance_outcomes + protected object adapter",
+      "plannedConstraint": "logical actor/action/context/sender/idempotency scope unique; grant FK; encrypted blob ref/expiry separate",
+      "serviceResponsibility": "Original metadata must outlive blob while recovery requires it; do not rely on a deleted ordinary idempotency record for issuance_key recovery",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_protected_objects",
+        "approval_issuance_outcomes",
+        "approval_release_decisions"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "SenderProofReplay",
+      "existingTables": [],
+      "plannedPhysicalStructure": "approval_sender_replay",
+      "plannedConstraint": "profile+grantOrChallengeNamespace+nonce unique; requestDigest/freshness/consumption outcome",
+      "serviceResponsibility": "Transport replay differs from business idempotency; GET may consume security metadata without changing business ledger",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_sender_replay"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    },
+    {
+      "resourceId": "AuthorizationGate",
+      "existingTables": [
+        "auth_sessions",
+        "wallet_bindings",
+        "memberships",
+        "device_bindings"
+      ],
+      "plannedPhysicalStructure": "approval_authorization_gates",
+      "plannedConstraint": "gateKey/revision and exact current source/principal/session/epoch associations",
+      "serviceResponsibility": "Shared authority with SourceExecutionGate; revoke/release/permit serialize; read and submit policies distinct",
+      "sqlConstraintVerified": false,
+      "migrationDesignStatus": "detailed_physical_design_proposed_not_applied",
+      "physicalDetailTables": [
+        "approval_authorization_gates",
+        "approval_gate_snapshots",
+        "approval_release_decisions"
+      ],
+      "physicalDetailRef": "approval-physical-storage-design.json"
+    }
+  ],
+  "atomicUnitsSource": "approval-integration-candidate.json#atomicUnits (historical design basis)",
+  "atomicity": "Place gate/source/lineage/parent ancestry and idempotency updates in one enforceable transaction domain or define an explicit reservation/fence protocol before splitting services. No cross-store atomicity assumed.",
+  "atomicUnits": [
+    {
+      "id": "AI-T01",
+      "name": "challenge 생성",
+      "resourceRefs": [
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "AuthorizationGate"
+      ],
+      "rule": "현재 주체와 요청 action, predecessor 확인 후 원 context와 challenge를 고정. secret 발급 없음",
+      "runtimeVerified": false,
+      "status": "canonical_logical_transaction_design"
+    },
+    {
+      "id": "AI-T02",
+      "name": "발급·교체 commit",
+      "resourceRefs": [
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "ProtectedIssuanceResponse",
+        "SenderProofReplay",
+        "AuthorizationGate"
+      ],
+      "rule": "현재 gate 재확인, nonce 소비, predecessor CAS/단일 successor, 새 verifier와 암호화 응답 참조/멱등 결과를 하나로 commit",
+      "runtimeVerified": false,
+      "status": "canonical_logical_transaction_design"
+    },
+    {
+      "id": "AI-T03",
+      "name": "철회 commit",
+      "resourceRefs": [
+        "AccessGrantLineage",
+        "AuthorizationGate"
+      ],
+      "rule": "grant 또는 권한 lineage gate revision 증가와 철회. 이미 노출된 서명/permit 취소를 주장하지 않음",
+      "runtimeVerified": false,
+      "status": "canonical_logical_transaction_design"
+    },
+    {
+      "id": "AI-T04",
+      "name": "보호 응답/제출 허가",
+      "resourceRefs": [
+        "AccessGrantLineage",
+        "SenderProofReplay",
+        "AuthorizationGate"
+      ],
+      "rule": "현재 grant와 proof replay를 검사. 읽기는 직렬화된 release decision, 제출은 SS-T03/04에서 재확인",
+      "runtimeVerified": false,
+      "status": "canonical_logical_transaction_design"
+    },
+    {
+      "id": "AI-T05",
+      "name": "응답 재조회·보관 만료",
+      "resourceRefs": [
+        "AccessGrantLineage",
+        "ProtectedIssuanceResponse",
+        "AuthorizationGate"
+      ],
+      "rule": "현재 같은 actor/sender 확인 후 원 응답. blob 삭제 뒤 원 멱등 참조는 유지해 AC01 issuance_key 교체 가능",
+      "runtimeVerified": false,
+      "status": "canonical_logical_transaction_design"
+    }
+  ],
+  "physicalDetailFile": "approval-physical-storage-design.json"
+}

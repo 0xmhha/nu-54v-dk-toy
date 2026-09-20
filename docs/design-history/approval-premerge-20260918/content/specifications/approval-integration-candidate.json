@@ -1,0 +1,749 @@
+{
+  "status": "http_authorization_screen_storage_candidate_not_applied",
+  "document": "approval-integration-contracts.md",
+  "schemaFile": "approval-integration.schema.json",
+  "examplesFile": "approval-integration-examples.json",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "externalSchemaBindings": {
+    "urn:nu:integration:wallet": "wallet-api-candidate.schema.json",
+    "urn:nu:integration:source": "source-approval-candidate.schema.json",
+    "urn:nu:integration:common": "approval-contracts.schema.json",
+    "urn:nu:integration:baseline": "extended-dtos.schema.json",
+    "urn:nu:wallet:baseline": "extended-dtos.schema.json",
+    "urn:nu:source:baseline": "extended-dtos.schema.json",
+    "urn:nu:approval:baseline": "extended-dtos.schema.json"
+  },
+  "baselineFiles": {
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d",
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "approval-access-candidate.json": "471612b92e35d0cbb1f1485dc6fc89454b071afabb7e1bc3d0359769ba376cac",
+    "approval-contract-merge-plan.json": "7aabe55b0ba792918404653e15896e2e83cde2d40eca0aebb367993ed15ae968",
+    "approval-contracts.schema.json": "5b84cdbb0f004e87926191556f69dab40da4aa784f651cc8f80538b9c60f5c35",
+    "authorization-policies.json": "6d193d0899b6019655b247367ddec6b04f83ac86bbf0e3d60caee1dd6985cbb3",
+    "extended-dtos.schema.json": "98d909f06ae9e4fab3289d2f67186d4364260b2f2e274ea57fcc1fdb02f77c68",
+    "screen-flows.json": "0b969346170895875e807ccd5948ea9951aca07eaeffc434456c89f8ffbd2fa0",
+    "signing-submission-storage-design.json": "879f15ddc32fcac79dca40fe02f1a10c7f4f3311897a85976526ce11859181b3",
+    "source-approval-candidate.schema.json": "f62c13617b0da22a4d17b772bc2aedd755c8c91bf48da0e45f727bb39a870442",
+    "wallet-api-candidate.schema.json": "8838c3c87e66acf7bfc23c6e2763e5348d6b131385b2e5d461513deb43bbc1cc"
+  },
+  "routes": [
+    {
+      "id": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "baselineAuthorization": "account",
+      "requestSchema": "API007Request",
+      "responseSchema": "API007Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "baselineAuthorization": "store_asset_read",
+      "requestSchema": "API008Request",
+      "responseSchema": "API008Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "baselineAuthorization": "wallet_read",
+      "requestSchema": "API009Request",
+      "responseSchema": "API009Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "baselineAuthorization": "wallet_sign_authorized",
+      "requestSchema": "API015Request",
+      "responseSchema": "API015Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "baselineAuthorization": "wallet_use",
+      "requestSchema": "API017Request",
+      "responseSchema": "API017Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "baselineAuthorization": "intent_submit_capability",
+      "requestSchema": "API018Request",
+      "responseSchema": "API018Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "baselineAuthorization": "transaction_read",
+      "requestSchema": "API019Request",
+      "responseSchema": "API019Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "baselineAuthorization": "operation_owner_or_capability",
+      "requestSchema": "API020Request",
+      "responseSchema": "API020Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-034",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/intents",
+      "baselineAuthorization": "attempt_device_capability",
+      "requestSchema": "API034Request",
+      "responseSchema": "API034Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-01",
+        "HW-05"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "API-037",
+      "method": "POST",
+      "path": "/v1/refunds/{refundId}/authorize",
+      "baselineAuthorization": "store_funds_manage_recent_auth",
+      "requestSchema": "API037Request",
+      "responseSchema": "API037Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "status": "integration_candidate_not_applied"
+    },
+    {
+      "id": "AC-01",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-challenges",
+      "requestSchema": "AccessChallengeRequest",
+      "responseSchema": "AccessChallengeResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false,
+      "status": "proposed_not_registered",
+      "taskRefs": []
+    },
+    {
+      "id": "AC-02",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants",
+      "requestSchema": "IssueAccessRequest",
+      "responseSchema": "IssueAccessResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false,
+      "status": "proposed_not_registered",
+      "taskRefs": []
+    },
+    {
+      "id": "AC-03",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants/{grantId}/revoke",
+      "requestSchema": "RevokeAccessRequest",
+      "responseSchema": "RevokeAccessResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false,
+      "status": "proposed_not_registered",
+      "taskRefs": []
+    }
+  ],
+  "authorizationMappings": [
+    {
+      "routeId": "API-007",
+      "credential": "primary_account",
+      "checks": "현재 본인 계정의 지갑 목록. cursor도 계정/context에 결합",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-008",
+      "credential": "primary_account",
+      "checks": "해당 store_asset_read; 일반 매장 소속은 부족",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-009",
+      "credential": "primary_account",
+      "checks": "wallet_read + 명시 context/binding; 서명권과 별개",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-017",
+      "credential": "primary_account",
+      "checks": "wallet_use + 현재 개인 selection. 서버가 personal source 생성",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-034",
+      "credential": "attempt_device_capability",
+      "checks": "원 terminal/attempt/session과 검증 identify. guest 계정 없음",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-037",
+      "credential": "primary_account_recent_auth",
+      "checks": "정확한 매장 자금 승인권/예약/funding revision; 지정 signer와 업무 승인자 분리",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-015",
+      "credential": "primary_account_and_user_approval",
+      "checks": "현재 개인 또는 매장 Cloud signer + 원 context + approvalProof. AC 자격은 서명권 아님",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-018",
+      "credential": "sender_bound_approval_grant",
+      "checks": "submit_exact + 원 source/provenance/current epoch + SS-T03/04 gate",
+      "grantAction": "submit_exact",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-019",
+      "credential": "primary_authorization_or_sender_bound_grant",
+      "checks": "기존 transaction_read 또는 원 grant context→dispatch→transactionRef 정확한 관계 + read_progress",
+      "grantAction": "read_progress",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "API-020",
+      "credential": "primary_authorization_or_sender_bound_grant",
+      "checks": "기존 operation ACL 보존; approval은 현재 source ACL 또는 exact grant, projection별 검사",
+      "grantAction": "projection_dependent",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "AC-01",
+      "credential": "current_account_or_terminal_auth",
+      "checks": "현재 원 source 접근권 + sender binding; replacement predecessor 독립 확인",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "AC-02",
+      "credential": "current_account_or_terminal_auth",
+      "checks": "challenge/proof 검증 후 현재 권한 재검사와 발급/교체 CAS",
+      "grantAction": "none",
+      "runtimeVerified": false
+    },
+    {
+      "routeId": "AC-03",
+      "credential": "current_account_or_terminal_auth",
+      "checks": "해당 grant 철회권; 타인의 token/result 공개 권한 아님",
+      "grantAction": "none",
+      "runtimeVerified": false
+    }
+  ],
+  "screenMappings": [
+    {
+      "screenId": "U02",
+      "title": "지갑 목록·선택·자산",
+      "mode": "wallet_selection",
+      "routeRefs": [
+        "API-007",
+        "API-008",
+        "API-009"
+      ],
+      "bleRefs": [],
+      "behavior": "선택 context/wallet/binding/revision을 유지; 승인 화면은 새 snapshot 요청",
+      "failureRecovery": "계정/매장 조회 권한 거절 시 빈잔액으로 위장하지 않고 접근 불가 표시",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U03",
+      "title": "송금 검토·승인·결과",
+      "mode": "approval_flow",
+      "routeRefs": [
+        "API-017",
+        "API-015",
+        "API-018",
+        "API-019",
+        "API-020",
+        "AC-01",
+        "AC-02",
+        "AC-03"
+      ],
+      "bleRefs": [
+        "wallet.sign.prepare",
+        "wallet.sign.result"
+      ],
+      "behavior": "개인 API017 생성 또는 지정 signer B의 원 merchant_refund snapshot 조회를 구분→HW BLE/Cloud API015→AC 발급→정확한 제출→부모/체인 조회. 환불을 개인 송금으로 생성하지 않음",
+      "failureRecovery": "로그아웃/만료/응답 유실 시 원 operation/context와 발급 멱등키로 재인증·대사; 자동 재송금 금지",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U09",
+      "title": "전사·요약·내보내기",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U11",
+      "title": "결제·환불 내역",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-019"
+      ],
+      "bleRefs": [],
+      "behavior": "고객 자신의 원 지급 allocation/환불 내역만; 매장 signer 결과 접근과 분리",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U12",
+      "title": "MPC 복구·참여자 변경",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "MPC 복구 operation은 기존 별도 승인·epoch 정책; approval=null 응답 유지",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U13",
+      "title": "스마트 계정 전환·실행",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U14",
+      "title": "DeFi·유동성",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U15",
+      "title": "FX 견적·교환",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U16",
+      "title": "Perpetual 시장·주문·포지션",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U17",
+      "title": "STO 발행물·자격·보유",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-018",
+        "API-019"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U19",
+      "title": "유료 자원 이용",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U22",
+      "title": "AI 코스 생성·편집",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "U25",
+      "title": "개인정보·내보내기·탈퇴",
+      "mode": "existing_feature_regression",
+      "routeRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "기존 기능의 operation/transaction 접근과 결과 형식 유지; 새 승인 source로 자동 변환하지 않음",
+      "failureRecovery": "다른 source 버전으로 자동 fallback하지 않음; 저장된 원 버전으로 조회/복구",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "K03",
+      "title": "NU 결제",
+      "mode": "guest_payment",
+      "routeRefs": [
+        "API-034",
+        "API-018",
+        "API-019",
+        "API-020",
+        "AC-01",
+        "AC-02",
+        "AC-03"
+      ],
+      "bleRefs": [
+        "payment.identify",
+        "payment.prepare",
+        "payment.result"
+      ],
+      "behavior": "원 attempt/identify→API034→NU review→AC 자격과 정확한 결과로 제출",
+      "failureRecovery": "거리/연결 유실은 unknown 가능; 원 세션만 복구, 새 세션에는 결과 자동 공개 금지",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "K05",
+      "title": "주문·환불",
+      "mode": "refund_business_approval",
+      "routeRefs": [
+        "API-037",
+        "API-018",
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "예약/funding 확인→API037 업무 승인→지정 signer에게 비밀 없는 operation/context 참조",
+      "failureRecovery": "일반 점주/승인자 화면에는 signed bytes를 주지 않음. 서명은 별도 현재 signer 권한",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "O03",
+      "title": "결제 예외·서비스 상태",
+      "mode": "operations_projection",
+      "routeRefs": [
+        "API-020"
+      ],
+      "bleRefs": [],
+      "behavior": "허용된 운영 예외/대사 상태만 조회; transaction의 공개 관측과 고객 비공개 데이터를 구분",
+      "failureRecovery": "일반 운영자에게 API020 read_signing_result·token·보호 객체 다운로드 허용 금지",
+      "appliedToBaseline": false
+    },
+    {
+      "screenId": "D01",
+      "title": "상태·서명 승인",
+      "mode": "physical_signer",
+      "routeRefs": [],
+      "bleRefs": [
+        "payment.prepare",
+        "payment.result",
+        "wallet.sign.prepare",
+        "wallet.sign.result"
+      ],
+      "behavior": "인증된 BLE 역할과 전체 snapshot/선택 키/세대 확인 후 물리 승인",
+      "failureRecovery": "HTTP token 저장/계정 로그인 요구 없음; 기한/미지원 profile 차단, 이미 생성된 서명 상태 보존",
+      "appliedToBaseline": false
+    }
+  ],
+  "resources": [
+    {
+      "id": "AI-R01",
+      "name": "AccessChallenge",
+      "key": "challengeId",
+      "fields": "actor/source/context/sender/actions/nonce hash/expiry/auth revision/predecessor revision",
+      "constraints": "one-time state; consumedWithIssuanceId; challenge마다 하나의 발급 결과"
+    },
+    {
+      "id": "AI-R02",
+      "name": "AccessGrantLineage",
+      "key": "grantId",
+      "fields": "target/principal/sender/actions/auth revision/token verifier hash/expiry/state/revision/predecessor/successor",
+      "constraints": "token verifier unique; predecessor당 successor 0..1; revoked/compromised 재활성화 금지"
+    },
+    {
+      "id": "AI-R03",
+      "name": "ProtectedIssuanceResponse",
+      "key": "issuanceId",
+      "fields": "원 logical idempotency scope/body digest→grant; 암호화된 응답 blob 참조+보관기한",
+      "constraints": "lineage/멱등 metadata와 secret blob 수명 분리; blob 유실≠grant 미발급"
+    },
+    {
+      "id": "AI-R04",
+      "name": "SenderProofReplay",
+      "key": "proofNamespace+nonce",
+      "fields": "token/grant 또는 primary challenge scope, request digest, freshness deadline, consumption result",
+      "constraints": "같은 proof로 두 효과 금지; 동일 논리 재시도는 새 proof + 동일 idempotency key"
+    },
+    {
+      "id": "AI-R05",
+      "name": "AuthorizationGate",
+      "key": "source/principal/session gate key",
+      "fields": "현재 source hold/auth revision/session/device 또는 participant epoch; SS-R07와 참조 연결",
+      "constraints": "읽기와 제출 gate 분리; 철회/교체/SS-T04가 같은 최신 revision을 직렬 확인"
+    }
+  ],
+  "atomicUnits": [
+    {
+      "id": "AI-T01",
+      "name": "challenge 생성",
+      "resourceRefs": [
+        "AI-R01",
+        "AI-R02",
+        "AI-R05"
+      ],
+      "rule": "현재 주체와 요청 action, predecessor 확인 후 원 context와 challenge를 고정. secret 발급 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "AI-T02",
+      "name": "발급·교체 commit",
+      "resourceRefs": [
+        "AI-R01",
+        "AI-R02",
+        "AI-R03",
+        "AI-R04",
+        "AI-R05"
+      ],
+      "rule": "현재 gate 재확인, nonce 소비, predecessor CAS/단일 successor, 새 verifier와 암호화 응답 참조/멱등 결과를 하나로 commit",
+      "runtimeVerified": false
+    },
+    {
+      "id": "AI-T03",
+      "name": "철회 commit",
+      "resourceRefs": [
+        "AI-R02",
+        "AI-R05"
+      ],
+      "rule": "grant 또는 권한 lineage gate revision 증가와 철회. 이미 노출된 서명/permit 취소를 주장하지 않음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "AI-T04",
+      "name": "보호 응답/제출 허가",
+      "resourceRefs": [
+        "AI-R02",
+        "AI-R04",
+        "AI-R05"
+      ],
+      "rule": "현재 grant와 proof replay를 검사. 읽기는 직렬화된 release decision, 제출은 SS-T03/04에서 재확인",
+      "runtimeVerified": false
+    },
+    {
+      "id": "AI-T05",
+      "name": "응답 재조회·보관 만료",
+      "resourceRefs": [
+        "AI-R02",
+        "AI-R03",
+        "AI-R05"
+      ],
+      "rule": "현재 같은 actor/sender 확인 후 원 응답. blob 삭제 뒤 원 멱등 참조는 유지해 AC01 issuance_key 교체 가능",
+      "runtimeVerified": false
+    }
+  ],
+  "reviewCases": [
+    {
+      "id": "AI-C01",
+      "trigger": "조회만 가진 자격",
+      "expected": "includeSigningResult=true를 보내도 403/404, resultRef 우회 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C02",
+      "trigger": "scope가 다른 lookup",
+      "expected": "API019의 transactionRef가 다른 원천이면 거절",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C03",
+      "trigger": "일반 operation",
+      "expected": "녹음/AI/FOTA의 기존 operation ACL과 protected result 보존",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C04",
+      "trigger": "환불 승인자 A/실제 signer B",
+      "expected": "A의 API037 후 B가 독립 인증; 일반 store_asset_read로 결과 공개 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C05",
+      "trigger": "guest 계정 없음",
+      "expected": "유효 attempt/session/NU 증거만으로 기존 승인 경로 유지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C06",
+      "trigger": "세션 교체",
+      "expected": "guest 새 세션에 과거 result 공개 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C07",
+      "trigger": "서명/제출 응답 유실",
+      "expected": "원 context/operation 조회, 새 intent 자동 생성 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C08",
+      "trigger": "발급 응답 유실",
+      "expected": "원 issuance key로 predecessor 복구; 원 응답 blob 유실≠새 발급",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C09",
+      "trigger": "병렬 교체",
+      "expected": "단일 successor CAS; 실패자는 기존 결과 대사 또는409",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C10",
+      "trigger": "철회 경쟁",
+      "expected": "현재 release/permit 직렬화; 이미 허가/노출된 bytes 취소 보장 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C11",
+      "trigger": "proof 재전송",
+      "expected": "같은 nonce를 다른 body/actor에 재사용 거절",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C12",
+      "trigger": "증거 누락",
+      "expected": "API018의 context/evidence/sender proof 누락 거절",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C13",
+      "trigger": "parent/child 혼동",
+      "expected": "API015의 MPC child를 원 approval parent로 덮어쓰지 않음",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C14",
+      "trigger": "snapshot 선택",
+      "expected": "includeSnapshot=false면 null; true면 별도 current ACL 필요",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C15",
+      "trigger": "불명확 query",
+      "expected": "중복/알 수 없는 boolean/미지원 query 거절",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C16",
+      "trigger": "source 버전 강등",
+      "expected": "저장된 contract와 다른 weak candidate로 자동 재시도 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C17",
+      "trigger": "secret blob 장애",
+      "expected": "commit 상태 조회 후 원 lineage 복구; key/plaintext 로그 출력 금지",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C18",
+      "trigger": "snapshot 기한 경과",
+      "expected": "read-only 복구와 새 서명/전송 허가 분리",
+      "status": "not_run"
+    },
+    {
+      "id": "AI-C19",
+      "trigger": "승인 자식의 일반 operation 위장",
+      "expected": "서버 저장 ancestry로 operationClass를 결정; 자식도 resultRef=null, parent 결과는 별도 ACL로만 조회",
+      "status": "not_run"
+    }
+  ],
+  "nextDesign": "baseline merge and version/profile compatibility acceptance plan; no implementation",
+  "pendingUserDecision": "RR-DEC-01"
+}

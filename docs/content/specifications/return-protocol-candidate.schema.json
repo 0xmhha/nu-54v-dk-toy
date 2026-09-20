@@ -1,0 +1,1174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:return:protocol:candidate:1",
+  "title": "Logical return protocol review candidate; not BLE wire or live HTTP contract",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "Epoch": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "Proof": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "keyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "signedDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "proofBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "profileId",
+        "keyId",
+        "signedDigest",
+        "proofBytes"
+      ],
+      "additionalProperties": false
+    },
+    "Binding": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "previousBindingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "previousEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "checklistRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fenceRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "jobId",
+        "deviceId",
+        "rentalId",
+        "previousBindingId",
+        "previousEpoch",
+        "checklistRevision",
+        "fenceRevision"
+      ],
+      "additionalProperties": false
+    },
+    "Preparation": {
+      "type": "object",
+      "properties": {
+        "prepareId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "bootNonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "eraseProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceElapsedLimitMs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "preparationDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "prepareId",
+        "bootNonce",
+        "sessionId",
+        "challengeDigest",
+        "eraseProfileId",
+        "deviceElapsedLimitMs",
+        "preparationDigest"
+      ],
+      "additionalProperties": false
+    },
+    "PrepareReportPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_prepare_report"
+        },
+        "audience": {
+          "const": "reset_coordinator"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "preparation": {
+          "$ref": "#/$defs/Preparation"
+        },
+        "ownerApprovalDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "journalAccepted": {
+          "const": false
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "binding",
+        "preparation",
+        "ownerApprovalDigest",
+        "journalAccepted"
+      ],
+      "additionalProperties": false
+    },
+    "PrepareReport": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/PrepareReportPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CommitRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "request_reset_execution"
+        },
+        "audience": {
+          "const": "reset_coordinator"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "clearanceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "prepareReport": {
+          "$ref": "#/$defs/PrepareReport"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "requestId",
+        "idempotencyKey",
+        "binding",
+        "clearanceId",
+        "prepareReport"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionGrantPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_execute"
+        },
+        "audienceDeviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "commitId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "clearanceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "preparation": {
+          "$ref": "#/$defs/Preparation"
+        },
+        "ownerApprovalDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "serverRecordedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audienceDeviceId",
+        "binding",
+        "commitId",
+        "clearanceId",
+        "preparation",
+        "ownerApprovalDigest",
+        "serverRecordedAt"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionGrant": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/ExecutionGrantPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CommitResult": {
+      "type": "object",
+      "properties": {
+        "issuanceOutcome": {
+          "type": "string",
+          "enum": [
+            "issued",
+            "existing"
+          ]
+        },
+        "grant": {
+          "$ref": "#/$defs/ExecutionGrant"
+        },
+        "grantDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "deliveryAdvice": {
+          "type": "string",
+          "enum": [
+            "same_live_preparation_only",
+            "do_not_deliver",
+            "already_journaled"
+          ]
+        }
+      },
+      "required": [
+        "issuanceOutcome",
+        "grant",
+        "grantDigest",
+        "deliveryAdvice"
+      ],
+      "additionalProperties": false
+    },
+    "AuthorityPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_recovery_relay"
+        },
+        "audience": {
+          "const": "reset_recovery_gateway"
+        },
+        "authorityId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "holderKeyThumbprint": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "allowedActions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "relay_evidence",
+              "relay_completion_ack",
+              "request_cleanup_proof",
+              "submit_cleanup_proof",
+              "read_job_progress"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authorizationRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "authorityId",
+        "jobId",
+        "deviceId",
+        "epoch",
+        "holderKeyThumbprint",
+        "allowedActions",
+        "expiresAt",
+        "authorizationRevision"
+      ],
+      "additionalProperties": false
+    },
+    "RelayAuthority": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/AuthorityPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "ProtectedEvidence": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "recipientKeyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "contextDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "ciphertext": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 131072
+        }
+      },
+      "required": [
+        "profileId",
+        "recipientKeyId",
+        "contextDigest",
+        "ciphertext"
+      ],
+      "additionalProperties": false
+    },
+    "EvidenceSubmit": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "submit_existing_reset_evidence"
+        },
+        "audience": {
+          "const": "reset_recovery_gateway"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "authority": {
+          "$ref": "#/$defs/RelayAuthority"
+        },
+        "requestChallenge": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "holderProof": {
+          "$ref": "#/$defs/Proof"
+        },
+        "protectedEvidence": {
+          "$ref": "#/$defs/ProtectedEvidence"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "requestId",
+        "idempotencyKey",
+        "jobId",
+        "authority",
+        "requestChallenge",
+        "holderProof",
+        "protectedEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "ResetEvidencePayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "reset_execution_report"
+        },
+        "audience": {
+          "const": "reset_evidence_verifier"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "commitId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "grantDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "preparationDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "deviceIdentityKeyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "firmwareMeasurementRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "eraseProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "journalDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "eraseResult": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "incomplete",
+            "unknown"
+          ]
+        },
+        "bootState": {
+          "type": "string",
+          "enum": [
+            "unprovisioned",
+            "recovery_required"
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "binding",
+        "commitId",
+        "grantDigest",
+        "preparationDigest",
+        "nextEpoch",
+        "deviceIdentityKeyId",
+        "firmwareMeasurementRef",
+        "eraseProfileId",
+        "journalDigest",
+        "eraseResult",
+        "bootState"
+      ],
+      "additionalProperties": false
+    },
+    "ResetEvidence": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/ResetEvidencePayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "EvidenceResult": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "already_accepted",
+            "verification_pending",
+            "quarantined"
+          ]
+        },
+        "serverReturnCompleted": {
+          "type": "boolean"
+        },
+        "reuseGate": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        },
+        "completionAck": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletionAck"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "jobId",
+        "status",
+        "serverReturnCompleted",
+        "reuseGate",
+        "completionAck"
+      ],
+      "additionalProperties": false
+    },
+    "CompletionAckPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "acknowledge_reset_completion"
+        },
+        "audienceDeviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "commitId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "evidenceDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "completionHandle": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "cleanupProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "serverCompletionRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audienceDeviceId",
+        "jobId",
+        "commitId",
+        "evidenceDigest",
+        "nextEpoch",
+        "completionHandle",
+        "cleanupProfileId",
+        "serverCompletionRevision"
+      ],
+      "additionalProperties": false
+    },
+    "CompletionAck": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/CompletionAckPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CleanupChallenge": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "request_cleanup_proof"
+        },
+        "audienceDeviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "completionHandle": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "ackDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audienceDeviceId",
+        "jobId",
+        "completionHandle",
+        "nextEpoch",
+        "ackDigest",
+        "challengeId",
+        "challengeDigest",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "SignedCleanupChallenge": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/CleanupChallenge"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CleanupProofPayload": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "report_cleanup_result"
+        },
+        "audience": {
+          "const": "reset_cleanup_verifier"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "completionHandle": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "ackDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "cleanupProfileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "challengeDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "cleanupResult": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "incomplete",
+            "marker_missing"
+          ]
+        },
+        "markerDigest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^0x[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "deviceId",
+        "completionHandle",
+        "nextEpoch",
+        "ackDigest",
+        "cleanupProfileId",
+        "challengeId",
+        "challengeDigest",
+        "cleanupResult",
+        "markerDigest"
+      ],
+      "additionalProperties": false
+    },
+    "CleanupProof": {
+      "type": "object",
+      "properties": {
+        "payload": {
+          "$ref": "#/$defs/CleanupProofPayload"
+        },
+        "proof": {
+          "$ref": "#/$defs/Proof"
+        }
+      },
+      "required": [
+        "payload",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "CleanupSubmit": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "return-candidate-1"
+        },
+        "purpose": {
+          "const": "submit_cleanup_proof"
+        },
+        "audience": {
+          "const": "reset_recovery_gateway"
+        },
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "authority": {
+          "$ref": "#/$defs/RelayAuthority"
+        },
+        "holderProof": {
+          "$ref": "#/$defs/Proof"
+        },
+        "protectedCleanupProof": {
+          "$ref": "#/$defs/ProtectedEvidence"
+        },
+        "requestChallenge": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "purpose",
+        "audience",
+        "requestId",
+        "idempotencyKey",
+        "jobId",
+        "authority",
+        "holderProof",
+        "protectedCleanupProof",
+        "requestChallenge"
+      ],
+      "additionalProperties": false
+    },
+    "ReuseGateResult": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "nextEpoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "serverReturnCompleted": {
+          "type": "boolean"
+        },
+        "cleanupVerified": {
+          "type": "boolean"
+        },
+        "currentDeviceEpochMatches": {
+          "type": "boolean"
+        },
+        "deviceEnrollmentState": {
+          "type": "string",
+          "enum": [
+            "awaiting_cleanup",
+            "unprovisioned_ready",
+            "assigned",
+            "quarantined"
+          ]
+        },
+        "reuseGate": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        },
+        "gateRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "jobId",
+        "deviceId",
+        "nextEpoch",
+        "serverReturnCompleted",
+        "cleanupVerified",
+        "currentDeviceEpochMatches",
+        "deviceEnrollmentState",
+        "reuseGate",
+        "gateRevision"
+      ],
+      "additionalProperties": false
+    },
+    "JobProgress": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "checking",
+            "prepared",
+            "commit_issued",
+            "device_started",
+            "evidence_pending",
+            "completed",
+            "aborted",
+            "quarantined"
+          ]
+        },
+        "grantIssued": {
+          "type": "boolean"
+        },
+        "jobRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reuseGate": {
+          "type": "string",
+          "enum": [
+            "closed",
+            "awaiting_cleanup",
+            "eligible"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "recovery_policy_unresolved",
+              "checks_pending",
+              "prepare_stale",
+              "execution_unknown",
+              "proof_invalid",
+              "cleanup_pending",
+              "marker_missing",
+              "epoch_mismatch"
+            ]
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "jobId",
+        "phase",
+        "grantIssued",
+        "jobRevision",
+        "reuseGate",
+        "reasonCodes"
+      ],
+      "additionalProperties": false
+    },
+    "OwnerJobStatus": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "owner"
+        },
+        "progress": {
+          "$ref": "#/$defs/JobProgress"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "checklistRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lateAssetRecovery": {
+          "type": "string",
+          "enum": [
+            "unresolved",
+            "verified_external_access",
+            "verified_recovery_profile",
+            "not_verified"
+          ]
+        }
+      },
+      "required": [
+        "projection",
+        "progress",
+        "rentalId",
+        "checklistRevision",
+        "lateAssetRecovery"
+      ],
+      "additionalProperties": false
+    },
+    "OperatorJobStatus": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "operator_safe"
+        },
+        "progress": {
+          "$ref": "#/$defs/JobProgress"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "projection",
+        "progress",
+        "deviceId"
+      ],
+      "additionalProperties": false
+    },
+    "JobStatus": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/OwnerJobStatus"
+        },
+        {
+          "$ref": "#/$defs/OperatorJobStatus"
+        }
+      ]
+    },
+    "ProtocolError": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "REVISION_CONFLICT",
+            "RECOVERY_POLICY_UNRESOLVED",
+            "PREPARE_EXPIRED",
+            "GRANT_ALREADY_ISSUED",
+            "JOB_SCOPE_MISMATCH",
+            "AUTHORITY_SCOPE_DENIED",
+            "PROOF_PROFILE_UNSUPPORTED",
+            "PROOF_INVALID",
+            "EPOCH_MISMATCH",
+            "MARKER_MISSING",
+            "VERIFICATION_PENDING"
+          ]
+        },
+        "retryAction": {
+          "type": "string",
+          "enum": [
+            "refresh_job",
+            "reauthenticate_relay",
+            "repeat_same_request",
+            "await_verification",
+            "quarantine_review",
+            "none"
+          ]
+        },
+        "safeJobRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "requestId",
+        "code",
+        "retryAction",
+        "safeJobRef"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "date": "2026-09-20",
+  "checkpointId": "DF-20260920-01",
+  "mobile": {
+    "reactNative": "0.87.x",
+    "node": ">=22",
+    "android": "15+/API 35+",
+    "ios": "18+",
+    "primaryDevice": "Galaxy S25 Ultra"
+  },
+  "firmware": {
+    "sdk": "nRF Connect SDK",
+    "tag": "v3.4.0",
+    "zephyr": "NCS manifest-pinned 4.4 line",
+    "boardTarget": null,
+    "boardTargetStatus": "awaiting_actual_NU-54V-DK_revision_and_project_board_commit"
+  },
+  "repositories": {
+    "indexer-go": {
+      "revision": "5baff647f3cfab935f73db1bbd742ad42317045f",
+      "workingTreeAtInspection": "untracked_CLAUDE.md"
+    },
+    "indexer-frontend": {
+      "revision": "e0f8100f94cf9c3862b02f4132fb542bdeae0ae9",
+      "workingTreeAtInspection": "dirty_do_not_treat_as_revision_content"
+    },
+    "stable-poc-contract": {
+      "revision": "5d9d6550ef572bd86a036fe92c730e4ff0a1ca94",
+      "workingTreeAtInspection": "clean"
+    },
+    "poc-platform": {
+      "revision": "fcad7900de5ceea5e3ef586774609ad00739b760",
+      "workingTreeAtInspection": "dirty_do_not_treat_as_revision_content"
+    }
+  },
+  "rule": "A dirty sibling working tree is inspection context only. Implementation must checkout the exact revision in an isolated clean worktree or record a new reviewed revision."
+}

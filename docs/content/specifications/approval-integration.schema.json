@@ -1,0 +1,1431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:approval:integration-draft",
+  "title": "Full HTTP approval integration candidate; design only",
+  "$defs": {
+    "API007Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API007Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "wallets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:nu:integration:wallet#/$defs/WalletChoice"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshotId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                }
+              },
+              "required": [
+                "wallets",
+                "nextCursor",
+                "snapshotId",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API008Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API008Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "wallets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:nu:integration:wallet#/$defs/WalletChoice"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshotId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                }
+              },
+              "required": [
+                "wallets",
+                "nextCursor",
+                "snapshotId",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API009Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "walletId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "$ref": "urn:nu:integration:wallet#/$defs/ContextQuery"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API009Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+                },
+                "context": {
+                  "$ref": "urn:nu:integration:wallet#/$defs/Context"
+                },
+                "chainId": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/ChainId"
+                },
+                "address": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Address"
+                },
+                "assets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "urn:nu:wallet:baseline#/$defs/BalanceView"
+                  }
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:wallet:baseline#/$defs/Time"
+                },
+                "blockRef": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:wallet:baseline#/$defs/BlockRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "walletId",
+                "context",
+                "chainId",
+                "address",
+                "assets",
+                "observedAt",
+                "blockRef"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API017Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "chainId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/ChainId"
+            },
+            "action": {
+              "const": "personal_transfer"
+            },
+            "actionInput": {
+              "$ref": "urn:nu:integration:wallet#/$defs/TransferInput"
+            },
+            "selection": {
+              "$ref": "urn:nu:integration:wallet#/$defs/Selection"
+            }
+          },
+          "required": [
+            "walletId",
+            "chainId",
+            "action",
+            "actionInput",
+            "selection"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API017Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:integration:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "snapshot": {
+                  "$ref": "urn:nu:integration:common#/$defs/PersonalSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API019Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "transactionRef": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "transactionRef"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:wallet:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "senderProof": {
+              "$ref": "urn:nu:integration:common#/$defs/EvidencePacket"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API019Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:integration:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "execution": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/ExecutionState"
+                },
+                "canonicality": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/BlockCanonicality"
+                },
+                "confirmation": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/ConfirmationState"
+                },
+                "observedAt": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/Time"
+                }
+              },
+              "required": [
+                "execution",
+                "canonicality",
+                "confirmation",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API015Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "walletId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "urn:nu:integration:common#/$defs/CloudSigningBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API015Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:integration:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "#/$defs/SafeApprovalOperation"
+                },
+                "approvalOperationId": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/Id"
+                },
+                "progress": {
+                  "$ref": "urn:nu:integration:common#/$defs/Progress"
+                }
+              },
+              "required": [
+                "operation",
+                "approvalOperationId",
+                "progress"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API018Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "senderProof": {
+              "$ref": "urn:nu:integration:common#/$defs/EvidencePacket"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey",
+            "senderProof"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "urn:nu:integration:common#/$defs/SigningResult"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API018Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "#/$defs/SafeApprovalOperation"
+                },
+                "transactionRef": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "approvalOperationId": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/Id"
+                }
+              },
+              "required": [
+                "operation",
+                "transactionRef",
+                "approvalOperationId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API020Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "operationId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "operationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "senderProof": {
+              "$ref": "urn:nu:integration:common#/$defs/EvidencePacket"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "includeSnapshot": {
+              "type": "boolean"
+            },
+            "includeSigningResult": {
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API020Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:integration:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "urn:nu:approval:baseline#/$defs/Operation"
+                },
+                "approval": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:integration:common#/$defs/ApprovalProjection"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operationClass": {
+                  "enum": [
+                    "approval_parent",
+                    "approval_child",
+                    "general"
+                  ]
+                },
+                "approvalOperationId": {
+                  "anyOf": [
+                    {
+                      "$ref": "urn:nu:integration:baseline#/$defs/Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "operation",
+                "approval",
+                "operationClass",
+                "approvalOperationId"
+              ],
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "operationClass": {
+                        "enum": [
+                          "approval_parent",
+                          "approval_child"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "operation": {
+                        "properties": {
+                          "resultRef": {
+                            "type": "null"
+                          }
+                        }
+                      },
+                      "approvalOperationId": {
+                        "$ref": "urn:nu:integration:baseline#/$defs/Id"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "operationClass": {
+                        "const": "approval_parent"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "approval": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "approval": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "operationClass": {
+                        "const": "general"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "approvalOperationId": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API034Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "attemptId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "attemptId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "signerAddress": {
+              "$ref": "urn:nu:source:baseline#/$defs/Address"
+            },
+            "sessionId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "ownershipEvidence": {
+              "$ref": "urn:nu:integration:source#/$defs/IdentifyEvidence"
+            }
+          },
+          "required": [
+            "signerAddress",
+            "sessionId",
+            "ownershipEvidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API034Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:integration:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "snapshot": {
+                  "$ref": "urn:nu:integration:common#/$defs/PaymentSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API037Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "refundId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "refundId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:source:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "urn:nu:integration:common#/$defs/RefundApprovalBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API037Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:integration:baseline#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "refund": {
+                  "$ref": "urn:nu:integration:baseline#/$defs/RefundView"
+                },
+                "snapshot": {
+                  "$ref": "urn:nu:integration:common#/$defs/RefundSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "refund",
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AccessChallengeRequest": {
+      "$ref": "urn:nu:integration:common#/$defs/AccessChallengeRequest"
+    },
+    "AccessChallengeResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "data": {
+              "$ref": "urn:nu:integration:common#/$defs/AccessChallenge"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AccessErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "error": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "IssueAccessRequest": {
+      "$ref": "urn:nu:integration:common#/$defs/IssueAccessRequest"
+    },
+    "IssueAccessResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "data": {
+              "$ref": "urn:nu:integration:common#/$defs/AccessCredential"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "RevokeAccessRequest": {
+      "$ref": "urn:nu:integration:common#/$defs/RevokeAccessRequest"
+    },
+    "RevokeAccessResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "data": {
+              "$ref": "urn:nu:integration:common#/$defs/RevokeAccessResult"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "error": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "SafeApprovalOperation": {
+      "allOf": [
+        {
+          "$ref": "urn:nu:integration:baseline#/$defs/Operation"
+        },
+        {
+          "properties": {
+            "resultRef": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "ResponseHeaders": {
+      "type": "object",
+      "properties": {
+        "cacheControl": {
+          "const": "no-store"
+        },
+        "contractVersion": {
+          "const": "approval-v1-draft"
+        }
+      },
+      "required": [
+        "cacheControl",
+        "contractVersion"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

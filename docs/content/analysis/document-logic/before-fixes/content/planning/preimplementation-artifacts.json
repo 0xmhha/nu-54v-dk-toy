@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-19",
+  "status": "design_artifact_manifest_not_release",
+  "runtimeVerified": false,
+  "files": {
+    "content/specifications/credential-paid-resource-design.json": "a8ac053b1b080f2a99e421b973cebf5c818f6e56db6fa7df0f18c8df66921cbd",
+    "content/specifications/credential-paid-resource-design.md": "0bb120dbc275bed2c1ac3f0513baf09535fff3dbb8c44ae2d134d65a2d0f4c1d",
+    "content/specifications/recording-travel-ai-design.json": "19188356ef1ca1ed1cb7cbce64fe12052d13c47a8f16c8e268fc4a88855ddd43",
+    "content/specifications/recording-travel-ai-design.md": "1f7c2b8f77af07b14c3738e9255a0c10f1c6e82c6dab0da24c0339754eea0e7c",
+    "content/specifications/operations-release-acceptance-design.json": "e6236d1ecafee7625ed7f59bc63e8e4dfe18444e873fe19d13fc5d3263a560ff",
+    "content/specifications/operations-release-acceptance-design.md": "6149f1cfa2a61e2fe77aa4a2bf79e0e48aa3ed021e7802e17b4b42fdc9b55742",
+    "content/specifications/preimplementation-contract-overlay.json": "b79285097d9faaa4851cc10fcbfa4f949f5f8d60f7efea5c1473a180ad9bc0fd",
+    "content/specifications/preimplementation-contract-overlay.md": "b1475051c541f9a5da0d7d94be44a13ae4605d3d14475106bd084b641e1f214b",
+    "content/planning/preimplementation-handoff.json": "4ce31dabeb212fdcc07c7e38537266fb84dd9389c76990cc49851cddfa226227",
+    "content/planning/preimplementation-handoff.md": "84b8a2b2e47f57f32899e66da8fde09c3a228cabc9dc466c5522a544e7ef5f17",
+    "content/planning/preimplementation-task-handoffs.md": "a6b12fe8e7bdf1801d7dad12f757e33f8643e3d0c9261af957a7f9b374d3f458",
+    "content/planning/preimplementation-evidence.template.json": "284beae3b0d511b278cb700fe7f51966079504c0d4378d05c057bf922ca10084",
+    "content/planning/validate_preimplementation_handoff.py": "222567a20956d5104ccc4e4438a5f928630267f7bd961532464949a535a340be",
+    "content/planning/preimplementation-validation.json": "06afcf9a2f286bb40194264fdeff0079c3079905efc5b0c98eb10d36f37a08f8"
+  }
+}

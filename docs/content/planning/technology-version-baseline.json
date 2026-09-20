@@ -1,0 +1,50 @@
+{
+  "scope": "observed local source declarations, not chosen deployment versions",
+  "records": [
+    {
+      "component": "indexer-go",
+      "source": "go.mod",
+      "reviewedCommit": "5baff647f3cfab935f73db1bbd742ad42317045f",
+      "declarations": {
+        "go": "1.24.0",
+        "toolchain": "go1.24.9",
+        "chi": "v5.2.3",
+        "pebble": "v1.1.5",
+        "go-ethereum": "v1.16.5"
+      }
+    },
+    {
+      "component": "poc-platform",
+      "source": "package.json / apps/web/package.json / packages/sdk-ts/core/package.json",
+      "reviewedCommit": "fcad7900de5ceea5e3ef586774609ad00739b760",
+      "declarations": {
+        "pnpm": "10.30.3",
+        "nodeEngine": ">=22.0.0",
+        "typescriptRange": "^5.7.2",
+        "viemRange": "^2.46.3",
+        "nextRange": "^15.5.12",
+        "reactRange": "^19.0.0"
+      }
+    },
+    {
+      "component": "stable-poc-contract",
+      "source": "foundry.toml",
+      "reviewedCommit": "5d9d6550ef572bd86a036fe92c730e4ff0a1ca94",
+      "declarations": {
+        "solc": "0.8.28",
+        "evm_version": "prague",
+        "optimizer_runs": 200
+      }
+    }
+  ],
+  "releasePinRequirements": [
+    "source commit and dependency lock digest",
+    "NU board revision + devicetree/partition + NCS/toolchain revision",
+    "RN + Android/iOS SDK + native bridge versions",
+    "chain fork/EntryPoint/ABI/token address and code hashes",
+    "crypto/MPC protocol revision and exact features",
+    "container/model weights digest and license",
+    "schema/profile/producer-consumer compatibility matrix"
+  ],
+  "runtimeVerified": false
+}

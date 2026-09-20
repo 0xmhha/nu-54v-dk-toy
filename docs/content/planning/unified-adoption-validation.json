@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "scope": "unified_adoption_plan_structure_only",
+  "units": 8,
+  "targetFiles": 21,
+  "sharedTargets": 19,
+  "legacyBundles": 8,
+  "legacyDispositions": 20,
+  "candidateCounts": {
+    "OC": 26,
+    "PRC": 7,
+    "PCP": 7,
+    "PCB": 3,
+    "TMC": 8
+  },
+  "sourcePinChecks": 31,
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "implementationAuthorized": false,
+  "sourceHashes": {
+    "content/planning/unified-adoption-plan.json": "9653a9db7302cbea6b881886ca6ee19376ea652c02673d9afade2a73568c8815"
+  }
+}

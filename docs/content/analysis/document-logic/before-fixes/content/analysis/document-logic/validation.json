@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "scope": "graph_integrity_provenance_and_reproduced_document_gaps_only",
+  "documents": 219,
+  "nodes": 1400,
+  "edges": 6287,
+  "reviewNodes": 1405,
+  "reviewEdges": 6299,
+  "contentReviewedFiles": 12,
+  "findings": 5,
+  "sourceHashChecks": 222,
+  "wbsDependencies": 272,
+  "wbsCycles": 0,
+  "originalSourceChanged": false,
+  "xTheoryApplied": false,
+  "xTheoryDefinition": "pending_user_clarification",
+  "productVerified": false
+}

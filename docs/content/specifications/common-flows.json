@@ -1,0 +1,52 @@
+{
+  "flows": [
+    {
+      "id": "F-SIGN",
+      "status": "design_proposal",
+      "presentationHost": "U03 reusable review/progress components; do not rewrite intent as a simple transfer",
+      "sourceKinds": [
+        "personal_transfer",
+        "payment",
+        "merchant_refund",
+        "smart_account",
+        "market_action",
+        "credential_proof",
+        "paid_resource"
+      ],
+      "steps": [
+        "resolve immutable intent/source and authorized wallet",
+        "render action-specific fields and verify supported signer profile",
+        "request physical approval for HW or MPC participant policy for Cloud",
+        "verify returned proof/signature against intended payload",
+        "submit only through the source-specific adapter",
+        "resume using intent/operation/transaction or protocol request reference"
+      ],
+      "apiRefs": [
+        "API-015",
+        "API-018",
+        "API-019",
+        "API-020",
+        "API-108",
+        "API-109",
+        "API-110"
+      ],
+      "bleCommands": [
+        "wallet.sign.prepare",
+        "wallet.sign.result"
+      ],
+      "constraints": [
+        "merchant_refund uses merchant-authorized signer, never customer payment.prepare",
+        "DID/x402 use their selected protocol proof adapter; not all proofs are raw transactions",
+        "smart-account submission DTO is separate from the EOA DTO subset",
+        "unsupported signature formats are rejected; no blind-signing fallback",
+        "no private keys in navigation parameters",
+        "approval-v1 uses immutable parent ancestry; API015/018 return approvalOperationId",
+        "approval parents and children have resultRef=null; signed results require separate current permission",
+        "API108..110 authorize exact access/relay, never actual signing",
+        "merchant signer B reviews original refund in U03; no API017 rewrite",
+        "Source-specific adapters without a registered exact contract remain execution-blocked; U13-U17/other products do not fall through the three-source EOA API018 DTO"
+      ],
+      "sourceDispatchRef": "approval-source-dispatch.json"
+    }
+  ]
+}

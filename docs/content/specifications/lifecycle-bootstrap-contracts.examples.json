@@ -1,0 +1,1497 @@
+{
+  "status": "independent_synthetic_shape_fixtures",
+  "runtimeTests": "not_run",
+  "valid": [
+    {
+      "name": "Ticket",
+      "schema": "Ticket",
+      "value": {
+        "payload": {
+          "version": "lifecycle-bootstrap-v1-draft",
+          "purpose": "enrollment_bootstrap_only",
+          "context": {
+            "invitationId": "demo",
+            "challengeId": "demo",
+            "deviceId": "demo",
+            "accountId": "demo",
+            "inventoryScopeId": "demo",
+            "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceEpoch": "1",
+            "gateRevision": 1,
+            "bindingRevision": 1,
+            "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "enrollmentSessionId": "demo",
+            "consentTextVersion": "demo",
+            "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "expiresAt": "2026-09-18T12:00:00Z"
+          },
+          "serverNonce": "demo",
+          "deviceIdentityRef": "demo"
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "DeviceHello",
+      "schema": "DeviceHello",
+      "value": {
+        "payload": {
+          "purpose": "enrollment_device_hello",
+          "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "deviceId": "demo",
+          "deviceEpoch": "1",
+          "deviceNonce": "demo",
+          "clientNonce": "demo",
+          "deviceEphemeralKey": {
+            "profileId": "demo",
+            "encodedPublicKey": "demo",
+            "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "firmwareProfileRef": "demo"
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "ConsentStatement",
+      "schema": "ConsentStatement",
+      "value": {
+        "purpose": "accept_exact_device_rental",
+        "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "context": {
+          "invitationId": "demo",
+          "challengeId": "demo",
+          "deviceId": "demo",
+          "accountId": "demo",
+          "inventoryScopeId": "demo",
+          "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "deviceEpoch": "1",
+          "gateRevision": 1,
+          "bindingRevision": 1,
+          "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "enrollmentSessionId": "demo",
+          "consentTextVersion": "demo",
+          "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "expiresAt": "2026-09-18T12:00:00Z"
+        },
+        "clientNonce": "demo",
+        "deviceNonce": "demo",
+        "accepted": true
+      }
+    },
+    {
+      "name": "DeviceApproval",
+      "schema": "DeviceApproval",
+      "value": {
+        "payload": {
+          "purpose": "approve_exact_enrollment",
+          "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "holderProofDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "context": {
+            "invitationId": "demo",
+            "challengeId": "demo",
+            "deviceId": "demo",
+            "accountId": "demo",
+            "inventoryScopeId": "demo",
+            "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceEpoch": "1",
+            "gateRevision": 1,
+            "bindingRevision": 1,
+            "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "enrollmentSessionId": "demo",
+            "consentTextVersion": "demo",
+            "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "expiresAt": "2026-09-18T12:00:00Z"
+          },
+          "deviceNonce": "demo",
+          "clientNonce": "demo",
+          "physicalApproval": true
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "EmptyStateEvidence",
+      "schema": "EmptyStateEvidence",
+      "value": {
+        "payload": {
+          "purpose": "report_unconfigured_wallet_state",
+          "deviceId": "demo",
+          "rentalId": "demo",
+          "bindingId": "demo",
+          "deviceEpoch": "1",
+          "configurationRevision": 1,
+          "challengeId": "demo",
+          "profileId": "demo",
+          "everConfiguredInBinding": false,
+          "walletKeySlots": "verified_empty",
+          "stagedImports": "verified_empty",
+          "unresolvedWalletOperations": false,
+          "privateDataInventoryDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "PendingResponse",
+      "schema": "PendingResponse",
+      "value": {
+        "statusCode": 202,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store",
+          "retryAfterSeconds": 1
+        },
+        "body": {
+          "requestId": "demo",
+          "work": {
+            "workId": "demo",
+            "parentKind": "invitation",
+            "parentId": "demo",
+            "action": "demo",
+            "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "businessOutcomeId": "demo",
+            "workRevision": 1,
+            "state": "pending_signing",
+            "domainRevision": 1,
+            "grantBarrier": "not_applicable",
+            "retryAction": "poll_same_work",
+            "resultRouteId": null
+          }
+        }
+      }
+    },
+    {
+      "name": "API045RequestDelta",
+      "schema": "API045RequestDelta",
+      "value": {
+        "deviceId": "demo",
+        "accountId": "demo",
+        "expectedEpoch": "1",
+        "expectedGateRevision": 1,
+        "expectedBindingRevision": 1,
+        "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "recipientConsentRef": "demo",
+        "enrollmentHolderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "enrollmentSessionId": "demo",
+        "basis": {
+          "kind": "factory_genesis",
+          "genesisRecordId": "demo",
+          "genesisRevision": 1
+        },
+        "enrollmentProofRef": "demo"
+      }
+    },
+    {
+      "name": "API046RequestDelta",
+      "schema": "API046RequestDelta",
+      "value": {
+        "expectedRentalRevision": 1,
+        "walletDisposition": {
+          "kind": "configured",
+          "origin": "new_travel",
+          "configurationRevision": 1,
+          "externalAccessProof": null
+        }
+      }
+    },
+    {
+      "name": "EB01Request",
+      "schema": "EB01Request",
+      "value": {
+        "path": {
+          "deviceId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "expectedGateRevision": 1,
+          "expectedBindingRevision": 1
+        }
+      }
+    },
+    {
+      "name": "EB01Response",
+      "schema": "EB01Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "invitation": {
+              "invitationId": "demo",
+              "deviceId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "revision": 1,
+              "state": "open",
+              "recipientConsentRef": null,
+              "enrollmentProofRef": null,
+              "recipientBinding": null
+            },
+            "invitationSecret": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "EB02Request",
+      "schema": "EB02Request",
+      "value": {
+        "path": {
+          "invitationId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "invitationSecret": "demo",
+          "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "holderKey": {
+            "profileId": "demo",
+            "encodedPublicKey": "demo",
+            "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        }
+      }
+    },
+    {
+      "name": "EB02Response",
+      "schema": "EB02Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "ticket": {
+              "payload": {
+                "version": "lifecycle-bootstrap-v1-draft",
+                "purpose": "enrollment_bootstrap_only",
+                "context": {
+                  "invitationId": "demo",
+                  "challengeId": "demo",
+                  "deviceId": "demo",
+                  "accountId": "demo",
+                  "inventoryScopeId": "demo",
+                  "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "deviceEpoch": "1",
+                  "gateRevision": 1,
+                  "bindingRevision": 1,
+                  "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "enrollmentSessionId": "demo",
+                  "consentTextVersion": "demo",
+                  "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                  "expiresAt": "2026-09-18T12:00:00Z"
+                },
+                "serverNonce": "demo",
+                "deviceIdentityRef": "demo"
+              },
+              "proof": {
+                "profileId": "demo",
+                "keyId": "demo",
+                "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "proofBytes": "demo"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "EB03Request",
+      "schema": "EB03Request",
+      "value": {
+        "path": {
+          "invitationId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "statement": {
+            "purpose": "accept_exact_device_rental",
+            "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "context": {
+              "invitationId": "demo",
+              "challengeId": "demo",
+              "deviceId": "demo",
+              "accountId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceEpoch": "1",
+              "gateRevision": 1,
+              "bindingRevision": 1,
+              "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "enrollmentSessionId": "demo",
+              "consentTextVersion": "demo",
+              "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "expiresAt": "2026-09-18T12:00:00Z"
+            },
+            "clientNonce": "demo",
+            "deviceNonce": "demo",
+            "accepted": true
+          },
+          "holderKey": {
+            "profileId": "demo",
+            "encodedPublicKey": "demo",
+            "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "holderProof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          },
+          "deviceHello": {
+            "payload": {
+              "purpose": "enrollment_device_hello",
+              "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceId": "demo",
+              "deviceEpoch": "1",
+              "deviceNonce": "demo",
+              "clientNonce": "demo",
+              "deviceEphemeralKey": {
+                "profileId": "demo",
+                "encodedPublicKey": "demo",
+                "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+              },
+              "firmwareProfileRef": "demo"
+            },
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "demo"
+            }
+          },
+          "deviceApproval": {
+            "payload": {
+              "purpose": "approve_exact_enrollment",
+              "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "holderProofDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "context": {
+                "invitationId": "demo",
+                "challengeId": "demo",
+                "deviceId": "demo",
+                "accountId": "demo",
+                "inventoryScopeId": "demo",
+                "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "deviceEpoch": "1",
+                "gateRevision": 1,
+                "bindingRevision": 1,
+                "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "enrollmentSessionId": "demo",
+                "consentTextVersion": "demo",
+                "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "expiresAt": "2026-09-18T12:00:00Z"
+              },
+              "deviceNonce": "demo",
+              "clientNonce": "demo",
+              "physicalApproval": true
+            },
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "demo"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "EB03Response",
+      "schema": "EB03Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "consent": {
+              "invitationId": "demo",
+              "accountId": "demo",
+              "recipientConsentRef": "demo",
+              "enrollmentProofRef": "demo",
+              "enrollmentSessionId": "demo",
+              "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "revision": 1,
+              "state": "available"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "EB04Request",
+      "schema": "EB04Request",
+      "value": {
+        "path": {
+          "invitationId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo"
+        }
+      }
+    },
+    {
+      "name": "EB04Response",
+      "schema": "EB04Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "invitation": {
+              "invitationId": "demo",
+              "deviceId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "revision": 1,
+              "state": "open",
+              "recipientConsentRef": null,
+              "enrollmentProofRef": null,
+              "recipientBinding": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "EB05Request",
+      "schema": "EB05Request",
+      "value": {
+        "path": {
+          "invitationId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "expectedRevision": 1
+        }
+      }
+    },
+    {
+      "name": "EB05Response",
+      "schema": "EB05Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "invitation": {
+              "invitationId": "demo",
+              "deviceId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "revision": 1,
+              "state": "open",
+              "recipientConsentRef": null,
+              "enrollmentProofRef": null,
+              "recipientBinding": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "FG01Request",
+      "schema": "FG01Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "evidence": {
+            "deviceId": "demo",
+            "inventoryScopeId": "demo",
+            "provisioningManifestRef": "demo",
+            "deviceIdentityRef": "demo",
+            "challengeId": "demo",
+            "attestationObjectRef": "demo",
+            "historyWatermarkRef": "demo",
+            "proofProfileId": "demo"
+          },
+          "expectedInventoryRevision": 1
+        }
+      }
+    },
+    {
+      "name": "FG01Response",
+      "schema": "FG01Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "genesisRecordId": "demo",
+            "state": "verified",
+            "revision": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "LW01Request",
+      "schema": "LW01Request",
+      "value": {
+        "path": {
+          "workId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authKind": "primary",
+          "bearer": "demo"
+        }
+      }
+    },
+    {
+      "name": "LW01Response",
+      "schema": "LW01Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "work": {
+              "workId": "demo",
+              "parentKind": "invitation",
+              "parentId": "demo",
+              "action": "demo",
+              "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "businessOutcomeId": "demo",
+              "workRevision": 1,
+              "state": "pending_signing",
+              "domainRevision": 1,
+              "grantBarrier": "not_applicable",
+              "retryAction": "poll_same_work",
+              "resultRouteId": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "WC01Request",
+      "schema": "WC01Request",
+      "value": {
+        "path": {
+          "deviceId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "expectedBindingRevision": 1,
+          "expectedConfigurationRevision": 1
+        }
+      }
+    },
+    {
+      "name": "WC01Response",
+      "schema": "WC01Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "challenge": {
+              "payload": {
+                "purpose": "inspect_wallet_configuration",
+                "deviceId": "demo",
+                "rentalId": "demo",
+                "bindingId": "demo",
+                "deviceEpoch": "1",
+                "configurationRevision": 1,
+                "challengeId": "demo",
+                "expiresAt": "2026-09-18T12:00:00Z"
+              },
+              "proof": {
+                "profileId": "demo",
+                "keyId": "demo",
+                "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "proofBytes": "demo"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "WC02Request",
+      "schema": "WC02Request",
+      "value": {
+        "path": {
+          "deviceId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "evidence": {
+            "payload": {
+              "purpose": "report_unconfigured_wallet_state",
+              "deviceId": "demo",
+              "rentalId": "demo",
+              "bindingId": "demo",
+              "deviceEpoch": "1",
+              "configurationRevision": 1,
+              "challengeId": "demo",
+              "profileId": "demo",
+              "everConfiguredInBinding": false,
+              "walletKeySlots": "verified_empty",
+              "stagedImports": "verified_empty",
+              "unresolvedWalletOperations": false,
+              "privateDataInventoryDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "demo"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "WC02Response",
+      "schema": "WC02Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "emptyStateEvidenceRef": "demo",
+            "configurationRevision": 1,
+            "state": "verified_empty"
+          }
+        }
+      }
+    },
+    {
+      "name": "EBB01Request",
+      "schema": "EBB01Request",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "enrollment.bootstrap.hello",
+        "requestId": "demo",
+        "sessionId": "demo",
+        "sequence": 1,
+        "payload": {
+          "ticket": {
+            "payload": {
+              "version": "lifecycle-bootstrap-v1-draft",
+              "purpose": "enrollment_bootstrap_only",
+              "context": {
+                "invitationId": "demo",
+                "challengeId": "demo",
+                "deviceId": "demo",
+                "accountId": "demo",
+                "inventoryScopeId": "demo",
+                "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "deviceEpoch": "1",
+                "gateRevision": 1,
+                "bindingRevision": 1,
+                "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "enrollmentSessionId": "demo",
+                "consentTextVersion": "demo",
+                "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "expiresAt": "2026-09-18T12:00:00Z"
+              },
+              "serverNonce": "demo",
+              "deviceIdentityRef": "demo"
+            },
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "demo"
+            }
+          },
+          "holderKey": {
+            "profileId": "demo",
+            "encodedPublicKey": "demo",
+            "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "holderProof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          },
+          "clientNonce": "demo"
+        }
+      }
+    },
+    {
+      "name": "EBB01Response",
+      "schema": "EBB01Response",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "enrollment.bootstrap.hello",
+        "requestId": "demo",
+        "result": {
+          "payload": {
+            "purpose": "enrollment_device_hello",
+            "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceId": "demo",
+            "deviceEpoch": "1",
+            "deviceNonce": "demo",
+            "clientNonce": "demo",
+            "deviceEphemeralKey": {
+              "profileId": "demo",
+              "encodedPublicKey": "demo",
+              "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "firmwareProfileRef": "demo"
+          },
+          "proof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "EBB02Request",
+      "schema": "EBB02Request",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "enrollment.bootstrap.approve",
+        "requestId": "demo",
+        "sessionId": "demo",
+        "sequence": 1,
+        "payload": {
+          "ticket": {
+            "payload": {
+              "version": "lifecycle-bootstrap-v1-draft",
+              "purpose": "enrollment_bootstrap_only",
+              "context": {
+                "invitationId": "demo",
+                "challengeId": "demo",
+                "deviceId": "demo",
+                "accountId": "demo",
+                "inventoryScopeId": "demo",
+                "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "deviceEpoch": "1",
+                "gateRevision": 1,
+                "bindingRevision": 1,
+                "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "enrollmentSessionId": "demo",
+                "consentTextVersion": "demo",
+                "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "expiresAt": "2026-09-18T12:00:00Z"
+              },
+              "serverNonce": "demo",
+              "deviceIdentityRef": "demo"
+            },
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "demo"
+            }
+          },
+          "statement": {
+            "purpose": "accept_exact_device_rental",
+            "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "context": {
+              "invitationId": "demo",
+              "challengeId": "demo",
+              "deviceId": "demo",
+              "accountId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceEpoch": "1",
+              "gateRevision": 1,
+              "bindingRevision": 1,
+              "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "enrollmentSessionId": "demo",
+              "consentTextVersion": "demo",
+              "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "expiresAt": "2026-09-18T12:00:00Z"
+            },
+            "clientNonce": "demo",
+            "deviceNonce": "demo",
+            "accepted": true
+          },
+          "holderProof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "EBB02Response",
+      "schema": "EBB02Response",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "enrollment.bootstrap.approve",
+        "requestId": "demo",
+        "result": {
+          "payload": {
+            "purpose": "approve_exact_enrollment",
+            "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "holderProofDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "context": {
+              "invitationId": "demo",
+              "challengeId": "demo",
+              "deviceId": "demo",
+              "accountId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceEpoch": "1",
+              "gateRevision": 1,
+              "bindingRevision": 1,
+              "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "enrollmentSessionId": "demo",
+              "consentTextVersion": "demo",
+              "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "expiresAt": "2026-09-18T12:00:00Z"
+            },
+            "deviceNonce": "demo",
+            "clientNonce": "demo",
+            "physicalApproval": true
+          },
+          "proof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "WCB01Request",
+      "schema": "WCB01Request",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "wallet.configuration.inspect",
+        "requestId": "demo",
+        "sessionId": "demo",
+        "sequence": 1,
+        "payload": {
+          "payload": {
+            "purpose": "inspect_wallet_configuration",
+            "deviceId": "demo",
+            "rentalId": "demo",
+            "bindingId": "demo",
+            "deviceEpoch": "1",
+            "configurationRevision": 1,
+            "challengeId": "demo",
+            "expiresAt": "2026-09-18T12:00:00Z"
+          },
+          "proof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "WCB01Response",
+      "schema": "WCB01Response",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "wallet.configuration.inspect",
+        "requestId": "demo",
+        "result": {
+          "payload": {
+            "purpose": "report_unconfigured_wallet_state",
+            "deviceId": "demo",
+            "rentalId": "demo",
+            "bindingId": "demo",
+            "deviceEpoch": "1",
+            "configurationRevision": 1,
+            "challengeId": "demo",
+            "profileId": "demo",
+            "everConfiguredInBinding": false,
+            "walletKeySlots": "verified_empty",
+            "stagedImports": "verified_empty",
+            "unresolvedWalletOperations": false,
+            "privateDataInventoryDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "proof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "unconfigured-return",
+      "schema": "API046RequestDelta",
+      "value": {
+        "expectedRentalRevision": 1,
+        "walletDisposition": {
+          "kind": "unconfigured",
+          "configurationRevision": 1,
+          "emptyStateEvidenceRef": "demo"
+        }
+      }
+    },
+    {
+      "name": "verification-pending",
+      "schema": "PendingResponse",
+      "value": {
+        "statusCode": 202,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store",
+          "retryAfterSeconds": 1
+        },
+        "body": {
+          "requestId": "demo",
+          "work": {
+            "workId": "demo",
+            "parentKind": "invitation",
+            "parentId": "demo",
+            "action": "demo",
+            "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "businessOutcomeId": "demo",
+            "workRevision": 1,
+            "state": "pending_verification",
+            "domainRevision": 1,
+            "grantBarrier": "not_applicable",
+            "retryAction": "poll_same_work",
+            "resultRouteId": null
+          }
+        }
+      }
+    },
+    {
+      "name": "LW01-relay",
+      "schema": "LW01Request",
+      "value": {
+        "path": {
+          "workId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authKind": "relay",
+          "authorityId": "authority-demo",
+          "senderProof": {
+            "nonce": "fresh",
+            "issuedAt": "2026-09-18T12:00:00Z",
+            "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "ZGVtbw"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "device-inventory-material-present",
+      "schema": "WCB01Response",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "wallet.configuration.inspect",
+        "requestId": "demo",
+        "result": {
+          "error": "MATERIAL_PRESENT"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "operator-chooses-recipient",
+      "schema": "EB02Request",
+      "value": {
+        "path": {
+          "invitationId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "invitationSecret": "demo",
+          "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "holderKey": {
+            "profileId": "demo",
+            "encodedPublicKey": "demo",
+            "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "accountId": "another"
+        }
+      }
+    },
+    {
+      "name": "acceptance-false",
+      "schema": "ConsentStatement",
+      "value": {
+        "purpose": "accept_exact_device_rental",
+        "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "context": {
+          "invitationId": "demo",
+          "challengeId": "demo",
+          "deviceId": "demo",
+          "accountId": "demo",
+          "inventoryScopeId": "demo",
+          "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "deviceEpoch": "1",
+          "gateRevision": 1,
+          "bindingRevision": 1,
+          "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "enrollmentSessionId": "demo",
+          "consentTextVersion": "demo",
+          "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "expiresAt": "2026-09-18T12:00:00Z"
+        },
+        "clientNonce": "demo",
+        "deviceNonce": "demo",
+        "accepted": false
+      }
+    },
+    {
+      "name": "missing-physical-approval",
+      "schema": "DeviceApproval",
+      "value": {
+        "payload": {
+          "purpose": "approve_exact_enrollment",
+          "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "holderProofDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "context": {
+            "invitationId": "demo",
+            "challengeId": "demo",
+            "deviceId": "demo",
+            "accountId": "demo",
+            "inventoryScopeId": "demo",
+            "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceEpoch": "1",
+            "gateRevision": 1,
+            "bindingRevision": 1,
+            "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "enrollmentSessionId": "demo",
+            "consentTextVersion": "demo",
+            "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "expiresAt": "2026-09-18T12:00:00Z"
+          },
+          "deviceNonce": "demo",
+          "clientNonce": "demo",
+          "physicalApproval": false
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "missing-enrollment-proof",
+      "schema": "API045RequestDelta",
+      "value": {
+        "deviceId": "demo",
+        "accountId": "demo",
+        "expectedEpoch": "1",
+        "expectedGateRevision": 1,
+        "expectedBindingRevision": 1,
+        "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "recipientConsentRef": "demo",
+        "enrollmentHolderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "enrollmentSessionId": "demo",
+        "basis": {
+          "kind": "factory_genesis",
+          "genesisRecordId": "demo",
+          "genesisRevision": 1
+        }
+      }
+    },
+    {
+      "name": "ready-as-pending",
+      "schema": "PendingResponse",
+      "value": {
+        "statusCode": 202,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store",
+          "retryAfterSeconds": 1
+        },
+        "body": {
+          "requestId": "demo",
+          "work": {
+            "workId": "demo",
+            "parentKind": "invitation",
+            "parentId": "demo",
+            "action": "demo",
+            "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "businessOutcomeId": "demo",
+            "workRevision": 1,
+            "state": "ready",
+            "domainRevision": 1,
+            "grantBarrier": "not_applicable",
+            "retryAction": "poll_same_work",
+            "resultRouteId": null
+          }
+        }
+      }
+    },
+    {
+      "name": "pending-delivers-result",
+      "schema": "PendingResponse",
+      "value": {
+        "statusCode": 202,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store",
+          "retryAfterSeconds": 1
+        },
+        "body": {
+          "requestId": "demo",
+          "work": {
+            "workId": "demo",
+            "parentKind": "invitation",
+            "parentId": "demo",
+            "action": "demo",
+            "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "businessOutcomeId": "demo",
+            "workRevision": 1,
+            "state": "pending_signing",
+            "domainRevision": 1,
+            "grantBarrier": "not_applicable",
+            "retryAction": "poll_same_work",
+            "resultRouteId": "RT01"
+          }
+        }
+      }
+    },
+    {
+      "name": "ever-configured-empty",
+      "schema": "EmptyStateEvidence",
+      "value": {
+        "payload": {
+          "purpose": "report_unconfigured_wallet_state",
+          "deviceId": "demo",
+          "rentalId": "demo",
+          "bindingId": "demo",
+          "deviceEpoch": "1",
+          "configurationRevision": 1,
+          "challengeId": "demo",
+          "profileId": "demo",
+          "everConfiguredInBinding": true,
+          "walletKeySlots": "verified_empty",
+          "stagedImports": "verified_empty",
+          "unresolvedWalletOperations": false,
+          "privateDataInventoryDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "staged-key-empty",
+      "schema": "EmptyStateEvidence",
+      "value": {
+        "payload": {
+          "purpose": "report_unconfigured_wallet_state",
+          "deviceId": "demo",
+          "rentalId": "demo",
+          "bindingId": "demo",
+          "deviceEpoch": "1",
+          "configurationRevision": 1,
+          "challengeId": "demo",
+          "profileId": "demo",
+          "everConfiguredInBinding": false,
+          "walletKeySlots": "verified_empty",
+          "stagedImports": "material_present",
+          "unresolvedWalletOperations": false,
+          "privateDataInventoryDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "proof": {
+          "profileId": "demo",
+          "keyId": "demo",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "demo"
+        }
+      }
+    },
+    {
+      "name": "fake-genesis-flag",
+      "schema": "FG01Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authorization": "demo",
+          "idempotencyKey": "demo"
+        },
+        "body": {
+          "evidence": {
+            "deviceId": "demo",
+            "inventoryScopeId": "demo",
+            "provisioningManifestRef": "demo",
+            "deviceIdentityRef": "demo",
+            "challengeId": "demo",
+            "attestationObjectRef": "demo",
+            "historyWatermarkRef": "demo",
+            "proofProfileId": "demo",
+            "isVirgin": true
+          },
+          "expectedInventoryRevision": 1
+        }
+      }
+    },
+    {
+      "name": "missing-device-proof",
+      "schema": "DeviceHello",
+      "value": {
+        "payload": {
+          "purpose": "enrollment_device_hello",
+          "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "deviceId": "demo",
+          "deviceEpoch": "1",
+          "deviceNonce": "demo",
+          "clientNonce": "demo",
+          "deviceEphemeralKey": {
+            "profileId": "demo",
+            "encodedPublicKey": "demo",
+            "thumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "firmwareProfileRef": "demo"
+        }
+      }
+    },
+    {
+      "name": "negative-sequence",
+      "schema": "EBB02Request",
+      "value": {
+        "version": "lifecycle-bootstrap-ble-v1-draft",
+        "command": "enrollment.bootstrap.approve",
+        "requestId": "demo",
+        "sessionId": "demo",
+        "sequence": -1,
+        "payload": {
+          "ticket": {
+            "payload": {
+              "version": "lifecycle-bootstrap-v1-draft",
+              "purpose": "enrollment_bootstrap_only",
+              "context": {
+                "invitationId": "demo",
+                "challengeId": "demo",
+                "deviceId": "demo",
+                "accountId": "demo",
+                "inventoryScopeId": "demo",
+                "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "deviceEpoch": "1",
+                "gateRevision": 1,
+                "bindingRevision": 1,
+                "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "enrollmentSessionId": "demo",
+                "consentTextVersion": "demo",
+                "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "expiresAt": "2026-09-18T12:00:00Z"
+              },
+              "serverNonce": "demo",
+              "deviceIdentityRef": "demo"
+            },
+            "proof": {
+              "profileId": "demo",
+              "keyId": "demo",
+              "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "proofBytes": "demo"
+            }
+          },
+          "statement": {
+            "purpose": "accept_exact_device_rental",
+            "ticketDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "deviceHelloDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "context": {
+              "invitationId": "demo",
+              "challengeId": "demo",
+              "deviceId": "demo",
+              "accountId": "demo",
+              "inventoryScopeId": "demo",
+              "candidateDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "deviceEpoch": "1",
+              "gateRevision": 1,
+              "bindingRevision": 1,
+              "holderThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "enrollmentSessionId": "demo",
+              "consentTextVersion": "demo",
+              "consentDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "expiresAt": "2026-09-18T12:00:00Z"
+            },
+            "clientNonce": "demo",
+            "deviceNonce": "demo",
+            "accepted": true
+          },
+          "holderProof": {
+            "profileId": "demo",
+            "keyId": "demo",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "demo"
+          }
+        }
+      }
+    },
+    {
+      "name": "work-discloses-secret",
+      "schema": "LW01Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "demo",
+          "data": {
+            "work": {
+              "workId": "demo",
+              "parentKind": "invitation",
+              "parentId": "demo",
+              "action": "demo",
+              "requestDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "businessOutcomeId": "demo",
+              "workRevision": 1,
+              "state": "pending_signing",
+              "domainRevision": 1,
+              "grantBarrier": "not_applicable",
+              "retryAction": "poll_same_work",
+              "resultRouteId": null,
+              "resultUrl": "https://invalid.example/secret"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "LW01-relay-missing-sender-proof",
+      "schema": "LW01Request",
+      "value": {
+        "path": {
+          "workId": "demo"
+        },
+        "headers": {
+          "requestId": "demo",
+          "contractVersion": "lifecycle-bootstrap-v1-draft",
+          "authKind": "relay",
+          "authorityId": "authority-demo"
+        }
+      }
+    }
+  ]
+}

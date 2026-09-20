@@ -1,0 +1,47 @@
+{
+  "observedDate": "2026-09-17",
+  "rpcUrl": "https://api.test.stablenet.network/",
+  "readOnly": true,
+  "httpStatus": 200,
+  "responses": [
+    {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0x205b"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": "8283"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "result": "0x130ef25"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": 4,
+      "result": "Gstable/v1.1.0-stable-71e3f820/linux-amd64/go1.23.12"
+    },
+    {
+      "jsonrpc": "2.0",
+      "id": 5,
+      "result": "0x2b4abd176000"
+    }
+  ],
+  "methodsById": {
+    "1": "eth_chainId",
+    "2": "net_version",
+    "3": "eth_blockNumber",
+    "4": "web3_clientVersion",
+    "5": "eth_gasPrice"
+  },
+  "explorer": {
+    "url": "https://explorer.stablenet.network/",
+    "httpStatus": 200,
+    "observedCurrencyLabel": "WKRC",
+    "sameBlockHashCompared": false
+  },
+  "note": "Point-in-time network observation, not contract integration validation or fixed gas policy."
+}

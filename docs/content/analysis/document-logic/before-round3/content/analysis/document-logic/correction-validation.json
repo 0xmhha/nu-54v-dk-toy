@@ -1,0 +1,335 @@
+{
+  "status": "passed",
+  "scope": "design_correction_and_finite_examples_only",
+  "findingsResolved": 8,
+  "newFindings": [
+    "LG-06",
+    "LG-07",
+    "LG-08"
+  ],
+  "regression": {
+    "scope": "design_regression_only",
+    "checksPassed": 52,
+    "checks": [
+      "LG01_unknown_to_original_completion",
+      "LG01_failure_reorg_reconciliation",
+      "LG01_no_resign_after_execution_exposure",
+      "LG01_allowance_recovery",
+      "LG01_preserved_identity",
+      "LG02_credential_has_no_session_states",
+      "LG02_independent_repeat_presentations",
+      "LG02_revocation_from_current_or_unknown",
+      "LG02_unknown_verification_can_recover",
+      "LG03_PX-05_common_guard",
+      "LG03_PX-06_common_guard",
+      "LG03_PX-07_common_guard",
+      "LG03_PX-11_common_guard",
+      "LG03_PR-GENERATE_normal",
+      "LG03_PR-GENERATE_deny_authority_current",
+      "LG03_PR-GENERATE_deny_entitlement_revision_matches",
+      "LG03_PR-GENERATE_deny_privacy_allowed",
+      "LG03_PR-GENERATE_deny_refund_clear",
+      "LG03_PR-GENERATE_deny_request_revision_matches",
+      "LG03_PR-GENERATE_deny_resource_terms_current",
+      "LG03_PR-GENERATE_deny_source_current",
+      "LG03_PR-PUBLISH_normal",
+      "LG03_PR-PUBLISH_deny_authority_current",
+      "LG03_PR-PUBLISH_deny_entitlement_revision_matches",
+      "LG03_PR-PUBLISH_deny_privacy_allowed",
+      "LG03_PR-PUBLISH_deny_refund_clear",
+      "LG03_PR-PUBLISH_deny_request_revision_matches",
+      "LG03_PR-PUBLISH_deny_resource_terms_current",
+      "LG03_PR-PUBLISH_deny_source_current",
+      "LG04_four_explicit_contracts",
+      "LG04_AU-06_wired",
+      "LG04_AU-09_wired",
+      "LG04_AU-12_wired",
+      "LG04_OC-17_complete_fields",
+      "LG04_OC-18_complete_fields",
+      "LG04_OC-19_complete_fields",
+      "LG04_OC-20_complete_fields",
+      "LG04_readers_do_not_require_valid_access_token",
+      "LG05_DS-01_same_typed_scope",
+      "LG05_DS-02_same_typed_scope",
+      "LG05_DS-03_same_typed_scope",
+      "LG05_DS-04_same_typed_scope",
+      "LG05_DS-05_same_typed_scope",
+      "LG05_DS-06_same_typed_scope",
+      "LG05_DS-07_same_typed_scope",
+      "LG05_DS-08_same_typed_scope",
+      "LG05_DS07_app_impact_preserved",
+      "no_policy_or_execution_inferred",
+      "before_LG01_counterexample_reproduced",
+      "before_LG02_counterexample_reproduced",
+      "before_LG03_guard_omission_reproduced",
+      "before_LG04_missing_contract_reproduced"
+    ],
+    "findingsResolvedInDesign": 5,
+    "runtimeVerified": false
+  },
+  "followup": {
+    "scope": "finite_design_examples_only",
+    "casesPassed": 16,
+    "cases": [
+      {
+        "id": "LG06-normal",
+        "meaning": "현재 지급 확정과 모든 조건 충족",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-reorg-before-generation",
+        "meaning": "entitlement active여도 지급 불확실이면 시작 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-reorg-before-publish",
+        "meaning": "이미 생성된 결과도 현재 지급 불확실이면 공개 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-restore-with-refund",
+        "meaning": "지급 복구가 환불 제한을 해제하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-restore-with-privacy",
+        "meaning": "지급 복구가 삭제/동의 제한을 해제하지 않음",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG06-revision-race",
+        "meaning": "먼저 본 지급 상태가 맞아도 CAS 세대 불일치 거절",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-normal",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "rotated",
+          true
+        ],
+        "expected": [
+          "rotated",
+          true
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-old-generation",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "superseded",
+          false
+        ],
+        "expected": [
+          "superseded",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-future-generation",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "held",
+          false
+        ],
+        "expected": [
+          "held",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-logout-race",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "revoked",
+          false
+        ],
+        "expected": [
+          "revoked",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-lost-sender",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "forbidden",
+          false
+        ],
+        "expected": [
+          "forbidden",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG07-expired-result",
+        "meaning": "동일 요청 결과의 현재 공개 정책 예제",
+        "observed": [
+          "restart_required",
+          false
+        ],
+        "expected": [
+          "restart_required",
+          false
+        ],
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-withdraw-only",
+        "meaning": "동의 철회만으로 파일 삭제 불가",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-outside-plan",
+        "meaning": "요약 대상 삭제 권한으로 개인 원음까지 확대 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-authorized-scope",
+        "meaning": "명시 삭제 계획과 현재 권한·범위·revision 일치",
+        "observed": true,
+        "expected": true,
+        "status": "passed_design_example"
+      },
+      {
+        "id": "LG08-stale-plan",
+        "meaning": "이전 scope/revision으로 파괴적 삭제 금지",
+        "observed": false,
+        "expected": false,
+        "status": "passed_design_example"
+      }
+    ],
+    "runtimeVerified": false
+  },
+  "existingValidators": [
+    {
+      "command": "content/planning/validate_preimplementation_handoff.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_source_integrity_only\", \"packages\": {\"DS-06\": {\"tasks\": 9, \"runtimeCasesNotRun\": 24, \"policyInputsUnselected\": 6}, \"DS-07\": {\"tasks\": 8, \"runtimeCasesNotRun\": 24, \"policyInputsUnselected\": 6}, \"DS-08\": {\"tasks\": 15, \"runtimeCasesNotRun\": 16, \"policyInputsUnselected\": 5}}, \"handoffTasks\": 104, \"handoffSteps\": 320, \"requirements\": 15, \"compoundFacets\": 16, \"openDecisions\": 19, \"overlayRoutes\": 20, \"actionVariants\": 11, \"runtimeCasesAddedNotRun\": 64, \"runtimeVerified\": false, \"implementationReady\": false}"
+    },
+    {
+      "command": "content/planning/validate_full_scope_design.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/planning/render_design_register.py --check",
+      "exitCode": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only"
+    },
+    {
+      "command": "content/planning/render_integration_adoption.py --check",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_device_coexistence.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_reference_checks_only\", \"operations\": 10, \"directionalPairs\": 100, \"fotaTransitions\": 10, \"resources\": 11, \"runtimeCasesNotRun\": 28, \"sourceFilesPreserved\": 9, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_social_wallet_recovery.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_source_references_only\", \"authTransitions\": 12, \"mpcTransitions\": 11, \"authorityImpacts\": 8, \"logicalResources\": 8, \"contractDeltas\": 6, \"runtimeCases\": 32, \"sourceFilesPreserved\": 10, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_kiosk_commerce_journeys.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"journey_inventory_and_reference_checks_only\", \"journeys\": 12, \"paymentDisplayStates\": 10, \"policyInputs\": 7, \"contractDeltas\": 7, \"runtimeCases\": 34, \"sourceFilesPreserved\": 12, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_stablenet_compatibility.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_pinned_references_only\", \"manifestComponents\": 8, \"assets\": 4, \"domainCoverage\": 9, \"indexerStages\": 8, \"accountTransitions\": 7, \"runtimeCases\": 34, \"preservedSources\": 12, \"liveRpcVerified\": false, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_market_products.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_illustrative_arithmetic_only\", \"productCards\": 4, \"tradeTransitions\": 16, \"priceActionMatrix\": 10, \"keeperStages\": 6, \"policyInputs\": 8, \"contractGaps\": 6, \"arithmeticExamples\": 4, \"runtimeCases\": 32, \"preservedSources\": 10, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_approval_baseline.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"current_canonical_design_only\", \"api\": 110, \"approvalHttpRoutes\": 13, \"blePairs\": 5, \"validShapes\": 43, \"invalidShapes\": 17, \"checkpointFilesVerified\": 174, \"historicalChecks\": 10, \"storageMappings\": 13, \"canonicalMerged\": true, \"sqlApplied\": false, \"runtimeVerified\": false}"
+    },
+    {
+      "command": "content/specifications/validate_approval_physical_storage.py",
+      "exitCode": 0,
+      "output": "Approval physical design OK: 13 resources, 16 table proposals, 8 migration phases, 17 NOT RUN cases; 7 SQL hashes unchanged. No DB/runtime verification."
+    },
+    {
+      "command": "content/specifications/validate_commerce_reconciliation.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 5, \"schemaDefinitions\": 71, \"validShapes\": 17, \"invalidShapes\": 12, \"semanticExamples\": 16, \"runtimeCasesNotRun\": 15, \"pinnedSources\": 15, \"canonicalMerged\": false, \"sqlApplied\": false}"
+    },
+    {
+      "command": "content/specifications/validate_commerce_consumer_repair.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_links_and_finite_examples_only\", \"consumers\": 5, \"logicalResources\": 6, \"rebuildSteps\": 7, \"syntheticExamples\": 22, \"runtimeCasesNotRun\": 22, \"unchangedSourceFiles\": 9, \"canonicalMerged\": false, \"sqlApplied\": false}"
+    },
+    {
+      "command": "content/specifications/validate_settlement_ops.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"existingRoutes\": 5, \"proposedUnregisteredRoutes\": 2, \"validShapes\": 15, \"invalidShapes\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 9, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_return_routes.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 10, \"blePairs\": 6, \"validShapes\": 33, \"invalidShapes\": 12, \"readinessLogicExamples\": 11, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 10, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_rental_admission_cancel.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 9, \"blePairs\": 4, \"validShapes\": 36, \"invalidShapes\": 12, \"finiteModelCases\": 29, \"runtimeCasesNotRun\": 23, \"pinnedInputs\": 8, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_lifecycle_storage.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"storage_design_inventory_only\", \"proposedTables\": 14, \"atomicUnits\": 12, \"firmwareStores\": 4, \"migrationPhasesNotRun\": 8, \"runtimeCasesNotRun\": 26, \"unchangedSqlTables\": 61, \"unchangedSqlFiles\": 7, \"pinnedDesignInputs\": 9, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_lifecycle_bootstrap.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_shapes_and_references_only\", \"httpAliases\": 9, \"bleAliases\": 3, \"pendingRouteOverlays\": 17, \"validShapes\": 36, \"invalidShapes\": 13, \"unchangedInputs\": 8, \"runtimeCasesNotRun\": 22, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_enrollment_continuity.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_inventory_and_references_only\", \"httpAliases\": 5, \"bleAliases\": 3, \"signedMessageSpecifications\": 6, \"registryTableProposals\": 7, \"atomicMappings\": 8, \"adoptionCriteria\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 8, \"canonicalMerged\": false}"
+    },
+    {
+      "command": "content/specifications/validate_lifecycle_journeys.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"journey_traceability_only\", \"journeys\": 16, \"uniqueSourceCasesLinked\": 107, \"adoptionPackages\": 5, \"openGaps\": 5, \"sourceFilesPreserved\": 8, \"wbsTasks\": 104, \"wbsSteps\": 320, \"runtimeRuns\": 0, \"canonicalMerged\": false}"
+    }
+  ],
+  "existingValidatorsPassed": 20,
+  "runtimeVerified": false,
+  "productImplementationPerformed": false,
+  "canonicalApiRegistrationPerformed": false,
+  "originalDesignChanged": true,
+  "archiveChanged": false,
+  "xTheoryDefinition": "unconfirmed",
+  "priorReport": "content/analysis/document-logic/before-round2/content/analysis/document-logic/correction-validation.json"
+}

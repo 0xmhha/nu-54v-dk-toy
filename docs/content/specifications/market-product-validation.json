@@ -1,0 +1,46 @@
+{
+  "date": "2026-09-19",
+  "scope": "design_reference_and_illustrative_arithmetic_validation_only",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_market_products.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_inventory_and_illustrative_arithmetic_only\", \"productCards\": 4, \"tradeTransitions\": 9, \"priceActionMatrix\": 10, \"keeperStages\": 6, \"policyInputs\": 8, \"contractGaps\": 6, \"arithmeticExamples\": 4, \"runtimeCases\": 32, \"preservedSources\": 10, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_stablenet_compatibility.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_inventory_and_pinned_references_only\", \"manifestComponents\": 8, \"assets\": 4, \"domainCoverage\": 9, \"indexerStages\": 8, \"accountTransitions\": 7, \"runtimeCases\": 34, \"preservedSources\": 12, \"liveRpcVerified\": false, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/validate_full_scope_design.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exit_code": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": [
+      "Completed actions can enter revalidation after reorg while preserving historical effects.",
+      "Standalone allowance confirmation and bundled permit preparation/consumption are distinct.",
+      "LP partial success depends on separate transactions or failure-tolerant calls; atomic multicall reverts both effects."
+    ],
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "Four arithmetic examples are synthetic unit/sign checks, not selected rates or protocol risk parameters.",
+    "All 32 runtime cases and product normal controls remain not_run.",
+    "Eight policy inputs are unselected; six contract gaps and market_action adapter require adoption before execution."
+  ]
+}

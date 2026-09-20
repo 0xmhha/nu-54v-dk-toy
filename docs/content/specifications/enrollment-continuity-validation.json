@@ -1,0 +1,67 @@
+{
+  "scope": "design_inventory_and_reference_validation_only",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_enrollment_continuity.py",
+      "chunk_id": "624552",
+      "wall_time_seconds": 0.00000325,
+      "exit_code": 0,
+      "original_token_count": 67,
+      "output": "{\"scope\": \"design_inventory_and_references_only\", \"httpAliases\": 5, \"bleAliases\": 3, \"signedMessageSpecifications\": 6, \"registryTableProposals\": 7, \"atomicMappings\": 8, \"adoptionCriteria\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 8, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_bootstrap.py",
+      "chunk_id": "15eeb5",
+      "wall_time_seconds": 0.095243542,
+      "exit_code": 0,
+      "original_token_count": 56,
+      "output": "{\"scope\": \"design_shapes_and_references_only\", \"httpAliases\": 9, \"bleAliases\": 3, \"pendingRouteOverlays\": 17, \"validShapes\": 36, \"invalidShapes\": 13, \"unchangedInputs\": 8, \"runtimeCasesNotRun\": 22, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_storage.py",
+      "chunk_id": "c11a8d",
+      "wall_time_seconds": 0.000001959,
+      "exit_code": 0,
+      "original_token_count": 65,
+      "output": "{\"scope\": \"storage_design_inventory_only\", \"proposedTables\": 14, \"atomicUnits\": 12, \"firmwareStores\": 4, \"migrationPhasesNotRun\": 8, \"runtimeCasesNotRun\": 26, \"unchangedSqlTables\": 61, \"unchangedSqlFiles\": 7, \"pinnedDesignInputs\": 9, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_rental_admission_cancel.py",
+      "chunk_id": "6c1e03",
+      "wall_time_seconds": 0.083210917,
+      "exit_code": 0,
+      "original_token_count": 48,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 9, \"blePairs\": 4, \"validShapes\": 36, \"invalidShapes\": 12, \"finiteModelCases\": 29, \"runtimeCasesNotRun\": 23, \"pinnedInputs\": 8, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "chunk_id": "477b57",
+      "wall_time_seconds": 0.000001709,
+      "exit_code": 0,
+      "original_token_count": 26,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "chunk_id": "3fab9b",
+      "wall_time_seconds": 0.000001792,
+      "exit_code": 0,
+      "original_token_count": 60,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": [
+      "Current admission/head and work state included in atomic writes",
+      "Resume/continuation/hold evidence has distinct kind and typed parent mapping"
+    ],
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "No wire-schema fixtures, crypto, SQL concurrency or device tests performed",
+    "18 runtime cases and 12 adoption criteria remain unverified",
+    "Original holder loss, renewed authorization and uncertain admission return need separate design"
+  ]
+}

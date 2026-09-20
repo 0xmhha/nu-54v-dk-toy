@@ -1,0 +1,532 @@
+{
+  "version": "0.1.0-draft",
+  "date": "2026-09-18",
+  "scope": "all 15 requirements with app integration within 12 weeks; no staffing or estimation",
+  "selectionPolicy": "documented recommendation is not user acceptance or implementation proof",
+  "choices": [
+    {
+      "id": "TECH-01",
+      "title": "RN 앱·키오스크",
+      "decisionRefs": [
+        "D01"
+      ],
+      "taskRefs": [
+        "APP-01",
+        "SHOP-01",
+        "BASE-03"
+      ],
+      "recommendation": "TypeScript React Native native-project 기반 앱 2개 + 공통 domain/API 패키지",
+      "alternative": "Expo development build + config plugins",
+      "selectionGate": "키오스크 RN은 사용자 확정. 유저 앱 RN과 monorepo는 제안. BLE/FOTA/MPC native bridge의 Android/iOS 빌드를 먼저 확인",
+      "sourceRefs": [
+        "SRC-04",
+        "SRC-05"
+      ],
+      "experimentRefs": [
+        "VAL-01"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-02",
+      "title": "Google·Apple 인증",
+      "decisionRefs": [
+        "D01",
+        "D03"
+      ],
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "recommendation": "provider/OS별 공식 SDK 또는 시스템 인증 UI adapter + 서버 검증",
+      "alternative": "지원 SDK 경로가 다른 OS는 별도 profile",
+      "selectionGate": "API-103 flow와 API-001/002 providerProof를 결합; 같은 PKCE 필드를 두 제공자에 강제하지 않음",
+      "sourceRefs": [],
+      "experimentRefs": [
+        "VAL-02"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-03",
+      "title": "업무 API·백오피스",
+      "decisionRefs": [
+        "D02",
+        "D08",
+        "D19"
+      ],
+      "taskRefs": [
+        "BASE-04",
+        "AUTH-01",
+        "OPS-01",
+        "SHOP-05"
+      ],
+      "recommendation": "Go chi 기반 업무 API + TypeScript 웹 백오피스; 기존 Next 화면 구성 재사용 검토",
+      "alternative": "TS 업무 API로 통일하되 Go indexer는 adapter로 유지",
+      "selectionGate": "기존 Go/TS 코드를 고려한 제안. explorer를 점주/운영 권한 서비스로 그대로 사용하지 않음",
+      "sourceRefs": [
+        "SRC-09"
+      ],
+      "experimentRefs": [
+        "VAL-03"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-04",
+      "title": "업무·보안 상태 저장",
+      "decisionRefs": [
+        "D02",
+        "D08",
+        "D09",
+        "D19"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "PAY-04",
+        "STAMP-01",
+        "AUTH-04"
+      ],
+      "recommendation": "PostgreSQL + pgx; 업무 원장·ReceiptOwnership·pending entitlement·outbox를 같은 DB transaction에 배치",
+      "alternative": "Redis는 단기 캐시만 비교; 별도 원장 adapter는 복구 protocol 증거가 있을 때",
+      "selectionGate": "61개 SQL 참조안은 재사용. 15개 논리 자원은 필요 DDL/권한 mapping을 새로 작성; 암호키는 업무 DB 밖",
+      "sourceRefs": [
+        "SRC-09",
+        "SRC-10"
+      ],
+      "experimentRefs": [
+        "VAL-04"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-05",
+      "title": "보호 객체·작업 큐",
+      "decisionRefs": [
+        "D17",
+        "D19"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "REC-03",
+        "AI-02",
+        "RELEASE-02"
+      ],
+      "recommendation": "private S3-compatible object adapter + 인증 gateway; PostgreSQL outbox polling worker",
+      "alternative": "운영 S3+KMS 또는 선택 자체 object store; broker는 처리량 근거가 생기면 비교",
+      "selectionGate": "암호화와 소유 ACL 분리. 선택 object store가 SSE/KMS를 동일하게 지원한다고 가정하지 않음",
+      "sourceRefs": [
+        "SRC-11"
+      ],
+      "experimentRefs": [
+        "VAL-05"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-06",
+      "title": "NU 보드·RTOS",
+      "decisionRefs": [
+        "D05",
+        "D07"
+      ],
+      "taskRefs": [
+        "HW-01",
+        "HW-07",
+        "OTA-01"
+      ],
+      "recommendation": "Zephyr 기반 펌웨어 확정; NU board definition과 검증된 Zephyr revision을 고정",
+      "alternative": "SDK 배포 경로: upstream Zephyr 또는 Zephyr 기반 NCS를 기능·보드 지원으로 비교",
+      "selectionGate": "Zephyr 사용은 확정. NCS 채택/버전·NU board target·crypto/controller/FOTA 조합은 별도 검증",
+      "sourceRefs": [
+        "SRC-01",
+        "SRC-02",
+        "SRC-03",
+        "SRC-19",
+        "SRC-20",
+        "SRC-21"
+      ],
+      "experimentRefs": [
+        "VAL-06"
+      ],
+      "status": "base_confirmed_version_pending",
+      "selectedVersion": null,
+      "runtimeVerified": false,
+      "confirmedScope": "firmware RTOS base only"
+    },
+    {
+      "id": "TECH-07",
+      "title": "HW 키·암호 backend",
+      "decisionRefs": [
+        "D03",
+        "D06"
+      ],
+      "taskRefs": [
+        "HW-02",
+        "HW-04",
+        "HW-05",
+        "KEY-02"
+      ],
+      "recommendation": "NCS 지원 crypto/보호영역을 adapter로 사용; EOA secp256k1과 passkey curve의 지원을 각각 검증",
+      "alternative": "지원 backend 부족 시 검토된 software crypto 또는 외부 보안 모듈 비교",
+      "selectionGate": "KMU/TrustZone 존재만으로 비추출 secp256k1 서명 완료라고 보지 않음. 수제 키 분할 재조립을 MPC로 부르지 않음",
+      "sourceRefs": [
+        "SRC-03"
+      ],
+      "experimentRefs": [
+        "VAL-07",
+        "VAL-20"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-08",
+      "title": "FOTA·부트 복구",
+      "decisionRefs": [
+        "D05"
+      ],
+      "taskRefs": [
+        "OTA-01",
+        "OTA-02",
+        "OTA-03",
+        "OTA-04"
+      ],
+      "recommendation": "MCUboot signed image + MCUmgr SMP/BLE + 모바일 native manager bridge",
+      "alternative": "NU flash layout상 외부 update bank 필요 여부를 비교",
+      "selectionGate": "legacy Nordic DFU 라이브러리를 SMP 대체로 쓰지 않음. SDK/bootloader/partition/settings 버전을 한 묶음으로 고정",
+      "sourceRefs": [
+        "SRC-01",
+        "SRC-18"
+      ],
+      "experimentRefs": [
+        "VAL-08"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-09",
+      "title": "BLE 세션·거리·찾기",
+      "decisionRefs": [
+        "D02",
+        "D07"
+      ],
+      "taskRefs": [
+        "HW-03",
+        "HW-06",
+        "FIND-01",
+        "FIND-02"
+      ],
+      "recommendation": "react-native-ble-plx GATT central + 필요한 native bonding bridge; NCS CS initiator/reflector를 별도 peer 경로로 연결",
+      "alternative": "GATT 앱 라이브러리 교체 또는 직접 native adapter",
+      "selectionGate": "BLE 라이브러리는 CS API와 앱 계층 peer 인증을 대신하지 않음. 외부 거리 peer가 소유한 USB/폰 연결은 별도 profile",
+      "sourceRefs": [
+        "SRC-02",
+        "SRC-04"
+      ],
+      "experimentRefs": [
+        "VAL-09"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-10",
+      "title": "표준 패스키",
+      "decisionRefs": [
+        "D06",
+        "D09"
+      ],
+      "taskRefs": [
+        "KEY-01",
+        "KEY-02",
+        "KEY-03",
+        "STAMP-04"
+      ],
+      "recommendation": "CTAP2 authenticator와 실제 RP 등록/인증부터 검증; NU가 key/사용자 승인 담당",
+      "alternative": "필요 시 USB HID 지원 companion MCU를 transport bridge로 추가",
+      "selectionGate": "NU USB 단자가 곧 CTAP USB endpoint라는 가정 금지. BLE 앱 challenge signer만으로 표준 passkey 완료라 하지 않음",
+      "sourceRefs": [
+        "SRC-06"
+      ],
+      "experimentRefs": [
+        "VAL-10",
+        "VAL-21"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-11",
+      "title": "녹음 전송·모바일 보관",
+      "decisionRefs": [
+        "D07",
+        "D17"
+      ],
+      "taskRefs": [
+        "REC-01",
+        "REC-02",
+        "REC-03",
+        "HW-07"
+      ],
+      "recommendation": "sequence/timestamp 포함 custom GATT audio framing; mono PCM으로 측정 후 ADPCM 등 비교",
+      "alternative": "정식 LE Audio는 실제 controller/OS/SDK 경로가 증명되면 별도 비교",
+      "selectionGate": "BLE 6 표기만으로 LE Audio 가능이라 단정하지 않음. 코덱·sample rate·MTU·버퍼를 측정 결과로 선정",
+      "sourceRefs": [
+        "SRC-04"
+      ],
+      "experimentRefs": [
+        "VAL-11"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-12",
+      "title": "Cloud Wallet MPC",
+      "decisionRefs": [
+        "D03",
+        "D04"
+      ],
+      "taskRefs": [
+        "MPC-01",
+        "MPC-02",
+        "MPC-03",
+        "MPC-04",
+        "MPC-05"
+      ],
+      "recommendation": "cb-mpc는 backend protocol 평가 후보; 모바일 참여자까지 포함한 후보 비교 후 선정",
+      "alternative": "LFDT Lockness 현재 구현을 비교하되 필요한 refresh/복구가 없는 revision은 채택 보류",
+      "selectionGate": "공통 native profile·독립 참여자·2-of-3 복구 구조는 제안. cb-mpc의 공개 지원 환경만으로 RN 모바일 지원 주장 금지",
+      "sourceRefs": [
+        "SRC-07",
+        "SRC-08"
+      ],
+      "experimentRefs": [
+        "VAL-12",
+        "VAL-22"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-13",
+      "title": "EOA·토큰·SDK",
+      "decisionRefs": [
+        "D08",
+        "D10"
+      ],
+      "taskRefs": [
+        "TOKEN-01",
+        "TOKEN-02",
+        "TOKEN-03",
+        "PAY-01",
+        "INDEX-02"
+      ],
+      "recommendation": "기존 viem 기반 core adapter + Foundry 계약; 제한 mint 더미 USDC와 native WKRC 구분",
+      "alternative": "RN 비호환 SDK 부분만 공통 adapter로 추출",
+      "selectionGate": "기존 package range는 설치된 최신 버전이 아님. chain 8283/fork/ABI/단위와 signer 입력을 manifest로 고정",
+      "sourceRefs": [],
+      "experimentRefs": [
+        "VAL-13"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-14",
+      "title": "스마트 계정",
+      "decisionRefs": [
+        "D11",
+        "D10"
+      ],
+      "taskRefs": [
+        "SMART-01",
+        "SMART-02",
+        "SMART-03",
+        "BASE-06"
+      ],
+      "recommendation": "기존 account 계약·SDK·Bundler 중 호환되는 하나의 ERC-4337 bundle 선정",
+      "alternative": "Kernel 등 대체 계정은 전체 bundle 호환 증거로 비교",
+      "selectionGate": "EntryPoint 주소/코드/ABI·UserOp packing/hash·nonce·signature·receipt를 함께 고정; EOA 다음이지만 12주 내부 범위",
+      "sourceRefs": [],
+      "experimentRefs": [
+        "VAL-14"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-15",
+      "title": "DeFi·FX·Perpetual",
+      "decisionRefs": [
+        "D12",
+        "D13"
+      ],
+      "taskRefs": [
+        "DEX-01",
+        "DEX-02",
+        "FX-01",
+        "FX-02",
+        "PERP-01",
+        "PERP-02",
+        "PERP-04",
+        "PERP-06"
+      ],
+      "recommendation": "기존 swap/LP 코드 우선 검토; FX 시험 USD/KRW 현물쌍; Perp 가격/펀딩/청산 별도 engine",
+      "alternative": "다른 DEX/perp 구현은 invariants와 ABI/indexer 이식 비용으로 비교",
+      "selectionGate": "현재 Perp 고정가격/TODO를 오라클/청산 완료로 취급하지 않음. 시장 규칙과 정밀도는 구현 선택 입력",
+      "sourceRefs": [],
+      "experimentRefs": [
+        "VAL-15"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-16",
+      "title": "DID·STO 자격",
+      "decisionRefs": [
+        "D14",
+        "D15"
+      ],
+      "taskRefs": [
+        "DID-01",
+        "DID-02",
+        "DID-03",
+        "STO-01",
+        "STO-02"
+      ],
+      "recommendation": "VC Data Model 2.0 기반 앱 자격 + 등록 issuer/status adapter; STO는 제한 전송 시험 계약",
+      "alternative": "DID method/proof suite는 대상 verifier와 실제 발급/철회 호환을 비교",
+      "selectionGate": "데이터 모델만 선정해 표준 DID/proof 구현 완료라 하지 않음. 개인정보는 체인에 직접 기록하지 않는 제안",
+      "sourceRefs": [
+        "SRC-12"
+      ],
+      "experimentRefs": [
+        "VAL-16"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-17",
+      "title": "x402 유료 자원",
+      "decisionRefs": [
+        "D16",
+        "D10"
+      ],
+      "taskRefs": [
+        "X402-01",
+        "X402-02",
+        "X402-03",
+        "TOKEN-02"
+      ],
+      "recommendation": "x402 v2의 network eip155:8283 및 token mechanism을 명시한 private verifier/facilitator 평가",
+      "alternative": "EIP-3009 호환 시험 토큰 또는 Permit2 경로 비교; 필요 시 명시적 custom customer-paid mechanism",
+      "selectionGate": "일반 ERC20Mock만으로 exact mechanism 지원을 가정하지 않음. 고객 gas 원칙과 facilitator settlement gas 부담의 일치가 선택 조건",
+      "sourceRefs": [
+        "SRC-13",
+        "SRC-14"
+      ],
+      "experimentRefs": [
+        "VAL-17",
+        "VAL-23"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-18",
+      "title": "장소·전사·여행 AI",
+      "decisionRefs": [
+        "D17",
+        "D18"
+      ],
+      "taskRefs": [
+        "TRIP-01",
+        "TRIP-02",
+        "TRIP-04",
+        "AI-01",
+        "AI-02",
+        "AI-03",
+        "REC-03"
+      ],
+      "recommendation": "Kakao Local 장소 검색 adapter 우선 평가; 서버 whisper.cpp 전사·llama.cpp 추론 후보와 관리형 API 비교",
+      "alternative": "다른 장소/모델 제공자는 한국 장소 일치·다국어·동의/삭제·지연 기준으로 비교",
+      "selectionGate": "장소 데이터에 영업시간/경로가 항상 있다고 가정하지 않음. 모델과 cloud vendor는 실행·정책 검증 후 결정",
+      "sourceRefs": [
+        "SRC-15",
+        "SRC-16",
+        "SRC-17"
+      ],
+      "experimentRefs": [
+        "VAL-18"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    },
+    {
+      "id": "TECH-19",
+      "title": "Indexer·관측·출시",
+      "decisionRefs": [
+        "D02",
+        "D19"
+      ],
+      "taskRefs": [
+        "INDEX-01",
+        "INDEX-03",
+        "INDEX-04",
+        "INDEX-06",
+        "RELEASE-01",
+        "RELEASE-02",
+        "RELEASE-03"
+      ],
+      "recommendation": "기존 Go/Pebble indexer 유지 + 업무 API adapter; 기존 Prometheus 계열 관측과 release manifest",
+      "alternative": "새 indexer/메시지 broker는 기존 복구 시험 실패 원인에 따라 비교",
+      "selectionGate": "Pebble을 업무 원장 DB로 무리하게 통합하지 않음. source commit과 배포 ABI/블록/decoder 버전을 기록",
+      "sourceRefs": [],
+      "experimentRefs": [
+        "VAL-19"
+      ],
+      "status": "proposed_not_selected",
+      "selectedVersion": null,
+      "runtimeVerified": false
+    }
+  ],
+  "userConfirmedConstraints": {
+    "firmwareBase": "Zephyr",
+    "source": "user",
+    "statement": "펌웨어는 zephyr 기반으로 할꺼야.",
+    "status": "confirmed",
+    "sdkDistribution": null,
+    "zephyrRevision": null,
+    "boardTarget": null,
+    "runtimeVerified": false
+  }
+}

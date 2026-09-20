@@ -1,0 +1,66 @@
+{
+  "scope": "original_design_validators_on_frozen_checkpoint",
+  "results": [
+    {
+      "command": "python3 content/specifications/validate_specs.py",
+      "exitCode": 0,
+      "stdout": "{\"apiOperations\": 107, \"bleCommands\": 34, \"events\": 10, \"schemas\": 16, \"acceptedExamples\": 9, \"rejectedExamples\": 10, \"screenFlows\": 37, \"detailedApiContracts\": 8, \"detailedAcceptedExamples\": 18, \"detailedRejectedExamples\": 12, \"semanticCases\": 2, \"extendedContracts\": 99, \"extendedAcceptedExamples\": 28, \"extendedRejectedExamples\": 31, \"extendedSemanticExamples\": 2, \"apiTypeCoverage\": \"107/107 JSON envelopes; profile verifiers and binary transport require implementation\", \"roleCommandMatrix\": \"consistent\", \"taskReferences\": \"valid\", \"accessMappings\": 107, \"authorizationPolicies\": 57, \"authorizationScenarioSpecifications\": 28, \"authorizationRuntimeTests\": \"not_run\", \"pendingSecurityInputs\": 5, \"securityDesignModules\": 5, \"securityAcceptanceSpecifications\": 30, \"supplementalApiProposals\": 5, \"supplementalSchemaMerge\": \"integrated_design_runtime_unverified\", \"logicalAdapterResources\": 15, \"validationScope\": \"design_shapes_and_references_only\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_wallet_api.py",
+      "exitCode": 0,
+      "stdout": "{\"candidateEndpoints\": 8, \"validShapes\": 18, \"invalidShapes\": 11, \"unexecutedReviewCases\": 16, \"baselineHashes\": \"matched\", \"canonicalMerged\": false, \"runtimeVerified\": false}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_source_approval.py",
+      "exitCode": 0,
+      "stdout": "{\"httpCandidates\": 5, \"logicalBlePairs\": 5, \"validShapes\": 24, \"invalidShapes\": 11, \"fieldConsistencyExamples\": 8, \"unexecutedReviewCases\": 16, \"baselineHashes\": \"matched\", \"canonicalMerged\": false, \"runtimeVerified\": false}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_approval_access.py",
+      "exitCode": 0,
+      "stdout": "{\"schemaDefinitions\": 55, \"proposedAccessRoutes\": 3, \"validShapes\": 26, \"invalidShapes\": 16, \"finiteSnapshotConsistencyChecks\": 8, \"unexecutedReviewCases\": 22, \"baselineHashes\": \"matched\", \"canonicalMerged\": false, \"runtimeVerified\": false}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_approval_integration.py",
+      "exitCode": 0,
+      "stdout": "{\"httpRoutes\": 13, \"validShapes\": 32, \"invalidShapes\": 14, \"finiteProjectionChecks\": 4, \"screenMappings\": 17, \"storageResources\": 5, \"atomicUnits\": 5, \"unexecutedReviewCases\": 19, \"baselineHashes\": \"matched\", \"canonicalMerged\": false, \"runtimeVerified\": false}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_commerce_candidate.py",
+      "exitCode": 0,
+      "stdout": "{\"candidateApis\": 5, \"candidateEvents\": 2, \"logicalResources\": 4, \"validShapes\": 10, \"rejectedShapes\": 12, \"semanticExamples\": 10, \"accountingExamples\": 2, \"baselineHashes\": \"matched\", \"canonicalMerged\": false, \"runtimeTests\": \"not_run\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_return_protocol.py",
+      "exitCode": 0,
+      "stdout": "{\"candidateMessageGroups\": 8, \"validShapes\": 16, \"rejectedShapes\": 12, \"semanticExamples\": 11, \"retryVectors\": 2, \"canonicalMerged\": false, \"runtimeCryptoAndDeviceTests\": \"not_run\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/validate_return_screens.py",
+      "exitCode": 0,
+      "stdout": "{\"baseStates\": 11, \"overlays\": 6, \"guardedActions\": 12, \"declarativeCases\": 13, \"affectedScreens\": 5, \"canonicalScreens\": 37, \"runtimeUiAndAuthorizationTests\": \"not_run\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/render_approval_adoption.py --check",
+      "exitCode": 0,
+      "stdout": "{\"adoptionStages\": 6, \"profileAreas\": 11, \"acceptanceRows\": 24, \"existingCompatibilityRowsReferenced\": 26, \"adoptionGraph\": \"acyclic\", \"baselineHashes\": \"matched\", \"archiveCreated\": false, \"canonicalMerged\": false, \"runtimeVerified\": false, \"mode\": \"check\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": "python3 content/specifications/render_interface_plan.py --check",
+      "exitCode": 0,
+      "stdout": "{\"firmwareBase\": \"Zephyr\", \"interfaces\": 14, \"compatibilityRows\": 26, \"syntheticShapeFixtures\": 9, \"runtimeInteropTests\": \"not_run\", \"mode\": \"check\"}\n",
+      "stderr": ""
+    }
+  ],
+  "runtimeVerified": false
+}

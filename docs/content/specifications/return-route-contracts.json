@@ -1,0 +1,534 @@
+{
+  "status": "return_route_contracts_design_not_merged",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "policySelectionUnchanged": true,
+  "schemaFile": "return-route-contracts.schema.json",
+  "examplesFile": "return-route-contracts.examples.json",
+  "httpVersion": "return-http-v1-draft",
+  "bleVersion": "return-ble-v1-draft",
+  "innerProofVersion": "return-candidate-1 preserved logical candidate; real profile unselected",
+  "baselineApiCount": 110,
+  "baselineBleCount": 34,
+  "operations": [
+    {
+      "id": "API-046",
+      "method": "POST",
+      "path": "/v1/rentals/{rentalId}/return-checks",
+      "authorization": "primary owner/operator inspection",
+      "requestSchema": "API046Request",
+      "responseSchema": "API046Response",
+      "registration": "existing_route_proposed_replacement"
+    },
+    {
+      "id": "API-047",
+      "method": "POST",
+      "path": "/v1/rentals/{rentalId}/complete-return",
+      "authorization": "restricted holder-bound relay",
+      "requestSchema": "API047Request",
+      "responseSchema": "API047Response",
+      "registration": "existing_route_proposed_replacement"
+    },
+    {
+      "id": "API-091",
+      "method": "GET",
+      "path": "/v1/rentals/{rentalId}",
+      "authorization": "original rental owner/current scoped operator",
+      "requestSchema": "API091Request",
+      "responseSchema": "API091Response",
+      "registration": "existing_route_opt_in_projection",
+      "compatibility": "Only query projection=return uses this draft response; baseline default rental/checklist/lastResetState response preserved. Without return job view=null; explicit foreign/missing job selector errors. GET never creates job."
+    },
+    {
+      "id": "RT-01",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/commits",
+      "authorization": "current owner plus fresh device physical approval",
+      "requestSchema": "RT01Request",
+      "responseSchema": "RT01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RT-02",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/relay-challenges",
+      "authorization": "primary original owner or scoped recovery operator",
+      "requestSchema": "RT02Request",
+      "responseSchema": "RT02Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RT-03",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/relay-authorities",
+      "authorization": "same current primary plus bound holder proof",
+      "requestSchema": "RT03Request",
+      "responseSchema": "RT03Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RT-04",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/request-challenges",
+      "authorization": "current relay authority plus fresh client-nonce sender proof",
+      "requestSchema": "RT04Request",
+      "responseSchema": "RT04Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RT-05",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/cleanup-challenges",
+      "authorization": "cleanup authority and bound request challenge",
+      "requestSchema": "RT05Request",
+      "responseSchema": "RT05Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RT-06",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/cleanup-results",
+      "authorization": "cleanup authority and encrypted device evidence",
+      "requestSchema": "RT06Request",
+      "responseSchema": "RT06Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RT-07",
+      "method": "GET",
+      "path": "/v1/return-jobs/{jobId}",
+      "authorization": "relay read_job_progress; ACK separately relay_completion_ack",
+      "requestSchema": "RT07Request",
+      "responseSchema": "RT07Response",
+      "registration": "alias_not_catalogued"
+    }
+  ],
+  "bleCommands": [
+    {
+      "id": "RB01",
+      "command": "device.reset.prepare",
+      "role": "owner",
+      "requestSchema": "RB01Request",
+      "responseSchema": "RB01Response",
+      "registration": "existing_command_proposed_replacement"
+    },
+    {
+      "id": "RB02",
+      "command": "device.reset.confirm",
+      "role": "owner",
+      "requestSchema": "RB02Request",
+      "responseSchema": "RB02Response",
+      "registration": "existing_command_proposed_replacement"
+    },
+    {
+      "id": "RB03",
+      "command": "reset.recovery.open",
+      "role": "reset_recovery_relay",
+      "requestSchema": "RB03Request",
+      "responseSchema": "RB03Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RB04",
+      "command": "reset.evidence.read",
+      "role": "reset_recovery_relay",
+      "requestSchema": "RB04Request",
+      "responseSchema": "RB04Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RB05",
+      "command": "reset.completion.ack",
+      "role": "reset_recovery_relay",
+      "requestSchema": "RB05Request",
+      "responseSchema": "RB05Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RB06",
+      "command": "reset.cleanup.prove",
+      "role": "reset_recovery_relay",
+      "requestSchema": "RB06Request",
+      "responseSchema": "RB06Response",
+      "registration": "alias_not_catalogued"
+    }
+  ],
+  "rpMapping": [
+    {
+      "id": "RP-01",
+      "routeRefs": [
+        "API-046",
+        "RB01"
+      ],
+      "meaning": "server signed preparation→owner physical approval→device report; no erase"
+    },
+    {
+      "id": "RP-02",
+      "routeRefs": [
+        "RT-01",
+        "RB02"
+      ],
+      "meaning": "online grant commit then same-live-preparation device execution"
+    },
+    {
+      "id": "RP-03",
+      "routeRefs": [
+        "RT-02",
+        "RT-03",
+        "RB03",
+        "RB04",
+        "RT-04",
+        "API-047"
+      ],
+      "meaning": "holder authority and protected original evidence replay"
+    },
+    {
+      "id": "RP-04",
+      "routeRefs": [
+        "RB02",
+        "RB04"
+      ],
+      "meaning": "signed ResetEvidence remains inside server-encrypted ProtectedEvidence"
+    },
+    {
+      "id": "RP-05",
+      "routeRefs": [
+        "API-047",
+        "RT-07",
+        "RB05"
+      ],
+      "meaning": "server completion ACK recovery/delivery"
+    },
+    {
+      "id": "RP-06",
+      "routeRefs": [
+        "RT-04",
+        "RT-05",
+        "RB06"
+      ],
+      "meaning": "server cleanup challenge then device protected cleanup proof"
+    },
+    {
+      "id": "RP-07",
+      "routeRefs": [
+        "RT-04",
+        "RT-06",
+        "API-091"
+      ],
+      "meaning": "verify cleanup, then current coherent readiness read"
+    },
+    {
+      "id": "RP-08",
+      "routeRefs": [
+        "API-091",
+        "RT-07"
+      ],
+      "meaning": "owner/operator complete view vs relay minimal progress"
+    }
+  ],
+  "guards": [
+    {
+      "id": "RR-G01",
+      "rule": "API046 resolves wallet origin/active rental from storage; caller cannot change imported/new_travel classification. Operators inspect safe status only; preparationContext and ownerChecks unavailable to them. Required recovery unresolved means no actionable preparation/new commit."
+    },
+    {
+      "id": "RR-G02",
+      "rule": "RT01 locks shared rental/device/epoch/checklist/fence gates and commits job grantIssued monotonic + immutable grant + idempotency/outbox before return. Device accepts only exact same live prepare bootNonce/session/elapsed bound + physical approval; reboot/expired local prepare cannot accept stale delivered grant. Journaled job resumes its own erase/verification, never starts another job."
+    },
+    {
+      "id": "RR-G03",
+      "rule": "Grant-issued cannot abort/clear fence merely on timeout or unknown acceptance. Expired clearance blocks new commit; existing verified post-reset evidence can still be accepted using original grant records, current restricted relay auth and original job/epoch."
+    },
+    {
+      "id": "RR-G04",
+      "rule": "RT02/03 require independent current primary authentication, exact historical rental relationship or scoped operator, registered holder key and current job trust. Challenge binds actor/session revision/job/purpose/key; one-time issue with idempotent outcome. Stale authority is not bootstrap auth. requestedPurpose is intent; server chooses actions. No public deviceId-only issuance."
+    },
+    {
+      "id": "RR-G05",
+      "rule": "evidence_relay authority uses original previousEpoch; completion_cleanup uses verified nextEpoch. At post-reset recovery device matches previousEpoch only against preserved original journal; cleanup compares actual nextEpoch/marker. ACK may use original evidence authority matching journal or new completion_cleanup authority matching verified nextEpoch. New rental binding or newer epoch forbids old job BLE commands; old owner gets historical safe server record only."
+    },
+    {
+      "id": "RR-G06",
+      "rule": "RT04 verifies sender signature with client nonce/freshness and current authority before issuing server one-time challenge bound to authority/holder/job/action/business payload digest/idempotency key. Its issuance needs no prior server request challenge. API047/RT05/RT06 consume server challenge and fresh sender replay atomically with business outcome; profile must define normalized payload excluding recursive proofs/challenges, including exact encrypted object digest and business identity."
+    },
+    {
+      "id": "RR-G07",
+      "rule": "HTTP nested requestId/idempotencyKey/job/authority must match header/path/credential and stored rental association. Fresh retries use new sender proof/request challenge; business idempotency ignores transport nonce/proof wrappers but fixes exact source/evidence bytes/digest. Same key different business payload conflicts; current authority always checked before replay."
+    },
+    {
+      "id": "RR-G08",
+      "rule": "API047 verified evidence acceptance records server completion/revokes old binding/returns rental, but holds reuseGate awaiting_cleanup. completion ACK encrypted/protected transport, no keys/audio/addresses to operator. verification_pending/quarantined is not returned/eligible. Later original evidence duplicate returns same ACK/outcome with current auth; never repeat erase."
+    },
+    {
+      "id": "RR-G09",
+      "rule": "RB05 validates exact ACK job/commit/evidence/nextEpoch, persists minimal completion marker and removes detailed journal/private relay state per selected profile; cleanup identity permits remain enough to prove cleanup. Marker missing never infers clean. RT05/RB06 bind fresh cleanup challenge/ackDigest/completionHandle; RT06 verifies exact current epoch before setting eligible."
+    },
+    {
+      "id": "RR-G10",
+      "rule": "ReturnView derives job/gate/binding/device facts under one authority-consistent read, with view/source revisions. Readiness eligible requires completed+cleanupVerified+epoch matches+no active binding+unprovisioned_ready and gate open. Historical/unknown view returns readiness null, no new binding/account details. View is guidance, not enrollment permission."
+    },
+    {
+      "id": "RR-G11",
+      "rule": "API045 subsequent rental mutation must lock current device/gate and CAS expected nextEpoch/gateRevision/bindingRevision + operator permission/no active rental. This admission request delta is pending detailed design; initial factory enrollment has separate trusted genesis path, not fabricated reset evidence. UI new rental remains unsupported until admission contract adopted."
+    },
+    {
+      "id": "RR-G12",
+      "rule": "RT07 needs read_job_progress; ACK returned only with independent relay_completion_ack action and matching job; no readiness/owner checks. GET may consume security replay metadata, no business reset/cleanup change. ACL checked on response delivery; replay result is not public download."
+    },
+    {
+      "id": "RR-G13",
+      "rule": "RB03 pre-auth recovery connection exposes only a fresh ephemeral device challenge and discovery handle. holder signs exact device/server identities+job+authority+epoch+session nonce transcript; device/server profile must authenticate device too. This pre-auth challenge step and encrypted frame integrity/sequence/fragmentation are mandatory selected-profile work, not existing owner session downgrade."
+    },
+    {
+      "id": "RR-G14",
+      "rule": "RA05 cancel has no safe full endpoint yet: disabled until grant-never-issued plus server/device fence-release acknowledgement protocol. RA03 external-access/receipt/passkey checks reference their existing domains; no blanket force-pass. No auto import/create/backup/export in return flow."
+    },
+    {
+      "id": "RR-G15",
+      "rule": "Proposed override of original ProtectedEvidence authentication-context prose: immutable device-to-verifier ciphertext AAD binds original job/commit/device/previousEpoch/nextEpoch/eraseProfile/verifier recipient and evidence kind, not renewable relay authority or HTTP challenge. Current holder sender proof binds authorityId/requestChallenge/ciphertext digest/business identity on every submission. Exact encoding and cryptographic profile remain unselected; do not combine old AAD rule with this route order. ProtectedEvidence shape is reused, original narrative remains pinned historical candidate."
+    },
+    {
+      "id": "RR-G16",
+      "rule": "API091 proposal is opt-in projection=return; absent projection retains baseline rental/checklist/lastResetState response and original ACL. With opt-in, exact rental with no return job gives view=null. Explicit jobId must belong to this rental and be authorized or give non-enumerating error. GET never creates a job. API046 externalAccessProof remains a stored ProofReference, resolving server-side owner/rental/profile/validity, not an arbitrary reset proof."
+    },
+    {
+      "id": "RR-G17",
+      "rule": "RB03 carries HolderKey. Device validates selected key encoding/profile, recomputes thumbprint from canonical public key, compares with server-signed authority holderKeyThumbprint, and verifies holder transcript proof using that key. RT02 server registry or caller-provided thumbprint alone is insufficient device trust. Server key, device identity and freshness profile must be established separately."
+    }
+  ],
+  "screenActions": [
+    {
+      "action": "RA-01",
+      "routeRefs": [
+        "API-091"
+      ],
+      "status": "detailed_route_proposal"
+    },
+    {
+      "action": "RA-02",
+      "routeRefs": [
+        "API-091",
+        "RB03"
+      ],
+      "status": "detailed_route_proposal"
+    },
+    {
+      "action": "RA-03",
+      "routeRefs": [
+        "API-046"
+      ],
+      "status": "non_protocol_navigation_or_existing_domain"
+    },
+    {
+      "action": "RA-04",
+      "routeRefs": [
+        "API-046",
+        "RB01",
+        "RT-01",
+        "RB02"
+      ],
+      "status": "detailed_route_proposal"
+    },
+    {
+      "action": "RA-05",
+      "routeRefs": [],
+      "status": "protocol_missing_disabled"
+    },
+    {
+      "action": "RA-06",
+      "routeRefs": [
+        "RT-02",
+        "RT-03",
+        "RB03",
+        "RB04",
+        "RT-04",
+        "API-047"
+      ],
+      "status": "detailed_route_proposal"
+    },
+    {
+      "action": "RA-07",
+      "routeRefs": [
+        "RT-07",
+        "RB05",
+        "RT-04",
+        "RT-05",
+        "RB06",
+        "RT-06",
+        "API-091"
+      ],
+      "status": "detailed_route_proposal"
+    },
+    {
+      "action": "RA-08",
+      "routeRefs": [],
+      "status": "non_protocol_navigation_or_existing_domain"
+    },
+    {
+      "action": "RA-09",
+      "routeRefs": [
+        "API-042"
+      ],
+      "status": "non_protocol_navigation_or_existing_domain"
+    },
+    {
+      "action": "RA-10",
+      "routeRefs": [],
+      "status": "non_protocol_navigation_or_existing_domain"
+    },
+    {
+      "action": "RA-11",
+      "routeRefs": [
+        "API-045"
+      ],
+      "status": "admission_delta_pending"
+    },
+    {
+      "action": "RA-12",
+      "routeRefs": [
+        "API-091"
+      ],
+      "status": "detailed_route_proposal"
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "RRR-T01",
+      "scenario": "未選정복구정책",
+      "expected": "새commit거절;조회/원증거복구별도",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T02",
+      "scenario": "operator inspection으로reset",
+      "expected": "preparation/grant없음",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T03",
+      "scenario": "grantcommit응답유실",
+      "expected": "samegrant원결과;새삭제허가없음",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T04",
+      "scenario": "grant도착전재부팅",
+      "expected": "oldliveprepare거절;새job자동시작없음",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T05",
+      "scenario": "journal수락후재부팅",
+      "expected": "동일job내지움/증거복구만",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T06",
+      "scenario": "clearance만료후증거",
+      "expected": "원grant정합+현재relay권한으로기존증거검증",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T07",
+      "scenario": "다음대여세대등장",
+      "expected": "oldjobBLE거절;서버역사조회만",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T08",
+      "scenario": "expiredgrant로권한재발급",
+      "expected": "독립primaryauth없으면거절",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T09",
+      "scenario": "sender/serverchallenge재사용",
+      "expected": "단일소모;새proof로멱등원결과복구",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T10",
+      "scenario": "다른rental/job/authority바꿔치기",
+      "expected": "path/header/body/저장소정합거절",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T11",
+      "scenario": "서버완료후ACK유실",
+      "expected": "원ACK회수·동일job재전달",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T12",
+      "scenario": "상세journal정리후marker없음",
+      "expected": "격리/closed;eligible추론금지",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T13",
+      "scenario": "oldcleanupchallenge",
+      "expected": "현재기한/job/ack/epoch검증거절",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T14",
+      "scenario": "조회후새binding",
+      "expected": "API045mutation현재gate검사거절",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T15",
+      "scenario": "분산read불일치",
+      "expected": "readinessnull;재대여안내금지",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T16",
+      "scenario": "grantissued인데취소",
+      "expected": "취소/사용재개금지",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T17",
+      "scenario": "BLE/HTTP평문reset증거",
+      "expected": "protectedenvelope외필드거절",
+      "status": "not_run"
+    },
+    {
+      "id": "RRR-T18",
+      "scenario": "recoveryrole로walletsign",
+      "expected": "권한없음;ownerrole전환금지",
+      "status": "not_run"
+    }
+  ],
+  "sourceHashes": {
+    "return-protocol-candidate.json": "6a185cc099ec05d2a9470664a0bc32d553af28bd105a3440974ec7408588d09d",
+    "return-protocol-candidate.schema.json": "a5018199aeeadd1d3de37621e1245e2754f4e4abde670f8198b18ad5e3fccd93",
+    "return-protocol-examples.json": "747eda88b4cd05901a44d98039b9b2e2ae86fc0e0af8f87f948e95b2c03ec74b",
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "return-screen-design.json": "096d55684aa4ed0a5526145a124fbd18b9865c999af5b5326ce5604b70fa8795",
+    "api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "ble-catalog.json": "ebd335ca7e3f5a875453bb9f8a70cc6717641c70836fdd28573531079746aedc",
+    "critical-dtos.schema.json": "be677ba55d10120c2c6199c3f7ee4219241c1f6c9f3460de22600c4fa9228d46",
+    "extended-dtos.schema.json": "ac4851a4a36699bd8f69d368d74f92454c18fd35a0942a9673b42ee8baf01def",
+    "approval-physical-storage-design.json": "f997bb61ce886835346c0277521f9a8a807502f0d13f73fc0ede1707233d1b0f"
+  },
+  "remainingDesign": [
+    "API045 admission delta and factory genesis versus post-return path",
+    "pregrant cancel/fence release full protocol",
+    "selected crypto/profile, BLE framing/bounds, Zephyr durable journal/epoch capabilities",
+    "return physical storage and migration mapping",
+    "RR-DEC-01 remains null; no destructive reset policy selection"
+  ],
+  "nextDesign": "재대여 API045의 초기등록/반납후등록 분기와 grant 발급 전 반납 취소·fence 해제 계약",
+  "protocolDeltas": [
+    {
+      "id": "RR-DELTA-01",
+      "source": "return-protocol-contracts.md: ProtectedEvidence authentication context",
+      "proposal": "Split immutable device/verifier evidence envelope from renewable relay authorization. Original authorityId/challenge AAD requirement is superseded only in this unmerged route proposal.",
+      "status": "unmerged_requires_joint_adoption"
+    }
+  ]
+}

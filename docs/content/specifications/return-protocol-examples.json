@@ -1,0 +1,1504 @@
+{
+  "status": "synthetic_design_examples",
+  "runtimeTests": "not_run",
+  "notice": "All proof/ciphertext/digests are synthetic. No recovery-policy choice or actual reset authorization is represented.",
+  "valid": [
+    {
+      "name": "prepare-report",
+      "schema": "PrepareReport",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_prepare_report",
+          "audience": "reset_coordinator",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 1000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "journalAccepted": false
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "commit-request",
+      "schema": "CommitRequest",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "request_reset_execution",
+        "audience": "reset_coordinator",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "binding": {
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "rentalId": "rental-demo",
+          "previousBindingId": "binding-demo",
+          "previousEpoch": "4",
+          "checklistRevision": 8,
+          "fenceRevision": 3
+        },
+        "clearanceId": "clearance-demo",
+        "prepareReport": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_prepare_report",
+            "audience": "reset_coordinator",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "rental-demo",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "journalAccepted": false
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        }
+      }
+    },
+    {
+      "name": "execution-grant",
+      "schema": "ExecutionGrant",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execute",
+          "audienceDeviceId": "device-demo",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "clearanceId": "clearance-demo",
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 1000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "serverRecordedAt": "2026-09-18T09:00:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "existing-grant-result",
+      "schema": "CommitResult",
+      "value": {
+        "issuanceOutcome": "existing",
+        "grant": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_execute",
+            "audienceDeviceId": "device-demo",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "rental-demo",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "commitId": "commit-demo",
+            "clearanceId": "clearance-demo",
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "serverRecordedAt": "2026-09-18T09:00:00Z"
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "grantDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "deliveryAdvice": "do_not_deliver"
+      }
+    },
+    {
+      "name": "relay-authority",
+      "schema": "RelayAuthority",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_recovery_relay",
+          "audience": "reset_recovery_gateway",
+          "authorityId": "relay-demo",
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "epoch": "4",
+          "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "allowedActions": [
+            "relay_evidence"
+          ],
+          "expiresAt": "2026-09-18T09:01:00Z",
+          "authorizationRevision": 1
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "evidence-submit",
+      "schema": "EvidenceSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_existing_reset_evidence",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_recovery_relay",
+            "audience": "reset_recovery_gateway",
+            "authorityId": "relay-demo",
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "epoch": "4",
+            "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "allowedActions": [
+              "relay_evidence"
+            ],
+            "expiresAt": "2026-09-18T09:01:00Z",
+            "authorizationRevision": 1
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "holderProof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        },
+        "protectedEvidence": {
+          "profileId": "synthetic-encryption",
+          "recipientKeyId": "verifier-key",
+          "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "ciphertext": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "reset-evidence",
+      "schema": "ResetEvidence",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execution_report",
+          "audience": "reset_evidence_verifier",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "grantDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "nextEpoch": "5",
+          "deviceIdentityKeyId": "identity-demo",
+          "firmwareMeasurementRef": "measurement-demo",
+          "eraseProfileId": "erase-demo",
+          "journalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "eraseResult": "complete",
+          "bootState": "unprovisioned"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "completion-ack",
+      "schema": "CompletionAck",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "acknowledge_reset_completion",
+          "audienceDeviceId": "device-demo",
+          "jobId": "job-demo",
+          "commitId": "commit-demo",
+          "evidenceDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "nextEpoch": "5",
+          "completionHandle": "completion-demo",
+          "cleanupProfileId": "cleanup-demo",
+          "serverCompletionRevision": 10
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "evidence-result",
+      "schema": "EvidenceResult",
+      "value": {
+        "jobId": "job-demo",
+        "status": "accepted",
+        "serverReturnCompleted": true,
+        "reuseGate": "awaiting_cleanup",
+        "completionAck": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "acknowledge_reset_completion",
+            "audienceDeviceId": "device-demo",
+            "jobId": "job-demo",
+            "commitId": "commit-demo",
+            "evidenceDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "nextEpoch": "5",
+            "completionHandle": "completion-demo",
+            "cleanupProfileId": "cleanup-demo",
+            "serverCompletionRevision": 10
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        }
+      }
+    },
+    {
+      "name": "cleanup-challenge",
+      "schema": "SignedCleanupChallenge",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "request_cleanup_proof",
+          "audienceDeviceId": "device-demo",
+          "jobId": "job-demo",
+          "completionHandle": "completion-demo",
+          "nextEpoch": "5",
+          "ackDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "challengeId": "challenge-demo",
+          "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "expiresAt": "2026-09-18T09:01:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "cleanup-proof",
+      "schema": "CleanupProof",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "report_cleanup_result",
+          "audience": "reset_cleanup_verifier",
+          "deviceId": "device-demo",
+          "completionHandle": "completion-demo",
+          "nextEpoch": "5",
+          "ackDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "cleanupProfileId": "cleanup-demo",
+          "challengeId": "challenge-demo",
+          "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "cleanupResult": "complete",
+          "markerDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "cleanup-submit",
+      "schema": "CleanupSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_cleanup_proof",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_recovery_relay",
+            "audience": "reset_recovery_gateway",
+            "authorityId": "relay-demo",
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "epoch": "5",
+            "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "allowedActions": [
+              "submit_cleanup_proof",
+              "request_cleanup_proof"
+            ],
+            "expiresAt": "2026-09-18T09:01:00Z",
+            "authorizationRevision": 1
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "holderProof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        },
+        "protectedCleanupProof": {
+          "profileId": "synthetic-encryption",
+          "recipientKeyId": "verifier-key",
+          "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "ciphertext": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "reuse-eligible",
+      "schema": "ReuseGateResult",
+      "value": {
+        "jobId": "job-demo",
+        "deviceId": "device-demo",
+        "nextEpoch": "5",
+        "serverReturnCompleted": true,
+        "cleanupVerified": true,
+        "currentDeviceEpochMatches": true,
+        "deviceEnrollmentState": "unprovisioned_ready",
+        "reuseGate": "eligible",
+        "gateRevision": 1
+      }
+    },
+    {
+      "name": "owner-status",
+      "schema": "JobStatus",
+      "value": {
+        "projection": "owner",
+        "progress": {
+          "jobId": "job-demo",
+          "phase": "commit_issued",
+          "grantIssued": true,
+          "jobRevision": 3,
+          "reuseGate": "closed",
+          "reasonCodes": [
+            "execution_unknown"
+          ]
+        },
+        "rentalId": "rental-demo",
+        "checklistRevision": 8,
+        "lateAssetRecovery": "unresolved"
+      }
+    },
+    {
+      "name": "operator-status",
+      "schema": "JobStatus",
+      "value": {
+        "projection": "operator_safe",
+        "progress": {
+          "jobId": "job-demo",
+          "phase": "commit_issued",
+          "grantIssued": true,
+          "jobRevision": 3,
+          "reuseGate": "closed",
+          "reasonCodes": [
+            "execution_unknown"
+          ]
+        },
+        "deviceId": "device-demo"
+      }
+    },
+    {
+      "name": "error",
+      "schema": "ProtocolError",
+      "value": {
+        "requestId": "request-demo",
+        "code": "RECOVERY_POLICY_UNRESOLVED",
+        "retryAction": "none",
+        "safeJobRef": null
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "execution-is-not-relay",
+      "schema": "EvidenceSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_existing_reset_evidence",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_execute",
+            "audienceDeviceId": "device-demo",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "rental-demo",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "commitId": "commit-demo",
+            "clearanceId": "clearance-demo",
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "serverRecordedAt": "2026-09-18T09:00:00Z"
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "holderProof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        },
+        "protectedEvidence": {
+          "profileId": "synthetic-encryption",
+          "recipientKeyId": "verifier-key",
+          "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "ciphertext": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "relay-cannot-sign-wallet",
+      "schema": "RelayAuthority",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_recovery_relay",
+          "audience": "reset_recovery_gateway",
+          "authorityId": "relay-demo",
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "epoch": "4",
+          "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "allowedActions": [
+            "relay_evidence",
+            "wallet.sign"
+          ],
+          "expiresAt": "2026-09-18T09:01:00Z",
+          "authorizationRevision": 1
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "missing-fence",
+      "schema": "CommitRequest",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "request_reset_execution",
+        "audience": "reset_coordinator",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "binding": {
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "rentalId": "rental-demo",
+          "previousBindingId": "binding-demo",
+          "previousEpoch": "4",
+          "checklistRevision": 8
+        },
+        "clearanceId": "clearance-demo",
+        "prepareReport": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_prepare_report",
+            "audience": "reset_coordinator",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "rental-demo",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "journalAccepted": false
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        }
+      }
+    },
+    {
+      "name": "wrong-commit-purpose",
+      "schema": "CommitRequest",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_existing_reset_evidence",
+        "audience": "reset_coordinator",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "binding": {
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "rentalId": "rental-demo",
+          "previousBindingId": "binding-demo",
+          "previousEpoch": "4",
+          "checklistRevision": 8,
+          "fenceRevision": 3
+        },
+        "clearanceId": "clearance-demo",
+        "prepareReport": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_prepare_report",
+            "audience": "reset_coordinator",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "rental-demo",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "journalAccepted": false
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        }
+      }
+    },
+    {
+      "name": "operator-rental-leak",
+      "schema": "JobStatus",
+      "value": {
+        "projection": "operator_safe",
+        "progress": {
+          "jobId": "job-demo",
+          "phase": "commit_issued",
+          "grantIssued": true,
+          "jobRevision": 3,
+          "reuseGate": "closed",
+          "reasonCodes": [
+            "execution_unknown"
+          ]
+        },
+        "deviceId": "device-demo",
+        "rentalId": "rental-secret"
+      }
+    },
+    {
+      "name": "epoch-json-number",
+      "schema": "ResetEvidence",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execution_report",
+          "audience": "reset_evidence_verifier",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "grantDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "nextEpoch": 5,
+          "deviceIdentityKeyId": "identity-demo",
+          "firmwareMeasurementRef": "measurement-demo",
+          "eraseProfileId": "erase-demo",
+          "journalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "eraseResult": "complete",
+          "bootState": "unprovisioned"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "mnemonic-in-request",
+      "schema": "CommitRequest",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "request_reset_execution",
+        "audience": "reset_coordinator",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "binding": {
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "rentalId": "rental-demo",
+          "previousBindingId": "binding-demo",
+          "previousEpoch": "4",
+          "checklistRevision": 8,
+          "fenceRevision": 3
+        },
+        "clearanceId": "clearance-demo",
+        "prepareReport": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_prepare_report",
+            "audience": "reset_coordinator",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "rental-demo",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "journalAccepted": false
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "mnemonic": "synthetic forbidden field"
+      }
+    },
+    {
+      "name": "plaintext-evidence-relay",
+      "schema": "EvidenceSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_existing_reset_evidence",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_recovery_relay",
+            "audience": "reset_recovery_gateway",
+            "authorityId": "relay-demo",
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "epoch": "4",
+            "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "allowedActions": [
+              "relay_evidence"
+            ],
+            "expiresAt": "2026-09-18T09:01:00Z",
+            "authorizationRevision": 1
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "holderProof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        },
+        "protectedEvidence": {
+          "deviceProof": "synthetic"
+        }
+      }
+    },
+    {
+      "name": "missing-device-proof",
+      "schema": "ResetEvidence",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execution_report",
+          "audience": "reset_evidence_verifier",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "grantDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "nextEpoch": "5",
+          "deviceIdentityKeyId": "identity-demo",
+          "firmwareMeasurementRef": "measurement-demo",
+          "eraseProfileId": "erase-demo",
+          "journalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "eraseResult": "complete",
+          "bootState": "unprovisioned"
+        }
+      }
+    },
+    {
+      "name": "missing-holder-proof",
+      "schema": "CleanupSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_cleanup_proof",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_recovery_relay",
+            "audience": "reset_recovery_gateway",
+            "authorityId": "relay-demo",
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "epoch": "5",
+            "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "allowedActions": [
+              "submit_cleanup_proof",
+              "request_cleanup_proof"
+            ],
+            "expiresAt": "2026-09-18T09:01:00Z",
+            "authorizationRevision": 1
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "protectedCleanupProof": {
+          "profileId": "synthetic-encryption",
+          "recipientKeyId": "verifier-key",
+          "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "ciphertext": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "missing-ack-digest",
+      "schema": "CleanupProof",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "report_cleanup_result",
+          "audience": "reset_cleanup_verifier",
+          "deviceId": "device-demo",
+          "completionHandle": "completion-demo",
+          "nextEpoch": "5",
+          "cleanupProfileId": "cleanup-demo",
+          "challengeId": "challenge-demo",
+          "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "cleanupResult": "complete",
+          "markerDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    },
+    {
+      "name": "negative-relative-time",
+      "schema": "PrepareReport",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_prepare_report",
+          "audience": "reset_coordinator",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": -1,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "journalAccepted": false
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      }
+    }
+  ],
+  "semanticCases": [
+    {
+      "name": "different-inner-binding",
+      "schema": "CommitRequest",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "request_reset_execution",
+        "audience": "reset_coordinator",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "binding": {
+          "jobId": "job-demo",
+          "deviceId": "device-demo",
+          "rentalId": "rental-demo",
+          "previousBindingId": "binding-demo",
+          "previousEpoch": "4",
+          "checklistRevision": 8,
+          "fenceRevision": 3
+        },
+        "clearanceId": "clearance-demo",
+        "prepareReport": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_prepare_report",
+            "audience": "reset_coordinator",
+            "binding": {
+              "jobId": "job-demo",
+              "deviceId": "device-demo",
+              "rentalId": "other-rental",
+              "previousBindingId": "binding-demo",
+              "previousEpoch": "4",
+              "checklistRevision": 8,
+              "fenceRevision": 3
+            },
+            "preparation": {
+              "prepareId": "prepare-demo",
+              "bootNonce": "boot-demo",
+              "sessionId": "session-demo",
+              "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "eraseProfileId": "erase-demo",
+              "deviceElapsedLimitMs": 1000,
+              "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "journalAccepted": false
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        }
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "grant-wrong-device",
+      "schema": "ExecutionGrant",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execute",
+          "audienceDeviceId": "other-device",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "clearanceId": "clearance-demo",
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 1000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "serverRecordedAt": "2026-09-18T09:00:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "relay-wrong-job",
+      "schema": "EvidenceSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_existing_reset_evidence",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_recovery_relay",
+            "audience": "reset_recovery_gateway",
+            "authorityId": "relay-demo",
+            "jobId": "other-job",
+            "deviceId": "device-demo",
+            "epoch": "4",
+            "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "allowedActions": [
+              "relay_evidence"
+            ],
+            "expiresAt": "2026-09-18T09:01:00Z",
+            "authorizationRevision": 1
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "holderProof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        },
+        "protectedEvidence": {
+          "profileId": "synthetic-encryption",
+          "recipientKeyId": "verifier-key",
+          "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "ciphertext": "c3ludGhldGlj"
+        }
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "relay-action-missing",
+      "schema": "EvidenceSubmit",
+      "value": {
+        "protocolVersion": "return-candidate-1",
+        "purpose": "submit_existing_reset_evidence",
+        "audience": "reset_recovery_gateway",
+        "requestId": "req-demo",
+        "idempotencyKey": "idem-demo",
+        "jobId": "job-demo",
+        "authority": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "reset_recovery_relay",
+            "audience": "reset_recovery_gateway",
+            "authorityId": "relay-demo",
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "epoch": "4",
+            "holderKeyThumbprint": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "allowedActions": [
+              "read_job_progress"
+            ],
+            "expiresAt": "2026-09-18T09:01:00Z",
+            "authorizationRevision": 1
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        },
+        "requestChallenge": "request-challenge",
+        "holderProof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        },
+        "protectedEvidence": {
+          "profileId": "synthetic-encryption",
+          "recipientKeyId": "verifier-key",
+          "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "ciphertext": "c3ludGhldGlj"
+        }
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "next-epoch-not-increasing",
+      "schema": "ResetEvidence",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execution_report",
+          "audience": "reset_evidence_verifier",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "grantDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "nextEpoch": "4",
+          "deviceIdentityKeyId": "identity-demo",
+          "firmwareMeasurementRef": "measurement-demo",
+          "eraseProfileId": "erase-demo",
+          "journalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "eraseResult": "complete",
+          "bootState": "unprovisioned"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "complete-without-marker",
+      "schema": "CleanupProof",
+      "value": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "report_cleanup_result",
+          "audience": "reset_cleanup_verifier",
+          "deviceId": "device-demo",
+          "completionHandle": "completion-demo",
+          "nextEpoch": "5",
+          "ackDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "cleanupProfileId": "cleanup-demo",
+          "challengeId": "challenge-demo",
+          "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "cleanupResult": "complete",
+          "markerDigest": null
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "gate-before-cleanup",
+      "schema": "ReuseGateResult",
+      "value": {
+        "jobId": "job-demo",
+        "deviceId": "device-demo",
+        "nextEpoch": "5",
+        "serverReturnCompleted": true,
+        "cleanupVerified": false,
+        "currentDeviceEpochMatches": true,
+        "deviceEnrollmentState": "unprovisioned_ready",
+        "reuseGate": "eligible",
+        "gateRevision": 1
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "gate-old-epoch",
+      "schema": "ReuseGateResult",
+      "value": {
+        "jobId": "job-demo",
+        "deviceId": "device-demo",
+        "nextEpoch": "5",
+        "serverReturnCompleted": true,
+        "cleanupVerified": true,
+        "currentDeviceEpochMatches": false,
+        "deviceEnrollmentState": "unprovisioned_ready",
+        "reuseGate": "eligible",
+        "gateRevision": 1
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "gate-already-assigned",
+      "schema": "ReuseGateResult",
+      "value": {
+        "jobId": "job-demo",
+        "deviceId": "device-demo",
+        "nextEpoch": "5",
+        "serverReturnCompleted": true,
+        "cleanupVerified": true,
+        "currentDeviceEpochMatches": true,
+        "deviceEnrollmentState": "assigned",
+        "reuseGate": "eligible",
+        "gateRevision": 1
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "grant-issued-downgrade",
+      "schema": "JobStatus",
+      "value": {
+        "projection": "owner",
+        "progress": {
+          "jobId": "job-demo",
+          "phase": "prepared",
+          "grantIssued": true,
+          "jobRevision": 3,
+          "reuseGate": "closed",
+          "reasonCodes": [
+            "execution_unknown"
+          ]
+        },
+        "rentalId": "rental-demo",
+        "checklistRevision": 8,
+        "lateAssetRecovery": "unresolved"
+      },
+      "expectedValid": false
+    },
+    {
+      "name": "pending-marked-completed",
+      "schema": "EvidenceResult",
+      "value": {
+        "jobId": "job-demo",
+        "status": "verification_pending",
+        "serverReturnCompleted": true,
+        "reuseGate": "awaiting_cleanup",
+        "completionAck": {
+          "payload": {
+            "protocolVersion": "return-candidate-1",
+            "purpose": "acknowledge_reset_completion",
+            "audienceDeviceId": "device-demo",
+            "jobId": "job-demo",
+            "commitId": "commit-demo",
+            "evidenceDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "nextEpoch": "5",
+            "completionHandle": "completion-demo",
+            "cleanupProfileId": "cleanup-demo",
+            "serverCompletionRevision": 10
+          },
+          "proof": {
+            "profileId": "synthetic-profile",
+            "keyId": "synthetic-key",
+            "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "proofBytes": "c3ludGhldGlj"
+          }
+        }
+      },
+      "expectedValid": false
+    }
+  ],
+  "retryVectors": [
+    {
+      "name": "same-grant-redelivery",
+      "original": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execute",
+          "audienceDeviceId": "device-demo",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "clearanceId": "clearance-demo",
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 1000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "serverRecordedAt": "2026-09-18T09:00:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "redelivered": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execute",
+          "audienceDeviceId": "device-demo",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "clearanceId": "clearance-demo",
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 1000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "serverRecordedAt": "2026-09-18T09:00:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "expectedSameGrant": true
+    },
+    {
+      "name": "no-window-extension",
+      "original": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execute",
+          "audienceDeviceId": "device-demo",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "clearanceId": "clearance-demo",
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 1000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "serverRecordedAt": "2026-09-18T09:00:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "redelivered": {
+        "payload": {
+          "protocolVersion": "return-candidate-1",
+          "purpose": "reset_execute",
+          "audienceDeviceId": "device-demo",
+          "binding": {
+            "jobId": "job-demo",
+            "deviceId": "device-demo",
+            "rentalId": "rental-demo",
+            "previousBindingId": "binding-demo",
+            "previousEpoch": "4",
+            "checklistRevision": 8,
+            "fenceRevision": 3
+          },
+          "commitId": "commit-demo",
+          "clearanceId": "clearance-demo",
+          "preparation": {
+            "prepareId": "prepare-demo",
+            "bootNonce": "boot-demo",
+            "sessionId": "session-demo",
+            "challengeDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "eraseProfileId": "erase-demo",
+            "deviceElapsedLimitMs": 2000,
+            "preparationDigest": "0x1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "ownerApprovalDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "serverRecordedAt": "2026-09-18T09:00:00Z"
+        },
+        "proof": {
+          "profileId": "synthetic-profile",
+          "keyId": "synthetic-key",
+          "signedDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+          "proofBytes": "c3ludGhldGlj"
+        }
+      },
+      "expectedSameGrant": false
+    }
+  ]
+}

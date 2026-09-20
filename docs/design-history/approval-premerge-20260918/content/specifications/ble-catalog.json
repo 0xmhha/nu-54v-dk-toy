@@ -1,0 +1,742 @@
+{
+  "version": "0.1.0-draft",
+  "date": "2026-09-18",
+  "status": "design_proposal_not_implemented",
+  "source": "content/planning/work-breakdown.json",
+  "scope": "all_15_requirements_app_integrated_within_12_weeks",
+  "commands": [
+    {
+      "name": "device.info",
+      "roles": [
+        "unbound_public"
+      ],
+      "inputFields": [
+        "requestId"
+      ],
+      "outputFields": [
+        "model",
+        "firmwareVersion",
+        "protocolVersions",
+        "capabilities"
+      ],
+      "specificErrors": [
+        "MINIMAL_METADATA_ONLY"
+      ],
+      "taskRefs": [
+        "HW-01"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "session.open",
+      "roles": [
+        "handshake"
+      ],
+      "inputFields": [
+        "role",
+        "challenge",
+        "peerProof",
+        "requestedScope"
+      ],
+      "outputFields": [
+        "handshakeResponse"
+      ],
+      "specificErrors": [
+        "PROFILE_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "session.confirm",
+      "roles": [
+        "handshake"
+      ],
+      "inputFields": [
+        "transcriptProof"
+      ],
+      "outputFields": [
+        "sessionId",
+        "allowedCommands",
+        "expiryPolicy"
+      ],
+      "specificErrors": [
+        "PEER_UNVERIFIED"
+      ],
+      "taskRefs": [
+        "HW-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "session.close",
+      "roles": [
+        "owner",
+        "payment_terminal"
+      ],
+      "inputFields": [
+        "reason"
+      ],
+      "outputFields": [
+        "closed"
+      ],
+      "specificErrors": [
+        "SESSION_INVALID"
+      ],
+      "taskRefs": [
+        "HW-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.create",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "requestId",
+        "creationProfile"
+      ],
+      "outputFields": [
+        "walletHandle",
+        "address"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-02"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.import.begin",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "requestId",
+        "inputFormat",
+        "importProfile"
+      ],
+      "outputFields": [
+        "importSessionId"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.import.chunk",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "importSessionId",
+        "sequence",
+        "sensitivePayload"
+      ],
+      "outputFields": [
+        "ack"
+      ],
+      "specificErrors": [
+        "CONFIDENTIAL_CHANNEL_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.import.commit",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "importSessionId",
+        "transcriptDigest"
+      ],
+      "outputFields": [
+        "walletHandle",
+        "address"
+      ],
+      "specificErrors": [
+        "IMPORT_INVALID"
+      ],
+      "taskRefs": [
+        "HW-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.import.abort",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "importSessionId"
+      ],
+      "outputFields": [
+        "cleared"
+      ],
+      "specificErrors": [
+        "IMPORT_STATE_CONFLICT"
+      ],
+      "taskRefs": [
+        "HW-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.address",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "walletHandle",
+        "derivationProfile"
+      ],
+      "outputFields": [
+        "address"
+      ],
+      "specificErrors": [
+        "WALLET_LOCKED"
+      ],
+      "taskRefs": [
+        "HW-02"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "device.settings.update",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "expectedRevision",
+        "settings"
+      ],
+      "outputFields": [
+        "revision"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "payment.identify",
+      "roles": [
+        "payment_terminal"
+      ],
+      "inputFields": [
+        "attemptId",
+        "challenge",
+        "merchantProof"
+      ],
+      "outputFields": [
+        "selectedPayerAddress",
+        "ownershipProof",
+        "attemptBinding"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-03",
+        "HW-05"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "payment.prepare",
+      "roles": [
+        "payment_terminal"
+      ],
+      "inputFields": [
+        "attemptId",
+        "intent",
+        "merchantProofRef",
+        "proximityRef"
+      ],
+      "outputFields": [
+        "reviewId",
+        "payloadDigest"
+      ],
+      "specificErrors": [
+        "INTENT_INVALID"
+      ],
+      "taskRefs": [
+        "HW-05"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "payment.result",
+      "roles": [
+        "payment_terminal"
+      ],
+      "inputFields": [
+        "reviewId"
+      ],
+      "outputFields": [
+        "state",
+        "signatureOrSignedPayload"
+      ],
+      "specificErrors": [
+        "WRONG_SESSION"
+      ],
+      "taskRefs": [
+        "HW-05"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.sign.prepare",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "intent"
+      ],
+      "outputFields": [
+        "reviewId",
+        "payloadDigest"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_ACTION"
+      ],
+      "taskRefs": [
+        "HW-05"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "wallet.sign.result",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "reviewId"
+      ],
+      "outputFields": [
+        "state",
+        "signatureOrSignedPayload"
+      ],
+      "specificErrors": [
+        "WRONG_SESSION"
+      ],
+      "taskRefs": [
+        "HW-05"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "request.cancel",
+      "roles": [
+        "owner",
+        "payment_terminal"
+      ],
+      "inputFields": [
+        "reviewId"
+      ],
+      "outputFields": [
+        "cancelState"
+      ],
+      "specificErrors": [
+        "ALREADY_SIGNED"
+      ],
+      "taskRefs": [
+        "HW-05"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "proximity.observe",
+      "roles": [
+        "ranging_peer"
+      ],
+      "inputFields": [
+        "measurementSessionId",
+        "peerIds",
+        "sequence",
+        "result",
+        "quality"
+      ],
+      "outputFields": [
+        "acceptedObservation"
+      ],
+      "specificErrors": [
+        "STALE_OR_UNBOUND"
+      ],
+      "taskRefs": [
+        "HW-06"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "recording.start",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "formatProfile"
+      ],
+      "outputFields": [
+        "recordingId",
+        "state"
+      ],
+      "specificErrors": [
+        "BUSY"
+      ],
+      "taskRefs": [
+        "REC-01"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "recording.stop",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "recordingId"
+      ],
+      "outputFields": [
+        "lastSequence",
+        "state"
+      ],
+      "specificErrors": [
+        "WRONG_SESSION"
+      ],
+      "taskRefs": [
+        "REC-01"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "audio.frame",
+      "roles": [
+        "device_to_owner"
+      ],
+      "inputFields": [
+        "recordingId",
+        "sequence",
+        "formatProfile",
+        "payload"
+      ],
+      "outputFields": [
+        "streamFrame"
+      ],
+      "specificErrors": [
+        "STREAM_GAP"
+      ],
+      "taskRefs": [
+        "REC-02"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "audio.flow-control",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "recordingId",
+        "receiveWindow"
+      ],
+      "outputFields": [
+        "streamState"
+      ],
+      "specificErrors": [
+        "STREAM_STATE_CONFLICT"
+      ],
+      "taskRefs": [
+        "REC-02"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "find.start",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "pattern",
+        "durationLimit"
+      ],
+      "outputFields": [
+        "findState"
+      ],
+      "specificErrors": [
+        "BUSY"
+      ],
+      "taskRefs": [
+        "FIND-01"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "find.stop",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "requestId"
+      ],
+      "outputFields": [
+        "findState"
+      ],
+      "specificErrors": [
+        "SESSION_INVALID"
+      ],
+      "taskRefs": [
+        "FIND-01"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "passport.sync",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "accountBinding",
+        "revision",
+        "verifiedSummary"
+      ],
+      "outputFields": [
+        "storedRevision"
+      ],
+      "specificErrors": [
+        "INVALID_SUMMARY"
+      ],
+      "taskRefs": [
+        "STAMP-02"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "fota.begin",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "releaseManifest",
+        "compatibility"
+      ],
+      "outputFields": [
+        "transferId",
+        "offset"
+      ],
+      "specificErrors": [
+        "UPDATE_BLOCKED"
+      ],
+      "taskRefs": [
+        "OTA-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "fota.chunk",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "transferId",
+        "offset",
+        "bytes"
+      ],
+      "outputFields": [
+        "acceptedOffset"
+      ],
+      "specificErrors": [
+        "INTEGRITY_FAILED"
+      ],
+      "taskRefs": [
+        "OTA-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "fota.finalize",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "transferId"
+      ],
+      "outputFields": [
+        "verifiedOrRejected"
+      ],
+      "specificErrors": [
+        "SIGNATURE_INVALID"
+      ],
+      "taskRefs": [
+        "OTA-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "fota.apply",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "transferId"
+      ],
+      "outputFields": [
+        "rebooting"
+      ],
+      "specificErrors": [
+        "BUSY"
+      ],
+      "taskRefs": [
+        "OTA-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "fota.status",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "transferId"
+      ],
+      "outputFields": [
+        "state",
+        "runningVersion"
+      ],
+      "specificErrors": [
+        "RECOVERY_REQUIRED"
+      ],
+      "taskRefs": [
+        "OTA-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "credentials.list",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "cursor"
+      ],
+      "outputFields": [
+        "credentialMetadata",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "KEY-02"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "credentials.delete",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "credentialHandle"
+      ],
+      "outputFields": [
+        "deleted"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "KEY-03"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "device.reset.prepare",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "rentalId",
+        "resetClearance"
+      ],
+      "outputFields": [
+        "reviewId"
+      ],
+      "specificErrors": [
+        "RETURN_PENDING"
+      ],
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    },
+    {
+      "name": "device.reset.confirm",
+      "roles": [
+        "owner"
+      ],
+      "inputFields": [
+        "reviewId"
+      ],
+      "outputFields": [
+        "resetState",
+        "deviceResetEvidence"
+      ],
+      "specificErrors": [
+        "USER_APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "classification": "logical_contract_not_wire_format",
+      "runtimeVerified": false
+    }
+  ]
+}

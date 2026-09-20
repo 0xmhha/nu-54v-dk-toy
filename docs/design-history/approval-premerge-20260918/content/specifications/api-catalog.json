@@ -1,0 +1,2586 @@
+{
+  "version": "0.1.0-draft",
+  "date": "2026-09-18",
+  "status": "design_proposal_not_implemented",
+  "source": "content/planning/work-breakdown.json",
+  "scope": "all_15_requirements_app_integrated_within_12_weeks",
+  "operations": [
+    {
+      "id": "API-001",
+      "method": "POST",
+      "path": "/v1/auth/exchanges",
+      "authorization": "public_auth_flow",
+      "inputLocation": "body",
+      "inputFields": [
+        "provider",
+        "authFlowId",
+        "providerProof"
+      ],
+      "outputFields": [
+        "session",
+        "account"
+      ],
+      "specificErrors": [
+        "AUTH_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-002",
+      "method": "POST",
+      "path": "/v1/auth/links",
+      "authorization": "account_recent_auth",
+      "inputLocation": "body",
+      "inputFields": [
+        "provider",
+        "authFlowId",
+        "providerProof"
+      ],
+      "outputFields": [
+        "linkedProviders"
+      ],
+      "specificErrors": [
+        "ACCOUNT_LINK_CONFLICT"
+      ],
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-003",
+      "method": "POST",
+      "path": "/v1/auth/logout",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "sessionId"
+      ],
+      "outputFields": [
+        "revoked"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-004",
+      "method": "POST",
+      "path": "/v1/account-deletions",
+      "authorization": "account_recent_auth",
+      "inputLocation": "body",
+      "inputFields": [
+        "scope",
+        "acknowledgedWalletRecovery"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "RECOVERY_REQUIRED"
+      ],
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-005",
+      "method": "GET",
+      "path": "/v1/me",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "account",
+        "memberships",
+        "linkedProviders"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "AUTH-01"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-006",
+      "method": "POST",
+      "path": "/v1/auth/refresh",
+      "authorization": "refresh_session",
+      "inputLocation": "body",
+      "inputFields": [
+        "refreshToken"
+      ],
+      "outputFields": [
+        "session"
+      ],
+      "specificErrors": [
+        "SESSION_REVOKED"
+      ],
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "wallets"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "APP-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "authorization": "store_asset_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "wallets"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "authorization": "wallet_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "assets",
+        "observedAt",
+        "blockRef"
+      ],
+      "specificErrors": [
+        "CHAIN_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-010",
+      "method": "POST",
+      "path": "/v1/device-enrollments",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "deviceId",
+        "deviceProof",
+        "rentalId"
+      ],
+      "outputFields": [
+        "enrollmentId",
+        "enrollmentChallenge"
+      ],
+      "specificErrors": [
+        "DEVICE_ALREADY_ASSIGNED"
+      ],
+      "taskRefs": [
+        "HW-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-011",
+      "method": "POST",
+      "path": "/v1/device-enrollments/{enrollmentId}/confirm",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "deviceProof",
+        "challengeResponse"
+      ],
+      "outputFields": [
+        "deviceBinding"
+      ],
+      "specificErrors": [
+        "DEVICE_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "HW-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-012",
+      "method": "DELETE",
+      "path": "/v1/devices/{deviceId}/binding",
+      "authorization": "device_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "RETURN_CHECK_REQUIRED"
+      ],
+      "taskRefs": [
+        "HW-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-013",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}",
+      "authorization": "device_owner",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "deviceMetadata",
+        "lastReportedAt"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "HW-01",
+        "FIND-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-014",
+      "method": "POST",
+      "path": "/v1/cloud-wallets",
+      "authorization": "account_recent_auth",
+      "inputLocation": "body",
+      "inputFields": [
+        "createRequestId",
+        "participantEnrollmentProof"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "PARTICIPANT_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "MPC-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "authorization": "wallet_sign_authorized",
+      "inputLocation": "body",
+      "inputFields": [
+        "intentId",
+        "approvalProof"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "APPROVAL_REQUIRED"
+      ],
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-016",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/recoveries",
+      "authorization": "wallet_recovery_proof",
+      "inputLocation": "body",
+      "inputFields": [
+        "recoveryProof",
+        "newParticipantProof"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "RECOVERY_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "MPC-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "authorization": "wallet_use",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletId",
+        "chainId",
+        "action",
+        "actionInput"
+      ],
+      "outputFields": [
+        "intent",
+        "review",
+        "expiry"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_ACTION"
+      ],
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "authorization": "intent_submit_capability",
+      "inputLocation": "body",
+      "inputFields": [
+        "intentId",
+        "signedPayload"
+      ],
+      "outputFields": [
+        "operation",
+        "transactionRef"
+      ],
+      "specificErrors": [
+        "PAYLOAD_MISMATCH"
+      ],
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "authorization": "transaction_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "execution",
+        "canonicality",
+        "confirmation",
+        "observedAt"
+      ],
+      "specificErrors": [
+        "NOT_FOUND"
+      ],
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "authorization": "operation_owner_or_capability",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-021",
+      "method": "POST",
+      "path": "/v1/stores",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "displayName",
+        "location",
+        "timezone"
+      ],
+      "outputFields": [
+        "store"
+      ],
+      "specificErrors": [
+        "VALIDATION_FAILED"
+      ],
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-022",
+      "method": "GET",
+      "path": "/v1/stores",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "memberships"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-023",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/terminal-sessions",
+      "authorization": "store_terminal_manage",
+      "inputLocation": "body",
+      "inputFields": [
+        "terminalId",
+        "mode"
+      ],
+      "outputFields": [
+        "terminalSession"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-024",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/memberships",
+      "authorization": "store_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "accountId",
+        "role"
+      ],
+      "outputFields": [
+        "membership"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-025",
+      "method": "DELETE",
+      "path": "/v1/stores/{storeId}/memberships/{membershipId}",
+      "authorization": "store_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "revoked"
+      ],
+      "specificErrors": [
+        "LAST_OWNER"
+      ],
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-026",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/menu",
+      "authorization": "store_customer_session",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "menu",
+        "revision"
+      ],
+      "specificErrors": [
+        "STORE_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-027",
+      "method": "PUT",
+      "path": "/v1/stores/{storeId}/menu-items/{itemId}",
+      "authorization": "store_menu_manage",
+      "inputLocation": "body",
+      "inputFields": [
+        "name",
+        "options",
+        "price",
+        "availability",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "menuItem"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-028",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/recipient-changes",
+      "authorization": "store_funds_manage_recent_auth",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletRef",
+        "ownershipProof",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "recipientConfiguration"
+      ],
+      "specificErrors": [
+        "ADDRESS_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "SHOP-06"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-029",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/orders",
+      "authorization": "store_customer_session",
+      "inputLocation": "body",
+      "inputFields": [
+        "items",
+        "menuRevision"
+      ],
+      "outputFields": [
+        "order",
+        "orderCapability"
+      ],
+      "specificErrors": [
+        "MENU_CHANGED"
+      ],
+      "taskRefs": [
+        "SHOP-02",
+        "PAY-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-030",
+      "method": "GET",
+      "path": "/v1/orders/{orderId}",
+      "authorization": "order_read_or_capability",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "order",
+        "paymentSummary"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "SHOP-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-031",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/cancel",
+      "authorization": "order_cancel",
+      "inputLocation": "body",
+      "inputFields": [
+        "reason",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "order"
+      ],
+      "specificErrors": [
+        "PAYMENT_IN_PROGRESS"
+      ],
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-032",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/payment-attempts",
+      "authorization": "order_payment_capability",
+      "inputLocation": "body",
+      "inputFields": [
+        "assetId",
+        "accountMode"
+      ],
+      "outputFields": [
+        "attempt",
+        "quote",
+        "pairingChallenge"
+      ],
+      "specificErrors": [
+        "ORDER_NOT_PAYABLE"
+      ],
+      "taskRefs": [
+        "PAY-01",
+        "PAY-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-033",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/device-sessions",
+      "authorization": "terminal_attempt_capability",
+      "inputLocation": "body",
+      "inputFields": [
+        "deviceProof",
+        "challengeResponse"
+      ],
+      "outputFields": [
+        "restrictedDeviceSession"
+      ],
+      "specificErrors": [
+        "DEVICE_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "HW-03",
+        "SHOP-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-034",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/intents",
+      "authorization": "attempt_device_capability",
+      "inputLocation": "body",
+      "inputFields": [
+        "signerAddress",
+        "ownershipProof",
+        "sessionId"
+      ],
+      "outputFields": [
+        "intent",
+        "review"
+      ],
+      "specificErrors": [
+        "QUOTE_EXPIRED"
+      ],
+      "taskRefs": [
+        "PAY-01",
+        "HW-05"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-035",
+      "method": "GET",
+      "path": "/v1/payment-attempts/{attemptId}",
+      "authorization": "attempt_read_capability",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "attempt",
+        "observation",
+        "exception"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "PAY-04"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-036",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/refunds",
+      "authorization": "store_refund_request",
+      "inputLocation": "body",
+      "inputFields": [
+        "amount",
+        "destinationProof",
+        "reason"
+      ],
+      "outputFields": [
+        "refund",
+        "reservedAmount"
+      ],
+      "specificErrors": [
+        "REFUND_LIMIT_EXCEEDED"
+      ],
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-037",
+      "method": "POST",
+      "path": "/v1/refunds/{refundId}/authorize",
+      "authorization": "store_funds_manage_recent_auth",
+      "inputLocation": "body",
+      "inputFields": [
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "refund",
+        "signingIntent"
+      ],
+      "specificErrors": [
+        "REFUND_STATE_CONFLICT"
+      ],
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-038",
+      "method": "GET",
+      "path": "/v1/refunds/{refundId}",
+      "authorization": "refund_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "refund",
+        "transactionRef"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-039",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/sales",
+      "authorization": "store_sales_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "period",
+        "assetId"
+      ],
+      "outputFields": [
+        "summary",
+        "exceptions",
+        "asOfRevision"
+      ],
+      "specificErrors": [
+        "VALIDATION_FAILED"
+      ],
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-040",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_settlement_manage",
+      "inputLocation": "body",
+      "inputFields": [
+        "period",
+        "expectedRevision",
+        "note"
+      ],
+      "outputFields": [
+        "settlementRecord"
+      ],
+      "specificErrors": [
+        "UNRESOLVED_DIFFERENCE"
+      ],
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-041",
+      "method": "POST",
+      "path": "/v1/settlements/{settlementId}/corrections",
+      "authorization": "store_settlement_manage",
+      "inputLocation": "body",
+      "inputFields": [
+        "reason",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "correctedRecord"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-042",
+      "method": "GET",
+      "path": "/v1/me/receipts",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor",
+        "limit"
+      ],
+      "outputFields": [
+        "receipts",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "APP-04"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-043",
+      "method": "GET",
+      "path": "/v1/me/passport",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "stamps",
+        "benefits",
+        "revision",
+        "pendingEntitlements"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "STAMP-01",
+        "STAMP-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-044",
+      "method": "POST",
+      "path": "/v1/benefit-redemptions",
+      "authorization": "benefit_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "benefitId",
+        "orderId",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "redemption"
+      ],
+      "specificErrors": [
+        "BENEFIT_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "STAMP-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-045",
+      "method": "POST",
+      "path": "/v1/rentals",
+      "authorization": "rental_operator",
+      "inputLocation": "body",
+      "inputFields": [
+        "deviceId",
+        "accountId"
+      ],
+      "outputFields": [
+        "rental"
+      ],
+      "specificErrors": [
+        "DEVICE_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "STAMP-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-046",
+      "method": "POST",
+      "path": "/v1/rentals/{rentalId}/return-checks",
+      "authorization": "rental_owner_or_operator",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletOrigin",
+        "externalAccessProof"
+      ],
+      "outputFields": [
+        "checklist",
+        "conditionalResetClearance"
+      ],
+      "specificErrors": [
+        "RECOVERY_REQUIRED"
+      ],
+      "taskRefs": [
+        "STAMP-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-047",
+      "method": "POST",
+      "path": "/v1/rentals/{rentalId}/complete-return",
+      "authorization": "rental_owner_and_clearance",
+      "inputLocation": "body",
+      "inputFields": [
+        "checklistRevision",
+        "clearanceId",
+        "deviceResetEvidence",
+        "ownerApprovalRef"
+      ],
+      "outputFields": [
+        "rental",
+        "bindingRevoked"
+      ],
+      "specificErrors": [
+        "RETURN_PENDING"
+      ],
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-048",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}/firmware-offers",
+      "authorization": "device_owner",
+      "inputLocation": "query",
+      "inputFields": [
+        "appVersion",
+        "protocolVersion"
+      ],
+      "outputFields": [
+        "offer",
+        "compatibility"
+      ],
+      "specificErrors": [
+        "UPDATE_BLOCKED"
+      ],
+      "taskRefs": [
+        "OTA-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-049",
+      "method": "POST",
+      "path": "/v1/firmware-releases",
+      "authorization": "firmware_release_operator",
+      "inputLocation": "body",
+      "inputFields": [
+        "manifest",
+        "packageRef"
+      ],
+      "outputFields": [
+        "release"
+      ],
+      "specificErrors": [
+        "MANIFEST_INVALID"
+      ],
+      "taskRefs": [
+        "OTA-02",
+        "OPS-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-050",
+      "method": "POST",
+      "path": "/v1/firmware-releases/{releaseId}/withdraw",
+      "authorization": "firmware_release_operator",
+      "inputLocation": "body",
+      "inputFields": [
+        "reason",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "release"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "OTA-04",
+        "OPS-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-051",
+      "method": "POST",
+      "path": "/v1/recordings",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "recordingId",
+        "format",
+        "completeness",
+        "duration"
+      ],
+      "outputFields": [
+        "recordingMetadata"
+      ],
+      "specificErrors": [
+        "VALIDATION_FAILED"
+      ],
+      "taskRefs": [
+        "REC-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-052",
+      "method": "POST",
+      "path": "/v1/recordings/{recordingId}/processing",
+      "authorization": "recording_owner_with_consent",
+      "inputLocation": "body",
+      "inputFields": [
+        "sourceRef",
+        "consentRevision",
+        "jobType"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "CONSENT_REQUIRED"
+      ],
+      "taskRefs": [
+        "REC-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-053",
+      "method": "GET",
+      "path": "/v1/recordings/{recordingId}/processing",
+      "authorization": "recording_owner",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "jobs",
+        "transcriptRef",
+        "summaryRef"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "REC-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-054",
+      "method": "DELETE",
+      "path": "/v1/recordings/{recordingId}",
+      "authorization": "recording_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "REC-03",
+        "TRIP-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-055",
+      "method": "POST",
+      "path": "/v1/smart-account-plans",
+      "authorization": "wallet_use",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletId",
+        "selectedModel"
+      ],
+      "outputFields": [
+        "transitionPlan",
+        "review"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_ACCOUNT_MODEL"
+      ],
+      "taskRefs": [
+        "SMART-01",
+        "SMART-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-056",
+      "method": "POST",
+      "path": "/v1/smart-account-intents",
+      "authorization": "wallet_sign_authorized",
+      "inputLocation": "body",
+      "inputFields": [
+        "planId",
+        "action",
+        "actionInput"
+      ],
+      "outputFields": [
+        "intent",
+        "review"
+      ],
+      "specificErrors": [
+        "ACCOUNT_NOT_READY"
+      ],
+      "taskRefs": [
+        "SMART-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-057",
+      "method": "POST",
+      "path": "/v1/market-quotes",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "marketId",
+        "action",
+        "amountIn",
+        "assetIn",
+        "assetOut",
+        "inputs",
+        "positionId",
+        "shareAmount"
+      ],
+      "outputFields": [
+        "quote",
+        "fees",
+        "minimumOutputs",
+        "expiresAt"
+      ],
+      "specificErrors": [
+        "INSUFFICIENT_LIQUIDITY"
+      ],
+      "taskRefs": [
+        "DEX-02",
+        "FX-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-058",
+      "method": "POST",
+      "path": "/v1/market-intents",
+      "authorization": "wallet_use",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletId",
+        "quoteId",
+        "slippageChoice"
+      ],
+      "outputFields": [
+        "intent",
+        "review"
+      ],
+      "specificErrors": [
+        "QUOTE_EXPIRED"
+      ],
+      "taskRefs": [
+        "DEX-03",
+        "FX-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-059",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/liquidity-positions",
+      "authorization": "wallet_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "positions",
+        "asOfBlock"
+      ],
+      "specificErrors": [
+        "CHAIN_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "DEX-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-060",
+      "method": "GET",
+      "path": "/v1/perpetual/markets",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "markets",
+        "priceValidity"
+      ],
+      "specificErrors": [
+        "PRICE_STALE"
+      ],
+      "taskRefs": [
+        "PERP-05"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-061",
+      "method": "POST",
+      "path": "/v1/perpetual/intents",
+      "authorization": "wallet_use",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletId",
+        "marketId",
+        "action",
+        "actionInput"
+      ],
+      "outputFields": [
+        "intent",
+        "review"
+      ],
+      "specificErrors": [
+        "RISK_LIMIT_EXCEEDED"
+      ],
+      "taskRefs": [
+        "PERP-03",
+        "PERP-05"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-062",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/perpetual-positions",
+      "authorization": "wallet_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "positions",
+        "funding",
+        "liquidations",
+        "asOfBlock"
+      ],
+      "specificErrors": [
+        "CHAIN_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "PERP-05"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-063",
+      "method": "GET",
+      "path": "/v1/offerings",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "offerings",
+        "eligibilityRules"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "STO-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-064",
+      "method": "POST",
+      "path": "/v1/offerings/{offeringId}/intents",
+      "authorization": "offering_actor",
+      "inputLocation": "body",
+      "inputFields": [
+        "walletId",
+        "action",
+        "actionInput",
+        "credentialRef"
+      ],
+      "outputFields": [
+        "intent",
+        "review"
+      ],
+      "specificErrors": [
+        "INELIGIBLE"
+      ],
+      "taskRefs": [
+        "STO-02",
+        "STO-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-065",
+      "method": "POST",
+      "path": "/v1/credentials",
+      "authorization": "credential_issuer",
+      "inputLocation": "body",
+      "inputFields": [
+        "subjectProof",
+        "type",
+        "claims"
+      ],
+      "outputFields": [
+        "credential"
+      ],
+      "specificErrors": [
+        "ISSUER_UNAUTHORIZED"
+      ],
+      "taskRefs": [
+        "DID-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-066",
+      "method": "GET",
+      "path": "/v1/me/credentials",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "credentials",
+        "status"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "DID-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-067",
+      "method": "POST",
+      "path": "/v1/credential-presentations",
+      "authorization": "credential_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "requestRef",
+        "credentialId",
+        "disclosureChoice",
+        "holderProof"
+      ],
+      "outputFields": [
+        "presentation"
+      ],
+      "specificErrors": [
+        "CREDENTIAL_INVALID"
+      ],
+      "taskRefs": [
+        "DID-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-068",
+      "method": "POST",
+      "path": "/v1/credential-verifications",
+      "authorization": "credential_verifier",
+      "inputLocation": "body",
+      "inputFields": [
+        "presentation",
+        "challengeRef"
+      ],
+      "outputFields": [
+        "verification"
+      ],
+      "specificErrors": [
+        "CREDENTIAL_INVALID"
+      ],
+      "taskRefs": [
+        "DID-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-069",
+      "method": "POST",
+      "path": "/v1/credentials/{credentialId}/revoke",
+      "authorization": "credential_issuer",
+      "inputLocation": "body",
+      "inputFields": [
+        "reason",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "revocation"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "DID-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-070",
+      "method": "POST",
+      "path": "/v1/paid-resource-requests",
+      "authorization": "wallet_use",
+      "inputLocation": "body",
+      "inputFields": [
+        "resourceId",
+        "resourceInput",
+        "walletId"
+      ],
+      "outputFields": [
+        "resourceRequest",
+        "paymentRequirement"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_PAYMENT_SCHEME"
+      ],
+      "taskRefs": [
+        "X402-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-071",
+      "method": "POST",
+      "path": "/v1/paid-resource-requests/{requestId}/proofs",
+      "authorization": "request_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "paymentProof"
+      ],
+      "outputFields": [
+        "operation",
+        "entitlement"
+      ],
+      "specificErrors": [
+        "PAYMENT_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "X402-02",
+        "X402-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-072",
+      "method": "GET",
+      "path": "/v1/paid-resource-requests/{requestId}/result",
+      "authorization": "request_owner",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "deliveryState",
+        "resourceRef"
+      ],
+      "specificErrors": [
+        "DELIVERY_PENDING"
+      ],
+      "taskRefs": [
+        "X402-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-073",
+      "method": "GET",
+      "path": "/v1/places",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [
+        "region",
+        "query",
+        "optionalLocation",
+        "cursor"
+      ],
+      "outputFields": [
+        "places",
+        "source",
+        "observedAt",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "LOCATION_UNAVAILABLE"
+      ],
+      "taskRefs": [
+        "TRIP-01"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-074",
+      "method": "POST",
+      "path": "/v1/places/{placeId}/reviews",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "rating",
+        "text",
+        "purchaseRef"
+      ],
+      "outputFields": [
+        "review",
+        "provenance"
+      ],
+      "specificErrors": [
+        "PURCHASE_NOT_OWNED"
+      ],
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-075",
+      "method": "PATCH",
+      "path": "/v1/reviews/{reviewId}",
+      "authorization": "review_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "text",
+        "rating",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "review"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-076",
+      "method": "DELETE",
+      "path": "/v1/reviews/{reviewId}",
+      "authorization": "review_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-077",
+      "method": "POST",
+      "path": "/v1/trips",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "region",
+        "locale",
+        "timezone",
+        "consentRevision"
+      ],
+      "outputFields": [
+        "trip"
+      ],
+      "specificErrors": [
+        "CONSENT_REQUIRED"
+      ],
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-078",
+      "method": "POST",
+      "path": "/v1/trips/{tripId}/visits",
+      "authorization": "trip_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "placeId",
+        "evidence",
+        "sourceType"
+      ],
+      "outputFields": [
+        "visit",
+        "validity"
+      ],
+      "specificErrors": [
+        "EVIDENCE_INVALID"
+      ],
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-079",
+      "method": "GET",
+      "path": "/v1/trips/{tripId}/timeline",
+      "authorization": "trip_owner",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor"
+      ],
+      "outputFields": [
+        "entries",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-080",
+      "method": "POST",
+      "path": "/v1/itineraries",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "tripId",
+        "constraints",
+        "consentRevision"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "INSUFFICIENT_DATA"
+      ],
+      "taskRefs": [
+        "AI-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-081",
+      "method": "PATCH",
+      "path": "/v1/itineraries/{itineraryId}",
+      "authorization": "itinerary_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "stops",
+        "constraints",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "itinerary",
+        "validation"
+      ],
+      "specificErrors": [
+        "ROUTE_INVALID"
+      ],
+      "taskRefs": [
+        "AI-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-082",
+      "method": "POST",
+      "path": "/v1/challenges/{challengeId}/participations",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "tripId"
+      ],
+      "outputFields": [
+        "participation"
+      ],
+      "specificErrors": [
+        "ALREADY_PARTICIPATING"
+      ],
+      "taskRefs": [
+        "AI-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-083",
+      "method": "POST",
+      "path": "/v1/participations/{participationId}/evidence",
+      "authorization": "participant",
+      "inputLocation": "body",
+      "inputFields": [
+        "stepId",
+        "evidenceRef"
+      ],
+      "outputFields": [
+        "progress",
+        "stamp"
+      ],
+      "specificErrors": [
+        "EVIDENCE_INVALID"
+      ],
+      "taskRefs": [
+        "AI-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-084",
+      "method": "PUT",
+      "path": "/v1/me/consents",
+      "authorization": "account",
+      "inputLocation": "body",
+      "inputFields": [
+        "purposes",
+        "expectedRevision"
+      ],
+      "outputFields": [
+        "consentRevision"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-085",
+      "method": "POST",
+      "path": "/v1/me/data-requests",
+      "authorization": "account_recent_auth",
+      "inputLocation": "body",
+      "inputFields": [
+        "type",
+        "scope"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-086",
+      "method": "GET",
+      "path": "/v1/ops/exceptions",
+      "authorization": "ops_exception_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "type",
+        "cursor"
+      ],
+      "outputFields": [
+        "exceptions",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "OPS-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-087",
+      "method": "POST",
+      "path": "/v1/ops/reconciliation-jobs",
+      "authorization": "ops_reconcile",
+      "inputLocation": "body",
+      "inputFields": [
+        "subjectRef",
+        "reason"
+      ],
+      "outputFields": [
+        "operation"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "OPS-03"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-088",
+      "method": "GET",
+      "path": "/v1/ops/audit-events",
+      "authorization": "ops_audit_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "subjectRef",
+        "cursor"
+      ],
+      "outputFields": [
+        "events",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "OPS-01"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-089",
+      "method": "GET",
+      "path": "/v1/service-health",
+      "authorization": "service_health_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "services",
+        "indexerLag",
+        "observedAt"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "INDEX-05",
+        "OPS-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-090",
+      "method": "GET",
+      "path": "/v1/devices",
+      "authorization": "device_owner",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor"
+      ],
+      "outputFields": [
+        "devices",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "HW-03",
+        "APP-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-091",
+      "method": "GET",
+      "path": "/v1/rentals/{rentalId}",
+      "authorization": "rental_owner_or_operator",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "rental",
+        "checklist",
+        "lastResetState"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-092",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/orders",
+      "authorization": "store_order_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor",
+        "state"
+      ],
+      "outputFields": [
+        "orders",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "SHOP-02",
+        "SHOP-04"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-093",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_sales_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "period",
+        "cursor"
+      ],
+      "outputFields": [
+        "settlements",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-094",
+      "method": "GET",
+      "path": "/v1/recordings",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor"
+      ],
+      "outputFields": [
+        "recordingMetadata",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "REC-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-095",
+      "method": "GET",
+      "path": "/v1/itineraries/{itineraryId}",
+      "authorization": "itinerary_owner",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "itinerary",
+        "validation",
+        "revision"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "AI-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-096",
+      "method": "GET",
+      "path": "/v1/participations/{participationId}",
+      "authorization": "participant",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "participation",
+        "progress",
+        "evidenceRevisions"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "AI-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-097",
+      "method": "GET",
+      "path": "/v1/trips",
+      "authorization": "account",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor"
+      ],
+      "outputFields": [
+        "trips",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-098",
+      "method": "POST",
+      "path": "/v1/wallet-bindings",
+      "authorization": "device_owner",
+      "inputLocation": "body",
+      "inputFields": [
+        "deviceId",
+        "walletHandle",
+        "address",
+        "ownershipProof",
+        "enrollmentId"
+      ],
+      "outputFields": [
+        "wallet",
+        "binding"
+      ],
+      "specificErrors": [
+        "ADDRESS_PROOF_INVALID"
+      ],
+      "taskRefs": [
+        "HW-04",
+        "APP-02"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-099",
+      "method": "GET",
+      "path": "/v1/ops/stores",
+      "authorization": "ops_store_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "query",
+        "cursor"
+      ],
+      "outputFields": [
+        "stores",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "OPS-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-100",
+      "method": "GET",
+      "path": "/v1/ops/devices",
+      "authorization": "ops_device_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "query",
+        "rentalState",
+        "cursor"
+      ],
+      "outputFields": [
+        "devices",
+        "nextCursor"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "OPS-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-101",
+      "method": "GET",
+      "path": "/v1/firmware-releases/{releaseId}",
+      "authorization": "release_read",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "release",
+        "compatibility",
+        "status"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "OTA-04",
+        "OPS-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-102",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/offering-holdings",
+      "authorization": "wallet_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "cursor"
+      ],
+      "outputFields": [
+        "holdings",
+        "eligibility",
+        "nextCursor",
+        "asOfBlock"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "taskRefs": [
+        "STO-03"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false
+    },
+    {
+      "id": "API-103",
+      "method": "POST",
+      "path": "/v1/auth/flows",
+      "authorization": "auth_flow_bootstrap",
+      "inputLocation": "body",
+      "inputFields": [
+        "provider",
+        "purpose",
+        "clientProfileId",
+        "redirectId",
+        "challengeParameters"
+      ],
+      "outputFields": [
+        "flowId",
+        "authorizationParameters",
+        "expiresAt"
+      ],
+      "specificErrors": [
+        "AUTH_FLOW_INVALID",
+        "AUTH_REQUIRED",
+        "RATE_LIMITED",
+        "UNSUPPORTED_PROFILE"
+      ],
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false,
+      "originAlias": "SEC-API-01"
+    },
+    {
+      "id": "API-104",
+      "method": "POST",
+      "path": "/v1/receipt-claims/challenges",
+      "authorization": "receipt_claim_eligible",
+      "inputLocation": "body",
+      "inputFields": [
+        "receiptLocator",
+        "eligibilityProof"
+      ],
+      "outputFields": [
+        "claimId",
+        "challenge",
+        "expiresAt"
+      ],
+      "specificErrors": [
+        "CLAIM_NOT_ELIGIBLE",
+        "UNSUPPORTED_PROFILE",
+        "RATE_LIMITED"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false,
+      "originAlias": "SEC-API-02"
+    },
+    {
+      "id": "API-105",
+      "method": "POST",
+      "path": "/v1/receipt-claims/{claimId}/confirm",
+      "authorization": "receipt_claim_confirm",
+      "inputLocation": "body",
+      "inputFields": [
+        "approvalProof"
+      ],
+      "outputFields": [
+        "claimId",
+        "state",
+        "receiptId",
+        "ownershipRevision"
+      ],
+      "specificErrors": [
+        "CLAIM_EXPIRED",
+        "PROOF_INVALID",
+        "CLAIM_CONFLICT",
+        "CLAIM_NOT_ELIGIBLE"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "idempotency": "required",
+      "status": "proposed",
+      "runtimeVerified": false,
+      "originAlias": "SEC-API-03"
+    },
+    {
+      "id": "API-106",
+      "method": "GET",
+      "path": "/v1/receipt-claims/{claimId}",
+      "authorization": "receipt_claim_owner",
+      "inputLocation": "query",
+      "inputFields": [],
+      "outputFields": [
+        "claimId",
+        "state",
+        "receiptId",
+        "safeErrorCode"
+      ],
+      "specificErrors": [
+        "NOT_FOUND_OR_FORBIDDEN"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "AUTH-01"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false,
+      "originAlias": "SEC-API-04"
+    },
+    {
+      "id": "API-107",
+      "method": "GET",
+      "path": "/v1/protected-results/{resultId}",
+      "authorization": "protected_result_read",
+      "inputLocation": "query",
+      "inputFields": [
+        "purpose",
+        "streamRef"
+      ],
+      "outputFields": [
+        "resultId",
+        "kind",
+        "version",
+        "payloadDigest",
+        "delivery",
+        "payload",
+        "streamRef",
+        "expiresAt"
+      ],
+      "specificErrors": [
+        "NOT_FOUND_OR_FORBIDDEN",
+        "RESULT_EXPIRED",
+        "RESULT_UNAVAILABLE",
+        "CONSENT_REVOKED"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "APP-03",
+        "SMART-01",
+        "SMART-03",
+        "REC-03",
+        "AI-02"
+      ],
+      "idempotency": "not_applicable",
+      "status": "proposed",
+      "runtimeVerified": false,
+      "originAlias": "SEC-API-05"
+    }
+  ]
+}

@@ -1,0 +1,414 @@
+{
+  "schemaVersion": "1.0",
+  "date": "2026-09-18",
+  "status": "planning_only",
+  "scope": "all_15_requirements_app_integrated_within_12_weeks",
+  "staffCount": 3,
+  "assignmentAndEstimation": "deferred",
+  "firmwareBase": "Zephyr",
+  "dependsOnMeaning": "full_integration_completion",
+  "readinessStatus": "not_assessed",
+  "additionalAcceptanceTasks": {
+    "APP-02": [
+      "HW-04",
+      "MPC-02"
+    ],
+    "MPC-02": [
+      "AUTH-02",
+      "AUTH-03"
+    ]
+  },
+  "partialDeliverables": [
+    {
+      "id": "PART-CORE-INDEX",
+      "title": "초기 EOA 거래 관측·조회",
+      "producerSteps": [
+        "INDEX-05.01",
+        "INDEX-05.02"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "TOKEN-02"
+      ],
+      "consumers": [
+        "PAY-05",
+        "APP-04",
+        "SHOP-05",
+        "OPS-03",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "실제 더미 토큰 거래의 receipt/log/blockHash와 API 결과 대조",
+        "앱에서 대기·관측·확정·실패·재관측 구분, explorer 연결 확인",
+        "관측값만으로 주문 결제 확정하지 않음: PAY-04 업무 검증 결과를 별도 표시"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-SMART",
+      "title": "스마트 계정 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "SMART-02"
+      ],
+      "consumers": [
+        "SMART-03",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "스마트 계정 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-DEX",
+      "title": "DEX/DeFi 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "DEX-02"
+      ],
+      "consumers": [
+        "DEX-03",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "DEX/DeFi 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-FX",
+      "title": "FX 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "FX-02"
+      ],
+      "consumers": [
+        "FX-03",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "FX 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-PERP",
+      "title": "Perpetual 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "PERP-04"
+      ],
+      "consumers": [
+        "PERP-05",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "Perpetual 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-STO",
+      "title": "STO 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "STO-02"
+      ],
+      "consumers": [
+        "STO-03",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "STO 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-DID",
+      "title": "DID 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "DID-02"
+      ],
+      "consumers": [
+        "DID-03",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "DID 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-INDEX-X402",
+      "title": "x402 이벤트·조회 모델",
+      "producerSteps": [
+        "INDEX-04.01",
+        "INDEX-04.02",
+        "INDEX-04.03"
+      ],
+      "requiredTaskOutcomes": [
+        "INDEX-03",
+        "X402-02"
+      ],
+      "consumers": [
+        "X402-03",
+        "INDEX-04",
+        "INDEX-05"
+      ],
+      "acceptanceCriteria": [
+        "x402 실제 실행 결과와 ABI/서비스 이벤트 버전 및 조회 모델 대조",
+        "중복 수신·backfill·관측 취소 시 같은 결과로 수렴",
+        "해당 앱의 상태·잔액/포지션/자격/권한 표시가 조회 결과와 일치; 오프체인 결과는 체인 확정과 구분"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-OTA-POLICY",
+      "title": "FOTA 적용 전 호환·저장 형식·복귀 정책",
+      "producerSteps": [
+        "OTA-04.01"
+      ],
+      "requiredTaskOutcomes": [
+        "BASE-03",
+        "HW-01",
+        "OTA-01"
+      ],
+      "consumers": [
+        "OTA-03"
+      ],
+      "acceptanceCriteria": [
+        "현재/대상 앱·펌웨어·BLE·키 저장 형식 버전과 허용 전이 명시",
+        "시험/확정 부트와 실패 복귀 경로, 역방향 저장 형식 호환 또는 적용 차단 명시",
+        "키 손실 없는 복귀가 불가능한 조합은 업데이트 적용 전 차단; 서명 검증·시험 이미지 기준 준비"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    },
+    {
+      "id": "PART-DEVICE-ARBITRATION",
+      "title": "FOTA 적용 전 기기 동작 중재 규칙",
+      "producerSteps": [
+        "HW-07.01"
+      ],
+      "requiredTaskOutcomes": [
+        "BASE-03",
+        "HW-01",
+        "OTA-01"
+      ],
+      "consumers": [
+        "OTA-03"
+      ],
+      "acceptanceCriteria": [
+        "서명·녹음·찾기·FOTA의 허용/거절/busy/중지·재개 표 확정",
+        "FOTA 진입 시 미완료 서명 폐기·녹음 flush 또는 명시적 gap·재연결 후 세션 재인증 규칙",
+        "표는 적용 전 입력이며 중재 구현·공존 실기 증거는 HW-07 전체 완료 때 별도 요구"
+      ],
+      "status": "planned",
+      "evidenceRefs": []
+    }
+  ],
+  "specialConditions": {
+    "APP-02": [
+      "샘플 주소 삽입으로 완료 처리하지 않는다. HW-04 실제 기기 지갑과 MPC-02 실제 Cloud Wallet을 앱에서 선택하고 잔액·체인·서명 대상을 구분한다."
+    ],
+    "MPC-02": [
+      "AUTH-02/03 실제 로그인 각각에서 wallet 연결/재로그인 조회/중복 생성 방지를 확인한다. 분할 파일 재조립은 MPC DKG 증거로 인정하지 않는다."
+    ],
+    "OTA-03": [
+      "PART-OTA-POLICY와 PART-DEVICE-ARBITRATION은 실제 업데이트 적용 전에 검토되어야 한다. OTA-04/HW-07 전체 완료를 기다리는 순환 의존성을 만들지 않는다."
+    ],
+    "INDEX-04": [
+      "계약군별 partial을 각각 통합한다. 모든 계약군 증거가 모이기 전 INDEX-04 전체를 완료 처리하지 않는다."
+    ],
+    "INDEX-05": [
+      "초기 EOA 상태 조회는 PART-CORE-INDEX로 먼저 통합할 수 있다. 확장 계약군과 운영 추적까지 확인해야 INDEX-05 전체 완료다."
+    ],
+    "KEY-02": [
+      "선택한 실제 OS/RP/transport에서 표준 passkey 등록·인증 증거가 필요하다. 커스텀 서명 challenge만으로 대체하지 않는다."
+    ],
+    "REC-02": [
+      "실제 음성 전송·저장·재생과 끊김 구간 표식을 확인한다. 누락 구간을 무음 정상 녹음으로 표시하지 않는다."
+    ],
+    "HW-01": [
+      "Zephyr 기반 확정. NU 보드 대상·SDK 배포판·버전은 실물/보드 자료로 선정하며 Nordic DK 빌드 성공을 NU 빌드 증거로 대신하지 않는다."
+    ],
+    "STAMP-03": [
+      "import 지갑과 신규 여행 지갑의 반납 경로를 구분한다. 외부 지갑 전체 자산 이동·무관한 권한 철회는 요구하지 않는다."
+    ],
+    "PAY-05": [
+      "실제 NU와 RN 태블릿, 인증된 BLE 세션, 실제 StableNet 테스트넷 거래를 사용한다. 거리 측정은 사용자 승인이나 신원 인증을 대신하지 않는다."
+    ]
+  },
+  "checkpoints": [
+    {
+      "id": "CHECK-01",
+      "title": "공통 계약·개발 기반",
+      "anchorTasks": [
+        "BASE-01",
+        "BASE-02",
+        "BASE-03",
+        "BASE-04",
+        "BASE-05",
+        "BASE-06",
+        "APP-01",
+        "HW-01",
+        "RELEASE-01"
+      ],
+      "outcome": "Zephyr NU 빌드 기준, 앱 골격, 비밀 설정, 재현 가능한 빌드 입력"
+    },
+    {
+      "id": "CHECK-02",
+      "title": "첫 실기 EOA 카페 결제",
+      "anchorTasks": [
+        "PAY-05"
+      ],
+      "outcome": "주문 → 기기 표시/승인 → 고객 가스 부담 서명 → 입금 검증 → 키오스크 결과"
+    },
+    {
+      "id": "CHECK-03",
+      "title": "Cloud Wallet·개인/매장 운영",
+      "anchorTasks": [
+        "MPC-04",
+        "MPC-05",
+        "APP-04",
+        "SHOP-05",
+        "SHOP-06",
+        "OPS-03",
+        "STAMP-02"
+      ],
+      "outcome": "Google/Apple 실제 로그인, MPC 생성/서명/복구, 환불·수취·매출·스탬프"
+    },
+    {
+      "id": "CHECK-04",
+      "title": "기기 전체 기능·대여 복귀",
+      "anchorTasks": [
+        "VERIFY-02",
+        "OTA-04",
+        "STAMP-04"
+      ],
+      "outcome": "표준 passkey·녹음/전사·찾기·근접·FOTA·자원 경합·반납"
+    },
+    {
+      "id": "CHECK-05",
+      "title": "스마트 계정·확장 상품 앱",
+      "anchorTasks": [
+        "VERIFY-04",
+        "SMART-03",
+        "INDEX-05",
+        "PERP-06"
+      ],
+      "outcome": "EOA 이후 스마트 계정, 전체 계약군과 DEX/FX/Perp의 실행·조회·앱 결과"
+    },
+    {
+      "id": "CHECK-06",
+      "title": "여행·추천·데이터 수명주기",
+      "anchorTasks": [
+        "VERIFY-05",
+        "INDEX-06",
+        "TRIP-04"
+      ],
+      "outcome": "결제/후기/위치 출처와 취소 반영, 추천 코스·챌린지·삭제"
+    },
+    {
+      "id": "CHECK-07",
+      "title": "전체 인수·운영 복구",
+      "anchorTasks": [
+        "RELEASE-03"
+      ],
+      "outcome": "104개 패키지 완료 증거와 앱 연동, 복구·설치·운영 인수"
+    }
+  ],
+  "designEvidenceTasks": [
+    "BASE-01",
+    "BASE-02",
+    "BASE-03",
+    "BASE-04",
+    "BASE-06"
+  ],
+  "evidenceRules": {
+    "design": [
+      "문서 revision/hash와 요구사항·인터페이스 ID 연결",
+      "정상·거절·복구 예제 대조 결과와 미해결 사항"
+    ],
+    "component": [
+      "코드 revision과 재현 명령, 빌드/설정 식별자",
+      "기대/실제 결과 및 원시 로그; mock/fixture 사용 범위를 명시"
+    ],
+    "integration": [
+      "실제 참여 앱·서비스·기기의 버전과 구성, 해당 호환 판정 ID",
+      "작업 수용 기준별 정상·거절·실패/복구 결과와 증거 파일",
+      "체인 작업은 chainId·계약 주소/ABI 버전·txHash·blockHash·receipt/log와 앱/업무 식별자 대조",
+      "키·니모닉·토큰·MPC share·개인 녹음 원문은 증거에 포함하지 않고 제한된 참조나 마스킹 사용"
+    ],
+    "acceptance": [
+      "기존 dependsOn과 추가 완료 조건 및 필수 partial의 증거 검토",
+      "모든 작업 수용 기준·세부 산출물 충족 확인; 실패/미실행을 pass로 표시하지 않음",
+      "기술/호환 검증의 적용 여부와 미해결 항목을 기록; 비적용은 근거와 검토 기록 필요"
+    ]
+  },
+  "phaseControl": {
+    "currentPhase": "detailed_design",
+    "implementation": "deferred_by_user",
+    "genericContinuationMeans": "continue_design",
+    "implementationTransition": "requires_user_instruction",
+    "userStatement": "그래 구현은 아직이야. 아직은 설계가 더 필요해."
+  }
+}

@@ -1,0 +1,716 @@
+{
+  "version": "0.1.0-draft",
+  "rows": [
+    {
+      "id": "COMP-01",
+      "interfaceId": "IF-01",
+      "producer": "Zephyr board/drivers",
+      "consumer": "firmware services",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "boardRevision",
+        "boardTarget",
+        "zephyrCommit",
+        "distributionCommit",
+        "toolchainVersion",
+        "devicetreeDigest",
+        "kconfigDigest"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-02",
+      "interfaceId": "IF-02",
+      "producer": "isolated firmware key service",
+      "consumer": "wallet/passkey service",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "cryptoProfile",
+        "cryptoBackendVersion",
+        "keyStoreSchema",
+        "keyPolicyVersion",
+        "secureBoundaryDigest"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-03",
+      "interfaceId": "IF-03",
+      "producer": "firmware session service",
+      "consumer": "RN native bridge / kiosk / ranging peer",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "controlProtocol",
+        "handshakeProfile",
+        "rolePolicyVersion",
+        "controllerVersion",
+        "transportProfile"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-04",
+      "interfaceId": "IF-04",
+      "producer": "firmware approval service",
+      "consumer": "wallet service / payment peer",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "intentSchema",
+        "reviewSchema",
+        "signatureProfile",
+        "keyPolicyVersion",
+        "controlProtocol"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-05",
+      "interfaceId": "IF-05",
+      "producer": "Zephyr update service / bootloader",
+      "consumer": "RN update bridge",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "boardRevision",
+        "bootloaderCommit",
+        "imageFormat",
+        "partitionDigest",
+        "updateProfile",
+        "keyStoreSchema",
+        "migrationVersion"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-06",
+      "interfaceId": "IF-06",
+      "producer": "firmware CTAP authenticator",
+      "consumer": "verified CTAP transport / RP client",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "ctapVersion",
+        "transportProfile",
+        "rpPolicy",
+        "authenticatorAlgorithms",
+        "residentStoreSchema"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-07",
+      "interfaceId": "IF-07",
+      "producer": "firmware feature services",
+      "consumer": "native audio/storage / user app",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "audioProfile",
+        "frameSchema",
+        "sequencePolicy",
+        "resourcePolicy",
+        "stampProjectionSchema"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-08",
+      "interfaceId": "IF-08",
+      "producer": "Android/iOS native modules",
+      "consumer": "RN TypeScript app",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "rnVersion",
+        "nativeBridgeVersion",
+        "androidSdk",
+        "iosSdk",
+        "transportProfile",
+        "lifecyclePolicy"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-09",
+      "interfaceId": "IF-09",
+      "producer": "business API / security adapters",
+      "consumer": "user/kiosk/backoffice",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "apiSchema",
+        "policyVersion",
+        "storageSchema",
+        "capabilityProfile",
+        "providerProfile"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-10",
+      "interfaceId": "IF-10",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "signerProfile",
+        "intentSchema",
+        "reviewSchema",
+        "signatureProfile",
+        "submissionProfile"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-11",
+      "interfaceId": "IF-11",
+      "producer": "isolated MPC engine",
+      "consumer": "cloud signing coordinator / mobile participant",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "mpcProtocol",
+        "libraryCommit",
+        "participantEpoch",
+        "recoveryProfile",
+        "transcriptFormat"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-12",
+      "interfaceId": "IF-12",
+      "producer": "chain adapter / contracts / indexer",
+      "consumer": "payment and market services",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "chainId",
+        "chainFork",
+        "contractCodeHash",
+        "abiDigest",
+        "indexerDecoder",
+        "entryPointCodeHash",
+        "userOpProfile",
+        "tokenProfile"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-13",
+      "interfaceId": "IF-13",
+      "producer": "trusted worker / object gateway",
+      "consumer": "app / travel services",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "resultSchema",
+        "objectDigestProfile",
+        "sourceSchema",
+        "modelDigest",
+        "consentPolicy",
+        "gatewayProfile"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-14",
+      "interfaceId": "IF-14",
+      "producer": "rental coordinator / device reset service",
+      "consumer": "user app / ops safe projection",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "returnPolicy",
+        "resetEvidenceProfile",
+        "keyStoreSchema",
+        "credentialStoreSchema",
+        "claimProfile"
+      ],
+      "compatibilityRule": "exact tested tuple; explicit adapter/migration evidence required for any non-identical supported combination",
+      "mismatchAction": "reject affected new operation; show update/recovery path; preserve already submitted transaction observation",
+      "evidenceRequired": [
+        "producer and consumer build identifiers",
+        "actual target environment",
+        "positive and negative interoperability results",
+        "rollback or recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-15",
+      "interfaceId": "IF-05",
+      "producer": "Zephyr update service / bootloader",
+      "consumer": "RN update bridge",
+      "caseKind": "fota_forward",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "fromFirmwareBuild",
+        "toFirmwareBuild",
+        "fromKeyStoreSchema",
+        "toKeyStoreSchema",
+        "partitionDigest",
+        "bootloaderCommit",
+        "migrationProfile"
+      ],
+      "compatibilityRule": "기존 FW→신규 FW; 기기 key/settings 보존 후 새 이미지 확인; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-16",
+      "interfaceId": "IF-05",
+      "producer": "Zephyr update service / bootloader",
+      "consumer": "RN update bridge",
+      "caseKind": "fota_rollback",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "failedFirmwareBuild",
+        "rollbackFirmwareBuild",
+        "fromKeyStoreSchema",
+        "rollbackReadableSchema",
+        "rollbackPolicy",
+        "partitionDigest"
+      ],
+      "compatibilityRule": "새 부팅 실패→복귀; 이전 firmware의 migrated store 읽기 가능성 또는 안전 복구; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-17",
+      "interfaceId": "IF-05",
+      "producer": "Zephyr update service / bootloader",
+      "consumer": "RN update bridge",
+      "caseKind": "old_app_new_firmware",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "oldAppBuild",
+        "newFirmwareBuild",
+        "nativeBridgeVersion",
+        "controlProfile",
+        "smpProfile",
+        "firmwareOfferSchema"
+      ],
+      "compatibilityRule": "구버전 앱→신규 FW; 권한 유지한 지원/거절·업데이트 안내; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-18",
+      "interfaceId": "IF-03",
+      "producer": "firmware session service",
+      "consumer": "RN native bridge / kiosk / ranging peer",
+      "caseKind": "ble_owner",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "ownerAppBuild",
+        "osBuild",
+        "nativeBridgeVersion",
+        "deviceFirmware",
+        "controlProfile",
+        "handshakeProfile",
+        "ownerScope",
+        "smpAccessPolicy"
+      ],
+      "compatibilityRule": "owner 세션; 설정/키관리/FOTA의 정확한 허용 행위; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-19",
+      "interfaceId": "IF-03",
+      "producer": "firmware session service",
+      "consumer": "RN native bridge / kiosk / ranging peer",
+      "caseKind": "ble_payment_terminal",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "kioskBuild",
+        "osBuild",
+        "nativeBridgeVersion",
+        "deviceFirmware",
+        "controlProfile",
+        "handshakeProfile",
+        "attemptScope",
+        "smpAccessPolicy"
+      ],
+      "compatibilityRule": "결제 단말 세션; 서명검토 이외 키관리/FOTA 차단; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-20",
+      "interfaceId": "IF-03",
+      "producer": "firmware session service",
+      "consumer": "RN native bridge / kiosk / ranging peer",
+      "caseKind": "ble_ranging_peer",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "peerBoardRevision",
+        "peerFirmware",
+        "deviceFirmware",
+        "rasProfile",
+        "handshakeProfile",
+        "observationFreshness",
+        "roleScope"
+      ],
+      "compatibilityRule": "거리 peer; session-bound observation 외 지갑/업데이트 권한 금지; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-21",
+      "interfaceId": "IF-10",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "caseKind": "signature_eoa_transaction",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "curve",
+        "hashAlgorithm",
+        "transactionEncoding",
+        "chainId",
+        "reviewDecoder",
+        "deviceSignerProfile",
+        "validatorVersion"
+      ],
+      "compatibilityRule": "EOA transaction 고정 입력의 digest·서명·복원 주소와 거래 bytes 일치; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": [],
+      "approvalAcceptanceRef": "approval-adoption-plan.json (historical design criteria; runtime unverified)"
+    },
+    {
+      "id": "COMP-22",
+      "interfaceId": "IF-10",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "caseKind": "signature_typed_data",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "curve",
+        "hashAlgorithm",
+        "domainProfile",
+        "typedDataEncoding",
+        "reviewDecoder",
+        "signerProfile",
+        "verifierAddress",
+        "verifierCodeHash"
+      ],
+      "compatibilityRule": "typed-data domain/source/chain binding과 표시 필드 검증; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-23",
+      "interfaceId": "IF-10",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "caseKind": "signature_user_operation",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "curve",
+        "hashAlgorithm",
+        "userOpPacking",
+        "userOpHashVersion",
+        "chainId",
+        "entryPointAddress",
+        "entryPointCodeHash",
+        "accountCodeHash",
+        "reviewDecoder"
+      ],
+      "compatibilityRule": "UserOp hash·EntryPoint·계정 validator·개별 실행 상태 일치; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-24",
+      "interfaceId": "IF-06",
+      "producer": "firmware CTAP authenticator",
+      "consumer": "verified CTAP transport / RP client",
+      "caseKind": "signature_passkey_assertion",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "rpId",
+        "clientDataProfile",
+        "authenticatorDataProfile",
+        "coseAlgorithm",
+        "ctapTransport",
+        "uvPolicy",
+        "credentialStoreSchema"
+      ],
+      "compatibilityRule": "RP/clientData/authenticatorData/서명과 UP/UV 상태 검증; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-25",
+      "interfaceId": "IF-10",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "caseKind": "signature_did_proof",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "credentialProfile",
+        "didMethod",
+        "proofSuite",
+        "statusProfile",
+        "issuerKeyVersion",
+        "verifierVersion",
+        "reviewDecoder"
+      ],
+      "compatibilityRule": "credential 목적·발급자·proof suite·status/철회와 제시 범위 검증; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    },
+    {
+      "id": "COMP-26",
+      "interfaceId": "IF-10",
+      "producer": "signing orchestrator",
+      "consumer": "app review / chain submitter",
+      "caseKind": "signature_x402_proof",
+      "requiredPins": [
+        "producerBuild",
+        "consumerBuild",
+        "x402Version",
+        "mechanism",
+        "network",
+        "tokenAddress",
+        "tokenCodeHash",
+        "authorizationMethod",
+        "nonceProfile",
+        "signerProfile",
+        "settlementVerifier",
+        "gasPolicy",
+        "reviewDecoder"
+      ],
+      "compatibilityRule": "payment requirement·토큰 authorization·nonce·settlement·gas payer 검증; exact tested tuple, different source/domain/role rejected",
+      "mismatchAction": "unsupported operation rejected; no weak-profile downgrade or blind-signing fallback; preserve safe recovery and existing chain observation",
+      "evidenceRequired": [
+        "fixed valid test vector",
+        "mutated source/domain/chain/role negative vector",
+        "redacted real device/app/verifier result",
+        "recovery outcome"
+      ],
+      "status": "unverified",
+      "testEvidenceRefs": []
+    }
+  ]
+}

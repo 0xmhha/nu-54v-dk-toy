@@ -1,0 +1,11 @@
+{
+  "name": "nu-54v-dk-toy",
+  "private": true,
+  "version": "0.0.0",
+  "description": "NU-54V-DK travel wallet product monorepo",
+  "scripts": {
+    "docs:links": "python3 scripts/check_markdown_links.py",
+    "validate:design": "python3 docs/content/planning/validate_design_freeze.py",
+    "validate:specs": "python3 docs/content/specifications/validate_specs.py"
+  }
+}

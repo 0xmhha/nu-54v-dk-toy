@@ -1,0 +1,1184 @@
+{
+  "notice": "Synthetic shapes and finite semantic examples only; no valid signatures or live service evidence.",
+  "runtimeTests": "not_run",
+  "valid": [
+    {
+      "name": "request-030",
+      "schema": "API030Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "resourceCapability": "synthetic-scope"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "request-035",
+      "schema": "API035Request",
+      "value": {
+        "path": {
+          "attemptId": "attempt-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "resourceCapability": "synthetic-scope"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "request-038",
+      "schema": "API038Request",
+      "value": {
+        "path": {
+          "refundId": "refund-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "resourceCapability": "synthetic-scope"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "request-030-operator",
+      "schema": "API030Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "authorization": "Bearer synthetic-session"
+        },
+        "query": {
+          "refundSourcesLimit": 20,
+          "refundSourcesCursor": null
+        }
+      }
+    },
+    {
+      "name": "request-036",
+      "schema": "API036Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "idempotencyKey": "idem-demo",
+          "authorization": "Bearer synthetic-session",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft"
+        },
+        "body": {
+          "paymentId": "allocation-demo",
+          "expectedFundingRevision": 4,
+          "amount": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "2"
+          },
+          "destinationProof": {
+            "proofId": "proof-demo",
+            "profileId": "refund-destination"
+          },
+          "reason": "duplicate_payment"
+        }
+      }
+    },
+    {
+      "name": "request-037-current-signer-preserved",
+      "schema": "API037Request",
+      "value": {
+        "path": {
+          "refundId": "refund_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "expectedRevision": 1,
+          "expectedFundingRevision": 5,
+          "merchantSigner": {
+            "walletId": "merchant_wallet",
+            "walletBindingId": "merchant_binding",
+            "expectedWalletRevision": 2,
+            "expectedBindingRevision": 4,
+            "signerRef": "merchant_signer",
+            "signerKind": "hardware_eoa",
+            "expectedSignerEpoch": "3"
+          }
+        }
+      }
+    },
+    {
+      "name": "response-037-current-snapshot-preserved",
+      "schema": "API037Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "snapshot": {
+              "sourceKind": "merchant_refund",
+              "intent": {
+                "intentId": "intent_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "recipientAddress": "0x2222222222222222222222222222222222222222",
+                "asset": {
+                  "assetId": "dummy_usdc",
+                  "chainId": 8283,
+                  "kind": "erc20",
+                  "tokenAddress": "0x3333333333333333333333333333333333333333",
+                  "decimals": 6,
+                  "displaySymbol": "tUSDC",
+                  "isTestAsset": true
+                },
+                "atomicAmount": "1000000",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "encodingProfile": "synthetic_profile",
+                "transaction": {
+                  "to": "0x3333333333333333333333333333333333333333",
+                  "value": "0",
+                  "data": "0x",
+                  "nonce": "1",
+                  "gasLimit": "100000",
+                  "feeParameters": {}
+                },
+                "merchantDisplay": {
+                  "storeId": "store_a",
+                  "name": "Test Cafe"
+                },
+                "refundId": "refund_a"
+              },
+              "context": {
+                "approvalContextId": "approval_a",
+                "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "intentId": "intent_a",
+                "operationId": "op_a",
+                "chainId": 8283,
+                "payerAddress": "0x1111111111111111111111111111111111111111",
+                "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+                "requestKind": "eoa_transaction",
+                "profileId": "synthetic_profile",
+                "expiresAt": "2026-09-18T08:00:00Z",
+                "sourceKind": "merchant_refund",
+                "storeId": "store_a",
+                "refundId": "refund_a",
+                "paymentId": "allocation_a",
+                "reservationId": "reservation_a",
+                "authorizedRefundRevision": 2,
+                "authorizedFundingRevision": 5,
+                "merchantAuthorizationId": "authorization_a",
+                "selection": {
+                  "walletId": "wallet_a",
+                  "walletBindingId": "binding_a",
+                  "walletRevision": 2,
+                  "bindingRevision": 4,
+                  "signerRef": "signer_a",
+                  "signerKind": "hardware_eoa",
+                  "epoch": {
+                    "kind": "device",
+                    "deviceEpoch": "3"
+                  }
+                },
+                "contractVersions": {
+                  "http": "approval-v1-draft",
+                  "ble": "approval-ble-v1-draft",
+                  "evidenceProfile": "synthetic_profile"
+                }
+              },
+              "reviewProof": {
+                "profileId": "synthetic_profile",
+                "evidenceBytes": "U1lOVEhFVElD"
+              }
+            },
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "refund": {
+              "refundId": "refund_a",
+              "paymentId": "allocation_a",
+              "orderId": "order_a",
+              "assetId": "dummy_usdc",
+              "atomicAmount": "1000000",
+              "destinationAddress": "0x2222222222222222222222222222222222222222",
+              "state": "authorized",
+              "revision": 2
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      }
+    },
+    {
+      "name": "order-public-envelope",
+      "schema": "API030Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "order_public",
+            "order": {
+              "orderId": "order-demo",
+              "storeId": "store-demo",
+              "revision": 3,
+              "state": "paid",
+              "price": {
+                "currency": "KRW",
+                "minorAmount": "4000",
+                "fractionDigits": 0
+              },
+              "recipientAddress": "0x1111111111111111111111111111111111111111",
+              "createdAt": "2026-09-18T09:00:00Z"
+            },
+            "paymentSummary": {
+              "state": "accepted",
+              "acceptedAmount": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "10"
+              },
+              "reasonCodes": [],
+              "revision": 3,
+              "observedAt": "2026-09-18T09:00:00Z",
+              "canStartPayment": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "order-reconfirmation-envelope",
+      "schema": "API030Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "order_public",
+            "order": {
+              "orderId": "order-demo",
+              "storeId": "store-demo",
+              "revision": 3,
+              "state": "paid",
+              "price": {
+                "currency": "KRW",
+                "minorAmount": "4000",
+                "fractionDigits": 0
+              },
+              "recipientAddress": "0x1111111111111111111111111111111111111111",
+              "createdAt": "2026-09-18T09:00:00Z"
+            },
+            "paymentSummary": {
+              "state": "reconfirmation_required",
+              "acceptedAmount": null,
+              "reasonCodes": [
+                "payment_reobserving"
+              ],
+              "revision": 3,
+              "observedAt": "2026-09-18T09:00:00Z",
+              "canStartPayment": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "order-refund-operator-envelope",
+      "schema": "API030Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "store_refund_operator",
+            "order": {
+              "orderId": "order-demo",
+              "storeId": "store-demo",
+              "revision": 3,
+              "state": "paid",
+              "price": {
+                "currency": "KRW",
+                "minorAmount": "4000",
+                "fractionDigits": 0
+              },
+              "recipientAddress": "0x1111111111111111111111111111111111111111",
+              "createdAt": "2026-09-18T09:00:00Z"
+            },
+            "paymentSummary": {
+              "state": "accepted",
+              "acceptedAmount": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "10"
+              },
+              "reasonCodes": [],
+              "revision": 3,
+              "observedAt": "2026-09-18T09:00:00Z",
+              "canStartPayment": false
+            },
+            "refundSources": [
+              {
+                "paymentId": "allocation-demo",
+                "attemptId": "attempt-demo",
+                "assetId": "dummy-usdc",
+                "sourceKind": "accepted_payment",
+                "canonicality": "canonical",
+                "policySatisfied": true,
+                "policyRefundable": {
+                  "assetId": "dummy-usdc",
+                  "atomicAmount": "10"
+                },
+                "reserved": {
+                  "assetId": "dummy-usdc",
+                  "atomicAmount": "2"
+                },
+                "confirmed": {
+                  "assetId": "dummy-usdc",
+                  "atomicAmount": "6"
+                },
+                "available": {
+                  "assetId": "dummy-usdc",
+                  "atomicAmount": "2"
+                },
+                "authorizationHeld": false,
+                "holdReasons": [],
+                "fundingRevision": 4
+              }
+            ],
+            "sourcePage": {
+              "nextCursor": null,
+              "snapshotRevision": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "own-invalidated-attempt-envelope",
+      "schema": "API035Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "attempt": {
+              "attemptId": "attempt-demo",
+              "orderId": "order-demo",
+              "state": "accepted",
+              "revision": 2
+            },
+            "observation": null,
+            "exception": null,
+            "allocation": {
+              "paymentId": "allocation-demo",
+              "state": "invalidated",
+              "isPrimary": true,
+              "reasonCodes": [
+                "payment_reobserving"
+              ],
+              "revision": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refund-customer-reobserving-envelope",
+      "schema": "API038Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "refund_customer",
+            "refund": {
+              "refundId": "refund-demo",
+              "paymentId": "allocation-demo",
+              "orderId": "order-demo",
+              "assetId": "dummy-usdc",
+              "atomicAmount": "6",
+              "destinationAddress": "0x2222222222222222222222222222222222222222",
+              "state": "unknown",
+              "revision": 5
+            },
+            "transactionRef": "tx-demo",
+            "reconciliation": {
+              "fundingState": "held",
+              "reasonCodes": [
+                "refund_reobserving"
+              ],
+              "reservationState": "active",
+              "execution": "unknown",
+              "canonicality": "orphaned",
+              "confirmation": "pending",
+              "observedAt": "2026-09-18T09:00:00Z",
+              "revision": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refund-operator-reobserving-envelope",
+      "schema": "API038Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "store_refund_operator",
+            "refund": {
+              "refundId": "refund-demo",
+              "paymentId": "allocation-demo",
+              "orderId": "order-demo",
+              "assetId": "dummy-usdc",
+              "atomicAmount": "6",
+              "destinationAddress": "0x2222222222222222222222222222222222222222",
+              "state": "unknown",
+              "revision": 5
+            },
+            "transactionRef": "tx-demo",
+            "reconciliation": {
+              "fundingState": "held",
+              "reasonCodes": [
+                "refund_reobserving"
+              ],
+              "reservationState": "active",
+              "execution": "unknown",
+              "canonicality": "orphaned",
+              "confirmation": "pending",
+              "observedAt": "2026-09-18T09:00:00Z",
+              "revision": 5
+            },
+            "refundSource": {
+              "paymentId": "allocation-demo",
+              "attemptId": "attempt-demo",
+              "assetId": "dummy-usdc",
+              "sourceKind": "accepted_payment",
+              "canonicality": "canonical",
+              "policySatisfied": true,
+              "policyRefundable": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "10"
+              },
+              "reserved": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "8"
+              },
+              "confirmed": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "0"
+              },
+              "available": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "2"
+              },
+              "authorizationHeld": true,
+              "holdReasons": [
+                "refund_reobserving"
+              ],
+              "fundingRevision": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "payment-event-v2",
+      "schema": "PaymentAcceptanceEvent",
+      "value": {
+        "eventId": "event-demo",
+        "schemaVersion": "2",
+        "occurredAt": "2026-09-18T09:00:00Z",
+        "correlationId": "correlation-demo",
+        "causationId": "cause-demo",
+        "type": "payment.acceptance.changed",
+        "aggregateType": "payment_allocation",
+        "aggregateId": "allocation-demo",
+        "aggregateRevision": 4,
+        "payload": {
+          "paymentId": "allocation-demo",
+          "orderId": "order-demo",
+          "attemptId": "attempt-demo",
+          "evidenceId": "evidence-demo",
+          "previousState": "accepted",
+          "newState": "invalidated",
+          "sourceObservationId": "observation-demo",
+          "sourceObservationRevision": 5,
+          "orderReconciliationRevision": 7,
+          "isPrimary": true,
+          "reasonCodes": [
+            "payment_reobserving"
+          ],
+          "amount": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "10"
+          }
+        }
+      }
+    },
+    {
+      "name": "refund-event-v2",
+      "schema": "RefundStateEvent",
+      "value": {
+        "eventId": "event-demo",
+        "schemaVersion": "2",
+        "occurredAt": "2026-09-18T09:00:00Z",
+        "correlationId": "correlation-demo",
+        "causationId": "cause-demo",
+        "type": "refund.state.changed",
+        "aggregateType": "refund",
+        "aggregateId": "refund-demo",
+        "aggregateRevision": 5,
+        "payload": {
+          "refundId": "refund-demo",
+          "paymentId": "allocation-demo",
+          "previousState": "confirmed",
+          "newState": "unknown",
+          "amount": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "6"
+          },
+          "reservationState": "active",
+          "fundingRevision": 5,
+          "sourceObservationId": "observation-refund",
+          "sourceObservationRevision": 8,
+          "reasonCodes": [
+            "refund_reobserving"
+          ]
+        }
+      }
+    },
+    {
+      "name": "response-036",
+      "schema": "API036Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "refund": {
+              "refundId": "refund-demo",
+              "paymentId": "payment-demo",
+              "orderId": "order-demo",
+              "assetId": "dummy-usdc",
+              "atomicAmount": "2000000",
+              "destinationAddress": "0x3333333333333333333333333333333333333333",
+              "state": "requested",
+              "revision": 1
+            },
+            "reservedAmount": {
+              "assetId": "dummy-usdc",
+              "atomicAmount": "2000000"
+            }
+          }
+        },
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        }
+      }
+    },
+    {
+      "name": "funding-conflict-error",
+      "schema": "CommerceErrorResponse",
+      "value": {
+        "statusCode": 409,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "error": {
+            "code": "SOURCE_CHANGED",
+            "message": "환불 원천을 다시 조회해 주세요.",
+            "retryable": false
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "reject-historical-037-without-signer",
+      "schema": "API037Request",
+      "value": {
+        "path": {
+          "refundId": "refund_a"
+        },
+        "headers": {
+          "requestId": "req_a",
+          "authorization": "Bearer SYNTHETIC_NOT_A_CREDENTIAL",
+          "contractVersion": "approval-v1-draft",
+          "idempotencyKey": "idem_a"
+        },
+        "body": {
+          "expectedRevision": 1,
+          "expectedFundingRevision": 5
+        }
+      },
+      "reason": "reject-historical-037-without-signer"
+    },
+    {
+      "name": "reject-refund-without-source",
+      "schema": "API036Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "idempotencyKey": "idem-demo",
+          "authorization": "Bearer synthetic-session",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft"
+        },
+        "body": {
+          "expectedFundingRevision": 4,
+          "amount": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "2"
+          },
+          "destinationProof": {
+            "proofId": "proof-demo",
+            "profileId": "refund-destination"
+          },
+          "reason": "duplicate_payment"
+        }
+      },
+      "reason": "reject-refund-without-source"
+    },
+    {
+      "name": "reject-refund-without-funding-revision",
+      "schema": "API036Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "idempotencyKey": "idem-demo",
+          "authorization": "Bearer synthetic-session",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft"
+        },
+        "body": {
+          "paymentId": "allocation-demo",
+          "amount": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "2"
+          },
+          "destinationProof": {
+            "proofId": "proof-demo",
+            "profileId": "refund-destination"
+          },
+          "reason": "duplicate_payment"
+        }
+      },
+      "reason": "reject-refund-without-funding-revision"
+    },
+    {
+      "name": "reject-client-projection-selector",
+      "schema": "API030Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "resourceCapability": "synthetic-scope"
+        },
+        "query": {
+          "projection": "store_refund_operator"
+        }
+      },
+      "reason": "reject-client-projection-selector"
+    },
+    {
+      "name": "reject-zero-page-size",
+      "schema": "API030Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "authorization": "Bearer synthetic-session"
+        },
+        "query": {
+          "refundSourcesLimit": 0,
+          "refundSourcesCursor": null
+        }
+      },
+      "reason": "reject-zero-page-size"
+    },
+    {
+      "name": "reject-unbounded-page-size",
+      "schema": "API030Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "authorization": "Bearer synthetic-session"
+        },
+        "query": {
+          "refundSourcesLimit": 101,
+          "refundSourcesCursor": null
+        }
+      },
+      "reason": "reject-unbounded-page-size"
+    },
+    {
+      "name": "reject-unknown-contract",
+      "schema": "API030Request",
+      "value": {
+        "path": {
+          "orderId": "order-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "legacy",
+          "resourceCapability": "synthetic-scope"
+        },
+        "query": {}
+      },
+      "reason": "reject-unknown-contract"
+    },
+    {
+      "name": "reject-attempt-without-capability",
+      "schema": "API035Request",
+      "value": {
+        "path": {
+          "attemptId": "attempt-demo"
+        },
+        "headers": {
+          "requestId": "req-demo",
+          "commerceContractVersion": "commerce-reconciliation-v1-draft"
+        },
+        "query": {}
+      },
+      "reason": "reject-attempt-without-capability"
+    },
+    {
+      "name": "reject-public-source-budget",
+      "schema": "API030Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "order_public",
+            "order": {
+              "orderId": "order-demo",
+              "storeId": "store-demo",
+              "revision": 3,
+              "state": "paid",
+              "price": {
+                "currency": "KRW",
+                "minorAmount": "4000",
+                "fractionDigits": 0
+              },
+              "recipientAddress": "0x1111111111111111111111111111111111111111",
+              "createdAt": "2026-09-18T09:00:00Z"
+            },
+            "paymentSummary": {
+              "state": "accepted",
+              "acceptedAmount": {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "10"
+              },
+              "reasonCodes": [],
+              "revision": 3,
+              "observedAt": "2026-09-18T09:00:00Z",
+              "canStartPayment": false
+            },
+            "refundSources": []
+          }
+        }
+      },
+      "reason": "reject-public-source-budget"
+    },
+    {
+      "name": "reject-customer-source-budget",
+      "schema": "API038Response",
+      "value": {
+        "statusCode": 200,
+        "headers": {
+          "commerceContractVersion": "commerce-reconciliation-v1-draft",
+          "cacheControl": "no-store"
+        },
+        "body": {
+          "requestId": "req-demo",
+          "data": {
+            "projection": "refund_customer",
+            "refund": {
+              "refundId": "refund-demo",
+              "paymentId": "allocation-demo",
+              "orderId": "order-demo",
+              "assetId": "dummy-usdc",
+              "atomicAmount": "6",
+              "destinationAddress": "0x2222222222222222222222222222222222222222",
+              "state": "unknown",
+              "revision": 5
+            },
+            "transactionRef": "tx-demo",
+            "reconciliation": {
+              "fundingState": "held",
+              "reasonCodes": [
+                "refund_reobserving"
+              ],
+              "reservationState": "active",
+              "execution": "unknown",
+              "canonicality": "orphaned",
+              "confirmation": "pending",
+              "observedAt": "2026-09-18T09:00:00Z",
+              "revision": 5
+            },
+            "source": {}
+          }
+        }
+      },
+      "reason": "reject-customer-source-budget"
+    },
+    {
+      "name": "reject-v1-as-v2",
+      "schema": "PaymentAcceptanceEvent",
+      "value": {
+        "eventId": "event-demo",
+        "schemaVersion": "1",
+        "occurredAt": "2026-09-18T09:00:00Z",
+        "correlationId": "correlation-demo",
+        "causationId": "cause-demo",
+        "type": "payment.acceptance.changed",
+        "aggregateType": "payment_allocation",
+        "aggregateId": "allocation-demo",
+        "aggregateRevision": 4,
+        "payload": {
+          "paymentId": "allocation-demo",
+          "orderId": "order-demo",
+          "attemptId": "attempt-demo",
+          "evidenceId": "evidence-demo",
+          "previousState": "accepted",
+          "newState": "invalidated",
+          "sourceObservationId": "observation-demo",
+          "sourceObservationRevision": 5,
+          "orderReconciliationRevision": 7,
+          "isPrimary": true,
+          "reasonCodes": [
+            "payment_reobserving"
+          ],
+          "amount": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "10"
+          }
+        }
+      },
+      "reason": "reject-v1-as-v2"
+    },
+    {
+      "name": "reject-refund-response-without-snapshot",
+      "schema": "API037Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_a",
+          "data": {
+            "operation": {
+              "operationId": "op_a",
+              "kind": "source_approval",
+              "state": "running",
+              "revision": 1,
+              "resultRef": null,
+              "error": null,
+              "updatedAt": "2026-09-18T08:00:00Z"
+            },
+            "refund": {
+              "refundId": "refund_a",
+              "paymentId": "allocation_a",
+              "orderId": "order_a",
+              "assetId": "dummy_usdc",
+              "atomicAmount": "1000000",
+              "destinationAddress": "0x2222222222222222222222222222222222222222",
+              "state": "authorized",
+              "revision": 2
+            }
+          }
+        },
+        "headers": {
+          "cacheControl": "no-store",
+          "contractVersion": "approval-v1-draft"
+        }
+      },
+      "reason": "reject-refund-response-without-snapshot"
+    }
+  ],
+  "semanticCases": [
+    {
+      "id": "CRI-S01",
+      "rule": "refund_source_scope",
+      "facts": {
+        "pathOrder": "o1",
+        "allocationOrder": "o1",
+        "authorizedStore": "s1",
+        "allocationStore": "s1",
+        "requestAsset": "usdc",
+        "allocationAsset": "usdc"
+      },
+      "expected": true
+    },
+    {
+      "id": "CRI-S02",
+      "rule": "refund_source_scope",
+      "facts": {
+        "pathOrder": "o1",
+        "allocationOrder": "o2",
+        "authorizedStore": "s1",
+        "allocationStore": "s1",
+        "requestAsset": "usdc",
+        "allocationAsset": "usdc"
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S03",
+      "rule": "refund_source_scope",
+      "facts": {
+        "pathOrder": "o1",
+        "allocationOrder": "o1",
+        "authorizedStore": "s1",
+        "allocationStore": "s1",
+        "requestAsset": "wkrc",
+        "allocationAsset": "usdc"
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S04",
+      "rule": "new_reservation",
+      "facts": {
+        "expectedRevision": 5,
+        "currentRevision": 5,
+        "held": false,
+        "cap": 10,
+        "reserved": 2,
+        "confirmed": 6,
+        "amount": 2
+      },
+      "expected": true
+    },
+    {
+      "id": "CRI-S05",
+      "rule": "new_reservation",
+      "facts": {
+        "expectedRevision": 4,
+        "currentRevision": 5,
+        "held": false,
+        "cap": 10,
+        "reserved": 2,
+        "confirmed": 6,
+        "amount": 2
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S06",
+      "rule": "new_reservation",
+      "facts": {
+        "expectedRevision": 5,
+        "currentRevision": 5,
+        "held": true,
+        "cap": 10,
+        "reserved": 2,
+        "confirmed": 6,
+        "amount": 1
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S07",
+      "rule": "new_reservation",
+      "facts": {
+        "expectedRevision": 5,
+        "currentRevision": 5,
+        "held": false,
+        "cap": 10,
+        "reserved": 2,
+        "confirmed": 6,
+        "amount": 3
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S08",
+      "rule": "reorg_preserves_exposure",
+      "facts": {
+        "before": {
+          "cap": 10,
+          "reserved": 2,
+          "confirmed": 6
+        },
+        "after": {
+          "cap": 10,
+          "reserved": 8,
+          "confirmed": 0
+        },
+        "orphanedRefundAmount": 6
+      },
+      "expected": true
+    },
+    {
+      "id": "CRI-S09",
+      "rule": "reorg_preserves_exposure",
+      "facts": {
+        "before": {
+          "cap": 10,
+          "reserved": 2,
+          "confirmed": 6
+        },
+        "after": {
+          "cap": 10,
+          "reserved": 2,
+          "confirmed": 0
+        },
+        "orphanedRefundAmount": 6
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S10",
+      "rule": "receipt_allocation_scope",
+      "facts": {
+        "refundPayment": "p2",
+        "receiptPayment": "p1"
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S11",
+      "rule": "event_identity",
+      "facts": {
+        "aggregateId": "p1",
+        "payloadId": "p1",
+        "observationId": null,
+        "observationRevision": null
+      },
+      "expected": true
+    },
+    {
+      "id": "CRI-S12",
+      "rule": "event_identity",
+      "facts": {
+        "aggregateId": "p1",
+        "payloadId": "p2",
+        "observationId": "obs1",
+        "observationRevision": 3
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S13",
+      "rule": "event_identity",
+      "facts": {
+        "aggregateId": "p1",
+        "payloadId": "p1",
+        "observationId": "obs1",
+        "observationRevision": null
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S14",
+      "rule": "source_cursor",
+      "facts": {
+        "principalMatches": true,
+        "storeMatches": true,
+        "orderMatches": true,
+        "canRequestRefund": true,
+        "cursorRevision": 4,
+        "sourceListRevision": 5
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S15",
+      "rule": "source_cursor",
+      "facts": {
+        "principalMatches": true,
+        "storeMatches": true,
+        "orderMatches": true,
+        "canRequestRefund": false,
+        "cursorRevision": 5,
+        "sourceListRevision": 5
+      },
+      "expected": false
+    },
+    {
+      "id": "CRI-S16",
+      "rule": "source_cursor",
+      "facts": {
+        "principalMatches": true,
+        "storeMatches": true,
+        "orderMatches": true,
+        "canRequestRefund": true,
+        "cursorRevision": 5,
+        "sourceListRevision": 5
+      },
+      "expected": true
+    }
+  ]
+}

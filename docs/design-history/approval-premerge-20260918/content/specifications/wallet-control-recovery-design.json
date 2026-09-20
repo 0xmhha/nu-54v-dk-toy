@@ -1,0 +1,624 @@
+{
+  "version": "0.1.0-design-candidate",
+  "date": "2026-09-18",
+  "status": "design_candidate_not_merged",
+  "implementation": "deferred_by_user",
+  "document": "content/specifications/wallet-control-recovery-design.md",
+  "sourceFiles": [
+    "content/twelve-week-completion-scope-v3.md",
+    "content/planning/work-breakdown.json",
+    "content/planning/technology-selection.json",
+    "content/specifications/implementation-interfaces.json",
+    "content/specifications/api-catalog.json",
+    "content/specifications/screen-flows.json",
+    "content/specifications/database/002_wallet_device.sql",
+    "content/specifications/return-recovery-contract.json",
+    "content/specifications/security-integration-design.md"
+  ],
+  "decisionRefs": [
+    "D01",
+    "D02",
+    "D03",
+    "D04",
+    "D08",
+    "D09",
+    "D11",
+    "D19"
+  ],
+  "taskRefs": [
+    "BASE-06",
+    "APP-02",
+    "APP-03",
+    "HW-02",
+    "HW-03",
+    "HW-04",
+    "HW-05",
+    "AUTH-04",
+    "MPC-01",
+    "MPC-02",
+    "MPC-03",
+    "MPC-04",
+    "MPC-05",
+    "SHOP-06",
+    "STAMP-04",
+    "SMART-03",
+    "KEY-03"
+  ],
+  "invariants": [
+    {
+      "id": "WC-I01",
+      "rule": "Account login, wallet read, transaction approval and MPC recovery authority are distinct."
+    },
+    {
+      "id": "WC-I02",
+      "rule": "Keep NU standalone signing and Cloud MPC separate; no silent signer/address fallback."
+    },
+    {
+      "id": "WC-I03",
+      "rule": "Same chain/address shares balance and nonce; deduplication never merges private permissions."
+    },
+    {
+      "id": "WC-I04",
+      "rule": "Bind context, wallet, signer epoch, binding revision, payload, chain and expiry to each approval."
+    },
+    {
+      "id": "WC-I05",
+      "rule": "Platform cancellation/revocation does not invalidate a completed EOA signature or external key copy."
+    },
+    {
+      "id": "WC-I06",
+      "rule": "Keep HW key import outside generic APIs/logs; secure transport does not secure a compromised input endpoint."
+    },
+    {
+      "id": "WC-I07",
+      "rule": "MPC generation retry preserves request/session/public-key identity; no fabricated provisional address."
+    },
+    {
+      "id": "WC-I08",
+      "rule": "Threshold shares stay distributed during signing; recovery independence includes administration and authentication."
+    },
+    {
+      "id": "WC-I09",
+      "rule": "Participant replacement excludes mixed epochs and does not cure previously compromised quorum by assertion."
+    },
+    {
+      "id": "WC-I10",
+      "rule": "Keep unresolved new-travel recovery policy unresolved; no new destructive reset grant without required recovery checks."
+    },
+    {
+      "id": "WC-I11",
+      "rule": "Rental return, Cloud wallet, account records, passkey credentials and recording/location storage have separate lifecycles."
+    }
+  ],
+  "policyCandidates": [
+    {
+      "id": "WC-P01",
+      "decisionRefs": [
+        "D03"
+      ],
+      "topic": "HW and Cloud separate signers/addresses",
+      "proposal": "Separate addresses by default; explicit transfers between them",
+      "status": "proposed_not_user_confirmed",
+      "selection": null
+    },
+    {
+      "id": "WC-P02",
+      "decisionRefs": [
+        "D04"
+      ],
+      "topic": "Cloud MPC participants and independent recovery control",
+      "proposal": "Compare A+B+C 2-of-3 including B+C collusion and service outage; provider/actors not selected",
+      "status": "proposed_not_user_confirmed",
+      "selection": null
+    },
+    {
+      "id": "WC-P03",
+      "decisionRefs": [
+        "D03",
+        "D09"
+      ],
+      "topic": "New-travel late-asset recovery",
+      "sourceFile": "content/specifications/return-recovery-contract.json",
+      "sourceEntry": "RR-DEC-01",
+      "status": "awaiting_user_preference",
+      "selection": null,
+      "reaskThisTurn": false
+    },
+    {
+      "id": "WC-P04",
+      "decisionRefs": [
+        "D03",
+        "D04",
+        "D19"
+      ],
+      "topic": "Logout, participant storage and account deletion",
+      "proposal": "Separate session closure/participant lock from explicit key deletion and verify access before deletion",
+      "status": "proposed_not_user_confirmed",
+      "selection": null
+    }
+  ],
+  "contractImpacts": [
+    {
+      "id": "WC-C01",
+      "title": "Wallet read model and same-address grouping",
+      "apiRefs": [
+        "API-007",
+        "API-008",
+        "API-009"
+      ],
+      "screenRefs": [
+        "U02"
+      ],
+      "interfaceRefs": [
+        "IF-10"
+      ],
+      "taskRefs": [
+        "APP-02",
+        "BASE-06"
+      ],
+      "output": "Role-scoped address/signer availability projection and physical storage mapping",
+      "status": "unmerged_design_target"
+    },
+    {
+      "id": "WC-C02",
+      "title": "Device generation/import and public registration",
+      "apiRefs": [
+        "API-098"
+      ],
+      "screenRefs": [
+        "U04"
+      ],
+      "interfaceRefs": [
+        "IF-02",
+        "IF-03"
+      ],
+      "taskRefs": [
+        "HW-02",
+        "HW-03",
+        "HW-04"
+      ],
+      "output": "Device result versus registration retry, derivation identity and authenticated import profile",
+      "status": "unmerged_design_target"
+    },
+    {
+      "id": "WC-C03",
+      "title": "Bound approval and signer changes",
+      "apiRefs": [
+        "API-015",
+        "API-017",
+        "API-018",
+        "API-019",
+        "API-020"
+      ],
+      "screenRefs": [
+        "U03"
+      ],
+      "interfaceRefs": [
+        "IF-10"
+      ],
+      "taskRefs": [
+        "APP-03",
+        "HW-05",
+        "MPC-03",
+        "BASE-06"
+      ],
+      "output": "Complete request/response, signed-payload replay boundary, nonce replacement and permission revision rules",
+      "status": "unmerged_design_target"
+    },
+    {
+      "id": "WC-C04",
+      "title": "MPC generation/recovery lifecycle",
+      "apiRefs": [
+        "API-014",
+        "API-016",
+        "API-020"
+      ],
+      "screenRefs": [
+        "U02",
+        "U12"
+      ],
+      "interfaceRefs": [
+        "IF-11"
+      ],
+      "taskRefs": [
+        "MPC-01",
+        "MPC-02",
+        "MPC-04",
+        "MPC-05"
+      ],
+      "output": "Provider, participant epoch, partial completion, recovery evidence and service-independent access contract",
+      "status": "unmerged_design_target"
+    },
+    {
+      "id": "WC-C05",
+      "title": "Rental return by origin",
+      "apiRefs": [
+        "API-046",
+        "API-047",
+        "API-091"
+      ],
+      "screenRefs": [
+        "U24",
+        "U04",
+        "U05"
+      ],
+      "interfaceRefs": [
+        "IF-14"
+      ],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-02",
+        "KEY-03"
+      ],
+      "output": "Keep RR-DEC-01 pending; distinguish Cloud, imported key and new-travel late-asset recovery",
+      "status": "unmerged_design_target"
+    },
+    {
+      "id": "WC-C06",
+      "title": "Smart account relationship",
+      "apiRefs": [
+        "API-055",
+        "API-056"
+      ],
+      "screenRefs": [
+        "U13"
+      ],
+      "interfaceRefs": [
+        "IF-10"
+      ],
+      "taskRefs": [
+        "SMART-03",
+        "BASE-06"
+      ],
+      "output": "Address/assets/permissions changes by selected account model",
+      "status": "unmerged_design_target"
+    },
+    {
+      "id": "WC-C07",
+      "title": "Merchant context and account lifecycle",
+      "apiRefs": [
+        "API-008"
+      ],
+      "screenRefs": [
+        "U02",
+        "U25"
+      ],
+      "interfaceRefs": [
+        "IF-09",
+        "IF-10"
+      ],
+      "taskRefs": [
+        "SHOP-06",
+        "AUTH-04"
+      ],
+      "output": "Read permission versus refund approval/signing and independent account recovery/deletion policy",
+      "status": "unmerged_design_target"
+    }
+  ],
+  "cases": [
+    {
+      "id": "WC-01",
+      "title": "NU 미연결 시 자동 전환",
+      "trigger": "NU가 없는 상태로 HW 지갑 결제 요청",
+      "expected": "Cloud로 자동 전환하지 않고 해당 NU 연결을 안내한다",
+      "invariantRefs": [
+        "WC-I02"
+      ],
+      "impactRefs": [
+        "WC-C03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-02",
+      "title": "로그인과 서명 분리",
+      "trigger": "소셜 로그인 토큰만 제출",
+      "expected": "조회/등록의 허용 범위만 적용하고 MPC 서명·복구를 승인하지 않는다",
+      "invariantRefs": [
+        "WC-I01"
+      ],
+      "impactRefs": [
+        "WC-C03",
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-03",
+      "title": "주소 중복 표시",
+      "trigger": "동일 EOA를 여러 NU에 import",
+      "expected": "체인/주소별 잔액을 중복 합산하지 않으며 현재 컨텍스트의 승인 수단만 보인다",
+      "invariantRefs": [
+        "WC-I03"
+      ],
+      "impactRefs": [
+        "WC-C01"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-04",
+      "title": "외부 nonce 경쟁",
+      "trigger": "외부 원지갑이 동일 nonce 거래를 먼저 제출",
+      "expected": "원거래의 대체/실행/대기를 확인하고 필요 시 새 승인; 외부 제출 잠금 보장 금지",
+      "invariantRefs": [
+        "WC-I03",
+        "WC-I05"
+      ],
+      "impactRefs": [
+        "WC-C03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-05",
+      "title": "서명 전 지갑 변경",
+      "trigger": "견적 후 payer 지갑이나 개인/매장 컨텍스트 변경",
+      "expected": "기존 review를 재사용하지 않고 새 권한·견적·승인 결합을 만든다",
+      "invariantRefs": [
+        "WC-I04"
+      ],
+      "impactRefs": [
+        "WC-C03",
+        "WC-C07"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-06",
+      "title": "서명 후 연결 유실",
+      "trigger": "서명 결과가 전달된 뒤 제출 여부 불명확",
+      "expected": "원 intent/operation/tx 대사; 취소/기한으로 체인 서명 무효화 또는 자동 재결제 금지",
+      "invariantRefs": [
+        "WC-I05"
+      ],
+      "impactRefs": [
+        "WC-C03"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-07",
+      "title": "매장 조회권 오용",
+      "trigger": "매장 자산 조회자 또는 같은 주소의 개인 사용자가 환불 서명 요청",
+      "expected": "현재 매장 binding·환불 업무 승인·실제 signer 권한을 각각 검사",
+      "invariantRefs": [
+        "WC-I01",
+        "WC-I03",
+        "WC-I04"
+      ],
+      "impactRefs": [
+        "WC-C07"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-08",
+      "title": "import 등록 응답 유실",
+      "trigger": "NU import 성공 후 API-098 응답 유실",
+      "expected": "공개 결과/소유 증명으로 원결과 조회·연결; 새 키 생성과 비밀 캐시 재전송 금지",
+      "invariantRefs": [
+        "WC-I06"
+      ],
+      "impactRefs": [
+        "WC-C02"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-09",
+      "title": "미인증 import 수신자",
+      "trigger": "가짜 장치/이전 세션에 암호화만 하여 키 전송 시도",
+      "expected": "인증된 현재 기기/세션 결합 전에는 전송을 허용하지 않는다",
+      "invariantRefs": [
+        "WC-I06"
+      ],
+      "impactRefs": [
+        "WC-C02"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-10",
+      "title": "MPC 생성 응답 유실",
+      "trigger": "DKG 일부 또는 전부 완료 후 서버 등록 응답 유실",
+      "expected": "같은 createRequestId/session/public key 관계 복구; 다른 주소 자동 생성·임시 입금 주소 금지",
+      "invariantRefs": [
+        "WC-I07"
+      ],
+      "impactRefs": [
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-11",
+      "title": "복구 참여자 재발급 우회",
+      "trigger": "A 유실 후 동일 소셜 로그인만으로 C 재발급 요청",
+      "expected": "소셜 인증만으로 B+C 복구 quorum 해제 금지; 독립 사전 복구 근거 확인",
+      "invariantRefs": [
+        "WC-I01",
+        "WC-I08"
+      ],
+      "impactRefs": [
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-12",
+      "title": "서비스 중단",
+      "trigger": "B API/로그인/인프라 사용 불가",
+      "expected": "A+C가 B에 의존하지 않는 검증된 경로를 갖추기 전 복구 가능으로 표시하지 않는다",
+      "invariantRefs": [
+        "WC-I08"
+      ],
+      "impactRefs": [
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-13",
+      "title": "임계값 부족",
+      "trigger": "2-of-3 후보에서 C만 접근 가능",
+      "expected": "임계값 부족으로 차단; 지원팀 또는 NU 키로 대체 서명하지 않는다",
+      "invariantRefs": [
+        "WC-I08"
+      ],
+      "impactRefs": [
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-14",
+      "title": "교체 중 구세대 요청",
+      "trigger": "participant 교체 중 기존 round/사전 생성 자료 도착",
+      "expected": "구세대 처리/새세대 활성화 규칙 적용; epoch 혼합 금지, 이미 완성된 서명은 별도 관측",
+      "invariantRefs": [
+        "WC-I09",
+        "WC-I05"
+      ],
+      "impactRefs": [
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-15",
+      "title": "이미 유출된 quorum",
+      "trigger": "유효한 두 share가 외부로 유출된 후 refresh 수행",
+      "expected": "서비스 철회만으로 키 안전 회복 선언 금지; 새 키/주소·자산/권한 이동 필요성 별도 평가",
+      "invariantRefs": [
+        "WC-I09"
+      ],
+      "impactRefs": [
+        "WC-C04"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-16",
+      "title": "복구 수단 없는 신규 반납",
+      "trigger": "신규 여행 지갑 잔액 0, RR-DEC-01 미답변",
+      "expected": "미래 입금 복구 해결로 보지 않고 필수 조건 미충족이면 새 reset commit 금지",
+      "invariantRefs": [
+        "WC-I10"
+      ],
+      "impactRefs": [
+        "WC-C05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-17",
+      "title": "import 반납",
+      "trigger": "외부 지갑 접근이 남아 있는 기존 지갑 반납",
+      "expected": "외부 접근 확인 후 NU 사본 삭제 범위를 적용; unrelated 자산 전액 회수·외부 키 삭제 주장 금지",
+      "invariantRefs": [
+        "WC-I05",
+        "WC-I11"
+      ],
+      "impactRefs": [
+        "WC-C05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-18",
+      "title": "Cloud 잔액과 NU 반납",
+      "trigger": "NU를 반납하지만 Cloud 지갑에 자산과 기록 존재",
+      "expected": "Cloud share 자동 삭제 금지; 영수증/기록과 기기 자격 수명주기 별도",
+      "invariantRefs": [
+        "WC-I11"
+      ],
+      "impactRefs": [
+        "WC-C05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-19",
+      "title": "유일한 passkey 반납",
+      "trigger": "NU 자격만으로 서비스에 로그인 가능",
+      "expected": "대체 로그인/복구 조건을 별도 확인; MPC 지갑 복구를 passkey 복구로 대체하지 않는다",
+      "invariantRefs": [
+        "WC-I11"
+      ],
+      "impactRefs": [
+        "WC-C05"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-20",
+      "title": "스마트 계정 전환",
+      "trigger": "EOA에서 선택한 스마트 계정 모델 전환",
+      "expected": "주소·검증 정책·자산·기록/권한 변경을 검토하고 실제 결과 확인 전 자동 이전 표시 금지",
+      "invariantRefs": [
+        "WC-I04",
+        "WC-I11"
+      ],
+      "impactRefs": [
+        "WC-C06"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "WC-21",
+      "title": "탈퇴와 복구",
+      "trigger": "소셜 탈퇴 또는 동일 이메일의 다른 제공자 로그인",
+      "expected": "이메일만으로 계정 병합/키복구 금지; 자산 접근·대여·데이터삭제 결과를 분리",
+      "invariantRefs": [
+        "WC-I01",
+        "WC-I11"
+      ],
+      "impactRefs": [
+        "WC-C07"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "canonicalCounts": {
+    "apiOperations": 107,
+    "bleCommands": 34,
+    "screens": 37
+  },
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "evidenceRefs": [],
+  "externalReferences": [
+    {
+      "url": "https://csrc.nist.gov/projects/threshold-cryptography",
+      "checkedAt": "2026-09-18",
+      "use": "Distributed threshold computation without whole-key reconstruction; not certification of selected product or topology"
+    },
+    {
+      "url": "https://ethereum.org/developers/docs/accounts/",
+      "checkedAt": "2026-09-18",
+      "use": "EOA private-key control; implications for platform revocation stated as design inference"
+    }
+  ]
+}

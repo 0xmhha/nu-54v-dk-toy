@@ -1,0 +1,361 @@
+{
+  "status": "canonical_design_integrated_runtime_unverified",
+  "document": "approval-baseline.md",
+  "checkpoint": "../../design-history/approval-premerge-20260918",
+  "schemaFile": "approval-baseline.schema.json",
+  "examplesFile": "approval-baseline-examples.json",
+  "canonicalMerged": true,
+  "archiveCreated": true,
+  "runtimeVerified": false,
+  "implementation": "deferred_by_user",
+  "routes": [
+    {
+      "id": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "baselineAuthorization": "account",
+      "requestSchema": "API007Request",
+      "responseSchema": "API007Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "account"
+    },
+    {
+      "id": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "baselineAuthorization": "store_asset_read",
+      "requestSchema": "API008Request",
+      "responseSchema": "API008Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "store_asset_read"
+    },
+    {
+      "id": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "baselineAuthorization": "wallet_read",
+      "requestSchema": "API009Request",
+      "responseSchema": "API009Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "wallet_read"
+    },
+    {
+      "id": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "baselineAuthorization": "wallet_sign_authorized",
+      "requestSchema": "API015Request",
+      "responseSchema": "API015Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "wallet_sign_authorized"
+    },
+    {
+      "id": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "baselineAuthorization": "wallet_use",
+      "requestSchema": "API017Request",
+      "responseSchema": "API017Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "wallet_use"
+    },
+    {
+      "id": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "baselineAuthorization": "intent_submit_capability",
+      "requestSchema": "API018Request",
+      "responseSchema": "API018Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "intent_submit_capability"
+    },
+    {
+      "id": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "baselineAuthorization": "transaction_read",
+      "requestSchema": "API019Request",
+      "responseSchema": "API019Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "transaction_read"
+    },
+    {
+      "id": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "baselineAuthorization": "operation_owner_or_capability",
+      "requestSchema": "API020Request",
+      "responseSchema": "API020Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "operation_owner_or_capability"
+    },
+    {
+      "id": "API-034",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/intents",
+      "baselineAuthorization": "attempt_device_capability",
+      "requestSchema": "API034Request",
+      "responseSchema": "API034Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-01",
+        "HW-05"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "attempt_device_capability"
+    },
+    {
+      "id": "API-037",
+      "method": "POST",
+      "path": "/v1/refunds/{refundId}/authorize",
+      "baselineAuthorization": "store_funds_manage_recent_auth",
+      "requestSchema": "API037Request",
+      "responseSchema": "API037Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "originAlias": null,
+      "authorization": "store_funds_manage_recent_auth"
+    },
+    {
+      "id": "API-108",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-challenges",
+      "requestSchema": "AccessChallengeRequest",
+      "responseSchema": "AccessChallengeResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false,
+      "status": "merged_design_runtime_unverified",
+      "taskRefs": [
+        "BASE-03",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "originAlias": "AC-01",
+      "authorization": "approval_access_challenge"
+    },
+    {
+      "id": "API-109",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants",
+      "requestSchema": "IssueAccessRequest",
+      "responseSchema": "IssueAccessResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false,
+      "status": "merged_design_runtime_unverified",
+      "taskRefs": [
+        "BASE-03",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "originAlias": "AC-02",
+      "authorization": "approval_access_issue"
+    },
+    {
+      "id": "API-110",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants/{grantId}/revoke",
+      "requestSchema": "RevokeAccessRequest",
+      "responseSchema": "RevokeAccessResponse",
+      "errorSchema": "AccessErrorResponse",
+      "catalogStatus": "proposed_not_registered",
+      "runtimeVerified": false,
+      "status": "merged_design_runtime_unverified",
+      "taskRefs": [
+        "AUTH-04",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "originAlias": "AC-03",
+      "authorization": "approval_access_revoke"
+    }
+  ],
+  "httpSchemas": {
+    "API-007": {
+      "requestSchema": "AB_integration_API007Request",
+      "responseSchema": "AB_integration_API007Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-008": {
+      "requestSchema": "AB_integration_API008Request",
+      "responseSchema": "AB_integration_API008Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-009": {
+      "requestSchema": "AB_integration_API009Request",
+      "responseSchema": "AB_integration_API009Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-015": {
+      "requestSchema": "AB_integration_API015Request",
+      "responseSchema": "AB_integration_API015Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-017": {
+      "requestSchema": "AB_integration_API017Request",
+      "responseSchema": "AB_integration_API017Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-018": {
+      "requestSchema": "AB_integration_API018Request",
+      "responseSchema": "AB_integration_API018Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-019": {
+      "requestSchema": "AB_integration_API019Request",
+      "responseSchema": "AB_integration_API019Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-020": {
+      "requestSchema": "AB_integration_API020Request",
+      "responseSchema": "AB_integration_API020Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-034": {
+      "requestSchema": "AB_integration_API034Request",
+      "responseSchema": "AB_integration_API034Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-037": {
+      "requestSchema": "AB_integration_API037Request",
+      "responseSchema": "AB_integration_API037Response",
+      "errorSchema": "AB_integration_ErrorResponse"
+    },
+    "API-108": {
+      "requestSchema": "AB_integration_AccessChallengeRequest",
+      "responseSchema": "AB_integration_AccessChallengeResponse",
+      "errorSchema": "AB_integration_AccessErrorResponse"
+    },
+    "API-109": {
+      "requestSchema": "AB_integration_IssueAccessRequest",
+      "responseSchema": "AB_integration_IssueAccessResponse",
+      "errorSchema": "AB_integration_AccessErrorResponse"
+    },
+    "API-110": {
+      "requestSchema": "AB_integration_RevokeAccessRequest",
+      "responseSchema": "AB_integration_RevokeAccessResponse",
+      "errorSchema": "AB_integration_AccessErrorResponse"
+    }
+  },
+  "bleMessages": [
+    {
+      "command": "payment.identify",
+      "role": "payment_terminal",
+      "requestSchema": "AB_BLE_PaymentIdentifyRequest",
+      "responseSchema": "AB_BLE_PaymentIdentifyResponse"
+    },
+    {
+      "command": "payment.prepare",
+      "role": "payment_terminal",
+      "requestSchema": "AB_BLE_PaymentPrepareRequest",
+      "responseSchema": "AB_BLE_PaymentPrepareResponse"
+    },
+    {
+      "command": "payment.result",
+      "role": "payment_terminal",
+      "requestSchema": "AB_BLE_PaymentResultRequest",
+      "responseSchema": "AB_BLE_PaymentResultResponse"
+    },
+    {
+      "command": "wallet.sign.prepare",
+      "role": "owner",
+      "requestSchema": "AB_BLE_WalletSignPrepareRequest",
+      "responseSchema": "AB_BLE_WalletSignPrepareResponse"
+    },
+    {
+      "command": "wallet.sign.result",
+      "role": "owner",
+      "requestSchema": "AB_BLE_WalletSignResultRequest",
+      "responseSchema": "AB_BLE_WalletSignResultResponse"
+    }
+  ],
+  "aliasMapping": {
+    "AC-01": "API-108",
+    "AC-02": "API-109",
+    "AC-03": "API-110"
+  },
+  "apiCount": 110,
+  "criticalApiCount": 8,
+  "extendedApiCount": 102,
+  "policyCount": 60,
+  "logicalStorageCount": 28,
+  "screenCount": 37,
+  "physicalSqlChanged": false,
+  "physicalSqlCoverage": "preexisting_61_tables_only; new approval storage constraints not tested",
+  "policySelectionUnchanged": true,
+  "newAcceptanceRowsStatus": "unverified",
+  "pendingDecision": "RR-DEC-01",
+  "historicalValidators": [
+    "validate_wallet_api.py",
+    "validate_source_approval.py",
+    "validate_approval_access.py",
+    "validate_approval_integration.py",
+    "validate_commerce_candidate.py",
+    "validate_return_protocol.py",
+    "render_approval_adoption.py"
+  ],
+  "storageMappingFile": "approval-storage-mapping.json",
+  "sourceDispatchFile": "approval-source-dispatch.json",
+  "remainingDesign": [
+    "approval physical design proposed; executable DDL, production engine/isolation/writer enforcement and recovery authority remain unselected/unverified",
+    "commerce reconciliation and return protocol full baseline adoption",
+    "smart_account/market_action/credential_proof/paid_resource typed adapters",
+    "runtime cryptographic profiles and actual environment selection"
+  ],
+  "checkpointManifestSha256": "549808fd792aeb35081d02a6371606579fa118265e34d2ae7ebbc4bb2aefff01",
+  "checkpointReportSha256": "75fed663022c2d0a1babcd20119804f55f7284e963eaade9289341f613b3905c",
+  "physicalStorageDesignFile": "approval-physical-storage-design.json",
+  "commerceIntegrationDesignFile": "commerce-reconciliation-integration.json"
+}

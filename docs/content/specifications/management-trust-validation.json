@@ -1,0 +1,462 @@
+{
+  "status": "passed",
+  "scope": "finite_management_trust_design_examples",
+  "casesPassed": 88,
+  "cases": [
+    {
+      "id": "bootstrap_externalBootstrapTrusted",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "bootstrap_externalBootstrapTrusted_no_epoch_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "bootstrap_virginInstall",
+      "observed": "bootstrap_denied",
+      "expected": "bootstrap_denied"
+    },
+    {
+      "id": "bootstrap_virginInstall_no_epoch_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "bootstrap_installProofCurrent",
+      "observed": "bootstrap_denied",
+      "expected": "bootstrap_denied"
+    },
+    {
+      "id": "bootstrap_installProofCurrent_no_epoch_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "bootstrap_ticketFresh",
+      "observed": "bootstrap_denied",
+      "expected": "bootstrap_denied"
+    },
+    {
+      "id": "bootstrap_ticketFresh_no_epoch_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "bootstrap_newKeyPop",
+      "observed": "new_key_unproven",
+      "expected": "new_key_unproven"
+    },
+    {
+      "id": "bootstrap_newKeyPop_no_epoch_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "bootstrap_policySelected",
+      "observed": "policy_unselected",
+      "expected": "policy_unselected"
+    },
+    {
+      "id": "bootstrap_policySelected_no_epoch_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "bootstrap_valid_fixture",
+      "observed": "committed_candidate",
+      "expected": "committed_candidate"
+    },
+    {
+      "id": "bootstrap_not_all_features_resumed",
+      "observed": "current_restricted",
+      "expected": "current_restricted"
+    },
+    {
+      "id": "bootstrap_retry",
+      "observed": "original_metadata_only",
+      "expected": "original_metadata_only"
+    },
+    {
+      "id": "bootstrap_no_duplicate_epoch",
+      "observed": 1,
+      "expected": 1
+    },
+    {
+      "id": "empty_db_claim_not_virgin",
+      "observed": "bootstrap_denied",
+      "expected": "bootstrap_denied"
+    },
+    {
+      "id": "rotation_environment",
+      "observed": "wrong_domain",
+      "expected": "wrong_domain"
+    },
+    {
+      "id": "rotation_environment_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_purpose",
+      "observed": "wrong_domain",
+      "expected": "wrong_domain"
+    },
+    {
+      "id": "rotation_purpose_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_currentAuthority",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "rotation_currentAuthority_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_policySelected",
+      "observed": "policy_unselected",
+      "expected": "policy_unselected"
+    },
+    {
+      "id": "rotation_policySelected_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_newKeyPop",
+      "observed": "new_key_unproven",
+      "expected": "new_key_unproven"
+    },
+    {
+      "id": "rotation_newKeyPop_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_oldAnchorApproved",
+      "observed": "continuity_denied",
+      "expected": "continuity_denied"
+    },
+    {
+      "id": "rotation_oldAnchorApproved_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_newAnchorApproved",
+      "observed": "continuity_denied",
+      "expected": "continuity_denied"
+    },
+    {
+      "id": "rotation_newAnchorApproved_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_rootChainComplete",
+      "observed": "continuity_denied",
+      "expected": "continuity_denied"
+    },
+    {
+      "id": "rotation_rootChainComplete_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_restoreAssessed",
+      "observed": "quarantine",
+      "expected": "quarantine"
+    },
+    {
+      "id": "rotation_restoreAssessed_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_checkpointCurrent",
+      "observed": "quarantine",
+      "expected": "quarantine"
+    },
+    {
+      "id": "rotation_checkpointCurrent_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_auditDurable",
+      "observed": "audit_pending",
+      "expected": "audit_pending"
+    },
+    {
+      "id": "rotation_auditDurable_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_expectedEpoch",
+      "observed": "epoch_conflict",
+      "expected": "epoch_conflict"
+    },
+    {
+      "id": "rotation_expectedEpoch_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_targetEpoch",
+      "observed": "nonconsecutive_epoch",
+      "expected": "nonconsecutive_epoch"
+    },
+    {
+      "id": "rotation_targetEpoch_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_expectedFence",
+      "observed": "fence_conflict",
+      "expected": "fence_conflict"
+    },
+    {
+      "id": "rotation_expectedFence_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_fence",
+      "observed": "fence_conflict",
+      "expected": "fence_conflict"
+    },
+    {
+      "id": "rotation_fence_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_now",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "rotation_now_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "rotation_requestDigest",
+      "observed": "digest_conflict",
+      "expected": "digest_conflict"
+    },
+    {
+      "id": "rotation_requestDigest_no_commit",
+      "observed": 4,
+      "expected": 4
+    },
+    {
+      "id": "self_elevation_not_approval",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "two_aliases_same_controller",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "duplicate_key_not_two_approvals",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "revoked_approver",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "approval_other_digest",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "rotation_valid_fixture",
+      "observed": "committed_candidate",
+      "expected": "committed_candidate"
+    },
+    {
+      "id": "rotation_increases_epoch",
+      "observed": 5,
+      "expected": 5
+    },
+    {
+      "id": "rotation_lost_response",
+      "observed": "original_metadata_only",
+      "expected": "original_metadata_only"
+    },
+    {
+      "id": "rotation_retry_keeps_epoch",
+      "observed": 5,
+      "expected": 5
+    },
+    {
+      "id": "old_mutation_permission_not_replayed",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "read_with_separate_current_scope",
+      "observed": 5,
+      "expected": 5
+    },
+    {
+      "id": "read_no_mutation",
+      "observed": true,
+      "expected": true
+    },
+    {
+      "id": "read_requires_current_scope",
+      "observed": "read_denied",
+      "expected": "read_denied"
+    },
+    {
+      "id": "compromise_not_normal_rotation",
+      "observed": "normal_rotation_denied",
+      "expected": "normal_rotation_denied"
+    },
+    {
+      "id": "pending_change_expiry_denied",
+      "observed": "approval_denied",
+      "expected": "approval_denied"
+    },
+    {
+      "id": "healthy_old_head_retained",
+      "observed": true,
+      "expected": true
+    },
+    {
+      "id": "recovery_recoveryPrecommitted",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "recovery_recoveryAuthorityValid",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "recovery_recoveryAnchorIndependent",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "recovery_newKeyPop",
+      "observed": "new_key_unproven",
+      "expected": "new_key_unproven"
+    },
+    {
+      "id": "recovery_checkpointCurrent",
+      "observed": "quarantine",
+      "expected": "quarantine"
+    },
+    {
+      "id": "independent_recovery_fixture",
+      "observed": "committed_candidate",
+      "expected": "committed_candidate"
+    },
+    {
+      "id": "recovery_stays_restricted",
+      "observed": "recovered_restricted",
+      "expected": "recovered_restricted"
+    },
+    {
+      "id": "recovery_does_not_lower_fence",
+      "observed": 3,
+      "expected": 3
+    },
+    {
+      "id": "management_recovery_no_wallet_key_change",
+      "observed": 0,
+      "expected": 0
+    },
+    {
+      "id": "recovery_retry_original_only",
+      "observed": "original_metadata_only",
+      "expected": "original_metadata_only"
+    },
+    {
+      "id": "same_case_new_request_not_second_recovery",
+      "observed": "recovery_case_consumed",
+      "expected": "recovery_case_consumed"
+    },
+    {
+      "id": "resume_resumeAuthority",
+      "observed": "authority_denied",
+      "expected": "authority_denied"
+    },
+    {
+      "id": "resume_separateReleaseReview",
+      "observed": "resume_hold",
+      "expected": "resume_hold"
+    },
+    {
+      "id": "resume_consumerCurrent",
+      "observed": "resume_hold",
+      "expected": "resume_hold"
+    },
+    {
+      "id": "resume_capabilityCurrent",
+      "observed": "resume_hold",
+      "expected": "resume_hold"
+    },
+    {
+      "id": "resume_after_separate_review",
+      "observed": "resumed_candidate",
+      "expected": "resumed_candidate"
+    },
+    {
+      "id": "resume_no_extra_epoch",
+      "observed": 5,
+      "expected": 5
+    },
+    {
+      "id": "consumer_85",
+      "observed": "eligible",
+      "expected": "eligible"
+    },
+    {
+      "id": "consumer_86",
+      "observed": "hold",
+      "expected": "hold"
+    },
+    {
+      "id": "consumer_87",
+      "observed": "hold",
+      "expected": "hold"
+    },
+    {
+      "id": "consumer_88",
+      "observed": "hold",
+      "expected": "hold"
+    }
+  ],
+  "fixtureApprovalQuorum": 2,
+  "fixtureQuorumIsPolicySelection": false,
+  "activeTrustChanges": 0,
+  "runtimeVerified": false,
+  "canonicalMerged": false,
+  "productImplementationPerformed": false,
+  "sourceHashes": {
+    "content/specifications/management-trust-lifecycle.json": "d0681180d0d0f867432debf91fe25af25eecbf86534bd9f70389638a49d8e5f0"
+  },
+  "limitations": [
+    "Approval signatures, identity independence, OOB provenance and checkpoints are synthetic verified-input flags.",
+    "The test quorum of 2 does not select a product threshold or assign people.",
+    "No private keys, management identities, SQL, protected storage, remote recovery or device firmware were exercised.",
+    "Serialized examples do not prove cross-store atomicity, root compromise recovery, or instantaneous offline revocation."
+  ]
+}

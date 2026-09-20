@@ -1,0 +1,75 @@
+{
+  "status": "template_only_no_credentials",
+  "secretPolicy": "Only secretRef identifiers are permitted in repository files.",
+  "providers": [
+    {
+      "id": "google_oidc",
+      "required": [
+        "clientIdAndroid",
+        "clientIdIos",
+        "serverClientId",
+        "redirectUris"
+      ],
+      "secretRef": "secret://oauth/google/client-secret"
+    },
+    {
+      "id": "apple_sign_in",
+      "required": [
+        "teamId",
+        "serviceId",
+        "bundleId",
+        "redirectUris"
+      ],
+      "secretRef": "secret://oauth/apple/signing-key"
+    },
+    {
+      "id": "kakao_local",
+      "required": [
+        "appId",
+        "allowedOrigins",
+        "allowedBundleIds"
+      ],
+      "secretRef": "secret://maps/kakao/rest-key"
+    },
+    {
+      "id": "openai",
+      "required": [
+        "projectId",
+        "regionPolicy",
+        "monthlyBudget"
+      ],
+      "modelAllowlist": [
+        "gpt-4o-mini-transcribe",
+        "gpt-5.6-luna"
+      ],
+      "secretRef": "secret://ai/openai/project-key"
+    },
+    {
+      "id": "mpc_participant_a",
+      "required": [
+        "workloadIdentity",
+        "mtlsCert",
+        "kmsKeyRef"
+      ],
+      "secretRef": "secret://mpc/a"
+    },
+    {
+      "id": "mpc_participant_b",
+      "required": [
+        "workloadIdentity",
+        "mtlsCert",
+        "kmsKeyRef"
+      ],
+      "secretRef": "secret://mpc/b"
+    },
+    {
+      "id": "mpc_recovery_c",
+      "required": [
+        "offlineCustodian",
+        "sealedShareRef",
+        "twoPersonPolicy"
+      ],
+      "secretRef": "offline://mpc/recovery-c"
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "mode": "fresh_temporary_cluster_single_user",
+  "serverVersion": "postgres (PostgreSQL) 15.12 (Homebrew)",
+  "businessTables": 61,
+  "migrationsApplied": 7,
+  "constraintCases": [
+    {
+      "id": "uint256_max",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "id": "uint256_overflow",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "fractional_atomic",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "negative_atomic",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "nan_total",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "second_active_rental",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "wrong_rental_owner",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "cross_store_order",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "wrong_observation_tx",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "wrong_allocation_observation",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "wrong_allocation_asset",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "refund_wrong_order",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "refund_wrong_asset",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "refund_over_reserve",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "return_wrong_binding",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "return_wrong_origin",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "id": "bundle_multiple_userops",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "id": "userop_before_bundle_hash",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "id": "duplicate_userop",
+      "expected": "reject",
+      "result": "pass"
+    }
+  ],
+  "scope": "DDL execution and sequential database constraints only; no multi-session locking, authorization or product tests",
+  "existingDatabaseTouched": false,
+  "networkListenerStarted": false,
+  "temporaryClusterRemoved": true,
+  "migrationHashes": {
+    "001_identity_foundation.sql": "55d0b6d62b0b5bceee378502667de41508921f608af625237deeefef571049dd",
+    "002_wallet_device.sql": "4cf3ac3de2fde4d984f1a0f0b1c01742642a63384a3cf115d174140c4b2c81c3",
+    "003_commerce_ledger.sql": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+    "004_device_lifecycle.sql": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2",
+    "005_privacy_recording.sql": "8ed77bba97d44fc5fceae6a72f6aaabb28e960529d4276d0e601546623617602",
+    "006_onchain_services.sql": "66b69ed4f6dccb9125e310eb075dc2d35d400cdf87ee96a703e11b7b88ccaca7",
+    "007_travel_challenges.sql": "e4fad1246d9f6e7dbd5d6c11b6a428c5132edd0228edd92fb5040686767e82f9"
+  }
+}

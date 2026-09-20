@@ -1,0 +1,2101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:approval:v1-draft",
+  "title": "Common approval and access grant design candidate; not a deployed protocol",
+  "$defs": {
+    "EvidencePacket": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "evidenceBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "profileId",
+        "evidenceBytes"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "operationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "chainId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/ChainId"
+        },
+        "payerAddress": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Address"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "reviewDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "expiresAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        },
+        "sourceKind": {
+          "const": "payment"
+        },
+        "storeId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "orderId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "attemptId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "attemptRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "terminalId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "deviceEpoch": {
+          "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+        },
+        "identifyEvidenceId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "proximityPolicyId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "proximityRequired": {
+          "type": "boolean"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "storeId",
+        "orderId",
+        "attemptId",
+        "attemptRevision",
+        "terminalId",
+        "sessionId",
+        "deviceSessionRef",
+        "deviceEpoch",
+        "identifyEvidenceId",
+        "proximityPolicyId",
+        "proximityRequired",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "RefundContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "operationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "chainId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/ChainId"
+        },
+        "payerAddress": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Address"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "reviewDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "expiresAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        },
+        "sourceKind": {
+          "const": "merchant_refund"
+        },
+        "storeId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "refundId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "paymentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "reservationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "authorizedRefundRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "authorizedFundingRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "merchantAuthorizationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/VerifiedSigner"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "storeId",
+        "refundId",
+        "paymentId",
+        "reservationId",
+        "authorizedRefundRevision",
+        "authorizedFundingRevision",
+        "merchantAuthorizationId",
+        "selection",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "payment"
+        },
+        "intent": {
+          "$ref": "urn:nu:approval:baseline#/$defs/EoaTokenIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/PaymentContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "RefundSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "merchant_refund"
+        },
+        "intent": {
+          "$ref": "urn:nu:approval:baseline#/$defs/EoaRefundIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/RefundContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceResultEvidence": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "device_result"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "signedPayloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "reviewId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "deviceEpoch": {
+          "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+        },
+        "proof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "kind",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest",
+        "signedPayloadDigest",
+        "reviewId",
+        "deviceSessionRef",
+        "deviceEpoch",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "MpcResultEvidence": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "mpc_session"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "signedPayloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "operationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "participantEpoch": {
+          "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+        }
+      },
+      "required": [
+        "kind",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest",
+        "signedPayloadDigest",
+        "operationId",
+        "participantEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "ResultEvidence": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DeviceResultEvidence"
+        },
+        {
+          "$ref": "#/$defs/MpcResultEvidence"
+        }
+      ]
+    },
+    "SigningResult": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "signedPayload": {
+          "type": "string",
+          "pattern": "^0x([0-9a-fA-F]{2})+$"
+        },
+        "approvalEvidence": {
+          "$ref": "#/$defs/ResultEvidence"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "signedPayload",
+        "approvalEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceSigningResult": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "signedPayload": {
+          "type": "string",
+          "pattern": "^0x([0-9a-fA-F]{2})+$"
+        },
+        "approvalEvidence": {
+          "$ref": "#/$defs/DeviceResultEvidence"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "signedPayload",
+        "approvalEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "Progress": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "review_ready",
+            "signing",
+            "signature_unknown",
+            "signed",
+            "submission_unknown",
+            "submitted",
+            "blocked",
+            "closed"
+          ]
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observedAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "intentId",
+        "phase",
+        "transactionRef",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    },
+    "ResultRequest": {
+      "type": "object",
+      "properties": {
+        "reviewId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        }
+      },
+      "required": [
+        "reviewId",
+        "approvalContextId"
+      ],
+      "additionalProperties": false
+    },
+    "ResultResponse": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "signed"
+            },
+            "result": {
+              "$ref": "#/$defs/DeviceSigningResult"
+            }
+          },
+          "required": [
+            "state",
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "awaiting_user",
+                "rejected",
+                "expired",
+                "unknown"
+              ]
+            },
+            "result": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "state",
+            "result"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PrepareResponse": {
+      "type": "object",
+      "properties": {
+        "reviewId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        }
+      },
+      "required": [
+        "reviewId",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentPreparePayload": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/PaymentSnapshot"
+        },
+        "merchantProofRef": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "proximityRef": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attemptId",
+        "snapshot",
+        "merchantProofRef",
+        "proximityRef"
+      ],
+      "additionalProperties": false
+    },
+    "SignerEpoch": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "device"
+            },
+            "deviceEpoch": {
+              "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+            }
+          },
+          "required": [
+            "kind",
+            "deviceEpoch"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "mpc"
+            },
+            "participantEpoch": {
+              "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+            }
+          },
+          "required": [
+            "kind",
+            "participantEpoch"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "VerifiedSigner": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "walletBindingId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "walletRevision": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+            },
+            "bindingRevision": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+            },
+            "signerRef": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "signerKind": {
+              "const": "hardware_eoa"
+            },
+            "epoch": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "device"
+                },
+                "deviceEpoch": {
+                  "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+                }
+              },
+              "required": [
+                "kind",
+                "deviceEpoch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "walletRevision",
+            "bindingRevision",
+            "signerRef",
+            "signerKind",
+            "epoch"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "walletBindingId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "walletRevision": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+            },
+            "bindingRevision": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+            },
+            "signerRef": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "signerKind": {
+              "const": "cloud_mpc_eoa"
+            },
+            "epoch": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "mpc"
+                },
+                "participantEpoch": {
+                  "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+                }
+              },
+              "required": [
+                "kind",
+                "participantEpoch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "walletRevision",
+            "bindingRevision",
+            "signerRef",
+            "signerKind",
+            "epoch"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PersonalContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "operationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "chainId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/ChainId"
+        },
+        "payerAddress": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Address"
+        },
+        "payloadDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "reviewDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "expiresAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        },
+        "sourceKind": {
+          "const": "personal_transfer"
+        },
+        "sourceId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "accountBindingId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/VerifiedSigner"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "sourceId",
+        "accountBindingId",
+        "selection",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "Context": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PersonalContext"
+        },
+        {
+          "$ref": "#/$defs/PaymentContext"
+        },
+        {
+          "$ref": "#/$defs/RefundContext"
+        }
+      ]
+    },
+    "PersonalIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Asset"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "sourceId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        }
+      },
+      "required": [
+        "intentId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "sourceId"
+      ],
+      "additionalProperties": false
+    },
+    "PersonalSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "personal_transfer"
+        },
+        "intent": {
+          "$ref": "#/$defs/PersonalIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/PersonalContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "Snapshot": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PersonalSnapshot"
+        },
+        {
+          "$ref": "#/$defs/PaymentSnapshot"
+        },
+        {
+          "$ref": "#/$defs/RefundSnapshot"
+        }
+      ]
+    },
+    "ApprovalProjection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "sourceKind": {
+              "const": "personal_transfer"
+            },
+            "progress": {
+              "$ref": "#/$defs/Progress"
+            },
+            "snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PersonalSnapshot"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "signingResult": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SigningResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sourceKind",
+            "progress",
+            "snapshot",
+            "signingResult"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sourceKind": {
+              "const": "payment"
+            },
+            "progress": {
+              "$ref": "#/$defs/Progress"
+            },
+            "snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/PaymentSnapshot"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "signingResult": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DeviceSigningResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sourceKind",
+            "progress",
+            "snapshot",
+            "signingResult"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sourceKind": {
+              "const": "merchant_refund"
+            },
+            "progress": {
+              "$ref": "#/$defs/Progress"
+            },
+            "snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefundSnapshot"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "signingResult": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SigningResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sourceKind",
+            "progress",
+            "snapshot",
+            "signingResult"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "OperationData": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Operation"
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalProjection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "operation",
+        "approval"
+      ],
+      "additionalProperties": false
+    },
+    "CloudSigningBody": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "approvalProof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "approvalProof"
+      ],
+      "additionalProperties": false
+    },
+    "RefundApprovalBody": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "expectedFundingRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "merchantSigner": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "walletBindingId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "expectedWalletRevision": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+            },
+            "expectedBindingRevision": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+            },
+            "signerRef": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "signerKind": {
+              "type": "string",
+              "enum": [
+                "hardware_eoa",
+                "cloud_mpc_eoa"
+              ]
+            },
+            "expectedSignerEpoch": {
+              "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "expectedWalletRevision",
+            "expectedBindingRevision",
+            "signerRef",
+            "signerKind",
+            "expectedSignerEpoch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "expectedRevision",
+        "expectedFundingRevision",
+        "merchantSigner"
+      ],
+      "additionalProperties": false
+    },
+    "WalletPreparePayload": {
+      "type": "object",
+      "properties": {
+        "snapshot": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/HardwarePersonalSnapshot"
+            },
+            {
+              "$ref": "#/$defs/HardwareRefundSnapshot"
+            }
+          ]
+        }
+      },
+      "required": [
+        "snapshot"
+      ],
+      "additionalProperties": false
+    },
+    "WalletSignPrepare": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sessionRole": {
+          "const": "owner"
+        },
+        "messageId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sequence": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "wallet.sign.prepare"
+        },
+        "payload": {
+          "$ref": "#/$defs/WalletPreparePayload"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentPrepare": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sequence": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "payment.prepare"
+        },
+        "payload": {
+          "$ref": "#/$defs/PaymentPreparePayload"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "WalletSignResult": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sessionRole": {
+          "const": "owner"
+        },
+        "messageId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sequence": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "wallet.sign.result"
+        },
+        "payload": {
+          "$ref": "#/$defs/ResultResponse"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentResult": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sequence": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "payment.result"
+        },
+        "payload": {
+          "$ref": "#/$defs/ResultResponse"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AccessAction": {
+      "enum": [
+        "read_progress",
+        "read_snapshot",
+        "read_signing_result",
+        "submit_exact"
+      ]
+    },
+    "SenderBinding": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "publicBinding": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "profileId",
+        "publicBinding"
+      ],
+      "additionalProperties": false
+    },
+    "AccessTarget": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "intentId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "operationId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "contextDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "sourceKind": {
+          "enum": [
+            "personal_transfer",
+            "payment",
+            "merchant_refund"
+          ]
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "intentId",
+        "operationId",
+        "contextDigest",
+        "sourceKind"
+      ],
+      "additionalProperties": false
+    },
+    "AccessChallengeBody": {
+      "type": "object",
+      "properties": {
+        "requestedActions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AccessAction"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "senderBinding": {
+          "$ref": "#/$defs/SenderBinding"
+        },
+        "replacement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplacementLocator"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "requestedActions",
+        "senderBinding",
+        "replacement"
+      ],
+      "additionalProperties": false
+    },
+    "AccessChallenge": {
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 512
+        },
+        "expiresAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        },
+        "target": {
+          "$ref": "#/$defs/AccessTarget"
+        },
+        "eligibleActions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AccessAction"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "senderBindingDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "authorizationRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "replacesGrantId": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "challengeId",
+        "nonce",
+        "expiresAt",
+        "target",
+        "eligibleActions",
+        "senderBindingDigest",
+        "authorizationRevision",
+        "replacesGrantId"
+      ],
+      "additionalProperties": false
+    },
+    "IssueAccessBody": {
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "senderProof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "challengeId",
+        "senderProof"
+      ],
+      "additionalProperties": false
+    },
+    "AccountPrincipal": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "account_session"
+        },
+        "accountId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "authSessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        }
+      },
+      "required": [
+        "kind",
+        "accountId",
+        "authSessionId"
+      ],
+      "additionalProperties": false
+    },
+    "GuestPrincipal": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "guest_terminal_session"
+        },
+        "terminalId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "attemptId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "sessionId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "deviceEpoch": {
+          "$ref": "urn:nu:approval:baseline#/$defs/UInt"
+        }
+      },
+      "required": [
+        "kind",
+        "terminalId",
+        "attemptId",
+        "sessionId",
+        "deviceSessionRef",
+        "deviceEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "Principal": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AccountPrincipal"
+        },
+        {
+          "$ref": "#/$defs/GuestPrincipal"
+        }
+      ]
+    },
+    "AccessGrant": {
+      "type": "object",
+      "properties": {
+        "grantId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "issuer": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "audience": {
+          "const": "approval_api"
+        },
+        "target": {
+          "$ref": "#/$defs/AccessTarget"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AccessAction"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "principal": {
+          "$ref": "#/$defs/Principal"
+        },
+        "senderBindingDigest": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Hash"
+        },
+        "authorizationRevision": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Revision"
+        },
+        "issuedAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        },
+        "expiresAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        },
+        "replacesGrantId": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "grantId",
+        "issuer",
+        "audience",
+        "target",
+        "actions",
+        "principal",
+        "senderBindingDigest",
+        "authorizationRevision",
+        "issuedAt",
+        "expiresAt",
+        "replacesGrantId"
+      ],
+      "additionalProperties": false
+    },
+    "AccessCredential": {
+      "type": "object",
+      "properties": {
+        "grant": {
+          "$ref": "#/$defs/AccessGrant"
+        },
+        "tokenType": {
+          "const": "sender_bound_opaque"
+        },
+        "accessToken": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 2048
+        },
+        "proofProfileId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        }
+      },
+      "required": [
+        "grant",
+        "tokenType",
+        "accessToken",
+        "proofProfileId"
+      ],
+      "additionalProperties": false
+    },
+    "RevokeAccessBody": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "enum": [
+            "user_requested",
+            "session_ended",
+            "suspected_exposure"
+          ]
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "RevokeAccessResult": {
+      "type": "object",
+      "properties": {
+        "grantId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "state": {
+          "const": "revoked"
+        },
+        "revokedAt": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Time"
+        }
+      },
+      "required": [
+        "grantId",
+        "state",
+        "revokedAt"
+      ],
+      "additionalProperties": false
+    },
+    "AccessChallengeRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "approvalContextId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "approvalContextId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AccessChallengeBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AccessChallengeResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "data": {
+              "$ref": "#/$defs/AccessChallenge"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "IssueAccessRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "approvalContextId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "approvalContextId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/IssueAccessBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "IssueAccessResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "data": {
+              "$ref": "#/$defs/AccessCredential"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RevokeAccessRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "approvalContextId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "grantId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "approvalContextId",
+            "grantId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/RevokeAccessBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "RevokeAccessResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "data": {
+              "$ref": "#/$defs/RevokeAccessResult"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AccessErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            },
+            "error": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ProtectedRequestHeaders": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "$ref": "urn:nu:approval:baseline#/$defs/Id"
+        },
+        "authorization": {
+          "type": "string",
+          "pattern": "^Bearer .+$"
+        },
+        "contractVersion": {
+          "const": "approval-v1-draft"
+        },
+        "senderProof": {
+          "$ref": "#/$defs/EvidencePacket"
+        }
+      },
+      "required": [
+        "requestId",
+        "authorization",
+        "contractVersion",
+        "senderProof"
+      ],
+      "additionalProperties": false
+    },
+    "ReplacementLocator": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "grant_id"
+            },
+            "grantId": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "kind",
+            "grantId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "issuance_key"
+            },
+            "issuanceIdempotencyKey": {
+              "$ref": "urn:nu:approval:baseline#/$defs/Id"
+            }
+          },
+          "required": [
+            "kind",
+            "issuanceIdempotencyKey"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "HardwarePersonalSnapshot": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/PersonalSnapshot"
+        },
+        {
+          "properties": {
+            "context": {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "signerKind": {
+                      "const": "hardware_eoa"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "HardwareRefundSnapshot": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/RefundSnapshot"
+        },
+        {
+          "properties": {
+            "context": {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "signerKind": {
+                      "const": "hardware_eoa"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

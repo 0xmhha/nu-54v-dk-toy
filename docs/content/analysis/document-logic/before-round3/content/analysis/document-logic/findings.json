@@ -1,0 +1,426 @@
+{
+  "methodologyStatus": "x_theory_definition_pending",
+  "scope": "document_model_review_not_product_verification",
+  "findings": [
+    {
+      "id": "LG-01",
+      "priority": "P1",
+      "kind": "state_model_gap",
+      "confidence": "high",
+      "title": "시장 거래 unknown 상태에 복구 출구가 없다",
+      "evidence": [
+        {
+          "file": "content/specifications/market-product-design.json",
+          "line": 186,
+          "pointer": "/tradeTransitions/7",
+          "quote": "\"id\": \"MT-08\"",
+          "sha256": "f3c75259f62a7247a77b44aa510fcfb717d8435852d61b439e65ee2d886e7c05",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/market-product-design.json"
+        }
+      ],
+      "claim": "MT-08은 응답 유실·재조직 때 unknown으로 이동하지만 9개 전이 중 unknown을 출발점으로 하는 전이가 없다. 원천을 다시 조회한다는 서술은 있어도 재확인 결과를 적용할 상태·조건이 정의되지 않았다.",
+      "counterexample": [
+        "execution_pending",
+        "unknown (응답 유실)",
+        "동일 거래의 유효한 receipt 재확인",
+        "전이표에서 result_observed 또는 실패 확정으로 이동할 수 없음"
+      ],
+      "impact": "표만 구현하면 거래가 계속 확인 중에 머물 수 있다. 새 intent 생성으로 우회하면 중복 지출 위험이 생긴다.",
+      "proposal": "unknownReason·resumePhase·exposureRef를 보존하고 unknown→allowance_pending/review_ready/execution_pending/result_observed/failed_confirmed의 증거별 복구를 정의한다. 외부 노출이 해소되지 않은 경우 새 nonce·intent 생성은 허용하지 않는다.",
+      "acceptance": "응답 유실 뒤 원 거래 확정, 확정 실패, reorg 후 재포함을 각각 같은 business effect로 복구; 새 지급 0건.",
+      "status": "resolved_in_design_runtime_unverified",
+      "claimScope": "pre_fix_snapshot",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/market-product-design.json",
+          "pointer": "/tradeTransitions/9",
+          "sha256": "d691895072bba650722fbb9cba8517f4abcffc1ed0d42ed59a89fa7a1887a43f"
+        }
+      ],
+      "validationCommand": "python3 content/analysis/document-logic/validate_logic_fixes.py",
+      "resolutionHistory": [
+        {
+          "review": "LG01..05",
+          "evidence": [
+            {
+              "file": "content/specifications/market-product-design.json",
+              "pointer": "/tradeTransitions/9",
+              "sha256": "d691895072bba650722fbb9cba8517f4abcffc1ed0d42ed59a89fa7a1887a43f"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LG-02",
+      "priority": "P1",
+      "kind": "object_state_conflation",
+      "confidence": "high",
+      "title": "credential 수명주기와 presentation 검증 상태가 한 전이표에 섞였다",
+      "evidence": [
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 162,
+          "pointer": "/credentialTransitions/1",
+          "quote": "\"id\": \"CV-02\"",
+          "sha256": "a8ac053b1b080f2a99e421b973cebf5c818f6e56db6fa7df0f18c8df66921cbd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/credential-paid-resource-design.json"
+        },
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 169,
+          "pointer": "/credentialTransitions/2",
+          "quote": "\"id\": \"CV-03\"",
+          "sha256": "a8ac053b1b080f2a99e421b973cebf5c818f6e56db6fa7df0f18c8df66921cbd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/credential-paid-resource-design.json"
+        }
+      ],
+      "claim": "CV-02/03을 하나의 credential 상태로 읽으면 issued→presentation_ready→verified가 되고, 정상 verified 상태에서 다른 challenge를 위한 새 presentation을 만들 경로가 없다. 반대로 presentation 상태라면 발급·철회·만료가 다른 객체의 상태다.",
+      "counterexample": [
+        "credential C 발급",
+        "challenge A로 제시·검증 → verified",
+        "아직 유효한 C를 challenge B에 제시",
+        "CV-02의 fromState=issued 조건을 만족하지 못함"
+      ],
+      "impact": "자격이 의도치 않게 1회용이 되거나 동시 verifier 요청이 서로의 상태를 덮을 수 있다. 실제 구현 오류가 아니라 명세의 객체 경계 결함이다.",
+      "proposal": "CredentialStatus(active/revoked/expired/unknown), PresentationSession(requested/approved/submitted/verified/rejected/expired), VerificationRecord(불변 결과)를 분리한다. 모든 session이 같은 credential revision을 참조하되 개별 challenge를 소비한다.",
+      "acceptance": "같은 active credential로 서로 다른 challenge 두 건을 독립 검증; 같은 challenge 재사용 차단; 철회 시 새 검증 차단·과거 결과 보존.",
+      "status": "resolved_in_design_runtime_unverified",
+      "claimScope": "pre_fix_snapshot",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "pointer": "/presentationTransitions/0",
+          "sha256": "47bebc8e03da93508de60fe95a58bf2428297aa71ae4a94fd18df2da63360585"
+        }
+      ],
+      "validationCommand": "python3 content/analysis/document-logic/validate_logic_fixes.py",
+      "resolutionHistory": [
+        {
+          "review": "LG01..05",
+          "evidence": [
+            {
+              "file": "content/specifications/credential-paid-resource-design.json",
+              "pointer": "/presentationTransitions/0",
+              "sha256": "0407ab53a43b30f2ef62e1312f00110c19d712f7a2fcfb2a5242d50417bcb157"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LG-03",
+      "priority": "P2",
+      "kind": "guard_specification_ambiguity",
+      "confidence": "medium",
+      "title": "유료 결과 재시도 전이에서 환불 fence 검사가 명시되지 않았다",
+      "evidence": [
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 278,
+          "pointer": "/paidResourceTransitions/5",
+          "quote": "\"id\": \"PX-06\"",
+          "sha256": "a8ac053b1b080f2a99e421b973cebf5c818f6e56db6fa7df0f18c8df66921cbd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/credential-paid-resource-design.json"
+        },
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 313,
+          "pointer": "/paidResourceTransitions/10",
+          "quote": "\"id\": \"PX-11\"",
+          "sha256": "a8ac053b1b080f2a99e421b973cebf5c818f6e56db6fa7df0f18c8df66921cbd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/credential-paid-resource-design.json"
+        },
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 341,
+          "pointer": "/independentStateAxes",
+          "quote": "\"independentStateAxes\"",
+          "sha256": "a8ac053b1b080f2a99e421b973cebf5c818f6e56db6fa7df0f18c8df66921cbd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/credential-paid-resource-design.json"
+        }
+      ],
+      "claim": "최초 제공 PX-06은 refund fence와 동일 entitlement revision CAS를 명시하지만, 재시도 PX-11은 현재 권한·입력·기한만 명시한다. 공통 상태 축의 전역 제한을 적용하면 안전하게 해석할 수 있으므로 확정적 우회 버그가 아닌 guard 명세의 불일치다.",
+      "counterexample": [
+        "delivery_failed",
+        "환불 reservation으로 entitlement hold",
+        "늦게 예약된 retry가 PX-11만 검사",
+        "refund fence 확인 여부에 따라 실행 해석이 갈림"
+      ],
+      "impact": "재시도 구현 경로에 따라 환불 중 불필요한 외부 생성 비용 또는 공개 시도가 발생할 수 있다.",
+      "proposal": "canGenerate와canPublish를 공통 불변식으로 정의하고 PX-05/06/07/11에 predicateRef로 연결한다. refund/authority/privacy/source/current revision을 동일하게 검사한다.",
+      "acceptance": "환불 예약과 retry 경합에서 신규 생성·공개가 차단되고 기존 전달 이력은 유지된다.",
+      "status": "resolved_in_design_runtime_unverified",
+      "claimScope": "pre_fix_snapshot",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "pointer": "/paidResourcePredicates/0",
+          "sha256": "47bebc8e03da93508de60fe95a58bf2428297aa71ae4a94fd18df2da63360585"
+        }
+      ],
+      "validationCommand": "python3 content/analysis/document-logic/validate_logic_fixes.py",
+      "resolutionHistory": [
+        {
+          "review": "LG01..05",
+          "evidence": [
+            {
+              "file": "content/specifications/credential-paid-resource-design.json",
+              "pointer": "/paidResourcePredicates/0",
+              "sha256": "0407ab53a43b30f2ef62e1312f00110c19d712f7a2fcfb2a5242d50417bcb157"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LG-04",
+      "priority": "P2",
+      "kind": "contract_coverage_gap",
+      "confidence": "high",
+      "title": "통합 보완안이 세션 갱신·로그인 수단 해제 계약을 닫지 못했다",
+      "evidence": [
+        {
+          "file": "content/specifications/social-wallet-recovery-design.json",
+          "line": 111,
+          "pointer": "/authTransitions/5",
+          "quote": "\"id\": \"AU-06\"",
+          "sha256": "e49cedb03b20f213c45e9a86fb22654cb112560c58dc6e2168292b8841ae68dc",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/social-wallet-recovery-design.json"
+        },
+        {
+          "file": "content/specifications/social-wallet-recovery-design.json",
+          "line": 138,
+          "pointer": "/authTransitions/8",
+          "quote": "\"id\": \"AU-09\"",
+          "sha256": "e49cedb03b20f213c45e9a86fb22654cb112560c58dc6e2168292b8841ae68dc",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/social-wallet-recovery-design.json"
+        },
+        {
+          "file": "content/specifications/preimplementation-contract-overlay.json",
+          "line": 61,
+          "pointer": "/routeContracts/0",
+          "quote": "\"id\": \"OC-01\"",
+          "sha256": "b79285097d9faaa4851cc10fcbfa4f949f5f8d60f7efea5c1473a180ad9bc0fd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/preimplementation-contract-overlay.json"
+        },
+        {
+          "file": "content/specifications/preimplementation-contract-overlay.json",
+          "line": 76,
+          "pointer": "/routeContracts/1",
+          "quote": "\"id\": \"OC-02\"",
+          "sha256": "b79285097d9faaa4851cc10fcbfa4f949f5f8d60f7efea5c1473a180ad9bc0fd",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/preimplementation-contract-overlay.json"
+        }
+      ],
+      "claim": "AU-06은 unregistered_refresh_adapter, AU-09는 unregistered_identity_unlink를 사용한다. OC-01은 인증 flow/identity 연결, OC-02는 세션 철회를 다루며 갱신과 unlink의 완전한 요청·응답·권한·결과 복구 계약은 없다. overlay의 전체 미연결 경계를 닫는다는 설명은 범위를 좁혀야 한다.",
+      "counterexample": [
+        "유효 세션 만료",
+        "refresh flow 필요",
+        "AU-06만 있고 typed route/result 계약 없음"
+      ],
+      "impact": "로그인 정상 시연만 통과해도 장시간 이용·로그인 수단 관리까지 설계 완료로 오인할 수 있다.",
+      "proposal": "refresh 회전/응답 유실/재사용 탐지와 unlink recent-auth·잔존 접근수단·관련 session 영향의 별도 계약을 추가한다. 공통 API020으로 조회하려면 명시 operationClass/parent/ACL도 등록한다.",
+      "acceptance": "동시 refresh·응답 유실·철회된 family 및 마지막 로그인 수단 unlink의 정상/거절/복구 사례.",
+      "status": "resolved_in_design_runtime_unverified",
+      "claimScope": "pre_fix_snapshot",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/preimplementation-contract-overlay.json",
+          "pointer": "/routeContracts/16",
+          "sha256": "2fd5d17fcbeb1707cb71b4a7f5573eec310f54261a9bbb0e55a85adc80d3424b"
+        }
+      ],
+      "validationCommand": "python3 content/analysis/document-logic/validate_logic_fixes.py",
+      "resolutionHistory": [
+        {
+          "review": "LG01..05",
+          "evidence": [
+            {
+              "file": "content/specifications/preimplementation-contract-overlay.json",
+              "pointer": "/routeContracts/16",
+              "sha256": "d4eb87a17f3a54afde7c56b153bc81727778ad3c86825557e8522e2ba8f5bff7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LG-05",
+      "priority": "P2",
+      "kind": "traceability_semantics_ambiguity",
+      "confidence": "high",
+      "title": "설계 묶음의 주요 범위와 전이 영향 범위를 구분해야 한다",
+      "evidence": [
+        {
+          "file": "content/specifications/recording-travel-ai-design.json",
+          "line": 10,
+          "pointer": "/requirementRefs",
+          "quote": "\"requirementRefs\"",
+          "sha256": "19188356ef1ca1ed1cb7cbce64fe12052d13c47a8f16c8e268fc4a88855ddd43",
+          "snapshotFile": "content/analysis/document-logic/before-fixes/content/specifications/recording-travel-ai-design.json"
+        },
+        {
+          "file": "content/planning/work-breakdown.json",
+          "line": 3794,
+          "pointer": "/tasks[id=REC-03]",
+          "quote": "\"id\": \"REC-03\"",
+          "sha256": "6c7dd2e443ad4278a82adf6fe42782ca7954507cbf95ed48562cc69b9643fa68",
+          "snapshotFile": "content/planning/work-breakdown.json"
+        }
+      ],
+      "claim": "DS-07 requirementRefs는 3·7·14이지만 REC-03의 원 요구사항에는 4(유저 앱)도 있다. 다른 4개 DS에서도 선언 범위와 소속 작업의 요구사항 합집합이 다르다. 주된 범위라면 모순은 아니지만 같은 covers 의미로 합치면 변경 영향 누락 또는 과장으로 이어진다.",
+      "counterexample": [
+        "REC-03의 앱 전사 결과 변경",
+        "DS-07 requirementRefs만 조회",
+        "요구사항4의 앱 영향 누락"
+      ],
+      "impact": "변경 영향·완료율·수용 근거를 같은 관계로 계산할 수 없다. 전체 15요구가 WBS에서 누락된 것은 아니다.",
+      "proposal": "declaredScope와transitiveTaskImpact를 별도 edge/field로 유지한다. graph에는 이미 둘을 분리했고 원본 정책/범위는 변경하지 않았다.",
+      "acceptance": "104개 작업의 원 requirementRefs를 보존하며 DS별 파생 영향 합집합을 별도 계산한다.",
+      "status": "resolved_in_design_runtime_unverified",
+      "claimScope": "pre_fix_snapshot",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/recording-travel-ai-design.json",
+          "pointer": "/transitiveTaskImpactRequirementRefs",
+          "sha256": "f45754f6fb12d9ed41c6abccacca337687e98d78cc16e0ae50f388d49fb1e666"
+        }
+      ],
+      "validationCommand": "python3 content/analysis/document-logic/validate_logic_fixes.py",
+      "resolutionHistory": [
+        {
+          "review": "LG01..05",
+          "evidence": [
+            {
+              "file": "content/specifications/recording-travel-ai-design.json",
+              "pointer": "/transitiveTaskImpactRequirementRefs",
+              "sha256": "1fc61df747e889332aa4b583ac42c47e2b7a46e07591337d3266da11a156725e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "LG-06",
+      "priority": "P1",
+      "kind": "cross_axis_guard_gap",
+      "confidence": "high",
+      "title": "유료 결과 제공 시 현재 지급 확정과 reorg fence를 명시",
+      "claim": "PR-GRANT에만 payment_currently_confirmed가 있고 generate/publish는 entitlement_active와 source_current에 의존했다. PX08의 payment unknown 전환도 entitlement 제한을 원자적으로 기록한다고 명시하지 않아, 현재 source revision은 갱신됐지만 active entitlement가 남는 해석이 가능했다.",
+      "evidence": [
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 726,
+          "pointer": "/paidResourcePredicates/0",
+          "quote": "\"id\": \"PR-COMMON\"",
+          "sha256": "0407ab53a43b30f2ef62e1312f00110c19d712f7a2fcfb2a5242d50417bcb157",
+          "snapshotFile": "content/analysis/document-logic/before-round2/content/specifications/credential-paid-resource-design.json"
+        },
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "line": 287,
+          "pointer": "/paidResourceTransitions/7",
+          "quote": "\"id\": \"PX-08\"",
+          "sha256": "0407ab53a43b30f2ef62e1312f00110c19d712f7a2fcfb2a5242d50417bcb157",
+          "snapshotFile": "content/analysis/document-logic/before-round2/content/specifications/credential-paid-resource-design.json"
+        }
+      ],
+      "counterexample": [
+        "paid+active entitlement",
+        "reorg→payment unknown",
+        "active entitlement 유지 및 최신 source vector",
+        "생성/공개 guard가 payment 상태를 직접 확인하지 않음"
+      ],
+      "acceptance": "payment unknown/invalid에서는 generation·publish 차단. 원 payment 재확인으로 payment_uncertain 원인만 해제하고 refund/privacy/authority hold는 유지.",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/credential-paid-resource-design.json",
+          "pointer": "/paidSourceRecovery",
+          "sha256": "47bebc8e03da93508de60fe95a58bf2428297aa71ae4a94fd18df2da63360585"
+        }
+      ],
+      "claimScope": "pre_fix_snapshot",
+      "validationCommand": "python3 content/analysis/document-logic/validate_followup.py",
+      "status": "resolved_in_design_runtime_unverified"
+    },
+    {
+      "id": "LG-07",
+      "priority": "P2",
+      "kind": "stale_sensitive_result",
+      "confidence": "high",
+      "title": "refresh 결과 재조회가 더 오래된 generation의 토큰을 반환하지 않도록 제한",
+      "claim": "OC18은 현재 family/session revoke epoch를 검사하지만 결과 generation과 현재 family generation 비교를 명시하지 않았다. g→g+1 응답을 잃고 이후 g+2가 활성화된 뒤 첫 결과를 다시 읽으면 폐기된 토큰을 재전달할 수 있다.",
+      "evidence": [
+        {
+          "file": "content/specifications/preimplementation-contract-overlay.json",
+          "line": 330,
+          "pointer": "/routeContracts/17",
+          "quote": "\"id\": \"OC-18\"",
+          "sha256": "d4eb87a17f3a54afde7c56b153bc81727778ad3c86825557e8522e2ba8f5bff7",
+          "snapshotFile": "content/analysis/document-logic/before-round2/content/specifications/preimplementation-contract-overlay.json"
+        }
+      ],
+      "counterexample": [
+        "request A: g→g+1 성공",
+        "request B: g+1→g+2 성공",
+        "A의 결과 늦게 재조회",
+        "revoked가 아니라는 이유만으로 g+1 보호 결과 반환"
+      ],
+      "acceptance": "현재 generation과 일치하는 원 결과만 재전달. 이전 결과는 superseded metadata만, 미래 generation 불일치는 hold. 조회 자체가 새 회전/토큰 생성/재사용 경보를 만들지 않음.",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/preimplementation-contract-overlay.json",
+          "pointer": "/refreshResultPolicy",
+          "sha256": "2fd5d17fcbeb1707cb71b4a7f5573eec310f54261a9bbb0e55a85adc80d3424b"
+        }
+      ],
+      "claimScope": "pre_fix_snapshot",
+      "validationCommand": "python3 content/analysis/document-logic/validate_followup.py",
+      "status": "resolved_in_design_runtime_unverified"
+    },
+    {
+      "id": "LG-08",
+      "priority": "P1",
+      "kind": "consent_delete_scope_conflation",
+      "confidence": "high",
+      "title": "목적별 동의 철회와 파일 삭제 명령을 분리",
+      "claim": "PV01이 동의 철회와 삭제 요청을 함께 deny_effective로 보내고 PV02는 삭제대상 목록 확인만으로 deleting으로 진행했다. 요약 동의만 철회했을 때 별도 보존/삭제 정책 없이 개인 폰 원음까지 삭제 대상으로 해석될 여지가 있었다.",
+      "evidence": [
+        {
+          "file": "content/specifications/recording-travel-ai-design.json",
+          "line": 225,
+          "pointer": "/privacyTransitions/0",
+          "quote": "\"id\": \"PV-01\"",
+          "sha256": "1fc61df747e889332aa4b583ac42c47e2b7a46e07591337d3266da11a156725e",
+          "snapshotFile": "content/analysis/document-logic/before-round2/content/specifications/recording-travel-ai-design.json"
+        },
+        {
+          "file": "content/specifications/recording-travel-ai-design.json",
+          "line": 232,
+          "pointer": "/privacyTransitions/1",
+          "quote": "\"id\": \"PV-02\"",
+          "sha256": "1fc61df747e889332aa4b583ac42c47e2b7a46e07591337d3266da11a156725e",
+          "snapshotFile": "content/analysis/document-logic/before-round2/content/specifications/recording-travel-ai-design.json"
+        }
+      ],
+      "counterexample": [
+        "폰 원음 보관 및 요약 목적 이용 동의",
+        "요약 목적 동의만 철회",
+        "PV01 deny_effective",
+        "PV02로 원음 전체 삭제를 추론"
+      ],
+      "acceptance": "목적별 이용 차단과 명시 삭제를 분리. 삭제는 사용자 범위 또는 선택된 보존정책의 구체 plan이 필요. 새 동의는 삭제 tombstone을 해제하거나 기존 job을 자동 재시작하지 않음.",
+      "resolutionEvidence": [
+        {
+          "file": "content/specifications/recording-travel-ai-design.json",
+          "pointer": "/privacyActionContract",
+          "sha256": "f45754f6fb12d9ed41c6abccacca337687e98d78cc16e0ae50f388d49fb1e666"
+        }
+      ],
+      "claimScope": "pre_fix_snapshot",
+      "validationCommand": "python3 content/analysis/document-logic/validate_followup.py",
+      "status": "resolved_in_design_runtime_unverified"
+    }
+  ]
+}

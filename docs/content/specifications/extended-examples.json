@@ -1,0 +1,1164 @@
+{
+  "notice": "Synthetic shape examples only; no actual proofs, price quotes, RPC requests or hardware operations.",
+  "valid": [
+    {
+      "name": "search-by-manual-region",
+      "schema": "API073Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo"
+        },
+        "query": {
+          "region": {
+            "regionId": "seoul",
+            "displayName": "Seoul"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown-balance-without-invented-zero",
+      "schema": "BalanceView",
+      "value": {
+        "asset": {
+          "assetId": "dummy-usdc",
+          "chainId": 8283,
+          "kind": "erc20",
+          "tokenAddress": "0x1111111111111111111111111111111111111111",
+          "decimals": 6,
+          "displaySymbol": "TEST-USDC",
+          "isTestAsset": true
+        },
+        "atomicAmount": null,
+        "state": "unknown",
+        "observedAt": null,
+        "blockRef": null
+      }
+    },
+    {
+      "name": "actual-zero-balance",
+      "schema": "BalanceView",
+      "value": {
+        "asset": {
+          "assetId": "dummy-usdc",
+          "chainId": 8283,
+          "kind": "erc20",
+          "tokenAddress": "0x1111111111111111111111111111111111111111",
+          "decimals": 6,
+          "displaySymbol": "TEST-USDC",
+          "isTestAsset": true
+        },
+        "atomicAmount": "0",
+        "state": "current",
+        "observedAt": "2026-09-18T09:00:00Z",
+        "blockRef": {
+          "chainId": 8283,
+          "blockNumber": "100",
+          "blockHash": "0xabababababababababababababababababababababababababababababababab"
+        }
+      }
+    },
+    {
+      "name": "liquidity-two-inputs",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "liquidity_add",
+          "inputs": [
+            {
+              "assetId": "dummy-usdc",
+              "atomicAmount": "2000000"
+            },
+            {
+              "assetId": "wrapped-demo",
+              "atomicAmount": "1000000000000000000"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "liquidity-removal",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "liquidity_remove",
+          "positionId": "position-demo",
+          "shareAmount": "100"
+        }
+      }
+    },
+    {
+      "name": "swap-quote-request",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "swap",
+          "amountIn": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "2000000"
+          },
+          "assetIn": "dummy-usdc",
+          "assetOut": "wrapped-demo"
+        }
+      }
+    },
+    {
+      "name": "negative-funding",
+      "schema": "FundingEntry",
+      "value": {
+        "entryId": "funding-demo",
+        "positionId": "position-demo",
+        "amountAtomic": "-2000",
+        "observedAt": "2026-09-18T09:00:00Z"
+      }
+    },
+    {
+      "name": "recording-format",
+      "schema": "RecordingFormat",
+      "value": {
+        "profileId": "unselected-audio-profile",
+        "sampleRateHz": 16000,
+        "channels": 1
+      }
+    },
+    {
+      "name": "enrollment-id-returned",
+      "schema": "API010Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "request-demo",
+          "data": {
+            "enrollmentId": "enrollment-demo",
+            "enrollmentChallenge": {
+              "challengeId": "challenge-demo",
+              "profileId": "unselected-device-profile",
+              "challenge": "SYNTHETIC_ONLY",
+              "expiresAt": "2026-09-18T09:00:00Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "review-text-edit",
+      "schema": "API075Request",
+      "value": {
+        "path": {
+          "reviewId": "review-demo"
+        },
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "text": "후기 수정 예제",
+          "expectedRevision": 1
+        }
+      }
+    },
+    {
+      "name": "liquidity-multiple-output-quote",
+      "schema": "MarketQuote",
+      "value": {
+        "quoteId": "quote-demo",
+        "marketId": "pool-demo",
+        "action": "liquidity_remove",
+        "inputs": [],
+        "outputs": [
+          {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "2000000"
+          },
+          {
+            "assetId": "wrapped-demo",
+            "atomicAmount": "1000000000000000000"
+          }
+        ],
+        "maximumInputs": [],
+        "minimumOutputs": [
+          {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "1900000"
+          },
+          {
+            "assetId": "wrapped-demo",
+            "atomicAmount": "950000000000000000"
+          }
+        ],
+        "positionId": "position-demo",
+        "sharesDeltaAtomic": "-100",
+        "fees": [],
+        "expiresAt": "2026-09-18T09:00:00Z",
+        "priceSourceRef": "source-demo"
+      }
+    },
+    {
+      "name": "liquidity-quote-response",
+      "schema": "API057Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "request-demo",
+          "data": {
+            "quote": {
+              "quoteId": "quote-demo",
+              "marketId": "pool-demo",
+              "action": "liquidity_remove",
+              "inputs": [],
+              "outputs": [
+                {
+                  "assetId": "dummy-usdc",
+                  "atomicAmount": "2000000"
+                },
+                {
+                  "assetId": "wrapped-demo",
+                  "atomicAmount": "1000000000000000000"
+                }
+              ],
+              "maximumInputs": [],
+              "minimumOutputs": [
+                {
+                  "assetId": "dummy-usdc",
+                  "atomicAmount": "1900000"
+                },
+                {
+                  "assetId": "wrapped-demo",
+                  "atomicAmount": "950000000000000000"
+                }
+              ],
+              "positionId": "position-demo",
+              "sharesDeltaAtomic": "-100",
+              "fees": [],
+              "expiresAt": "2026-09-18T09:00:00Z",
+              "priceSourceRef": "source-demo"
+            },
+            "fees": [],
+            "minimumOutputs": [
+              {
+                "assetId": "dummy-usdc",
+                "atomicAmount": "1900000"
+              },
+              {
+                "assetId": "wrapped-demo",
+                "atomicAmount": "950000000000000000"
+              }
+            ],
+            "expiresAt": "2026-09-18T09:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "provider-profile-1",
+      "schema": "API001Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "apple",
+          "authFlowId": "flow_1",
+          "providerProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "provider-profile-2",
+      "schema": "API002Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "apple",
+          "authFlowId": "flow_1",
+          "providerProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "auth-flow-start",
+      "schema": "API103Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "google",
+          "purpose": "login",
+          "clientProfileId": "google_android_profile",
+          "redirectId": "registered_app_callback",
+          "challengeParameters": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "auth-flow-response",
+      "schema": "API103Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_security",
+          "data": {
+            "flowId": "flow_1",
+            "authorizationParameters": {
+              "profileId": "synthetic_profile",
+              "data": {
+                "sample": "shape_only_not_valid_proof"
+              }
+            },
+            "expiresAt": "2026-09-18T12:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "inline-historical-proof",
+      "schema": "API104Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "receiptLocator": "receipt_1",
+          "eligibilityProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "receipt-challenge",
+      "schema": "API104Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "req_security",
+          "data": {
+            "claimId": "claim_1",
+            "challenge": {
+              "profileId": "receipt_profile",
+              "purpose": "receipt_link",
+              "accountBinding": "account_1",
+              "eligibilityId": "elig_1",
+              "chainId": 8283,
+              "audience": "nu_app",
+              "domain": "example.invalid",
+              "nonce": "nonce_1",
+              "expiresAt": "2026-09-18T12:00:00Z",
+              "verificationPayload": {
+                "profileId": "synthetic_profile",
+                "data": {
+                  "sample": "shape_only_not_valid_proof"
+                }
+              }
+            },
+            "expiresAt": "2026-09-18T12:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "claim-confirm",
+      "schema": "API105Request",
+      "value": {
+        "path": {
+          "claimId": "claim_1"
+        },
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "approvalProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "claim-linked",
+      "schema": "API105Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_security",
+          "data": {
+            "claimId": "claim_1",
+            "state": "linked",
+            "receiptId": "receipt_1",
+            "ownershipRevision": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "claim-status-read",
+      "schema": "API106Request",
+      "value": {
+        "path": {
+          "claimId": "claim_1"
+        },
+        "headers": {
+          "requestId": "req_security"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "claim-pending-no-receipt",
+      "schema": "API106Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_security",
+          "data": {
+            "claimId": "claim_1",
+            "state": "verifying",
+            "receiptId": null,
+            "safeErrorCode": null
+          }
+        }
+      }
+    },
+    {
+      "name": "result-metadata-read",
+      "schema": "API107Request",
+      "value": {
+        "path": {
+          "resultId": "result_1"
+        },
+        "headers": {
+          "requestId": "req_security"
+        },
+        "query": {
+          "purpose": "recording_summary"
+        }
+      }
+    },
+    {
+      "name": "result-inline-response",
+      "schema": "API107Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_security",
+          "data": {
+            "resultId": "result_1",
+            "kind": "summary",
+            "version": "v1",
+            "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "delivery": "inline",
+            "payload": {
+              "profileId": "synthetic_profile",
+              "data": {
+                "sample": "shape_only_not_valid_proof"
+              }
+            },
+            "streamRef": null,
+            "expiresAt": "2026-09-18T12:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "result-stream-metadata",
+      "schema": "API107Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_security",
+          "data": {
+            "resultId": "result_1",
+            "kind": "summary",
+            "version": "v1",
+            "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "delivery": "gateway_stream",
+            "payload": null,
+            "streamRef": "stream_1",
+            "expiresAt": "2026-09-18T12:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "result-stream-request",
+      "schema": "API107Request",
+      "value": {
+        "path": {
+          "resultId": "result_1"
+        },
+        "headers": {
+          "requestId": "req_security",
+          "accept": "application/octet-stream"
+        },
+        "query": {
+          "purpose": "recording_summary",
+          "streamRef": "stream_1"
+        }
+      }
+    },
+    {
+      "name": "passport-pending-not-spendable",
+      "schema": "API043Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_1",
+          "data": {
+            "stamps": [
+              {
+                "storeId": "store_1",
+                "earned": 0,
+                "used": 0,
+                "available": 0,
+                "revision": 1
+              }
+            ],
+            "benefits": [],
+            "revision": 1,
+            "pendingEntitlements": [
+              {
+                "entitlementId": "ent_1",
+                "storeId": "store_1",
+                "ruleVersion": "rule_1",
+                "state": "materializing",
+                "units": 1,
+                "spendable": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "passport-materialized-pending-cleared",
+      "schema": "API043Response",
+      "value": {
+        "statusCode": 200,
+        "body": {
+          "requestId": "req_1",
+          "data": {
+            "stamps": [
+              {
+                "storeId": "store_1",
+                "earned": 1,
+                "used": 0,
+                "available": 1,
+                "revision": 2
+              }
+            ],
+            "benefits": [],
+            "revision": 2,
+            "pendingEntitlements": []
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "empty-place-search",
+      "schema": "API073Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo"
+        },
+        "query": {}
+      }
+    },
+    {
+      "name": "unknown-balance-fake-zero",
+      "schema": "BalanceView",
+      "value": {
+        "asset": {
+          "assetId": "dummy-usdc",
+          "chainId": 8283,
+          "kind": "erc20",
+          "tokenAddress": "0x1111111111111111111111111111111111111111",
+          "decimals": 6,
+          "displaySymbol": "TEST-USDC",
+          "isTestAsset": true
+        },
+        "atomicAmount": "0",
+        "state": "unknown",
+        "observedAt": null,
+        "blockRef": null
+      }
+    },
+    {
+      "name": "current-balance-null",
+      "schema": "BalanceView",
+      "value": {
+        "asset": {
+          "assetId": "dummy-usdc",
+          "chainId": 8283,
+          "kind": "erc20",
+          "tokenAddress": "0x1111111111111111111111111111111111111111",
+          "decimals": 6,
+          "displaySymbol": "TEST-USDC",
+          "isTestAsset": true
+        },
+        "atomicAmount": null,
+        "state": "current",
+        "observedAt": "2026-09-18T09:00:00Z",
+        "blockRef": {
+          "chainId": 8283,
+          "blockNumber": "100",
+          "blockHash": "0xabababababababababababababababababababababababababababababababab"
+        }
+      }
+    },
+    {
+      "name": "stale-without-timestamp",
+      "schema": "BalanceView",
+      "value": {
+        "asset": {
+          "assetId": "dummy-usdc",
+          "chainId": 8283,
+          "kind": "erc20",
+          "tokenAddress": "0x1111111111111111111111111111111111111111",
+          "decimals": 6,
+          "displaySymbol": "TEST-USDC",
+          "isTestAsset": true
+        },
+        "atomicAmount": "0",
+        "state": "stale",
+        "observedAt": null,
+        "blockRef": {
+          "chainId": 8283,
+          "blockNumber": "100",
+          "blockHash": "0xabababababababababababababababababababababababababababababababab"
+        }
+      }
+    },
+    {
+      "name": "liquidity-empty-inputs",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "liquidity_add",
+          "inputs": []
+        }
+      }
+    },
+    {
+      "name": "liquidity-swap-field-mix",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "liquidity_add",
+          "inputs": [
+            {
+              "assetId": "dummy-usdc",
+              "atomicAmount": "2000000"
+            },
+            {
+              "assetId": "wrapped-demo",
+              "atomicAmount": "1000000000000000000"
+            }
+          ],
+          "assetOut": "wrapped-demo"
+        }
+      }
+    },
+    {
+      "name": "liquidity-zero-shares",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "liquidity_remove",
+          "positionId": "position-demo",
+          "shareAmount": "0"
+        }
+      }
+    },
+    {
+      "name": "swap-missing-target",
+      "schema": "API057Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "marketId": "pool-demo",
+          "action": "swap",
+          "amountIn": {
+            "assetId": "dummy-usdc",
+            "atomicAmount": "2000000"
+          },
+          "assetIn": "dummy-usdc"
+        }
+      }
+    },
+    {
+      "name": "funding-float",
+      "schema": "FundingEntry",
+      "value": {
+        "entryId": "funding-demo",
+        "positionId": "position-demo",
+        "amountAtomic": -0.01,
+        "observedAt": "2026-09-18T09:00:00Z"
+      }
+    },
+    {
+      "name": "zero-channel-recording",
+      "schema": "RecordingFormat",
+      "value": {
+        "profileId": "unselected-audio-profile",
+        "sampleRateHz": 16000,
+        "channels": 0
+      }
+    },
+    {
+      "name": "enrollment-id-missing",
+      "schema": "API010Response",
+      "value": {
+        "statusCode": 201,
+        "body": {
+          "requestId": "request-demo",
+          "data": {
+            "enrollmentChallenge": {
+              "challengeId": "challenge-demo",
+              "profileId": "unselected-device-profile",
+              "challenge": "SYNTHETIC_ONLY",
+              "expiresAt": "2026-09-18T09:00:00Z"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "empty-review-patch",
+      "schema": "API075Request",
+      "value": {
+        "path": {
+          "reviewId": "review-demo"
+        },
+        "headers": {
+          "requestId": "request-demo",
+          "idempotencyKey": "idem-demo"
+        },
+        "body": {
+          "expectedRevision": 1
+        }
+      }
+    },
+    {
+      "name": "provider-proof-missing",
+      "schema": "API001Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "apple",
+          "authFlowId": "flow_1"
+        }
+      }
+    },
+    {
+      "name": "legacy-unbound-provider-params",
+      "schema": "API002Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "apple",
+          "authFlowId": "flow_1",
+          "providerProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          },
+          "pkceVerifier": "unbound"
+        }
+      }
+    },
+    {
+      "name": "flow-unknown-provider",
+      "schema": "API103Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "unknown",
+          "purpose": "login",
+          "clientProfileId": "google_android_profile",
+          "redirectId": "registered_app_callback",
+          "challengeParameters": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "flow-caller-account-injection",
+      "schema": "API103Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "provider": "google",
+          "purpose": "login",
+          "clientProfileId": "google_android_profile",
+          "redirectId": "registered_app_callback",
+          "challengeParameters": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          },
+          "accountId": "other"
+        }
+      }
+    },
+    {
+      "name": "claim-reference-is-not-proof",
+      "schema": "API104Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "receiptLocator": "receipt_1",
+          "eligibilityProof": {
+            "proofId": "ref_only",
+            "profileId": "profile"
+          }
+        }
+      }
+    },
+    {
+      "name": "claim-no-historical-proof",
+      "schema": "API104Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "receiptLocator": "receipt_1"
+        }
+      }
+    },
+    {
+      "name": "claim-missing-path",
+      "schema": "API105Request",
+      "value": {
+        "path": {},
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "approvalProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "claim-id-in-body",
+      "schema": "API105Request",
+      "value": {
+        "path": {
+          "claimId": "claim_1"
+        },
+        "headers": {
+          "requestId": "req_security",
+          "idempotencyKey": "idem_security"
+        },
+        "body": {
+          "approvalProof": {
+            "profileId": "synthetic_profile",
+            "data": {
+              "sample": "shape_only_not_valid_proof"
+            }
+          },
+          "claimId": "other"
+        }
+      }
+    },
+    {
+      "name": "linked-without-receipt",
+      "schema": "ReceiptClaimStatus",
+      "value": {
+        "claimId": "claim_1",
+        "state": "linked",
+        "receiptId": null,
+        "safeErrorCode": null
+      }
+    },
+    {
+      "name": "unverified-receipt-disclosure",
+      "schema": "ReceiptClaimStatus",
+      "value": {
+        "claimId": "claim_1",
+        "state": "verifying",
+        "receiptId": "receipt_1",
+        "safeErrorCode": null
+      }
+    },
+    {
+      "name": "inline-no-payload",
+      "schema": "ProtectedResultView",
+      "value": {
+        "resultId": "result_1",
+        "kind": "summary",
+        "version": "v1",
+        "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "delivery": "inline",
+        "payload": null,
+        "streamRef": null,
+        "expiresAt": "2026-09-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "stream-with-inline-content",
+      "schema": "ProtectedResultView",
+      "value": {
+        "resultId": "result_1",
+        "kind": "summary",
+        "version": "v1",
+        "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "delivery": "gateway_stream",
+        "payload": {
+          "profileId": "synthetic_profile",
+          "data": {
+            "sample": "shape_only_not_valid_proof"
+          }
+        },
+        "streamRef": "stream_1",
+        "expiresAt": "2026-09-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "stream-missing-ref",
+      "schema": "ProtectedResultView",
+      "value": {
+        "resultId": "result_1",
+        "kind": "summary",
+        "version": "v1",
+        "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "delivery": "gateway_stream",
+        "payload": null,
+        "streamRef": null,
+        "expiresAt": "2026-09-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "stream-request-without-ref",
+      "schema": "API107Request",
+      "value": {
+        "path": {
+          "resultId": "result_1"
+        },
+        "headers": {
+          "requestId": "req_security",
+          "accept": "application/octet-stream"
+        },
+        "query": {
+          "purpose": "recording_summary"
+        }
+      }
+    },
+    {
+      "name": "stream-ref-with-json-request",
+      "schema": "API107Request",
+      "value": {
+        "path": {
+          "resultId": "result_1"
+        },
+        "headers": {
+          "requestId": "req_security",
+          "accept": "application/json"
+        },
+        "query": {
+          "purpose": "recording_summary",
+          "streamRef": "stream_1"
+        }
+      }
+    },
+    {
+      "name": "unbounded-digest",
+      "schema": "ProtectedResultView",
+      "value": {
+        "resultId": "result_1",
+        "kind": "summary",
+        "version": "v1",
+        "payloadDigest": "sha256:bad",
+        "delivery": "inline",
+        "payload": {
+          "profileId": "synthetic_profile",
+          "data": {
+            "sample": "shape_only_not_valid_proof"
+          }
+        },
+        "streamRef": null,
+        "expiresAt": "2026-09-18T12:00:00Z"
+      }
+    },
+    {
+      "name": "wrong-claim-purpose",
+      "schema": "ReceiptClaimChallenge",
+      "value": {
+        "profileId": "receipt_profile",
+        "purpose": "transfer",
+        "accountBinding": "account_1",
+        "eligibilityId": "elig_1",
+        "chainId": 8283,
+        "audience": "nu_app",
+        "domain": "example.invalid",
+        "nonce": "nonce_1",
+        "expiresAt": "2026-09-18T12:00:00Z",
+        "verificationPayload": {
+          "profileId": "synthetic_profile",
+          "data": {
+            "sample": "shape_only_not_valid_proof"
+          }
+        }
+      }
+    },
+    {
+      "name": "pending-entitlement-invalid-spendable",
+      "schema": "PendingEntitlementView",
+      "value": {
+        "entitlementId": "ent_1",
+        "storeId": "store_1",
+        "ruleVersion": "rule_1",
+        "state": "materializing",
+        "units": 1,
+        "spendable": true
+      }
+    },
+    {
+      "name": "pending-entitlement-invalid-state",
+      "schema": "PendingEntitlementView",
+      "value": {
+        "entitlementId": "ent_1",
+        "storeId": "store_1",
+        "ruleVersion": "rule_1",
+        "state": "available",
+        "units": 1,
+        "spendable": false
+      }
+    }
+  ],
+  "semanticCases": [
+    {
+      "name": "materialization-source-once",
+      "apiId": "API-043",
+      "rule": "pending_and_materialized_sources_disjoint",
+      "pendingSourceIds": [],
+      "materializedSourceIds": [
+        "ent_1"
+      ],
+      "expected": "accept"
+    },
+    {
+      "name": "materialization-double-view",
+      "apiId": "API-043",
+      "rule": "pending_and_materialized_sources_disjoint",
+      "pendingSourceIds": [
+        "ent_1"
+      ],
+      "materializedSourceIds": [
+        "ent_1"
+      ],
+      "expected": "reject"
+    }
+  ]
+}

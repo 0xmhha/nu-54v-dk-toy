@@ -1,0 +1,1391 @@
+{
+  "status": "design_consolidation_not_implementation",
+  "date": "2026-09-19",
+  "scopeSource": "content/twelve-week-completion-scope-v3.md",
+  "phase": "detailed_design",
+  "implementation": "deferred_by_user",
+  "staffingAndEstimation": "deferred",
+  "confirmedConstraints": [
+    "12주 내 15개 요구사항 모두 앱 연동",
+    "참여자 3명, 개인 배정/공수 보류",
+    "NU-54V-DK 펌웨어 Zephyr",
+    "RN 태블릿 키오스크, S25 Ultra 보유",
+    "StableNet testnet, dummy USDC 우선, 초기 고객 native gas",
+    "EOA 우선 후 12주 범위 스마트 계정, 운영자 후원은 후속",
+    "HW 단독 서명과 Cloud MPC 요구 구분",
+    "일반적인 다음 진행은 설계 연속이며 구현/정책 승인 아님"
+  ],
+  "currentLayers": [
+    {
+      "id": "L1",
+      "label": "사용자 확정 범위",
+      "sourceFiles": [
+        "content/twelve-week-completion-scope-v3.md",
+        "content/planning/work-breakdown.json"
+      ],
+      "meaning": "범위/진행단계 기준; 세부 제안을 확정으로 승격하지 않음"
+    },
+    {
+      "id": "L2",
+      "label": "기준 설계 카탈로그",
+      "sourceFiles": [
+        "content/specifications/api-catalog.json",
+        "content/specifications/ble-catalog.json",
+        "content/specifications/core.schema.json",
+        "content/specifications/database/README.md"
+      ],
+      "meaning": "명세와 참조 DDL; 운영 중 서비스나 구현 완료가 아님"
+    },
+    {
+      "id": "L3",
+      "label": "미병합 상세 후보",
+      "sourceFiles": [
+        "content/specifications/commerce-contract-candidate.json",
+        "content/specifications/return-recovery-contract.json",
+        "content/specifications/return-protocol-candidate.json",
+        "content/specifications/commerce-reconciliation-integration.json",
+        "content/specifications/commerce-consumer-repair-design.json",
+        "content/specifications/settlement-ops-contracts.json"
+      ],
+      "meaning": "변경안/검토 예제; 실제 호출 경로/물리 저장/선택 정책 완료 아님"
+    },
+    {
+      "id": "L4",
+      "label": "화면 서술 반영",
+      "sourceFiles": [
+        "content/specifications/return-screen-design.json",
+        "content/specifications/screen-flows.json"
+      ],
+      "meaning": "5개 기존 화면에 문구·복구 원칙 반영; 프로토콜 병합/실제 UI 구현과 다름"
+    },
+    {
+      "label": "현재 승인 기준",
+      "sourceFiles": [
+        "content/specifications/approval-baseline.json",
+        "content/specifications/approval-baseline.schema.json",
+        "content/specifications/approval-storage-mapping.json",
+        "content/specifications/approval-source-dispatch.json",
+        "content/specifications/approval-physical-storage-design.json",
+        "content/specifications/approval-physical-storage-design.md"
+      ],
+      "meaning": "HTTP13경로·BLE5쌍·권한/화면/논리저장 통합. 타 상품 adapter와 새 물리 SQL은 미완료; runtime unverified."
+    },
+    {
+      "label": "미병합 통합 묶음·수용 기준",
+      "sourceFiles": [
+        "content/planning/integration-adoption-matrix.json"
+      ],
+      "meaning": "DI8/수용24/후보처분20/15요구/19결정 재대조. 새로운 카탈로그 병합이나 구현 완료 아님."
+    },
+    {
+      "label": "구현 전 논리설계 인계 후보",
+      "sourceFiles": [
+        "content/planning/preimplementation-handoff.json",
+        "content/specifications/preimplementation-contract-overlay.json"
+      ],
+      "meaning": "8개 설계 묶음·104작업·320단계 연결. 프로필선택/기준채택/실제실행과 분리하며 전체 구현준비 완료 아님."
+    }
+  ],
+  "integrationBundles": [
+    {
+      "id": "DI-01",
+      "title": "결제·환불·매출·정산·운영 API와 권한",
+      "status": "current_compatible_full_envelopes_drafted_not_merged",
+      "finishDependsOn": [],
+      "decisionRefs": [
+        "D02",
+        "D08",
+        "D19"
+      ],
+      "sourceFiles": [
+        "content/specifications/commerce-contract-candidate.json",
+        "content/specifications/commerce-reconciliation-integration.json",
+        "content/specifications/settlement-ops-contracts.json"
+      ],
+      "targetContracts": [
+        "API-030/035/036/037/038 request/response; API-030 query and pagination",
+        "API-018 refund source/hold semantic checks",
+        "authorization-policies + access mappings + screen projection",
+        "API-039/040/041/093/087 전체 계약과 미등록 SR-01/02; 단일 consumer/projection 반영 권한"
+      ],
+      "completionEvidence": [
+        "원지급 선택·funding revision·고객 allocation별 조회 조건의 단일 명세",
+        "현재 후보 fragment 밖의 HTTP/error/query와 전체 response 연결",
+        "D08 제안과 확정된 운영 정책의 구분"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-02",
+      "title": "결제·환불 이벤트 버전과 소비 규칙",
+      "status": "consumer_projection_repair_contract_drafted_not_merged",
+      "finishDependsOn": [
+        "DI-01"
+      ],
+      "decisionRefs": [
+        "D02",
+        "D08",
+        "D09",
+        "D17",
+        "D18",
+        "D19"
+      ],
+      "sourceFiles": [
+        "content/specifications/commerce-contract-candidate.json",
+        "content/specifications/commerce-reconciliation-integration.json",
+        "content/specifications/commerce-consumer-repair-design.json"
+      ],
+      "targetContracts": [
+        "payment.acceptance.changed / refund.state.changed v2",
+        "DomainEvent envelope and producer/consumer version/checkpoint",
+        "order/allocation/refund/funding/observation revisions"
+      ],
+      "completionEvidence": [
+        "버전1/2 전환 규칙·단일 원장 반영 경로",
+        "중복/역순/누락 snapshot 복구 명세",
+        "소비자5개 목표기여분/불변보정/manifest 완전성/원자publication/재구축7단계 제안; 실행미검증22사례"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-03",
+      "title": "결제·환불과 보안 저장 경계",
+      "status": "companion_mapping_and_atomic_boundaries_proposed_sql_unapplied",
+      "finishDependsOn": [
+        "DI-01",
+        "DI-02"
+      ],
+      "decisionRefs": [
+        "D02",
+        "D03",
+        "D08",
+        "D09",
+        "D17",
+        "D19"
+      ],
+      "sourceFiles": [
+        "content/specifications/commerce-contract-candidate.json",
+        "content/specifications/security-storage-contracts.json",
+        "content/specifications/commerce-reconciliation-integration.json"
+      ],
+      "targetContracts": [
+        "OrderReconciliation / PaymentException / RefundFundingGuard / RefundReconciliation",
+        "TX-04/05 and reference DDL relationship/constraints",
+        "current 28 security logical resources and adapter atomicity"
+      ],
+      "completionEvidence": [
+        "새 물리 테이블로 합산하지 않는 실제 column/관계 매핑안",
+        "잠금 순서·idempotency/outbox·한도 보정·승인 보류의 일관된 계약",
+        "기존 61테이블 검증이 새 제약까지 검사했다고 표시하지 않음"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-04",
+      "title": "반납 API·허가·증거 접수",
+      "status": "admission_cancel_route_proposal_not_adopted",
+      "finishDependsOn": [],
+      "decisionRefs": [
+        "D02",
+        "D03",
+        "D09"
+      ],
+      "sourceFiles": [
+        "content/specifications/return-protocol-candidate.json",
+        "content/specifications/return-recovery-contract.json",
+        "content/specifications/return-route-contracts.json",
+        "content/specifications/rental-admission-cancel.json",
+        "content/specifications/lifecycle-storage-design.json",
+        "content/specifications/lifecycle-bootstrap-contracts.json",
+        "content/specifications/enrollment-continuity-adoption.json",
+        "content/specifications/lifecycle-journey-acceptance.json"
+      ],
+      "targetContracts": [
+        "API-046/047/091 typed changes",
+        "RP-02 online commit; relay authority issuance; cleanup submission/challenge paths",
+        "HTTP method/path/authorization envelope/expiry/idempotency/errors"
+      ],
+      "completionEvidence": [
+        "RP별 실제 endpoint/명령 대응표; 입력/출력/권한/오류 전체",
+        "기존 clearance 만료 의미와 새로운 commit/late evidence 구분",
+        "복구 정책 unresolved면 새 commit 불가 유지"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-05",
+      "title": "기기·BLE·신뢰 profile",
+      "status": "admission_cancel_route_proposal_not_adopted",
+      "finishDependsOn": [
+        "DI-04"
+      ],
+      "decisionRefs": [
+        "D02",
+        "D03",
+        "D05",
+        "D06",
+        "D09"
+      ],
+      "sourceFiles": [
+        "content/specifications/return-protocol-candidate.json",
+        "content/specifications/return-recovery-contract.json",
+        "content/specifications/implementation-interfaces.json",
+        "content/specifications/return-route-contracts.json",
+        "content/specifications/rental-admission-cancel.json",
+        "content/specifications/lifecycle-storage-design.json",
+        "content/specifications/lifecycle-bootstrap-contracts.json",
+        "content/specifications/enrollment-continuity-adoption.json",
+        "content/specifications/lifecycle-journey-acceptance.json"
+      ],
+      "targetContracts": [
+        "device.reset.prepare/confirm; reset_recovery_relay role and action catalogue",
+        "IF-02/07/14; identity/proof/epoch/journal/cleanup profile",
+        "encoding/digest/encryption/transport bounds and version negotiation"
+      ],
+      "completionEvidence": [
+        "firmware-base Zephyr와 미선정 SDK/board target 구분",
+        "새 role을 기존 owner role로 우회하지 않는 ACL 명세",
+        "보호 능력 가정과 개발 단계 실기 검증 입력 분리"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-06",
+      "title": "반납 저장·정리·재대여 조건",
+      "status": "lifecycle_storage_proposal_not_applied",
+      "finishDependsOn": [
+        "DI-04",
+        "DI-05"
+      ],
+      "decisionRefs": [
+        "D02",
+        "D03",
+        "D09"
+      ],
+      "sourceFiles": [
+        "content/specifications/return-recovery-contract.json",
+        "content/specifications/return-protocol-candidate.json",
+        "content/specifications/rental-admission-cancel.json",
+        "content/specifications/lifecycle-storage-design.json",
+        "content/specifications/lifecycle-bootstrap-contracts.json",
+        "content/specifications/enrollment-continuity-adoption.json",
+        "content/specifications/lifecycle-journey-acceptance.json"
+      ],
+      "targetContracts": [
+        "ResetJob / DeviceResetJournal / RecoveryRelayGrant / ReenrollmentGate",
+        "TX-07; rentals/device binding/reset clearances/jobs",
+        "API-045/enrollment admission and authoritative device epoch"
+      ],
+      "completionEvidence": [
+        "returned와 cleanup/gate를 분리한 transaction·조회·이벤트 계약",
+        "완료 후 cleanup 실패/marker missing 상태 조합",
+        "새 등록 mutation도 최신 gate/epoch/활성 binding 재검증"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-07",
+      "title": "화면·권한·서버 상태 정합",
+      "status": "admission_cancel_route_proposal_not_adopted",
+      "finishDependsOn": [
+        "DI-01",
+        "DI-04",
+        "DI-06"
+      ],
+      "decisionRefs": [
+        "D01",
+        "D02",
+        "D03",
+        "D08",
+        "D09",
+        "D17",
+        "D19"
+      ],
+      "sourceFiles": [
+        "content/specifications/return-screen-design.json",
+        "content/specifications/screen-flows.json",
+        "content/specifications/return-route-contracts.json",
+        "content/specifications/rental-admission-cancel.json",
+        "content/specifications/lifecycle-storage-design.json",
+        "content/specifications/lifecycle-bootstrap-contracts.json",
+        "content/specifications/enrollment-continuity-adoption.json",
+        "content/specifications/lifecycle-journey-acceptance.json"
+      ],
+      "targetContracts": [
+        "U24/D01/O01/U04/U05 existing narrative updates",
+        "RU-01..11 and RO-01..06, guarded RA actions",
+        "UI action → API/BLE/mutation authorization → result state"
+      ],
+      "completionEvidence": [
+        "37개 화면 유지, 문구 반영과 프로토콜 준비를 구별",
+        "RP-08 상태 조회만으로 구체 gate/binding facts를 얻는다고 가정하지 않음",
+        "모든 행동의 실제 route/refetch/source proof 연결; 없는 취소/재인증 경로 명시"
+      ],
+      "runtimeVerified": false
+    },
+    {
+      "id": "DI-08",
+      "title": "단일 기준 명세로 검토·병합",
+      "status": "adoption_matrix_drafted_no_new_canonical_merge",
+      "finishDependsOn": [
+        "DI-01",
+        "DI-02",
+        "DI-03",
+        "DI-04",
+        "DI-05",
+        "DI-06",
+        "DI-07"
+      ],
+      "decisionRefs": [
+        "D02",
+        "D19"
+      ],
+      "sourceFiles": [
+        "content/planning/work-breakdown.json",
+        "content/specifications/compatibility-matrix.json",
+        "content/specifications/settlement-ops-contracts.json",
+        "content/planning/integration-adoption-matrix.json",
+        "content/specifications/lifecycle-journey-acceptance.json"
+      ],
+      "targetContracts": [
+        "catalogues + shared/extended/critical schemas + examples + access policies + screens",
+        "state/store/event/compatibility/WBS references and generated views",
+        "candidate disposition and baseline source hashes"
+      ],
+      "completionEvidence": [
+        "각 정책 선택의 출처·미정·후보 상태 기록",
+        "영향 파일 일괄 변경 후 shape/참조 검증과 미구현 수용 조건 유지",
+        "후보 폐기/부분반영/전체반영 표기; 검증되지 않은 runtime 완료 금지",
+        "매출·정산/운영 기존경로5개와 미등록SR후보2개 전체envelope,단일consumer publication권한·scope/fence·화면 연결 제안"
+      ],
+      "runtimeVerified": false
+    }
+  ],
+  "differences": [
+    {
+      "id": "DC-01",
+      "title": "반납 종료와 재대여 원자 경계",
+      "baseline": "storage-operations.md TX-07은 returned와 재대여 가능을 함께 반영",
+      "candidate": "return-protocol/return-screen은 cleanup/gate를 별도 확인",
+      "state": "open_integration_difference",
+      "bundleRefs": [
+        "DI-06",
+        "DI-07"
+      ],
+      "rule": "화면 최신 서술이 API/저장 계약까지 병합됐다는 뜻이 아니다"
+    },
+    {
+      "id": "DC-02",
+      "title": "온라인 commit·relay·cleanup 호출 경로 부재",
+      "baseline": "현재 기준 API110/BLE34에 반납 commit·relay·cleanup의 새 전용 경로는 아직 없음",
+      "candidate": "HTTP 기존3/미등록7·BLE 기존2/미등록4의 전체 논리 envelope 후보 작성; 후속 API045 예약/활성화·grant 전 취소 경로 후보 추가",
+      "state": "routes_drafted_uncatalogued",
+      "bundleRefs": [
+        "DI-04",
+        "DI-05"
+      ],
+      "rule": "후보 타입/화면 버튼이 있어도 호출 가능한 것으로 표시하지 않는다"
+    },
+    {
+      "id": "DC-03",
+      "title": "화면의 gate 판단 입력",
+      "baseline": "API-091 RentalView/ResetStateView는 후보 정리 상태/현재 epoch/gate 상세를 담지 않음",
+      "candidate": "API091 opt-in return projection에 같은 작업/epoch의 current readiness와 job 없는 null 분기 설계; 조회와 API045 현재 조건 잠금/예약 분리",
+      "state": "consistent_projection_drafted_not_adopted",
+      "bundleRefs": [
+        "DI-04",
+        "DI-06",
+        "DI-07"
+      ],
+      "rule": "다른 job/시점의 조회를 혼합해 eligible을 추론하지 않는다"
+    },
+    {
+      "id": "DC-04",
+      "title": "API fragment와 전체 endpoint 차이",
+      "baseline": "기준 request/envelope/query/access mappings 유지",
+      "candidate": "commerce-reconciliation-integration은 현재 API110 기준의 전체 HTTP 5개 경로. API037 signer/snapshot을 유지하고 나머지 4개 API에 version/auth/query/error를 포함한 변경안을 제시",
+      "state": "full_envelope_design_rebased_canonical_merge_pending",
+      "bundleRefs": [
+        "DI-01",
+        "DI-08"
+      ],
+      "rule": "candidate schema 통과를 전체 HTTP/권한 구현 통과로 보지 않는다"
+    },
+    {
+      "id": "DC-05",
+      "title": "환불 원천별 고객 조회 권한",
+      "baseline": "refund_read 문구의 원주문 고객 범위는 다중 payer에서 지나치게 넓게 읽힐 수 있음",
+      "candidate": "현재 호환 연결안에서 allocation 소유권과 exact-store 환불 원천 예산 권한을 분리; canonical refund_read 문구 반영은 대기",
+      "state": "exact_allocation_and_source_projection_drafted_merge_pending",
+      "bundleRefs": [
+        "DI-01"
+      ],
+      "rule": "주문 공유가 다른 payer의 환불 조회권을 부여하지 않는다"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D01",
+      "title": "앱·인증 대상",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "추가 OS·태블릿·배포 경로·언어 우선순위"
+      ],
+      "engineeringDesign": [
+        "유저 앱 RN 채택안·native bridge 공유 경계"
+      ],
+      "implementationVerification": [
+        "플랫폼별 설치/Google·Apple 인증"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-01",
+        "TECH-02"
+      ],
+      "taskRefs": [
+        "BASE-01",
+        "AUTH-02",
+        "AUTH-03",
+        "APP-01",
+        "SHOP-01",
+        "TRIP-03"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D02",
+      "title": "연결 규칙·데이터 경계",
+      "sourceStatus": "open",
+      "policyInputs": [],
+      "engineeringDesign": [
+        "API/BLE/proof 버전·인증 envelope·역할별 projection·정규화·원자 저장 경계"
+      ],
+      "implementationVerification": [
+        "실제 profile 호환·권한/동시성"
+      ],
+      "policyRouting": "no_new_user_question_required",
+      "technologyRefs": [
+        "TECH-03",
+        "TECH-04",
+        "TECH-09",
+        "TECH-19"
+      ],
+      "taskRefs": [
+        "BASE-01",
+        "BASE-02",
+        "BASE-03",
+        "AUTH-01",
+        "HW-03",
+        "INDEX-02"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D03",
+      "title": "지갑 키·복구",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "신규 여행 지갑의 개인 복구 백업 추가 여부 또는 복구 없을 때 초기화 보류",
+        "HW/Cloud 지갑의 주소·복구 관계"
+      ],
+      "engineeringDesign": [
+        "키 파생·격리·import·장치 신원/epoch/journal 보호·늦은 증거 검증"
+      ],
+      "implementationVerification": [
+        "원시 키 비노출·서명·삭제·초기화 후 복구"
+      ],
+      "policyRouting": "existing_question_pending",
+      "technologyRefs": [
+        "TECH-02",
+        "TECH-07",
+        "TECH-12"
+      ],
+      "taskRefs": [
+        "BASE-03",
+        "AUTH-04",
+        "APP-02",
+        "HW-02",
+        "HW-03",
+        "HW-04",
+        "HW-05",
+        "MPC-01",
+        "STAMP-03",
+        "VERIFY-01",
+        "BASE-06",
+        "STAMP-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D04",
+      "title": "MPC 신뢰 구조",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "MPC 참여 주체·복구 권한·서비스 중단 시 접근 정책"
+      ],
+      "engineeringDesign": [
+        "제공자/라이브러리·임계값·조각 보관 경계·세션 중단 규칙"
+      ],
+      "implementationVerification": [
+        "실제 DKG/임계 서명·참여자 변경·복구"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-12"
+      ],
+      "taskRefs": [
+        "AUTH-04",
+        "MPC-01",
+        "MPC-02",
+        "MPC-03",
+        "MPC-04",
+        "VERIFY-01",
+        "BASE-06",
+        "MPC-05"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D05",
+      "title": "FOTA 운영",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "업데이트 시 사용자 중단/강제 여부와 운영 배포·복귀 정책"
+      ],
+      "engineeringDesign": [
+        "Zephyr SDK/board target·부트로더/슬롯·서명 키 운영·저장 호환"
+      ],
+      "implementationVerification": [
+        "서명 이미지·전원 차단·부팅 복귀·키 보존"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-06",
+        "TECH-08"
+      ],
+      "taskRefs": [
+        "HW-01",
+        "OTA-01",
+        "OTA-02",
+        "OTA-03",
+        "OPS-02",
+        "VERIFY-02",
+        "HW-07",
+        "OTA-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D06",
+      "title": "패스키 호환 범위",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "우선 사용할 passkey 서비스와 기기/브라우저"
+      ],
+      "engineeringDesign": [
+        "표준 transport·등록/인증·대체 로그인 및 반납 자격 정리"
+      ],
+      "implementationVerification": [
+        "실제 RP/OS/브라우저 조합 상호운용"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-07",
+        "TECH-10"
+      ],
+      "taskRefs": [
+        "KEY-01",
+        "KEY-02",
+        "KEY-03",
+        "VERIFY-02",
+        "STAMP-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D07",
+      "title": "녹음·찾기 목표",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "녹음 품질/길이·백그라운드 사용·찾기 반응 목표"
+      ],
+      "engineeringDesign": [
+        "마이크/출력 부품·버퍼·BLE 전송·동시 동작·거리 유효성"
+      ],
+      "implementationVerification": [
+        "음성 누락·배터리/메모리·실제 거리/백그라운드"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-06",
+        "TECH-09",
+        "TECH-11"
+      ],
+      "taskRefs": [
+        "HW-01",
+        "HW-06",
+        "REC-01",
+        "REC-02",
+        "REC-03",
+        "FIND-01",
+        "FIND-02",
+        "VERIFY-02",
+        "HW-07",
+        "TRIP-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D08",
+      "title": "결제·환불·정산",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "최초 전체 지급 수락·분할 지급·늦은/중복 지급 반환 정책",
+        "환불·수취·정산 운영 규칙과 비용 부담의 예외"
+      ],
+      "engineeringDesign": [
+        "원지급별 한도·확정/관측 보정·quote/환율 출처·목적지 증명"
+      ],
+      "implementationVerification": [
+        "동시 지급/환불·reorg·정산 보정"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-03",
+        "TECH-04",
+        "TECH-13"
+      ],
+      "taskRefs": [
+        "BASE-02",
+        "APP-03",
+        "APP-04",
+        "HW-05",
+        "HW-06",
+        "INDEX-03",
+        "INDEX-05",
+        "PAY-01",
+        "PAY-02",
+        "PAY-03",
+        "PAY-04",
+        "PAY-05",
+        "SHOP-02",
+        "SHOP-03",
+        "SHOP-04",
+        "SHOP-05",
+        "OPS-03",
+        "VERIFY-03",
+        "SHOP-06",
+        "INDEX-06"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D09",
+      "title": "대여·혜택",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "기존 D03 복구 질문을 공유하며 중복 질문하지 않음",
+        "적립/사용·환불 후 사용된 혜택·회수 불가 기기 운영 정책"
+      ],
+      "engineeringDesign": [
+        "반납 fence·commit·증거 relay·ACK/cleanup·재대여 gate"
+      ],
+      "implementationVerification": [
+        "다음 대여자 격리·증거 유실·혜택 중복/보정"
+      ],
+      "policyRouting": "shared_with_D03",
+      "technologyRefs": [
+        "TECH-04",
+        "TECH-10"
+      ],
+      "taskRefs": [
+        "BASE-02",
+        "KEY-03",
+        "FIND-02",
+        "SHOP-04",
+        "STAMP-01",
+        "STAMP-02",
+        "STAMP-03",
+        "OPS-02",
+        "AI-03",
+        "VERIFY-01",
+        "VERIFY-03",
+        "STAMP-04",
+        "INDEX-06"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D10",
+      "title": "배포/시험 환경",
+      "sourceStatus": "open",
+      "policyInputs": [],
+      "engineeringDesign": [
+        "StableNet manifest·dummy token 권한·native/wrapped 구분·ABI/배포 block·Indexer endpoint"
+      ],
+      "implementationVerification": [
+        "실제 가스 수급·배포/조회·토큰 호출"
+      ],
+      "policyRouting": "no_new_user_question_required",
+      "technologyRefs": [
+        "TECH-13",
+        "TECH-14",
+        "TECH-17"
+      ],
+      "taskRefs": [
+        "BASE-04",
+        "BASE-05",
+        "TOKEN-01",
+        "TOKEN-02",
+        "TOKEN-03",
+        "INDEX-01",
+        "INDEX-03",
+        "INDEX-04",
+        "INDEX-05",
+        "VERIFY-04",
+        "RELEASE-01"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D11",
+      "title": "스마트 계정 전환",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "EOA 이후 주소/자산/권한 전환 경험과 복구 방식"
+      ],
+      "engineeringDesign": [
+        "account/EntryPoint/SDK/Bundler 버전 묶음·HW/Cloud signer 지원"
+      ],
+      "implementationVerification": [
+        "실제 UserOperation·전환/복구·거래 조회"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-14"
+      ],
+      "taskRefs": [
+        "SMART-01",
+        "SMART-02",
+        "SMART-03",
+        "VERIFY-04",
+        "BASE-06",
+        "STAMP-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D12",
+      "title": "DeFi·FX 상품",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "DeFi 대표 동작·FX 상품 모델·시험 자산 쌍"
+      ],
+      "engineeringDesign": [
+        "pool·유동성·가격·슬리피지·견적/실행 adapter"
+      ],
+      "implementationVerification": [
+        "실제 swap/LP/FX 실행·실패/가격 기한"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-15"
+      ],
+      "taskRefs": [
+        "DEX-01",
+        "DEX-02",
+        "DEX-03",
+        "FX-01",
+        "FX-02",
+        "FX-03",
+        "VERIFY-04",
+        "BASE-06"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D13",
+      "title": "Perpetual 상품",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "시험 시장·담보·레버리지·가격 장애 시 상품 정책"
+      ],
+      "engineeringDesign": [
+        "가격/오라클·펀딩·청산·keeper·위험 계산 규칙"
+      ],
+      "implementationVerification": [
+        "실제 포지션/펀딩/청산·장애 복구"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-15"
+      ],
+      "taskRefs": [
+        "PERP-01",
+        "PERP-02",
+        "PERP-03",
+        "PERP-04",
+        "PERP-05",
+        "VERIFY-04",
+        "PERP-06"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D14",
+      "title": "STO 범위",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "시험 발행물의 권리·발행자·전송/보유 자격"
+      ],
+      "engineeringDesign": [
+        "STO 계약·자격·앱 동작·이벤트 모델"
+      ],
+      "implementationVerification": [
+        "허용/거부/철회·잔액/권리 조회"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-16"
+      ],
+      "taskRefs": [
+        "STO-01",
+        "STO-02",
+        "STO-03",
+        "VERIFY-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D15",
+      "title": "DID 범위",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "자격의 내용·발급자/검증자·공개할 정보"
+      ],
+      "engineeringDesign": [
+        "DID/credential/proof 표준·철회 모델·STO 연결"
+      ],
+      "implementationVerification": [
+        "실제 발급/검증/철회·개인 정보 노출 방지"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-16"
+      ],
+      "taskRefs": [
+        "DID-01",
+        "DID-02",
+        "DID-03",
+        "VERIFY-04",
+        "BASE-06"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D16",
+      "title": "x402 범위",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "유료 자원과 재요청 과금 경험·고객 가스 부담 예외 여부"
+      ],
+      "engineeringDesign": [
+        "x402 버전·token authorization 방식·facilitator·지급/전달 분리"
+      ],
+      "implementationVerification": [
+        "선택한 토큰 방식·실제 gas payer·반복 과금 방지"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-17"
+      ],
+      "taskRefs": [
+        "X402-01",
+        "X402-02",
+        "X402-03",
+        "VERIFY-04",
+        "BASE-06"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D17",
+      "title": "위치·후기·실제 데이터",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "위치 수집·보관·삭제·후기 출처 정책"
+      ],
+      "engineeringDesign": [
+        "장소 제공자·장소/매장 연결·동의/삭제·실제/시험 구매 구분"
+      ],
+      "implementationVerification": [
+        "위치 거절·삭제 전파·다중 출처 일치"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-05",
+        "TECH-11",
+        "TECH-18"
+      ],
+      "taskRefs": [
+        "APP-04",
+        "TRIP-01",
+        "TRIP-02",
+        "TRIP-03",
+        "VERIFY-05",
+        "INDEX-06",
+        "TRIP-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D18",
+      "title": "추천·챌린지 기준",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "추천 코스 목표·제약·챌린지 완료/보상 기준"
+      ],
+      "engineeringDesign": [
+        "AI 입력/검증·데이터 부족 대안·증거 철회 재평가"
+      ],
+      "implementationVerification": [
+        "평가 표본·근거/영업시간·중복 보상 방지"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-18"
+      ],
+      "taskRefs": [
+        "AI-01",
+        "AI-02",
+        "AI-03",
+        "VERIFY-05",
+        "TRIP-04"
+      ],
+      "resolved": false
+    },
+    {
+      "id": "D19",
+      "title": "운영·수용 목표",
+      "sourceStatus": "open",
+      "policyInputs": [
+        "운영 역할·품질/복구 목표·실자산 파일럿 여부"
+      ],
+      "engineeringDesign": [
+        "관측/보존/복구·알림·지원·출시 증거·운영 접근 설계"
+      ],
+      "implementationVerification": [
+        "성능/배터리·백업 복구·장애 대응·실자산 전 별도 검토"
+      ],
+      "policyRouting": "queued_not_asked",
+      "technologyRefs": [
+        "TECH-03",
+        "TECH-04",
+        "TECH-05",
+        "TECH-19"
+      ],
+      "taskRefs": [
+        "BASE-05",
+        "AUTH-04",
+        "REC-03",
+        "OPS-01",
+        "OPS-03",
+        "VERIFY-01",
+        "VERIFY-02",
+        "VERIFY-03",
+        "VERIFY-04",
+        "VERIFY-05",
+        "RELEASE-01",
+        "RELEASE-02",
+        "RELEASE-03",
+        "PERP-06",
+        "TRIP-04"
+      ],
+      "resolved": false
+    }
+  ],
+  "pendingUserQuestion": {
+    "decisionRefs": [
+      "D03",
+      "D09"
+    ],
+    "sourceFile": "content/specifications/return-recovery-contract.json",
+    "sourceEntry": "RR-DEC-01",
+    "selection": null,
+    "status": "awaiting_answer",
+    "question": "신규 여행 지갑의 개인 암호화 복구 백업 추가 또는 복구 수단 없을 때 초기화 보류",
+    "reaskThisTurn": false,
+    "doNotInferApprovalFromContinuation": true
+  },
+  "designQueue": [
+    {
+      "id": "NEXT-01",
+      "focus": "두 지갑·신규 여행 지갑 복구와 반납 정책",
+      "decisionRefs": [
+        "D03",
+        "D04",
+        "D09"
+      ],
+      "output": "사용자 경험/키 통제/복구 경계의 선택안과 미병합 계약 영향",
+      "note": "RR-DEC-01 답변 전 백업/반납 정책을 확정하지 않음",
+      "status": "design_candidate_drafted_policy_pending",
+      "document": "content/specifications/wallet-control-recovery-design.md"
+    },
+    {
+      "id": "NEXT-02",
+      "focus": "지갑 선택·승인 문맥의 전체 계약 연결, 결제·반납 후보 정합성",
+      "decisionRefs": [
+        "D02",
+        "D08",
+        "D09"
+      ],
+      "output": "지갑 조회·signer 가용성·승인 결합과 기존 DI-01..08의 경로·권한·응답·저장 매핑안",
+      "note": "전체15요구/104작업/320세부작업·설계8묶음 유지. DS01~08 논리 후보와 구현 전 인계서 작성. 정책19개 미선택·역할/공수 미배정·구현 보류.",
+      "status": "full_scope_review_drafted",
+      "document": "content/planning/full-scope-design-review.md"
+    },
+    {
+      "id": "NEXT-03",
+      "focus": "기기 동시동작·FOTA 공존 상세 설계",
+      "decisionRefs": [
+        "D03",
+        "D05",
+        "D06",
+        "D07",
+        "D09"
+      ],
+      "output": "서명/패스키/녹음/찾기/반납/FOTA의 자원·권한·중단/복구 상태표",
+      "note": "공존100쌍·FOTA전이10개·실기미실행28사례. SDK/profile/수치·실제 부트 commit 순서는 미선정; 후속 후보는 최신 인계서 참조.",
+      "status": "device_coexistence_candidate_drafted",
+      "document": "content/specifications/device-coexistence-design.md"
+    },
+    {
+      "id": "NEXT-04",
+      "focus": "소셜 로그인·두 지갑·MPC 복구 연결 상세 설계",
+      "decisionRefs": [
+        "D01",
+        "D03",
+        "D04"
+      ],
+      "output": "계정 연결/전환·세션 철회와 HW/Cloud 각각의 서명/복구 권한, MPC 참여자/복구 선택표",
+      "note": "인증11/MPC11 전이·권한영향8종·미실행32사례. 제공자/threshold/주소정책 미선정, 후속 후보는 최신 인계서 참조.",
+      "status": "social_wallet_recovery_candidate_drafted",
+      "document": "content/specifications/social-wallet-recovery-design.md"
+    },
+    {
+      "id": "NEXT-05",
+      "focus": "키오스크·결제·환불·스탬프·정산 종단 연결",
+      "decisionRefs": [
+        "D01",
+        "D08",
+        "D09"
+      ],
+      "output": "고객 주문/결제와 점주 메뉴·매출·환불·정산 화면, 현재 승인/대사 후보의 종단 실패 복구",
+      "note": "12여정·표시10개·정책입력7개·미실행34사례. fulfillment/단말복구/후보채택 미완료, 후속 후보는 최신 인계서 참조.",
+      "status": "kiosk_commerce_journeys_candidate_drafted",
+      "document": "content/specifications/kiosk-commerce-journey-design.md"
+    },
+    {
+      "id": "NEXT-06",
+      "focus": "StableNet 자산·스마트계정·Indexer 호환 설계",
+      "decisionRefs": [
+        "D10",
+        "D11",
+        "D19"
+      ],
+      "output": "자산/가스/ABI/address/version manifest, EOA 이후 스마트계정과 이벤트·조회모델 연결",
+      "note": "manifest8경계·온체인9영역·미실행34사례. 실제RPC/배포·ABI/AA adapter 미검증; 후속 후보는 최신 인계서 참조.",
+      "status": "stablenet_compatibility_candidate_drafted",
+      "document": "content/specifications/stablenet-compatibility-design.md"
+    },
+    {
+      "id": "NEXT-07",
+      "focus": "DeFi·FX·Perpetual 상품별 상태/위험 계약",
+      "decisionRefs": [
+        "D12",
+        "D13",
+        "D19"
+      ],
+      "output": "견적·유동성·슬리피지·가격원·증거금·펀딩·청산과 앱 상태 연결",
+      "note": "상품4영역·가격행위10종·keeper6단계·미실행32사례. 모델/수치/market adapter 미선정; 후속 후보는 최신 인계서 참조.",
+      "status": "market_product_candidate_drafted",
+      "document": "content/specifications/market-product-design.md"
+    },
+    {
+      "id": "NEXT-08",
+      "focus": "DID·STO·x402 자격/지급 계약",
+      "decisionRefs": [
+        "D14",
+        "D15",
+        "D16"
+      ],
+      "output": "발급·검증·철회, 시험 발행물 자격/권리, 유료자원 지급·제공 결과 연결",
+      "note": "DS06 후보: 자격/시험권리/지급·제공분리·미실행24사례. 프로필/권리 선택 및 기준채택 미완료.",
+      "status": "credential_paid_resource_candidate_drafted",
+      "document": "content/specifications/credential-paid-resource-design.md"
+    },
+    {
+      "id": "NEXT-09",
+      "focus": "녹음·여행·AI·개인정보 수명주기",
+      "decisionRefs": [
+        "D07",
+        "D17",
+        "D18",
+        "D19"
+      ],
+      "output": "원음·전사·추천·위치·후기 provenance와동의/삭제·수용 연결",
+      "note": "DS07 후보·평가표본12개·미실행24사례. 공급자/수치/보존정책 미선정.",
+      "status": "recording_travel_ai_candidate_drafted",
+      "document": "content/specifications/recording-travel-ai-design.md"
+    },
+    {
+      "id": "NEXT-10",
+      "focus": "운영·릴리스·백업복구·전체 증거",
+      "decisionRefs": [
+        "D10",
+        "D19"
+      ],
+      "output": "환경5구분·릴리스8단계·runbook10개·증거계약",
+      "note": "DS08 후보·미실행16사례. 운영 목표/실제복구/출시결정 미완료.",
+      "status": "operations_release_acceptance_candidate_drafted",
+      "document": "content/specifications/operations-release-acceptance-design.md"
+    },
+    {
+      "id": "NEXT-11",
+      "focus": "구현 전 전체 설계 인계",
+      "decisionRefs": [
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "D07",
+        "D08",
+        "D09",
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15",
+        "D16",
+        "D17",
+        "D18",
+        "D19"
+      ],
+      "output": "15요구/104작업/320단계·경계계약16개·행위11종·남은조건/선택근거 연결",
+      "note": "독립 작성 가능한 논리 초안 연결. 선택의존 wire/물리설계 고정·미병합 기준채택과 실제검증은 남음. 즉시구현가능/설계확정 선언이 아님.",
+      "status": "design_handoff_candidate_selection_pending",
+      "document": "content/planning/preimplementation-handoff.md"
+    }
+  ],
+  "nonGoalsThisTurn": [
+    "새 기능/작업 패키지 증설",
+    "최종 Seed 또는 구현 착수 선언",
+    "미답변 정책 선택",
+    "개발환경 설치·제품 코드·계약 배포·실기 시험",
+    "개인별 역할/공수 배정"
+  ],
+  "runtimeVerified": false,
+  "relatedDesigns": [
+    {
+      "status": "design_candidate_not_merged",
+      "document": "content/specifications/wallet-control-recovery-design.md",
+      "source": "content/specifications/wallet-control-recovery-design.json",
+      "policyCandidateCount": 4,
+      "invariantCount": 11,
+      "contractImpactCount": 7,
+      "reviewCaseCount": 21,
+      "canonicalMerged": false,
+      "runtimeVerified": false,
+      "policySelectionUnchanged": true,
+      "title": "HW·Cloud 지갑 사용·키 통제·복구",
+      "note": "최신 [승인 기준 통합](../specifications/approval-baseline.md)은 체크포인트 보존 후 현재 API110/권한60/논리저장28로 반영됐다. 이전 후보는 이력이며 물리 SQL/타 상품별 adapter/실행 검증은 남아 있다."
+    }
+  ],
+  "approvalCanonicalBaseline": {
+    "status": "canonical_design_integrated_runtime_unverified",
+    "document": "content/specifications/approval-baseline.md",
+    "source": "content/specifications/approval-baseline.json",
+    "checkpoint": "design-history/approval-premerge-20260918/checkpoint.json",
+    "apiCount": 110,
+    "authorizationPolicyCount": 60,
+    "logicalStorageCount": 28,
+    "canonicalMerged": true,
+    "archiveCreated": true,
+    "runtimeVerified": false,
+    "physicalSqlChanged": false,
+    "policySelectionUnchanged": true
+  },
+  "commerceIntegrationDesign": {
+    "title": "현재 승인 기준과 결제·환불 대사 연결",
+    "document": "content/specifications/commerce-reconciliation-integration.md",
+    "source": "content/specifications/commerce-reconciliation-integration.json",
+    "status": "current_compatible_design_not_merged",
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true,
+    "note": "전체 요청/응답 5개·이벤트2개·저장4개·원자처리4개·실행 미검증15사례. 기준/SQL/정책 미변경."
+  },
+  "commerceConsumerRepairDesign": {
+    "document": "content/specifications/commerce-consumer-repair-design.md",
+    "source": "content/specifications/commerce-consumer-repair-design.json",
+    "status": "design_proposal_not_merged",
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "policySelectionUnchanged": true
+  },
+  "settlementOpsDesign": {
+    "source": "content/specifications/settlement-ops-contracts.json",
+    "document": "content/specifications/settlement-ops-contracts.md",
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "newRegisteredApis": 0
+  },
+  "adoptionMatrix": {
+    "document": "content/planning/integration-adoption-matrix.md",
+    "source": "content/planning/integration-adoption-matrix.json",
+    "canonicalMergedThisTurn": false,
+    "runtimeVerified": false
+  },
+  "returnRouteDesign": {
+    "document": "content/specifications/return-route-contracts.md",
+    "source": "content/specifications/return-route-contracts.json",
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "httpRoutes": 10,
+    "blePairs": 6,
+    "newRegisteredApis": 0
+  },
+  "rentalAdmissionCancelDesign": {
+    "document": "content/specifications/rental-admission-cancel.md",
+    "source": "content/specifications/rental-admission-cancel.json",
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "httpRoutes": 9,
+    "blePairs": 4,
+    "newRegisteredApis": 0
+  },
+  "lifecycleStorageDesign": {
+    "source": "content/specifications/lifecycle-storage-design.json",
+    "document": "content/specifications/lifecycle-storage-design.md",
+    "proposedTables": 14,
+    "atomicUnits": 12,
+    "canonicalMerged": false,
+    "sqlApplied": false,
+    "runtimeVerified": false
+  },
+  "lifecycleBootstrapDesign": {
+    "source": "content/specifications/lifecycle-bootstrap-contracts.json",
+    "document": "content/specifications/lifecycle-bootstrap-contracts.md",
+    "httpAliases": 9,
+    "bleAliases": 3,
+    "pendingRouteOverlays": 17,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "enrollmentContinuityDesign": {
+    "source": "content/specifications/enrollment-continuity-adoption.json",
+    "document": "content/specifications/enrollment-continuity-adoption.md",
+    "registryTables": 7,
+    "atomicMappings": 8,
+    "adoptionCriteria": 12,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "lifecycleJourneyAcceptance": {
+    "source": "content/specifications/lifecycle-journey-acceptance.json",
+    "document": "content/specifications/lifecycle-journey-acceptance.md",
+    "journeys": 16,
+    "sourceCasesLinked": 107,
+    "runtimeRuns": 0,
+    "canonicalMerged": false
+  },
+  "fullScopeDesignReview": {
+    "source": "content/planning/full-scope-design-review.json",
+    "document": "content/planning/full-scope-design-review.md",
+    "requirements": 15,
+    "tasksMapped": 104,
+    "designPackages": 8,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "deviceCoexistenceDesign": {
+    "source": "content/specifications/device-coexistence-design.json",
+    "document": "content/specifications/device-coexistence-design.md",
+    "operations": 10,
+    "directionalPairs": 100,
+    "fotaTransitions": 10,
+    "runtimeCasesNotRun": 28,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "socialWalletRecoveryDesign": {
+    "source": "content/specifications/social-wallet-recovery-design.json",
+    "document": "content/specifications/social-wallet-recovery-design.md",
+    "authTransitions": 11,
+    "mpcTransitions": 11,
+    "authorityImpacts": 8,
+    "runtimeCasesNotRun": 32,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "kioskCommerceJourneyDesign": {
+    "source": "content/specifications/kiosk-commerce-journey-design.json",
+    "document": "content/specifications/kiosk-commerce-journey-design.md",
+    "journeys": 12,
+    "displayStates": 10,
+    "policyInputs": 7,
+    "runtimeCasesNotRun": 34,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "stablenetCompatibilityDesign": {
+    "source": "content/specifications/stablenet-compatibility-design.json",
+    "document": "content/specifications/stablenet-compatibility-design.md",
+    "manifestComponents": 8,
+    "domainCoverage": 9,
+    "runtimeCasesNotRun": 34,
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "liveRpcVerified": false
+  },
+  "marketProductDesign": {
+    "source": "content/specifications/market-product-design.json",
+    "document": "content/specifications/market-product-design.md",
+    "productCards": 4,
+    "priceActions": 10,
+    "keeperStages": 6,
+    "runtimeCasesNotRun": 32,
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "credentialPaidResourceDesign": {
+    "source": "content/specifications/credential-paid-resource-design.json",
+    "document": "content/specifications/credential-paid-resource-design.md",
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "recordingTravelAiDesign": {
+    "source": "content/specifications/recording-travel-ai-design.json",
+    "document": "content/specifications/recording-travel-ai-design.md",
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "operationsReleaseAcceptanceDesign": {
+    "source": "content/specifications/operations-release-acceptance-design.json",
+    "document": "content/specifications/operations-release-acceptance-design.md",
+    "canonicalMerged": false,
+    "runtimeVerified": false
+  },
+  "preimplementationHandoff": {
+    "source": "content/planning/preimplementation-handoff.json",
+    "document": "content/planning/preimplementation-handoff.md",
+    "taskCards": "content/planning/preimplementation-task-handoffs.md",
+    "contractOverlay": "content/specifications/preimplementation-contract-overlay.json",
+    "canonicalMerged": false,
+    "runtimeVerified": false,
+    "allImplementationReady": false
+  }
+}

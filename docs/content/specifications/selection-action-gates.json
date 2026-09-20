@@ -1,0 +1,1506 @@
+{
+  "date": "2026-09-19",
+  "status": "logical_action_gate_candidate",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sourceHashes": {
+    "content/specifications/selection-profile-contract.json": "8225719c5478e47cd41f909ffd38aefc7a9e54ceec006bc6ffc39ee25bafa9c1",
+    "content/specifications/screen-flows.json": "1db102661e79a3350e45a38e70c1cd354ef0259005ec3c026119cfc91077ae0f",
+    "content/specifications/api-catalog.json": "0c4353873a8e4a539bde0af783caf6478a35064804349b2740715bcfa2d335f0",
+    "content/specifications/preimplementation-contract-overlay.json": "31df189970849ffb4fe38b1b0e773f671a6d4905f49268644bba030a27ae5e97"
+  },
+  "coverage": "대표 행위 53개의 설계 연결. 화면/API 전체의 모든 method·subtype·edge case를 완전 열거한 라우터가 아니다. API와 화면 참조는 확장 설계이며 현재 wire 등록/화면 변경 완료를 뜻하지 않는다.",
+  "classificationOrder": [
+    "unknown action/subtype => reject",
+    "현재 인증/권한/목적/owner와 신뢰된 해당 reader/writer capability 확인",
+    "불변 원 operation/profile/exposure와 현재 security fence 확인",
+    "action+branch별 필요한 선택값과 호환/교차 제약 확인",
+    "현재 revision CAS에서 효과/ACK/공개 전 최종 재검사"
+  ],
+  "actionClasses": {
+    "read_observation": "새 권리/서명/지급/생성/외부 데이터 공개를 만들지 않는 현재 권한 내 조회",
+    "safety_restriction": "권한/사용을 축소하는 제한만; 소유권 이전·키 삭제·복구 export 제외",
+    "scoped_cleanup": "원 승인 plan/challenge의 허용 대상만 정리; 돈/키 초기화·재대여 제외",
+    "continue_existing": "검증된 원 profile을 사용하는 같은 operation의 제한된 변경 재개; 새 효과 생성이 아님을 입증 필요",
+    "new_effect": "새 인증/키/서명/결제/권한/공개/처리/원장 효과. 명시 선택·신뢰 profile·기능별 실행 근거 필요",
+    "destructive_cleanup": "키·자격·위임의 비가역 정리; 현재 권한과 원 반납·복구 증거 별도 요구"
+  },
+  "alwaysRequired": [
+    "현재 요청자의 해당 actor/scope 권한 또는 원 결과에 대한 유효한 제한 recovery proof",
+    "현재 owner/tenant/rental/context 및 개인정보 purpose/retention fence",
+    "해당 mode를 지원하는 신뢰된 reader/writer·schema·clock/lease capability",
+    "내부 idempotency/원 request digest·current resource revision 계약; 입력 role/self-asserted profile만으로 허가 불가"
+  ],
+  "continuationPolicy": [
+    "새로운 선택이 미완료여도 원 불변 profile이 있고 현 보안 정책이 허용한 원 mode만 재개 가능.",
+    "retired profile은 신규 사용 불가; current deny/revocation은 과거 active 표식보다 우선.",
+    "원 profile 미확보/지원 중지/unknown exposure에서는 조회·제한을 분리하며 변형 payload나 새 nonce로 대체 금지.",
+    "조회/관측을 저장해야 하는 대사는 별도의 continue_existing writer 권한으로 평가한다."
+  ],
+  "uiContract": {
+    "resultFields": [
+      "actionId",
+      "actionVariant",
+      "availability",
+      "reasonCode",
+      "missingFieldIds",
+      "profileSetDigest",
+      "evaluatedRevision",
+      "nextAllowedActions",
+      "publicExplanationKey"
+    ],
+    "availability": [
+      "read_only",
+      "restriction_only",
+      "cleanup_only",
+      "hold",
+      "eligible_for_domain_checks"
+    ],
+    "trust": "서버/기기 판정을 앱이 임의 enabled로 바꾸지 않는다. 진단 필드는 해당 사용자에게 공개 가능한 범위로 축약하며 타인 profile/보유 자산/권한 존재를 노출하지 않는다.",
+    "refresh": "설정 변경·계정 전환·기기 세대 변경 때 재평가; 이전 enabled 캐시로 서명/결제 금지.",
+    "copyExamples": [
+      "이 기능의 설정이 아직 완료되지 않았어요. 기존 내역은 확인할 수 있어요.",
+      "원래 거래의 결과를 확인하고 있어요. 새 결제를 만들지 마세요.",
+      "복구 확인이 필요해 기기 초기화를 보류했어요.",
+      "녹음은 중단됐으며 수신한 부분만 보관했어요."
+    ]
+  },
+  "actions": [
+    {
+      "id": "GA-01",
+      "name": "소셜 로그인·identity 연결",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D01-01",
+        "PF-D01-02",
+        "PF-D01-03",
+        "PF-D01-04",
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04"
+      ],
+      "screenRefs": [
+        "U01",
+        "K01"
+      ],
+      "apiRefs": [
+        "API-103",
+        "API-001",
+        "API-002"
+      ],
+      "candidateContractRefs": [
+        "OC-01"
+      ],
+      "domainRule": "provider별 flow/proof와 현재 link 권한을 결합; 이메일 자동 합치기 금지",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-02",
+      "name": "기존 계정·기기·지갑 상태 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U01",
+        "U02",
+        "U04",
+        "U05",
+        "K01",
+        "O01"
+      ],
+      "apiRefs": [
+        "API-005",
+        "API-007",
+        "API-008",
+        "API-009",
+        "API-013",
+        "API-090",
+        "API-091",
+        "API-099",
+        "API-100"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "현재 owner/store/capability projection; 잔액 freshness와 지급 완료를 구분",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-03",
+      "name": "로그아웃·이용 차단·로컬 잠금",
+      "class": "safety_restriction",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U01",
+        "U05",
+        "U25",
+        "K01",
+        "D01"
+      ],
+      "apiRefs": [
+        "API-003",
+        "API-110"
+      ],
+      "candidateContractRefs": [
+        "OC-02"
+      ],
+      "domainRule": "권한을 줄이는 scope 제한만. 인증된 현재 경로 또는 해당 로컬 소유 세션의 잠금; 임의 계정/서버 상태 변경 금지",
+      "whenUnselected": "가능한 현재 제한을 적용하고 미전달 서버 철회는 pending; key erase/복구 실패로 확장 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-04",
+      "name": "HW 생성/import·기기 연결",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04",
+        "PF-D03-01",
+        "PF-D03-02",
+        "PF-D03-03",
+        "PF-D05-01",
+        "PF-D05-02"
+      ],
+      "screenRefs": [
+        "U04",
+        "D01"
+      ],
+      "apiRefs": [
+        "API-010",
+        "API-011",
+        "API-098"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "물리 확인·기기 identity·민감정보 수명, 신규 생성과 import 구분",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-05",
+      "name": "HW 신규 서명·송금 제출",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04",
+        "PF-D03-01",
+        "PF-D03-02",
+        "PF-D03-03",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-03"
+      ],
+      "screenRefs": [
+        "U03",
+        "D01"
+      ],
+      "apiRefs": [
+        "API-017",
+        "API-018",
+        "API-108",
+        "API-109"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "선택 signer와 원 intent/payload binding, 해당 도메인의 quote/자금/권한 guard도 필요",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-06",
+      "name": "Cloud DKG·새 서명",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04",
+        "PF-D04-01",
+        "PF-D04-02",
+        "PF-D04-03",
+        "PF-D04-04",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-03"
+      ],
+      "screenRefs": [
+        "U02",
+        "U03",
+        "U12"
+      ],
+      "apiRefs": [
+        "API-014",
+        "API-015"
+      ],
+      "candidateContractRefs": [
+        "OC-03"
+      ],
+      "domainRule": "소셜 로그인만으로 자금 권한 부여 금지; 원 operation/participant/epoch",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-07",
+      "name": "MPC 보류·참여자 복구 재개",
+      "class": "continue_existing",
+      "requiredFieldRefs": [
+        "PF-D04-01",
+        "PF-D04-02",
+        "PF-D04-03",
+        "PF-D04-04"
+      ],
+      "screenRefs": [
+        "U12"
+      ],
+      "apiRefs": [
+        "API-016"
+      ],
+      "candidateContractRefs": [
+        "OC-03"
+      ],
+      "domainRule": "MR01~07의 원 checkpoint/commit epoch와 현재 권한 검사; 새로운 DKG로 대체 금지",
+      "whenUnselected": "hold_mutating_resume_unless_original_profile_and_current_gate_proven; 조회/차단은 별도 평가",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-08",
+      "name": "기기 설정 변경·등록 기기 알림",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-04",
+        "PF-D05-01",
+        "PF-D07-03"
+      ],
+      "screenRefs": [
+        "U05",
+        "D02"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [],
+      "domainRule": "등록 owner의 설정/알림 범위; 거리가 미선택이어도 그 값에 의존하지 않는 검증된 알림은 별도 허용",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-09",
+      "name": "거리 의존 신규 승인",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-04",
+        "PF-D05-01",
+        "PF-D07-04"
+      ],
+      "screenRefs": [
+        "K03",
+        "D01"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [],
+      "domainRule": "인증된 현재 ranging peer/관측/시간과 원 승인 context; 자체 거리 승인이 passkey를 대체하지 않음",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-10",
+      "name": "FOTA 릴리스·새 설치",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D05-01",
+        "PF-D05-02",
+        "PF-D05-03",
+        "PF-D05-04",
+        "PF-D07-03",
+        "PF-D19-04"
+      ],
+      "screenRefs": [
+        "U06",
+        "O02",
+        "D02"
+      ],
+      "apiRefs": [
+        "API-049"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "릴리스 서명·선정 board·공존 중재·업데이트 승인",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-11",
+      "name": "원 FOTA 복구·확정",
+      "class": "continue_existing",
+      "requiredFieldRefs": [
+        "PF-D05-01",
+        "PF-D05-02",
+        "PF-D05-03",
+        "PF-D05-04"
+      ],
+      "screenRefs": [
+        "U06",
+        "D02"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [],
+      "domainRule": "원 image/digest/partition과 부트 검증 상태; 위험한 이미지로 임의 rollback 금지",
+      "whenUnselected": "hold_mutating_resume_unless_original_profile_and_current_gate_proven; 조회/차단은 별도 평가",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-12",
+      "name": "업데이트 제안·원 릴리스 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U06",
+        "O02"
+      ],
+      "apiRefs": [
+        "API-048",
+        "API-101"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "조회 성공은 설치 허가 아님; 철회/호환 상태 별도",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-13",
+      "name": "패스키 등록·인증·자격 변경",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D03-02",
+        "PF-D03-03",
+        "PF-D05-01",
+        "PF-D06-01",
+        "PF-D06-02",
+        "PF-D06-03",
+        "PF-D06-04"
+      ],
+      "screenRefs": [
+        "U07",
+        "D01"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [],
+      "domainRule": "대상 RP와 표준 transport/UV 범위; 반납 삭제는 GA-41 별도",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-14",
+      "name": "녹음 신규 시작",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-04",
+        "PF-D07-01",
+        "PF-D07-02",
+        "PF-D07-03",
+        "PF-D17-03"
+      ],
+      "screenRefs": [
+        "U08",
+        "D02"
+      ],
+      "apiRefs": [
+        "API-051"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "현재 owner/rental/binding/stream namespace·동의·수신 gate",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-15",
+      "name": "녹음 중단·수신 차단",
+      "class": "safety_restriction",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U08",
+        "U25",
+        "D02"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [],
+      "domainRule": "현재 소유 capture를 중지·fence만 설정; 인증된 end/coverage 없이 complete 표시 금지",
+      "whenUnselected": "현재 녹음을 멈추고 partial을 보존. 파일 삭제나 다른 계정 저장으로 전환하지 않음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-16",
+      "name": "원 녹음 청크 이어받기·종료 반영",
+      "class": "continue_existing",
+      "requiredFieldRefs": [
+        "PF-D07-01",
+        "PF-D07-02",
+        "PF-D07-03",
+        "PF-D17-03"
+      ],
+      "screenRefs": [
+        "U08",
+        "D02"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [
+        "OC-13"
+      ],
+      "domainRule": "원 stream generation·owner와 현재 receive gate; fence 뒤 late chunk 저장/ACK 금지",
+      "whenUnselected": "hold_mutating_resume_unless_original_profile_and_current_gate_proven; 조회/차단은 별도 평가",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-17",
+      "name": "녹음/보호 결과 목록·조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U08",
+        "U09",
+        "U25"
+      ],
+      "apiRefs": [
+        "API-053",
+        "API-094",
+        "API-107",
+        "API-020"
+      ],
+      "candidateContractRefs": [
+        "OC-13",
+        "OC-15",
+        "OC-16"
+      ],
+      "domainRule": "현재 목적/owner 범위와 삭제 tombstone 확인; revoked owner의 과거 snapshot은 읽기권 아님",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-18",
+      "name": "전사·요약·파일 내보내기",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D17-01",
+        "PF-D17-03",
+        "PF-D18-02",
+        "PF-D19-03"
+      ],
+      "screenRefs": [
+        "U09",
+        "U25"
+      ],
+      "apiRefs": [
+        "API-052",
+        "API-085"
+      ],
+      "candidateContractRefs": [
+        "OC-13",
+        "OC-15"
+      ],
+      "domainRule": "export는 새로운 데이터 공개 행위; 읽기 UI와 별도 목적/수령/보관 검사",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-19",
+      "name": "주문·quote·결제 수락",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04",
+        "PF-D08-01",
+        "PF-D08-02",
+        "PF-D08-03",
+        "PF-D08-04",
+        "PF-D08-05",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-03",
+        "PF-D10-04"
+      ],
+      "screenRefs": [
+        "K02",
+        "K03",
+        "D01"
+      ],
+      "apiRefs": [
+        "API-029",
+        "API-032",
+        "API-033",
+        "API-034"
+      ],
+      "candidateContractRefs": [
+        "OC-05"
+      ],
+      "domainRule": "주문 snapshot/수령/원 payment identity와 고객 gas; exact/partial 선택 없으면 업무 수락 보류",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-20",
+      "name": "원 지급·환불·영수증 결과 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U03",
+        "U11",
+        "K03",
+        "K05",
+        "O03"
+      ],
+      "apiRefs": [
+        "API-019",
+        "API-020",
+        "API-030",
+        "API-035",
+        "API-038",
+        "API-042",
+        "API-106"
+      ],
+      "candidateContractRefs": [
+        "OC-16"
+      ],
+      "domainRule": "chain 관측만으로 새 allocation/claim/혜택을 만들지 않음; 현재 customer context 투영",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-21",
+      "name": "환불·취소·상품 인도 변경",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D08-01",
+        "PF-D08-02",
+        "PF-D08-03",
+        "PF-D08-04",
+        "PF-D08-05",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-03",
+        "PF-D19-04"
+      ],
+      "screenRefs": [
+        "K05",
+        "K03",
+        "O03"
+      ],
+      "apiRefs": [
+        "API-031",
+        "API-036",
+        "API-037"
+      ],
+      "candidateContractRefs": [
+        "OC-06"
+      ],
+      "domainRule": "취소/환불/인도는 주문 상태를 바꿈; 금액·원 allocation·current signer와 revision 검사",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-22",
+      "name": "원 지급/환불 재대사·원 제출 재개",
+      "class": "continue_existing",
+      "requiredFieldRefs": [
+        "PF-D08-01",
+        "PF-D08-02",
+        "PF-D08-03",
+        "PF-D08-04",
+        "PF-D08-05",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-04"
+      ],
+      "screenRefs": [
+        "O03",
+        "U11",
+        "K05"
+      ],
+      "apiRefs": [
+        "API-087",
+        "API-018"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "원 상태 관측과 업무 commit 구분; 재전파는 새로운 payload/nonce 아닌 검증된 원 바이트만 해당 계약이 허용할 때",
+      "whenUnselected": "hold_mutating_resume_unless_original_profile_and_current_gate_proven; 조회/차단은 별도 평가",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-23",
+      "name": "매장·메뉴·수령인·권한 변경",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D01-02",
+        "PF-D01-03",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D08-01",
+        "PF-D08-03",
+        "PF-D19-04"
+      ],
+      "screenRefs": [
+        "K01",
+        "K02",
+        "K04",
+        "O04"
+      ],
+      "apiRefs": [
+        "API-021",
+        "API-024",
+        "API-025",
+        "API-027",
+        "API-028"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "메뉴 표시 읽기와 수령인/sign 권한 변경을 분리; 이미 열린 order snapshot 자동 변경 금지",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-24",
+      "name": "메뉴·매출·정산·감사 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "K02",
+        "K06",
+        "O03",
+        "O04"
+      ],
+      "apiRefs": [
+        "API-026",
+        "API-039",
+        "API-086",
+        "API-088",
+        "API-089",
+        "API-092",
+        "API-093"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "role별 projection/조회 시각/원천 revision; 조회가 정산 송금/마감 아님",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-25",
+      "name": "정산 마감·보정·발행",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D08-02",
+        "PF-D08-05",
+        "PF-D19-04"
+      ],
+      "screenRefs": [
+        "K06",
+        "O03"
+      ],
+      "apiRefs": [
+        "API-040",
+        "API-041",
+        "API-087"
+      ],
+      "candidateContractRefs": [
+        "OC-08"
+      ],
+      "domainRule": "현재 기간·원장/정책 revision과 manifest CAS; 마감 후 원 기록 덮어쓰기 금지",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-26",
+      "name": "terminal 시작·고객 전환",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D01-02",
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04",
+        "PF-D19-04"
+      ],
+      "screenRefs": [
+        "K01",
+        "K03"
+      ],
+      "apiRefs": [
+        "API-023"
+      ],
+      "candidateContractRefs": [
+        "OC-04"
+      ],
+      "domainRule": "clearance receipt 현재 boot/customer/head와 단회 소비; 새 고객 권한 별도",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-27",
+      "name": "terminal 종료·원 고객 정리 ACK",
+      "class": "scoped_cleanup",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "K03",
+        "K01",
+        "O01"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [
+        "OC-23"
+      ],
+      "domainRule": "원 종료 challenge/고객/boot에 바인딩한 local view/cache 청소만; 자산·계정·기기 키 삭제 아님",
+      "whenUnselected": "신뢰된 원 정리 계약과 현재 권한으로 제한 수행. 신규 고객 전환은 GA-26, 불명 ACK는 정리 미확인",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-28",
+      "name": "terminal 종료 결과 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "K01",
+        "K03"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [
+        "OC-24"
+      ],
+      "domainRule": "조회 자체가 clearance 재발급/소비 또는 새 세션을 만들지 않음",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-29",
+      "name": "영수증 소유 claim·스탬프 적립/사용",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D08-02",
+        "PF-D08-04",
+        "PF-D09-01",
+        "PF-D09-02",
+        "PF-D09-03",
+        "PF-D09-04",
+        "PF-D17-04"
+      ],
+      "screenRefs": [
+        "U10",
+        "U11",
+        "U23",
+        "D02"
+      ],
+      "apiRefs": [
+        "API-044",
+        "API-104",
+        "API-105"
+      ],
+      "candidateContractRefs": [
+        "OC-07"
+      ],
+      "domainRule": "claim은 권한 이전·혜택은 효과 변경; 내부 원장 단일 writer와 현재 source/entitlement 확인",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-30",
+      "name": "카페 패스포트·스탬프 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U10",
+        "D02"
+      ],
+      "apiRefs": [
+        "API-043"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "확정/보류/이미 사용 상태 구분, 조회 시 미선택 규칙으로 재산출하지 않음",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-31",
+      "name": "스마트 계정 전환·신규 실행",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D03-02",
+        "PF-D03-03",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-04",
+        "PF-D11-01",
+        "PF-D11-02",
+        "PF-D11-03",
+        "PF-D11-04"
+      ],
+      "screenRefs": [
+        "U13"
+      ],
+      "apiRefs": [
+        "API-055",
+        "API-056"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "주소·signer·자산 이관 확인 및 account bundle; EOA 독립 경로는 별도",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-32",
+      "name": "DeFi·FX 견적·실행",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-04",
+        "PF-D12-01",
+        "PF-D12-02",
+        "PF-D12-03",
+        "PF-D12-04"
+      ],
+      "screenRefs": [
+        "U14",
+        "U15"
+      ],
+      "apiRefs": [
+        "API-057",
+        "API-058"
+      ],
+      "candidateContractRefs": [
+        "OC-09"
+      ],
+      "domainRule": "상품 typed source·가격/allowance/슬리피지·현재 서명 gate",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-33",
+      "name": "Perpetual 주문·종료·keeper",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-04",
+        "PF-D13-01",
+        "PF-D13-02",
+        "PF-D13-03",
+        "PF-D13-04"
+      ],
+      "screenRefs": [
+        "U16"
+      ],
+      "apiRefs": [
+        "API-061"
+      ],
+      "candidateContractRefs": [
+        "OC-09",
+        "OC-10"
+      ],
+      "domainRule": "포지션 종료/청산도 변경 효과; 위험 축소를 이유로 price/권한 guard 우회 금지",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-34",
+      "name": "시장·포지션·STO 보유 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U13",
+        "U14",
+        "U15",
+        "U16",
+        "U17"
+      ],
+      "apiRefs": [
+        "API-059",
+        "API-060",
+        "API-062",
+        "API-063",
+        "API-102",
+        "API-107"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "평가액/원천 freshness/확정 상태 표시; 읽기 결과를 신규 quote로 사용하지 않음",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-35",
+      "name": "DID 발급·제시·검증",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D03-02",
+        "PF-D03-03",
+        "PF-D15-01",
+        "PF-D15-02",
+        "PF-D15-03",
+        "PF-D15-04"
+      ],
+      "screenRefs": [
+        "U18"
+      ],
+      "apiRefs": [
+        "API-065",
+        "API-067",
+        "API-068"
+      ],
+      "candidateContractRefs": [
+        "OC-11"
+      ],
+      "domainRule": "기존 credential 읽기와 새 presentation/verification challenge 기록 구분",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false,
+      "branches": [
+        {
+          "when": "issue_or_present_with_device",
+          "requiredFieldRefs": [
+            "PF-D15-01",
+            "PF-D15-02",
+            "PF-D15-03",
+            "PF-D15-04",
+            "PF-D03-02",
+            "PF-D03-03"
+          ]
+        },
+        {
+          "when": "verify_presentation",
+          "requiredFieldRefs": [
+            "PF-D15-01",
+            "PF-D15-02",
+            "PF-D15-03",
+            "PF-D15-04"
+          ]
+        }
+      ],
+      "branchSemantics": "명시 branch의 필드로 대체, top-level은 영향 합집합. unknown branch는 거절."
+    },
+    {
+      "id": "GA-36",
+      "name": "STO 발행·자격 제한 전송",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-04",
+        "PF-D14-01",
+        "PF-D14-02",
+        "PF-D14-03",
+        "PF-D14-04",
+        "PF-D15-01",
+        "PF-D15-02",
+        "PF-D15-03",
+        "PF-D15-04"
+      ],
+      "screenRefs": [
+        "U17"
+      ],
+      "apiRefs": [
+        "API-064"
+      ],
+      "candidateContractRefs": [
+        "OC-11"
+      ],
+      "domainRule": "offering 권리·issuer·현재 자격, 실행 환경 분리",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-37",
+      "name": "기존 자격 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U18"
+      ],
+      "apiRefs": [
+        "API-066"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "읽기는 현재 holder/verifier 범위. 자격 철회 mutation은 GA-48",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-38",
+      "name": "유료 자원 신규 요청·지급·환불",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D08-03",
+        "PF-D08-04",
+        "PF-D10-01",
+        "PF-D10-02",
+        "PF-D10-03",
+        "PF-D16-01",
+        "PF-D16-02",
+        "PF-D16-03",
+        "PF-D16-04"
+      ],
+      "screenRefs": [
+        "U19"
+      ],
+      "apiRefs": [
+        "API-070",
+        "API-071"
+      ],
+      "candidateContractRefs": [
+        "OC-12",
+        "OC-21"
+      ],
+      "domainRule": "gas 역할 일치·current entitlement/source/refund gate; 신규 요청과 기존 result 구분",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false,
+      "additionalGate": "resource result generation requires GA-44 generate_candidate when itinerary resource, refund requires selected refund subtype and original funding exposure checks"
+    },
+    {
+      "id": "GA-39",
+      "name": "유료 원 요청 결과·환불 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U19"
+      ],
+      "apiRefs": [
+        "API-072",
+        "API-107"
+      ],
+      "candidateContractRefs": [
+        "OC-12",
+        "OC-22"
+      ],
+      "domainRule": "현재 read authority 및 privacy/refund/entitlement 상태에 맞는 projection; 조회를 생성/공개 허가로 바꾸지 않음",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-40",
+      "name": "신규 대여·반납 완료·재대여",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D03-03",
+        "PF-D09-01",
+        "PF-D09-02",
+        "PF-D09-03",
+        "PF-D09-04",
+        "PF-D19-04"
+      ],
+      "screenRefs": [
+        "U24",
+        "O01"
+      ],
+      "apiRefs": [
+        "API-045",
+        "API-047"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "단계별 branch 평가: RR 초기화 정책은 신규 여행 EOA 초기화에만 필요. import는 외부 접근/기기 사본 삭제 규칙; 자산 전체 sweep 금지",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false,
+      "branches": [
+        {
+          "when": "new_rental",
+          "requiredFieldRefs": [
+            "PF-D03-03",
+            "PF-D09-03",
+            "PF-D19-04"
+          ]
+        },
+        {
+          "when": "complete_return_or_readmit",
+          "requiredFieldRefs": [
+            "PF-D03-03",
+            "PF-D09-01",
+            "PF-D09-02",
+            "PF-D09-03",
+            "PF-D09-04",
+            "PF-D19-04"
+          ]
+        }
+      ],
+      "branchSemantics": "명시 branch의 필드로 대체, top-level은 영향 합집합. unknown branch는 거절.",
+      "additionalGate": "complete_return_or_readmit requires immutable successful cleanup evidence from GA-41 where applicable; initial rental requires clear inventory. Neither branch may bypass cleanup."
+    },
+    {
+      "id": "GA-41",
+      "name": "키 초기화·자격/위임 정리",
+      "class": "destructive_cleanup",
+      "requiredFieldRefs": [
+        "PF-D03-03",
+        "PF-D03-04",
+        "PF-D09-03",
+        "PF-D09-04",
+        "PF-RR-DEC-01-01",
+        "PF-RR-DEC-01-02",
+        "PF-RR-DEC-01-03",
+        "PF-RR-DEC-01-04"
+      ],
+      "screenRefs": [
+        "U07",
+        "U24",
+        "O01"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [],
+      "domainRule": "종류별 반납/복구 증거·현재 권한·원 return commit 필요. RR 필드는 신규 여행 EOA 초기화 branch에만 적용",
+      "whenUnselected": "미선택/복구 불명은 초기화·재대여 보류. 로그아웃과 혼동 금지",
+      "runtimeVerified": false,
+      "branches": [
+        {
+          "when": "new_travel_backup_reset",
+          "requiredFieldRefs": [
+            "PF-D03-03",
+            "PF-D03-04",
+            "PF-D09-03",
+            "PF-D09-04",
+            "PF-RR-DEC-01-01",
+            "PF-RR-DEC-01-02",
+            "PF-RR-DEC-01-03",
+            "PF-RR-DEC-01-04"
+          ],
+          "domainRequirement": "selected policy=add_user_encrypted_recovery_backup + independently proven current recovery + original return commit"
+        },
+        {
+          "when": "new_travel_hold_without_recovery",
+          "requiredFieldRefs": [
+            "PF-D03-03",
+            "PF-D03-04",
+            "PF-D09-03",
+            "PF-D09-04",
+            "PF-RR-DEC-01-01",
+            "PF-RR-DEC-01-04"
+          ],
+          "domainRequirement": "always hold key reset; policy=hold_reset_without_recovery does not itself establish recovery"
+        },
+        {
+          "when": "imported_wallet_copy_reset",
+          "requiredFieldRefs": [
+            "PF-D03-03",
+            "PF-D09-03",
+            "PF-D09-04"
+          ],
+          "domainRequirement": "external access evidence + original return commit; no unrelated sweep"
+        },
+        {
+          "when": "credential_or_delegation_cleanup",
+          "requiredFieldRefs": [
+            "PF-D03-03",
+            "PF-D09-04"
+          ],
+          "domainRequirement": "typed credential/delegation scope + alternative access + original authorized cleanup plan"
+        }
+      ],
+      "branchSemantics": "명시 branch의 필드로 대체, top-level은 영향 합집합. unknown branch는 거절."
+    },
+    {
+      "id": "GA-42",
+      "name": "반납 현황·원 체크 결과 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U24",
+        "O01"
+      ],
+      "apiRefs": [
+        "API-091"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "현재 rental scope. API046의 체크 요청/차단 상태 변경은 GA-49 별도",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-43",
+      "name": "장소 검색·후기·여행 기록 생성",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D17-01",
+        "PF-D17-02",
+        "PF-D17-03",
+        "PF-D17-04",
+        "PF-D19-03"
+      ],
+      "screenRefs": [
+        "U20",
+        "U21"
+      ],
+      "apiRefs": [
+        "API-073",
+        "API-074",
+        "API-075",
+        "API-077",
+        "API-078"
+      ],
+      "candidateContractRefs": [
+        "OC-14"
+      ],
+      "domainRule": "검색도 외부 위치 전달이면 새 공개 동작; 저장된 목록 조회와 구분",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-44",
+      "name": "추천 생성·편집·후보 적용",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D02-03",
+        "PF-D17-01",
+        "PF-D17-02",
+        "PF-D17-03",
+        "PF-D18-01",
+        "PF-D18-02",
+        "PF-D18-03"
+      ],
+      "screenRefs": [
+        "U22"
+      ],
+      "apiRefs": [
+        "API-080",
+        "API-081"
+      ],
+      "candidateContractRefs": [
+        "OC-25"
+      ],
+      "domainRule": "수동 편집은 AI provider 필드를 요구하지 않는 branch. 유료 생성은 GA-38도 필요; 적용은 현재 head CAS",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false,
+      "branches": [
+        {
+          "when": "generate_candidate",
+          "requiredFieldRefs": [
+            "PF-D17-01",
+            "PF-D17-02",
+            "PF-D17-03",
+            "PF-D18-01",
+            "PF-D18-02",
+            "PF-D18-03",
+            "PF-D02-03"
+          ]
+        },
+        {
+          "when": "manual_edit",
+          "requiredFieldRefs": [
+            "PF-D17-03",
+            "PF-D18-01",
+            "PF-D02-03"
+          ]
+        },
+        {
+          "when": "apply_candidate",
+          "requiredFieldRefs": [
+            "PF-D17-01",
+            "PF-D17-03",
+            "PF-D18-01",
+            "PF-D18-03",
+            "PF-D02-03"
+          ]
+        }
+      ],
+      "branchSemantics": "명시 branch의 필드로 대체, top-level은 영향 합집합. unknown branch는 거절."
+    },
+    {
+      "id": "GA-45",
+      "name": "챌린지 참가·증거·보상",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D09-01",
+        "PF-D09-02",
+        "PF-D17-02",
+        "PF-D17-04",
+        "PF-D18-04"
+      ],
+      "screenRefs": [
+        "U23"
+      ],
+      "apiRefs": [
+        "API-082",
+        "API-083"
+      ],
+      "candidateContractRefs": [
+        "OC-14"
+      ],
+      "domainRule": "방문과 실제 구매 증거를 구분; 재평가에서 target revision 확인",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-46",
+      "name": "여행·코스·챌린지 원 결과 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U20",
+        "U21",
+        "U22",
+        "U23"
+      ],
+      "apiRefs": [
+        "API-079",
+        "API-095",
+        "API-096",
+        "API-097",
+        "API-107"
+      ],
+      "candidateContractRefs": [
+        "OC-26"
+      ],
+      "domainRule": "현재 owner/동의 범위의 기존 결과; 후보 조회가 selected plan 변경/유료 regen을 유발하지 않음",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-47",
+      "name": "목적별 동의 철회·축소",
+      "class": "safety_restriction",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U25",
+        "U21",
+        "U09"
+      ],
+      "apiRefs": [
+        "API-084"
+      ],
+      "candidateContractRefs": [
+        "OC-15"
+      ],
+      "domainRule": "이 row는 기존 목적의 철회/축소만. 동의 부여/확장은 별도 GA-50",
+      "whenUnselected": "철회는 현재 인증된 목적 범위에 차단을 먼저 기록; 아직 선택 안 된 보관기간을 이유로 계속 처리하지 않음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-48",
+      "name": "자격·릴리스 철회",
+      "class": "safety_restriction",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U18",
+        "O02"
+      ],
+      "apiRefs": [
+        "API-069",
+        "API-050"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "현재 issuer/release authority와 신뢰된 restriction writer 필요. 조작된 요청으로 다른 사람 자격을 지우지 않음",
+      "whenUnselected": "권한이 검증되는 해당 제한만 수행; 결과는 새 발급/설치 허가 아님",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-49",
+      "name": "반납 체크 요청·권한 제한 시작",
+      "class": "safety_restriction",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U24",
+        "O01"
+      ],
+      "apiRefs": [
+        "API-046"
+      ],
+      "candidateContractRefs": [],
+      "domainRule": "현재 owner/rental scope의 check/fence 요청; key erase commit 또는 재대여를 수행하지 않음",
+      "whenUnselected": "확인 가능한 제한/검토만 수행, 복구 선택을 추정하거나 초기화하지 않음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-50",
+      "name": "동의 부여·확장",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D17-02",
+        "PF-D17-03",
+        "PF-D19-03"
+      ],
+      "screenRefs": [
+        "U25",
+        "U21"
+      ],
+      "apiRefs": [
+        "API-084"
+      ],
+      "candidateContractRefs": [
+        "OC-15"
+      ],
+      "domainRule": "목적·제공자·기간 고지 후 consent revision; 과거 삭제 tombstone/작업 자동 부활 금지",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-51",
+      "name": "후기·녹음·개인정보 삭제",
+      "class": "scoped_cleanup",
+      "requiredFieldRefs": [
+        "PF-D17-03",
+        "PF-D19-03"
+      ],
+      "screenRefs": [
+        "U25",
+        "U08",
+        "U20"
+      ],
+      "apiRefs": [
+        "API-004",
+        "API-054",
+        "API-076",
+        "API-085"
+      ],
+      "candidateContractRefs": [
+        "OC-15"
+      ],
+      "domainRule": "현재 owner/명시 scope의 승인된 plan·보존 의무·대상 revision·원천 종료 검사. scope 없는 일괄 삭제 금지",
+      "whenUnselected": "원 plan이 있으면 현재 scope/hold/target revision 검사 후 정리 가능. plan 없으면 요청 접수·해당 목적 차단만, 완료로 표시하지 않음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-52",
+      "name": "세션 갱신·로그인 수단 해제",
+      "class": "new_effect",
+      "requiredFieldRefs": [
+        "PF-D01-01",
+        "PF-D01-02",
+        "PF-D01-03",
+        "PF-D01-04",
+        "PF-D02-01",
+        "PF-D02-02",
+        "PF-D02-03",
+        "PF-D02-04"
+      ],
+      "screenRefs": [
+        "U01",
+        "U25"
+      ],
+      "apiRefs": [
+        "API-006"
+      ],
+      "candidateContractRefs": [
+        "OC-17",
+        "OC-19"
+      ],
+      "domainRule": "회전 successor/현재 family와 마지막 로그인 수단 보호; logout 제한과 별도",
+      "whenUnselected": "hold_new_effect; 이유와 해당 필드만 표시, 자동 재시도/서명 없음",
+      "runtimeVerified": false
+    },
+    {
+      "id": "GA-53",
+      "name": "인증 갱신·해제 원 결과 조회",
+      "class": "read_observation",
+      "requiredFieldRefs": [],
+      "screenRefs": [
+        "U01",
+        "U25"
+      ],
+      "apiRefs": [],
+      "candidateContractRefs": [
+        "OC-18",
+        "OC-20"
+      ],
+      "domainRule": "current scoped recovery proof로 제한 조회, 유효 access token만 강제하지 않음. refresh 이전 generation bearer 반환 금지",
+      "whenUnselected": "current_scope_read_only_if_trusted_reader; 권한/원천 불명은 unknown 또는 제한 상태, 완료 추정 금지",
+      "runtimeVerified": false
+    }
+  ]
+}

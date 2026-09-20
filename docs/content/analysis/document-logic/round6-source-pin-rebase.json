@@ -1,0 +1,216 @@
+{
+  "reason": "LG16 design correction",
+  "changes": [
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/kiosk-commerce-journey-design.json",
+      "before": "0aaff80cb500cb80c158bfe605522ff05239347e997e5a1f52599f9b017d271a",
+      "after": "1cd627a4986957b86a191cf13817a1d64325304a9c9922124f5d568d8535a150"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "before": "b57c2bf1671e9fa1760dd5b58c20588f2a7277da9bb28a345bf90939a727b552",
+      "after": "ca84bacf30cbf3132a548b153175b16c5a2364ec05b7160a5f28d2b4bb80ffba"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/kiosk-commerce-journey-design.json",
+      "before": "0aaff80cb500cb80c158bfe605522ff05239347e997e5a1f52599f9b017d271a",
+      "after": "1cd627a4986957b86a191cf13817a1d64325304a9c9922124f5d568d8535a150"
+    },
+    {
+      "document": "content/specifications/stablenet-compatibility-design.json",
+      "source": "content/specifications/kiosk-commerce-journey-design.json",
+      "before": "0aaff80cb500cb80c158bfe605522ff05239347e997e5a1f52599f9b017d271a",
+      "after": "1cd627a4986957b86a191cf13817a1d64325304a9c9922124f5d568d8535a150"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/stablenet-compatibility-design.json",
+      "before": "7e2cb794fda2ed0dfb57d1615b2d71bb06df57fca7a02a1886066fd3d1a4ff33",
+      "after": "a861ffca0f0b2833ba0c4dfdda8b878fe6a7d0bd1a3d33efb4abb22b5162ff56"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "before": "ca84bacf30cbf3132a548b153175b16c5a2364ec05b7160a5f28d2b4bb80ffba",
+      "after": "36fe6db45efdae3f9ad798b69cb9e4a45ec77e066a1106b082fcb2daeda63338"
+    },
+    {
+      "document": "content/specifications/credential-paid-resource-design.json",
+      "source": "content/specifications/stablenet-compatibility-design.json",
+      "before": "7e2cb794fda2ed0dfb57d1615b2d71bb06df57fca7a02a1886066fd3d1a4ff33",
+      "after": "a861ffca0f0b2833ba0c4dfdda8b878fe6a7d0bd1a3d33efb4abb22b5162ff56"
+    },
+    {
+      "document": "content/specifications/market-product-design.json",
+      "source": "content/specifications/stablenet-compatibility-design.json",
+      "before": "7e2cb794fda2ed0dfb57d1615b2d71bb06df57fca7a02a1886066fd3d1a4ff33",
+      "after": "a861ffca0f0b2833ba0c4dfdda8b878fe6a7d0bd1a3d33efb4abb22b5162ff56"
+    },
+    {
+      "document": "content/specifications/operations-release-acceptance-design.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "f1f2094bca3ebd3d951592598a3efa7c36dd2966ec6ff5028ad61bc0923c378b",
+      "after": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/stablenet-compatibility-design.json",
+      "before": "7e2cb794fda2ed0dfb57d1615b2d71bb06df57fca7a02a1886066fd3d1a4ff33",
+      "after": "a861ffca0f0b2833ba0c4dfdda8b878fe6a7d0bd1a3d33efb4abb22b5162ff56"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/market-product-design.json",
+      "before": "c64708c4cec4fbb6c598ea59e1ebc2e3ce9c9b14b43471263e06f76e1f5227cb",
+      "after": "9427a694b16adf9af622509947cb50f392dcffd2157d6333c4cc0dd4e695f7d1"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "f1f2094bca3ebd3d951592598a3efa7c36dd2966ec6ff5028ad61bc0923c378b",
+      "after": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "before": "7f2a4e28ed2521784e3346f8ec91e82589374b07471f326bd5fd5552869deb16",
+      "after": "39b32bd565d8f2370ed57fa4a648d41e98dc16dd95d31f565b1c5efa2fa880bc"
+    },
+    {
+      "document": "content/specifications/recording-travel-ai-design.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "f1f2094bca3ebd3d951592598a3efa7c36dd2966ec6ff5028ad61bc0923c378b",
+      "after": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/market-product-design.json",
+      "before": "c64708c4cec4fbb6c598ea59e1ebc2e3ce9c9b14b43471263e06f76e1f5227cb",
+      "after": "9427a694b16adf9af622509947cb50f392dcffd2157d6333c4cc0dd4e695f7d1"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "f1f2094bca3ebd3d951592598a3efa7c36dd2966ec6ff5028ad61bc0923c378b",
+      "after": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "before": "235b034fd2cfbad44ea69e54003b86dca5d6a3830a0b07cf646741b145b4061b",
+      "after": "5146123da8fc8070bcdb1cd4c450f4d6aa58137ff6e751f3c5ba3746289edfbb"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "before": "7f2a4e28ed2521784e3346f8ec91e82589374b07471f326bd5fd5552869deb16",
+      "after": "39b32bd565d8f2370ed57fa4a648d41e98dc16dd95d31f565b1c5efa2fa880bc"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "before": "36fe6db45efdae3f9ad798b69cb9e4a45ec77e066a1106b082fcb2daeda63338",
+      "after": "94ff869b3f4e8dddc59d9bba0df989a90b4d4664dfac2dd04c5953ef75d5d239"
+    },
+    {
+      "document": "content/specifications/credential-paid-resource-design.json",
+      "source": "content/specifications/market-product-design.json",
+      "before": "c64708c4cec4fbb6c598ea59e1ebc2e3ce9c9b14b43471263e06f76e1f5227cb",
+      "after": "9427a694b16adf9af622509947cb50f392dcffd2157d6333c4cc0dd4e695f7d1"
+    },
+    {
+      "document": "content/specifications/operations-release-acceptance-design.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa",
+      "after": "8a6477b4e79c992bb762465b88cf7a59f3399401685f572e519f11db784ba2c2"
+    },
+    {
+      "document": "content/specifications/operations-release-acceptance-design.json",
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "before": "235b034fd2cfbad44ea69e54003b86dca5d6a3830a0b07cf646741b145b4061b",
+      "after": "5146123da8fc8070bcdb1cd4c450f4d6aa58137ff6e751f3c5ba3746289edfbb"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa",
+      "after": "8a6477b4e79c992bb762465b88cf7a59f3399401685f572e519f11db784ba2c2"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "before": "235b034fd2cfbad44ea69e54003b86dca5d6a3830a0b07cf646741b145b4061b",
+      "after": "5146123da8fc8070bcdb1cd4c450f4d6aa58137ff6e751f3c5ba3746289edfbb"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "before": "39b32bd565d8f2370ed57fa4a648d41e98dc16dd95d31f565b1c5efa2fa880bc",
+      "after": "63df24d4a2e3ee244200ef6f40d5f280d191451e712ea949796c9c0e9fd3f08a"
+    },
+    {
+      "document": "content/specifications/recording-travel-ai-design.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa",
+      "after": "8a6477b4e79c992bb762465b88cf7a59f3399401685f572e519f11db784ba2c2"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "before": "2473f2ec86c3557e8f76535c7d0d732b8ff31507a3b40ec95af21b7959a436fa",
+      "after": "8a6477b4e79c992bb762465b88cf7a59f3399401685f572e519f11db784ba2c2"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "before": "5146123da8fc8070bcdb1cd4c450f4d6aa58137ff6e751f3c5ba3746289edfbb",
+      "after": "f4c671f19316294245534f4d43b8dda211a2f410a5dd6ba612c79060252e8f68"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "before": "39b32bd565d8f2370ed57fa4a648d41e98dc16dd95d31f565b1c5efa2fa880bc",
+      "after": "63df24d4a2e3ee244200ef6f40d5f280d191451e712ea949796c9c0e9fd3f08a"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "before": "94ff869b3f4e8dddc59d9bba0df989a90b4d4664dfac2dd04c5953ef75d5d239",
+      "after": "92171b14fcaf4087b1c93fe4642160e7e1a889bc15a0baa1b38efb7622201fa3"
+    },
+    {
+      "document": "content/specifications/operations-release-acceptance-design.json",
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "before": "5146123da8fc8070bcdb1cd4c450f4d6aa58137ff6e751f3c5ba3746289edfbb",
+      "after": "f4c671f19316294245534f4d43b8dda211a2f410a5dd6ba612c79060252e8f68"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "before": "5146123da8fc8070bcdb1cd4c450f4d6aa58137ff6e751f3c5ba3746289edfbb",
+      "after": "f4c671f19316294245534f4d43b8dda211a2f410a5dd6ba612c79060252e8f68"
+    },
+    {
+      "document": "content/specifications/preimplementation-contract-overlay.json",
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "before": "63df24d4a2e3ee244200ef6f40d5f280d191451e712ea949796c9c0e9fd3f08a",
+      "after": "de4c16a8f8f81ae28de93a63d30af9fd5ac36b18a89183a94e556fd61899f682"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/operations-release-acceptance-design.json",
+      "before": "63df24d4a2e3ee244200ef6f40d5f280d191451e712ea949796c9c0e9fd3f08a",
+      "after": "de4c16a8f8f81ae28de93a63d30af9fd5ac36b18a89183a94e556fd61899f682"
+    },
+    {
+      "document": "content/planning/preimplementation-handoff.json",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "before": "92171b14fcaf4087b1c93fe4642160e7e1a889bc15a0baa1b38efb7622201fa3",
+      "after": "f7b14e59b11b96e64b6273ee1122add4801efa18b98574b928c440508d267389"
+    }
+  ],
+  "archiveChanged": false
+}

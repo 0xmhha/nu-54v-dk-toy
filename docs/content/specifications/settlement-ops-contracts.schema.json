@@ -1,0 +1,1600 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:settlement:ops-draft",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "Text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "UInt": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "SignedAtomic": {
+      "type": "string",
+      "pattern": "^(0|-?[1-9][0-9]*)$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Period": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/Time"
+        },
+        "to": {
+          "$ref": "#/$defs/Time"
+        },
+        "timezone": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "timezone"
+      ],
+      "additionalProperties": false
+    },
+    "Scope": {
+      "type": "object",
+      "properties": {
+        "storeId": {
+          "$ref": "#/$defs/Id"
+        },
+        "environment": {
+          "const": "testnet"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "assetId": {
+          "$ref": "#/$defs/Id"
+        },
+        "period": {
+          "$ref": "#/$defs/Period"
+        },
+        "periodPolicyVersion": {
+          "$ref": "#/$defs/Id"
+        }
+      },
+      "required": [
+        "storeId",
+        "environment",
+        "chainId",
+        "assetId",
+        "period",
+        "periodPolicyVersion"
+      ],
+      "additionalProperties": false
+    },
+    "ManifestRef": {
+      "type": "object",
+      "properties": {
+        "manifestId": {
+          "$ref": "#/$defs/Id"
+        },
+        "manifestVersion": {
+          "$ref": "#/$defs/Revision"
+        },
+        "contentDigest": {
+          "$ref": "#/$defs/Hash"
+        }
+      },
+      "required": [
+        "manifestId",
+        "manifestVersion",
+        "contentDigest"
+      ],
+      "additionalProperties": false
+    },
+    "Freshness": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "current",
+            "stale",
+            "held",
+            "unavailable"
+          ]
+        },
+        "asOf": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projectionRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "generation": {
+          "$ref": "#/$defs/Id"
+        },
+        "manifest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ManifestRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Text"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "state",
+        "asOf",
+        "projectionRevision",
+        "generation",
+        "manifest",
+        "reasonCodes"
+      ],
+      "additionalProperties": false
+    },
+    "Metrics": {
+      "type": "object",
+      "properties": {
+        "grossAcceptedAtomic": {
+          "$ref": "#/$defs/UInt"
+        },
+        "confirmedSalesRefundAtomic": {
+          "$ref": "#/$defs/UInt"
+        },
+        "canonicalAttributedReceiptsAtomic": {
+          "$ref": "#/$defs/UInt"
+        },
+        "allCanonicalRefundOutflowAtomic": {
+          "$ref": "#/$defs/UInt"
+        },
+        "reservedRefundAtomic": {
+          "$ref": "#/$defs/UInt"
+        },
+        "netSalesAtomic": {
+          "$ref": "#/$defs/SignedAtomic"
+        },
+        "netAttributedCashAtomic": {
+          "$ref": "#/$defs/SignedAtomic"
+        }
+      },
+      "required": [
+        "grossAcceptedAtomic",
+        "confirmedSalesRefundAtomic",
+        "canonicalAttributedReceiptsAtomic",
+        "allCanonicalRefundOutflowAtomic",
+        "reservedRefundAtomic",
+        "netSalesAtomic",
+        "netAttributedCashAtomic"
+      ],
+      "additionalProperties": false
+    },
+    "Candidate": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "close",
+            "correction"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "manifest": {
+          "$ref": "#/$defs/ManifestRef"
+        },
+        "projectionRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "generation": {
+          "$ref": "#/$defs/Id"
+        },
+        "scopeRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "settlementId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "settlementRevision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "targetDigest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "eligibility": {
+          "enum": [
+            "ready",
+            "held"
+          ]
+        },
+        "blockReasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Text"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "scope",
+        "manifest",
+        "projectionRevision",
+        "generation",
+        "scopeRevision",
+        "settlementId",
+        "settlementRevision",
+        "metrics",
+        "targetDigest",
+        "eligibility",
+        "blockReasons"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "close"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "settlementId": {
+                "type": "null"
+              },
+              "settlementRevision": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "settlementId": {
+                "$ref": "#/$defs/Id"
+              },
+              "settlementRevision": {
+                "$ref": "#/$defs/Revision"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Settlement": {
+      "type": "object",
+      "properties": {
+        "settlementId": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "recordRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "snapshotVersion": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previousVersion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "closed",
+            "corrected"
+          ]
+        },
+        "closedAt": {
+          "$ref": "#/$defs/Time"
+        },
+        "manifest": {
+          "$ref": "#/$defs/ManifestRef"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "snapshotDigest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "currentSourceStatus": {
+          "enum": [
+            "current",
+            "correction_pending",
+            "held",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "settlementId",
+        "scope",
+        "recordRevision",
+        "snapshotVersion",
+        "previousVersion",
+        "status",
+        "closedAt",
+        "manifest",
+        "metrics",
+        "snapshotDigest",
+        "currentSourceStatus"
+      ],
+      "additionalProperties": false
+    },
+    "Review": {
+      "type": "object",
+      "properties": {
+        "repairId": {
+          "$ref": "#/$defs/Id"
+        },
+        "runRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "manifest": {
+          "$ref": "#/$defs/ManifestRef"
+        },
+        "generation": {
+          "$ref": "#/$defs/Id"
+        },
+        "expectedFence": {
+          "$ref": "#/$defs/Revision"
+        },
+        "diffDigest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "effectPlanDigest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "effectClasses": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "view_replace",
+              "append_source_correction",
+              "mark_settlement_correction_pending",
+              "withhold_publication"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "unresolvedCount": {
+          "$ref": "#/$defs/Revision"
+        },
+        "publishEligible": {
+          "type": "boolean"
+        },
+        "consumer": {
+          "enum": [
+            "sales",
+            "settlements",
+            "benefits",
+            "receipts",
+            "travel"
+          ]
+        },
+        "projectionKey": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": [
+        "repairId",
+        "runRevision",
+        "scope",
+        "consumer",
+        "manifest",
+        "generation",
+        "expectedFence",
+        "diffDigest",
+        "effectPlanDigest",
+        "effectClasses",
+        "unresolvedCount",
+        "publishEligible",
+        "projectionKey"
+      ],
+      "additionalProperties": false
+    },
+    "RepairView": {
+      "type": "object",
+      "properties": {
+        "repairId": {
+          "$ref": "#/$defs/Id"
+        },
+        "operationId": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "mode": {
+          "enum": [
+            "source_refresh",
+            "preview"
+          ]
+        },
+        "state": {
+          "enum": [
+            "requested",
+            "capturing",
+            "building",
+            "diff_ready",
+            "publishing",
+            "completed",
+            "held",
+            "quarantined",
+            "failed"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Review"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safeReasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Text"
+          },
+          "uniqueItems": true
+        },
+        "publicationOutcome": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "publicationId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "operationId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "state": {
+                  "enum": [
+                    "queued",
+                    "running",
+                    "succeeded",
+                    "held",
+                    "failed",
+                    "unknown"
+                  ]
+                }
+              },
+              "required": [
+                "publicationId",
+                "operationId",
+                "state"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consumer": {
+          "enum": [
+            "sales",
+            "settlements",
+            "benefits",
+            "receipts",
+            "travel"
+          ]
+        },
+        "projectionKey": {
+          "$ref": "#/$defs/Text"
+        }
+      },
+      "required": [
+        "repairId",
+        "operationId",
+        "scope",
+        "mode",
+        "state",
+        "revision",
+        "review",
+        "safeReasonCodes",
+        "publicationOutcome",
+        "consumer",
+        "projectionKey"
+      ],
+      "additionalProperties": false
+    },
+    "API039Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "$ref": "#/$defs/Period"
+            },
+            "assetId": {
+              "$ref": "#/$defs/Id"
+            },
+            "settlementId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "period",
+            "assetId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API039Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "scope": {
+                  "$ref": "#/$defs/Scope"
+                },
+                "freshness": {
+                  "$ref": "#/$defs/Freshness"
+                },
+                "metrics": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Metrics"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "candidate": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Candidate"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "scope",
+                "freshness",
+                "metrics",
+                "candidate"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API040Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "manifest": {
+              "$ref": "#/$defs/ManifestRef"
+            },
+            "expectedScopeRevision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "expectedProjectionRevision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "expectedGeneration": {
+              "$ref": "#/$defs/Id"
+            },
+            "targetDigest": {
+              "$ref": "#/$defs/Hash"
+            },
+            "note": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Text"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "scope",
+            "manifest",
+            "expectedScopeRevision",
+            "expectedProjectionRevision",
+            "expectedGeneration",
+            "targetDigest",
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API040Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "settlement": {
+                  "$ref": "#/$defs/Settlement"
+                }
+              },
+              "required": [
+                "settlement"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API041Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "settlementId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "settlementId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "manifest": {
+              "$ref": "#/$defs/ManifestRef"
+            },
+            "expectedSettlementRevision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "expectedProjectionRevision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "expectedGeneration": {
+              "$ref": "#/$defs/Id"
+            },
+            "targetDigest": {
+              "$ref": "#/$defs/Hash"
+            },
+            "reason": {
+              "$ref": "#/$defs/Text"
+            }
+          },
+          "required": [
+            "manifest",
+            "expectedSettlementRevision",
+            "expectedProjectionRevision",
+            "expectedGeneration",
+            "targetDigest",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API041Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "settlement": {
+                  "$ref": "#/$defs/Settlement"
+                }
+              },
+              "required": [
+                "settlement"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API093Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "$ref": "#/$defs/Period"
+            },
+            "assetId": {
+              "$ref": "#/$defs/Id"
+            },
+            "cursor": {
+              "$ref": "#/$defs/Text"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "settlementId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "API093Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "settlements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/Settlement"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Text"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "listRevision": {
+                  "$ref": "#/$defs/Revision"
+                },
+                "freshness": {
+                  "$ref": "#/$defs/Freshness"
+                }
+              },
+              "required": [
+                "settlements",
+                "nextCursor",
+                "listRevision",
+                "freshness"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API087Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "subjectRef": {
+              "$ref": "#/$defs/Id"
+            },
+            "scope": {
+              "$ref": "#/$defs/Scope"
+            },
+            "mode": {
+              "enum": [
+                "source_refresh",
+                "preview"
+              ]
+            },
+            "reason": {
+              "$ref": "#/$defs/Text"
+            },
+            "consumer": {
+              "enum": [
+                "sales",
+                "settlements",
+                "benefits",
+                "receipts",
+                "travel"
+              ]
+            }
+          },
+          "required": [
+            "subjectRef",
+            "scope",
+            "mode",
+            "consumer",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "API087Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "repair": {
+                  "$ref": "#/$defs/RepairView"
+                }
+              },
+              "required": [
+                "repair"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "SR01Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "repairId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "repairId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "SR01Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "repair": {
+                  "$ref": "#/$defs/RepairView"
+                }
+              },
+              "required": [
+                "repair"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "SR02Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "repairId": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "repairId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "expectedRunRevision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "manifest": {
+              "$ref": "#/$defs/ManifestRef"
+            },
+            "expectedGeneration": {
+              "$ref": "#/$defs/Id"
+            },
+            "expectedFence": {
+              "$ref": "#/$defs/Revision"
+            },
+            "diffDigest": {
+              "$ref": "#/$defs/Hash"
+            },
+            "effectPlanDigest": {
+              "$ref": "#/$defs/Hash"
+            },
+            "reason": {
+              "$ref": "#/$defs/Text"
+            }
+          },
+          "required": [
+            "expectedRunRevision",
+            "manifest",
+            "expectedGeneration",
+            "expectedFence",
+            "diffDigest",
+            "effectPlanDigest",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "SR02Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "repair": {
+                  "$ref": "#/$defs/RepairView"
+                }
+              },
+              "required": [
+                "repair"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "contractVersion": {
+              "const": "settlement-repair-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "contractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "enum": [
+                    "AUTH_REQUIRED",
+                    "RESOURCE_UNAVAILABLE",
+                    "SCOPE_DENIED",
+                    "MANIFEST_STALE",
+                    "SOURCE_HELD",
+                    "SOURCE_INCOMPLETE",
+                    "POLICY_UNAVAILABLE",
+                    "REVISION_CONFLICT",
+                    "DIGEST_CONFLICT",
+                    "IDEMPOTENCY_CONFLICT",
+                    "ALREADY_CLOSED",
+                    "NO_CHANGE",
+                    "CONTRACT_UNSUPPORTED",
+                    "INVALID_REQUEST",
+                    "RATE_LIMITED",
+                    "SERVICE_UNAVAILABLE"
+                  ]
+                },
+                "message": {
+                  "$ref": "#/$defs/Text"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "status": "canonical_source_dispatch_design",
+  "runtimeVerified": false,
+  "entries": [
+    {
+      "sourceKind": "personal_transfer",
+      "creationApi": "API-017",
+      "approvalVersion": "approval-v1-draft",
+      "submissionApi": "API-018",
+      "submissionSchema": "approval-baseline.schema.json#/$defs/AB_integration_API018Request",
+      "signingPaths": [
+        "owner_ble",
+        "API-015"
+      ],
+      "status": "canonical_design_runtime_unverified",
+      "executionVerified": false,
+      "selectionRule": "load stored source and required contract/profile; current actor/epoch/gate/provenance mandatory"
+    },
+    {
+      "sourceKind": "payment",
+      "creationApi": "API-034",
+      "approvalVersion": "approval-v1-draft",
+      "submissionApi": "API-018",
+      "submissionSchema": "approval-baseline.schema.json#/$defs/AB_integration_API018Request",
+      "signingPaths": [
+        "payment_terminal_ble"
+      ],
+      "status": "canonical_design_runtime_unverified",
+      "executionVerified": false,
+      "selectionRule": "load stored source and required contract/profile; current actor/epoch/gate/provenance mandatory"
+    },
+    {
+      "sourceKind": "merchant_refund",
+      "creationApi": "API-037",
+      "approvalVersion": "approval-v1-draft",
+      "submissionApi": "API-018",
+      "submissionSchema": "approval-baseline.schema.json#/$defs/AB_integration_API018Request",
+      "signingPaths": [
+        "owner_ble",
+        "API-015"
+      ],
+      "status": "canonical_design_runtime_unverified",
+      "executionVerified": false,
+      "selectionRule": "load stored source and required contract/profile; current actor/epoch/gate/provenance mandatory"
+    },
+    {
+      "sourceKind": "smart_account",
+      "creationApi": null,
+      "approvalVersion": null,
+      "submissionApi": null,
+      "submissionSchema": null,
+      "signingPaths": [],
+      "status": "adapter_pending_execution_blocked",
+      "executionVerified": false,
+      "selectionRule": "keep source-specific planned flow; no call through personal/guest/refund EOA adapter. Query existing records only with supported original reader and current authorization."
+    },
+    {
+      "sourceKind": "market_action",
+      "creationApi": null,
+      "approvalVersion": null,
+      "submissionApi": null,
+      "submissionSchema": null,
+      "signingPaths": [],
+      "status": "adapter_pending_execution_blocked",
+      "executionVerified": false,
+      "selectionRule": "keep source-specific planned flow; no call through personal/guest/refund EOA adapter. Query existing records only with supported original reader and current authorization."
+    },
+    {
+      "sourceKind": "credential_proof",
+      "creationApi": null,
+      "approvalVersion": null,
+      "submissionApi": null,
+      "submissionSchema": null,
+      "signingPaths": [],
+      "status": "adapter_pending_execution_blocked",
+      "executionVerified": false,
+      "selectionRule": "keep source-specific planned flow; no call through personal/guest/refund EOA adapter. Query existing records only with supported original reader and current authorization."
+    },
+    {
+      "sourceKind": "paid_resource",
+      "creationApi": null,
+      "approvalVersion": null,
+      "submissionApi": null,
+      "submissionSchema": null,
+      "signingPaths": [],
+      "status": "adapter_pending_execution_blocked",
+      "executionVerified": false,
+      "selectionRule": "keep source-specific planned flow; no call through personal/guest/refund EOA adapter. Query existing records only with supported original reader and current authorization."
+    }
+  ],
+  "noLegacyFallback": true,
+  "unrelatedScopePreserved": true,
+  "note": "Pending adapters are existing full-scope work, not removal. No actual product is enabled by this registry."
+}

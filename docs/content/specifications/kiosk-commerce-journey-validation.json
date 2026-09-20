@@ -1,0 +1,52 @@
+{
+  "date": "2026-09-19",
+  "scope": "journey_reference_and_existing_contract_validation_only",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_kiosk_commerce_journeys.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"journey_inventory_and_reference_checks_only\", \"journeys\": 12, \"paymentDisplayStates\": 10, \"policyInputs\": 7, \"contractDeltas\": 7, \"runtimeCases\": 34, \"sourceFilesPreserved\": 12, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_commerce_reconciliation.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 5, \"schemaDefinitions\": 71, \"validShapes\": 17, \"invalidShapes\": 12, \"semanticExamples\": 16, \"runtimeCasesNotRun\": 15, \"pinnedSources\": 15, \"canonicalMerged\": false, \"sqlApplied\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_settlement_ops.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_only\", \"existingRoutes\": 5, \"proposedUnregisteredRoutes\": 2, \"validShapes\": 15, \"invalidShapes\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 9, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/validate_full_scope_design.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exit_code": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": [
+      "Refund negative case now explicitly concerns unauthorized cross-store allocation, preserving legitimate merchant refund authority.",
+      "Benefit correction/deficit depends on stored rule version; unresolved policy stays held.",
+      "Each journey requires normal control evidence; negative branch pass is not overall completion."
+    ],
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "34 new runtime cases remain not_run; no actual orders, payments, refunds or settlements executed.",
+    "Seven policy inputs remain unselected and seven contract deltas await adoption.",
+    "Fulfillment mutation, terminal recovery and operations publication registration gaps remain explicit.",
+    "All 15 requirements, 104 tasks, 320 steps and 19 open decisions preserved."
+  ]
+}

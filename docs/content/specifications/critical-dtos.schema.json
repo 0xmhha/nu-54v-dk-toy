@@ -1,0 +1,7077 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu-wallet:critical-dtos:draft:1",
+  "$defs": {
+    "Asset": {
+      "type": "object",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "native",
+            "erc20"
+          ]
+        },
+        "tokenAddress": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "displaySymbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isTestAsset": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "assetId",
+        "chainId",
+        "kind",
+        "tokenAddress",
+        "decimals",
+        "displaySymbol",
+        "isTestAsset"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "native"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tokenAddress": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tokenAddress": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Money": {
+      "type": "object",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "assetId",
+        "atomicAmount"
+      ],
+      "additionalProperties": false
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safeMessage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nextAction": {
+          "type": "string",
+          "enum": [
+            "retry_query",
+            "reauthenticate",
+            "review_again",
+            "resolve_balance",
+            "wait",
+            "contact_support",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "retryable",
+        "operationId",
+        "safeMessage",
+        "nextAction"
+      ],
+      "additionalProperties": false
+    },
+    "ChainObservation": {
+      "type": "object",
+      "properties": {
+        "chainId": {
+          "const": 8283
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "blockHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "blockNumber": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "logIndex": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receiptStatus": {
+          "type": "string",
+          "enum": [
+            "success",
+            "reverted"
+          ]
+        },
+        "canonicality": {
+          "type": "string",
+          "enum": [
+            "canonical",
+            "orphaned",
+            "unknown"
+          ]
+        },
+        "confirmation": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "policy_satisfied",
+            "pending"
+          ]
+        },
+        "policyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "observationKind": {
+          "enum": [
+            "transaction",
+            "erc20_log"
+          ]
+        }
+      },
+      "required": [
+        "chainId",
+        "txHash",
+        "blockHash",
+        "blockNumber",
+        "logIndex",
+        "receiptStatus",
+        "canonicality",
+        "confirmation",
+        "policyId",
+        "revision",
+        "observedAt",
+        "observationKind"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "observationKind": {
+                "const": "transaction"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "logIndex": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "logIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "receiptStatus": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "PaymentBinding": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "signedTransactionHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      },
+      "required": [
+        "attemptId",
+        "intentId",
+        "orderId",
+        "sessionId",
+        "payerAddress",
+        "recipientAddress",
+        "assetId",
+        "atomicAmount",
+        "payloadDigest",
+        "signedTransactionHash"
+      ],
+      "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "unknown",
+            "cancelled"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resultRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "operationId",
+        "kind",
+        "state",
+        "revision",
+        "resultRef",
+        "error",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "succeeded"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "DomainEvent": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schemaVersion": {
+          "const": "1"
+        },
+        "aggregateType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aggregateId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "aggregateRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "correlationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "causationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "eventId",
+        "type",
+        "schemaVersion",
+        "aggregateType",
+        "aggregateId",
+        "aggregateRevision",
+        "occurredAt",
+        "correlationId",
+        "causationId",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RecordingMetadata": {
+      "type": "object",
+      "properties": {
+        "recordingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "formatProfile": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sampleRateHz": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "channels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "completeness": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial",
+            "failed"
+          ]
+        },
+        "lastSequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missingRanges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "to": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "recordingId",
+        "formatProfile",
+        "sampleRateHz",
+        "channels",
+        "completeness",
+        "lastSequence",
+        "missingRanges"
+      ],
+      "additionalProperties": false
+    },
+    "TravelEvidence": {
+      "type": "object",
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "location_visit",
+            "testnet_payment",
+            "commercial_purchase",
+            "user_report"
+          ]
+        },
+        "sourceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "placeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "consentRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "validity": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "valid",
+            "invalidated",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "evidenceId",
+        "sourceType",
+        "sourceId",
+        "placeId",
+        "observedAt",
+        "consentRevision",
+        "validity"
+      ],
+      "additionalProperties": false
+    },
+    "RefundReservation": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "paymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "destinationProofRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "reserved",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "released"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "amount",
+        "destinationAddress",
+        "destinationProofRef",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "SignedReleaseManifest": {
+      "type": "object",
+      "properties": {
+        "releaseId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "firmwareVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packageSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "packageHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "compatibilityProfile": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "signingKeyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "signatureRef": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "releaseId",
+        "model",
+        "firmwareVersion",
+        "packageSize",
+        "packageHash",
+        "compatibilityProfile",
+        "signingKeyId",
+        "signatureRef"
+      ],
+      "additionalProperties": false
+    },
+    "BleControlMessage": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LegacyBleControlMessage"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_PaymentIdentifyRequest"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_PaymentIdentifyResponse"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_PaymentPrepareRequest"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_PaymentPrepareResponse"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_PaymentResultRequest"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_PaymentResultResponse"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_WalletSignPrepareRequest"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_WalletSignPrepareResponse"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_WalletSignResultRequest"
+        },
+        {
+          "$ref": "#/$defs/AB_BLE_WalletSignResultResponse"
+        }
+      ]
+    },
+    "EoaTokenIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "attemptId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Asset"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "erc20"
+                }
+              }
+            }
+          ]
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "merchantDisplay": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "storeId",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "intentId",
+        "attemptId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "merchantDisplay"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentPrepare": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "intent": {
+          "$ref": "#/$defs/EoaTokenIntent"
+        },
+        "merchantProofRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "proximityRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "attemptId",
+        "intent",
+        "merchantProofRef",
+        "proximityRef"
+      ],
+      "additionalProperties": false
+    },
+    "ResetClearance": {
+      "type": "object",
+      "properties": {
+        "clearanceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "bindingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "walletOrigin": {
+          "enum": [
+            "new_travel",
+            "imported"
+          ]
+        },
+        "checklistRevision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "challenge": {
+          "type": "string",
+          "minLength": 1
+        },
+        "serverProof": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "clearanceId",
+        "rentalId",
+        "deviceId",
+        "bindingId",
+        "walletOrigin",
+        "checklistRevision",
+        "expiresAt",
+        "challenge",
+        "serverProof"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceResetEvidence": {
+      "type": "object",
+      "properties": {
+        "clearanceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "previousBindingId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "resetCounter": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bootState": {
+          "const": "unprovisioned"
+        },
+        "challenge": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deviceProof": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "clearanceId",
+        "rentalId",
+        "deviceId",
+        "previousBindingId",
+        "resetCounter",
+        "bootState",
+        "challenge",
+        "deviceProof"
+      ],
+      "additionalProperties": false
+    },
+    "ProofReference": {
+      "type": "object",
+      "properties": {
+        "proofId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "proofId",
+        "profileId"
+      ],
+      "additionalProperties": false
+    },
+    "OrderLineInput": {
+      "type": "object",
+      "properties": {
+        "itemId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "optionIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "itemId",
+        "optionIds",
+        "quantity"
+      ],
+      "additionalProperties": false
+    },
+    "QuoteView": {
+      "type": "object",
+      "properties": {
+        "quoteId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rateSnapshotRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "quoteId",
+        "orderId",
+        "assetId",
+        "atomicAmount",
+        "recipientAddress",
+        "expiresAt",
+        "revision",
+        "rateSnapshotRef"
+      ],
+      "additionalProperties": false
+    },
+    "OrderView": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "storeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "awaiting_payment",
+            "paid",
+            "cancelled",
+            "expired",
+            "fulfilled"
+          ]
+        },
+        "price": {
+          "type": "object",
+          "properties": {
+            "currency": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minorAmount": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "fractionDigits": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "currency",
+            "minorAmount",
+            "fractionDigits"
+          ],
+          "additionalProperties": false
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "orderId",
+        "storeId",
+        "revision",
+        "state",
+        "price",
+        "recipientAddress",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "AttemptView": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "created",
+            "awaiting_approval",
+            "signed",
+            "submitted",
+            "observed",
+            "accepted",
+            "rejected",
+            "expired",
+            "submission_unknown",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "attemptId",
+        "orderId",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "RefundView": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "paymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "orderId",
+        "assetId",
+        "atomicAmount",
+        "destinationAddress",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "ReturnCheck": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "pending",
+            "failed",
+            "not_applicable"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "code",
+        "state",
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "ReturnChecklist": {
+      "type": "object",
+      "properties": {
+        "rentalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "deviceId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "walletOrigin": {
+          "type": "string",
+          "enum": [
+            "new_travel",
+            "imported"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "eligible_for_reset",
+            "reset_confirmed",
+            "completed"
+          ]
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReturnCheck"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "rentalId",
+        "deviceId",
+        "walletOrigin",
+        "revision",
+        "state",
+        "checks"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "eligible_for_reset",
+                  "reset_confirmed",
+                  "completed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "checks": {
+                "items": {
+                  "properties": {
+                    "state": {
+                      "enum": [
+                        "passed",
+                        "not_applicable"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CreateOrderRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/OrderLineInput"
+              },
+              "minItems": 1
+            },
+            "menuRevision": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "items",
+            "menuRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CreateOrderResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "order": {
+                  "$ref": "#/$defs/OrderView"
+                },
+                "orderCapability": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "order",
+                "orderCapability"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CreatePaymentAttemptRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "orderId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "assetId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "accountMode": {
+              "type": "string",
+              "enum": [
+                "eoa",
+                "smart_account"
+              ]
+            }
+          },
+          "required": [
+            "assetId",
+            "accountMode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CreatePaymentAttemptResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "attempt": {
+                  "$ref": "#/$defs/AttemptView"
+                },
+                "quote": {
+                  "$ref": "#/$defs/QuoteView"
+                },
+                "pairingChallenge": {
+                  "type": "object",
+                  "properties": {
+                    "challengeId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "nonce": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "challengeId",
+                    "nonce",
+                    "expiresAt"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "attempt",
+                "quote",
+                "pairingChallenge"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CreatePaymentIntentRequest": {
+      "$ref": "#/$defs/AB_integration_API034Request"
+    },
+    "CreatePaymentIntentResponse": {
+      "$ref": "#/$defs/AB_integration_API034Response"
+    },
+    "SubmitTransactionRequest": {
+      "$ref": "#/$defs/AB_integration_API018Request"
+    },
+    "SubmitTransactionResponse": {
+      "$ref": "#/$defs/AB_integration_API018Response"
+    },
+    "CreateRefundRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "orderId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "$ref": "#/$defs/Money"
+            },
+            "destinationProof": {
+              "$ref": "#/$defs/ProofReference"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "amount",
+            "destinationProof",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CreateRefundResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "refund": {
+                  "$ref": "#/$defs/RefundView"
+                },
+                "reservedAmount": {
+                  "$ref": "#/$defs/Money"
+                }
+              },
+              "required": [
+                "refund",
+                "reservedAmount"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AuthorizeRefundRequest": {
+      "$ref": "#/$defs/AB_integration_API037Request"
+    },
+    "AuthorizeRefundResponse": {
+      "$ref": "#/$defs/AB_integration_API037Response"
+    },
+    "EoaRefundIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Asset"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "erc20"
+                }
+              }
+            }
+          ]
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "merchantDisplay": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "storeId",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "intentId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "merchantDisplay",
+        "refundId"
+      ],
+      "additionalProperties": false
+    },
+    "CheckReturnRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "rentalId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "rentalId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "walletOrigin": {
+              "type": "string",
+              "enum": [
+                "new_travel",
+                "imported"
+              ]
+            },
+            "externalAccessProof": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ProofReference"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "walletOrigin",
+            "externalAccessProof"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CheckReturnResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "checklist": {
+                  "$ref": "#/$defs/ReturnChecklist"
+                },
+                "conditionalResetClearance": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/ResetClearance"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "checklist",
+                "conditionalResetClearance"
+              ],
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "checklist": {
+                        "properties": {
+                          "state": {
+                            "const": "eligible_for_reset"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "conditionalResetClearance": {
+                        "$ref": "#/$defs/ResetClearance"
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "conditionalResetClearance": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CompleteReturnRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "rentalId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "rentalId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "requestId",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "checklistRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "clearanceId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "deviceResetEvidence": {
+              "$ref": "#/$defs/DeviceResetEvidence"
+            },
+            "ownerApprovalRef": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "checklistRevision",
+            "clearanceId",
+            "deviceResetEvidence",
+            "ownerApprovalRef"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CompleteReturnResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "rental": {
+                  "type": "object",
+                  "properties": {
+                    "rentalId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "deviceId": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                    },
+                    "state": {
+                      "const": "returned"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "rentalId",
+                    "deviceId",
+                    "state",
+                    "revision"
+                  ],
+                  "additionalProperties": false
+                },
+                "bindingRevoked": {
+                  "const": true
+                }
+              },
+              "required": [
+                "rental",
+                "bindingRevoked"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "CriticalErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "error": {
+              "$ref": "#/$defs/Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API007Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "AB_integration_API007Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "wallets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AB_wallet_WalletChoice"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AB_baseline_Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshotId": {
+                  "$ref": "#/$defs/AB_baseline_Id"
+                },
+                "observedAt": {
+                  "$ref": "#/$defs/AB_baseline_Time"
+                }
+              },
+              "required": [
+                "wallets",
+                "nextCursor",
+                "snapshotId",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_wallet_WalletChoice": {
+      "type": "object",
+      "properties": {
+        "wallet": {
+          "$ref": "#/$defs/AB_baseline_WalletView"
+        },
+        "context": {
+          "$ref": "#/$defs/AB_wallet_Context"
+        },
+        "bindingId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "bindingRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "signers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AB_wallet_SignerAvailability"
+          }
+        }
+      },
+      "required": [
+        "wallet",
+        "context",
+        "bindingId",
+        "bindingRevision",
+        "signers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_WalletView": {
+      "type": "object",
+      "properties": {
+        "walletId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/AB_baseline_WalletKind"
+        },
+        "chainId": {
+          "$ref": "#/$defs/AB_baseline_ChainId"
+        },
+        "address": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "signerRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        }
+      },
+      "required": [
+        "walletId",
+        "kind",
+        "chainId",
+        "address",
+        "signerRef",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_WalletKind": {
+      "type": "string",
+      "enum": [
+        "hardware_eoa",
+        "cloud_mpc_eoa",
+        "smart_account"
+      ]
+    },
+    "AB_baseline_ChainId": {
+      "const": 8283
+    },
+    "AB_baseline_Address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "AB_baseline_Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "AB_wallet_Context": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "personal"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "store"
+            },
+            "storeId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "kind",
+            "storeId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_wallet_SignerAvailability": {
+      "type": "object",
+      "properties": {
+        "signerRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "hardware_eoa",
+            "cloud_mpc_eoa",
+            "smart_account"
+          ]
+        },
+        "epoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        },
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "supportedRequestKinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "eoa_transaction",
+              "typed_data",
+              "user_operation",
+              "credential_proof"
+            ]
+          }
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "available",
+            "requires_device_check",
+            "recovery_pending",
+            "blocked",
+            "unsupported"
+          ]
+        },
+        "observedAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        }
+      },
+      "required": [
+        "signerRef",
+        "kind",
+        "epoch",
+        "profileId",
+        "supportedRequestKinds",
+        "state",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_UInt": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "AB_baseline_Time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "AB_integration_ResponseHeaders": {
+      "type": "object",
+      "properties": {
+        "cacheControl": {
+          "const": "no-store"
+        },
+        "contractVersion": {
+          "const": "approval-v1-draft"
+        }
+      },
+      "required": [
+        "cacheControl",
+        "contractVersion"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "error": {
+              "$ref": "#/$defs/AB_baseline_Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safeMessage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nextAction": {
+          "type": "string",
+          "enum": [
+            "retry_query",
+            "reauthenticate",
+            "review_again",
+            "resolve_balance",
+            "wait",
+            "contact_support",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "retryable",
+        "operationId",
+        "safeMessage",
+        "nextAction"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API008Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "storeId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API008Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "wallets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AB_wallet_WalletChoice"
+                  }
+                },
+                "nextCursor": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AB_baseline_Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "snapshotId": {
+                  "$ref": "#/$defs/AB_baseline_Id"
+                },
+                "observedAt": {
+                  "$ref": "#/$defs/AB_baseline_Time"
+                }
+              },
+              "required": [
+                "wallets",
+                "nextCursor",
+                "snapshotId",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API009Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "walletId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "$ref": "#/$defs/AB_wallet_ContextQuery"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "AB_wallet_ContextQuery": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "contextKind": {
+              "const": "personal"
+            }
+          },
+          "required": [
+            "contextKind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "contextKind": {
+              "const": "store"
+            },
+            "storeId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "contextKind",
+            "storeId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_integration_API009Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "walletId": {
+                  "$ref": "#/$defs/AB_baseline_Id"
+                },
+                "context": {
+                  "$ref": "#/$defs/AB_wallet_Context"
+                },
+                "chainId": {
+                  "$ref": "#/$defs/AB_baseline_ChainId"
+                },
+                "address": {
+                  "$ref": "#/$defs/AB_baseline_Address"
+                },
+                "assets": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AB_baseline_BalanceView"
+                  }
+                },
+                "observedAt": {
+                  "$ref": "#/$defs/AB_baseline_Time"
+                },
+                "blockRef": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AB_baseline_BlockRef"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "walletId",
+                "context",
+                "chainId",
+                "address",
+                "assets",
+                "observedAt",
+                "blockRef"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_BalanceView": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "$ref": "#/$defs/AB_baseline_Asset"
+        },
+        "atomicAmount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_UInt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/AB_baseline_BalanceState"
+        },
+        "observedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blockRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_BlockRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "asset",
+        "atomicAmount",
+        "state",
+        "observedAt",
+        "blockRef"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "atomicAmount": {
+                "type": "null"
+              },
+              "observedAt": {
+                "type": "null"
+              },
+              "blockRef": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "atomicAmount": {
+                "$ref": "#/$defs/AB_baseline_UInt"
+              },
+              "observedAt": {
+                "$ref": "#/$defs/AB_baseline_Time"
+              },
+              "blockRef": {
+                "$ref": "#/$defs/AB_baseline_BlockRef"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AB_baseline_Asset": {
+      "type": "object",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "native",
+            "erc20"
+          ]
+        },
+        "tokenAddress": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "displaySymbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isTestAsset": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "assetId",
+        "chainId",
+        "kind",
+        "tokenAddress",
+        "decimals",
+        "displaySymbol",
+        "isTestAsset"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "native"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tokenAddress": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tokenAddress": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AB_baseline_BalanceState": {
+      "type": "string",
+      "enum": [
+        "current",
+        "stale",
+        "unknown"
+      ]
+    },
+    "AB_baseline_BlockRef": {
+      "type": "object",
+      "properties": {
+        "chainId": {
+          "$ref": "#/$defs/AB_baseline_ChainId"
+        },
+        "blockNumber": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        },
+        "blockHash": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        }
+      },
+      "required": [
+        "chainId",
+        "blockNumber",
+        "blockHash"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_Hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "AB_integration_API015Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "walletId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AB_common_CloudSigningBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_CloudSigningBody": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalProof": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "approvalProof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_EvidencePacket": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "evidenceBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "profileId",
+        "evidenceBytes"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API015Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "#/$defs/AB_integration_SafeApprovalOperation"
+                },
+                "approvalOperationId": {
+                  "$ref": "#/$defs/AB_baseline_Id"
+                },
+                "progress": {
+                  "$ref": "#/$defs/AB_common_Progress"
+                }
+              },
+              "required": [
+                "operation",
+                "approvalOperationId",
+                "progress"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_SafeApprovalOperation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/AB_baseline_Operation"
+        },
+        {
+          "properties": {
+            "resultRef": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "AB_baseline_Operation": {
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "unknown",
+            "cancelled"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resultRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "operationId",
+        "kind",
+        "state",
+        "revision",
+        "resultRef",
+        "error",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "succeeded"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AB_common_Progress": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "review_ready",
+            "signing",
+            "signature_unknown",
+            "signed",
+            "submission_unknown",
+            "submitted",
+            "blocked",
+            "closed"
+          ]
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observedAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "intentId",
+        "phase",
+        "transactionRef",
+        "observedAt"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API017Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "chainId": {
+              "$ref": "#/$defs/AB_baseline_ChainId"
+            },
+            "action": {
+              "const": "personal_transfer"
+            },
+            "actionInput": {
+              "$ref": "#/$defs/AB_wallet_TransferInput"
+            },
+            "selection": {
+              "$ref": "#/$defs/AB_wallet_Selection"
+            }
+          },
+          "required": [
+            "walletId",
+            "chainId",
+            "action",
+            "actionInput",
+            "selection"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_wallet_TransferInput": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "assetId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      },
+      "required": [
+        "recipient",
+        "assetId",
+        "atomicAmount"
+      ],
+      "additionalProperties": false
+    },
+    "AB_wallet_Selection": {
+      "type": "object",
+      "properties": {
+        "walletId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "context": {
+          "$ref": "#/$defs/AB_wallet_Context"
+        },
+        "bindingId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "expectedBindingRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "expectedWalletRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "signerRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "expectedSignerEpoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        }
+      },
+      "required": [
+        "walletId",
+        "context",
+        "bindingId",
+        "expectedBindingRevision",
+        "expectedWalletRevision",
+        "signerRef",
+        "expectedSignerEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API017Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "snapshot": {
+                  "$ref": "#/$defs/AB_common_PersonalSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/AB_integration_SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_PersonalSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "personal_transfer"
+        },
+        "intent": {
+          "$ref": "#/$defs/AB_common_PersonalIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/AB_common_PersonalContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_PersonalIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "$ref": "#/$defs/AB_baseline_Asset"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "sourceId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        }
+      },
+      "required": [
+        "intentId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "sourceId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_PersonalContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "operationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "chainId": {
+          "$ref": "#/$defs/AB_baseline_ChainId"
+        },
+        "payerAddress": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "reviewDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        },
+        "sourceKind": {
+          "const": "personal_transfer"
+        },
+        "sourceId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "accountBindingId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/AB_common_VerifiedSigner"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "sourceId",
+        "accountBindingId",
+        "selection",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_VerifiedSigner": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "walletBindingId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "walletRevision": {
+              "$ref": "#/$defs/AB_baseline_Revision"
+            },
+            "bindingRevision": {
+              "$ref": "#/$defs/AB_baseline_Revision"
+            },
+            "signerRef": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "signerKind": {
+              "const": "hardware_eoa"
+            },
+            "epoch": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "device"
+                },
+                "deviceEpoch": {
+                  "$ref": "#/$defs/AB_baseline_UInt"
+                }
+              },
+              "required": [
+                "kind",
+                "deviceEpoch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "walletRevision",
+            "bindingRevision",
+            "signerRef",
+            "signerKind",
+            "epoch"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "walletBindingId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "walletRevision": {
+              "$ref": "#/$defs/AB_baseline_Revision"
+            },
+            "bindingRevision": {
+              "$ref": "#/$defs/AB_baseline_Revision"
+            },
+            "signerRef": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "signerKind": {
+              "const": "cloud_mpc_eoa"
+            },
+            "epoch": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "mpc"
+                },
+                "participantEpoch": {
+                  "$ref": "#/$defs/AB_baseline_UInt"
+                }
+              },
+              "required": [
+                "kind",
+                "participantEpoch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "walletRevision",
+            "bindingRevision",
+            "signerRef",
+            "signerKind",
+            "epoch"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_integration_API018Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "senderProof": {
+              "$ref": "#/$defs/AB_common_EvidencePacket"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey",
+            "senderProof"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AB_common_SigningResult"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_SigningResult": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "signedPayload": {
+          "type": "string",
+          "pattern": "^0x([0-9a-fA-F]{2})+$"
+        },
+        "approvalEvidence": {
+          "$ref": "#/$defs/AB_common_ResultEvidence"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "signedPayload",
+        "approvalEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_ResultEvidence": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AB_common_DeviceResultEvidence"
+        },
+        {
+          "$ref": "#/$defs/AB_common_MpcResultEvidence"
+        }
+      ]
+    },
+    "AB_common_DeviceResultEvidence": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "device_result"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "signedPayloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "reviewId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceEpoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        },
+        "proof": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "kind",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest",
+        "signedPayloadDigest",
+        "reviewId",
+        "deviceSessionRef",
+        "deviceEpoch",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_MpcResultEvidence": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "mpc_session"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "signedPayloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "operationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "participantEpoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        }
+      },
+      "required": [
+        "kind",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest",
+        "signedPayloadDigest",
+        "operationId",
+        "participantEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API018Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "#/$defs/AB_integration_SafeApprovalOperation"
+                },
+                "transactionRef": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,128}$"
+                },
+                "approvalOperationId": {
+                  "$ref": "#/$defs/AB_baseline_Id"
+                }
+              },
+              "required": [
+                "operation",
+                "transactionRef",
+                "approvalOperationId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API019Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "transactionRef": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "transactionRef"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "senderProof": {
+              "$ref": "#/$defs/AB_common_EvidencePacket"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API019Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "execution": {
+                  "$ref": "#/$defs/AB_baseline_ExecutionState"
+                },
+                "canonicality": {
+                  "$ref": "#/$defs/AB_baseline_BlockCanonicality"
+                },
+                "confirmation": {
+                  "$ref": "#/$defs/AB_baseline_ConfirmationState"
+                },
+                "observedAt": {
+                  "$ref": "#/$defs/AB_baseline_Time"
+                }
+              },
+              "required": [
+                "execution",
+                "canonicality",
+                "confirmation",
+                "observedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_ExecutionState": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "success",
+        "reverted",
+        "unknown"
+      ]
+    },
+    "AB_baseline_BlockCanonicality": {
+      "type": "string",
+      "enum": [
+        "canonical",
+        "orphaned",
+        "unknown"
+      ]
+    },
+    "AB_baseline_ConfirmationState": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "pending",
+        "policy_satisfied"
+      ]
+    },
+    "AB_integration_API020Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "operationId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "operationId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "senderProof": {
+              "$ref": "#/$defs/AB_common_EvidencePacket"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "includeSnapshot": {
+              "type": "boolean"
+            },
+            "includeSigningResult": {
+              "type": "boolean"
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API020Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 202
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "$ref": "#/$defs/AB_baseline_Operation"
+                },
+                "approval": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AB_common_ApprovalProjection"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operationClass": {
+                  "enum": [
+                    "approval_parent",
+                    "approval_child",
+                    "general"
+                  ]
+                },
+                "approvalOperationId": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AB_baseline_Id"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "operation",
+                "approval",
+                "operationClass",
+                "approvalOperationId"
+              ],
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "operationClass": {
+                        "enum": [
+                          "approval_parent",
+                          "approval_child"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "operation": {
+                        "properties": {
+                          "resultRef": {
+                            "type": "null"
+                          }
+                        }
+                      },
+                      "approvalOperationId": {
+                        "$ref": "#/$defs/AB_baseline_Id"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "operationClass": {
+                        "const": "approval_parent"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "approval": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "approval": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "operationClass": {
+                        "const": "general"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "approvalOperationId": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_ApprovalProjection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "sourceKind": {
+              "const": "personal_transfer"
+            },
+            "progress": {
+              "$ref": "#/$defs/AB_common_Progress"
+            },
+            "snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AB_common_PersonalSnapshot"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "signingResult": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AB_common_SigningResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sourceKind",
+            "progress",
+            "snapshot",
+            "signingResult"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sourceKind": {
+              "const": "payment"
+            },
+            "progress": {
+              "$ref": "#/$defs/AB_common_Progress"
+            },
+            "snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AB_common_PaymentSnapshot"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "signingResult": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AB_common_DeviceSigningResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sourceKind",
+            "progress",
+            "snapshot",
+            "signingResult"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sourceKind": {
+              "const": "merchant_refund"
+            },
+            "progress": {
+              "$ref": "#/$defs/AB_common_Progress"
+            },
+            "snapshot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AB_common_RefundSnapshot"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "signingResult": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AB_common_SigningResult"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sourceKind",
+            "progress",
+            "snapshot",
+            "signingResult"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_common_PaymentSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "payment"
+        },
+        "intent": {
+          "$ref": "#/$defs/AB_baseline_EoaTokenIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/AB_common_PaymentContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_EoaTokenIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "attemptId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Asset"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "erc20"
+                }
+              }
+            }
+          ]
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "merchantDisplay": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "storeId",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "intentId",
+        "attemptId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "merchantDisplay"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_PaymentContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "operationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "chainId": {
+          "$ref": "#/$defs/AB_baseline_ChainId"
+        },
+        "payerAddress": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "reviewDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        },
+        "sourceKind": {
+          "const": "payment"
+        },
+        "storeId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "orderId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "attemptRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "terminalId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceEpoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        },
+        "identifyEvidenceId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "proximityPolicyId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "proximityRequired": {
+          "type": "boolean"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "storeId",
+        "orderId",
+        "attemptId",
+        "attemptRevision",
+        "terminalId",
+        "sessionId",
+        "deviceSessionRef",
+        "deviceEpoch",
+        "identifyEvidenceId",
+        "proximityPolicyId",
+        "proximityRequired",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_DeviceSigningResult": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "signedPayload": {
+          "type": "string",
+          "pattern": "^0x([0-9a-fA-F]{2})+$"
+        },
+        "approvalEvidence": {
+          "$ref": "#/$defs/AB_common_DeviceResultEvidence"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "signedPayload",
+        "approvalEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_RefundSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "merchant_refund"
+        },
+        "intent": {
+          "$ref": "#/$defs/AB_baseline_EoaRefundIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/AB_common_RefundContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_EoaRefundIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Asset"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "erc20"
+                }
+              }
+            }
+          ]
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "merchantDisplay": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "storeId",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "intentId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "merchantDisplay",
+        "refundId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_RefundContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "operationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "chainId": {
+          "$ref": "#/$defs/AB_baseline_ChainId"
+        },
+        "payerAddress": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "reviewDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        },
+        "sourceKind": {
+          "const": "merchant_refund"
+        },
+        "storeId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "refundId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "paymentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "reservationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "authorizedRefundRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "authorizedFundingRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "merchantAuthorizationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/AB_common_VerifiedSigner"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "storeId",
+        "refundId",
+        "paymentId",
+        "reservationId",
+        "authorizedRefundRevision",
+        "authorizedFundingRevision",
+        "merchantAuthorizationId",
+        "selection",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API034Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "attemptId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "attemptId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "signerAddress": {
+              "$ref": "#/$defs/AB_baseline_Address"
+            },
+            "sessionId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "ownershipEvidence": {
+              "$ref": "#/$defs/AB_source_IdentifyEvidence"
+            }
+          },
+          "required": [
+            "signerAddress",
+            "sessionId",
+            "ownershipEvidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_IdentifyEvidence": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/AB_source_IdentifyBinding"
+        },
+        "proof": {
+          "$ref": "#/$defs/AB_source_EvidencePacket"
+        }
+      },
+      "required": [
+        "binding",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_IdentifyBinding": {
+      "type": "object",
+      "properties": {
+        "chainId": {
+          "$ref": "#/$defs/AB_baseline_ChainId"
+        },
+        "storeId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "orderId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "terminalId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "challengeId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "challenge": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "payerAddress": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        }
+      },
+      "required": [
+        "chainId",
+        "storeId",
+        "orderId",
+        "attemptId",
+        "terminalId",
+        "sessionId",
+        "deviceSessionRef",
+        "challengeId",
+        "challenge",
+        "payerAddress",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_EvidencePacket": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "evidenceBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "profileId",
+        "evidenceBytes"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API034Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "snapshot": {
+                  "$ref": "#/$defs/AB_common_PaymentSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/AB_integration_SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API037Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "refundId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "refundId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AB_common_RefundApprovalBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_RefundApprovalBody": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "expectedFundingRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "merchantSigner": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "walletBindingId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "expectedWalletRevision": {
+              "$ref": "#/$defs/AB_baseline_Revision"
+            },
+            "expectedBindingRevision": {
+              "$ref": "#/$defs/AB_baseline_Revision"
+            },
+            "signerRef": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "signerKind": {
+              "type": "string",
+              "enum": [
+                "hardware_eoa",
+                "cloud_mpc_eoa"
+              ]
+            },
+            "expectedSignerEpoch": {
+              "$ref": "#/$defs/AB_baseline_UInt"
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "expectedWalletRevision",
+            "expectedBindingRevision",
+            "signerRef",
+            "signerKind",
+            "expectedSignerEpoch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "expectedRevision",
+        "expectedFundingRevision",
+        "merchantSigner"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_API037Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "refund": {
+                  "$ref": "#/$defs/AB_baseline_RefundView"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/AB_common_RefundSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/AB_integration_SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "refund",
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_baseline_RefundView": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "paymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "orderId",
+        "assetId",
+        "atomicAmount",
+        "destinationAddress",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_AccessChallengeRequest": {
+      "$ref": "#/$defs/AB_common_AccessChallengeRequest"
+    },
+    "AB_common_AccessChallengeRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "approvalContextId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "approvalContextId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AB_common_AccessChallengeBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_AccessChallengeBody": {
+      "type": "object",
+      "properties": {
+        "requestedActions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AB_common_AccessAction"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "senderBinding": {
+          "$ref": "#/$defs/AB_common_SenderBinding"
+        },
+        "replacement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_common_ReplacementLocator"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "requestedActions",
+        "senderBinding",
+        "replacement"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_AccessAction": {
+      "enum": [
+        "read_progress",
+        "read_snapshot",
+        "read_signing_result",
+        "submit_exact"
+      ]
+    },
+    "AB_common_SenderBinding": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "publicBinding": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "profileId",
+        "publicBinding"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_ReplacementLocator": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "grant_id"
+            },
+            "grantId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "kind",
+            "grantId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "issuance_key"
+            },
+            "issuanceIdempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "kind",
+            "issuanceIdempotencyKey"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_integration_AccessChallengeResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/AB_common_AccessChallenge"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_AccessChallenge": {
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 512
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        },
+        "target": {
+          "$ref": "#/$defs/AB_common_AccessTarget"
+        },
+        "eligibleActions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AB_common_AccessAction"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "senderBindingDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "authorizationRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "replacesGrantId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "challengeId",
+        "nonce",
+        "expiresAt",
+        "target",
+        "eligibleActions",
+        "senderBindingDigest",
+        "authorizationRevision",
+        "replacesGrantId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_AccessTarget": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "operationId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "sourceKind": {
+          "enum": [
+            "personal_transfer",
+            "payment",
+            "merchant_refund"
+          ]
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "intentId",
+        "operationId",
+        "contextDigest",
+        "sourceKind"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_AccessErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "error": {
+              "$ref": "#/$defs/AB_baseline_Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_IssueAccessRequest": {
+      "$ref": "#/$defs/AB_common_IssueAccessRequest"
+    },
+    "AB_common_IssueAccessRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "approvalContextId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "approvalContextId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AB_common_IssueAccessBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_IssueAccessBody": {
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "senderProof": {
+          "$ref": "#/$defs/AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "challengeId",
+        "senderProof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_IssueAccessResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/AB_common_AccessCredential"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_AccessCredential": {
+      "type": "object",
+      "properties": {
+        "grant": {
+          "$ref": "#/$defs/AB_common_AccessGrant"
+        },
+        "tokenType": {
+          "const": "sender_bound_opaque"
+        },
+        "accessToken": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 2048
+        },
+        "proofProfileId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        }
+      },
+      "required": [
+        "grant",
+        "tokenType",
+        "accessToken",
+        "proofProfileId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_AccessGrant": {
+      "type": "object",
+      "properties": {
+        "grantId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "issuer": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "audience": {
+          "const": "approval_api"
+        },
+        "target": {
+          "$ref": "#/$defs/AB_common_AccessTarget"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AB_common_AccessAction"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "principal": {
+          "$ref": "#/$defs/AB_common_Principal"
+        },
+        "senderBindingDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "authorizationRevision": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "issuedAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        },
+        "replacesGrantId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "grantId",
+        "issuer",
+        "audience",
+        "target",
+        "actions",
+        "principal",
+        "senderBindingDigest",
+        "authorizationRevision",
+        "issuedAt",
+        "expiresAt",
+        "replacesGrantId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_Principal": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AB_common_AccountPrincipal"
+        },
+        {
+          "$ref": "#/$defs/AB_common_GuestPrincipal"
+        }
+      ]
+    },
+    "AB_common_AccountPrincipal": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "account_session"
+        },
+        "accountId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "authSessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        }
+      },
+      "required": [
+        "kind",
+        "accountId",
+        "authSessionId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_GuestPrincipal": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "guest_terminal_session"
+        },
+        "terminalId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceEpoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        }
+      },
+      "required": [
+        "kind",
+        "terminalId",
+        "attemptId",
+        "sessionId",
+        "deviceSessionRef",
+        "deviceEpoch"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_RevokeAccessRequest": {
+      "$ref": "#/$defs/AB_common_RevokeAccessRequest"
+    },
+    "AB_common_RevokeAccessRequest": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "approvalContextId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "grantId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "approvalContextId",
+            "grantId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/AB_common_RevokeAccessBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_RevokeAccessBody": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "enum": [
+            "user_requested",
+            "session_ended",
+            "suspected_exposure"
+          ]
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "AB_integration_RevokeAccessResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/AB_common_RevokeAccessResult"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_RevokeAccessResult": {
+      "type": "object",
+      "properties": {
+        "grantId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "state": {
+          "const": "revoked"
+        },
+        "revokedAt": {
+          "$ref": "#/$defs/AB_baseline_Time"
+        }
+      },
+      "required": [
+        "grantId",
+        "state",
+        "revokedAt"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_IdentifyRequest": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "challenge": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "merchantProof": {
+          "$ref": "#/$defs/AB_source_EvidencePacket"
+        }
+      },
+      "required": [
+        "attemptId",
+        "challenge",
+        "merchantProof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_PaymentIdentifyRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "payment.identify"
+        },
+        "payload": {
+          "$ref": "#/$defs/AB_source_IdentifyRequest"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_IdentifyResponse": {
+      "type": "object",
+      "properties": {
+        "selectedPayerAddress": {
+          "$ref": "#/$defs/AB_baseline_Address"
+        },
+        "ownershipEvidence": {
+          "$ref": "#/$defs/AB_source_IdentifyEvidence"
+        }
+      },
+      "required": [
+        "selectedPayerAddress",
+        "ownershipEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_BleErrorPayload": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/AB_baseline_Error"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_PaymentIdentifyResponse": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "payment.identify"
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AB_source_IdentifyResponse"
+            },
+            {
+              "$ref": "#/$defs/AB_source_BleErrorPayload"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_PaymentPreparePayload": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/AB_common_PaymentSnapshot"
+        },
+        "merchantProofRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "proximityRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AB_baseline_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attemptId",
+        "snapshot",
+        "merchantProofRef",
+        "proximityRef"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_PaymentPrepareRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "payment.prepare"
+        },
+        "payload": {
+          "$ref": "#/$defs/AB_common_PaymentPreparePayload"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_PrepareResponse": {
+      "type": "object",
+      "properties": {
+        "reviewId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        }
+      },
+      "required": [
+        "reviewId",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_PaymentPrepareResponse": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "payment.prepare"
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AB_source_PrepareResponse"
+            },
+            {
+              "$ref": "#/$defs/AB_source_BleErrorPayload"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_ResultRequest": {
+      "type": "object",
+      "properties": {
+        "reviewId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        }
+      },
+      "required": [
+        "reviewId",
+        "approvalContextId"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_PaymentResultRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "payment.result"
+        },
+        "payload": {
+          "$ref": "#/$defs/AB_source_ResultRequest"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_ResultResponse": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "signed"
+            },
+            "result": {
+              "$ref": "#/$defs/AB_source_DeviceSigningResult"
+            }
+          },
+          "required": [
+            "state",
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "awaiting_user",
+                "rejected",
+                "expired",
+                "unknown"
+              ]
+            },
+            "result": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "state",
+            "result"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_source_DeviceSigningResult": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "signedPayload": {
+          "type": "string",
+          "pattern": "^0x([0-9a-fA-F]{2})+$"
+        },
+        "approvalEvidence": {
+          "$ref": "#/$defs/AB_source_DeviceResultEvidence"
+        }
+      },
+      "required": [
+        "intentId",
+        "approvalContextId",
+        "signedPayload",
+        "approvalEvidence"
+      ],
+      "additionalProperties": false
+    },
+    "AB_source_DeviceResultEvidence": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "device_result"
+        },
+        "approvalContextId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "signedPayloadDigest": {
+          "$ref": "#/$defs/AB_baseline_Hash"
+        },
+        "reviewId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceSessionRef": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "deviceEpoch": {
+          "$ref": "#/$defs/AB_baseline_UInt"
+        },
+        "proof": {
+          "$ref": "#/$defs/AB_source_EvidencePacket"
+        }
+      },
+      "required": [
+        "kind",
+        "approvalContextId",
+        "contextDigest",
+        "payloadDigest",
+        "signedPayloadDigest",
+        "reviewId",
+        "deviceSessionRef",
+        "deviceEpoch",
+        "proof"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_ResultResponse": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "const": "signed"
+            },
+            "result": {
+              "$ref": "#/$defs/AB_common_DeviceSigningResult"
+            }
+          },
+          "required": [
+            "state",
+            "result"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "awaiting_user",
+                "rejected",
+                "expired",
+                "unknown"
+              ]
+            },
+            "result": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "state",
+            "result"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AB_BLE_PaymentResultResponse": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "payment_terminal"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "payment.result"
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AB_common_ResultResponse"
+            },
+            {
+              "$ref": "#/$defs/AB_source_BleErrorPayload"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_WalletPreparePayload": {
+      "type": "object",
+      "properties": {
+        "snapshot": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AB_common_HardwarePersonalSnapshot"
+            },
+            {
+              "$ref": "#/$defs/AB_common_HardwareRefundSnapshot"
+            }
+          ]
+        }
+      },
+      "required": [
+        "snapshot"
+      ],
+      "additionalProperties": false
+    },
+    "AB_common_HardwarePersonalSnapshot": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/AB_common_PersonalSnapshot"
+        },
+        {
+          "properties": {
+            "context": {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "signerKind": {
+                      "const": "hardware_eoa"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AB_common_HardwareRefundSnapshot": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/AB_common_RefundSnapshot"
+        },
+        {
+          "properties": {
+            "context": {
+              "properties": {
+                "selection": {
+                  "properties": {
+                    "signerKind": {
+                      "const": "hardware_eoa"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AB_BLE_WalletSignPrepareRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "owner"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "wallet.sign.prepare"
+        },
+        "payload": {
+          "$ref": "#/$defs/AB_common_WalletPreparePayload"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_WalletSignPrepareResponse": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "owner"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "wallet.sign.prepare"
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AB_source_PrepareResponse"
+            },
+            {
+              "$ref": "#/$defs/AB_source_BleErrorPayload"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_WalletSignResultRequest": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "owner"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "request"
+        },
+        "command": {
+          "const": "wallet.sign.result"
+        },
+        "payload": {
+          "$ref": "#/$defs/AB_source_ResultRequest"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "AB_BLE_WalletSignResultResponse": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "approval-ble-v1-draft"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sessionRole": {
+          "const": "owner"
+        },
+        "messageId": {
+          "$ref": "#/$defs/AB_baseline_Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/AB_baseline_Revision"
+        },
+        "kind": {
+          "const": "response"
+        },
+        "command": {
+          "const": "wallet.sign.result"
+        },
+        "payload": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AB_common_ResultResponse"
+            },
+            {
+              "$ref": "#/$defs/AB_source_BleErrorPayload"
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "LegacyBleControlMessage": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "const": "draft-1"
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sessionRole": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "payment_terminal",
+            "ranging_peer"
+          ]
+        },
+        "messageId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "request",
+            "response",
+            "event"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "enum": [
+            "session.close",
+            "wallet.create",
+            "wallet.import.begin",
+            "wallet.import.chunk",
+            "wallet.import.commit",
+            "wallet.import.abort",
+            "wallet.address",
+            "device.settings.update",
+            "payment.prepare",
+            "payment.result",
+            "wallet.sign.prepare",
+            "wallet.sign.result",
+            "request.cancel",
+            "proximity.observe",
+            "recording.start",
+            "recording.stop",
+            "audio.flow-control",
+            "find.start",
+            "find.stop",
+            "passport.sync",
+            "fota.begin",
+            "fota.chunk",
+            "fota.finalize",
+            "fota.apply",
+            "fota.status",
+            "credentials.list",
+            "credentials.delete",
+            "device.reset.prepare",
+            "device.reset.confirm",
+            "payment.identify"
+          ]
+        },
+        "payload": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "protocolVersion",
+        "sessionId",
+        "sessionRole",
+        "messageId",
+        "sequence",
+        "kind",
+        "command",
+        "payload"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sessionRole": {
+                "const": "owner"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "command": {
+                "enum": [
+                  "session.close",
+                  "wallet.create",
+                  "wallet.import.begin",
+                  "wallet.import.chunk",
+                  "wallet.import.commit",
+                  "wallet.import.abort",
+                  "wallet.address",
+                  "device.settings.update",
+                  "wallet.sign.prepare",
+                  "wallet.sign.result",
+                  "request.cancel",
+                  "recording.start",
+                  "recording.stop",
+                  "audio.flow-control",
+                  "find.start",
+                  "find.stop",
+                  "passport.sync",
+                  "fota.begin",
+                  "fota.chunk",
+                  "fota.finalize",
+                  "fota.apply",
+                  "fota.status",
+                  "credentials.list",
+                  "credentials.delete",
+                  "device.reset.prepare",
+                  "device.reset.confirm"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "sessionRole": {
+                "const": "payment_terminal"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "command": {
+                "enum": [
+                  "session.close",
+                  "payment.identify",
+                  "payment.prepare",
+                  "payment.result",
+                  "request.cancel"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "sessionRole": {
+                "const": "ranging_peer"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "command": {
+                "enum": [
+                  "proximity.observe"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "command": {
+                "const": "payment.prepare"
+              },
+              "kind": {
+                "const": "request"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/PaymentPrepare"
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "command": {
+                "enum": [
+                  "payment.identify",
+                  "payment.prepare",
+                  "payment.result",
+                  "wallet.sign.prepare",
+                  "wallet.sign.result"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "description": "Draft DTO subset with copied shared definitions. Validate sharedSourceSha256 before use."
+}

@@ -1,0 +1,414 @@
+{
+  "schemaVersion": "0.1.0",
+  "manifestId": "draft_nu_zephyr_integration",
+  "state": "draft",
+  "firmwareBase": "Zephyr",
+  "boardModel": "NU-54V-DK",
+  "chainId": 8283,
+  "entries": [
+    {
+      "matrixId": "COMP-01",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "boardRevision": null,
+        "boardTarget": null,
+        "zephyrCommit": null,
+        "distributionCommit": null,
+        "toolchainVersion": null,
+        "devicetreeDigest": null,
+        "kconfigDigest": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-02",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "cryptoProfile": null,
+        "cryptoBackendVersion": null,
+        "keyStoreSchema": null,
+        "keyPolicyVersion": null,
+        "secureBoundaryDigest": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-03",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "controlProtocol": null,
+        "handshakeProfile": null,
+        "rolePolicyVersion": null,
+        "controllerVersion": null,
+        "transportProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-04",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "intentSchema": null,
+        "reviewSchema": null,
+        "signatureProfile": null,
+        "keyPolicyVersion": null,
+        "controlProtocol": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-05",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "boardRevision": null,
+        "bootloaderCommit": null,
+        "imageFormat": null,
+        "partitionDigest": null,
+        "updateProfile": null,
+        "keyStoreSchema": null,
+        "migrationVersion": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-06",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "ctapVersion": null,
+        "transportProfile": null,
+        "rpPolicy": null,
+        "authenticatorAlgorithms": null,
+        "residentStoreSchema": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-07",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "audioProfile": null,
+        "frameSchema": null,
+        "sequencePolicy": null,
+        "resourcePolicy": null,
+        "stampProjectionSchema": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-08",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "rnVersion": null,
+        "nativeBridgeVersion": null,
+        "androidSdk": null,
+        "iosSdk": null,
+        "transportProfile": null,
+        "lifecyclePolicy": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-09",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "apiSchema": null,
+        "policyVersion": null,
+        "storageSchema": null,
+        "capabilityProfile": null,
+        "providerProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-10",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "signerProfile": null,
+        "intentSchema": null,
+        "reviewSchema": null,
+        "signatureProfile": null,
+        "submissionProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-11",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "mpcProtocol": null,
+        "libraryCommit": null,
+        "participantEpoch": null,
+        "recoveryProfile": null,
+        "transcriptFormat": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-12",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "chainId": null,
+        "chainFork": null,
+        "contractCodeHash": null,
+        "abiDigest": null,
+        "indexerDecoder": null,
+        "entryPointCodeHash": null,
+        "userOpProfile": null,
+        "tokenProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-13",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "resultSchema": null,
+        "objectDigestProfile": null,
+        "sourceSchema": null,
+        "modelDigest": null,
+        "consentPolicy": null,
+        "gatewayProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-14",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "returnPolicy": null,
+        "resetEvidenceProfile": null,
+        "keyStoreSchema": null,
+        "credentialStoreSchema": null,
+        "claimProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-15",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "fromFirmwareBuild": null,
+        "toFirmwareBuild": null,
+        "fromKeyStoreSchema": null,
+        "toKeyStoreSchema": null,
+        "partitionDigest": null,
+        "bootloaderCommit": null,
+        "migrationProfile": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-16",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "failedFirmwareBuild": null,
+        "rollbackFirmwareBuild": null,
+        "fromKeyStoreSchema": null,
+        "rollbackReadableSchema": null,
+        "rollbackPolicy": null,
+        "partitionDigest": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-17",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "oldAppBuild": null,
+        "newFirmwareBuild": null,
+        "nativeBridgeVersion": null,
+        "controlProfile": null,
+        "smpProfile": null,
+        "firmwareOfferSchema": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-18",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "ownerAppBuild": null,
+        "osBuild": null,
+        "nativeBridgeVersion": null,
+        "deviceFirmware": null,
+        "controlProfile": null,
+        "handshakeProfile": null,
+        "ownerScope": null,
+        "smpAccessPolicy": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-19",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "kioskBuild": null,
+        "osBuild": null,
+        "nativeBridgeVersion": null,
+        "deviceFirmware": null,
+        "controlProfile": null,
+        "handshakeProfile": null,
+        "attemptScope": null,
+        "smpAccessPolicy": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-20",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "peerBoardRevision": null,
+        "peerFirmware": null,
+        "deviceFirmware": null,
+        "rasProfile": null,
+        "handshakeProfile": null,
+        "observationFreshness": null,
+        "roleScope": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-21",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "curve": null,
+        "hashAlgorithm": null,
+        "transactionEncoding": null,
+        "chainId": null,
+        "reviewDecoder": null,
+        "deviceSignerProfile": null,
+        "validatorVersion": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-22",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "curve": null,
+        "hashAlgorithm": null,
+        "domainProfile": null,
+        "typedDataEncoding": null,
+        "reviewDecoder": null,
+        "signerProfile": null,
+        "verifierAddress": null,
+        "verifierCodeHash": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-23",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "curve": null,
+        "hashAlgorithm": null,
+        "userOpPacking": null,
+        "userOpHashVersion": null,
+        "chainId": null,
+        "entryPointAddress": null,
+        "entryPointCodeHash": null,
+        "accountCodeHash": null,
+        "reviewDecoder": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-24",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "rpId": null,
+        "clientDataProfile": null,
+        "authenticatorDataProfile": null,
+        "coseAlgorithm": null,
+        "ctapTransport": null,
+        "uvPolicy": null,
+        "credentialStoreSchema": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-25",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "credentialProfile": null,
+        "didMethod": null,
+        "proofSuite": null,
+        "statusProfile": null,
+        "issuerKeyVersion": null,
+        "verifierVersion": null,
+        "reviewDecoder": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    },
+    {
+      "matrixId": "COMP-26",
+      "pins": {
+        "producerBuild": null,
+        "consumerBuild": null,
+        "x402Version": null,
+        "mechanism": null,
+        "network": null,
+        "tokenAddress": null,
+        "tokenCodeHash": null,
+        "authorizationMethod": null,
+        "nonceProfile": null,
+        "signerProfile": null,
+        "settlementVerifier": null,
+        "gasPolicy": null,
+        "reviewDecoder": null
+      },
+      "compatibility": "unverified",
+      "evidenceRefs": []
+    }
+  ]
+}

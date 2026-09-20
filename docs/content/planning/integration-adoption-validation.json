@@ -1,0 +1,58 @@
+{
+  "scope": "design_shapes_references_and_preserved_inputs_only",
+  "designDate": "2026-09-18",
+  "runtimeVerified": false,
+  "sqlExecuted": false,
+  "canonicalMergedThisTurn": false,
+  "allChecksPassed": true,
+  "notes": [
+    "approval baseline canonicalMerged=true describes earlier completed design adoption, not a merge in this run.",
+    "174 historical checkpoint files were hash checked; 10 historical checks are archived results, not re-executed in this run.",
+    "Runtime acceptance rows remain not_run; these outputs cannot approve policies or implementation.",
+    "DI bundle decision references were expanded for operations, benefits, privacy and travel; both matrix and register were rendered and rechecked after that update."
+  ],
+  "checks": [
+    {
+      "name": "integration_matrix",
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    },
+    {
+      "name": "settlement_ops",
+      "command": "python3 content/specifications/validate_settlement_ops.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"existingRoutes\": 5, \"proposedUnregisteredRoutes\": 2, \"validShapes\": 15, \"invalidShapes\": 12, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 9, \"canonicalMerged\": false}\n"
+    },
+    {
+      "name": "consumer_repair",
+      "command": "python3 content/specifications/validate_commerce_consumer_repair.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_links_and_finite_examples_only\", \"consumers\": 5, \"logicalResources\": 6, \"rebuildSteps\": 7, \"syntheticExamples\": 22, \"runtimeCasesNotRun\": 22, \"unchangedSourceFiles\": 9, \"canonicalMerged\": false, \"sqlApplied\": false}\n"
+    },
+    {
+      "name": "commerce",
+      "command": "python3 content/specifications/validate_commerce_reconciliation.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 5, \"schemaDefinitions\": 71, \"validShapes\": 17, \"invalidShapes\": 12, \"semanticExamples\": 16, \"runtimeCasesNotRun\": 15, \"pinnedSources\": 15, \"canonicalMerged\": false, \"sqlApplied\": false}\n"
+    },
+    {
+      "name": "physical_storage",
+      "command": "python3 content/specifications/validate_approval_physical_storage.py",
+      "exitCode": 0,
+      "output": "Approval physical design OK: 13 resources, 16 table proposals, 8 migration phases, 17 NOT RUN cases; 7 SQL hashes unchanged. No DB/runtime verification.\n"
+    },
+    {
+      "name": "approval_baseline",
+      "command": "python3 content/specifications/validate_approval_baseline.py",
+      "exitCode": 0,
+      "output": "{\"scope\": \"current_canonical_design_only\", \"api\": 110, \"approvalHttpRoutes\": 13, \"blePairs\": 5, \"validShapes\": 43, \"invalidShapes\": 17, \"checkpointFilesVerified\": 174, \"historicalChecks\": 10, \"storageMappings\": 13, \"canonicalMerged\": true, \"sqlApplied\": false, \"runtimeVerified\": false}\n"
+    },
+    {
+      "name": "design_register",
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exitCode": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    }
+  ]
+}

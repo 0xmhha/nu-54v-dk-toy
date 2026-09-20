@@ -1,0 +1,3106 @@
+{
+  "version": "0.1.0-draft",
+  "operations": [
+    {
+      "apiId": "API-001",
+      "method": "POST",
+      "path": "/v1/auth/exchanges",
+      "authorization": "public_auth_flow",
+      "readTables": [
+        "accounts",
+        "auth_identities",
+        "auth_sessions"
+      ],
+      "writeTables": [
+        "accounts",
+        "auth_identities",
+        "auth_sessions"
+      ],
+      "transactionFamily": "TX-01",
+      "commitRule": "provider exchange before identity commit; never hold DB locks over provider network call",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AuthFlow"
+      ],
+      "adapterWrites": [
+        "AuthFlow",
+        "RefreshFamily"
+      ]
+    },
+    {
+      "apiId": "API-002",
+      "method": "POST",
+      "path": "/v1/auth/links",
+      "authorization": "account_recent_auth",
+      "readTables": [
+        "accounts",
+        "auth_identities",
+        "auth_sessions"
+      ],
+      "writeTables": [
+        "auth_identities",
+        "auth_sessions"
+      ],
+      "transactionFamily": "TX-01",
+      "commitRule": "lock target account and unique provider/subject; recheck recent authentication",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AuthFlow"
+      ],
+      "adapterWrites": [
+        "AuthFlow"
+      ]
+    },
+    {
+      "apiId": "API-003",
+      "method": "POST",
+      "path": "/v1/auth/logout",
+      "authorization": "account",
+      "readTables": [
+        "auth_sessions"
+      ],
+      "writeTables": [
+        "auth_sessions"
+      ],
+      "transactionFamily": "TX-01",
+      "commitRule": "revoke only selected own session; invalidate security cache after commit",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "RefreshFamily"
+      ],
+      "adapterWrites": [
+        "RefreshFamily",
+        "RotationOutcome"
+      ]
+    },
+    {
+      "apiId": "API-004",
+      "method": "POST",
+      "path": "/v1/account-deletions",
+      "authorization": "account_recent_auth",
+      "readTables": [
+        "accounts",
+        "auth_sessions",
+        "wallet_bindings",
+        "device_bindings",
+        "rentals"
+      ],
+      "writeTables": [
+        "accounts",
+        "auth_sessions",
+        "privacy_requests",
+        "operations"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "block access and enqueue cleanup; do not delete wallet assets or keys from account row operation",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-005",
+      "method": "GET",
+      "path": "/v1/me",
+      "authorization": "account",
+      "readTables": [
+        "accounts",
+        "auth_identities",
+        "memberships"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "filter to current account; no provider credentials",
+      "taskRefs": [
+        "AUTH-01"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-006",
+      "method": "POST",
+      "path": "/v1/auth/refresh",
+      "authorization": "refresh_session",
+      "readTables": [
+        "auth_sessions"
+      ],
+      "writeTables": [
+        "auth_sessions"
+      ],
+      "transactionFamily": "TX-01",
+      "commitRule": "atomic refresh-family rotation/replay policy in protected session store",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "RefreshFamily",
+        "RotationOutcome"
+      ],
+      "adapterWrites": [
+        "RefreshFamily",
+        "RotationOutcome"
+      ]
+    },
+    {
+      "apiId": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "authorization": "account",
+      "readTables": [
+        "wallets",
+        "wallet_bindings"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "Approval baseline: 현재 본인 계정의 지갑 목록. cursor도 계정/context에 결합",
+      "taskRefs": [
+        "APP-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "authorization": "store_asset_read",
+      "readTables": [
+        "memberships",
+        "stores",
+        "wallets",
+        "wallet_bindings"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "Approval baseline: 해당 store_asset_read; 일반 매장 소속은 부족",
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "authorization": "wallet_read",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "assets",
+        "chain_projections",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "Approval baseline: wallet_read + 명시 context/binding; 서명권과 별개",
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-010",
+      "method": "POST",
+      "path": "/v1/device-enrollments",
+      "authorization": "account",
+      "readTables": [
+        "devices",
+        "rentals",
+        "device_bindings",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "enrollments"
+      ],
+      "transactionFamily": "TX-02",
+      "commitRule": "new challenge bound to account/device/rental; no ownership grant yet",
+      "taskRefs": [
+        "HW-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-011",
+      "method": "POST",
+      "path": "/v1/device-enrollments/{enrollmentId}/confirm",
+      "authorization": "account",
+      "readTables": [
+        "enrollments",
+        "devices",
+        "rentals",
+        "device_bindings"
+      ],
+      "writeTables": [
+        "enrollments",
+        "device_bindings",
+        "devices"
+      ],
+      "transactionFamily": "TX-02",
+      "commitRule": "consume unexpired challenge and bind proven device owner atomically",
+      "taskRefs": [
+        "HW-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-012",
+      "method": "DELETE",
+      "path": "/v1/devices/{deviceId}/binding",
+      "authorization": "device_owner",
+      "readTables": [
+        "devices",
+        "device_bindings",
+        "rentals",
+        "return_checks"
+      ],
+      "writeTables": [
+        "device_bindings",
+        "devices"
+      ],
+      "transactionFamily": "TX-02",
+      "commitRule": "rental return preconditions; unbinding is not proof of physical key erasure",
+      "taskRefs": [
+        "HW-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-013",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}",
+      "authorization": "device_owner",
+      "readTables": [
+        "devices",
+        "device_bindings",
+        "rentals"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "owner-filtered metadata; reported state not live device proof",
+      "taskRefs": [
+        "HW-01",
+        "FIND-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-014",
+      "method": "POST",
+      "path": "/v1/cloud-wallets",
+      "authorization": "account_recent_auth",
+      "readTables": [
+        "accounts",
+        "wallets",
+        "wallet_bindings",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-13",
+      "commitRule": "enqueue MPC provisioning; participant worker writes wallets only after completion",
+      "taskRefs": [
+        "MPC-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "authorization": "wallet_sign_authorized",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "transaction_intents",
+        "mpc_participants",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "signing_sessions",
+        "operations"
+      ],
+      "transactionFamily": "TX-13",
+      "commitRule": "Approval baseline: 현재 개인 또는 매장 Cloud signer + 원 context + approvalProof. AC 자격은 서명권 아님; child operation and original parent/context/signer/epoch association committed before external MPC rounds",
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate"
+      ],
+      "adapterWrites": [
+        "SignatureProvenance"
+      ]
+    },
+    {
+      "apiId": "API-016",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/recoveries",
+      "authorization": "wallet_recovery_proof",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "mpc_participants",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-13",
+      "commitRule": "recovery verifier before enrollment; recovery worker applies participant changes",
+      "taskRefs": [
+        "MPC-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "authorization": "wallet_use",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "assets",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "operations",
+        "transaction_intents"
+      ],
+      "transactionFamily": "INTENT_CREATION",
+      "commitRule": "Approval baseline: wallet_use + 현재 개인 selection. 서버가 personal source 생성; atomically create immutable intent/snapshot + parent operations row + ApprovalBinding ancestry + idempotency linkage; API037 includes refund authorization revisions",
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate"
+      ],
+      "adapterWrites": [
+        "ApprovalBinding"
+      ]
+    },
+    {
+      "apiId": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "authorization": "intent_submit_capability",
+      "readTables": [
+        "transaction_intents",
+        "transaction_submissions",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "transaction_submissions",
+        "operations"
+      ],
+      "transactionFamily": "REQUEST_SUBMISSION",
+      "commitRule": "Approval baseline: submit_exact + 원 source/provenance/current epoch + SS-T03/04 gate",
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AccessGrantLineage",
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "CapabilityReservation",
+        "ScopedCapability",
+        "SenderProofReplay"
+      ],
+      "adapterWrites": [
+        "AddressNonceTrack",
+        "CapabilityReservation",
+        "SenderProofReplay",
+        "SignatureProvenance",
+        "SignedPayloadObject",
+        "SubmissionDispatch"
+      ]
+    },
+    {
+      "apiId": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "authorization": "transaction_read",
+      "readTables": [
+        "transaction_submissions",
+        "transaction_intents",
+        "payment_attempts",
+        "orders",
+        "chain_observations"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "Approval baseline: 기존 transaction_read 또는 원 grant context→dispatch→transactionRef 정확한 관계 + read_progress",
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AccessGrantLineage",
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "SenderProofReplay"
+      ],
+      "adapterWrites": [],
+      "authorizationMetadataWrites": [
+        "SenderProofReplay"
+      ],
+      "readOnlyBusinessProjection": true
+    },
+    {
+      "apiId": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "authorization": "operation_owner_or_capability",
+      "readTables": [
+        "operations"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "Approval baseline: 기존 operation ACL 보존; approval은 현재 source ACL 또는 exact grant, projection별 검사",
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AccessGrantLineage",
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "ProtectedObject",
+        "ScopedCapability",
+        "SenderProofReplay"
+      ],
+      "adapterWrites": [],
+      "authorizationMetadataWrites": [
+        "SenderProofReplay"
+      ],
+      "readOnlyBusinessProjection": true
+    },
+    {
+      "apiId": "API-021",
+      "method": "POST",
+      "path": "/v1/stores",
+      "authorization": "account",
+      "readTables": [
+        "accounts"
+      ],
+      "writeTables": [
+        "stores",
+        "memberships"
+      ],
+      "transactionFamily": "STORE_CONFIGURATION",
+      "commitRule": "create store and initial owner membership together",
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-022",
+      "method": "GET",
+      "path": "/v1/stores",
+      "authorization": "account",
+      "readTables": [
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "current account memberships only",
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-023",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/terminal-sessions",
+      "authorization": "store_terminal_manage",
+      "readTables": [
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "commitRule": "mint terminal session only from authorized store management session",
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": [
+        "ScopedCapability"
+      ]
+    },
+    {
+      "apiId": "API-024",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/memberships",
+      "authorization": "store_owner",
+      "readTables": [
+        "memberships",
+        "accounts",
+        "stores"
+      ],
+      "writeTables": [
+        "memberships"
+      ],
+      "transactionFamily": "STORE_CONFIGURATION",
+      "commitRule": "lock store membership changes; role escalation and last owner guard",
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-025",
+      "method": "DELETE",
+      "path": "/v1/stores/{storeId}/memberships/{membershipId}",
+      "authorization": "store_owner",
+      "readTables": [
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "memberships"
+      ],
+      "transactionFamily": "STORE_CONFIGURATION",
+      "commitRule": "serialize owner changes on store; never remove last active owner",
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-026",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/menu",
+      "authorization": "store_customer_session",
+      "readTables": [
+        "stores",
+        "menu_items"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "public/customer projection for selected store; hide management-only data",
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-027",
+      "method": "PUT",
+      "path": "/v1/stores/{storeId}/menu-items/{itemId}",
+      "authorization": "store_menu_manage",
+      "readTables": [
+        "memberships",
+        "stores",
+        "menu_items"
+      ],
+      "writeTables": [
+        "menu_items"
+      ],
+      "transactionFamily": "STORE_CONFIGURATION",
+      "commitRule": "store-scoped revision check; old order snapshots unchanged",
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-028",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/recipient-changes",
+      "authorization": "store_funds_manage_recent_auth",
+      "readTables": [
+        "memberships",
+        "wallets",
+        "wallet_bindings",
+        "recipient_configurations"
+      ],
+      "writeTables": [
+        "recipient_configurations"
+      ],
+      "transactionFamily": "STORE_CONFIGURATION",
+      "commitRule": "recent funds authority + address control proof; lock store configuration",
+      "taskRefs": [
+        "SHOP-06"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-029",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/orders",
+      "authorization": "store_customer_session",
+      "readTables": [
+        "stores",
+        "menu_items",
+        "recipient_configurations"
+      ],
+      "writeTables": [
+        "orders",
+        "order_lines"
+      ],
+      "transactionFamily": "TX-03",
+      "commitRule": "server-side menu/recipient snapshots and order capability after commit",
+      "taskRefs": [
+        "SHOP-02",
+        "PAY-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ScopedCapability"
+      ],
+      "adapterWrites": [
+        "ScopedCapability"
+      ]
+    },
+    {
+      "apiId": "API-030",
+      "method": "GET",
+      "path": "/v1/orders/{orderId}",
+      "authorization": "order_read_or_capability",
+      "readTables": [
+        "orders",
+        "order_lines",
+        "payment_attempts",
+        "payment_allocations"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "order owner/store role or exact order capability; guest projection strips account details",
+      "taskRefs": [
+        "SHOP-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-031",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/cancel",
+      "authorization": "order_cancel",
+      "readTables": [
+        "orders",
+        "payment_attempts",
+        "transaction_submissions"
+      ],
+      "writeTables": [
+        "orders"
+      ],
+      "transactionFamily": "TX-03",
+      "commitRule": "lock order and recheck payment phase; cancellation does not cancel signed tx",
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-032",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/payment-attempts",
+      "authorization": "order_payment_capability",
+      "readTables": [
+        "orders",
+        "assets",
+        "payment_attempts"
+      ],
+      "writeTables": [
+        "payment_attempts"
+      ],
+      "transactionFamily": "QUOTE_CREATION",
+      "commitRule": "server quote bound to order and recipient; pairing challenge in protected security store",
+      "taskRefs": [
+        "PAY-01",
+        "PAY-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ScopedCapability"
+      ],
+      "adapterWrites": [
+        "ScopedCapability"
+      ]
+    },
+    {
+      "apiId": "API-033",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/device-sessions",
+      "authorization": "terminal_attempt_capability",
+      "readTables": [
+        "orders",
+        "payment_attempts",
+        "devices",
+        "protocol_profiles"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "commitRule": "verify peer then mint attempt+device+terminal scoped temporary session",
+      "taskRefs": [
+        "HW-03",
+        "SHOP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ScopedCapability"
+      ],
+      "adapterWrites": [
+        "ScopedCapability"
+      ]
+    },
+    {
+      "apiId": "API-034",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/intents",
+      "authorization": "attempt_device_capability",
+      "readTables": [
+        "orders",
+        "payment_attempts",
+        "assets",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "operations",
+        "payment_attempts",
+        "transaction_intents"
+      ],
+      "transactionFamily": "INTENT_CREATION",
+      "commitRule": "Approval baseline: 원 terminal/attempt/session과 검증 identify. guest 계정 없음; atomically create immutable intent/snapshot + parent operations row + ApprovalBinding ancestry + idempotency linkage; API037 includes refund authorization revisions",
+      "taskRefs": [
+        "PAY-01",
+        "HW-05"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "ScopedCapability"
+      ],
+      "adapterWrites": [
+        "ApprovalBinding",
+        "ScopedCapability"
+      ]
+    },
+    {
+      "apiId": "API-035",
+      "method": "GET",
+      "path": "/v1/payment-attempts/{attemptId}",
+      "authorization": "attempt_read_capability",
+      "readTables": [
+        "payment_attempts",
+        "orders",
+        "payment_allocations",
+        "chain_observations"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "exact attempt scope; submit status and chain observation kept separate",
+      "taskRefs": [
+        "PAY-04"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ScopedCapability"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-036",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/refunds",
+      "authorization": "store_refund_request",
+      "readTables": [
+        "orders",
+        "payment_allocations",
+        "refund_balances",
+        "refunds"
+      ],
+      "writeTables": [
+        "refund_balances",
+        "refunds",
+        "refund_reservations"
+      ],
+      "transactionFamily": "TX-05",
+      "commitRule": "lock refund balance; reserve positive amount in matching order/asset",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-037",
+      "method": "POST",
+      "path": "/v1/refunds/{refundId}/authorize",
+      "authorization": "store_funds_manage_recent_auth",
+      "readTables": [
+        "memberships",
+        "refunds",
+        "refund_balances",
+        "refund_reservations",
+        "wallet_bindings",
+        "protocol_profiles",
+        "orders"
+      ],
+      "writeTables": [
+        "operations",
+        "refunds",
+        "transaction_intents"
+      ],
+      "transactionFamily": "TX-05",
+      "commitRule": "Approval baseline: 정확한 매장 자금 승인권/예약/funding revision; 지정 signer와 업무 승인자 분리; atomically create immutable intent/snapshot + parent operations row + ApprovalBinding ancestry + idempotency linkage; API037 includes refund authorization revisions",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ApprovalBinding",
+        "AuthorizationGate"
+      ],
+      "adapterWrites": [
+        "ApprovalBinding"
+      ]
+    },
+    {
+      "apiId": "API-038",
+      "method": "GET",
+      "path": "/v1/refunds/{refundId}",
+      "authorization": "refund_read",
+      "readTables": [
+        "refunds",
+        "refund_balances",
+        "orders",
+        "transaction_submissions"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "store refund role or linked customer receipt; redact merchant signer internals",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-039",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/sales",
+      "authorization": "store_sales_read",
+      "readTables": [
+        "memberships",
+        "orders",
+        "payment_allocations",
+        "refunds",
+        "settlements"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "store/date/asset filtering; report projection revision",
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-040",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_settlement_manage",
+      "readTables": [
+        "orders",
+        "payment_allocations",
+        "refunds",
+        "settlements"
+      ],
+      "writeTables": [
+        "settlements",
+        "settlement_revisions"
+      ],
+      "transactionFamily": "TX-08",
+      "commitRule": "serialize period close; source revision and unresolved differences checked",
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-041",
+      "method": "POST",
+      "path": "/v1/settlements/{settlementId}/corrections",
+      "authorization": "store_settlement_manage",
+      "readTables": [
+        "settlements",
+        "settlement_revisions"
+      ],
+      "writeTables": [
+        "settlements",
+        "settlement_revisions"
+      ],
+      "transactionFamily": "TX-08",
+      "commitRule": "append reasoned correction; preserve original close snapshot",
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-042",
+      "method": "GET",
+      "path": "/v1/me/receipts",
+      "authorization": "account",
+      "readTables": [
+        "orders",
+        "payment_allocations",
+        "refunds"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "verified account receipt association; address alone does not reveal private history",
+      "taskRefs": [
+        "APP-04"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptEligibility",
+        "ReceiptOwnership"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-043",
+      "method": "GET",
+      "path": "/v1/me/passport",
+      "authorization": "account",
+      "readTables": [
+        "benefit_entries",
+        "benefit_redemptions"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "account-owned passport; policy version and revision",
+      "taskRefs": [
+        "STAMP-01",
+        "STAMP-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptOwnership",
+        "PendingBenefitEntitlement"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-044",
+      "method": "POST",
+      "path": "/v1/benefit-redemptions",
+      "authorization": "benefit_owner",
+      "readTables": [
+        "benefit_entries",
+        "benefit_redemptions",
+        "orders"
+      ],
+      "writeTables": [
+        "benefit_entries",
+        "benefit_redemptions"
+      ],
+      "transactionFamily": "TX-06",
+      "commitRule": "benefit owner and order applicability; single active consumption",
+      "taskRefs": [
+        "STAMP-01"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-045",
+      "method": "POST",
+      "path": "/v1/rentals",
+      "authorization": "rental_operator",
+      "readTables": [
+        "devices",
+        "rentals",
+        "accounts"
+      ],
+      "writeTables": [
+        "rentals",
+        "devices"
+      ],
+      "transactionFamily": "TX-02",
+      "commitRule": "authorized rental operator; lock device and enforce active rental uniqueness",
+      "taskRefs": [
+        "STAMP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-046",
+      "method": "POST",
+      "path": "/v1/rentals/{rentalId}/return-checks",
+      "authorization": "rental_owner_or_operator",
+      "readTables": [
+        "rentals",
+        "device_bindings",
+        "wallets",
+        "transaction_submissions",
+        "return_checks"
+      ],
+      "writeTables": [
+        "return_checks",
+        "reset_clearances"
+      ],
+      "transactionFamily": "TX-07",
+      "commitRule": "operator can inspect; owner approval and verified checks required for actionable clearance; expose pre-reset receipt link state to owner only; exported ticket alone is not linked. Do not auto-link from current rental owner.",
+      "taskRefs": [
+        "STAMP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptEligibility",
+        "ReceiptOwnership"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-047",
+      "method": "POST",
+      "path": "/v1/rentals/{rentalId}/complete-return",
+      "authorization": "rental_owner_and_clearance",
+      "readTables": [
+        "rentals",
+        "device_bindings",
+        "return_checks",
+        "reset_clearances",
+        "devices"
+      ],
+      "writeTables": [
+        "rentals",
+        "device_bindings",
+        "reset_clearances",
+        "return_checks",
+        "devices"
+      ],
+      "transactionFamily": "TX-07",
+      "commitRule": "owner+clearance+fresh reset proof; atomic revoke/returned/reavailability transition; expose pre-reset receipt link state to owner only; exported ticket alone is not linked. Do not auto-link from current rental owner.",
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptEligibility",
+        "ReceiptOwnership",
+        "ScopedCapability"
+      ],
+      "adapterWrites": [
+        "ScopedCapability"
+      ]
+    },
+    {
+      "apiId": "API-048",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}/firmware-offers",
+      "authorization": "device_owner",
+      "readTables": [
+        "devices",
+        "device_bindings",
+        "firmware_releases",
+        "protocol_profiles"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "owner scope and compatible offers only",
+      "taskRefs": [
+        "OTA-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-049",
+      "method": "POST",
+      "path": "/v1/firmware-releases",
+      "authorization": "firmware_release_operator",
+      "readTables": [
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "firmware_releases"
+      ],
+      "transactionFamily": "TX-11",
+      "commitRule": "release operator permission; manifest verification outside lock then version uniqueness",
+      "taskRefs": [
+        "OTA-02",
+        "OPS-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-050",
+      "method": "POST",
+      "path": "/v1/firmware-releases/{releaseId}/withdraw",
+      "authorization": "firmware_release_operator",
+      "readTables": [
+        "firmware_releases"
+      ],
+      "writeTables": [
+        "firmware_releases"
+      ],
+      "transactionFamily": "TX-11",
+      "commitRule": "recheck revision and publish withdrawal event; no implied device rollback",
+      "taskRefs": [
+        "OTA-04",
+        "OPS-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-051",
+      "method": "POST",
+      "path": "/v1/recordings",
+      "authorization": "account",
+      "readTables": [
+        "accounts",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "recordings"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "register owner metadata; does not upload raw audio",
+      "taskRefs": [
+        "REC-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-052",
+      "method": "POST",
+      "path": "/v1/recordings/{recordingId}/processing",
+      "authorization": "recording_owner_with_consent",
+      "readTables": [
+        "recordings",
+        "consents"
+      ],
+      "writeTables": [
+        "operations",
+        "processing_jobs"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "source ownership+purpose consent; enqueue only, provider call after commit",
+      "taskRefs": [
+        "REC-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-053",
+      "method": "GET",
+      "path": "/v1/recordings/{recordingId}/processing",
+      "authorization": "recording_owner",
+      "readTables": [
+        "recordings",
+        "processing_jobs"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "owner only; temporary result access grants issued separately",
+      "taskRefs": [
+        "REC-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ProtectedObject",
+        "DeletionTombstone"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-054",
+      "method": "DELETE",
+      "path": "/v1/recordings/{recordingId}",
+      "authorization": "recording_owner",
+      "readTables": [
+        "recordings",
+        "processing_jobs",
+        "data_lineage"
+      ],
+      "writeTables": [
+        "recordings",
+        "processing_jobs",
+        "privacy_requests",
+        "operations"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "block access and pending result publication before asynchronous erasure",
+      "taskRefs": [
+        "REC-03",
+        "TRIP-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-055",
+      "method": "POST",
+      "path": "/v1/smart-account-plans",
+      "authorization": "wallet_use",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-13",
+      "commitRule": "persist transition-plan reference in typed operation result; no account onchain transition yet",
+      "taskRefs": [
+        "SMART-01",
+        "SMART-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ProtectedObject"
+      ],
+      "adapterWrites": [
+        "ProtectedObject",
+        "ObjectPayload"
+      ]
+    },
+    {
+      "apiId": "API-056",
+      "method": "POST",
+      "path": "/v1/smart-account-intents",
+      "authorization": "wallet_sign_authorized",
+      "readTables": [
+        "operations",
+        "wallets",
+        "wallet_bindings",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "transaction_intents"
+      ],
+      "transactionFamily": "INTENT_CREATION",
+      "commitRule": "plan ownership and version checks; signer approval still separate",
+      "taskRefs": [
+        "SMART-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-057",
+      "method": "POST",
+      "path": "/v1/market-quotes",
+      "authorization": "account",
+      "readTables": [
+        "market_quotes",
+        "assets",
+        "chain_projections",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "market_quotes"
+      ],
+      "transactionFamily": "QUOTE_CREATION",
+      "commitRule": "external quote read then persist immutable action-specific snapshot",
+      "taskRefs": [
+        "DEX-02",
+        "FX-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ProtectedObject"
+      ],
+      "adapterWrites": [
+        "ProtectedObject",
+        "ObjectPayload"
+      ]
+    },
+    {
+      "apiId": "API-058",
+      "method": "POST",
+      "path": "/v1/market-intents",
+      "authorization": "wallet_use",
+      "readTables": [
+        "market_quotes",
+        "wallets",
+        "wallet_bindings",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "transaction_intents"
+      ],
+      "transactionFamily": "INTENT_CREATION",
+      "commitRule": "validate quote expiry/action/slippage and selected wallet",
+      "taskRefs": [
+        "DEX-03",
+        "FX-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-059",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/liquidity-positions",
+      "authorization": "wallet_read",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "chain_projections",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "wallet owner scope plus chain/block freshness",
+      "taskRefs": [
+        "DEX-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-060",
+      "method": "GET",
+      "path": "/v1/perpetual/markets",
+      "authorization": "account",
+      "readTables": [
+        "chain_projections",
+        "protocol_profiles"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "market public projection for signed-in account; no other users positions",
+      "taskRefs": [
+        "PERP-05"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-061",
+      "method": "POST",
+      "path": "/v1/perpetual/intents",
+      "authorization": "wallet_use",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "chain_projections",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "transaction_intents"
+      ],
+      "transactionFamily": "INTENT_CREATION",
+      "commitRule": "market/price/risk validation; no direct position mutation from app claim",
+      "taskRefs": [
+        "PERP-03",
+        "PERP-05"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-062",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/perpetual-positions",
+      "authorization": "wallet_read",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "chain_projections",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "selected wallet account scope; negative pnl/funding preserved",
+      "taskRefs": [
+        "PERP-05"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-063",
+      "method": "GET",
+      "path": "/v1/offerings",
+      "authorization": "account",
+      "readTables": [
+        "chain_projections",
+        "protocol_profiles"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "offering public metadata only, eligibility rules not private claims",
+      "taskRefs": [
+        "STO-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-064",
+      "method": "POST",
+      "path": "/v1/offerings/{offeringId}/intents",
+      "authorization": "offering_actor",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "credential_metadata",
+        "chain_projections",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "transaction_intents"
+      ],
+      "transactionFamily": "INTENT_CREATION",
+      "commitRule": "offering action authority and credential validity; owner approval at signer stage",
+      "taskRefs": [
+        "STO-02",
+        "STO-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-065",
+      "method": "POST",
+      "path": "/v1/credentials",
+      "authorization": "credential_issuer",
+      "readTables": [
+        "accounts",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "credential_metadata",
+        "credential_status_history"
+      ],
+      "transactionFamily": "TX-14",
+      "commitRule": "issuer registry and subject proof; private content protected store, DB reference only",
+      "taskRefs": [
+        "DID-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-066",
+      "method": "GET",
+      "path": "/v1/me/credentials",
+      "authorization": "account",
+      "readTables": [
+        "credential_metadata",
+        "credential_status_history"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "own credential metadata, no issuer-wide disclosure",
+      "taskRefs": [
+        "DID-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-067",
+      "method": "POST",
+      "path": "/v1/credential-presentations",
+      "authorization": "credential_owner",
+      "readTables": [
+        "credential_metadata",
+        "credential_status_history",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-14",
+      "commitRule": "holder consent/challenge; proof adapter after source/visibility checks",
+      "taskRefs": [
+        "DID-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-068",
+      "method": "POST",
+      "path": "/v1/credential-verifications",
+      "authorization": "credential_verifier",
+      "readTables": [
+        "credential_metadata",
+        "credential_status_history",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-14",
+      "commitRule": "registered verifier, purpose-bound challenge, minimal disclosure",
+      "taskRefs": [
+        "DID-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-069",
+      "method": "POST",
+      "path": "/v1/credentials/{credentialId}/revoke",
+      "authorization": "credential_issuer",
+      "readTables": [
+        "credential_metadata",
+        "credential_status_history"
+      ],
+      "writeTables": [
+        "credential_metadata",
+        "credential_status_history"
+      ],
+      "transactionFamily": "TX-14",
+      "commitRule": "same issuer authority; append status version and revocation event",
+      "taskRefs": [
+        "DID-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-070",
+      "method": "POST",
+      "path": "/v1/paid-resource-requests",
+      "authorization": "wallet_use",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "protocol_profiles",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [
+        "paid_resource_requests"
+      ],
+      "transactionFamily": "TX-15",
+      "commitRule": "resource+price+wallet snapshot; response is payment requirement, not paid receipt; resolve selected wallet active personal binding or exact-store membership with action permission, and supported payment profile before creating request",
+      "taskRefs": [
+        "X402-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-071",
+      "method": "POST",
+      "path": "/v1/paid-resource-requests/{requestId}/proofs",
+      "authorization": "request_owner",
+      "readTables": [
+        "paid_resource_requests",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-15",
+      "commitRule": "proof validation enqueued; only verified worker can allocate entitlement",
+      "taskRefs": [
+        "X402-02",
+        "X402-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-072",
+      "method": "GET",
+      "path": "/v1/paid-resource-requests/{requestId}/result",
+      "authorization": "request_owner",
+      "readTables": [
+        "paid_resource_requests",
+        "entitlements"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "same request owner; payment/delivery status separate",
+      "taskRefs": [
+        "X402-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-073",
+      "method": "GET",
+      "path": "/v1/places",
+      "authorization": "account",
+      "readTables": [
+        "places",
+        "store_place_links"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "external place fetch is cache layer; location not implicitly saved as visit",
+      "taskRefs": [
+        "TRIP-01"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-074",
+      "method": "POST",
+      "path": "/v1/places/{placeId}/reviews",
+      "authorization": "account",
+      "readTables": [
+        "places",
+        "orders",
+        "payment_allocations"
+      ],
+      "writeTables": [
+        "reviews"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "review owner from auth; purchase ownership/provenance verified, otherwise no verified badge",
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-075",
+      "method": "PATCH",
+      "path": "/v1/reviews/{reviewId}",
+      "authorization": "review_owner",
+      "readTables": [
+        "reviews"
+      ],
+      "writeTables": [
+        "reviews"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "same author and expected revision; purchase badge not client-editable",
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-076",
+      "method": "DELETE",
+      "path": "/v1/reviews/{reviewId}",
+      "authorization": "review_owner",
+      "readTables": [
+        "reviews",
+        "data_lineage"
+      ],
+      "writeTables": [
+        "reviews",
+        "privacy_requests",
+        "operations"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "block visibility and propagate removal to derived recommendations",
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-077",
+      "method": "POST",
+      "path": "/v1/trips",
+      "authorization": "account",
+      "readTables": [
+        "accounts",
+        "consents"
+      ],
+      "writeTables": [
+        "trips"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "own account and current consent profile",
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-078",
+      "method": "POST",
+      "path": "/v1/trips/{tripId}/visits",
+      "authorization": "trip_owner",
+      "readTables": [
+        "trips",
+        "places",
+        "consents"
+      ],
+      "writeTables": [
+        "travel_evidence"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "own trip and source verifier; do not equate location with confirmed purchase",
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-079",
+      "method": "GET",
+      "path": "/v1/trips/{tripId}/timeline",
+      "authorization": "trip_owner",
+      "readTables": [
+        "trips",
+        "travel_evidence"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "own trip timeline; source-specific redaction",
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-080",
+      "method": "POST",
+      "path": "/v1/itineraries",
+      "authorization": "account",
+      "readTables": [
+        "trips",
+        "consents",
+        "travel_evidence",
+        "places",
+        "reviews"
+      ],
+      "writeTables": [
+        "operations",
+        "processing_jobs"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "enqueue AI work with owner/purpose revision; resulting itinerary saved by worker",
+      "taskRefs": [
+        "AI-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-081",
+      "method": "PATCH",
+      "path": "/v1/itineraries/{itineraryId}",
+      "authorization": "itinerary_owner",
+      "readTables": [
+        "itineraries",
+        "trips",
+        "places",
+        "consents"
+      ],
+      "writeTables": [
+        "itineraries"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "same owner, revision and route validation",
+      "taskRefs": [
+        "AI-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ProtectedObject",
+        "DeletionTombstone"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-082",
+      "method": "POST",
+      "path": "/v1/challenges/{challengeId}/participations",
+      "authorization": "account",
+      "readTables": [
+        "trips",
+        "protocol_profiles"
+      ],
+      "writeTables": [
+        "participations"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "own trip and applicable challenge rules; no reward on enrollment alone",
+      "taskRefs": [
+        "AI-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-083",
+      "method": "POST",
+      "path": "/v1/participations/{participationId}/evidence",
+      "authorization": "participant",
+      "readTables": [
+        "participations",
+        "travel_evidence",
+        "challenge_entries"
+      ],
+      "writeTables": [
+        "challenge_entries",
+        "participations"
+      ],
+      "transactionFamily": "TX-10",
+      "commitRule": "same owner/trip evidence, valid revision, unique reward key",
+      "taskRefs": [
+        "AI-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-084",
+      "method": "PUT",
+      "path": "/v1/me/consents",
+      "authorization": "account",
+      "readTables": [
+        "consents"
+      ],
+      "writeTables": [
+        "consents"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "serialize owner/purpose changes; supersede old version then insert new version",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-085",
+      "method": "POST",
+      "path": "/v1/me/data-requests",
+      "authorization": "account_recent_auth",
+      "readTables": [
+        "accounts",
+        "consents",
+        "data_lineage"
+      ],
+      "writeTables": [
+        "privacy_requests",
+        "operations"
+      ],
+      "transactionFamily": "TX-09",
+      "commitRule": "recent authentication and own data scope; enqueue provider/storage-specific results",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ProtectedObject",
+        "DeletionTombstone"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-086",
+      "method": "GET",
+      "path": "/v1/ops/exceptions",
+      "authorization": "ops_exception_read",
+      "readTables": [
+        "payment_allocations",
+        "payment_attempts",
+        "refunds",
+        "operations"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "ops exception projection, minimal customer data; no raw keys/proofs",
+      "taskRefs": [
+        "OPS-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-087",
+      "method": "POST",
+      "path": "/v1/ops/reconciliation-jobs",
+      "authorization": "ops_reconcile",
+      "readTables": [
+        "payment_allocations",
+        "chain_observations",
+        "operations"
+      ],
+      "writeTables": [
+        "operations"
+      ],
+      "transactionFamily": "TX-12",
+      "commitRule": "operator requests source reread only; reconciliation worker makes verified updates",
+      "taskRefs": [
+        "OPS-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-088",
+      "method": "GET",
+      "path": "/v1/ops/audit-events",
+      "authorization": "ops_audit_read",
+      "readTables": [
+        "audit_events"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "ops audit entitlement and permitted subject scope",
+      "taskRefs": [
+        "OPS-01"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-089",
+      "method": "GET",
+      "path": "/v1/service-health",
+      "authorization": "service_health_read",
+      "readTables": [
+        "operations",
+        "chain_projections"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "health projection excludes secrets, user content and internal credentials",
+      "taskRefs": [
+        "INDEX-05",
+        "OPS-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-090",
+      "method": "GET",
+      "path": "/v1/devices",
+      "authorization": "device_owner",
+      "readTables": [
+        "device_bindings",
+        "devices",
+        "rentals"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "own active bindings only",
+      "taskRefs": [
+        "HW-03",
+        "APP-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-091",
+      "method": "GET",
+      "path": "/v1/rentals/{rentalId}",
+      "authorization": "rental_owner_or_operator",
+      "readTables": [
+        "rentals",
+        "return_checks",
+        "reset_clearances",
+        "device_bindings"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "rental owner or allowed ops projection; operator does not receive owner reset capability",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-092",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/orders",
+      "authorization": "store_order_read",
+      "readTables": [
+        "memberships",
+        "orders",
+        "payment_attempts"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "store order-read role; cursor scoped to store",
+      "taskRefs": [
+        "SHOP-02",
+        "SHOP-04"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-093",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_sales_read",
+      "readTables": [
+        "memberships",
+        "settlements",
+        "settlement_revisions"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "store sales-read role",
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-094",
+      "method": "GET",
+      "path": "/v1/recordings",
+      "authorization": "account",
+      "readTables": [
+        "recordings"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "owner metadata only; merge local recordings in app without uploading them",
+      "taskRefs": [
+        "REC-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-095",
+      "method": "GET",
+      "path": "/v1/itineraries/{itineraryId}",
+      "authorization": "itinerary_owner",
+      "readTables": [
+        "itineraries",
+        "trips"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "same owner and current visibility; revoked source status visible",
+      "taskRefs": [
+        "AI-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-096",
+      "method": "GET",
+      "path": "/v1/participations/{participationId}",
+      "authorization": "participant",
+      "readTables": [
+        "participations",
+        "challenge_entries"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "same participant; no other users evidence payloads",
+      "taskRefs": [
+        "AI-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-097",
+      "method": "GET",
+      "path": "/v1/trips",
+      "authorization": "account",
+      "readTables": [
+        "trips"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "own trips; deleted records excluded",
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-098",
+      "method": "POST",
+      "path": "/v1/wallet-bindings",
+      "authorization": "device_owner",
+      "readTables": [
+        "enrollments",
+        "device_bindings",
+        "wallets",
+        "wallet_bindings"
+      ],
+      "writeTables": [
+        "wallets",
+        "wallet_bindings",
+        "device_bindings"
+      ],
+      "transactionFamily": "TX-02",
+      "commitRule": "active owner enrollment+address control; no private key field",
+      "taskRefs": [
+        "HW-04",
+        "APP-02"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-099",
+      "method": "GET",
+      "path": "/v1/ops/stores",
+      "authorization": "ops_store_read",
+      "readTables": [
+        "stores",
+        "memberships"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "ops store projection with least customer detail",
+      "taskRefs": [
+        "OPS-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-100",
+      "method": "GET",
+      "path": "/v1/ops/devices",
+      "authorization": "ops_device_read",
+      "readTables": [
+        "devices",
+        "rentals",
+        "device_bindings"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "ops inventory projection; no owner session credentials",
+      "taskRefs": [
+        "OPS-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "TrustPrincipal",
+        "TrustGrantRevision"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-101",
+      "method": "GET",
+      "path": "/v1/firmware-releases/{releaseId}",
+      "authorization": "release_read",
+      "readTables": [
+        "firmware_releases",
+        "protocol_profiles"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "owner compatible release or release operator; package access remains scoped",
+      "taskRefs": [
+        "OTA-04",
+        "OPS-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-102",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/offering-holdings",
+      "authorization": "wallet_read",
+      "readTables": [
+        "wallets",
+        "wallet_bindings",
+        "chain_projections",
+        "credential_metadata",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "own wallet holdings and only own eligibility result",
+      "taskRefs": [
+        "STO-03"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-103",
+      "method": "POST",
+      "path": "/v1/auth/flows",
+      "authorization": "auth_flow_bootstrap",
+      "readTables": [
+        "accounts",
+        "auth_sessions",
+        "protocol_profiles"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "commitRule": "auth adapter owns bootstrap idempotency and one-time flow; generic DB cache must not retain authorization parameters or tokens",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "commonInfrastructureWrites": [
+        "audit_events"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [],
+      "adapterWrites": [
+        "AuthFlow"
+      ]
+    },
+    {
+      "apiId": "API-104",
+      "method": "POST",
+      "path": "/v1/receipt-claims/challenges",
+      "authorization": "receipt_claim_eligible",
+      "readTables": [
+        "accounts",
+        "auth_sessions",
+        "orders",
+        "payment_allocations",
+        "wallets",
+        "rentals",
+        "device_bindings"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "commitRule": "validate inline eligibilityProof against historical ReceiptEligibility before disclosing challenge; opaque locator/ref alone cannot authorize",
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "commonInfrastructureWrites": [
+        "audit_events",
+        "idempotency_records"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptEligibility",
+        "ReceiptOwnership"
+      ],
+      "adapterWrites": [
+        "ReceiptClaim"
+      ]
+    },
+    {
+      "apiId": "API-105",
+      "method": "POST",
+      "path": "/v1/receipt-claims/{claimId}/confirm",
+      "authorization": "receipt_claim_confirm",
+      "readTables": [
+        "accounts",
+        "auth_sessions",
+        "orders",
+        "payment_allocations"
+      ],
+      "writeTables": [
+        "outbox"
+      ],
+      "transactionFamily": "RECEIPT_CLAIM",
+      "commitRule": "ReceiptOwnership and domain outbox commit atomically in selected ledger adapter; if SQL chosen outbox is same transaction. ReceiptClaim challenge store consumption reconciles by claimId; no distributed atomicity assumed.; emit ownership link event; benefit worker binds existing pending entitlement once, does not issue a second reward",
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "commonInfrastructureWrites": [
+        "audit_events",
+        "idempotency_records"
+      ],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptEligibility",
+        "ReceiptClaim",
+        "ReceiptOwnership",
+        "PendingBenefitEntitlement"
+      ],
+      "adapterWrites": [
+        "ReceiptClaim",
+        "ReceiptOwnership"
+      ]
+    },
+    {
+      "apiId": "API-106",
+      "method": "GET",
+      "path": "/v1/receipt-claims/{claimId}",
+      "authorization": "receipt_claim_owner",
+      "readTables": [
+        "accounts",
+        "auth_sessions"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "read only; current principal verified even after idempotent confirmation",
+      "taskRefs": [
+        "APP-04",
+        "AUTH-01"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ReceiptClaim",
+        "ReceiptOwnership"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-107",
+      "method": "GET",
+      "path": "/v1/protected-results/{resultId}",
+      "authorization": "protected_result_read",
+      "readTables": [
+        "accounts",
+        "auth_sessions",
+        "operations",
+        "consents",
+        "wallet_bindings",
+        "memberships",
+        "stores"
+      ],
+      "writeTables": [],
+      "transactionFamily": "READ",
+      "commitRule": "no domain mutation; actual read ACL and digest verified, gateway rechecks before streaming",
+      "taskRefs": [
+        "BASE-05",
+        "APP-03",
+        "SMART-01",
+        "SMART-03",
+        "REC-03",
+        "AI-02"
+      ],
+      "commonInfrastructureWrites": [],
+      "authorizationSource": "trusted_server_session_or_verified_scoped_capability",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "ProtectedObject",
+        "ObjectPayload",
+        "DeletionTombstone"
+      ],
+      "adapterWrites": []
+    },
+    {
+      "apiId": "API-108",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-challenges",
+      "authorization": "approval_access_challenge",
+      "readTables": [
+        "operations",
+        "transaction_intents"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "taskRefs": [
+        "BASE-03",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "current_account_or_verified_terminal_not_expired_access_token",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "ProtectedIssuanceResponse",
+        "SenderProofReplay"
+      ],
+      "adapterWrites": [
+        "AccessChallenge"
+      ],
+      "commitRule": "Approval baseline: 현재 원 source 접근권 + sender binding; replacement predecessor 독립 확인"
+    },
+    {
+      "apiId": "API-109",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants",
+      "authorization": "approval_access_issue",
+      "readTables": [
+        "operations",
+        "transaction_intents"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "taskRefs": [
+        "BASE-03",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "current_account_or_verified_terminal_not_expired_access_token",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "ProtectedIssuanceResponse",
+        "SenderProofReplay"
+      ],
+      "adapterWrites": [
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "ProtectedIssuanceResponse",
+        "SenderProofReplay"
+      ],
+      "commitRule": "Approval baseline: challenge/proof 검증 후 현재 권한 재검사와 발급/교체 CAS"
+    },
+    {
+      "apiId": "API-110",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants/{grantId}/revoke",
+      "authorization": "approval_access_revoke",
+      "readTables": [
+        "operations",
+        "transaction_intents"
+      ],
+      "writeTables": [],
+      "transactionFamily": "SECURITY_STORE",
+      "taskRefs": [
+        "AUTH-04",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "commonInfrastructureWrites": [
+        "idempotency_records",
+        "audit_events"
+      ],
+      "authorizationSource": "current_account_or_verified_terminal_not_expired_access_token",
+      "status": "design_contract_not_controller_implementation",
+      "adapterReads": [
+        "AccessChallenge",
+        "AccessGrantLineage",
+        "ApprovalBinding",
+        "AuthorizationGate",
+        "ProtectedIssuanceResponse",
+        "SenderProofReplay"
+      ],
+      "adapterWrites": [
+        "AccessGrantLineage",
+        "AuthorizationGate"
+      ],
+      "commitRule": "Approval baseline: 해당 grant 철회권; 타인의 token/result 공개 권한 아님"
+    }
+  ],
+  "commonReadTables": [
+    "accounts",
+    "auth_sessions"
+  ],
+  "notes": [
+    "Common auth reads apply only when that principal type has an app session; guest/provider flows use their verifier.",
+    "ReadTables/writeTables express domain access, not SQL GRANTs. Sensitive projections and row predicates apply.",
+    "Common infrastructure writes are conditional on safe logging/idempotency policy. Never persist raw proofs or credentials.",
+    "READ endpoints may emit privacy-safe audit telemetry outside business state; writeTables means domain tables."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-19",
+  "status": "design_artifact_manifest_not_release",
+  "runtimeVerified": false,
+  "files": {
+    "content/specifications/credential-paid-resource-design.json": "0407ab53a43b30f2ef62e1312f00110c19d712f7a2fcfb2a5242d50417bcb157",
+    "content/specifications/credential-paid-resource-design.md": "98e2c93ce98db16932e2be2e805177d42dc0bc223d7b2f05eaca5c458ea1d924",
+    "content/specifications/recording-travel-ai-design.json": "1fc61df747e889332aa4b583ac42c47e2b7a46e07591337d3266da11a156725e",
+    "content/specifications/recording-travel-ai-design.md": "374b8567beb0460b8478afe79c3462b824a7d10d26ab17ccfb9ab66edea01475",
+    "content/specifications/operations-release-acceptance-design.json": "aede1888c84c0adfb14e62d7d75b6d9854f4c766e2bc9461be316d98af1b1cbc",
+    "content/specifications/operations-release-acceptance-design.md": "c5b93ced2c739c32d1b4a7930d4f7b5497a177ed8126bcdf25c0daa569af284f",
+    "content/specifications/preimplementation-contract-overlay.json": "d4eb87a17f3a54afde7c56b153bc81727778ad3c86825557e8522e2ba8f5bff7",
+    "content/specifications/preimplementation-contract-overlay.md": "b7bb353ed920ee2e822a2d58f03e7421e2bd7d63469c13fdc81bb74c2cfce08c",
+    "content/planning/preimplementation-handoff.json": "af28c992f9bd6a92b7e4a361d9b7d636f976dc814dcf732c52236447b714812a",
+    "content/planning/preimplementation-handoff.md": "b3e261f5758e7b64238f53b71a62607b21b2ab697512ab5b4ecac9faf220eb01",
+    "content/planning/preimplementation-task-handoffs.md": "a6b12fe8e7bdf1801d7dad12f757e33f8643e3d0c9261af957a7f9b374d3f458",
+    "content/planning/preimplementation-evidence.template.json": "284beae3b0d511b278cb700fe7f51966079504c0d4378d05c057bf922ca10084",
+    "content/planning/validate_preimplementation_handoff.py": "c3e451a1f0a7b6de76e47e41f9de14c2e448670fc1823ea931cddb1d84cadbb7",
+    "content/planning/preimplementation-validation.json": "855c0c31489309f9f17e733a3f992ee6fd6872afeba6517597d12a9c933abb61"
+  },
+  "revisionNote": "LG01..05 applied; previous manifest retained in before-fixes"
+}

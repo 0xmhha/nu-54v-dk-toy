@@ -1,0 +1,648 @@
+{
+  "scope": "bounded implementation-stage validation cards, not tests executed this turn",
+  "experiments": [
+    {
+      "id": "VAL-01",
+      "technologyId": "TECH-01",
+      "title": "RN 앱·키오스크 검증",
+      "taskRefs": [
+        "APP-01",
+        "SHOP-01",
+        "BASE-03"
+      ],
+      "checks": [
+        "S25 Ultra와 대상 태블릿에서 권한·백그라운드 복귀",
+        "Android/iOS release build에서 native bridge 로딩",
+        "공유 패키지에 DOM/browser storage 의존 없음"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-02",
+      "technologyId": "TECH-02",
+      "title": "Google·Apple 인증 검증",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "checks": [
+        "각 제공자 로그인/취소/계정 연결",
+        "callback·nonce·audience 바꾼 증명 거절",
+        "refresh 응답 유실 후 검증된 복구 또는 재인증"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-03",
+      "technologyId": "TECH-03",
+      "title": "업무 API·백오피스 검증",
+      "taskRefs": [
+        "BASE-04",
+        "AUTH-01",
+        "OPS-01",
+        "SHOP-05"
+      ],
+      "checks": [
+        "107 API 중 결제/환불/claim 수직 경로 연결",
+        "다른 매장 ID 접근 거절",
+        "웹 세션이 고객/점주 signer 권한을 자동 획득하지 않음"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-04",
+      "technologyId": "TECH-04",
+      "title": "업무·보안 상태 저장 검증",
+      "taskRefs": [
+        "BASE-05",
+        "PAY-04",
+        "STAMP-01",
+        "AUTH-04"
+      ],
+      "checks": [
+        "두 연결에서 환불/claim 경쟁 시 한 번만 반영",
+        "refresh 회전 crash 복구",
+        "outbox commit/재전송 뒤 중복 혜택 없음"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-05",
+      "technologyId": "TECH-05",
+      "title": "보호 객체·작업 큐 검증",
+      "taskRefs": [
+        "BASE-05",
+        "REC-03",
+        "AI-02",
+        "RELEASE-02"
+      ],
+      "checks": [
+        "metadata 후 동의 철회 시 stream 거절",
+        "삭제 tombstone 적용 후 backup 복원",
+        "job 재전송/유실 복구와 민감 로그 부재"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-06",
+      "technologyId": "TECH-06",
+      "title": "NU 보드·RTOS 검증",
+      "taskRefs": [
+        "HW-01",
+        "HW-07",
+        "OTA-01"
+      ],
+      "checks": [
+        "NU 실제 모델에서 reproducible build/boot",
+        "display IMU mic 각 핀·전원 확인",
+        "전체 기능 RAM/flash/전원 여유를 map과 측정으로 기록"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-07",
+      "technologyId": "TECH-07",
+      "title": "HW 키·암호 backend 검증",
+      "taskRefs": [
+        "HW-02",
+        "HW-04",
+        "HW-05",
+        "KEY-02"
+      ],
+      "checks": [
+        "고정 test vector 주소/EOA 서명 검증",
+        "key handle 생성/import/사용/삭제/재부팅",
+        "권한 없는 영역 접근 거절 및 실제 software key 노출 경계 기록"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-08",
+      "technologyId": "TECH-08",
+      "title": "FOTA·부트 복구 검증",
+      "taskRefs": [
+        "OTA-01",
+        "OTA-02",
+        "OTA-03",
+        "OTA-04"
+      ],
+      "checks": [
+        "서명 불일치/다른 모델 이미지 거절",
+        "전송·swap·첫 부팅 중 전원 차단 복구",
+        "새 firmware의 설정 migration 실패 시 안전 복구"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-09",
+      "technologyId": "TECH-09",
+      "title": "BLE 세션·거리·찾기 검증",
+      "taskRefs": [
+        "HW-03",
+        "HW-06",
+        "FIND-01",
+        "FIND-02"
+      ],
+      "checks": [
+        "S25+보유 NU/Nordic DK의 GATT/거리 결과 session binding",
+        "peer 바꾸기/replay 거절",
+        "거리 실패는 새 승인 종료하되 기존 거래 추적 유지"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-10",
+      "technologyId": "TECH-10",
+      "title": "표준 패스키 검증",
+      "taskRefs": [
+        "KEY-01",
+        "KEY-02",
+        "KEY-03",
+        "STAMP-04"
+      ],
+      "checks": [
+        "지정 RP/브라우저/OS에서 등록/인증",
+        "user presence와 PIN/UV 정책 검증",
+        "반납 후 resident credential·외부 계정 등록 처리"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-11",
+      "technologyId": "TECH-11",
+      "title": "녹음 전송·모바일 보관 검증",
+      "taskRefs": [
+        "REC-01",
+        "REC-02",
+        "REC-03",
+        "HW-07"
+      ],
+      "checks": [
+        "실제 마이크→S25 파일 저장/재생",
+        "화면 잠금·끊김의 누락 구간 표시",
+        "서명/FOTA 동시 실행 우선순위와 메모리 최고치 측정"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-12",
+      "technologyId": "TECH-12",
+      "title": "Cloud Wallet MPC 검증",
+      "taskRefs": [
+        "MPC-01",
+        "MPC-02",
+        "MPC-03",
+        "MPC-04",
+        "MPC-05"
+      ],
+      "checks": [
+        "독립 프로세스 DKG/sign과 threshold 미달 거절",
+        "앱 참여자 실제 build/서명",
+        "참여자 교체·old-share 철회·중단 round 재시작 검증"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-13",
+      "technologyId": "TECH-13",
+      "title": "EOA·토큰·SDK 검증",
+      "taskRefs": [
+        "TOKEN-01",
+        "TOKEN-02",
+        "TOKEN-03",
+        "PAY-01",
+        "INDEX-02"
+      ],
+      "checks": [
+        "SDK 금액/receipt/event adapter 교정",
+        "EOA 서명 복원·전송·재시도",
+        "dummy/native/wrapped 주소·decimals·가스 동작 대조"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-14",
+      "technologyId": "TECH-14",
+      "title": "스마트 계정 검증",
+      "taskRefs": [
+        "SMART-01",
+        "SMART-02",
+        "SMART-03",
+        "BASE-06"
+      ],
+      "checks": [
+        "같은 UserOp hash를 SDK/contract에서 재현",
+        "같은 bundle의 서로 다른 UserOp 결과 구분",
+        "고객 gas 경로와 account 전환/자산 이전 앱 실행"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-15",
+      "technologyId": "TECH-15",
+      "title": "DeFi·FX·Perpetual 검증",
+      "taskRefs": [
+        "DEX-01",
+        "DEX-02",
+        "FX-01",
+        "FX-02",
+        "PERP-01",
+        "PERP-02",
+        "PERP-04",
+        "PERP-06"
+      ],
+      "checks": [
+        "swap/LP add-remove 실제 자산 흐름",
+        "stale/조작 가격에서 주문 제한",
+        "margin/pnl/funding/liquidation 경계·keeper 중복 실행 시험"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-16",
+      "technologyId": "TECH-16",
+      "title": "DID·STO 자격 검증",
+      "taskRefs": [
+        "DID-01",
+        "DID-02",
+        "DID-03",
+        "STO-01",
+        "STO-02"
+      ],
+      "checks": [
+        "발급→앱 보관→목적 제한 제시→철회",
+        "issuer rotation 상태 일관성",
+        "자격 만료/철회 사용자의 STO 전송 거절"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-17",
+      "technologyId": "TECH-17",
+      "title": "x402 유료 자원 검증",
+      "taskRefs": [
+        "X402-01",
+        "X402-02",
+        "X402-03",
+        "TOKEN-02"
+      ],
+      "checks": [
+        "payment-required→proof→settle→resource 제공",
+        "응답 유실에도 이중 과금 없음",
+        "실제 gas payer·allowance·authorization/nonce·smart account signature 호환 기록"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-18",
+      "technologyId": "TECH-18",
+      "title": "장소·전사·여행 AI 검증",
+      "taskRefs": [
+        "TRIP-01",
+        "TRIP-02",
+        "TRIP-04",
+        "AI-01",
+        "AI-02",
+        "AI-03",
+        "REC-03"
+      ],
+      "checks": [
+        "한/영 고정 녹음 표본 정확도/지연",
+        "실제 장소 ID·사용자 후기·결제 provenance 연결",
+        "코스 이동/시간/예산 검사와 동의 철회 삭제"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-19",
+      "technologyId": "TECH-19",
+      "title": "Indexer·관측·출시 검증",
+      "taskRefs": [
+        "INDEX-01",
+        "INDEX-03",
+        "INDEX-04",
+        "INDEX-06",
+        "RELEASE-01",
+        "RELEASE-02",
+        "RELEASE-03"
+      ],
+      "checks": [
+        "backfill/reorg/재전송 후 지급·혜택·여행 일관성",
+        "DB/indexer/object backup 동시점 차이 복구",
+        "clean build와 J01~J19 증거 묶음"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "exact source commit/library/toolchain/profile versions",
+        "reproduction command and test inputs",
+        "expected vs observed result",
+        "redacted logs and app/device evidence"
+      ],
+      "failureAction": "원인을 기록하고 대체 후보 또는 adapter 수정 후 동일 완료 기준으로 재검증; 기능 범위는 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-20",
+      "technologyId": "TECH-07",
+      "title": "키 보존·FOTA 회귀",
+      "taskRefs": [
+        "HW-02",
+        "OTA-04"
+      ],
+      "checks": [
+        "secure storage schema migration 후 기존 주소·passkey 자격 유지",
+        "downgrade/비인가 read 실패",
+        "reset 후 재대여 키 분리"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "versioned compatibility matrix",
+        "reproducible success/failure evidence",
+        "retained scope and documented residual constraints"
+      ],
+      "failureAction": "선택 보류 후 대체 경로 검증; 요구 범위 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-21",
+      "technologyId": "TECH-10",
+      "title": "패스키 전송 행렬",
+      "taskRefs": [
+        "KEY-01",
+        "KEY-02"
+      ],
+      "checks": [
+        "각 RP/OS/browser/transport에서 등록/인증 결과 기록",
+        "외부 bridge에서 private key 취득 불가",
+        "외부 근접만으로 UV 충족이라 표시하지 않음"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "versioned compatibility matrix",
+        "reproducible success/failure evidence",
+        "retained scope and documented residual constraints"
+      ],
+      "failureAction": "선택 보류 후 대체 경로 검증; 요구 범위 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-22",
+      "technologyId": "TECH-12",
+      "title": "MPC 복구 신뢰 경계",
+      "taskRefs": [
+        "MPC-04",
+        "MPC-05"
+      ],
+      "checks": [
+        "폰 분실과 서버 단독 접근 조합 검증",
+        "두 share가 한 운영자 권한으로 동시에 접근되지 않음",
+        "정한 recovery protocol의 구 share 재사용 실패"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "versioned compatibility matrix",
+        "reproducible success/failure evidence",
+        "retained scope and documented residual constraints"
+      ],
+      "failureAction": "선택 보류 후 대체 경로 검증; 요구 범위 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    },
+    {
+      "id": "VAL-23",
+      "technologyId": "TECH-17",
+      "title": "x402 고객 가스 적합성",
+      "taskRefs": [
+        "X402-01",
+        "TOKEN-02"
+      ],
+      "checks": [
+        "카페 일반 EOA gas와 facilitator settlement gas 별도 기록",
+        "고객 부담 지원 profile에서만 승인",
+        "custom scheme이면 상호운용 범위와 규격 차이를 문서화"
+      ],
+      "environment": "implementation_stage_real_target_or_isolated_test_environment",
+      "successEvidence": [
+        "versioned compatibility matrix",
+        "reproducible success/failure evidence",
+        "retained scope and documented residual constraints"
+      ],
+      "failureAction": "선택 보류 후 대체 경로 검증; 요구 범위 유지",
+      "status": "planned_not_run",
+      "runtimeVerified": false,
+      "owner": null,
+      "effortEstimate": null
+    }
+  ]
+}

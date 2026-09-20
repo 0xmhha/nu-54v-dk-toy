@@ -1,0 +1,815 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:commerce:candidate:1",
+  "title": "Commerce contract review candidate; fragments only, not live API",
+  "$defs": {
+    "ReasonCode": {
+      "type": "string",
+      "enum": [
+        "payment_reobserving",
+        "duplicate_payment",
+        "late_payment",
+        "amount_mismatch",
+        "source_invalidated",
+        "refund_reobserving",
+        "execution_uncertain",
+        "policy_review"
+      ]
+    },
+    "AcceptanceState": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "exception",
+        "invalidated"
+      ]
+    },
+    "RefundSource": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "attemptId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "assetId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "accepted_payment",
+            "exception_payment"
+          ]
+        },
+        "canonicality": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/BlockCanonicality"
+        },
+        "policySatisfied": {
+          "type": "boolean"
+        },
+        "policyRefundable": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "reserved": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "confirmed": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "available": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "authorizationHeld": {
+          "type": "boolean"
+        },
+        "holdReasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "fundingRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        }
+      },
+      "required": [
+        "paymentId",
+        "attemptId",
+        "assetId",
+        "sourceKind",
+        "canonicality",
+        "policySatisfied",
+        "policyRefundable",
+        "reserved",
+        "confirmed",
+        "available",
+        "authorizationHeld",
+        "holdReasons",
+        "fundingRevision"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentSummaryCandidate": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "unpaid",
+            "processing",
+            "accepted",
+            "reconfirmation_required",
+            "exception_only"
+          ]
+        },
+        "acceptedAmount": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "revision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "observedAt": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "canStartPayment": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "state",
+        "acceptedAmount",
+        "reasonCodes",
+        "revision",
+        "observedAt",
+        "canStartPayment"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "accepted"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acceptedAmount": {
+                "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+              },
+              "canStartPayment": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "reconfirmation_required",
+                  "processing",
+                  "exception_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acceptedAmount": {
+                "type": "null"
+              },
+              "canStartPayment": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "unpaid"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acceptedAmount": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OrderPublicData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "order_public"
+        },
+        "order": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/OrderView"
+        },
+        "paymentSummary": {
+          "$ref": "#/$defs/PaymentSummaryCandidate"
+        }
+      },
+      "required": [
+        "projection",
+        "order",
+        "paymentSummary"
+      ],
+      "additionalProperties": false
+    },
+    "OrderRefundOperatorData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "store_refund_operator"
+        },
+        "order": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/OrderView"
+        },
+        "paymentSummary": {
+          "$ref": "#/$defs/PaymentSummaryCandidate"
+        },
+        "refundSources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RefundSource"
+          },
+          "uniqueItems": true
+        },
+        "sourcePage": {
+          "type": "object",
+          "properties": {
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "snapshotRevision": {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+            }
+          },
+          "required": [
+            "nextCursor",
+            "snapshotRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "projection",
+        "order",
+        "paymentSummary",
+        "refundSources",
+        "sourcePage"
+      ],
+      "additionalProperties": false
+    },
+    "API030Data": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/OrderPublicData"
+        },
+        {
+          "$ref": "#/$defs/OrderRefundOperatorData"
+        }
+      ]
+    },
+    "OwnAllocation": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "state": {
+          "$ref": "#/$defs/AcceptanceState"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "revision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        }
+      },
+      "required": [
+        "paymentId",
+        "state",
+        "isPrimary",
+        "reasonCodes",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "API035Data": {
+      "type": "object",
+      "properties": {
+        "attempt": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/AttemptView"
+        },
+        "observation": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/ChainObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exception": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/ReconciliationException"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allocation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OwnAllocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attempt",
+        "observation",
+        "exception",
+        "allocation"
+      ],
+      "additionalProperties": false
+    },
+    "API036Body": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "expectedFundingRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "amount": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "destinationProof": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/ProofReference"
+        },
+        "reason": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Text"
+        }
+      },
+      "required": [
+        "paymentId",
+        "expectedFundingRevision",
+        "amount",
+        "destinationProof",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "API037Body": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "expectedFundingRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        }
+      },
+      "required": [
+        "expectedRevision",
+        "expectedFundingRevision"
+      ],
+      "additionalProperties": false
+    },
+    "RefundReconciliation": {
+      "type": "object",
+      "properties": {
+        "fundingState": {
+          "type": "string",
+          "enum": [
+            "clear",
+            "held"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "reservationState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "consumed",
+            "released"
+          ]
+        },
+        "execution": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/ExecutionState"
+        },
+        "canonicality": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/BlockCanonicality"
+        },
+        "confirmation": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/ConfirmationState"
+        },
+        "observedAt": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        }
+      },
+      "required": [
+        "fundingState",
+        "reasonCodes",
+        "reservationState",
+        "execution",
+        "canonicality",
+        "confirmation",
+        "observedAt",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "RefundCustomerData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "refund_customer"
+        },
+        "refund": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/RefundView"
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reconciliation": {
+          "$ref": "#/$defs/RefundReconciliation"
+        }
+      },
+      "required": [
+        "projection",
+        "refund",
+        "transactionRef",
+        "reconciliation"
+      ],
+      "additionalProperties": false
+    },
+    "RefundOperatorData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "store_refund_operator"
+        },
+        "refund": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/RefundView"
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reconciliation": {
+          "$ref": "#/$defs/RefundReconciliation"
+        },
+        "refundSource": {
+          "$ref": "#/$defs/RefundSource"
+        }
+      },
+      "required": [
+        "projection",
+        "refund",
+        "transactionRef",
+        "reconciliation",
+        "refundSource"
+      ],
+      "additionalProperties": false
+    },
+    "API038Data": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RefundCustomerData"
+        },
+        {
+          "$ref": "#/$defs/RefundOperatorData"
+        }
+      ]
+    },
+    "PaymentAcceptancePayload": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "orderId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "attemptId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "evidenceId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "previousState": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AcceptanceState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "newState": {
+          "$ref": "#/$defs/AcceptanceState"
+        },
+        "sourceObservationRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "orderReconciliationRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "amount": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "sourceObservationId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        }
+      },
+      "required": [
+        "paymentId",
+        "orderId",
+        "attemptId",
+        "evidenceId",
+        "previousState",
+        "newState",
+        "sourceObservationRevision",
+        "orderReconciliationRevision",
+        "isPrimary",
+        "reasonCodes",
+        "amount",
+        "sourceObservationId"
+      ],
+      "additionalProperties": false
+    },
+    "RefundStatePayload": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "paymentId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "previousState": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "requested",
+                "authorized",
+                "signing",
+                "submitted",
+                "unknown",
+                "confirmed",
+                "rejected",
+                "failed"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "newState": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "amount": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Money"
+        },
+        "reservationState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "consumed",
+            "released"
+          ]
+        },
+        "fundingRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "sourceObservationRevision": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "sourceObservationId": {
+          "anyOf": [
+            {
+              "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "previousState",
+        "newState",
+        "amount",
+        "reservationState",
+        "fundingRevision",
+        "sourceObservationRevision",
+        "reasonCodes",
+        "sourceObservationId"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentAcceptanceEvent": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "type": {
+          "const": "payment.acceptance.changed"
+        },
+        "schemaVersion": {
+          "const": "2"
+        },
+        "aggregateType": {
+          "const": "payment_allocation"
+        },
+        "aggregateId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "aggregateRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "occurredAt": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Time"
+        },
+        "correlationId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "causationId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "payload": {
+          "$ref": "#/$defs/PaymentAcceptancePayload"
+        }
+      },
+      "required": [
+        "eventId",
+        "type",
+        "schemaVersion",
+        "aggregateType",
+        "aggregateId",
+        "aggregateRevision",
+        "occurredAt",
+        "correlationId",
+        "causationId",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "RefundStateEvent": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "type": {
+          "const": "refund.state.changed"
+        },
+        "schemaVersion": {
+          "const": "2"
+        },
+        "aggregateType": {
+          "const": "refund"
+        },
+        "aggregateId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "aggregateRevision": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Revision"
+        },
+        "occurredAt": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Time"
+        },
+        "correlationId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "causationId": {
+          "$ref": "urn:nu:commerce:baseline#/$defs/Id"
+        },
+        "payload": {
+          "$ref": "#/$defs/RefundStatePayload"
+        }
+      },
+      "required": [
+        "eventId",
+        "type",
+        "schemaVersion",
+        "aggregateType",
+        "aggregateId",
+        "aggregateRevision",
+        "occurredAt",
+        "correlationId",
+        "causationId",
+        "payload"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

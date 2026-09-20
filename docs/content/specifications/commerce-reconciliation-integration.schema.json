@@ -1,0 +1,2776 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nu:commerce:current-integration-draft",
+  "title": "Current-compatible commerce envelopes; proposal only",
+  "$defs": {
+    "E_Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "API030Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "$ref": "#/$defs/E_Id"
+            }
+          },
+          "required": [
+            "orderId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "resourceCapability": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "requestId",
+            "commerceContractVersion"
+          ],
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "authorization"
+              ],
+              "not": {
+                "required": [
+                  "resourceCapability"
+                ]
+              }
+            },
+            {
+              "required": [
+                "resourceCapability"
+              ],
+              "not": {
+                "required": [
+                  "authorization"
+                ]
+              }
+            }
+          ]
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "refundSourcesCursor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "refundSourcesLimit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "E_OrderView": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "storeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "awaiting_payment",
+            "paid",
+            "cancelled",
+            "expired",
+            "fulfilled"
+          ]
+        },
+        "price": {
+          "type": "object",
+          "properties": {
+            "currency": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minorAmount": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "fractionDigits": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "currency",
+            "minorAmount",
+            "fractionDigits"
+          ],
+          "additionalProperties": false
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "orderId",
+        "storeId",
+        "revision",
+        "state",
+        "price",
+        "recipientAddress",
+        "createdAt"
+      ],
+      "additionalProperties": false
+    },
+    "E_PaymentSummary": {
+      "type": "object",
+      "properties": {
+        "acceptedAmount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pendingAttemptIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/E_Id"
+          }
+        },
+        "state": {
+          "$ref": "#/$defs/E_Text"
+        },
+        "revision": {
+          "$ref": "#/$defs/E_Revision"
+        }
+      },
+      "required": [
+        "acceptedAmount",
+        "pendingAttemptIds",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "E_Money": {
+      "type": "object",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "assetId",
+        "atomicAmount"
+      ],
+      "additionalProperties": false
+    },
+    "E_Text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "E_Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "API030Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/B_API030Data"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "commerceContractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API035Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "attemptId": {
+              "$ref": "#/$defs/E_Id"
+            }
+          },
+          "required": [
+            "attemptId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "resourceCapability": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "requestId",
+            "commerceContractVersion",
+            "resourceCapability"
+          ],
+          "additionalProperties": false
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "E_AttemptView": {
+      "type": "object",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "created",
+            "awaiting_approval",
+            "signed",
+            "submitted",
+            "observed",
+            "accepted",
+            "rejected",
+            "expired",
+            "submission_unknown",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "attemptId",
+        "orderId",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "E_ChainObservation": {
+      "type": "object",
+      "properties": {
+        "chainId": {
+          "const": 8283
+        },
+        "txHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "blockHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "blockNumber": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "logIndex": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receiptStatus": {
+          "type": "string",
+          "enum": [
+            "success",
+            "reverted"
+          ]
+        },
+        "canonicality": {
+          "type": "string",
+          "enum": [
+            "canonical",
+            "orphaned",
+            "unknown"
+          ]
+        },
+        "confirmation": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "policy_satisfied",
+            "pending"
+          ]
+        },
+        "policyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "observationKind": {
+          "enum": [
+            "transaction",
+            "erc20_log"
+          ]
+        }
+      },
+      "required": [
+        "chainId",
+        "txHash",
+        "blockHash",
+        "blockNumber",
+        "logIndex",
+        "receiptStatus",
+        "canonicality",
+        "confirmation",
+        "policyId",
+        "revision",
+        "observedAt",
+        "observationKind"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "observationKind": {
+                "const": "transaction"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "logIndex": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "logIndex": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "receiptStatus": {
+                "const": "success"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "E_ReconciliationException": {
+      "type": "object",
+      "properties": {
+        "exceptionId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "subjectRef": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "code": {
+          "$ref": "#/$defs/E_Text"
+        },
+        "state": {
+          "$ref": "#/$defs/E_Text"
+        },
+        "revision": {
+          "$ref": "#/$defs/E_Revision"
+        }
+      },
+      "required": [
+        "exceptionId",
+        "subjectRef",
+        "code",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "API035Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/B_API035Data"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "commerceContractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "API038Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "refundId": {
+              "$ref": "#/$defs/E_Id"
+            }
+          },
+          "required": [
+            "refundId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "resourceCapability": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "requestId",
+            "commerceContractVersion"
+          ],
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "authorization"
+              ],
+              "not": {
+                "required": [
+                  "resourceCapability"
+                ]
+              }
+            },
+            {
+              "required": [
+                "resourceCapability"
+              ],
+              "not": {
+                "required": [
+                  "authorization"
+                ]
+              }
+            }
+          ]
+        },
+        "query": {
+          "type": "object",
+          "properties": {},
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "E_RefundView": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "paymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "orderId",
+        "assetId",
+        "atomicAmount",
+        "destinationAddress",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "API038Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "data": {
+              "$ref": "#/$defs/B_API038Data"
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "commerceContractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "C_Money": {
+      "type": "object",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      },
+      "required": [
+        "assetId",
+        "atomicAmount"
+      ],
+      "additionalProperties": false
+    },
+    "C_ProofReference": {
+      "type": "object",
+      "properties": {
+        "proofId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "proofId",
+        "profileId"
+      ],
+      "additionalProperties": false
+    },
+    "API036Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          },
+          "required": [
+            "orderId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            }
+          },
+          "required": [
+            "requestId",
+            "idempotencyKey",
+            "commerceContractVersion",
+            "authorization"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/B_API036Body"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "C_RefundView": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "paymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "orderId",
+        "assetId",
+        "atomicAmount",
+        "destinationAddress",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "API036Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 201
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "refund": {
+                  "$ref": "#/$defs/C_RefundView"
+                },
+                "reservedAmount": {
+                  "$ref": "#/$defs/C_Money"
+                }
+              },
+              "required": [
+                "refund",
+                "reservedAmount"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "commerceContractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_integration_API037Request": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "object",
+          "properties": {
+            "refundId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            }
+          },
+          "required": [
+            "refundId"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "authorization": {
+              "type": "string",
+              "pattern": "^Bearer .+$"
+            },
+            "contractVersion": {
+              "const": "approval-v1-draft"
+            },
+            "idempotencyKey": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            }
+          },
+          "required": [
+            "requestId",
+            "authorization",
+            "contractVersion",
+            "idempotencyKey"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "$ref": "#/$defs/A_AB_common_RefundApprovalBody"
+        }
+      },
+      "required": [
+        "path",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_baseline_Id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "A_AB_common_RefundApprovalBody": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "$ref": "#/$defs/A_AB_baseline_Revision"
+        },
+        "expectedFundingRevision": {
+          "$ref": "#/$defs/A_AB_baseline_Revision"
+        },
+        "merchantSigner": {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "walletBindingId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "expectedWalletRevision": {
+              "$ref": "#/$defs/A_AB_baseline_Revision"
+            },
+            "expectedBindingRevision": {
+              "$ref": "#/$defs/A_AB_baseline_Revision"
+            },
+            "signerRef": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "signerKind": {
+              "type": "string",
+              "enum": [
+                "hardware_eoa",
+                "cloud_mpc_eoa"
+              ]
+            },
+            "expectedSignerEpoch": {
+              "$ref": "#/$defs/A_AB_baseline_UInt"
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "expectedWalletRevision",
+            "expectedBindingRevision",
+            "signerRef",
+            "signerKind",
+            "expectedSignerEpoch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "expectedRevision",
+        "expectedFundingRevision",
+        "merchantSigner"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_baseline_Revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "A_AB_baseline_UInt": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "API037Request": {
+      "$ref": "#/$defs/A_AB_integration_API037Request"
+    },
+    "A_AB_integration_API037Response": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "const": 200
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "refund": {
+                  "$ref": "#/$defs/A_AB_baseline_RefundView"
+                },
+                "snapshot": {
+                  "$ref": "#/$defs/A_AB_common_RefundSnapshot"
+                },
+                "operation": {
+                  "$ref": "#/$defs/A_AB_integration_SafeApprovalOperation"
+                }
+              },
+              "required": [
+                "refund",
+                "snapshot",
+                "operation"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/A_AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_baseline_RefundView": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "paymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "orderId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "orderId",
+        "assetId",
+        "atomicAmount",
+        "destinationAddress",
+        "state",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_common_RefundSnapshot": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "const": "merchant_refund"
+        },
+        "intent": {
+          "$ref": "#/$defs/A_AB_baseline_EoaRefundIntent"
+        },
+        "context": {
+          "$ref": "#/$defs/A_AB_common_RefundContext"
+        },
+        "reviewProof": {
+          "$ref": "#/$defs/A_AB_common_EvidencePacket"
+        }
+      },
+      "required": [
+        "sourceKind",
+        "intent",
+        "context",
+        "reviewProof"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_baseline_EoaRefundIntent": {
+      "type": "object",
+      "properties": {
+        "intentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "payerAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "recipientAddress": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "asset": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/A_AB_baseline_Asset"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "erc20"
+                }
+              }
+            }
+          ]
+        },
+        "atomicAmount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadDigest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "encodingProfile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "transaction": {
+          "type": "object",
+          "properties": {
+            "to": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^0x([0-9a-fA-F]{2})*$"
+            },
+            "nonce": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "gasLimit": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "feeParameters": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "to",
+            "value",
+            "data",
+            "nonce",
+            "gasLimit",
+            "feeParameters"
+          ],
+          "additionalProperties": false
+        },
+        "merchantDisplay": {
+          "type": "object",
+          "properties": {
+            "storeId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "storeId",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "refundId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "intentId",
+        "chainId",
+        "payerAddress",
+        "recipientAddress",
+        "asset",
+        "atomicAmount",
+        "expiresAt",
+        "payloadDigest",
+        "encodingProfile",
+        "transaction",
+        "merchantDisplay",
+        "refundId"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_baseline_Asset": {
+      "type": "object",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chainId": {
+          "const": 8283
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "native",
+            "erc20"
+          ]
+        },
+        "tokenAddress": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "displaySymbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isTestAsset": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "assetId",
+        "chainId",
+        "kind",
+        "tokenAddress",
+        "decimals",
+        "displaySymbol",
+        "isTestAsset"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "native"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tokenAddress": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tokenAddress": {
+                "type": "string",
+                "pattern": "^0x[0-9a-fA-F]{40}$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "A_AB_common_RefundContext": {
+      "type": "object",
+      "properties": {
+        "approvalContextId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "contextDigest": {
+          "$ref": "#/$defs/A_AB_baseline_Hash"
+        },
+        "intentId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "operationId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "chainId": {
+          "$ref": "#/$defs/A_AB_baseline_ChainId"
+        },
+        "payerAddress": {
+          "$ref": "#/$defs/A_AB_baseline_Address"
+        },
+        "payloadDigest": {
+          "$ref": "#/$defs/A_AB_baseline_Hash"
+        },
+        "reviewDigest": {
+          "$ref": "#/$defs/A_AB_baseline_Hash"
+        },
+        "requestKind": {
+          "const": "eoa_transaction"
+        },
+        "profileId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/A_AB_baseline_Time"
+        },
+        "sourceKind": {
+          "const": "merchant_refund"
+        },
+        "storeId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "refundId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "paymentId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "reservationId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "authorizedRefundRevision": {
+          "$ref": "#/$defs/A_AB_baseline_Revision"
+        },
+        "authorizedFundingRevision": {
+          "$ref": "#/$defs/A_AB_baseline_Revision"
+        },
+        "merchantAuthorizationId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/A_AB_common_VerifiedSigner"
+        },
+        "contractVersions": {
+          "type": "object",
+          "properties": {
+            "http": {
+              "const": "approval-v1-draft"
+            },
+            "ble": {
+              "const": "approval-ble-v1-draft"
+            },
+            "evidenceProfile": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            }
+          },
+          "required": [
+            "http",
+            "ble",
+            "evidenceProfile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "approvalContextId",
+        "contextDigest",
+        "intentId",
+        "operationId",
+        "chainId",
+        "payerAddress",
+        "payloadDigest",
+        "reviewDigest",
+        "requestKind",
+        "profileId",
+        "expiresAt",
+        "sourceKind",
+        "storeId",
+        "refundId",
+        "paymentId",
+        "reservationId",
+        "authorizedRefundRevision",
+        "authorizedFundingRevision",
+        "merchantAuthorizationId",
+        "selection",
+        "contractVersions"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_baseline_Hash": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$"
+    },
+    "A_AB_baseline_ChainId": {
+      "const": 8283
+    },
+    "A_AB_baseline_Address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "A_AB_baseline_Time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "A_AB_common_VerifiedSigner": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "walletBindingId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "walletRevision": {
+              "$ref": "#/$defs/A_AB_baseline_Revision"
+            },
+            "bindingRevision": {
+              "$ref": "#/$defs/A_AB_baseline_Revision"
+            },
+            "signerRef": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "signerKind": {
+              "const": "hardware_eoa"
+            },
+            "epoch": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "device"
+                },
+                "deviceEpoch": {
+                  "$ref": "#/$defs/A_AB_baseline_UInt"
+                }
+              },
+              "required": [
+                "kind",
+                "deviceEpoch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "walletRevision",
+            "bindingRevision",
+            "signerRef",
+            "signerKind",
+            "epoch"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "walletId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "walletBindingId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "walletRevision": {
+              "$ref": "#/$defs/A_AB_baseline_Revision"
+            },
+            "bindingRevision": {
+              "$ref": "#/$defs/A_AB_baseline_Revision"
+            },
+            "signerRef": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "signerKind": {
+              "const": "cloud_mpc_eoa"
+            },
+            "epoch": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "mpc"
+                },
+                "participantEpoch": {
+                  "$ref": "#/$defs/A_AB_baseline_UInt"
+                }
+              },
+              "required": [
+                "kind",
+                "participantEpoch"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "walletId",
+            "walletBindingId",
+            "walletRevision",
+            "bindingRevision",
+            "signerRef",
+            "signerKind",
+            "epoch"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "A_AB_common_EvidencePacket": {
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "$ref": "#/$defs/A_AB_baseline_Id"
+        },
+        "evidenceBytes": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "maxLength": 16384
+        }
+      },
+      "required": [
+        "profileId",
+        "evidenceBytes"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_integration_SafeApprovalOperation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/A_AB_baseline_Operation"
+        },
+        {
+          "properties": {
+            "resultRef": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "A_AB_baseline_Operation": {
+      "type": "object",
+      "properties": {
+        "operationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "unknown",
+            "cancelled"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resultRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/A_AB_baseline_Error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "operationId",
+        "kind",
+        "state",
+        "revision",
+        "resultRef",
+        "error",
+        "updatedAt"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "succeeded"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "A_AB_baseline_Error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "operationId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safeMessage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nextAction": {
+          "type": "string",
+          "enum": [
+            "retry_query",
+            "reauthenticate",
+            "review_again",
+            "resolve_balance",
+            "wait",
+            "contact_support",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "retryable",
+        "operationId",
+        "safeMessage",
+        "nextAction"
+      ],
+      "additionalProperties": false
+    },
+    "A_AB_integration_ResponseHeaders": {
+      "type": "object",
+      "properties": {
+        "cacheControl": {
+          "const": "no-store"
+        },
+        "contractVersion": {
+          "const": "approval-v1-draft"
+        }
+      },
+      "required": [
+        "cacheControl",
+        "contractVersion"
+      ],
+      "additionalProperties": false
+    },
+    "API037Response": {
+      "$ref": "#/$defs/A_AB_integration_API037Response"
+    },
+    "B_API030Data": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/B_OrderPublicData"
+        },
+        {
+          "$ref": "#/$defs/B_OrderRefundOperatorData"
+        }
+      ]
+    },
+    "B_OrderPublicData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "order_public"
+        },
+        "order": {
+          "$ref": "#/$defs/E_OrderView"
+        },
+        "paymentSummary": {
+          "$ref": "#/$defs/B_PaymentSummaryCandidate"
+        }
+      },
+      "required": [
+        "projection",
+        "order",
+        "paymentSummary"
+      ],
+      "additionalProperties": false
+    },
+    "B_PaymentSummaryCandidate": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "unpaid",
+            "processing",
+            "accepted",
+            "reconfirmation_required",
+            "exception_only"
+          ]
+        },
+        "acceptedAmount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "revision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "observedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "canStartPayment": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "state",
+        "acceptedAmount",
+        "reasonCodes",
+        "revision",
+        "observedAt",
+        "canStartPayment"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "accepted"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acceptedAmount": {
+                "$ref": "#/$defs/E_Money"
+              },
+              "canStartPayment": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "reconfirmation_required",
+                  "processing",
+                  "exception_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acceptedAmount": {
+                "type": "null"
+              },
+              "canStartPayment": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "unpaid"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acceptedAmount": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "B_ReasonCode": {
+      "type": "string",
+      "enum": [
+        "payment_reobserving",
+        "duplicate_payment",
+        "late_payment",
+        "amount_mismatch",
+        "source_invalidated",
+        "refund_reobserving",
+        "execution_uncertain",
+        "policy_review"
+      ]
+    },
+    "E_Time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "B_OrderRefundOperatorData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "store_refund_operator"
+        },
+        "order": {
+          "$ref": "#/$defs/E_OrderView"
+        },
+        "paymentSummary": {
+          "$ref": "#/$defs/B_PaymentSummaryCandidate"
+        },
+        "refundSources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_RefundSource"
+          },
+          "uniqueItems": true
+        },
+        "sourcePage": {
+          "type": "object",
+          "properties": {
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/E_Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "snapshotRevision": {
+              "$ref": "#/$defs/E_Revision"
+            }
+          },
+          "required": [
+            "nextCursor",
+            "snapshotRevision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "projection",
+        "order",
+        "paymentSummary",
+        "refundSources",
+        "sourcePage"
+      ],
+      "additionalProperties": false
+    },
+    "B_RefundSource": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "assetId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "accepted_payment",
+            "exception_payment"
+          ]
+        },
+        "canonicality": {
+          "$ref": "#/$defs/E_BlockCanonicality"
+        },
+        "policySatisfied": {
+          "type": "boolean"
+        },
+        "policyRefundable": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "reserved": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "confirmed": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "available": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "authorizationHeld": {
+          "type": "boolean"
+        },
+        "holdReasons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "fundingRevision": {
+          "$ref": "#/$defs/E_Revision"
+        }
+      },
+      "required": [
+        "paymentId",
+        "attemptId",
+        "assetId",
+        "sourceKind",
+        "canonicality",
+        "policySatisfied",
+        "policyRefundable",
+        "reserved",
+        "confirmed",
+        "available",
+        "authorizationHeld",
+        "holdReasons",
+        "fundingRevision"
+      ],
+      "additionalProperties": false
+    },
+    "E_BlockCanonicality": {
+      "type": "string",
+      "enum": [
+        "canonical",
+        "orphaned",
+        "unknown"
+      ]
+    },
+    "B_API035Data": {
+      "type": "object",
+      "properties": {
+        "attempt": {
+          "$ref": "#/$defs/E_AttemptView"
+        },
+        "observation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_ChainObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exception": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_ReconciliationException"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allocation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/B_OwnAllocation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attempt",
+        "observation",
+        "exception",
+        "allocation"
+      ],
+      "additionalProperties": false
+    },
+    "B_OwnAllocation": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "state": {
+          "$ref": "#/$defs/B_AcceptanceState"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "revision": {
+          "$ref": "#/$defs/E_Revision"
+        }
+      },
+      "required": [
+        "paymentId",
+        "state",
+        "isPrimary",
+        "reasonCodes",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "B_AcceptanceState": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "exception",
+        "invalidated"
+      ]
+    },
+    "B_API038Data": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/B_RefundCustomerData"
+        },
+        {
+          "$ref": "#/$defs/B_RefundOperatorData"
+        }
+      ]
+    },
+    "B_RefundCustomerData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "refund_customer"
+        },
+        "refund": {
+          "$ref": "#/$defs/E_RefundView"
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reconciliation": {
+          "$ref": "#/$defs/B_RefundReconciliation"
+        }
+      },
+      "required": [
+        "projection",
+        "refund",
+        "transactionRef",
+        "reconciliation"
+      ],
+      "additionalProperties": false
+    },
+    "B_RefundReconciliation": {
+      "type": "object",
+      "properties": {
+        "fundingState": {
+          "type": "string",
+          "enum": [
+            "clear",
+            "held"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "reservationState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "consumed",
+            "released"
+          ]
+        },
+        "execution": {
+          "$ref": "#/$defs/E_ExecutionState"
+        },
+        "canonicality": {
+          "$ref": "#/$defs/E_BlockCanonicality"
+        },
+        "confirmation": {
+          "$ref": "#/$defs/E_ConfirmationState"
+        },
+        "observedAt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/E_Revision"
+        }
+      },
+      "required": [
+        "fundingState",
+        "reasonCodes",
+        "reservationState",
+        "execution",
+        "canonicality",
+        "confirmation",
+        "observedAt",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "E_ExecutionState": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "success",
+        "reverted",
+        "unknown"
+      ]
+    },
+    "E_ConfirmationState": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "pending",
+        "policy_satisfied"
+      ]
+    },
+    "B_RefundOperatorData": {
+      "type": "object",
+      "properties": {
+        "projection": {
+          "const": "store_refund_operator"
+        },
+        "refund": {
+          "$ref": "#/$defs/E_RefundView"
+        },
+        "transactionRef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reconciliation": {
+          "$ref": "#/$defs/B_RefundReconciliation"
+        },
+        "refundSource": {
+          "$ref": "#/$defs/B_RefundSource"
+        }
+      },
+      "required": [
+        "projection",
+        "refund",
+        "transactionRef",
+        "reconciliation",
+        "refundSource"
+      ],
+      "additionalProperties": false
+    },
+    "B_API036Body": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "expectedFundingRevision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "amount": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "destinationProof": {
+          "$ref": "#/$defs/E_ProofReference"
+        },
+        "reason": {
+          "$ref": "#/$defs/E_Text"
+        }
+      },
+      "required": [
+        "paymentId",
+        "expectedFundingRevision",
+        "amount",
+        "destinationProof",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "E_ProofReference": {
+      "type": "object",
+      "properties": {
+        "proofId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "profileId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      },
+      "required": [
+        "proofId",
+        "profileId"
+      ],
+      "additionalProperties": false
+    },
+    "CommerceErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "properties": {
+            "commerceContractVersion": {
+              "const": "commerce-reconciliation-v1-draft"
+            },
+            "cacheControl": {
+              "const": "no-store"
+            }
+          },
+          "required": [
+            "commerceContractVersion",
+            "cacheControl"
+          ],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/E_Id"
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "enum": [
+                    "AUTH_REQUIRED",
+                    "RESOURCE_UNAVAILABLE",
+                    "SCOPE_DENIED",
+                    "SOURCE_CHANGED",
+                    "CURSOR_STALE",
+                    "FUNDING_HELD",
+                    "IDEMPOTENCY_CONFLICT",
+                    "CONTRACT_UNSUPPORTED",
+                    "POLICY_UNAVAILABLE",
+                    "INVALID_REQUEST",
+                    "RATE_LIMITED",
+                    "SERVICE_UNAVAILABLE"
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "statusCode",
+        "headers",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "B_PaymentAcceptanceEvent": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "type": {
+          "const": "payment.acceptance.changed"
+        },
+        "schemaVersion": {
+          "const": "2"
+        },
+        "aggregateType": {
+          "const": "payment_allocation"
+        },
+        "aggregateId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "aggregateRevision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/E_Time"
+        },
+        "correlationId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "causationId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "payload": {
+          "$ref": "#/$defs/B_PaymentAcceptancePayload"
+        }
+      },
+      "required": [
+        "eventId",
+        "type",
+        "schemaVersion",
+        "aggregateType",
+        "aggregateId",
+        "aggregateRevision",
+        "occurredAt",
+        "correlationId",
+        "causationId",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "B_PaymentAcceptancePayload": {
+      "type": "object",
+      "properties": {
+        "paymentId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "orderId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "attemptId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "evidenceId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "previousState": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/B_AcceptanceState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "newState": {
+          "$ref": "#/$defs/B_AcceptanceState"
+        },
+        "sourceObservationRevision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "orderReconciliationRevision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "amount": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "sourceObservationId": {
+          "$ref": "#/$defs/E_Id"
+        }
+      },
+      "required": [
+        "paymentId",
+        "orderId",
+        "attemptId",
+        "evidenceId",
+        "previousState",
+        "newState",
+        "sourceObservationRevision",
+        "orderReconciliationRevision",
+        "isPrimary",
+        "reasonCodes",
+        "amount",
+        "sourceObservationId"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentAcceptanceEvent": {
+      "$ref": "#/$defs/B_PaymentAcceptanceEvent"
+    },
+    "B_RefundStateEvent": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "type": {
+          "const": "refund.state.changed"
+        },
+        "schemaVersion": {
+          "const": "2"
+        },
+        "aggregateType": {
+          "const": "refund"
+        },
+        "aggregateId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "aggregateRevision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "occurredAt": {
+          "$ref": "#/$defs/E_Time"
+        },
+        "correlationId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "causationId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "payload": {
+          "$ref": "#/$defs/B_RefundStatePayload"
+        }
+      },
+      "required": [
+        "eventId",
+        "type",
+        "schemaVersion",
+        "aggregateType",
+        "aggregateId",
+        "aggregateRevision",
+        "occurredAt",
+        "correlationId",
+        "causationId",
+        "payload"
+      ],
+      "additionalProperties": false
+    },
+    "B_RefundStatePayload": {
+      "type": "object",
+      "properties": {
+        "refundId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "paymentId": {
+          "$ref": "#/$defs/E_Id"
+        },
+        "previousState": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "requested",
+                "authorized",
+                "signing",
+                "submitted",
+                "unknown",
+                "confirmed",
+                "rejected",
+                "failed"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "newState": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "authorized",
+            "signing",
+            "submitted",
+            "unknown",
+            "confirmed",
+            "rejected",
+            "failed"
+          ]
+        },
+        "amount": {
+          "$ref": "#/$defs/E_Money"
+        },
+        "reservationState": {
+          "type": "string",
+          "enum": [
+            "active",
+            "consumed",
+            "released"
+          ]
+        },
+        "fundingRevision": {
+          "$ref": "#/$defs/E_Revision"
+        },
+        "sourceObservationRevision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/B_ReasonCode"
+          },
+          "uniqueItems": true
+        },
+        "sourceObservationId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/E_Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "refundId",
+        "paymentId",
+        "previousState",
+        "newState",
+        "amount",
+        "reservationState",
+        "fundingRevision",
+        "sourceObservationRevision",
+        "reasonCodes",
+        "sourceObservationId"
+      ],
+      "additionalProperties": false
+    },
+    "RefundStateEvent": {
+      "$ref": "#/$defs/B_RefundStateEvent"
+    },
+    "A_AB_integration_ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "statusCode": {
+          "enum": [
+            400,
+            401,
+            403,
+            404,
+            409,
+            422,
+            429,
+            503
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "requestId": {
+              "$ref": "#/$defs/A_AB_baseline_Id"
+            },
+            "error": {
+              "$ref": "#/$defs/A_AB_baseline_Error"
+            }
+          },
+          "required": [
+            "requestId",
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "headers": {
+          "$ref": "#/$defs/A_AB_integration_ResponseHeaders"
+        }
+      },
+      "required": [
+        "statusCode",
+        "body",
+        "headers"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

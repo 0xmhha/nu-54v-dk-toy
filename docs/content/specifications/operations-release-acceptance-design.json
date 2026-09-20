@@ -1,0 +1,560 @@
+{
+  "date": "2026-09-19",
+  "title": "운영·릴리스·전체 수용과 증거 인계 설계",
+  "status": "design_proposal_not_merged",
+  "packageRef": "DS-08",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "requirementRefs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "taskRefs": [
+    "BASE-01",
+    "BASE-05",
+    "STAMP-03",
+    "OPS-01",
+    "OPS-02",
+    "OPS-03",
+    "VERIFY-01",
+    "VERIFY-02",
+    "VERIFY-03",
+    "VERIFY-04",
+    "VERIFY-05",
+    "RELEASE-01",
+    "RELEASE-02",
+    "RELEASE-03",
+    "STAMP-04"
+  ],
+  "decisionRefs": [
+    "D10",
+    "D19"
+  ],
+  "sourceHashes": {
+    "content/planning/full-scope-design-review.json": "124ac6d0efa9e3e31e2789c603f0e8ff3edce78a3ea62faa4861fe2ab89d2370",
+    "content/planning/work-breakdown.json": "6c7dd2e443ad4278a82adf6fe42782ca7954507cbf95ed48562cc69b9643fa68",
+    "content/planning/technology-selection.json": "08386e3bfa440040c78fec73b3ec3f13195c94bbb42ac614954cc605334b78db",
+    "content/specifications/api-catalog.json": "0c4353873a8e4a539bde0af783caf6478a35064804349b2740715bcfa2d335f0",
+    "content/specifications/approval-source-dispatch.json": "65a48dd3c4cafab89a7e181869998834d68fd92d79a7d01be97990b48d45eac9",
+    "content/specifications/commerce-consumer-repair-design.json": "9a6741499264e0e94ddb10167260399687de7e1aaacfa91e121b1ee3f3745b81",
+    "content/specifications/credential-paid-resource-design.json": "b474d7d9ef58bd9251d87845530554cc27a80c19e9d2eecae7b45bbb319911b6",
+    "content/specifications/recording-travel-ai-design.json": "8a4a9073cfc0cb197e255d2ecd64bce4d1f2bfd931dca4bce2c98627bf47a430",
+    "content/planning/execution-readiness.json": "46c2658b3bb5c8a61e82f47db1d3519f2b35b6b2ac18182b5e900dec81a0ac78",
+    "content/planning/implementation-sequence.json": "cd1129a5b6efa67321f21d5385e64ea202d3066f7f2c7c0b6ceece29c70a13fc"
+  },
+  "boundary": "15개 요구 모두 실제 앱 연동 수용이 목표다. 설계 검사·합성 예제 통과는 실제 빌드/기기/체인/서비스 수용 증거를 대체하지 않는다. 개발 승인 전 제품 구현은 시작하지 않는다.",
+  "serviceBoundaries": [
+    {
+      "id": "SB-01",
+      "component": "Zephyr device",
+      "owns": "HW key operation,physical review,device epochs,local credentials,audio buffer,FOTA boot state",
+      "doesNotOwn": "서버 매출/체인 확정/Cloud MPC key",
+      "recovery": "서명 exposure와 reset barrier 보존 후 재연결; 키 부재를 빈지갑으로 추정 금지"
+    },
+    {
+      "id": "SB-02",
+      "component": "user app",
+      "owns": "선택계정/지갑 UX,기기연결,phone audio,travel UI,protected output",
+      "doesNotOwn": "체인 성공 생성,backend issuer 권한",
+      "recovery": "generation/epoch 바뀌면 화면과 pending request fencing"
+    },
+    {
+      "id": "SB-03",
+      "component": "RN kiosk",
+      "owns": "terminal session,cart/menu snapshot,store mode,order fulfillment UI",
+      "doesNotOwn": "고객 seed/key,무권한 merchant signature",
+      "recovery": "단말분실 revoke→guest정보clear→현재권한 재등록"
+    },
+    {
+      "id": "SB-04",
+      "component": "auth/wallet control",
+      "owns": "account identity,session,grant,MPC coordinator state",
+      "doesNotOwn": "MPC threshold 이상 단독통제/HW key추출",
+      "recovery": "hold원인별 fence,현재 recovery권한 검사"
+    },
+    {
+      "id": "SB-05",
+      "component": "commerce",
+      "owns": "order/payment allocation/refund exposure,benefit rule,settlement view",
+      "doesNotOwn": "raw chain rewrite/fiat settlement 선언",
+      "recovery": "현재 source로 reconcile,새 금융효과 자동생성 금지"
+    },
+    {
+      "id": "SB-06",
+      "component": "contract/indexer",
+      "owns": "on-chain constraints,raw observations,canonical cursor,decode/reorg",
+      "doesNotOwn": "구매실물인도/사용자동의",
+      "recovery": "raw→decode→attribution→business→projection 순 재처리"
+    },
+    {
+      "id": "SB-07",
+      "component": "content/travel workers",
+      "owns": "consented processing jobs,protected artifacts,place provenance",
+      "doesNotOwn": "서명·결제권,삭제자료 복원",
+      "recovery": "최신 privacy원장 적용 후 publish"
+    },
+    {
+      "id": "SB-08",
+      "component": "backoffice",
+      "owns": "role/scope에 맞는 조회·등록·hold·대사 intent·릴리스 관리",
+      "doesNotOwn": "고객 키/원음/정밀위치 기본 열람·온체인 성공 강제생성",
+      "recovery": "현재원천/권한 기반 작업,감사 이력과 결과조회"
+    }
+  ],
+  "environmentLanes": [
+    {
+      "id": "EN-01",
+      "lane": "design",
+      "purpose": "문서/스키마/합성예제 검증",
+      "allowedEvidence": "design_validation만",
+      "entry": "현재 단계"
+    },
+    {
+      "id": "EN-02",
+      "lane": "local_contract_fixture",
+      "purpose": "구현 승인 후 contract/adapter 개발",
+      "allowedEvidence": "unit/contract,chain/hardware 완료로 집계 불가",
+      "entry": "개발 승인·선정 언어/버전·미병합계약 채택"
+    },
+    {
+      "id": "EN-03",
+      "lane": "integration_testnet",
+      "purpose": "실제기기·S25 Ultra·태블릿·StableNet·외부provider sandbox",
+      "allowedEvidence": "버전/장비/chain 결합된 실제 실행",
+      "entry": "구성 manifest·자격/토큰/가스·배포권한·프로필"
+    },
+    {
+      "id": "EN-04",
+      "lane": "cafe_pilot",
+      "purpose": "협력카페 통제된 체험·여행자 UX",
+      "allowedEvidence": "실제 사용흐름과 동의·지원 기록,시험지급 라벨",
+      "entry": "테스트/실구매 구분·지원/반납/사고절차·데이터처리 조건"
+    },
+    {
+      "id": "EN-05",
+      "lane": "real_asset_live",
+      "purpose": "실자산 상업 서비스 여부 별도 판단",
+      "allowedEvidence": "테스트 성공으로 자동 활성화 불가",
+      "entry": "운영모델·자금/키 통제·관할/세무/개인정보 검토와 별도 출시결정"
+    }
+  ],
+  "releaseStages": [
+    {
+      "id": "RG-01",
+      "stage": "freeze_inputs",
+      "inputs": "repo commit,lockfiles,SDK/toolchain/board,API/BLE/schema/ABI,profile/policy revisions",
+      "gate": "미선정 profile는 기능 disabled/blocked로 명시; 15요구완료 증거에서는 제외할 수 없음",
+      "rollback": "입력 변경 시 영향받은 evidence invalidate"
+    },
+    {
+      "id": "RG-02",
+      "stage": "build_and_attest",
+      "inputs": "reproducible recipe,artifact digest,SBOM,license review,secret scanning",
+      "gate": "수정/서명 권한 분리 후보,비밀이 build log/artifact에 없음",
+      "rollback": "기존 검증 artifact 보존,새 version 발행"
+    },
+    {
+      "id": "RG-03",
+      "stage": "prepare_storage",
+      "inputs": "expand/contract migration,data backfill,authority/privacy epochs,backup watermark",
+      "gate": "이전/새 app 호환기간과 복구경로·dryrun 증거",
+      "rollback": "쓰기 schema 바뀌면 단순 DB downgrade 금지; compatible app 또는 forwardfix"
+    },
+    {
+      "id": "RG-04",
+      "stage": "deploy_backend_indexer",
+      "inputs": "compatibility manifest,service roles,source epoch/indexer decoder version",
+      "gate": "shadow replay/diff와 current source publish gate",
+      "rollback": "단순 재시작으로 business effect 중복생성 금지"
+    },
+    {
+      "id": "RG-05",
+      "stage": "release_apps",
+      "inputs": "package signing,Google/Apple settings,device permissions,store/side-load lane",
+      "gate": "각 플랫폼 auth/BLE/background 검증; kiosk visitor/owner mode isolation",
+      "rollback": "API 호환 유지,강제로그아웃/재인증 영향 표시"
+    },
+    {
+      "id": "RG-06",
+      "stage": "release_firmware",
+      "inputs": "signed image+manifest,target board,slot/bootloader/version,rollout eligibility",
+      "gate": "DS01 FOTA transition·trial health·key/epoch preservation·withdraw 확인",
+      "rollback": "검증된 rollback/복구 image만,antirollback·schema호환 충돌 시 service recovery"
+    },
+    {
+      "id": "RG-07",
+      "stage": "accept_and_promote",
+      "inputs": "15요구별 실제 evidence,negative/recovery cases,open defect ledger",
+      "gate": "failed/blocked/notrun은 passed로 승격 불가; D19 targets 누락이면 해당 nonfunctional gate 미통과",
+      "rollback": "중요결함 기능중단·영향scope·재검증"
+    },
+    {
+      "id": "RG-08",
+      "stage": "handover",
+      "inputs": "operator runbooks,access inventory,restore drill,result manifest",
+      "gate": "3명 전체 개인배정/공수는 아직 미정; 담당 역할은 권한 정의만",
+      "rollback": "운영 인계/실자산 승인과 개발 완료 구분"
+    }
+  ],
+  "runbooks": [
+    {
+      "id": "RB-01",
+      "incident": "지급 제출 후 timeout",
+      "contain": "같은 intent 새지급 차단·사용자 확인중 표시",
+      "reconcile": "nonce/tx/UserOp와indexer 원증거 조회",
+      "resumeEvidence": "동일 payment effect·allocation,중복 exposure 없음"
+    },
+    {
+      "id": "RB-02",
+      "incident": "Indexer lag/reorg",
+      "contain": "stale/catching_up 표시·새 확정 보류",
+      "reconcile": "canonical block/hash·decoder·cursor부터 재처리",
+      "resumeEvidence": "sourceVector와5consumer projection 일치"
+    },
+    {
+      "id": "RB-03",
+      "incident": "merchant account 탈취",
+      "contain": "해당 store 권한/terminal revoke·주소변경 hold",
+      "reconcile": "원 주문 recipient snapshot·이미노출된 refund 확인",
+      "resumeEvidence": "현재 점주 재인증·허용 signer·감사"
+    },
+    {
+      "id": "RB-04",
+      "incident": "wallet/MPC 복구 중 장애",
+      "contain": "원인별 signing fence 유지",
+      "reconcile": "DS02 durable phase/epoch/participant ACK 확인",
+      "resumeEvidence": "동일 protocol 복구·현재권한; share 재조립 없음"
+    },
+    {
+      "id": "RB-05",
+      "incident": "기기 분실/반납 불확실",
+      "contain": "대여/기기 grant fence,이미서명 exposure 보존",
+      "reconcile": "lifecycle reset barrier/current owner/source 재확인",
+      "resumeEvidence": "삭제/반납/재대여 각각 증거,RR미선택 정책 임의승인 금지"
+    },
+    {
+      "id": "RB-06",
+      "incident": "FOTA 실패/릴리스 철회",
+      "contain": "대상 image 새시작 금지,진행중 단계별 처리",
+      "reconcile": "trial/boot state/metadata digest 확인",
+      "resumeEvidence": "검증boot와keys/epochs상태,무조건factoryreset 금지"
+    },
+    {
+      "id": "RB-07",
+      "incident": "개인자료 유출/삭제 지연",
+      "contain": "접근deny·URL/worker권한 중단·최소증거보존",
+      "reconcile": "source/artifact graph/외부provider/backup 범위",
+      "resumeEvidence": "삭제/보존예외 상태와 공개방지검사"
+    },
+    {
+      "id": "RB-08",
+      "incident": "가격원/keeper 장애",
+      "contain": "새위험행위 차단·가격unknown표시",
+      "reconcile": "DS05 action matrix와on-chain keeper idempotency",
+      "resumeEvidence": "현재price/risk/contract상태 재검증"
+    },
+    {
+      "id": "RB-09",
+      "incident": "유료자원 지급 후 미제공",
+      "contain": "새과금 금지·권리보존",
+      "reconcile": "원receipt/result/job 확인→허용재시도/별도환불; OC21/22 및원 환불 attempt 원장으로 환불 노출을 별도 추적",
+      "resumeEvidence": "원request 기준 하나의지급·제공 또는 실제반환"
+    },
+    {
+      "id": "RB-10",
+      "incident": "백업복원",
+      "contain": "외부 read/write/publish 차단된 복원환경",
+      "reconcile": "authority/hold/privacy/tombstone 최신원장→업무원장→object→indexer→projection 순; purpose deny와object tombstone을 각각 복원하고 승인된 deletionPlan의 범위만 파괴적 삭제",
+      "resumeEvidence": "삭제자료비노출·nonce/exposure/혜택중복없음·현재원천대사; current targetSetRevision과deletionRevision에맞는완료증거인지 확인"
+    }
+  ],
+  "observability": [
+    {
+      "id": "OB-01",
+      "signal": "approval/signing",
+      "dimensions": "operationId/sourceKind/environment/resultClass",
+      "action": "권한오류와sourceunknown분리·hold경보",
+      "redaction": "seed/private key/share/rawsignature/pairingsecret금지"
+    },
+    {
+      "id": "OB-02",
+      "signal": "payments/refunds",
+      "dimensions": "paymentId/orderId/store scope/chain cursor",
+      "action": "pending age·reorg·duplicate allocation/exposure경보",
+      "redaction": "원문 credential/민감payload 금지"
+    },
+    {
+      "id": "OB-03",
+      "signal": "device/BLE/FOTA",
+      "dimensions": "pseudonymousdevice/session/profile/imageversion",
+      "action": "disconnect/gap/bootrollback/capacity·battery측정",
+      "redaction": "audio bytes/keymaterial금지"
+    },
+    {
+      "id": "OB-04",
+      "signal": "privacy/jobs",
+      "dimensions": "opaque owner/job/scope/revision/state",
+      "action": "철회뒤publish/삭제기한초과/외부pending경보",
+      "redaction": "원음/전사/정밀위치/후기원문 로그금지"
+    },
+    {
+      "id": "OB-05",
+      "signal": "markets/indexer",
+      "dimensions": "market/feed block/decoderversion/lag/keeperintent",
+      "action": "stale source/ambiguousUserOp/publish conflict경보",
+      "redaction": "불필요 개인 address/account linkage최소화"
+    },
+    {
+      "id": "OB-06",
+      "signal": "operations/security",
+      "dimensions": "actorRole/scoped resource/action/reason/auditId",
+      "action": "권한변경·breakglass·릴리스변경·restore감사",
+      "redaction": "고객데이터 기본열람불가,breakglass 목적/기한/승인기록 필요"
+    }
+  ],
+  "evidenceContract": {
+    "identity": "requirementFacet+scenarioId+environmentManifestDigest+artifactSetDigest+runId",
+    "requiredFields": [
+      "requirementRefs",
+      "taskRefs",
+      "stepRefs",
+      "scenarioId",
+      "kind",
+      "status",
+      "expected",
+      "observed",
+      "startedAt",
+      "completedAt",
+      "environmentManifestDigest",
+      "repoCommits",
+      "appBuilds",
+      "firmwareDigest",
+      "boardIdentity",
+      "chainIdentity",
+      "policyRevisions",
+      "evidenceRefs",
+      "defectRefs"
+    ],
+    "kinds": [
+      "design_validation",
+      "unit",
+      "contract",
+      "hardware",
+      "chain",
+      "app_integration",
+      "recovery",
+      "operational"
+    ],
+    "statuses": [
+      "not_run",
+      "passed",
+      "failed",
+      "blocked",
+      "superseded"
+    ],
+    "rules": [
+      "미실행 evidenceRefs는 빈 배열",
+      "passed에는 실제 observed와변조검사가능 evidence digest 필요",
+      "design/unit/fixture는 hardware/chain/app 통과를 대신하지 않음",
+      "필수 source/policy/build 변경은 영향범위 증거 superseded",
+      "전체 task 상태 planned를 문서작성으로 completed로 바꾸지 않음"
+    ]
+  },
+  "policyInputs": [
+    {
+      "id": "OP-01",
+      "decisionRef": "D10",
+      "needed": "배포주소/ABI·Indexerendpoint·토큰/가스 공급·네트워크 identity",
+      "selection": null
+    },
+    {
+      "id": "OP-02",
+      "decisionRef": "D19",
+      "needed": "RPO/RTO·latency/battery/recording 목표·부하/장애 sample",
+      "selection": null
+    },
+    {
+      "id": "OP-03",
+      "decisionRef": "D19",
+      "needed": "목적별 보관기간/삭제 SLA·로그·백업·외부provider계약",
+      "selection": null
+    },
+    {
+      "id": "OP-04",
+      "decisionRef": "D19",
+      "needed": "운영 role scope·비밀/릴리스키 회전·긴급접근·출시판정",
+      "selection": null
+    },
+    {
+      "id": "OP-05",
+      "decisionRef": "D19",
+      "needed": "실자산 운영 모델과 전문 검토 범위·책임/민원/손실처리",
+      "selection": null
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "OQ-01",
+      "scenario": "재현 빌드",
+      "expected": "같은 pinned 입력/허용 reproducibility정책으로artifact 검증",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-02",
+      "scenario": "잘못된 board FOTA",
+      "expected": "설치 거절·기존키유지",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-03",
+      "scenario": "서명key 없는 backend",
+      "expected": "고객HW/Cloud키 추출불가",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-04",
+      "scenario": "DB migration 도중 중단",
+      "expected": "원자단위 재개·이전앱호환확인",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-05",
+      "scenario": "서비스 rollback 후 schema 변경",
+      "expected": "불가한 downgrade 차단",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-06",
+      "scenario": "Indexer 재생",
+      "expected": "중복매출/혜택없음",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-07",
+      "scenario": "실제 환불+reorg",
+      "expected": "exposure유지와보정",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-08",
+      "scenario": "deleted object 백업복원",
+      "expected": "외부열람전 tombstone 적용",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-09",
+      "scenario": "restore중현재hold갱신",
+      "expected": "오래된권한으로publish불가",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-10",
+      "scenario": "권한없는운영자",
+      "expected": "고객원음/정밀위치 조회거절",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-11",
+      "scenario": "단말분실",
+      "expected": "가게sessionrevoke와현재주문추적",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-12",
+      "scenario": "가격장애",
+      "expected": "새위험차단/허용관리행위별정책",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-13",
+      "scenario": "x402미제공",
+      "expected": "새과금없이원지급복구",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-14",
+      "scenario": "실기동시공존시험",
+      "expected": "DS01 profile측정값·정상/실패복구",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-15",
+      "scenario": "15요구앱인수",
+      "expected": "각facet 실제증거와결함추적",
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "OQ-16",
+      "scenario": "testnet→실자산설정혼입",
+      "expected": "환경 identity 불일치로 실행차단",
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "externalReferences": [],
+  "declaredScopeRequirementRefs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "transitiveTaskImpactRequirementRefs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "requirementRefsMeaning": "legacy alias of declaredScopeRequirementRefs; not exhaustive impact or completion evidence"
+}

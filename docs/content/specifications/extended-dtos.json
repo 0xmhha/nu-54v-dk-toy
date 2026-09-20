@@ -1,0 +1,4574 @@
+{
+  "version": "0.1.0-draft",
+  "sourceSha256": "be677ba55d10120c2c6199c3f7ee4219241c1f6c9f3460de22600c4fa9228d46",
+  "contracts": [
+    {
+      "apiId": "API-001",
+      "method": "POST",
+      "path": "/v1/auth/exchanges",
+      "authorization": "public_auth_flow",
+      "requestSchema": "API001Request",
+      "responseSchema": "API001Response",
+      "inputFields": [
+        {
+          "name": "provider",
+          "type": "Provider",
+          "required": true
+        },
+        {
+          "name": "authFlowId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "providerProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "session",
+          "type": "SessionView"
+        },
+        {
+          "name": "account",
+          "type": "AccountView"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03"
+      ],
+      "specificErrors": [
+        "AUTH_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01"
+      ],
+      "semanticRules": [
+        "profileId must match server AuthFlow provider/client/OS/purpose; validate exact registered proof schema, initiator, callback and expiry before consuming flow",
+        "server-selected redirect and provider identity; no arbitrary redirect from exchange input"
+      ]
+    },
+    {
+      "apiId": "API-002",
+      "method": "POST",
+      "path": "/v1/auth/links",
+      "authorization": "account_recent_auth",
+      "requestSchema": "API002Request",
+      "responseSchema": "API002Response",
+      "inputFields": [
+        {
+          "name": "provider",
+          "type": "Provider",
+          "required": true
+        },
+        {
+          "name": "authFlowId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "providerProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "linkedProviders",
+          "type": "ProviderLink[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "specificErrors": [
+        "ACCOUNT_LINK_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D04",
+        "D19"
+      ],
+      "semanticRules": [
+        "profileId must match server AuthFlow provider/client/OS/purpose; validate exact registered proof schema, initiator, callback and expiry before consuming flow",
+        "server-selected redirect and provider identity; no arbitrary redirect from exchange input"
+      ]
+    },
+    {
+      "apiId": "API-003",
+      "method": "POST",
+      "path": "/v1/auth/logout",
+      "authorization": "account",
+      "requestSchema": "API003Request",
+      "responseSchema": "API003Response",
+      "inputFields": [
+        {
+          "name": "sessionId",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "revoked",
+          "type": "Bool"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D04",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-004",
+      "method": "POST",
+      "path": "/v1/account-deletions",
+      "authorization": "account_recent_auth",
+      "requestSchema": "API004Request",
+      "responseSchema": "API004Response",
+      "inputFields": [
+        {
+          "name": "scope",
+          "type": "Text[]",
+          "required": true
+        },
+        {
+          "name": "acknowledgedWalletRecovery",
+          "type": "Bool",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "specificErrors": [
+        "RECOVERY_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D04",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-005",
+      "method": "GET",
+      "path": "/v1/me",
+      "authorization": "account",
+      "requestSchema": "API005Request",
+      "responseSchema": "API005Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "account",
+          "type": "AccountView"
+        },
+        {
+          "name": "memberships",
+          "type": "MembershipView[]"
+        },
+        {
+          "name": "linkedProviders",
+          "type": "ProviderLink[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AUTH-01"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D02"
+      ]
+    },
+    {
+      "apiId": "API-006",
+      "method": "POST",
+      "path": "/v1/auth/refresh",
+      "authorization": "refresh_session",
+      "requestSchema": "API006Request",
+      "responseSchema": "API006Response",
+      "inputFields": [
+        {
+          "name": "refreshToken",
+          "type": "Text",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "session",
+          "type": "SessionView"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "specificErrors": [
+        "SESSION_REVOKED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D04",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "authorization": "account",
+      "requestSchema": "API007Request",
+      "responseSchema": "API007Response",
+      "inputFields": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "wallets",
+          "type": "array"
+        },
+        {
+          "name": "nextCursor",
+          "type": "strict variant"
+        },
+        {
+          "name": "snapshotId",
+          "type": "Id"
+        },
+        {
+          "name": "observedAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "APP-02"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "authorization": "store_asset_read",
+      "requestSchema": "API008Request",
+      "responseSchema": "API008Response",
+      "inputFields": [
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "wallets",
+          "type": "array"
+        },
+        {
+          "name": "nextCursor",
+          "type": "strict variant"
+        },
+        {
+          "name": "snapshotId",
+          "type": "Id"
+        },
+        {
+          "name": "observedAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D08"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "authorization": "wallet_read",
+      "requestSchema": "API009Request",
+      "responseSchema": "API009Response",
+      "inputFields": [
+        {
+          "name": "contextKind",
+          "type": "'store'",
+          "required": true
+        },
+        {
+          "name": "storeId",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "walletId",
+          "type": "Id"
+        },
+        {
+          "name": "context",
+          "type": "Context"
+        },
+        {
+          "name": "chainId",
+          "type": "ChainId"
+        },
+        {
+          "name": "address",
+          "type": "Address"
+        },
+        {
+          "name": "assets",
+          "type": "array"
+        },
+        {
+          "name": "observedAt",
+          "type": "Time"
+        },
+        {
+          "name": "blockRef",
+          "type": "strict variant"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "specificErrors": [
+        "CHAIN_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D10"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-010",
+      "method": "POST",
+      "path": "/v1/device-enrollments",
+      "authorization": "account",
+      "requestSchema": "API010Request",
+      "responseSchema": "API010Response",
+      "inputFields": [
+        {
+          "name": "deviceId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "deviceProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "rentalId",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "enrollmentId",
+          "type": "Id"
+        },
+        {
+          "name": "enrollmentChallenge",
+          "type": "ChallengeView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "HW-03"
+      ],
+      "specificErrors": [
+        "DEVICE_ALREADY_ASSIGNED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D02",
+        "D03"
+      ]
+    },
+    {
+      "apiId": "API-011",
+      "method": "POST",
+      "path": "/v1/device-enrollments/{enrollmentId}/confirm",
+      "authorization": "account",
+      "requestSchema": "API011Request",
+      "responseSchema": "API011Response",
+      "inputFields": [
+        {
+          "name": "deviceProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "challengeResponse",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "deviceBinding",
+          "type": "DeviceBindingView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "HW-03"
+      ],
+      "specificErrors": [
+        "DEVICE_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D02",
+        "D03"
+      ]
+    },
+    {
+      "apiId": "API-012",
+      "method": "DELETE",
+      "path": "/v1/devices/{deviceId}/binding",
+      "authorization": "device_owner",
+      "requestSchema": "API012Request",
+      "responseSchema": "API012Response",
+      "inputFields": [
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "HW-03"
+      ],
+      "specificErrors": [
+        "RETURN_CHECK_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D02",
+        "D03"
+      ]
+    },
+    {
+      "apiId": "API-013",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}",
+      "authorization": "device_owner",
+      "requestSchema": "API013Request",
+      "responseSchema": "API013Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "deviceMetadata",
+          "type": "DeviceMetadata"
+        },
+        {
+          "name": "lastReportedAt",
+          "type": "Time?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "HW-01",
+        "FIND-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05",
+        "D07",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-014",
+      "method": "POST",
+      "path": "/v1/cloud-wallets",
+      "authorization": "account_recent_auth",
+      "requestSchema": "API014Request",
+      "responseSchema": "API014Response",
+      "inputFields": [
+        {
+          "name": "createRequestId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "participantEnrollmentProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "MPC-02"
+      ],
+      "specificErrors": [
+        "PARTICIPANT_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D04"
+      ]
+    },
+    {
+      "apiId": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "authorization": "wallet_sign_authorized",
+      "requestSchema": "API015Request",
+      "responseSchema": "API015Response",
+      "inputFields": [
+        {
+          "name": "intentId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "approvalContextId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "approvalProof",
+          "type": "EvidencePacket",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "SafeApprovalOperation"
+        },
+        {
+          "name": "approvalOperationId",
+          "type": "Id"
+        },
+        {
+          "name": "progress",
+          "type": "Progress"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "specificErrors": [
+        "APPROVAL_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D04"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-016",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/recoveries",
+      "authorization": "wallet_recovery_proof",
+      "requestSchema": "API016Request",
+      "responseSchema": "API016Response",
+      "inputFields": [
+        {
+          "name": "recoveryProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "newParticipantProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "MPC-04"
+      ],
+      "specificErrors": [
+        "RECOVERY_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D04"
+      ]
+    },
+    {
+      "apiId": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "authorization": "wallet_use",
+      "requestSchema": "API017Request",
+      "responseSchema": "API017Response",
+      "inputFields": [
+        {
+          "name": "walletId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "chainId",
+          "type": "ChainId",
+          "required": true
+        },
+        {
+          "name": "action",
+          "type": "'personal_transfer'",
+          "required": true
+        },
+        {
+          "name": "actionInput",
+          "type": "TransferInput",
+          "required": true
+        },
+        {
+          "name": "selection",
+          "type": "Selection",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "snapshot",
+          "type": "PersonalSnapshot"
+        },
+        {
+          "name": "operation",
+          "type": "SafeApprovalOperation"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_ACTION"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "authorization": "transaction_read",
+      "requestSchema": "API019Request",
+      "responseSchema": "API019Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "execution",
+          "type": "ExecutionState"
+        },
+        {
+          "name": "canonicality",
+          "type": "BlockCanonicality"
+        },
+        {
+          "name": "confirmation",
+          "type": "ConfirmationState"
+        },
+        {
+          "name": "observedAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "specificErrors": [
+        "NOT_FOUND"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D10"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "authorization": "operation_owner_or_capability",
+      "requestSchema": "API020Request",
+      "responseSchema": "API020Response",
+      "inputFields": [
+        {
+          "name": "includeSnapshot",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "includeSigningResult",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        },
+        {
+          "name": "approval",
+          "type": "strict variant"
+        },
+        {
+          "name": "operationClass",
+          "type": "enum"
+        },
+        {
+          "name": "approvalOperationId",
+          "type": "strict variant"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D08",
+        "D19"
+      ],
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-021",
+      "method": "POST",
+      "path": "/v1/stores",
+      "authorization": "account",
+      "requestSchema": "API021Request",
+      "responseSchema": "API021Response",
+      "inputFields": [
+        {
+          "name": "displayName",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "location",
+          "type": "Location",
+          "required": true
+        },
+        {
+          "name": "timezone",
+          "type": "Text",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "store",
+          "type": "StoreView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "specificErrors": [
+        "VALIDATION_FAILED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01"
+      ]
+    },
+    {
+      "apiId": "API-022",
+      "method": "GET",
+      "path": "/v1/stores",
+      "authorization": "account",
+      "requestSchema": "API022Request",
+      "responseSchema": "API022Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "memberships",
+          "type": "MembershipView[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01"
+      ]
+    },
+    {
+      "apiId": "API-023",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/terminal-sessions",
+      "authorization": "store_terminal_manage",
+      "requestSchema": "API023Request",
+      "responseSchema": "API023Response",
+      "inputFields": [
+        {
+          "name": "terminalId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "mode",
+          "type": "Mode",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "terminalSession",
+          "type": "TerminalSession"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01"
+      ]
+    },
+    {
+      "apiId": "API-024",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/memberships",
+      "authorization": "store_owner",
+      "requestSchema": "API024Request",
+      "responseSchema": "API024Response",
+      "inputFields": [
+        {
+          "name": "accountId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "role",
+          "type": "Role",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "membership",
+          "type": "MembershipView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01"
+      ]
+    },
+    {
+      "apiId": "API-025",
+      "method": "DELETE",
+      "path": "/v1/stores/{storeId}/memberships/{membershipId}",
+      "authorization": "store_owner",
+      "requestSchema": "API025Request",
+      "responseSchema": "API025Response",
+      "inputFields": [
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "revoked",
+          "type": "Bool"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "specificErrors": [
+        "LAST_OWNER"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01"
+      ]
+    },
+    {
+      "apiId": "API-026",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/menu",
+      "authorization": "store_customer_session",
+      "requestSchema": "API026Request",
+      "responseSchema": "API026Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "menu",
+          "type": "MenuItem[]"
+        },
+        {
+          "name": "revision",
+          "type": "Revision"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "specificErrors": [
+        "STORE_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-027",
+      "method": "PUT",
+      "path": "/v1/stores/{storeId}/menu-items/{itemId}",
+      "authorization": "store_menu_manage",
+      "requestSchema": "API027Request",
+      "responseSchema": "API027Response",
+      "inputFields": [
+        {
+          "name": "name",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "options",
+          "type": "MenuOption[]",
+          "required": true
+        },
+        {
+          "name": "price",
+          "type": "Price",
+          "required": true
+        },
+        {
+          "name": "availability",
+          "type": "Availability",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "menuItem",
+          "type": "MenuItem"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-028",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/recipient-changes",
+      "authorization": "store_funds_manage_recent_auth",
+      "requestSchema": "API028Request",
+      "responseSchema": "API028Response",
+      "inputFields": [
+        {
+          "name": "walletRef",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "ownershipProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "recipientConfiguration",
+          "type": "RecipientConfig"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-06"
+      ],
+      "specificErrors": [
+        "ADDRESS_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-030",
+      "method": "GET",
+      "path": "/v1/orders/{orderId}",
+      "authorization": "order_read_or_capability",
+      "requestSchema": "API030Request",
+      "responseSchema": "API030Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "order",
+          "type": "OrderView"
+        },
+        {
+          "name": "paymentSummary",
+          "type": "PaymentSummary"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-031",
+      "method": "POST",
+      "path": "/v1/orders/{orderId}/cancel",
+      "authorization": "order_cancel",
+      "requestSchema": "API031Request",
+      "responseSchema": "API031Response",
+      "inputFields": [
+        {
+          "name": "reason",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "order",
+          "type": "OrderView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "specificErrors": [
+        "PAYMENT_IN_PROGRESS"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-033",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/device-sessions",
+      "authorization": "terminal_attempt_capability",
+      "requestSchema": "API033Request",
+      "responseSchema": "API033Response",
+      "inputFields": [
+        {
+          "name": "deviceProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "challengeResponse",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "restrictedDeviceSession",
+          "type": "RestrictedSession"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "HW-03",
+        "SHOP-03"
+      ],
+      "specificErrors": [
+        "DEVICE_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D02",
+        "D03",
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-035",
+      "method": "GET",
+      "path": "/v1/payment-attempts/{attemptId}",
+      "authorization": "attempt_read_capability",
+      "requestSchema": "API035Request",
+      "responseSchema": "API035Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "attempt",
+          "type": "AttemptView"
+        },
+        {
+          "name": "observation",
+          "type": "ChainObservation?"
+        },
+        {
+          "name": "exception",
+          "type": "ReconciliationException?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "PAY-04"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-038",
+      "method": "GET",
+      "path": "/v1/refunds/{refundId}",
+      "authorization": "refund_read",
+      "requestSchema": "API038Request",
+      "responseSchema": "API038Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "refund",
+          "type": "RefundView"
+        },
+        {
+          "name": "transactionRef",
+          "type": "Id?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-039",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/sales",
+      "authorization": "store_sales_read",
+      "requestSchema": "API039Request",
+      "responseSchema": "API039Response",
+      "inputFields": [
+        {
+          "name": "period",
+          "type": "Period",
+          "required": true
+        },
+        {
+          "name": "assetId",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "summary",
+          "type": "SalesTotals[]"
+        },
+        {
+          "name": "exceptions",
+          "type": "ReconciliationException[]"
+        },
+        {
+          "name": "asOfRevision",
+          "type": "Revision"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "specificErrors": [
+        "VALIDATION_FAILED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-040",
+      "method": "POST",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_settlement_manage",
+      "requestSchema": "API040Request",
+      "responseSchema": "API040Response",
+      "inputFields": [
+        {
+          "name": "period",
+          "type": "Period",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        },
+        {
+          "name": "note",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "settlementRecord",
+          "type": "SettlementView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "specificErrors": [
+        "UNRESOLVED_DIFFERENCE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-041",
+      "method": "POST",
+      "path": "/v1/settlements/{settlementId}/corrections",
+      "authorization": "store_settlement_manage",
+      "requestSchema": "API041Request",
+      "responseSchema": "API041Response",
+      "inputFields": [
+        {
+          "name": "reason",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "correctedRecord",
+          "type": "SettlementView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-042",
+      "method": "GET",
+      "path": "/v1/me/receipts",
+      "authorization": "account",
+      "requestSchema": "API042Request",
+      "responseSchema": "API042Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "type": "Limit",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "receipts",
+          "type": "ReceiptView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "APP-04"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-043",
+      "method": "GET",
+      "path": "/v1/me/passport",
+      "authorization": "account",
+      "requestSchema": "API043Request",
+      "responseSchema": "API043Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "stamps",
+          "type": "StampView[]"
+        },
+        {
+          "name": "benefits",
+          "type": "BenefitView[]"
+        },
+        {
+          "name": "revision",
+          "type": "Revision"
+        },
+        {
+          "name": "pendingEntitlements",
+          "type": "PendingEntitlementView[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "STAMP-01",
+        "STAMP-02"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D09"
+      ],
+      "semanticRules": [
+        "only pending entitlements bound to current verified ReceiptOwnership are exposed; pending units are not included in usable stamps/benefits",
+        "same entitlement source cannot appear in pending and materialized view at one consistent ledger revision"
+      ]
+    },
+    {
+      "apiId": "API-044",
+      "method": "POST",
+      "path": "/v1/benefit-redemptions",
+      "authorization": "benefit_owner",
+      "requestSchema": "API044Request",
+      "responseSchema": "API044Response",
+      "inputFields": [
+        {
+          "name": "benefitId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "orderId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "redemption",
+          "type": "RedemptionView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "STAMP-01"
+      ],
+      "specificErrors": [
+        "BENEFIT_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-045",
+      "method": "POST",
+      "path": "/v1/rentals",
+      "authorization": "rental_operator",
+      "requestSchema": "API045Request",
+      "responseSchema": "API045Response",
+      "inputFields": [
+        {
+          "name": "deviceId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "accountId",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "rental",
+          "type": "RentalView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "STAMP-03"
+      ],
+      "specificErrors": [
+        "DEVICE_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-048",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}/firmware-offers",
+      "authorization": "device_owner",
+      "requestSchema": "API048Request",
+      "responseSchema": "API048Response",
+      "inputFields": [
+        {
+          "name": "appVersion",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "protocolVersion",
+          "type": "Text",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "offer",
+          "type": "ReleaseView?"
+        },
+        {
+          "name": "compatibility",
+          "type": "CompatibilityView"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "OTA-02"
+      ],
+      "specificErrors": [
+        "UPDATE_BLOCKED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05"
+      ]
+    },
+    {
+      "apiId": "API-049",
+      "method": "POST",
+      "path": "/v1/firmware-releases",
+      "authorization": "firmware_release_operator",
+      "requestSchema": "API049Request",
+      "responseSchema": "API049Response",
+      "inputFields": [
+        {
+          "name": "manifest",
+          "type": "SignedReleaseManifest",
+          "required": true
+        },
+        {
+          "name": "packageRef",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "release",
+          "type": "ReleaseView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "OTA-02",
+        "OPS-02"
+      ],
+      "specificErrors": [
+        "MANIFEST_INVALID"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-050",
+      "method": "POST",
+      "path": "/v1/firmware-releases/{releaseId}/withdraw",
+      "authorization": "firmware_release_operator",
+      "requestSchema": "API050Request",
+      "responseSchema": "API050Response",
+      "inputFields": [
+        {
+          "name": "reason",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "release",
+          "type": "ReleaseView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "OTA-04",
+        "OPS-02"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-051",
+      "method": "POST",
+      "path": "/v1/recordings",
+      "authorization": "account",
+      "requestSchema": "API051Request",
+      "responseSchema": "API051Response",
+      "inputFields": [
+        {
+          "name": "recordingId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "format",
+          "type": "RecordingFormat",
+          "required": true
+        },
+        {
+          "name": "completeness",
+          "type": "Completeness",
+          "required": true
+        },
+        {
+          "name": "duration",
+          "type": "Seconds",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "recordingMetadata",
+          "type": "RecordingView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "REC-03"
+      ],
+      "specificErrors": [
+        "VALIDATION_FAILED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-052",
+      "method": "POST",
+      "path": "/v1/recordings/{recordingId}/processing",
+      "authorization": "recording_owner_with_consent",
+      "requestSchema": "API052Request",
+      "responseSchema": "API052Response",
+      "inputFields": [
+        {
+          "name": "sourceRef",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "consentRevision",
+          "type": "Revision",
+          "required": true
+        },
+        {
+          "name": "jobType",
+          "type": "JobType",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "REC-03"
+      ],
+      "specificErrors": [
+        "CONSENT_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-053",
+      "method": "GET",
+      "path": "/v1/recordings/{recordingId}/processing",
+      "authorization": "recording_owner",
+      "requestSchema": "API053Request",
+      "responseSchema": "API053Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "jobs",
+          "type": "JobView[]"
+        },
+        {
+          "name": "transcriptRef",
+          "type": "Id?"
+        },
+        {
+          "name": "summaryRef",
+          "type": "Id?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "REC-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-054",
+      "method": "DELETE",
+      "path": "/v1/recordings/{recordingId}",
+      "authorization": "recording_owner",
+      "requestSchema": "API054Request",
+      "responseSchema": "API054Response",
+      "inputFields": [
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "REC-03",
+        "TRIP-04"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D17",
+        "D18",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-055",
+      "method": "POST",
+      "path": "/v1/smart-account-plans",
+      "authorization": "wallet_use",
+      "requestSchema": "API055Request",
+      "responseSchema": "API055Response",
+      "inputFields": [
+        {
+          "name": "walletId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "selectedModel",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "transitionPlan",
+          "type": "TransitionPlan"
+        },
+        {
+          "name": "review",
+          "type": "ReviewView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SMART-01",
+        "SMART-03"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_ACCOUNT_MODEL"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D11"
+      ]
+    },
+    {
+      "apiId": "API-056",
+      "method": "POST",
+      "path": "/v1/smart-account-intents",
+      "authorization": "wallet_sign_authorized",
+      "requestSchema": "API056Request",
+      "responseSchema": "API056Response",
+      "inputFields": [
+        {
+          "name": "planId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "action",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "actionInput",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "intent",
+          "type": "IntentView"
+        },
+        {
+          "name": "review",
+          "type": "ReviewView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "SMART-02"
+      ],
+      "specificErrors": [
+        "ACCOUNT_NOT_READY"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D11"
+      ]
+    },
+    {
+      "apiId": "API-057",
+      "method": "POST",
+      "path": "/v1/market-quotes",
+      "authorization": "account",
+      "requestSchema": "API057Request",
+      "responseSchema": "API057Response",
+      "inputFields": [
+        {
+          "name": "marketId",
+          "type": "Id",
+          "required": true,
+          "requiredWhen": "all"
+        },
+        {
+          "name": "action",
+          "type": "MarketAction",
+          "required": true,
+          "requiredWhen": "all"
+        },
+        {
+          "name": "amountIn",
+          "type": "Money",
+          "required": false,
+          "requiredWhen": "swap"
+        },
+        {
+          "name": "assetIn",
+          "type": "Id",
+          "required": false,
+          "requiredWhen": "swap"
+        },
+        {
+          "name": "assetOut",
+          "type": "Id",
+          "required": false,
+          "requiredWhen": "swap"
+        },
+        {
+          "name": "inputs",
+          "type": "Money[]",
+          "required": false,
+          "requiredWhen": "liquidity_add"
+        },
+        {
+          "name": "positionId",
+          "type": "Id",
+          "required": false,
+          "requiredWhen": "liquidity_remove"
+        },
+        {
+          "name": "shareAmount",
+          "type": "UInt",
+          "required": false,
+          "requiredWhen": "liquidity_remove"
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "quote",
+          "type": "MarketQuote"
+        },
+        {
+          "name": "fees",
+          "type": "Money[]"
+        },
+        {
+          "name": "minimumOutputs",
+          "type": "Money[]"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "DEX-02",
+        "FX-02"
+      ],
+      "specificErrors": [
+        "INSUFFICIENT_LIQUIDITY"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D12"
+      ]
+    },
+    {
+      "apiId": "API-058",
+      "method": "POST",
+      "path": "/v1/market-intents",
+      "authorization": "wallet_use",
+      "requestSchema": "API058Request",
+      "responseSchema": "API058Response",
+      "inputFields": [
+        {
+          "name": "walletId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "quoteId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "slippageChoice",
+          "type": "SlippageBps",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "intent",
+          "type": "IntentView"
+        },
+        {
+          "name": "review",
+          "type": "ReviewView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "DEX-03",
+        "FX-03"
+      ],
+      "specificErrors": [
+        "QUOTE_EXPIRED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D12"
+      ]
+    },
+    {
+      "apiId": "API-059",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/liquidity-positions",
+      "authorization": "wallet_read",
+      "requestSchema": "API059Request",
+      "responseSchema": "API059Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "positions",
+          "type": "LiquidityPosition[]"
+        },
+        {
+          "name": "asOfBlock",
+          "type": "BlockRef?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "DEX-03"
+      ],
+      "specificErrors": [
+        "CHAIN_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D12"
+      ]
+    },
+    {
+      "apiId": "API-060",
+      "method": "GET",
+      "path": "/v1/perpetual/markets",
+      "authorization": "account",
+      "requestSchema": "API060Request",
+      "responseSchema": "API060Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "markets",
+          "type": "PerpMarket[]"
+        },
+        {
+          "name": "priceValidity",
+          "type": "Validity"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "PERP-05"
+      ],
+      "specificErrors": [
+        "PRICE_STALE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D13"
+      ]
+    },
+    {
+      "apiId": "API-061",
+      "method": "POST",
+      "path": "/v1/perpetual/intents",
+      "authorization": "wallet_use",
+      "requestSchema": "API061Request",
+      "responseSchema": "API061Response",
+      "inputFields": [
+        {
+          "name": "walletId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "marketId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "action",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "actionInput",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "intent",
+          "type": "IntentView"
+        },
+        {
+          "name": "review",
+          "type": "ReviewView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "PERP-03",
+        "PERP-05"
+      ],
+      "specificErrors": [
+        "RISK_LIMIT_EXCEEDED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D13"
+      ]
+    },
+    {
+      "apiId": "API-062",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/perpetual-positions",
+      "authorization": "wallet_read",
+      "requestSchema": "API062Request",
+      "responseSchema": "API062Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "positions",
+          "type": "PerpPosition[]"
+        },
+        {
+          "name": "funding",
+          "type": "FundingEntry[]"
+        },
+        {
+          "name": "liquidations",
+          "type": "LiquidationEntry[]"
+        },
+        {
+          "name": "asOfBlock",
+          "type": "BlockRef?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "PERP-05"
+      ],
+      "specificErrors": [
+        "CHAIN_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D13"
+      ]
+    },
+    {
+      "apiId": "API-063",
+      "method": "GET",
+      "path": "/v1/offerings",
+      "authorization": "account",
+      "requestSchema": "API063Request",
+      "responseSchema": "API063Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "offerings",
+          "type": "Offering[]"
+        },
+        {
+          "name": "eligibilityRules",
+          "type": "ProfileInput[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "STO-03"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D14"
+      ]
+    },
+    {
+      "apiId": "API-064",
+      "method": "POST",
+      "path": "/v1/offerings/{offeringId}/intents",
+      "authorization": "offering_actor",
+      "requestSchema": "API064Request",
+      "responseSchema": "API064Response",
+      "inputFields": [
+        {
+          "name": "walletId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "action",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "actionInput",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "credentialRef",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "intent",
+          "type": "IntentView"
+        },
+        {
+          "name": "review",
+          "type": "ReviewView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "STO-02",
+        "STO-03"
+      ],
+      "specificErrors": [
+        "INELIGIBLE"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D14"
+      ]
+    },
+    {
+      "apiId": "API-065",
+      "method": "POST",
+      "path": "/v1/credentials",
+      "authorization": "credential_issuer",
+      "requestSchema": "API065Request",
+      "responseSchema": "API065Response",
+      "inputFields": [
+        {
+          "name": "subjectProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "type",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "claims",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "credential",
+          "type": "CredentialView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "DID-02"
+      ],
+      "specificErrors": [
+        "ISSUER_UNAUTHORIZED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D15"
+      ]
+    },
+    {
+      "apiId": "API-066",
+      "method": "GET",
+      "path": "/v1/me/credentials",
+      "authorization": "account",
+      "requestSchema": "API066Request",
+      "responseSchema": "API066Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "credentials",
+          "type": "CredentialView[]"
+        },
+        {
+          "name": "status",
+          "type": "CredentialStatus[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "DID-03"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D15"
+      ]
+    },
+    {
+      "apiId": "API-067",
+      "method": "POST",
+      "path": "/v1/credential-presentations",
+      "authorization": "credential_owner",
+      "requestSchema": "API067Request",
+      "responseSchema": "API067Response",
+      "inputFields": [
+        {
+          "name": "requestRef",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "credentialId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "disclosureChoice",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "holderProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "presentation",
+          "type": "ProfileInput"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "DID-03"
+      ],
+      "specificErrors": [
+        "CREDENTIAL_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D15"
+      ]
+    },
+    {
+      "apiId": "API-068",
+      "method": "POST",
+      "path": "/v1/credential-verifications",
+      "authorization": "credential_verifier",
+      "requestSchema": "API068Request",
+      "responseSchema": "API068Response",
+      "inputFields": [
+        {
+          "name": "presentation",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "challengeRef",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "verification",
+          "type": "VerificationView"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "DID-02"
+      ],
+      "specificErrors": [
+        "CREDENTIAL_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D15"
+      ]
+    },
+    {
+      "apiId": "API-069",
+      "method": "POST",
+      "path": "/v1/credentials/{credentialId}/revoke",
+      "authorization": "credential_issuer",
+      "requestSchema": "API069Request",
+      "responseSchema": "API069Response",
+      "inputFields": [
+        {
+          "name": "reason",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "revocation",
+          "type": "RevocationView"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "DID-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D15"
+      ]
+    },
+    {
+      "apiId": "API-070",
+      "method": "POST",
+      "path": "/v1/paid-resource-requests",
+      "authorization": "wallet_use",
+      "requestSchema": "API070Request",
+      "responseSchema": "API070Response",
+      "inputFields": [
+        {
+          "name": "resourceId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "resourceInput",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "walletId",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "resourceRequest",
+          "type": "ResourceRequest"
+        },
+        {
+          "name": "paymentRequirement",
+          "type": "ProfileInput"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "X402-03"
+      ],
+      "specificErrors": [
+        "UNSUPPORTED_PAYMENT_SCHEME"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D16"
+      ]
+    },
+    {
+      "apiId": "API-071",
+      "method": "POST",
+      "path": "/v1/paid-resource-requests/{requestId}/proofs",
+      "authorization": "request_owner",
+      "requestSchema": "API071Request",
+      "responseSchema": "API071Response",
+      "inputFields": [
+        {
+          "name": "paymentProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        },
+        {
+          "name": "entitlement",
+          "type": "Entitlement?"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "X402-02",
+        "X402-03"
+      ],
+      "specificErrors": [
+        "PAYMENT_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D16"
+      ]
+    },
+    {
+      "apiId": "API-072",
+      "method": "GET",
+      "path": "/v1/paid-resource-requests/{requestId}/result",
+      "authorization": "request_owner",
+      "requestSchema": "API072Request",
+      "responseSchema": "API072Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "deliveryState",
+          "type": "DeliveryState"
+        },
+        {
+          "name": "resourceRef",
+          "type": "Id?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "X402-03"
+      ],
+      "specificErrors": [
+        "DELIVERY_PENDING"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D16"
+      ]
+    },
+    {
+      "apiId": "API-073",
+      "method": "GET",
+      "path": "/v1/places",
+      "authorization": "account",
+      "requestSchema": "API073Request",
+      "responseSchema": "API073Response",
+      "inputFields": [
+        {
+          "name": "region",
+          "type": "Region",
+          "required": false
+        },
+        {
+          "name": "query",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "optionalLocation",
+          "type": "Location",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "places",
+          "type": "PlaceView[]"
+        },
+        {
+          "name": "source",
+          "type": "SourceView"
+        },
+        {
+          "name": "observedAt",
+          "type": "Time"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "TRIP-01"
+      ],
+      "specificErrors": [
+        "LOCATION_UNAVAILABLE"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-074",
+      "method": "POST",
+      "path": "/v1/places/{placeId}/reviews",
+      "authorization": "account",
+      "requestSchema": "API074Request",
+      "responseSchema": "API074Response",
+      "inputFields": [
+        {
+          "name": "rating",
+          "type": "Rating",
+          "required": true
+        },
+        {
+          "name": "text",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "purchaseRef",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "review",
+          "type": "UserReview"
+        },
+        {
+          "name": "provenance",
+          "type": "PurchaseProvenance"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "specificErrors": [
+        "PURCHASE_NOT_OWNED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-075",
+      "method": "PATCH",
+      "path": "/v1/reviews/{reviewId}",
+      "authorization": "review_owner",
+      "requestSchema": "API075Request",
+      "responseSchema": "API075Response",
+      "inputFields": [
+        {
+          "name": "text",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "rating",
+          "type": "Rating",
+          "required": false
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "review",
+          "type": "UserReview"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-076",
+      "method": "DELETE",
+      "path": "/v1/reviews/{reviewId}",
+      "authorization": "review_owner",
+      "requestSchema": "API076Request",
+      "responseSchema": "API076Response",
+      "inputFields": [
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-077",
+      "method": "POST",
+      "path": "/v1/trips",
+      "authorization": "account",
+      "requestSchema": "API077Request",
+      "responseSchema": "API077Response",
+      "inputFields": [
+        {
+          "name": "region",
+          "type": "Region",
+          "required": true
+        },
+        {
+          "name": "locale",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "timezone",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "consentRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "trip",
+          "type": "TripView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "specificErrors": [
+        "CONSENT_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01",
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-078",
+      "method": "POST",
+      "path": "/v1/trips/{tripId}/visits",
+      "authorization": "trip_owner",
+      "requestSchema": "API078Request",
+      "responseSchema": "API078Response",
+      "inputFields": [
+        {
+          "name": "placeId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "evidence",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "sourceType",
+          "type": "SourceType",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "visit",
+          "type": "VisitView"
+        },
+        {
+          "name": "validity",
+          "type": "Validity"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "specificErrors": [
+        "EVIDENCE_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01",
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-079",
+      "method": "GET",
+      "path": "/v1/trips/{tripId}/timeline",
+      "authorization": "trip_owner",
+      "requestSchema": "API079Request",
+      "responseSchema": "API079Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "entries",
+          "type": "TimelineEntry[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01",
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-080",
+      "method": "POST",
+      "path": "/v1/itineraries",
+      "authorization": "account",
+      "requestSchema": "API080Request",
+      "responseSchema": "API080Response",
+      "inputFields": [
+        {
+          "name": "tripId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "constraints",
+          "type": "RouteConstraints",
+          "required": true
+        },
+        {
+          "name": "consentRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "AI-02"
+      ],
+      "specificErrors": [
+        "INSUFFICIENT_DATA"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D18"
+      ]
+    },
+    {
+      "apiId": "API-081",
+      "method": "PATCH",
+      "path": "/v1/itineraries/{itineraryId}",
+      "authorization": "itinerary_owner",
+      "requestSchema": "API081Request",
+      "responseSchema": "API081Response",
+      "inputFields": [
+        {
+          "name": "stops",
+          "type": "RouteStop[]",
+          "required": true
+        },
+        {
+          "name": "constraints",
+          "type": "RouteConstraints",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "itinerary",
+          "type": "ItineraryView"
+        },
+        {
+          "name": "validation",
+          "type": "RouteValidation"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AI-02"
+      ],
+      "specificErrors": [
+        "ROUTE_INVALID"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D18"
+      ]
+    },
+    {
+      "apiId": "API-082",
+      "method": "POST",
+      "path": "/v1/challenges/{challengeId}/participations",
+      "authorization": "account",
+      "requestSchema": "API082Request",
+      "responseSchema": "API082Response",
+      "inputFields": [
+        {
+          "name": "tripId",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "participation",
+          "type": "ParticipationView"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "AI-03"
+      ],
+      "specificErrors": [
+        "ALREADY_PARTICIPATING"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D09",
+        "D18"
+      ]
+    },
+    {
+      "apiId": "API-083",
+      "method": "POST",
+      "path": "/v1/participations/{participationId}/evidence",
+      "authorization": "participant",
+      "requestSchema": "API083Request",
+      "responseSchema": "API083Response",
+      "inputFields": [
+        {
+          "name": "stepId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "evidenceRef",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "progress",
+          "type": "ProgressView"
+        },
+        {
+          "name": "stamp",
+          "type": "StampView?"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "AI-03"
+      ],
+      "specificErrors": [
+        "EVIDENCE_INVALID"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D09",
+        "D18"
+      ]
+    },
+    {
+      "apiId": "API-084",
+      "method": "PUT",
+      "path": "/v1/me/consents",
+      "authorization": "account",
+      "requestSchema": "API084Request",
+      "responseSchema": "API084Response",
+      "inputFields": [
+        {
+          "name": "purposes",
+          "type": "ConsentPurpose[]",
+          "required": true
+        },
+        {
+          "name": "expectedRevision",
+          "type": "Revision",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "consentRevision",
+          "type": "Revision"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "specificErrors": [
+        "REVISION_CONFLICT"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D17",
+        "D18",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-085",
+      "method": "POST",
+      "path": "/v1/me/data-requests",
+      "authorization": "account_recent_auth",
+      "requestSchema": "API085Request",
+      "responseSchema": "API085Response",
+      "inputFields": [
+        {
+          "name": "type",
+          "type": "Text",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "type": "Text[]",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "specificErrors": [
+        "AUTH_REQUIRED"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D17",
+        "D18",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-086",
+      "method": "GET",
+      "path": "/v1/ops/exceptions",
+      "authorization": "ops_exception_read",
+      "requestSchema": "API086Request",
+      "responseSchema": "API086Response",
+      "inputFields": [
+        {
+          "name": "type",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "exceptions",
+          "type": "ReconciliationException[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "OPS-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-087",
+      "method": "POST",
+      "path": "/v1/ops/reconciliation-jobs",
+      "authorization": "ops_reconcile",
+      "requestSchema": "API087Request",
+      "responseSchema": "API087Response",
+      "inputFields": [
+        {
+          "name": "subjectRef",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "reason",
+          "type": "Text",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "operation",
+          "type": "Operation"
+        }
+      ],
+      "successStatus": 202,
+      "taskRefs": [
+        "OPS-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-088",
+      "method": "GET",
+      "path": "/v1/ops/audit-events",
+      "authorization": "ops_audit_read",
+      "requestSchema": "API088Request",
+      "responseSchema": "API088Response",
+      "inputFields": [
+        {
+          "name": "subjectRef",
+          "type": "Id",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "events",
+          "type": "AuditView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "OPS-01"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-089",
+      "method": "GET",
+      "path": "/v1/service-health",
+      "authorization": "service_health_read",
+      "requestSchema": "API089Request",
+      "responseSchema": "API089Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "services",
+          "type": "ServiceHealth[]"
+        },
+        {
+          "name": "indexerLag",
+          "type": "IndexerLag?"
+        },
+        {
+          "name": "observedAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "INDEX-05",
+        "OPS-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D10",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-090",
+      "method": "GET",
+      "path": "/v1/devices",
+      "authorization": "device_owner",
+      "requestSchema": "API090Request",
+      "responseSchema": "API090Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "devices",
+          "type": "DeviceMetadata[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "HW-03",
+        "APP-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D02",
+        "D03"
+      ]
+    },
+    {
+      "apiId": "API-091",
+      "method": "GET",
+      "path": "/v1/rentals/{rentalId}",
+      "authorization": "rental_owner_or_operator",
+      "requestSchema": "API091Request",
+      "responseSchema": "API091Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "rental",
+          "type": "RentalView"
+        },
+        {
+          "name": "checklist",
+          "type": "ReturnChecklist"
+        },
+        {
+          "name": "lastResetState",
+          "type": "ResetStateView?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03",
+        "D06",
+        "D09",
+        "D11"
+      ]
+    },
+    {
+      "apiId": "API-092",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/orders",
+      "authorization": "store_order_read",
+      "requestSchema": "API092Request",
+      "responseSchema": "API092Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "state",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "orders",
+          "type": "OrderView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-02",
+        "SHOP-04"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-093",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/settlements",
+      "authorization": "store_sales_read",
+      "requestSchema": "API093Request",
+      "responseSchema": "API093Response",
+      "inputFields": [
+        {
+          "name": "period",
+          "type": "Period",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "settlements",
+          "type": "SettlementView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D08"
+      ]
+    },
+    {
+      "apiId": "API-094",
+      "method": "GET",
+      "path": "/v1/recordings",
+      "authorization": "account",
+      "requestSchema": "API094Request",
+      "responseSchema": "API094Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "recordingMetadata",
+          "type": "RecordingView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "REC-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D07",
+        "D19"
+      ]
+    },
+    {
+      "apiId": "API-095",
+      "method": "GET",
+      "path": "/v1/itineraries/{itineraryId}",
+      "authorization": "itinerary_owner",
+      "requestSchema": "API095Request",
+      "responseSchema": "API095Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "itinerary",
+          "type": "ItineraryView"
+        },
+        {
+          "name": "validation",
+          "type": "RouteValidation"
+        },
+        {
+          "name": "revision",
+          "type": "Revision"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AI-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D18"
+      ]
+    },
+    {
+      "apiId": "API-096",
+      "method": "GET",
+      "path": "/v1/participations/{participationId}",
+      "authorization": "participant",
+      "requestSchema": "API096Request",
+      "responseSchema": "API096Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "participation",
+          "type": "ParticipationView"
+        },
+        {
+          "name": "progress",
+          "type": "ProgressView"
+        },
+        {
+          "name": "evidenceRevisions",
+          "type": "EvidenceRevision[]"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AI-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D09",
+        "D18"
+      ]
+    },
+    {
+      "apiId": "API-097",
+      "method": "GET",
+      "path": "/v1/trips",
+      "authorization": "account",
+      "requestSchema": "API097Request",
+      "responseSchema": "API097Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "trips",
+          "type": "TripView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D01",
+        "D17"
+      ]
+    },
+    {
+      "apiId": "API-098",
+      "method": "POST",
+      "path": "/v1/wallet-bindings",
+      "authorization": "device_owner",
+      "requestSchema": "API098Request",
+      "responseSchema": "API098Response",
+      "inputFields": [
+        {
+          "name": "deviceId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "walletHandle",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "address",
+          "type": "Address",
+          "required": true
+        },
+        {
+          "name": "ownershipProof",
+          "type": "ProfileInput",
+          "required": true
+        },
+        {
+          "name": "enrollmentId",
+          "type": "Id",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "wallet",
+          "type": "WalletView"
+        },
+        {
+          "name": "binding",
+          "type": "WalletBinding"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "HW-04",
+        "APP-02"
+      ],
+      "specificErrors": [
+        "ADDRESS_PROOF_INVALID"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D03"
+      ]
+    },
+    {
+      "apiId": "API-099",
+      "method": "GET",
+      "path": "/v1/ops/stores",
+      "authorization": "ops_store_read",
+      "requestSchema": "API099Request",
+      "responseSchema": "API099Response",
+      "inputFields": [
+        {
+          "name": "query",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "stores",
+          "type": "StoreView[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "OPS-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-100",
+      "method": "GET",
+      "path": "/v1/ops/devices",
+      "authorization": "ops_device_read",
+      "requestSchema": "API100Request",
+      "responseSchema": "API100Response",
+      "inputFields": [
+        {
+          "name": "query",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "rentalState",
+          "type": "Text",
+          "required": false
+        },
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "devices",
+          "type": "DeviceMetadata[]"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "OPS-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-101",
+      "method": "GET",
+      "path": "/v1/firmware-releases/{releaseId}",
+      "authorization": "release_read",
+      "requestSchema": "API101Request",
+      "responseSchema": "API101Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "release",
+          "type": "ReleaseView"
+        },
+        {
+          "name": "compatibility",
+          "type": "CompatibilityView"
+        },
+        {
+          "name": "status",
+          "type": "ReleaseState"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "OTA-04",
+        "OPS-02"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D05",
+        "D09"
+      ]
+    },
+    {
+      "apiId": "API-102",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/offering-holdings",
+      "authorization": "wallet_read",
+      "requestSchema": "API102Request",
+      "responseSchema": "API102Response",
+      "inputFields": [
+        {
+          "name": "cursor",
+          "type": "Text",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "holdings",
+          "type": "Holding[]"
+        },
+        {
+          "name": "eligibility",
+          "type": "Eligibility"
+        },
+        {
+          "name": "nextCursor",
+          "type": "Text?"
+        },
+        {
+          "name": "asOfBlock",
+          "type": "BlockRef?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "STO-03"
+      ],
+      "specificErrors": [
+        "FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [
+        "D14"
+      ]
+    },
+    {
+      "apiId": "API-103",
+      "method": "POST",
+      "path": "/v1/auth/flows",
+      "authorization": "auth_flow_bootstrap",
+      "requestSchema": "API103Request",
+      "responseSchema": "API103Response",
+      "inputFields": [
+        {
+          "name": "provider",
+          "type": "Provider",
+          "required": true
+        },
+        {
+          "name": "purpose",
+          "type": "AuthPurpose",
+          "required": true
+        },
+        {
+          "name": "clientProfileId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "redirectId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "challengeParameters",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "flowId",
+          "type": "Id"
+        },
+        {
+          "name": "authorizationParameters",
+          "type": "ProfileInput"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04",
+        "BASE-05"
+      ],
+      "specificErrors": [
+        "AUTH_FLOW_INVALID",
+        "AUTH_REQUIRED",
+        "RATE_LIMITED",
+        "UNSUPPORTED_PROFILE"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [],
+      "pathFields": []
+    },
+    {
+      "apiId": "API-104",
+      "method": "POST",
+      "path": "/v1/receipt-claims/challenges",
+      "authorization": "receipt_claim_eligible",
+      "requestSchema": "API104Request",
+      "responseSchema": "API104Response",
+      "inputFields": [
+        {
+          "name": "receiptLocator",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "eligibilityProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "claimId",
+          "type": "Id"
+        },
+        {
+          "name": "challenge",
+          "type": "ReceiptClaimChallenge"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "specificErrors": [
+        "CLAIM_NOT_ELIGIBLE",
+        "UNSUPPORTED_PROFILE",
+        "RATE_LIMITED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [],
+      "pathFields": []
+    },
+    {
+      "apiId": "API-105",
+      "method": "POST",
+      "path": "/v1/receipt-claims/{claimId}/confirm",
+      "authorization": "receipt_claim_confirm",
+      "requestSchema": "API105Request",
+      "responseSchema": "API105Response",
+      "inputFields": [
+        {
+          "name": "approvalProof",
+          "type": "ProfileInput",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "claimId",
+          "type": "Id"
+        },
+        {
+          "name": "state",
+          "type": "ClaimLinked"
+        },
+        {
+          "name": "receiptId",
+          "type": "Id"
+        },
+        {
+          "name": "ownershipRevision",
+          "type": "Revision"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "APP-04",
+        "PAY-03",
+        "PAY-04",
+        "AUTH-01"
+      ],
+      "specificErrors": [
+        "CLAIM_EXPIRED",
+        "PROOF_INVALID",
+        "CLAIM_CONFLICT",
+        "CLAIM_NOT_ELIGIBLE"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [],
+      "pathFields": [
+        "claimId"
+      ]
+    },
+    {
+      "apiId": "API-106",
+      "method": "GET",
+      "path": "/v1/receipt-claims/{claimId}",
+      "authorization": "receipt_claim_owner",
+      "requestSchema": "API106Request",
+      "responseSchema": "API106Response",
+      "inputFields": [],
+      "outputFields": [
+        {
+          "name": "claimId",
+          "type": "Id"
+        },
+        {
+          "name": "state",
+          "type": "ReceiptClaimState"
+        },
+        {
+          "name": "receiptId",
+          "type": "Id?"
+        },
+        {
+          "name": "safeErrorCode",
+          "type": "Text?"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "APP-04",
+        "AUTH-01"
+      ],
+      "specificErrors": [
+        "NOT_FOUND_OR_FORBIDDEN"
+      ],
+      "unresolvedProfileBoundary": false,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [],
+      "pathFields": [
+        "claimId"
+      ]
+    },
+    {
+      "apiId": "API-107",
+      "method": "GET",
+      "path": "/v1/protected-results/{resultId}",
+      "authorization": "protected_result_read",
+      "requestSchema": "API107Request",
+      "responseSchema": "API107Response",
+      "inputFields": [
+        {
+          "name": "purpose",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "streamRef",
+          "type": "Id",
+          "required": false
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "resultId",
+          "type": "Id"
+        },
+        {
+          "name": "kind",
+          "type": "Id"
+        },
+        {
+          "name": "version",
+          "type": "Id"
+        },
+        {
+          "name": "payloadDigest",
+          "type": "TaggedDigest"
+        },
+        {
+          "name": "delivery",
+          "type": "ResultDelivery"
+        },
+        {
+          "name": "payload",
+          "type": "ProfileInput?"
+        },
+        {
+          "name": "streamRef",
+          "type": "Id?"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "BASE-05",
+        "APP-03",
+        "SMART-01",
+        "SMART-03",
+        "REC-03",
+        "AI-02"
+      ],
+      "specificErrors": [
+        "NOT_FOUND_OR_FORBIDDEN",
+        "RESULT_EXPIRED",
+        "RESULT_UNAVAILABLE",
+        "CONSENT_REVOKED"
+      ],
+      "unresolvedProfileBoundary": true,
+      "status": "typed_design_draft",
+      "runtimeVerified": false,
+      "decisionRefs": [],
+      "pathFields": [
+        "resultId"
+      ],
+      "binaryResponseContract": "security-api-integration.md#binary-delivery"
+    },
+    {
+      "apiId": "API-108",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-challenges",
+      "authorization": "approval_access_challenge",
+      "requestSchema": "API108Request",
+      "responseSchema": "API108Response",
+      "inputFields": [
+        {
+          "name": "requestedActions",
+          "type": "array",
+          "required": true
+        },
+        {
+          "name": "senderBinding",
+          "type": "SenderBinding",
+          "required": true
+        },
+        {
+          "name": "replacement",
+          "type": "strict variant",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "challengeId",
+          "type": "Id"
+        },
+        {
+          "name": "nonce",
+          "type": "string"
+        },
+        {
+          "name": "expiresAt",
+          "type": "Time"
+        },
+        {
+          "name": "target",
+          "type": "AccessTarget"
+        },
+        {
+          "name": "eligibleActions",
+          "type": "array"
+        },
+        {
+          "name": "senderBindingDigest",
+          "type": "Hash"
+        },
+        {
+          "name": "authorizationRevision",
+          "type": "Revision"
+        },
+        {
+          "name": "replacesGrantId",
+          "type": "strict variant"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "BASE-03",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "specificErrors": [
+        "APPROVAL_ACCESS_DENIED",
+        "APPROVAL_CONTEXT_MISMATCH",
+        "GRANT_CONFLICT"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "unresolvedProfileBoundary": true,
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-109",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants",
+      "authorization": "approval_access_issue",
+      "requestSchema": "API109Request",
+      "responseSchema": "API109Response",
+      "inputFields": [
+        {
+          "name": "challengeId",
+          "type": "Id",
+          "required": true
+        },
+        {
+          "name": "senderProof",
+          "type": "EvidencePacket",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "grant",
+          "type": "AccessGrant"
+        },
+        {
+          "name": "tokenType",
+          "type": "'sender_bound_opaque'"
+        },
+        {
+          "name": "accessToken",
+          "type": "string"
+        },
+        {
+          "name": "proofProfileId",
+          "type": "Id"
+        }
+      ],
+      "successStatus": 201,
+      "taskRefs": [
+        "BASE-03",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "specificErrors": [
+        "APPROVAL_ACCESS_DENIED",
+        "APPROVAL_CONTEXT_MISMATCH",
+        "GRANT_CONFLICT"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "unresolvedProfileBoundary": true,
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    },
+    {
+      "apiId": "API-110",
+      "method": "POST",
+      "path": "/v1/approval-contexts/{approvalContextId}/access-grants/{grantId}/revoke",
+      "authorization": "approval_access_revoke",
+      "requestSchema": "API110Request",
+      "responseSchema": "API110Response",
+      "inputFields": [
+        {
+          "name": "reason",
+          "type": "enum",
+          "required": true
+        }
+      ],
+      "outputFields": [
+        {
+          "name": "grantId",
+          "type": "Id"
+        },
+        {
+          "name": "state",
+          "type": "'revoked'"
+        },
+        {
+          "name": "revokedAt",
+          "type": "Time"
+        }
+      ],
+      "successStatus": 200,
+      "taskRefs": [
+        "AUTH-04",
+        "BASE-05",
+        "APP-03",
+        "SHOP-03"
+      ],
+      "specificErrors": [
+        "APPROVAL_ACCESS_DENIED",
+        "APPROVAL_CONTEXT_MISMATCH",
+        "GRANT_CONFLICT"
+      ],
+      "status": "merged_design_runtime_unverified",
+      "runtimeVerified": false,
+      "unresolvedProfileBoundary": true,
+      "semanticRules": [
+        "Authoritative full schema: approval-baseline.schema.json; current actor/source/profile/epoch checks required",
+        "API020 ancestry/projection and sender-bound grants are action-specific; no automatic downgrade"
+      ],
+      "contractVersion": "approval-v1-draft"
+    }
+  ],
+  "note": "Extended 99 API envelopes and common domain models. ProfileInput data is an explicit unresolved protocol boundary, not a runtime validation substitute. Numeric limits and role enums are working proposals."
+}

@@ -1,0 +1,2066 @@
+{
+  "date": "2026-09-18",
+  "status": "adoption_sequence_and_acceptance_design_not_applied",
+  "document": "approval-adoption-plan.md",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "archiveCreated": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true,
+  "baselineFiles": {
+    "approval-integration-candidate.json": "d38032d40078a0cb4d72b1b37ff9738c90df52548e4e89357620b8f697c44707",
+    "approval-integration.schema.json": "fe069bedb2a8caf9da9bb3f2bc130e1ed0500c7743a513a2f54941331375c82b",
+    "approval-integration-examples.json": "91d230121c23943dbed7aba27de881aa20f01f6fa915540ca4498a68d9e209d9",
+    "approval-access-candidate.json": "471612b92e35d0cbb1f1485dc6fc89454b071afabb7e1bc3d0359769ba376cac",
+    "approval-contracts.schema.json": "5b84cdbb0f004e87926191556f69dab40da4aa784f651cc8f80538b9c60f5c35",
+    "approval-contract-merge-plan.json": "7aabe55b0ba792918404653e15896e2e83cde2d40eca0aebb367993ed15ae968",
+    "compatibility-matrix.json": "0e9e47d36c3f207547b906670847eb68d3b093b65f92c15f0038fe63a4f0a8fb",
+    "compatibility-manifest.schema.json": "fab406627a4aad1d6b743dae1a2a58b7075b1325f1b8cf7cac4fd3cf8949ba10",
+    "compatibility-manifest.template.json": "fd04791e9e12ef16164af8d142d53970dfb8185a77102bb405002beee4e79e3d",
+    "implementation-interfaces.json": "be3b9c2f3b2f66590cbc0dca84be6c5da07c634407567f4057b9df549fed2af6",
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a",
+    "screen-flows.json": "0b969346170895875e807ccd5948ea9951aca07eaeffc434456c89f8ffbd2fa0"
+  },
+  "adoptionStages": [
+    {
+      "id": "AD-S01",
+      "title": "이력·의존 파일 고정",
+      "dependsOn": [],
+      "targetFiles": [
+        "approval-integration-candidate.json",
+        "approval-access-candidate.json",
+        "wallet-api-candidate.json",
+        "source-approval-candidate.json"
+      ],
+      "action": "검토 시점 schema/카탈로그/validator/예제와 상대경로 의존 파일을 불변 checkpoint로 보존. 기존 validator를 그 checkpoint에서 실행해 결과와 환경 기록",
+      "completionEvidence": "스냅샷 hash와 경로 참조 및 기존 후보 재현; 이력 누락이면 기준 변경 착수 금지",
+      "status": "not_applied",
+      "evidenceRefs": []
+    },
+    {
+      "id": "AD-S02",
+      "title": "통합 타입·HTTP·권한 등록",
+      "dependsOn": [
+        "AD-S01"
+      ],
+      "targetFiles": [
+        "api-catalog.json",
+        "core.schema.json",
+        "critical-dtos.schema.json",
+        "critical-dtos.json",
+        "extended-dtos.schema.json",
+        "extended-dtos.json",
+        "authorization-policies.json",
+        "api-access-transactions.json",
+        "authorization-scenarios.json"
+      ],
+      "action": "승인10 API/AC3/공통타입/역할별 API020 projection을 한 병합 단위로 연결. AC는 후속 실제 반영 때 미사용 ID를 확인해 등록",
+      "completionEvidence": "신규 경로 권한까지 포함한 schema/ACL 일치; 부모·자식 결과 참조 제한; 다른 source 경로 보존",
+      "status": "not_applied",
+      "evidenceRefs": []
+    },
+    {
+      "id": "AD-S03",
+      "title": "BLE·화면·기능 인터페이스 연결",
+      "dependsOn": [
+        "AD-S02"
+      ],
+      "targetFiles": [
+        "ble-catalog.json",
+        "screen-flows.json",
+        "common-flows.json",
+        "implementation-interfaces.json",
+        "compatibility-matrix.json"
+      ],
+      "action": "owner 개인/환불과 guest terminal의 허용 원천·전체 메시지·오류를 연결. 화면17과 비승인 operation 회귀",
+      "completionEvidence": "정상/거절/끊김 흐름 연결, 실제 역할·profile 없을 때 차단; BLE 명령34/화면37 유지 여부 확인",
+      "status": "not_applied",
+      "evidenceRefs": []
+    },
+    {
+      "id": "AD-S04",
+      "title": "저장·권한·원장 제약 연결",
+      "dependsOn": [
+        "AD-S02"
+      ],
+      "targetFiles": [
+        "security-storage-contracts.json",
+        "storage-operations.md",
+        "database/001_identity_foundation.sql",
+        "database/002_wallet_device.sql",
+        "database/003_commerce_ledger.sql"
+      ],
+      "action": "AI-R01..05와 SS-R01..08을 기존 adapter/DDL 관계에 매핑. lineage CAS/parent ancestry/gate/nonce/protected blob/reference를 검토",
+      "completionEvidence": "논리·물리 제약·서비스 책임 구분; migration 설계만 작성, SQL 실행 없음; 환불 예약/reorg 경계 유지",
+      "status": "not_applied",
+      "evidenceRefs": []
+    },
+    {
+      "id": "AD-S05",
+      "title": "기준 검증 책임·전체 회귀 갱신",
+      "dependsOn": [
+        "AD-S03",
+        "AD-S04"
+      ],
+      "targetFiles": [
+        "validate_specs.py",
+        "render_spec_views.py",
+        "render_interface_plan.py",
+        "compatibility-manifest.schema.json",
+        "compatibility-manifest.template.json",
+        "compatibility-manifest.examples.json",
+        "examples.json",
+        "extended-examples.json"
+      ],
+      "action": "기준 validator에 통합 계약 책임 이관하고 old/new mapping과 counts를 함께 반영. 후보 이력 validator는 checkpoint 의존성 유지",
+      "completionEvidence": "기준 API/정책/화면/BLE/DDL 참조와 15요구/104작업/320세부작업/19결정 일치; runtime 증거로 승격 금지",
+      "status": "not_applied",
+      "evidenceRefs": []
+    },
+    {
+      "id": "AD-S06",
+      "title": "설계 기준 채택 판정",
+      "dependsOn": [
+        "AD-S05"
+      ],
+      "targetFiles": [
+        "approval-integration-contracts.md",
+        "approval-integration-candidate.json"
+      ],
+      "action": "파일별 중간 변경이 아닌 S02..05 전체 일관성 검토 후 design_baseline 상태만 채택; 기능별 runtime matrix는 unverified 유지",
+      "completionEvidence": "기준 반영 ID/hash와 검토 이력 기록; deploy/기기 flash/SDK 선택/Seed 완료를 뜻하지 않음",
+      "status": "not_applied",
+      "evidenceRefs": []
+    }
+  ],
+  "profiles": [
+    {
+      "id": "AD-P01",
+      "title": "HTTP 계약·projection",
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "draftContractLabel": "approval-v1-draft",
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "API/응답 projection/권한 정책의 정확한 schema hash와 서버·앱 빌드",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P02",
+      "title": "BLE 세션·역할·전송",
+      "compatibilityRefs": [
+        "COMP-03",
+        "COMP-08",
+        "COMP-18",
+        "COMP-19"
+      ],
+      "draftContractLabel": "approval-ble-v1-draft",
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "인증 handshake/제어 codec/role policy/sequence/fragmentation 및 RN native bridge",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P03",
+      "title": "검토·기기 결과 provenance",
+      "compatibilityRefs": [
+        "COMP-02",
+        "COMP-04"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "reviewProof/device_result의 목적·정규화·검증자 신뢰·device epoch와 키 경계",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P04",
+      "title": "EOA 거래 인코딩·표시",
+      "compatibilityRefs": [
+        "COMP-10",
+        "COMP-21"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "chain/type/nonce/fee/calldata/표시 자산·수취인·금액과 서명 bytes 검증",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P05",
+      "title": "sender 결합 자격·요청 proof",
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "opaque grant issuer/audience/binding/replay/권한 revision, header codec와 제한",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P06",
+      "title": "Cloud MPC·참여자 세대",
+      "compatibilityRefs": [
+        "COMP-11"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "참여자/프로토콜/backend/복구 정책·transcript·부모 자식 결과 연결",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P07",
+      "title": "저장·멱등·권한 gate",
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-13"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "lineage CAS/보호 객체/gate/operation ancestry/permit 기록의 schema와 정책",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P08",
+      "title": "체인·토큰·Indexer",
+      "compatibilityRefs": [
+        "COMP-12"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "8283 외 network identity, token 주소/code hash/decimals, ABI/decoder와 canonicality 정책",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P09",
+      "title": "근접 증거",
+      "compatibilityRefs": [
+        "COMP-20"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "서버 선택 proximity policy와 peer/session/기한/관측 freshness; 거리 자체를 신원으로 취급하지 않음",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P10",
+      "title": "보드·Zephyr·FOTA",
+      "compatibilityRefs": [
+        "COMP-01",
+        "COMP-05",
+        "COMP-15",
+        "COMP-16",
+        "COMP-17"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "NU board revision/target, Zephyr·SDK·controller·toolchain, key-store migration 및 rollback",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-P11",
+      "title": "다른 기능의 독립 profile",
+      "compatibilityRefs": [
+        "COMP-06",
+        "COMP-07",
+        "COMP-14",
+        "COMP-22",
+        "COMP-23",
+        "COMP-24",
+        "COMP-25",
+        "COMP-26"
+      ],
+      "draftContractLabel": null,
+      "selectedRuntimeProfile": null,
+      "requiredDefinition": "passkey/녹음/반납/typed data/UserOp/DID/x402는 각 기능의 기존 contract·수용 증거를 유지",
+      "status": "definition_pending_runtime_selection",
+      "runtimeEvidenceRefs": []
+    }
+  ],
+  "acceptanceRows": [
+    {
+      "id": "AD-C01",
+      "title": "공통 HTTP 정확한 조합",
+      "profileRefs": [
+        "AD-P01"
+      ],
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "validationRefs": [
+        "VAL-03"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "sourceAdapterVersion",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "HTTP schema/권한/consumer projection 모두 해당 tuple에 검증됨",
+      "rejectionCondition": "문자열 버전만 같거나 operationClass 미해석이면 새 승인 차단",
+      "recoveryBehavior": "원 버전의 인증된 진행 조회만",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C02",
+      "title": "개인 구후보→새 서버",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P03"
+      ],
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-10"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-13"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "intentSchema",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "reviewSchema",
+        "signatureProfile",
+        "signerProfile",
+        "sourceAdapterVersion",
+        "storageSchema",
+        "submissionProfile"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "intentSchema": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "reviewSchema": null,
+        "signatureProfile": null,
+        "signerProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null,
+        "submissionProfile": null
+      },
+      "acceptanceCondition": "검증 가능한 기존 기록에 한해 명시 adapter와 provenance 보존",
+      "rejectionCondition": "contextDigest/epoch/proof가 없는 구형 서명은 새 승인으로 승격 금지",
+      "recoveryBehavior": "구형 원 관측 보존, 자동 새 송금 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C03",
+      "title": "guest 구후보→새 서버",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P02"
+      ],
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-19"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-09"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "attemptScope",
+        "capabilityProfile",
+        "consumerBuild",
+        "controlProfile",
+        "deviceFirmware",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "kioskBuild",
+        "nativeBridgeVersion",
+        "osBuild",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "smpAccessPolicy",
+        "sourceAdapterVersion",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "attemptScope": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "deviceFirmware": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "kioskBuild": null,
+        "nativeBridgeVersion": null,
+        "osBuild": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "원 attempt/session과 버전 고정, 명시 adapter에 동일 신뢰 근거",
+      "rejectionCondition": "새 API 타입을 개인 무증거 제출로 우회 금지",
+      "recoveryBehavior": "유효 원 세션으로 제한 조회; 계정 강제 없음",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C04",
+      "title": "AC 일부만 적용된 서버",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P05",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-04"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "sourceAdapterVersion",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "challenge/issue/revoke/보호 API와 저장 gate가 모두 같은 기준 bundle",
+      "rejectionCondition": "발급만 되고 검증/철회가 없는 서버 조합은 차단",
+      "recoveryBehavior": "원 grant/발급 멱등 기록 보존",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C05",
+      "title": "API020 부모·자식·일반 응답",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-13"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-05"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consentPolicy",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "gatewayProfile",
+        "modelDigest",
+        "objectDigestProfile",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "resultSchema",
+        "sourceAdapterVersion",
+        "sourceSchema",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consentPolicy": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "gatewayProfile": null,
+        "modelDigest": null,
+        "objectDigestProfile": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "resultSchema": null,
+        "sourceAdapterVersion": null,
+        "sourceSchema": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "서버 ancestry 분류, parent/child resultRef=null, action별 projection 검사",
+      "rejectionCondition": "approval=null인 자식의 일반 다운로드 위장 거절",
+      "recoveryBehavior": "부모 조회도 별도 ACL; 일반 녹음/AI 접근 유지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C06",
+      "title": "개인 HW owner 승인",
+      "profileRefs": [
+        "AD-P02",
+        "AD-P03",
+        "AD-P04",
+        "AD-P10"
+      ],
+      "compatibilityRefs": [
+        "COMP-01",
+        "COMP-02",
+        "COMP-04",
+        "COMP-18",
+        "COMP-21"
+      ],
+      "validationRefs": [
+        "VAL-06",
+        "VAL-07",
+        "VAL-09",
+        "VAL-13"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "boardRevision",
+        "boardTarget",
+        "chainId",
+        "consumerBuild",
+        "controlProfile",
+        "controlProtocol",
+        "cryptoBackendVersion",
+        "cryptoProfile",
+        "curve",
+        "deviceFirmware",
+        "deviceSignerProfile",
+        "devicetreeDigest",
+        "distributionCommit",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "hashAlgorithm",
+        "intentSchema",
+        "kconfigDigest",
+        "keyPolicyVersion",
+        "keyStoreSchema",
+        "nativeBridgeVersion",
+        "osBuild",
+        "ownerAppBuild",
+        "ownerScope",
+        "producerBuild",
+        "reviewDecoder",
+        "reviewSchema",
+        "secureBoundaryDigest",
+        "signatureProfile",
+        "smpAccessPolicy",
+        "sourceAdapterVersion",
+        "toolchainVersion",
+        "transactionEncoding",
+        "validatorVersion",
+        "zephyrCommit"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "boardRevision": null,
+        "boardTarget": null,
+        "chainId": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "controlProtocol": null,
+        "cryptoBackendVersion": null,
+        "cryptoProfile": null,
+        "curve": null,
+        "deviceFirmware": null,
+        "deviceSignerProfile": null,
+        "devicetreeDigest": null,
+        "distributionCommit": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "hashAlgorithm": null,
+        "intentSchema": null,
+        "kconfigDigest": null,
+        "keyPolicyVersion": null,
+        "keyStoreSchema": null,
+        "nativeBridgeVersion": null,
+        "osBuild": null,
+        "ownerAppBuild": null,
+        "ownerScope": null,
+        "producerBuild": null,
+        "reviewDecoder": null,
+        "reviewSchema": null,
+        "secureBoundaryDigest": null,
+        "signatureProfile": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null,
+        "toolchainVersion": null,
+        "transactionEncoding": null,
+        "validatorVersion": null,
+        "zephyrCommit": null
+      },
+      "acceptanceCondition": "선택 NU 키/epoch·owner 세션·review/result 증거·거래 표시 검증",
+      "rejectionCondition": "미지원 profile 또는 선택과 다른 기기 키 거절",
+      "recoveryBehavior": "signature_unknown이면 원 review 재조회, 자동 Cloud 전환 없음",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C07",
+      "title": "guest NU terminal 승인",
+      "profileRefs": [
+        "AD-P02",
+        "AD-P03",
+        "AD-P04"
+      ],
+      "compatibilityRefs": [
+        "COMP-04",
+        "COMP-19",
+        "COMP-21"
+      ],
+      "validationRefs": [
+        "VAL-07",
+        "VAL-09",
+        "VAL-13"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "attemptScope",
+        "chainId",
+        "consumerBuild",
+        "controlProfile",
+        "controlProtocol",
+        "curve",
+        "deviceFirmware",
+        "deviceSignerProfile",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "hashAlgorithm",
+        "intentSchema",
+        "keyPolicyVersion",
+        "kioskBuild",
+        "nativeBridgeVersion",
+        "osBuild",
+        "producerBuild",
+        "reviewDecoder",
+        "reviewSchema",
+        "signatureProfile",
+        "smpAccessPolicy",
+        "sourceAdapterVersion",
+        "transactionEncoding",
+        "validatorVersion"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "attemptScope": null,
+        "chainId": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "controlProtocol": null,
+        "curve": null,
+        "deviceFirmware": null,
+        "deviceSignerProfile": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "hashAlgorithm": null,
+        "intentSchema": null,
+        "keyPolicyVersion": null,
+        "kioskBuild": null,
+        "nativeBridgeVersion": null,
+        "osBuild": null,
+        "producerBuild": null,
+        "reviewDecoder": null,
+        "reviewSchema": null,
+        "signatureProfile": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null,
+        "transactionEncoding": null,
+        "validatorVersion": null
+      },
+      "acceptanceCondition": "주소 identify/attempt/session/payer 결합 후 별도 거래 물리 승인",
+      "rejectionCondition": "주소 소유 증거를 최종 결제 승인으로 재사용 거절",
+      "recoveryBehavior": "같은 세션 원 결과만 복구",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C08",
+      "title": "점주 HW 환불",
+      "profileRefs": [
+        "AD-P02",
+        "AD-P03",
+        "AD-P04",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-04",
+        "COMP-18",
+        "COMP-21",
+        "COMP-09"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-04",
+        "VAL-07"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "chainId",
+        "consumerBuild",
+        "controlProfile",
+        "controlProtocol",
+        "curve",
+        "deviceFirmware",
+        "deviceSignerProfile",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "hashAlgorithm",
+        "intentSchema",
+        "keyPolicyVersion",
+        "nativeBridgeVersion",
+        "osBuild",
+        "ownerAppBuild",
+        "ownerScope",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "reviewDecoder",
+        "reviewSchema",
+        "signatureProfile",
+        "smpAccessPolicy",
+        "sourceAdapterVersion",
+        "storageSchema",
+        "transactionEncoding",
+        "validatorVersion"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "chainId": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "controlProtocol": null,
+        "curve": null,
+        "deviceFirmware": null,
+        "deviceSignerProfile": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "hashAlgorithm": null,
+        "intentSchema": null,
+        "keyPolicyVersion": null,
+        "nativeBridgeVersion": null,
+        "osBuild": null,
+        "ownerAppBuild": null,
+        "ownerScope": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "reviewDecoder": null,
+        "reviewSchema": null,
+        "signatureProfile": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null,
+        "transactionEncoding": null,
+        "validatorVersion": null
+      },
+      "acceptanceCondition": "업무 승인/지정 signer 분리, 원 reservation·현재 funding/epoch",
+      "rejectionCondition": "일반 매장 조회권으로 서명 결과·제출권 획득 금지",
+      "recoveryBehavior": "원 환불/예약 보존, 개인 송금으로 대체 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C09",
+      "title": "BLE 역할 교차",
+      "profileRefs": [
+        "AD-P02"
+      ],
+      "compatibilityRefs": [
+        "COMP-18",
+        "COMP-19",
+        "COMP-20"
+      ],
+      "validationRefs": [
+        "VAL-09"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "attemptScope",
+        "consumerBuild",
+        "controlProfile",
+        "deviceFirmware",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "kioskBuild",
+        "nativeBridgeVersion",
+        "observationFreshness",
+        "osBuild",
+        "ownerAppBuild",
+        "ownerScope",
+        "peerBoardRevision",
+        "peerFirmware",
+        "producerBuild",
+        "rasProfile",
+        "roleScope",
+        "smpAccessPolicy",
+        "sourceAdapterVersion"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "attemptScope": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "deviceFirmware": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "kioskBuild": null,
+        "nativeBridgeVersion": null,
+        "observationFreshness": null,
+        "osBuild": null,
+        "ownerAppBuild": null,
+        "ownerScope": null,
+        "peerBoardRevision": null,
+        "peerFirmware": null,
+        "producerBuild": null,
+        "rasProfile": null,
+        "roleScope": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null
+      },
+      "acceptanceCondition": "실제 인증 역할과 명령/source 일치",
+      "rejectionCondition": "terminal→owner 관리/환불, ranging_peer→signing 거절",
+      "recoveryBehavior": "연결 종료 후 미확정 서명 존재 가능성 보존",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C10",
+      "title": "review/device_result profile 교차",
+      "profileRefs": [
+        "AD-P03"
+      ],
+      "compatibilityRefs": [
+        "COMP-02",
+        "COMP-04"
+      ],
+      "validationRefs": [
+        "VAL-07"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "consumerBuild",
+        "controlProtocol",
+        "cryptoBackendVersion",
+        "cryptoProfile",
+        "evidenceProfileDigest",
+        "intentSchema",
+        "keyPolicyVersion",
+        "keyStoreSchema",
+        "producerBuild",
+        "reviewSchema",
+        "secureBoundaryDigest",
+        "signatureProfile",
+        "sourceAdapterVersion"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "consumerBuild": null,
+        "controlProtocol": null,
+        "cryptoBackendVersion": null,
+        "cryptoProfile": null,
+        "evidenceProfileDigest": null,
+        "intentSchema": null,
+        "keyPolicyVersion": null,
+        "keyStoreSchema": null,
+        "producerBuild": null,
+        "reviewSchema": null,
+        "secureBoundaryDigest": null,
+        "signatureProfile": null,
+        "sourceAdapterVersion": null
+      },
+      "acceptanceCondition": "domain/context/chain/payload/review/epoch와 verifier를 독립 확인",
+      "rejectionCondition": "EOA 서명만으로 특정 NU의 물리 승인 추정 금지",
+      "recoveryBehavior": "안전한 관측만, 이전 약한 verifier로 자동 강등 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C11",
+      "title": "native·더미 ERC20 거래",
+      "profileRefs": [
+        "AD-P04",
+        "AD-P08"
+      ],
+      "compatibilityRefs": [
+        "COMP-10",
+        "COMP-12",
+        "COMP-21"
+      ],
+      "validationRefs": [
+        "VAL-13"
+      ],
+      "requiredPins": [
+        "abiDigest",
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "chainFork",
+        "chainId",
+        "consumerBuild",
+        "contractCodeHash",
+        "curve",
+        "deviceSignerProfile",
+        "entryPointCodeHash",
+        "evidenceProfileDigest",
+        "hashAlgorithm",
+        "indexerDecoder",
+        "intentSchema",
+        "producerBuild",
+        "reviewDecoder",
+        "reviewSchema",
+        "signatureProfile",
+        "signerProfile",
+        "sourceAdapterVersion",
+        "submissionProfile",
+        "tokenProfile",
+        "transactionEncoding",
+        "userOpProfile",
+        "validatorVersion"
+      ],
+      "pinValues": {
+        "abiDigest": null,
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "chainFork": null,
+        "chainId": null,
+        "consumerBuild": null,
+        "contractCodeHash": null,
+        "curve": null,
+        "deviceSignerProfile": null,
+        "entryPointCodeHash": null,
+        "evidenceProfileDigest": null,
+        "hashAlgorithm": null,
+        "indexerDecoder": null,
+        "intentSchema": null,
+        "producerBuild": null,
+        "reviewDecoder": null,
+        "reviewSchema": null,
+        "signatureProfile": null,
+        "signerProfile": null,
+        "sourceAdapterVersion": null,
+        "submissionProfile": null,
+        "tokenProfile": null,
+        "transactionEncoding": null,
+        "userOpProfile": null,
+        "validatorVersion": null
+      },
+      "acceptanceCondition": "정확한 자산/주소/code/decimals와 실제 bytes/가스 표시",
+      "rejectionCondition": "같은 심볼/chainId만으로 토큰 또는 네트워크 호환 인정 금지",
+      "recoveryBehavior": "원 txHash 관측, 자산 변경한 재서명 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C12",
+      "title": "개인 Cloud MPC",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P06"
+      ],
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-11"
+      ],
+      "validationRefs": [
+        "VAL-12",
+        "VAL-22"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "libraryCommit",
+        "mpcProtocol",
+        "participantEpoch",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "recoveryProfile",
+        "sourceAdapterVersion",
+        "storageSchema",
+        "transcriptFormat"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "libraryCommit": null,
+        "mpcProtocol": null,
+        "participantEpoch": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "recoveryProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null,
+        "transcriptFormat": null
+      },
+      "acceptanceCondition": "현재 본인 signer/참여자 epoch와 부모·자식 exact result",
+      "rejectionCondition": "OAuth 성공 또는 임의 자식 succeeded만으로 결과 공개 금지",
+      "recoveryBehavior": "현재 권한으로 원 MPC 결과 조회",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C13",
+      "title": "점주 Cloud MPC",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P06",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-11"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-12"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "libraryCommit",
+        "mpcProtocol",
+        "participantEpoch",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "recoveryProfile",
+        "sourceAdapterVersion",
+        "storageSchema",
+        "transcriptFormat"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "libraryCommit": null,
+        "mpcProtocol": null,
+        "participantEpoch": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "recoveryProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null,
+        "transcriptFormat": null
+      },
+      "acceptanceCondition": "B의 지정 매장 signer 권한과 A의 업무 승인 별도 확인",
+      "rejectionCondition": "A 또는 일반 매장 멤버에게 B의 서명권 자동 부여 금지",
+      "recoveryBehavior": "원 환불 snapshot/parent로 B가 독립 재인증",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C14",
+      "title": "MPC/HW 세대 변경",
+      "profileRefs": [
+        "AD-P03",
+        "AD-P06",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-02",
+        "COMP-09",
+        "COMP-11"
+      ],
+      "validationRefs": [
+        "VAL-07",
+        "VAL-12",
+        "VAL-22"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "cryptoBackendVersion",
+        "cryptoProfile",
+        "evidenceProfileDigest",
+        "keyPolicyVersion",
+        "keyStoreSchema",
+        "libraryCommit",
+        "mpcProtocol",
+        "participantEpoch",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "recoveryProfile",
+        "secureBoundaryDigest",
+        "sourceAdapterVersion",
+        "storageSchema",
+        "transcriptFormat"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "cryptoBackendVersion": null,
+        "cryptoProfile": null,
+        "evidenceProfileDigest": null,
+        "keyPolicyVersion": null,
+        "keyStoreSchema": null,
+        "libraryCommit": null,
+        "mpcProtocol": null,
+        "participantEpoch": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "recoveryProfile": null,
+        "secureBoundaryDigest": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null,
+        "transcriptFormat": null
+      },
+      "acceptanceCondition": "현재 epoch/gate·inflight reconciliation 후 허용된 동작만",
+      "rejectionCondition": "stale epoch의 새 서명/permit, 키 재조합을 MPC라고 표시 금지",
+      "recoveryBehavior": "기존 외부 실행 가능 서명/예약/관측 유지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C15",
+      "title": "sender proof·header·replay",
+      "profileRefs": [
+        "AD-P05"
+      ],
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-04"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "sourceAdapterVersion",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "정확한 token binding/issuer/audience/요청 내용/nonce 및 header codec",
+      "rejectionCondition": "다른 sender·body·중복 query·profile크기 초과 거절",
+      "recoveryBehavior": "새 요청 proof와 동일 논리 멱등키; 토큰 로깅 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C16",
+      "title": "자격 교체·응답 유실",
+      "profileRefs": [
+        "AD-P05",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "validationRefs": [
+        "VAL-04",
+        "VAL-05"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "sourceAdapterVersion",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "issuance_key 복구와 predecessor CAS/단일 successor",
+      "rejectionCondition": "blob 유실을 미발급으로 해석하거나 revoked lineage 부활 금지",
+      "recoveryBehavior": "현재 인증·동일 sender로 원 발급 대사",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C17",
+      "title": "철회·release·permit 경쟁",
+      "profileRefs": [
+        "AD-P05",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-09"
+      ],
+      "validationRefs": [
+        "VAL-04"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "sourceAdapterVersion",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "sourceAdapterVersion": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "조회 release/전송 permit과 철회 직렬화 및 gate revision 검사",
+      "rejectionCondition": "토큰 유효만으로 hold 우회, 이미 노출된 bytes 취소 주장 금지",
+      "recoveryBehavior": "불명확 네트워크 결과 유지/원 bytes만 대사",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C18",
+      "title": "근접 필수·증거 없음/낡음",
+      "profileRefs": [
+        "AD-P02",
+        "AD-P09"
+      ],
+      "compatibilityRefs": [
+        "COMP-19",
+        "COMP-20"
+      ],
+      "validationRefs": [
+        "VAL-09"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "attemptScope",
+        "consumerBuild",
+        "controlProfile",
+        "deviceFirmware",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "kioskBuild",
+        "nativeBridgeVersion",
+        "observationFreshness",
+        "osBuild",
+        "peerBoardRevision",
+        "peerFirmware",
+        "producerBuild",
+        "rasProfile",
+        "roleScope",
+        "smpAccessPolicy",
+        "sourceAdapterVersion"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "attemptScope": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "deviceFirmware": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "kioskBuild": null,
+        "nativeBridgeVersion": null,
+        "observationFreshness": null,
+        "osBuild": null,
+        "peerBoardRevision": null,
+        "peerFirmware": null,
+        "producerBuild": null,
+        "rasProfile": null,
+        "roleScope": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null
+      },
+      "acceptanceCondition": "proximityRequired=true에 맞는 인증 peer/fresh evidence",
+      "rejectionCondition": "BLE연결/RSSI/이전 관측만으로 필수 근접 검증 대체 금지",
+      "recoveryBehavior": "현재 세션 재검증 전 새 승인 중단",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C19",
+      "title": "근접 비필수인 허용 정책",
+      "profileRefs": [
+        "AD-P09"
+      ],
+      "compatibilityRefs": [
+        "COMP-19",
+        "COMP-20"
+      ],
+      "validationRefs": [
+        "VAL-09"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "attemptScope",
+        "consumerBuild",
+        "controlProfile",
+        "deviceFirmware",
+        "evidenceProfileDigest",
+        "handshakeProfile",
+        "kioskBuild",
+        "nativeBridgeVersion",
+        "observationFreshness",
+        "osBuild",
+        "peerBoardRevision",
+        "peerFirmware",
+        "producerBuild",
+        "rasProfile",
+        "roleScope",
+        "smpAccessPolicy",
+        "sourceAdapterVersion"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "attemptScope": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "deviceFirmware": null,
+        "evidenceProfileDigest": null,
+        "handshakeProfile": null,
+        "kioskBuild": null,
+        "nativeBridgeVersion": null,
+        "observationFreshness": null,
+        "osBuild": null,
+        "peerBoardRevision": null,
+        "peerFirmware": null,
+        "producerBuild": null,
+        "rasProfile": null,
+        "roleScope": null,
+        "smpAccessPolicy": null,
+        "sourceAdapterVersion": null
+      },
+      "acceptanceCondition": "서버가 명시적으로 허용하고 snapshot에 고정한 비필수 정책",
+      "rejectionCondition": "클라이언트 null/센서 장애를 이유로 필수 정책을 비필수로 변경 금지",
+      "recoveryBehavior": "현재 정책이 미선정이면 예외 사용 승인 안 됨",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C20",
+      "title": "구 앱·신규 FW·RN bridge",
+      "profileRefs": [
+        "AD-P02",
+        "AD-P10"
+      ],
+      "compatibilityRefs": [
+        "COMP-03",
+        "COMP-08",
+        "COMP-17"
+      ],
+      "validationRefs": [
+        "VAL-01",
+        "VAL-08",
+        "VAL-09"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "androidSdk",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "consumerBuild",
+        "controlProfile",
+        "controlProtocol",
+        "controllerVersion",
+        "evidenceProfileDigest",
+        "firmwareOfferSchema",
+        "handshakeProfile",
+        "iosSdk",
+        "lifecyclePolicy",
+        "nativeBridgeVersion",
+        "newFirmwareBuild",
+        "oldAppBuild",
+        "producerBuild",
+        "rnVersion",
+        "rolePolicyVersion",
+        "smpProfile",
+        "sourceAdapterVersion",
+        "transportProfile"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "androidSdk": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "consumerBuild": null,
+        "controlProfile": null,
+        "controlProtocol": null,
+        "controllerVersion": null,
+        "evidenceProfileDigest": null,
+        "firmwareOfferSchema": null,
+        "handshakeProfile": null,
+        "iosSdk": null,
+        "lifecyclePolicy": null,
+        "nativeBridgeVersion": null,
+        "newFirmwareBuild": null,
+        "oldAppBuild": null,
+        "producerBuild": null,
+        "rnVersion": null,
+        "rolePolicyVersion": null,
+        "smpProfile": null,
+        "sourceAdapterVersion": null,
+        "transportProfile": null
+      },
+      "acceptanceCondition": "실제 OS/native bridge/controller/NU firmware tuple와 reader 호환",
+      "rejectionCondition": "BLE6.0 표기나 다른 보드 성공만으로 NU/S25 호환 추정 금지",
+      "recoveryBehavior": "검증된 업데이트/복구 안내; blind signing 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C21",
+      "title": "FOTA 전진·rollback과 키 저장",
+      "profileRefs": [
+        "AD-P03",
+        "AD-P10"
+      ],
+      "compatibilityRefs": [
+        "COMP-05",
+        "COMP-15",
+        "COMP-16"
+      ],
+      "validationRefs": [
+        "VAL-08",
+        "VAL-20"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "boardRevision",
+        "bootloaderCommit",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "failedFirmwareBuild",
+        "fromFirmwareBuild",
+        "fromKeyStoreSchema",
+        "imageFormat",
+        "keyStoreSchema",
+        "migrationProfile",
+        "migrationVersion",
+        "partitionDigest",
+        "producerBuild",
+        "rollbackFirmwareBuild",
+        "rollbackPolicy",
+        "rollbackReadableSchema",
+        "sourceAdapterVersion",
+        "toFirmwareBuild",
+        "toKeyStoreSchema",
+        "updateProfile"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "boardRevision": null,
+        "bootloaderCommit": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "failedFirmwareBuild": null,
+        "fromFirmwareBuild": null,
+        "fromKeyStoreSchema": null,
+        "imageFormat": null,
+        "keyStoreSchema": null,
+        "migrationProfile": null,
+        "migrationVersion": null,
+        "partitionDigest": null,
+        "producerBuild": null,
+        "rollbackFirmwareBuild": null,
+        "rollbackPolicy": null,
+        "rollbackReadableSchema": null,
+        "sourceAdapterVersion": null,
+        "toFirmwareBuild": null,
+        "toKeyStoreSchema": null,
+        "updateProfile": null
+      },
+      "acceptanceCondition": "기존 키/설정/epoch/승인 journal migration 및 rollback readable 증거",
+      "rejectionCondition": "새 저장 포맷을 못 읽는 구 FW 강제 rollback 금지",
+      "recoveryBehavior": "서명/반납 unknown 보존; 비파괴 복구 경로",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C22",
+      "title": "다른 상품/기능 회귀",
+      "profileRefs": [
+        "AD-P11"
+      ],
+      "compatibilityRefs": [
+        "COMP-06",
+        "COMP-07",
+        "COMP-14",
+        "COMP-22",
+        "COMP-23",
+        "COMP-24",
+        "COMP-25",
+        "COMP-26"
+      ],
+      "validationRefs": [
+        "VAL-10",
+        "VAL-11",
+        "VAL-14",
+        "VAL-16",
+        "VAL-17",
+        "VAL-21",
+        "VAL-23"
+      ],
+      "requiredPins": [
+        "accountCodeHash",
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "audioProfile",
+        "authenticatorAlgorithms",
+        "authenticatorDataProfile",
+        "authorizationMethod",
+        "chainId",
+        "claimProfile",
+        "clientDataProfile",
+        "consumerBuild",
+        "coseAlgorithm",
+        "credentialProfile",
+        "credentialStoreSchema",
+        "ctapTransport",
+        "ctapVersion",
+        "curve",
+        "didMethod",
+        "domainProfile",
+        "entryPointAddress",
+        "entryPointCodeHash",
+        "evidenceProfileDigest",
+        "frameSchema",
+        "gasPolicy",
+        "hashAlgorithm",
+        "issuerKeyVersion",
+        "keyStoreSchema",
+        "mechanism",
+        "network",
+        "nonceProfile",
+        "producerBuild",
+        "proofSuite",
+        "resetEvidenceProfile",
+        "residentStoreSchema",
+        "resourcePolicy",
+        "returnPolicy",
+        "reviewDecoder",
+        "rpId",
+        "rpPolicy",
+        "sequencePolicy",
+        "settlementVerifier",
+        "signerProfile",
+        "sourceAdapterVersion",
+        "stampProjectionSchema",
+        "statusProfile",
+        "tokenAddress",
+        "tokenCodeHash",
+        "transportProfile",
+        "typedDataEncoding",
+        "userOpHashVersion",
+        "userOpPacking",
+        "uvPolicy",
+        "verifierAddress",
+        "verifierCodeHash",
+        "verifierVersion",
+        "x402Version"
+      ],
+      "pinValues": {
+        "accountCodeHash": null,
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "audioProfile": null,
+        "authenticatorAlgorithms": null,
+        "authenticatorDataProfile": null,
+        "authorizationMethod": null,
+        "chainId": null,
+        "claimProfile": null,
+        "clientDataProfile": null,
+        "consumerBuild": null,
+        "coseAlgorithm": null,
+        "credentialProfile": null,
+        "credentialStoreSchema": null,
+        "ctapTransport": null,
+        "ctapVersion": null,
+        "curve": null,
+        "didMethod": null,
+        "domainProfile": null,
+        "entryPointAddress": null,
+        "entryPointCodeHash": null,
+        "evidenceProfileDigest": null,
+        "frameSchema": null,
+        "gasPolicy": null,
+        "hashAlgorithm": null,
+        "issuerKeyVersion": null,
+        "keyStoreSchema": null,
+        "mechanism": null,
+        "network": null,
+        "nonceProfile": null,
+        "producerBuild": null,
+        "proofSuite": null,
+        "resetEvidenceProfile": null,
+        "residentStoreSchema": null,
+        "resourcePolicy": null,
+        "returnPolicy": null,
+        "reviewDecoder": null,
+        "rpId": null,
+        "rpPolicy": null,
+        "sequencePolicy": null,
+        "settlementVerifier": null,
+        "signerProfile": null,
+        "sourceAdapterVersion": null,
+        "stampProjectionSchema": null,
+        "statusProfile": null,
+        "tokenAddress": null,
+        "tokenCodeHash": null,
+        "transportProfile": null,
+        "typedDataEncoding": null,
+        "userOpHashVersion": null,
+        "userOpPacking": null,
+        "uvPolicy": null,
+        "verifierAddress": null,
+        "verifierCodeHash": null,
+        "verifierVersion": null,
+        "x402Version": null
+      },
+      "acceptanceCondition": "각 기능별 원 profile과 기존 독립 수용 사례 유지",
+      "rejectionCondition": "EOA 승인 통과를 passkey/UserOp/DID/x402/반납 완료로 확대 금지",
+      "recoveryBehavior": "기능별 원 상태/권한/복구 보존; 개별 증거 없이 그룹 compatible 금지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C23",
+      "title": "Indexer 관측·정규성 변경",
+      "profileRefs": [
+        "AD-P08",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-12"
+      ],
+      "validationRefs": [
+        "VAL-13",
+        "VAL-19"
+      ],
+      "requiredPins": [
+        "abiDigest",
+        "ancestryProjectionVersion",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "chainFork",
+        "chainId",
+        "consumerBuild",
+        "contractCodeHash",
+        "entryPointCodeHash",
+        "evidenceProfileDigest",
+        "indexerDecoder",
+        "producerBuild",
+        "sourceAdapterVersion",
+        "tokenProfile",
+        "userOpProfile"
+      ],
+      "pinValues": {
+        "abiDigest": null,
+        "ancestryProjectionVersion": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "chainFork": null,
+        "chainId": null,
+        "consumerBuild": null,
+        "contractCodeHash": null,
+        "entryPointCodeHash": null,
+        "evidenceProfileDigest": null,
+        "indexerDecoder": null,
+        "producerBuild": null,
+        "sourceAdapterVersion": null,
+        "tokenProfile": null,
+        "userOpProfile": null
+      },
+      "acceptanceCondition": "network identity/code hash/ABI/decoder·confirm/reorg 적용 결합",
+      "rejectionCondition": "RPC 접수·signed·API202를 매출/환불 확정으로 표시 금지",
+      "recoveryBehavior": "원 관측 철회/confirmed→reserved 환불 보정 유지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    },
+    {
+      "id": "AD-C24",
+      "title": "비승인 operation 보호 결과",
+      "profileRefs": [
+        "AD-P01",
+        "AD-P07"
+      ],
+      "compatibilityRefs": [
+        "COMP-09",
+        "COMP-13"
+      ],
+      "validationRefs": [
+        "VAL-03",
+        "VAL-05",
+        "VAL-18"
+      ],
+      "requiredPins": [
+        "ancestryProjectionVersion",
+        "apiSchema",
+        "approvalPolicyDigest",
+        "approvalSchemaDigest",
+        "capabilityProfile",
+        "consentPolicy",
+        "consumerBuild",
+        "evidenceProfileDigest",
+        "gatewayProfile",
+        "modelDigest",
+        "objectDigestProfile",
+        "policyVersion",
+        "producerBuild",
+        "providerProfile",
+        "resultSchema",
+        "sourceAdapterVersion",
+        "sourceSchema",
+        "storageSchema"
+      ],
+      "pinValues": {
+        "ancestryProjectionVersion": null,
+        "apiSchema": null,
+        "approvalPolicyDigest": null,
+        "approvalSchemaDigest": null,
+        "capabilityProfile": null,
+        "consentPolicy": null,
+        "consumerBuild": null,
+        "evidenceProfileDigest": null,
+        "gatewayProfile": null,
+        "modelDigest": null,
+        "objectDigestProfile": null,
+        "policyVersion": null,
+        "producerBuild": null,
+        "providerProfile": null,
+        "resultSchema": null,
+        "sourceAdapterVersion": null,
+        "sourceSchema": null,
+        "storageSchema": null
+      },
+      "acceptanceCondition": "general ancestry와 녹음/AI/FOTA의 기존 보호 객체 ACL",
+      "rejectionCondition": "승인 child를 general로 fallback하거나 generic resultRef로 서명 bytes 공개 금지",
+      "recoveryBehavior": "기능별 재조회·삭제/동의 유지",
+      "status": "unverified",
+      "runtimeEvidenceRefs": []
+    }
+  ],
+  "gates": [
+    {
+      "id": "AD-G01",
+      "title": "문서 채택",
+      "condition": "S01..S05 완료, 참조·형태·권한·상태·역할 검토 통과",
+      "meaning": "design_baseline_only",
+      "status": "not_evaluated"
+    },
+    {
+      "id": "AD-G02",
+      "title": "실행 환경 식별",
+      "condition": "보드·빌드·OS·profile·schema·체인 tuple 실제 값 고정",
+      "meaning": "no_execution_without_user_implementation_instruction",
+      "status": "not_evaluated"
+    },
+    {
+      "id": "AD-G03",
+      "title": "실행 호환 수용",
+      "condition": "대상 기능 모든 필수 tuple의 정상/부정/복구 실증, 미지원 조합 차단",
+      "meaning": "runtime_evidence_required",
+      "status": "not_evaluated"
+    },
+    {
+      "id": "AD-G04",
+      "title": "행위별 현재 허가",
+      "condition": "현재 actor/source/epoch/hold/TTL/nonce·projection ACL 재검사",
+      "meaning": "compatibility_not_authorization",
+      "status": "not_evaluated"
+    },
+    {
+      "id": "AD-G05",
+      "title": "관측·업무 반영",
+      "condition": "체인 정규성·확정/원 allocation/reservation·이벤트 정합성",
+      "meaning": "signing_not_payment_completion",
+      "status": "not_evaluated"
+    }
+  ],
+  "validatorTransition": [
+    {
+      "family": "wallet",
+      "validator": "validate_wallet_api.py",
+      "candidate": "wallet-api-candidate.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    },
+    {
+      "family": "source",
+      "validator": "validate_source_approval.py",
+      "candidate": "source-approval-candidate.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    },
+    {
+      "family": "common",
+      "validator": "validate_approval_access.py",
+      "candidate": "approval-access-candidate.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    },
+    {
+      "family": "integration",
+      "validator": "validate_approval_integration.py",
+      "candidate": "approval-integration-candidate.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    },
+    {
+      "family": "commerce",
+      "validator": "validate_commerce_candidate.py",
+      "candidate": "commerce-contract-candidate.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    },
+    {
+      "family": "return_protocol",
+      "validator": "validate_return_protocol.py",
+      "candidate": "return-protocol-candidate.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    },
+    {
+      "family": "return_screens",
+      "validator": "validate_return_screens.py",
+      "candidate": "return-screen-design.json",
+      "currentMode": "live_baseline_pinned",
+      "afterBaselineChange": "run_original_bytes_in_frozen_checkpoint",
+      "replacementResponsibility": "new_baseline_validator_plus_adapter_negative_cases",
+      "status": "planned_not_moved"
+    }
+  ],
+  "archiveRecipe": {
+    "status": "not_executed",
+    "preserveOriginalBytes": true,
+    "preserveRepositoryRelativePaths": true,
+    "include": [
+      "candidate documents/schema/examples/validators",
+      "baselineFiles and externalSchemaBindings transitive dependencies",
+      "content/planning/work-breakdown.json and validator referenced policy/return facts",
+      "runtime interpreter/library version metadata and exact validation commands/results"
+    ],
+    "exclude": [
+      "new history directory itself",
+      "tokens/keys/shares/raw private runtime evidence"
+    ],
+    "integrityRule": "sorted relative path + sha256 manifest; closure must resolve without mutable current files",
+    "retargetCurrentCandidateHashes": false
+  },
+  "catalogRegistration": {
+    "beforeApiCount": 107,
+    "candidateNewRoutes": [
+      "AC-01",
+      "AC-02",
+      "AC-03"
+    ],
+    "afterApiCountIfOnlyTheseRegistered": 110,
+    "assignedApiIds": null,
+    "bleCommandCount": 34,
+    "screenCount": 37,
+    "status": "not_registered"
+  },
+  "designCounters": {
+    "requirements": 15,
+    "tasks": 104,
+    "subtasks": 320,
+    "decisions": 19
+  },
+  "pendingUserDecision": {
+    "id": "RR-DEC-01",
+    "selection": null,
+    "status": "awaiting_user_preference"
+  },
+  "nextDesign": "preserve a reproducible checkpoint and merge the approval contract into the design baseline; product implementation remains deferred"
+}

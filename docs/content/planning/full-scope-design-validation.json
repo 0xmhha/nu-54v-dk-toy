@@ -1,0 +1,37 @@
+{
+  "scope": "full_scope_design_traceability_only",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "checks": [
+    {
+      "command": "python3 content/planning/validate_full_scope_design.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"full_scope_design_traceability_only\", \"requirements\": 15, \"compoundFacets\": 16, \"designPackages\": 8, \"wbsTasksMappedOnce\": 104, \"wbsStepsPreserved\": 320, \"openDecisions\": 19, \"sourceFilesPreserved\": 21, \"runtimeVerified\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_journeys.py",
+      "exit_code": 0,
+      "output": "{\"scope\": \"journey_traceability_only\", \"journeys\": 16, \"uniqueSourceCasesLinked\": 107, \"adoptionPackages\": 5, \"openGaps\": 5, \"sourceFilesPreserved\": 8, \"wbsTasks\": 104, \"wbsSteps\": 320, \"runtimeRuns\": 0, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "exit_code": 0,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "exit_code": 0,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "resolved": "Added structured D19 policy decision links for requirements 2 and 12; separated task-derived and policy-derived decisions, preserving their union.",
+    "remainingMustFix": 0
+  },
+  "limitations": [
+    "Local design inventory and reference checks only; no implementation or hardware validation.",
+    "All 19 decisions remain open; no role assignments or effort estimates.",
+    "Eight packages propose further design across all 15 requirements, not completion percentages or release approval."
+  ]
+}

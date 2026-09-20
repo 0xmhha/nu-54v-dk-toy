@@ -1,0 +1,186 @@
+{
+  "date": "2026-09-18",
+  "status": "review_candidate_not_merged",
+  "schemaFile": "source-approval-candidate.schema.json",
+  "document": "content/specifications/source-approval-contracts.md",
+  "examplesFile": "source-approval-examples.json",
+  "externalSchemaBindings": {
+    "urn:nu:source:baseline": "extended-dtos.schema.json"
+  },
+  "baselineFiles": {
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a",
+    "critical-dtos.schema.json": "4e79a1f6f963487cb2937856d4fda1ff155e49926a1f3112a2e6718c475c6d62",
+    "extended-dtos.schema.json": "98d909f06ae9e4fab3289d2f67186d4364260b2f2e274ea57fcc1fdb02f77c68",
+    "commerce-contract-candidate.schema.json": "b85ac9c2a1c5ba8401a3549aa7b559a249e2ca415eab0a26626c2a6769e75e27",
+    "wallet-api-candidate.schema.json": "8838c3c87e66acf7bfc23c6e2763e5348d6b131385b2e5d461513deb43bbc1cc",
+    "signing-submission-storage-design.json": "879f15ddc32fcac79dca40fe02f1a10c7f4f3311897a85976526ce11859181b3",
+    "authorization-policies.json": "6d193d0899b6019655b247367ddec6b04f83ac86bbf0e3d60caee1dd6985cbb3",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d"
+  },
+  "operations": [
+    {
+      "apiId": "API-034",
+      "method": "POST",
+      "path": "/v1/payment-attempts/{attemptId}/intents",
+      "authorization": "attempt_device_capability",
+      "requestSchema": "API034Request",
+      "responseSchema": "API034Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-01",
+        "HW-05"
+      ]
+    },
+    {
+      "apiId": "API-037",
+      "method": "POST",
+      "path": "/v1/refunds/{refundId}/authorize",
+      "authorization": "store_funds_manage_recent_auth",
+      "requestSchema": "API037Request",
+      "responseSchema": "API037Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "SHOP-04"
+      ]
+    },
+    {
+      "apiId": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "authorization": "wallet_sign_authorized",
+      "requestSchema": "API015Request",
+      "responseSchema": "API015Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "MPC-03"
+      ]
+    },
+    {
+      "apiId": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "authorization": "intent_submit_capability",
+      "requestSchema": "API018Request",
+      "responseSchema": "API018Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02"
+      ]
+    },
+    {
+      "apiId": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "authorization": "operation_owner_or_capability",
+      "requestSchema": "API020Request",
+      "responseSchema": "API020Response",
+      "errorSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ]
+    }
+  ],
+  "bleMessages": [
+    {
+      "command": "payment.identify",
+      "role": "payment_terminal",
+      "requestSchema": "PaymentIdentifyRequest",
+      "responseSchema": "PaymentIdentifyResponse",
+      "status": "logical_envelope_not_wire_format"
+    },
+    {
+      "command": "payment.prepare",
+      "role": "payment_terminal",
+      "requestSchema": "PaymentPrepareRequest",
+      "responseSchema": "PaymentPrepareResponse",
+      "status": "logical_envelope_not_wire_format"
+    },
+    {
+      "command": "payment.result",
+      "role": "payment_terminal",
+      "requestSchema": "PaymentResultRequest",
+      "responseSchema": "PaymentResultResponse",
+      "status": "logical_envelope_not_wire_format"
+    },
+    {
+      "command": "wallet.sign.prepare",
+      "role": "owner",
+      "requestSchema": "WalletSignPrepareRequest",
+      "responseSchema": "WalletSignPrepareResponse",
+      "status": "logical_envelope_not_wire_format"
+    },
+    {
+      "command": "wallet.sign.result",
+      "role": "owner",
+      "requestSchema": "WalletSignResultRequest",
+      "responseSchema": "WalletSignResultResponse",
+      "status": "logical_envelope_not_wire_format"
+    }
+  ],
+  "actorVariants": [
+    "guest_attempt_device_session",
+    "merchant_refund_authorizer_and_selected_signer"
+  ],
+  "authorityChanges": [
+    {
+      "id": "SA-A01",
+      "apiRefs": [
+        "API-034",
+        "API-018",
+        "API-020"
+      ],
+      "rule": "Guest uses current exact attempt/device/session capabilities; never require account or general owner BLE role."
+    },
+    {
+      "id": "SA-A02",
+      "apiRefs": [
+        "API-037",
+        "API-015",
+        "API-020"
+      ],
+      "rule": "Business authorizer and actual signer may differ; selected signer must independently pass exact-store wallet signing permission. Operation ownership alone is insufficient; selected-signer access is a candidate policy delta."
+    },
+    {
+      "id": "SA-A03",
+      "apiRefs": [
+        "API-020"
+      ],
+      "rule": "Progress/snapshot/result/submit are separately scoped. includeSigningResult defaults false; true requires current exact-source result access and a matching durable result. Unauthorized true rejects, never widens by store membership."
+    }
+  ],
+  "wireBinding": {
+    "httpVersionHeader": "X-Contract-Version: source-approval-candidate-1",
+    "otherHeaders": "X-Request-ID, Authorization, Idempotency-Key for POST",
+    "getQuery": "includeSigningResult=true|false, default false; unknown/duplicate query fields reject",
+    "responses": "application/json; Cache-Control: no-store; proof/raw signed bytes excluded from logs",
+    "ble": "Logical authenticated envelopes only; MTU/GATT/fragmentation/encoding/evidence verifier profile not selected"
+  },
+  "decisionRefs": [
+    "D02",
+    "D03",
+    "D04",
+    "D08",
+    "D09"
+  ],
+  "storageRefs": [
+    "SS-A02",
+    "SS-A03",
+    "SS-R01",
+    "SS-R02",
+    "SS-R04",
+    "SS-T02",
+    "SS-T03",
+    "SS-T04"
+  ],
+  "openIntegrationPoints": [
+    "Proof profile and challenge issuance/verification compatibility in API032 and BLE session establishment",
+    "Physical SQL mapping and source/proof/refund constraints",
+    "Canonical schema/access/consumer version migration including personal candidate coexistence",
+    "Capability expiry and reauthentication/recovery handoff; no automatic new-session replay"
+  ],
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "policySelectionUnchanged": true
+}

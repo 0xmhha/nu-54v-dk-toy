@@ -1,0 +1,1 @@
+run_id,sample_index,received_at_utc,ground_truth_m,orientation_deg,condition,method,estimated_m,status,latency_ms,sdk_version,board_a_revision,board_b_revision,phone_model,android_version,notes

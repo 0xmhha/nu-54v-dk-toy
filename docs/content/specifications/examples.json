@@ -1,0 +1,388 @@
+{
+  "notice": "Synthetic values only. Addresses/hashes are placeholders; decimals and audio profile illustrate types, not accepted product settings. No transaction is signed or broadcast.",
+  "valid": [
+    {
+      "name": "test-token",
+      "schema": "Asset",
+      "value": {
+        "assetId": "dummy-usdc",
+        "chainId": 8283,
+        "kind": "erc20",
+        "tokenAddress": "0x1111111111111111111111111111111111111111",
+        "decimals": 6,
+        "displaySymbol": "TEST-USDC",
+        "isTestAsset": true
+      }
+    },
+    {
+      "name": "money",
+      "schema": "Money",
+      "value": {
+        "assetId": "dummy-usdc",
+        "atomicAmount": "4500000"
+      }
+    },
+    {
+      "name": "observation",
+      "schema": "ChainObservation",
+      "value": {
+        "chainId": 8283,
+        "txHash": "0xabababababababababababababababababababababababababababababababab",
+        "blockHash": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "blockNumber": "100",
+        "logIndex": 0,
+        "receiptStatus": "success",
+        "canonicality": "canonical",
+        "confirmation": "observed",
+        "policyId": "confirmation-policy-1",
+        "revision": 1,
+        "observedAt": "2026-09-18T09:00:00Z",
+        "observationKind": "erc20_log"
+      }
+    },
+    {
+      "name": "payment-binding",
+      "schema": "PaymentBinding",
+      "value": {
+        "attemptId": "attempt-demo",
+        "intentId": "intent-demo",
+        "orderId": "order-demo",
+        "sessionId": "session-demo",
+        "payerAddress": "0x1111111111111111111111111111111111111111",
+        "recipientAddress": "0x2222222222222222222222222222222222222222",
+        "assetId": "dummy-usdc",
+        "atomicAmount": "4500000",
+        "payloadDigest": "0xabababababababababababababababababababababababababababababababab",
+        "signedTransactionHash": "0xabababababababababababababababababababababababababababababababab"
+      }
+    },
+    {
+      "name": "operation",
+      "schema": "Operation",
+      "value": {
+        "operationId": "op-demo",
+        "kind": "transaction_submission",
+        "state": "unknown",
+        "revision": 1,
+        "resultRef": null,
+        "error": null,
+        "updatedAt": "2026-09-18T09:00:00Z"
+      }
+    },
+    {
+      "name": "ble-payment",
+      "schema": "BleControlMessage",
+      "value": {
+        "protocolVersion": "approval-ble-v1-draft",
+        "sessionId": "session_a",
+        "sessionRole": "payment_terminal",
+        "messageId": "message_a",
+        "sequence": 1,
+        "kind": "request",
+        "command": "payment.prepare",
+        "payload": {
+          "attemptId": "attempt_a",
+          "snapshot": {
+            "sourceKind": "payment",
+            "intent": {
+              "intentId": "intent_a",
+              "chainId": 8283,
+              "payerAddress": "0x1111111111111111111111111111111111111111",
+              "recipientAddress": "0x2222222222222222222222222222222222222222",
+              "asset": {
+                "assetId": "dummy_usdc",
+                "chainId": 8283,
+                "kind": "erc20",
+                "tokenAddress": "0x3333333333333333333333333333333333333333",
+                "decimals": 6,
+                "displaySymbol": "tUSDC",
+                "isTestAsset": true
+              },
+              "atomicAmount": "1000000",
+              "expiresAt": "2026-09-18T08:00:00Z",
+              "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "encodingProfile": "synthetic_profile",
+              "transaction": {
+                "to": "0x3333333333333333333333333333333333333333",
+                "value": "0",
+                "data": "0x",
+                "nonce": "1",
+                "gasLimit": "100000",
+                "feeParameters": {}
+              },
+              "merchantDisplay": {
+                "storeId": "store_a",
+                "name": "Test Cafe"
+              },
+              "attemptId": "attempt_a"
+            },
+            "context": {
+              "approvalContextId": "approval_a",
+              "contextDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "intentId": "intent_a",
+              "operationId": "op_a",
+              "chainId": 8283,
+              "payerAddress": "0x1111111111111111111111111111111111111111",
+              "payloadDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "reviewDigest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+              "requestKind": "eoa_transaction",
+              "profileId": "synthetic_profile",
+              "expiresAt": "2026-09-18T08:00:00Z",
+              "sourceKind": "payment",
+              "storeId": "store_a",
+              "orderId": "order_a",
+              "attemptId": "attempt_a",
+              "attemptRevision": 1,
+              "terminalId": "terminal_a",
+              "sessionId": "session_a",
+              "deviceSessionRef": "peer_a",
+              "deviceEpoch": "3",
+              "identifyEvidenceId": "identify_a",
+              "proximityPolicyId": "proximity_policy_a",
+              "proximityRequired": true,
+              "contractVersions": {
+                "http": "approval-v1-draft",
+                "ble": "approval-ble-v1-draft",
+                "evidenceProfile": "synthetic_profile"
+              }
+            },
+            "reviewProof": {
+              "profileId": "synthetic_profile",
+              "evidenceBytes": "U1lOVEhFVElD"
+            }
+          },
+          "merchantProofRef": "merchant_a",
+          "proximityRef": "range_a"
+        }
+      }
+    },
+    {
+      "name": "travel",
+      "schema": "TravelEvidence",
+      "value": {
+        "evidenceId": "evidence-demo",
+        "sourceType": "testnet_payment",
+        "sourceId": "payment-demo",
+        "placeId": "place-demo",
+        "observedAt": "2026-09-18T09:00:00Z",
+        "consentRevision": 1,
+        "validity": "valid"
+      }
+    },
+    {
+      "name": "partial-recording",
+      "schema": "RecordingMetadata",
+      "value": {
+        "recordingId": "rec-demo",
+        "formatProfile": "profile-unselected",
+        "sampleRateHz": 16000,
+        "channels": 1,
+        "completeness": "partial",
+        "lastSequence": 20,
+        "missingRanges": [
+          {
+            "from": 5,
+            "to": 8
+          }
+        ]
+      }
+    },
+    {
+      "name": "reverted-transaction",
+      "schema": "ChainObservation",
+      "value": {
+        "chainId": 8283,
+        "txHash": "0xabababababababababababababababababababababababababababababababab",
+        "blockHash": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "blockNumber": "100",
+        "logIndex": null,
+        "receiptStatus": "reverted",
+        "canonicality": "canonical",
+        "confirmation": "observed",
+        "policyId": "confirmation-policy-1",
+        "revision": 1,
+        "observedAt": "2026-09-18T09:00:00Z",
+        "observationKind": "transaction"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "floating-point-amount",
+      "schema": "Money",
+      "value": {
+        "assetId": "dummy-usdc",
+        "atomicAmount": 4.5
+      }
+    },
+    {
+      "name": "negative-amount",
+      "schema": "Money",
+      "value": {
+        "assetId": "dummy-usdc",
+        "atomicAmount": "-1"
+      }
+    },
+    {
+      "name": "wrong-chain",
+      "schema": "Asset",
+      "value": {
+        "assetId": "dummy-usdc",
+        "chainId": 8284,
+        "kind": "erc20",
+        "tokenAddress": "0x1111111111111111111111111111111111111111",
+        "decimals": 6,
+        "displaySymbol": "TEST-USDC",
+        "isTestAsset": true
+      }
+    },
+    {
+      "name": "erc20-without-contract",
+      "schema": "Asset",
+      "value": {
+        "assetId": "dummy-usdc",
+        "chainId": 8283,
+        "kind": "erc20",
+        "tokenAddress": null,
+        "decimals": 6,
+        "displaySymbol": "TEST-USDC",
+        "isTestAsset": true
+      }
+    },
+    {
+      "name": "private-key-in-public-binding",
+      "schema": "PaymentBinding",
+      "value": {
+        "attemptId": "attempt-demo",
+        "intentId": "intent-demo",
+        "orderId": "order-demo",
+        "sessionId": "session-demo",
+        "payerAddress": "0x1111111111111111111111111111111111111111",
+        "recipientAddress": "0x2222222222222222222222222222222222222222",
+        "assetId": "dummy-usdc",
+        "atomicAmount": "4500000",
+        "payloadDigest": "0xabababababababababababababababababababababababababababababababab",
+        "signedTransactionHash": "0xabababababababababababababababababababababababababababababababab",
+        "privateKey": "NOT_A_REAL_KEY"
+      }
+    },
+    {
+      "name": "terminal-cannot-import",
+      "schema": "BleControlMessage",
+      "value": {
+        "protocolVersion": "draft-1",
+        "sessionId": "session-demo",
+        "sessionRole": "payment_terminal",
+        "messageId": "message-demo",
+        "sequence": 1,
+        "kind": "request",
+        "command": "wallet.import.begin",
+        "payload": {
+          "attemptId": "attempt-demo",
+          "intent": {
+            "intentId": "intent-demo",
+            "attemptId": "attempt-demo",
+            "chainId": 8283,
+            "payerAddress": "0x3333333333333333333333333333333333333333",
+            "recipientAddress": "0x2222222222222222222222222222222222222222",
+            "asset": {
+              "assetId": "dummy-usdc",
+              "chainId": 8283,
+              "kind": "erc20",
+              "tokenAddress": "0x1111111111111111111111111111111111111111",
+              "decimals": 6,
+              "displaySymbol": "TEST-USDC",
+              "isTestAsset": true
+            },
+            "atomicAmount": "4500000",
+            "expiresAt": "2026-09-18T10:00:00Z",
+            "payloadDigest": "0xabababababababababababababababababababababababababababababababab",
+            "encodingProfile": "eoa-erc20-demo-fields",
+            "transaction": {
+              "to": "0x1111111111111111111111111111111111111111",
+              "value": "0",
+              "data": "0xa9059cbb0000000000000000000000002222222222222222222222222222222222222222000000000000000000000000000000000000000000000000000000000044aa20",
+              "nonce": "7",
+              "gasLimit": "100000",
+              "feeParameters": {
+                "gasPrice": "1000000000"
+              }
+            },
+            "merchantDisplay": {
+              "storeId": "store-demo",
+              "name": "Demo Cafe"
+            }
+          },
+          "merchantProofRef": "locally-verified-merchant-proof",
+          "proximityRef": "locally-verified-measurement"
+        }
+      }
+    },
+    {
+      "name": "missing-provenance-type",
+      "schema": "TravelEvidence",
+      "value": {
+        "evidenceId": "evidence-demo",
+        "sourceType": "payment",
+        "sourceId": "payment-demo",
+        "placeId": "place-demo",
+        "observedAt": "2026-09-18T09:00:00Z",
+        "consentRevision": 1,
+        "validity": "valid"
+      }
+    },
+    {
+      "name": "malformed-hash",
+      "schema": "ChainObservation",
+      "value": {
+        "chainId": 8283,
+        "txHash": "0xabababababababababababababababababababababababababababababababab",
+        "blockHash": "0xab",
+        "blockNumber": "100",
+        "logIndex": 0,
+        "receiptStatus": "success",
+        "canonicality": "canonical",
+        "confirmation": "observed",
+        "policyId": "confirmation-policy-1",
+        "revision": 1,
+        "observedAt": "2026-09-18T09:00:00Z",
+        "observationKind": "erc20_log"
+      }
+    },
+    {
+      "name": "reverted-with-invented-log",
+      "schema": "ChainObservation",
+      "value": {
+        "chainId": 8283,
+        "txHash": "0xabababababababababababababababababababababababababababababababab",
+        "blockHash": "0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "blockNumber": "100",
+        "logIndex": 0,
+        "receiptStatus": "reverted",
+        "canonicality": "canonical",
+        "confirmation": "observed",
+        "policyId": "confirmation-policy-1",
+        "revision": 1,
+        "observedAt": "2026-09-18T09:00:00Z",
+        "observationKind": "transaction"
+      }
+    },
+    {
+      "name": "device-cannot-fetch-intent-ref",
+      "schema": "BleControlMessage",
+      "value": {
+        "protocolVersion": "draft-1",
+        "sessionId": "session-demo",
+        "sessionRole": "payment_terminal",
+        "messageId": "message-demo",
+        "sequence": 1,
+        "kind": "request",
+        "command": "payment.prepare",
+        "payload": {
+          "attemptId": "attempt-demo",
+          "intentRef": "intent-demo"
+        }
+      }
+    }
+  ]
+}

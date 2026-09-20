@@ -1,0 +1,306 @@
+{
+  "status": "reviewed_design_trace_not_contract_adoption",
+  "basis": "계약의 행위와 WBS 작업 범위를 대조한 검토 연결. 담당자 배정·wire 등록·원 WBS 변경을 의미하지 않음.",
+  "runtimeVerified": false,
+  "routes": [
+    {
+      "contractId": "OC-01",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04"
+      ],
+      "rationale": "제공자 인증·identity 연결",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/0",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-02",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "rationale": "세션 철회",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/1",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-03",
+      "taskRefs": [
+        "MPC-02",
+        "MPC-04",
+        "MPC-05"
+      ],
+      "rationale": "Cloud 생성·복구와 실패 복구",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/2",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-04",
+      "taskRefs": [
+        "SHOP-01",
+        "SHOP-03"
+      ],
+      "rationale": "매장 단말과 고객 세션",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/3",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-05",
+      "taskRefs": [
+        "SHOP-02",
+        "SHOP-06",
+        "PAY-03"
+      ],
+      "rationale": "주문 스냅샷과 수령 지갑",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/4",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-06",
+      "taskRefs": [
+        "SHOP-03",
+        "PAY-04"
+      ],
+      "rationale": "주문 이행과 지급 대사",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/5",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-07",
+      "taskRefs": [
+        "APP-04",
+        "STAMP-01",
+        "STAMP-02",
+        "STAMP-04"
+      ],
+      "rationale": "영수증·혜택·반납 권한",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/6",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-08",
+      "taskRefs": [
+        "SHOP-05",
+        "OPS-03"
+      ],
+      "rationale": "정산과 운영 예외",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/7",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-09",
+      "taskRefs": [
+        "DEX-02",
+        "DEX-03",
+        "FX-02",
+        "FX-03",
+        "PERP-03",
+        "PERP-05"
+      ],
+      "rationale": "시장 견적·거래 실행",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/8",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-10",
+      "taskRefs": [
+        "PERP-03",
+        "PERP-04",
+        "PERP-06"
+      ],
+      "rationale": "주문 취소와 keeper",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/9",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-11",
+      "taskRefs": [
+        "DID-02",
+        "DID-03",
+        "STO-02",
+        "STO-03"
+      ],
+      "rationale": "자격 검증·상품 원천",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/10",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-12",
+      "taskRefs": [
+        "X402-01",
+        "X402-02",
+        "X402-03"
+      ],
+      "rationale": "유료 자원·지급·권리",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/11",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-13",
+      "taskRefs": [
+        "REC-03"
+      ],
+      "rationale": "녹음 업로드와 처리",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/12",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-14",
+      "taskRefs": [
+        "TRIP-01",
+        "TRIP-02",
+        "TRIP-03",
+        "TRIP-04",
+        "AI-01",
+        "AI-02",
+        "AI-03"
+      ],
+      "rationale": "여행 원천과 추천",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/13",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-15",
+      "taskRefs": [
+        "TRIP-04",
+        "REC-03"
+      ],
+      "rationale": "동의·삭제와 녹음 자료",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/14",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-16",
+      "taskRefs": [
+        "BASE-05",
+        "PAY-02",
+        "REC-03"
+      ],
+      "rationale": "보호 결과와 작업 조회의 공통 경계",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/15",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-17",
+      "taskRefs": [
+        "AUTH-04",
+        "APP-01"
+      ],
+      "rationale": "세션 갱신과 앱 상태",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/16",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-18",
+      "taskRefs": [
+        "AUTH-04",
+        "APP-01"
+      ],
+      "rationale": "갱신 결과 복구",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/17",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-19",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "rationale": "로그인 수단 해제",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/18",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-20",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "rationale": "해제 결과 복구",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/19",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-21",
+      "taskRefs": [
+        "X402-02",
+        "X402-03"
+      ],
+      "rationale": "유료 자원 환불 생성",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/20",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-22",
+      "taskRefs": [
+        "X402-02",
+        "X402-03"
+      ],
+      "rationale": "유료 자원 환불 조회",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/21",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-23",
+      "taskRefs": [
+        "SHOP-01",
+        "SHOP-03"
+      ],
+      "rationale": "단말 고객 정리 확인",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/22",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-24",
+      "taskRefs": [
+        "SHOP-01",
+        "SHOP-03"
+      ],
+      "rationale": "단말 전환 결과 복구",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/23",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-25",
+      "taskRefs": [
+        "AI-02"
+      ],
+      "rationale": "추천 코스 생성",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/24",
+      "taskSource": "content/planning/work-breakdown.json"
+    },
+    {
+      "contractId": "OC-26",
+      "taskRefs": [
+        "AI-02"
+      ],
+      "rationale": "생성 후보 결과 조회",
+      "source": "content/specifications/preimplementation-contract-overlay.json",
+      "pointer": "/routeContracts/25",
+      "taskSource": "content/planning/work-breakdown.json"
+    }
+  ]
+}

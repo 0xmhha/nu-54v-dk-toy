@@ -1,0 +1,690 @@
+{
+  "schemaVersion": "1",
+  "status": "review_candidate_not_merged",
+  "document": "return-recovery-design.md",
+  "gaps": [
+    "LC-GAP-04",
+    "LC-GAP-05"
+  ],
+  "runtimeVerified": false,
+  "phase": "detailed_design",
+  "policyStatus": "proposed",
+  "baselineHashes": {
+    "core.schema.json": "d731a2dc418e039aaf8a0c20d7d70477bd105b05e852eb43328f0359516a24cf",
+    "critical-dtos.json": "5fe24e65846c7df8e06e785eb96313034fb800db3363056cd746d300833ddfd8",
+    "ble-catalog.json": "2a69cb7a81d1b1e0ebc6951e1edf8246758ac7256412af85dbc043103c06c00a",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d",
+    "implementation-interfaces.json": "be3b9c2f3b2f66590cbc0dca84be6c5da07c634407567f4057b9df549fed2af6",
+    "database/004_device_lifecycle.sql": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2"
+  },
+  "jobStates": [
+    "checking",
+    "prepared",
+    "commit_issued",
+    "device_started",
+    "evidence_pending",
+    "completed",
+    "aborted",
+    "quarantined"
+  ],
+  "initialState": "checking",
+  "terminalStates": [
+    "completed",
+    "aborted"
+  ],
+  "transitions": [
+    {
+      "from": "checking",
+      "to": "prepared",
+      "guard": "all policy checks passed; fence applied on server/device; recovery disposition resolved for destructive reset",
+      "requiredGrantIssued": false
+    },
+    {
+      "from": "checking",
+      "to": "aborted",
+      "guard": "no execution grant issued; safely release both fences",
+      "requiredGrantIssued": false
+    },
+    {
+      "from": "prepared",
+      "to": "checking",
+      "guard": "pre-commit checklist or binding inputs changed",
+      "requiredGrantIssued": false
+    },
+    {
+      "from": "prepared",
+      "to": "aborted",
+      "guard": "no grant issued; preparation invalidated on device and server",
+      "requiredGrantIssued": false
+    },
+    {
+      "from": "prepared",
+      "to": "commit_issued",
+      "guard": "fresh server deadline/current prepare proof/physical approval; persist commit before sending grant",
+      "requiredGrantIssued": null
+    },
+    {
+      "from": "commit_issued",
+      "to": "device_started",
+      "guard": "device durably accepted identical grant for same boot/session/epoch; verify signed start evidence",
+      "requiredGrantIssued": true
+    },
+    {
+      "from": "device_started",
+      "to": "evidence_pending",
+      "guard": "same durable job erasure/boot evidence available or evidence transport pending",
+      "requiredGrantIssued": true
+    },
+    {
+      "from": "commit_issued",
+      "to": "evidence_pending",
+      "guard": "start ACK missing but verified completion evidence proves same grant/journal lineage; do not infer from timeout",
+      "requiredGrantIssued": true
+    },
+    {
+      "from": "evidence_pending",
+      "to": "completed",
+      "guard": "verify full erase profile/job/epoch/proof and owner approval record; atomic TX-07",
+      "requiredGrantIssued": true
+    },
+    {
+      "from": "checking",
+      "to": "quarantined",
+      "guard": "contradictory lineage, uncertain erase state, unsupported trust profile or invalid proof",
+      "requiredGrantIssued": null
+    },
+    {
+      "from": "prepared",
+      "to": "quarantined",
+      "guard": "contradictory lineage, uncertain erase state, unsupported trust profile or invalid proof",
+      "requiredGrantIssued": null
+    },
+    {
+      "from": "commit_issued",
+      "to": "quarantined",
+      "guard": "contradictory lineage, uncertain erase state, unsupported trust profile or invalid proof",
+      "requiredGrantIssued": null
+    },
+    {
+      "from": "device_started",
+      "to": "quarantined",
+      "guard": "contradictory lineage, uncertain erase state, unsupported trust profile or invalid proof",
+      "requiredGrantIssued": null
+    },
+    {
+      "from": "evidence_pending",
+      "to": "quarantined",
+      "guard": "contradictory lineage, uncertain erase state, unsupported trust profile or invalid proof",
+      "requiredGrantIssued": null
+    },
+    {
+      "from": "quarantined",
+      "to": "checking",
+      "guard": "same job evidence proves target phase and grant history; no downgrade past issued grant, no new identity/epoch assumption",
+      "requiredGrantIssued": false
+    },
+    {
+      "from": "quarantined",
+      "to": "prepared",
+      "guard": "same job evidence proves target phase and grant history; no downgrade past issued grant, no new identity/epoch assumption",
+      "requiredGrantIssued": false
+    },
+    {
+      "from": "quarantined",
+      "to": "device_started",
+      "guard": "same job evidence proves target phase and grant history; no downgrade past issued grant, no new identity/epoch assumption",
+      "requiredGrantIssued": true
+    },
+    {
+      "from": "quarantined",
+      "to": "evidence_pending",
+      "guard": "same job evidence proves target phase and grant history; no downgrade past issued grant, no new identity/epoch assumption",
+      "requiredGrantIssued": true
+    }
+  ],
+  "recoveryFields": [
+    "jobId",
+    "commitId",
+    "deviceId",
+    "deviceIdentityKeyId",
+    "rentalRef",
+    "previousBindingRef",
+    "checklistRevision",
+    "previousDeviceEpoch",
+    "nextDeviceEpoch",
+    "bootNonce",
+    "prepareChallengeDigest",
+    "grantDigest",
+    "eraseProfileId",
+    "firmwareMeasurementRef",
+    "journalDigest",
+    "bootState",
+    "eraseResult",
+    "deviceProof"
+  ],
+  "candidates": [
+    {
+      "id": "RR-01",
+      "apiRefs": [
+        "API-046"
+      ],
+      "bleRefs": [],
+      "interfaceRefs": [
+        "IF-14"
+      ],
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "change": "versioned checks/fence/recovery disposition and start authorization deadline"
+    },
+    {
+      "id": "RR-02",
+      "apiRefs": [],
+      "bleRefs": [],
+      "interfaceRefs": [
+        "IF-14"
+      ],
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03"
+      ],
+      "change": "new online commit logical endpoint; actual method/path/id unassigned"
+    },
+    {
+      "id": "RR-03",
+      "apiRefs": [],
+      "bleRefs": [
+        "device.reset.prepare",
+        "device.reset.confirm"
+      ],
+      "interfaceRefs": [
+        "IF-02",
+        "IF-14"
+      ],
+      "taskRefs": [
+        "HW-02",
+        "HW-03",
+        "STAMP-04"
+      ],
+      "change": "grant-bound journal and reset_recovery_relay candidate; not existing BLE role"
+    },
+    {
+      "id": "RR-04",
+      "apiRefs": [
+        "API-047"
+      ],
+      "bleRefs": [],
+      "interfaceRefs": [
+        "IF-14"
+      ],
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "change": "late same-job evidence intake vs fresh execution distinction"
+    },
+    {
+      "id": "RR-05",
+      "apiRefs": [
+        "API-091"
+      ],
+      "bleRefs": [],
+      "interfaceRefs": [
+        "IF-14"
+      ],
+      "taskRefs": [
+        "STAMP-04",
+        "OPS-02"
+      ],
+      "change": "job phase and reenrollment gate; role-specific projection"
+    },
+    {
+      "id": "RR-06",
+      "apiRefs": [],
+      "bleRefs": [],
+      "interfaceRefs": [
+        "IF-02",
+        "IF-07",
+        "IF-14"
+      ],
+      "taskRefs": [
+        "HW-02",
+        "HW-07",
+        "STAMP-04"
+      ],
+      "change": "logical journal, trust and recovery resource lifecycle"
+    }
+  ],
+  "logicalResources": [
+    {
+      "name": "ResetJob",
+      "key": [
+        "jobId"
+      ],
+      "records": [
+        "original device/rental/binding/epoch",
+        "checklist/fence revisions",
+        "owner physical approval reference",
+        "issued grant/commit digest",
+        "phase/lastKnownPhase",
+        "accepted evidence digest",
+        "server completion reference",
+        "monotonic grantIssued flag"
+      ],
+      "storage": "server protected adapter; physical mapping not selected"
+    },
+    {
+      "name": "DeviceResetJournal",
+      "key": [
+        "deviceId",
+        "jobId",
+        "previousDeviceEpoch"
+      ],
+      "records": [
+        "authenticated grant binding",
+        "accepted execution phase",
+        "erase progress",
+        "post-reset evidence",
+        "completion acknowledgement marker"
+      ],
+      "storage": "isolated firmware durable storage; actual board/rollback guarantees unverified"
+    },
+    {
+      "name": "RecoveryRelayGrant",
+      "key": [
+        "grantId"
+      ],
+      "records": [
+        "exact job/device/epoch",
+        "relay principal",
+        "purpose restrictions",
+        "expiry/revocation",
+        "server challenge"
+      ],
+      "storage": "protected authority adapter; no wallet key or retained owner token"
+    },
+    {
+      "name": "ReenrollmentGate",
+      "key": [
+        "deviceId",
+        "nextDeviceEpoch"
+      ],
+      "records": [
+        "server completion",
+        "device evidence cleanup confirmation",
+        "next enrollment permit"
+      ],
+      "storage": "server/device synchronized gate; no next-rental data in prior evidence"
+    }
+  ],
+  "openDecisions": [
+    {
+      "id": "RR-DEC-01",
+      "decisionRefs": [
+        "D03",
+        "D09"
+      ],
+      "topic": "late asset recovery for new travel EOA",
+      "status": "awaiting_user_preference",
+      "selection": null,
+      "options": [
+        "hold_reset_without_recovery",
+        "add_user_encrypted_recovery_backup"
+      ],
+      "note": "No export feature selected; absence of answer never authorizes erasure or policy change"
+    },
+    {
+      "id": "RR-DEC-02",
+      "decisionRefs": [
+        "D03",
+        "D09"
+      ],
+      "topic": "device identity, protected epoch/journal/boot trust",
+      "status": "design_pending_hardware_profile",
+      "selection": null
+    },
+    {
+      "id": "RR-DEC-03",
+      "decisionRefs": [
+        "D02",
+        "D09"
+      ],
+      "topic": "recovery relay authentication, evidence encryption and profile/version",
+      "status": "design_pending",
+      "selection": null
+    }
+  ],
+  "cases": [
+    {
+      "id": "RR-CASE-01",
+      "title": "commit前 만료",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "given": "prepared, clearance server deadline expired",
+      "when": "online commit request",
+      "expected": [
+        "no grant issued; recheck required"
+      ],
+      "forbidden": [
+        "new erasure authorization using expired clearance"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-02",
+      "title": "허가 응답 유실",
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03"
+      ],
+      "given": "commit persisted, device receipt unknown",
+      "when": "app timeout/restart",
+      "expected": [
+        "commit_issued retained",
+        "same job query; only same live preparation may receive same grant"
+      ],
+      "forbidden": [
+        "timeout abort",
+        "new rental",
+        "automatic fresh grant"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-03",
+      "title": "journal 없는 재부팅",
+      "taskRefs": [
+        "HW-02",
+        "HW-03",
+        "STAMP-04"
+      ],
+      "given": "grant issued, no accepted journal, boot/session changed",
+      "when": "old grant replay",
+      "expected": [
+        "reject old grant",
+        "quarantine until lineage resolved"
+      ],
+      "forbidden": [
+        "new boot accepts previous session grant"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-04",
+      "title": "journal 이후 전원 차단",
+      "taskRefs": [
+        "HW-02",
+        "STAMP-04"
+      ],
+      "given": "durable accepted grant/journal exists",
+      "when": "power interruption during erase",
+      "expected": [
+        "resume same job and erase profile",
+        "ordinary key functions remain unavailable"
+      ],
+      "forbidden": [
+        "create new job",
+        "reuse partly erased wallet"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-05",
+      "title": "완료 증거 기한 후 접수",
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "given": "same committed/accepted job evidence exists",
+      "when": "evidence arrives after clearance expiry",
+      "expected": [
+        "validate lineage and owner approval record",
+        "accept completion only if all proof conditions pass"
+      ],
+      "forbidden": [
+        "treat expired clearance alone as fresh execution right"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-06",
+      "title": "구대여 증거 재생",
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03"
+      ],
+      "given": "new epoch/binding or completed old rental exists",
+      "when": "old evidence resubmitted",
+      "expected": [
+        "return old job result only to permitted principal",
+        "do not mutate current rental"
+      ],
+      "forbidden": [
+        "revoke new binding",
+        "expose prior renter proof to new renter"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-07",
+      "title": "삭제 범위 일부 실패",
+      "taskRefs": [
+        "HW-02",
+        "KEY-03",
+        "STAMP-04"
+      ],
+      "given": "erase profile includes wallet/passkeys/bonds/cache",
+      "when": "one required region fails verification",
+      "expected": [
+        "pending/quarantine",
+        "retain explicit failed scope"
+      ],
+      "forbidden": [
+        "successful signature alone means erase complete"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-08",
+      "title": "서버 ACK 유실",
+      "taskRefs": [
+        "STAMP-04",
+        "HW-03"
+      ],
+      "given": "server completed TX-07; device recovery evidence not compacted",
+      "when": "completion ACK lost",
+      "expected": [
+        "same bound ACK redelivery",
+        "reenrollment gate remains closed until device cleanup confirmed"
+      ],
+      "forbidden": [
+        "returned implies automatically ready to rent"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-09",
+      "title": "운영자 권한 상승 차단",
+      "taskRefs": [
+        "STAMP-04",
+        "OPS-02"
+      ],
+      "given": "operator can inspect job or relay evidence",
+      "when": "operator attempts new reset authorization",
+      "expected": [
+        "requires prior owner physical approval and fresh commit boundary"
+      ],
+      "forbidden": [
+        "operator checkbox overrides missing owner approval"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-10",
+      "title": "복구 역할 범위",
+      "taskRefs": [
+        "HW-03",
+        "HW-02"
+      ],
+      "given": "old owner bond erased; recovery relay available",
+      "when": "relay requests signing/import/audio/history",
+      "expected": [
+        "deny all general actions",
+        "relay only scoped evidence and completion ACK"
+      ],
+      "forbidden": [
+        "preserve owner token for recovery"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-11",
+      "title": "복구 증거 정보 노출",
+      "taskRefs": [
+        "HW-03",
+        "STAMP-04"
+      ],
+      "given": "journal retains original job references",
+      "when": "unauthorized BLE scan/next renter requests proof",
+      "expected": [
+        "no rental/user ID advertisement",
+        "server-bound protected evidence only",
+        "cleanup before reenrollment"
+      ],
+      "forbidden": [
+        "plaintext global tracking tag",
+        "raw proof exposed to anyone nearby"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-12",
+      "title": "진행 녹음/FOTA 중 반납",
+      "taskRefs": [
+        "HW-07",
+        "REC-02",
+        "OTA-03"
+      ],
+      "given": "active recording or FOTA",
+      "when": "return prepare",
+      "expected": [
+        "stop/drain audio and mark gaps",
+        "wait for safe FOTA completion/recovery",
+        "deny new competing action"
+      ],
+      "forbidden": [
+        "erase while flash update active",
+        "claim lost audio is complete"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-13",
+      "title": "늦은 자산·복구 미정",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "given": "new travel EOA only on device; recovery policy unresolved",
+      "when": "clearance/reset request",
+      "expected": [
+        "no assumption of late asset recovery",
+        "destructive reset readiness remains unresolved"
+      ],
+      "forbidden": [
+        "zero current balance proves no future payment",
+        "separate Cloud Wallet automatically recovers key"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-14",
+      "title": "반납 뒤 새 환불",
+      "taskRefs": [
+        "SHOP-04",
+        "STAMP-04"
+      ],
+      "given": "old rental returned; original payer entitled to refund",
+      "when": "new refund intent requested",
+      "expected": [
+        "verify original allocation eligibility AND separate destination proof",
+        "new intent to verified recovery destination per policy"
+      ],
+      "forbidden": [
+        "use current renter address",
+        "receipt ownership substitutes destination proof"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-15",
+      "title": "이미 서명된 환불",
+      "taskRefs": [
+        "SHOP-04",
+        "STAMP-03"
+      ],
+      "given": "refund to old travel address already signed, result unknown",
+      "when": "return check/new refund request",
+      "expected": [
+        "track original transaction",
+        "retain reservation",
+        "hold return clearance if required recovery check unresolved"
+      ],
+      "forbidden": [
+        "rewrite signed destination",
+        "send second refund without resolving first"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    },
+    {
+      "id": "RR-CASE-16",
+      "title": "초기화 전 영수증 귀속",
+      "taskRefs": [
+        "STAMP-03",
+        "STAMP-04"
+      ],
+      "given": "anonymous new wallet with eligible unclaimed receipt/benefits",
+      "when": "return preparation",
+      "expected": [
+        "complete required claim before key removal",
+        "retain independent original payment eligibility"
+      ],
+      "forbidden": [
+        "ticket export alone guarantees later claim"
+      ],
+      "status": "not_run",
+      "evidenceRefs": []
+    }
+  ],
+  "caseCount": 16,
+  "canonicalCounts": {
+    "apis": 107,
+    "bleCommands": 34,
+    "sqlTables": 61
+  },
+  "canonicalMerged": false,
+  "evidenceRefs": [],
+  "persistentInvariants": [
+    "grantIssued is monotonic false→true per job; quarantine never clears it",
+    "grantIssued=true forbids checking/prepared/aborted including recovery transitions",
+    "completed does not imply ReenrollmentGate is open",
+    "same job/device epoch lineage only; proof replay never resets a new rental",
+    "lateAssetRecovery unresolved cannot satisfy a required reset recovery check"
+  ]
+}

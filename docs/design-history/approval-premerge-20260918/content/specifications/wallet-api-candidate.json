@@ -1,0 +1,288 @@
+{
+  "status": "review_candidate_not_merged",
+  "date": "2026-09-18",
+  "schemaFile": "wallet-api-candidate.schema.json",
+  "externalSchemaBindings": {
+    "urn:nu:wallet:baseline": "extended-dtos.schema.json"
+  },
+  "baselineFiles": {
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "extended-dtos.schema.json": "98d909f06ae9e4fab3289d2f67186d4364260b2f2e274ea57fcc1fdb02f77c68",
+    "critical-dtos.schema.json": "4e79a1f6f963487cb2937856d4fda1ff155e49926a1f3112a2e6718c475c6d62",
+    "authorization-policies.json": "6d193d0899b6019655b247367ddec6b04f83ac86bbf0e3d60caee1dd6985cbb3",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d",
+    "common-flows.json": "d241e08d0925474b309d60d4ac370a834f9ad90cc7dc153afa5df0e7da931a17",
+    "wallet-control-recovery-design.json": "7d48fb4ef4edb03137f48727745b629880d0385d9bf4723b7572d8a0f65d1db0"
+  },
+  "operations": [
+    {
+      "apiId": "API-007",
+      "method": "GET",
+      "path": "/v1/wallets",
+      "authorization": "account",
+      "requestSchema": "API007Request",
+      "successResponseSchema": "API007Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02"
+      ],
+      "notes": "Authenticated personal context only; no client accountId; cursor bound to caller/context/snapshot."
+    },
+    {
+      "apiId": "API-008",
+      "method": "GET",
+      "path": "/v1/stores/{storeId}/wallets",
+      "authorization": "store_asset_read",
+      "requestSchema": "API008Request",
+      "successResponseSchema": "API008Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "notes": "Exact-store asset-read permission, not refund signing permission; recheck each page."
+    },
+    {
+      "apiId": "API-009",
+      "method": "GET",
+      "path": "/v1/wallets/{walletId}/balances",
+      "authorization": "wallet_read",
+      "requestSchema": "API009Request",
+      "successResponseSchema": "API009Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "APP-02",
+        "TOKEN-03"
+      ],
+      "notes": "Explicit context validated server-side; balance grouping never grants signing or receipt access."
+    },
+    {
+      "apiId": "API-015",
+      "method": "POST",
+      "path": "/v1/wallets/{walletId}/signing-sessions",
+      "authorization": "wallet_sign_authorized",
+      "requestSchema": "API015Request",
+      "successResponseSchema": "API015Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "MPC-03"
+      ],
+      "notes": "This candidate covers Cloud MPC personal-transfer approval contexts only; path walletId must match intent. HW uses BLE. Source-specific existing sessions stay on baseline until separately adapted."
+    },
+    {
+      "apiId": "API-017",
+      "method": "POST",
+      "path": "/v1/transaction-intents",
+      "authorization": "wallet_use",
+      "requestSchema": "API017Request",
+      "successResponseSchema": "API017Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-01",
+        "APP-03"
+      ],
+      "notes": "This candidate covers personal EOA transfer only. Store context, smart accounts and unsupported profiles reject. No payment/refund sourceId accepted; source is server generated."
+    },
+    {
+      "apiId": "API-018",
+      "method": "POST",
+      "path": "/v1/transaction-submissions",
+      "authorization": "intent_submit_capability",
+      "requestSchema": "API018Request",
+      "successResponseSchema": "API018Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "notes": "EOA submission: server loads original intent/source and dispatches original authorization. Personal candidate requires bound approval evidence; baseline guest payment and refund retain their source-specific checks. No mobile-login requirement for guest."
+    },
+    {
+      "apiId": "API-019",
+      "method": "GET",
+      "path": "/v1/transactions/{transactionRef}",
+      "authorization": "transaction_read",
+      "requestSchema": "API019Request",
+      "successResponseSchema": "API019Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "INDEX-05"
+      ],
+      "notes": "Original transaction-read authorization and exact transactionRef; signing/submit success is not chain confirmation."
+    },
+    {
+      "apiId": "API-020",
+      "method": "GET",
+      "path": "/v1/operations/{operationId}",
+      "authorization": "operation_owner_or_capability",
+      "requestSchema": "API020Request",
+      "successResponseSchema": "API020Response",
+      "errorResponseSchema": "ErrorResponse",
+      "taskRefs": [
+        "PAY-02",
+        "REC-03"
+      ],
+      "notes": "Owner or exact-operation capability; walletFlow only for authorized candidate flow, otherwise null; never reveal another context or raw MPC/device proof."
+    }
+  ],
+  "httpBinding": {
+    "requestHeaderMap": {
+      "requestId": "X-Request-ID",
+      "authorization": "Authorization",
+      "contractVersion": "X-Contract-Version",
+      "idempotencyKey": "Idempotency-Key"
+    },
+    "responseContentType": "application/json",
+    "cacheControl": "no-store",
+    "queryEncoding": "scalar UTF-8 query parameters; optional fields omitted, never string null; cursor token opaque",
+    "candidateNegotiation": "Only explicit wallet-approval-candidate-1 clients use changed contracts. Unsupported version rejected; never retry silently with baseline. Baseline source-specific calls remain separate."
+  },
+  "errors": [
+    {
+      "status": 400,
+      "code": "INVALID_REQUEST",
+      "nextAction": "none",
+      "meaning": "Shape/unknown fields/version or invalid query serialization"
+    },
+    {
+      "status": 401,
+      "code": "AUTH_REQUIRED",
+      "nextAction": "reauthenticate",
+      "meaning": "Missing/expired credential, not proof of resource existence"
+    },
+    {
+      "status": 403,
+      "code": "FORBIDDEN",
+      "nextAction": "none",
+      "meaning": "Known authorized context lacks requested action"
+    },
+    {
+      "status": 404,
+      "code": "NOT_FOUND",
+      "nextAction": "none",
+      "meaning": "Resource absent or inaccessible; same external response"
+    },
+    {
+      "status": 409,
+      "code": "SELECTION_STALE",
+      "nextAction": "review_again",
+      "meaning": "Wallet/binding/signer revision changed"
+    },
+    {
+      "status": 409,
+      "code": "IDEMPOTENCY_CONFLICT",
+      "nextAction": "none",
+      "meaning": "Same scoped key with different canonical input"
+    },
+    {
+      "status": 409,
+      "code": "SIGNER_STATE_CONFLICT",
+      "nextAction": "wait",
+      "meaning": "Recovery/rental restriction or signing overlap"
+    },
+    {
+      "status": 409,
+      "code": "CURSOR_STALE",
+      "nextAction": "retry_query",
+      "meaning": "Read snapshot invalidated; restart list"
+    },
+    {
+      "status": 409,
+      "code": "NONCE_CONFLICT",
+      "nextAction": "retry_query",
+      "meaning": "Address nonce occupied/replaced; reconcile existing submission"
+    },
+    {
+      "status": 422,
+      "code": "UNSUPPORTED_ACTION",
+      "nextAction": "none",
+      "meaning": "Wrong source/request kind/account/profile; no blind-sign fallback"
+    },
+    {
+      "status": 422,
+      "code": "APPROVAL_INVALID",
+      "nextAction": "none",
+      "meaning": "Evidence fails verifier/binding; do not disclose private mismatch details"
+    },
+    {
+      "status": 422,
+      "code": "INTENT_EXPIRED",
+      "nextAction": "review_again",
+      "meaning": "No prior accepted submission and new dispatch prohibited"
+    },
+    {
+      "status": 422,
+      "code": "PAYLOAD_MISMATCH",
+      "nextAction": "none",
+      "meaning": "Recovered signer or parsed transaction differs"
+    },
+    {
+      "status": 429,
+      "code": "RATE_LIMITED",
+      "nextAction": "wait",
+      "meaning": "Retry timing separate from fresh approval"
+    },
+    {
+      "status": 503,
+      "code": "DEPENDENCY_UNAVAILABLE",
+      "nextAction": "retry_query",
+      "meaning": "Dependency unavailable; unknown submission queries original operation"
+    }
+  ],
+  "logicalResources": [
+    {
+      "name": "WalletChoiceProjection",
+      "anchor": "wallets + wallet_bindings + device_bindings/mpc_participants",
+      "rule": "Caller/context-scoped projection, no new physical table implied"
+    },
+    {
+      "name": "ApprovalBinding",
+      "anchor": "transaction intent + operation + immutable selection snapshot",
+      "rule": "Store context/payer/signer/epoch/digest/source at creation; verified evidence links to exact signature, not inferred from EOA alone"
+    },
+    {
+      "name": "SignatureProvenance",
+      "anchor": "device result verifier or MPC signing_sessions",
+      "rule": "Only successful selected-profile verification binds actual signing route/epoch; unsupported proof profile rejects protected route"
+    },
+    {
+      "name": "SubmissionDispatch",
+      "anchor": "transaction submission + operation + source ledger + chain/address/nonce tracking",
+      "rule": "Persist signed-payload fingerprint/hash/outbox before broadcast; identical retry returns original, different bytes conflict; external nonce competitors observed, not locked"
+    }
+  ],
+  "sourceAdapters": [
+    {
+      "apiId": "API-034",
+      "status": "baseline_preserved_pending_adapter",
+      "rule": "Guest attempt/device/session capability; no account or Cloud participant required"
+    },
+    {
+      "apiId": "API-037",
+      "status": "baseline_preserved_pending_adapter",
+      "rule": "Store funds authorization and commerce funding guards retained; API017 never creates refunds"
+    },
+    {
+      "apiId": "API-056",
+      "status": "baseline_preserved_outside_eoa_candidate",
+      "rule": "Smart account/UserOperation uses separate source adapter; not submitted as raw EOA candidate"
+    }
+  ],
+  "policySelectionUnchanged": true,
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "decisionRefs": [
+    "D02",
+    "D03",
+    "D04",
+    "D08",
+    "D09",
+    "D11"
+  ],
+  "screenRefs": [
+    "U02",
+    "U03",
+    "U12",
+    "U13"
+  ],
+  "caseFile": "wallet-api-examples.json"
+}

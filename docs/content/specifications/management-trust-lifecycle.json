@@ -1,0 +1,599 @@
+{
+  "date": "2026-09-19",
+  "status": "management_trust_design_candidate",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "activeTrustChanges": [],
+  "sourceHashes": {
+    "content/specifications/security-integration-design.md": "51f9af83634e0e404122712321ae3d44dae1c47eb5802096be4ede3f88bfe2af",
+    "content/specifications/security-storage-contracts.json": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8",
+    "content/specifications/profile-control-adoption-map.json": "cca8d74080ccb492487d92e5a77cc6fde5b1927499c29d64a707e3be6cd6768e",
+    "content/specifications/profile-adoption-protocol.json": "f790ab12574fcfb079753521c460ced84146fdf54f711080f8711a40a74c6d25",
+    "content/specifications/selection-profile-contract.json": "8225719c5478e47cd41f909ffd38aefc7a9e54ceec006bc6ffc39ee25bafa9c1"
+  },
+  "purpose": "관리 신뢰의 최초 등록·권한 변경·키 교체·분실/침해 복구와 소비자 재동기화의 논리 설계. 실제 관리자·키·복구 주체를 선정하거나 등록하지 않는다.",
+  "boundaries": [
+    "관리 trust anchor, 운영자/workload identity, FOTA 릴리스 키, 기기 identity, DID issuer 키, HW wallet/Cloud MPC signer를 서로 다른 용도·scope로 식별한다.",
+    "이 설계의 복구는 관리 신뢰만 대상으로 한다. 사용자 mnemonic/private key/share export, 신규 여행 EOA 백업 선택, 자산 sweep 권한을 추가하지 않는다.",
+    "승인자 수/주체·서명 suite·보호 저장소·복구 채널·키 유효기간은 D02/D05/D19의 미선택 입력이다. 참여 인원 3명을 승인 threshold로 자동 해석하지 않는다.",
+    "권한 상승의 요청자와 승인자는 분리한다는 기존 TrustChangeRequest 조건을 유지한다. alias 계정/같은 통제 주체를 독립 승인 수로 중복 계산하지 않는다.",
+    "새 권한·root·manifest는 자기 자신의 관리 신뢰 근거가 될 수 없다. 현재 등록된 관리 신뢰 또는 사전 설정된 독립 bootstrap/recovery 근거가 필요하다.",
+    "TMC 연산은 보호된 운영 service command 후보이며 공개 registry 관리 API를 새로 등록하지 않는다. PRC rollout API와 별도의 trust lifecycle이다."
+  ],
+  "keyDomains": [
+    {
+      "id": "KD-01",
+      "name": "management_anchor",
+      "purpose": "관리 신뢰 버전·허용 관리 주체를 검증",
+      "notGranted": "사용자 지갑 서명·복구·자산 이동"
+    },
+    {
+      "id": "KD-02",
+      "name": "operator_and_workload",
+      "purpose": "현재 scope의 관리 명령·worker 업무",
+      "notGranted": "자기 권한 상승·다른 workload 가장"
+    },
+    {
+      "id": "KD-03",
+      "name": "firmware_release",
+      "purpose": "선정 이미지/릴리스의 무결성·발행 권한",
+      "notGranted": "profile activation 또는 trust root 교체"
+    },
+    {
+      "id": "KD-04",
+      "name": "device_identity",
+      "purpose": "own peer/boot/session의 기기 증거",
+      "notGranted": "관리 정책 승인·사용자 자금 서명 자동 허용"
+    },
+    {
+      "id": "KD-05",
+      "name": "credential_issuer",
+      "purpose": "등록 자격 profile의 발급/상태 검증",
+      "notGranted": "관리자 등록·다른 issuer 자격 철회"
+    },
+    {
+      "id": "KD-06",
+      "name": "wallet_signer",
+      "purpose": "별도 사용자 승인/복구 계약의 HW·MPC 자금 서명",
+      "notGranted": "관리 trust 복구 요청만으로 export/서명"
+    }
+  ],
+  "policyInputs": [
+    {
+      "id": "TP-01",
+      "fieldRefs": [
+        "PF-D02-02",
+        "PF-D19-04"
+      ],
+      "needed": "bootstrap의 out-of-band 신뢰 출처·초기 승인자 독립 통제·설치 evidence 형식",
+      "selection": null
+    },
+    {
+      "id": "TP-02",
+      "fieldRefs": [
+        "PF-D02-02",
+        "PF-D19-04"
+      ],
+      "needed": "관리 key purpose별 suite·keyId·PoP/challenge·정규화·승인 수/독립성 규칙",
+      "selection": null
+    },
+    {
+      "id": "TP-03",
+      "fieldRefs": [
+        "PF-D05-01",
+        "PF-D05-02",
+        "PF-D19-04"
+      ],
+      "needed": "anchor/checkpoint/boot counter·최대 관측 epoch의 보호 저장과 restore 판정 경로",
+      "selection": null
+    },
+    {
+      "id": "TP-04",
+      "fieldRefs": [
+        "PF-D19-02",
+        "PF-D19-04"
+      ],
+      "needed": "사전 recovery authority·독립 복구 증거·비밀 보관/분실·격리 절차",
+      "selection": null
+    },
+    {
+      "id": "TP-05",
+      "fieldRefs": [
+        "PF-D02-04",
+        "PF-D19-04"
+      ],
+      "needed": "관리 key/grant 유효시간·rotation overlap·cache/lease·철회 전달 한계",
+      "selection": null
+    },
+    {
+      "id": "TP-06",
+      "fieldRefs": [
+        "PF-D19-02",
+        "PF-D19-03",
+        "PF-D19-04"
+      ],
+      "needed": "감사·사건 기록 보존, DB restore 검증과 현재 fence/grant 복원 기준",
+      "selection": null
+    }
+  ],
+  "records": [
+    {
+      "id": "TR-01",
+      "name": "BootstrapEvidence",
+      "logicalKey": "environment+deployment+bootstrapTicketId",
+      "contents": "OOB anchor fingerprint·policy digest·승인 주체/독립성·virgin/install evidence·expiry·consumption/outcome",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    },
+    {
+      "id": "TR-02",
+      "name": "TrustAnchorVersion",
+      "logicalKey": "environment+deployment+anchorEpoch",
+      "contents": "public key/purpose set·previous digest·policy digest·rotation/recovery linkage·proofRefs·validity",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    },
+    {
+      "id": "TR-03",
+      "name": "ManagementKeyBinding",
+      "logicalKey": "principal+purpose+keyVersion",
+      "contents": "public key identifier·PoP/challenge·issuer/anchor version·current grant scope·key state·compromise incident",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    },
+    {
+      "id": "TR-04",
+      "name": "TrustApprovalEvidence",
+      "logicalKey": "changeId+immutableDigest+approverIdentity",
+      "contents": "current approval entitlement·distinct controller evidence·scope·expiry·expected anchor/grant/fence revisions",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    },
+    {
+      "id": "TR-05",
+      "name": "TrustRecoveryCase",
+      "logicalKey": "environment+recoveryPolicyId+caseId",
+      "contents": "precommitted recovery anchor·incident·requested scope/key digest·challenge·approvals·single-use consumption·outcome",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    },
+    {
+      "id": "TR-06",
+      "name": "ConsumerTrustCheckpoint",
+      "logicalKey": "environment+peerBinding+bootEpoch",
+      "contents": "last trusted anchor/digest·max observed epoch·profile·durability/protection evidence·apply report",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    },
+    {
+      "id": "TR-07",
+      "name": "TrustRestoreAssessment",
+      "logicalKey": "environment+restoreAttemptId",
+      "contents": "backup identity·protected/external checkpoint·grant/fence replay evidence·unresolved sources·restriction decision",
+      "physicalStatus": "candidate_no_sql_or_protected_storage_applied"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "TI-01",
+      "rule": "초기 신뢰는 대상 bundle 밖에서 확인한다. 빈 DB/자기 서명/new root PoP만으로 bootstrap하지 않는다.",
+      "recordRefs": [
+        "TR-01",
+        "TR-02"
+      ]
+    },
+    {
+      "id": "TI-02",
+      "rule": "권한 상승 요청자·승인자와 승인 key/control identity를 중복 계산하지 않으며 quorum을 단순 서명 개수로 대체하지 않는다.",
+      "recordRefs": [
+        "TR-04"
+      ]
+    },
+    {
+      "id": "TI-03",
+      "rule": "승인한 exact digest/scope/expected revisions와 commit 값이 동일해야 한다. 변경된 본문은 재승인 대상이다.",
+      "recordRefs": [
+        "TR-04",
+        "TR-02"
+      ]
+    },
+    {
+      "id": "TI-04",
+      "rule": "새 키 PoP와 키를 관리자 권한에 연결할 권한은 별도이다. 목적·scope가 바뀌면 단순 키 교체로 처리하지 않는다.",
+      "recordRefs": [
+        "TR-03"
+      ]
+    },
+    {
+      "id": "TI-05",
+      "rule": "이전 root의 권한·새 root의 증거·연속 epoch를 모두 확인한 정상 교체와 독립 recovery path를 혼용하지 않는다.",
+      "recordRefs": [
+        "TR-02",
+        "TR-05"
+      ]
+    },
+    {
+      "id": "TI-06",
+      "rule": "현재 grant/fence/anchor/approval expiry가 과거 승인 snapshot보다 우선한다. 결과 재조회가 revoked grant를 복구하지 않는다.",
+      "recordRefs": [
+        "TR-02",
+        "TR-04"
+      ]
+    },
+    {
+      "id": "TI-07",
+      "rule": "bootstrap ticket/recovery case는 단회 commit한다. 결과 불명·cache 만료·다른 relay를 재사용 허가로 보지 않는다.",
+      "recordRefs": [
+        "TR-01",
+        "TR-05"
+      ]
+    },
+    {
+      "id": "TI-08",
+      "rule": "복구 후 기본 상태는 제한 유지이며 이전 fence/epoch를 낮추지 않는다. 기능 재개는 별도 현재 근거가 필요하다.",
+      "recordRefs": [
+        "TR-05",
+        "TR-06"
+      ]
+    },
+    {
+      "id": "TI-09",
+      "rule": "rollback된 DB/기기 snapshot의 epoch·grant를 current로 추정하지 않는다. 독립 checkpoint 검증 불가 시 새 민감 동작은 격리한다.",
+      "recordRefs": [
+        "TR-06",
+        "TR-07"
+      ]
+    },
+    {
+      "id": "TI-10",
+      "rule": "관리 키 침해·복구가 사용자 signer/backup/asset 권한을 생성하지 않는다. 원 거래 관측은 현재 업무 권한으로 별도 유지한다.",
+      "recordRefs": [
+        "TR-03",
+        "TR-05"
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TT-01",
+      "from": "uninitialized",
+      "to": "current_restricted",
+      "rule": "신뢰된 bootstrap commit",
+      "commandRef": "TMC-01",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-02",
+      "from": "current",
+      "to": "rotation_prepared",
+      "rule": "정상 교체 증거 준비; active trust는 원 head 유지",
+      "commandRef": "TMC-03",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-03",
+      "from": "rotation_prepared",
+      "to": "current",
+      "rule": "현재 조건 재검사 후 다음 anchor epoch commit",
+      "commandRef": "TMC-03",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-04",
+      "from": "any_initialized",
+      "to": "restricted",
+      "rule": "침해 의심·명시 scope 제한",
+      "commandRef": "TMC-04",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-05",
+      "from": "restricted",
+      "to": "recovery_prepared",
+      "rule": "사전 독립 복구 근거로 원 case 준비",
+      "commandRef": "TMC-05",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-06",
+      "from": "recovery_prepared",
+      "to": "recovered_restricted",
+      "rule": "현재 recovery 승인·단회 case commit; 자동 resume 없음",
+      "commandRef": "TMC-06",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-07",
+      "from": "current_restricted|recovered_restricted|restricted",
+      "to": "current",
+      "rule": "별도 현재 재개 근거와 consumer 준비 충족",
+      "commandRef": "TMC-07",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-08",
+      "from": "any",
+      "to": "same",
+      "rule": "원 결과 조회·응답 유실 복구",
+      "commandRef": "TMC-08",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-09",
+      "from": "rotation_prepared",
+      "to": "current",
+      "rule": "대기 교체 승인만 만료/철회되고 원 head/권한은 여전히 유효: pending change를 hold/abort, 원 current 유지",
+      "commandRef": "TMC-03",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-10",
+      "from": "any_initialized",
+      "to": "quarantined",
+      "rule": "restore/epoch 증거 모순 또는 현재성 불명",
+      "commandRef": "TMC-04",
+      "axis": "management trust admission; root request outcome and per-key state tracked separately"
+    },
+    {
+      "id": "TT-11",
+      "from": "recovery_prepared",
+      "to": "restricted",
+      "rule": "복구 증거 만료/승인 상실: 원 제한 유지, 자동 정상화 없음",
+      "commandRef": "TMC-06",
+      "axis": "management trust admission; pending recovery outcome stays separate"
+    }
+  ],
+  "commands": [
+    {
+      "id": "TMC-01",
+      "name": "bootstrap.commit",
+      "authority": "사전 OOB bootstrap policy의 독립 승인 집합",
+      "recordRefs": [
+        "TR-01",
+        "TR-02",
+        "TR-03",
+        "TR-04"
+      ],
+      "guard": "환경·deployment·virgin/install 근거·anchor bundle·ticket·PoP·승인·audit/outcome을 묶고 단회 commit",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-02",
+      "name": "principal.change",
+      "authority": "현재 명시된 grant-change 관리 권한+권한 상승의 독립 승인",
+      "recordRefs": [
+        "TR-03",
+        "TR-04"
+      ],
+      "guard": "request/review/activate 단계 구분. key binding·scope diff·현재 grant revision; signer PoP만으로 권한 부여 금지",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-03",
+      "name": "anchor.rotate",
+      "authority": "현재 anchor policy의 승인+새 anchor key 증거",
+      "recordRefs": [
+        "TR-02",
+        "TR-03",
+        "TR-04",
+        "TR-06"
+      ],
+      "guard": "정상 연속 epoch+현재 승인권+immutable digest. 실패/키 유실 시 TMC06 우회 승인 금지",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-04",
+      "name": "trust.restrict",
+      "authority": "현재 scope의 명시된 제한/철회 권한",
+      "recordRefs": [
+        "TR-03",
+        "TR-07"
+      ],
+      "guard": "권한 축소만. 관련 PRC-07 fence/등록 상태와 연결하며 재개 권한을 포함하지 않음",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-05",
+      "name": "recovery.prepare",
+      "authority": "사전 설정된 recovery authority의 요청/증거 제출 권한",
+      "recordRefs": [
+        "TR-05",
+        "TR-07"
+      ],
+      "guard": "원 incident·case·anchor checkpoint·scope/key digest·challenge 고정; 새 root 활성화 아님",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-06",
+      "name": "recovery.commit",
+      "authority": "precommitted recovery policy의 현재 유효한 독립 승인 집합",
+      "recordRefs": [
+        "TR-02",
+        "TR-03",
+        "TR-04",
+        "TR-05",
+        "TR-07"
+      ],
+      "guard": "case 단회 소비·새 trust head·old authority 차단·현재 fence 보존·audit/outcome. recovered_restricted 유지",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-07",
+      "name": "trust.resume",
+      "authority": "현재 별도의 제한 해제/재개 권한+bootstrap release 또는 incident closure 검토",
+      "recordRefs": [
+        "TR-04",
+        "TR-05",
+        "TR-06",
+        "TR-07"
+      ],
+      "guard": "같은 bootstrap/recovery digest 승인만 재사용하지 않음. 최초 등록은 bootstrap release 검토, 사건 복구는 incident closure를 요구하고 현재 consumer/readiness/호환·fence revision별 명시 action만 재개",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    },
+    {
+      "id": "TMC-08",
+      "name": "trust.result",
+      "authority": "현재 observer 또는 exact original-request scoped recovery read proof",
+      "recordRefs": [
+        "TR-01",
+        "TR-02",
+        "TR-03",
+        "TR-04",
+        "TR-05",
+        "TR-06",
+        "TR-07"
+      ],
+      "guard": "원 outcome과 현재 trust/fence/consumer 상태를 분리한 projection. 활성화/새 grant 발급 없음",
+      "registration": "privileged_service_command_candidate_not_public_api"
+    }
+  ],
+  "bootstrapProtocol": [
+    "선정된 보호 배포 경로로 초기 public anchor fingerprint·environment·deployment identity·scope·policy digest·승인 evidence를 전달한다. 같은 서버가 제공한 fingerprint만 다시 읽어 일치시키는 것을 독립 확인으로 간주하지 않는다.",
+    "bootstrap 허용 여부는 외부/보호 설치 기록·현재 최고 epoch·virgin 상태를 함께 검사한다. DB가 비었거나 backup에서 복구됐다는 이유만으로 최초 등록을 다시 허용하지 않는다.",
+    "초기 승인자는 아직 등록되지 않은 새 root에 의존하지 않는 사전 bootstrap policy로 식별한다. quorum·독립 통제·정확한 bundle digest·유효기간·일회성 challenge 조건을 충족해야 한다.",
+    "새 관리 키는 선정 방식의 proof-of-possession을 제출한다. PoP는 키 통제를 확인할 뿐 관리자 승격 권한을 만들지 않는다.",
+    "bootstrap ticket 소비 + 초기 AnchorVersion + TrustPrincipal/GrantRevision + 설치/epoch checkpoint + audit/outcome을 지정 원자 경계로 commit한다. 별도 저장 장치와의 원자성이 미입증이면 중간 상태는 격리하고 재검증한다.",
+    "응답 유실은 원 bootstrap request/ticket의 결과 조회로 복구한다. 같은 request/digest에 대해 초기 관리자 추가 생성이나 epoch 재설정을 하지 않는다.",
+    "설치 흔적/epoch가 모순되거나 신뢰된 virgin 근거가 없으면 신규 관리 동작을 보류한다. 물리 버튼·소셜 로그인·SQL 수정만으로 bootstrap을 대체하지 않는다."
+  ],
+  "normalRotation": [
+    "일반 운영자/workload 키 교체는 기존 등록 principal·현재 승인권·purpose·scope·새 키 PoP·expected grant revision에 결합한다. 동일 주소/subject라는 주장만으로 키 통제권을 바꾸지 않는다.",
+    "scope/role/purpose가 커지는 교체는 별도의 권한 상승으로 분류하고 독립 승인한다. key rotation 이벤트에 권한 상승을 숨기지 않는다.",
+    "관리 anchor의 정상 교체는 현재 신뢰 기준의 승인과 새 anchor의 키 통제 증거를 같은 immutable change digest에 묶는 안이다. quorum 수와 suite는 미선택이며 단순히 두 서명이 있으면 충분하다고 판정하지 않는다.",
+    "anchor epoch는 선택된 연속성 규칙대로 다음 버전으로 이동한다. 소비자는 마지막 신뢰 checkpoint부터 각 교체 연결을 검증한다. 중간 연결이나 recovery checkpoint가 없으면 최신 root 문자열을 믿지 않는다.",
+    "준비된 새 키는 current가 되기 전 관리 명령을 실행하지 않는다. commit 시 anchor/grant head·approval validity·fence·restore assessment·감사 저장을 재검사한다.",
+    "교체 시 old key를 신규 명령용 active로 계속 인정할지/얼마나 overlap할지는 명시 profile에만 따른다. 미선택 overlap은 두 키 자동 동시 허용을 뜻하지 않는다.",
+    "old key/public metadata는 과거 증거 검증용으로 보존할 수 있으나, 현재 권한으로 재사용하지 않는다. 침해된 키로 과거 서명이 검증된다는 사실만으로 그 기록의 사실성/시점을 입증하지 않는다."
+  ],
+  "incidentRecovery": [
+    "유실과 침해 의심은 별도 사건으로 기록한다. 침해 의심 범위의 신규 mutation/signing 권한은 현재 제한 권한으로 먼저 차단하며 원 기록·외부 노출을 보존한다.",
+    "원 관리 경로의 승인 능력이 사라졌다면 정상 rotation으로 위장하지 않는다. 신뢰 붕괴 전에 별도로 고정한 recovery authority·scope·one-time case·독립 승인 근거가 있는지 확인한다.",
+    "사전 복구 근거가 없거나 그것까지 침해됐으면 원격 self-service recovery를 거절하고 해당 기능을 격리한다. 재프로비저닝은 별도 out-of-band 신뢰 확립과 원 데이터/자산 경계 검토 없이는 수행하지 않는다.",
+    "recovery request는 current environment/incident/anchor checkpoint·정확한 새 key/purpose/scope·서명/PoP·challenge·승인 집합·expected revision을 고정한다. 타 환경의 recovery ticket이나 social-login 재인증을 대신 쓰지 않는다.",
+    "복구 commit은 current authentic checkpoint/restore 검토와 case 단회 소비, 새 anchor/grant version, 관련 old key 권한 차단, 감사/outcome을 묶는다. 기존 security fence는 낮추지 않는다.",
+    "복구 성공 후 recovered_restricted 상태로 둔다. 새 관리 키의 등록 성공만으로 PRC activation, worker 실행, 지급 서명, 기기 재대여가 자동 재개되지 않는다.",
+    "현재 별도 재개 권한·사건 종료 근거·consumer 적용/호환/준비 확인으로 명시 action만 단계적으로 재개한다. 과거 grant를 통째로 복원하거나 실패한 요청을 전부 재실행하지 않는다.",
+    "이미 외부에 제공된 signed transaction/정보는 관리 키 철회로 회수되지 않는다. 원 operation observation과 제한된 현재 read projection을 유지한다.",
+    "현재 root 또는 같은 검증 경계 전체가 침해되면 정상 서명 연속성만으로 복구 정당성을 보장할 수 없다. 사전 독립 recovery checkpoint/채널의 보존·진위도 확인해야 하며 실패 시 격리한다."
+  ],
+  "consumerRules": [
+    "서버·앱·기기는 자기 environment/deployment와 key purpose에 맞는 anchor/checkpoint를 가진다. 서명 검증 keyId는 policy와 동일 purpose에 바인딩하며 다른 키 유형으로 알고리즘을 자동 교체하지 않는다.",
+    "연결되지 않은 소비자는 철회를 즉시 알 수 없다. cache/lease/clock을 검증할 수 없거나 허용 최신성 밖이면 새 민감 행위를 보류하고 원 결과 조회도 현재 reader 권한 범위에서 처리한다.",
+    "새 anchor 적용 보고는 own peer/boot/checkpoint/report digest에 결합한다. 기존 준비/적용 ACK를 새 신뢰 버전용으로 재사용하지 않는다.",
+    "trust head/권한 revision 변경은 관련 PRC readiness와 신규 mutation admission을 재평가하게 한다. 기존 rollout의 profileSetDigest가 같아도 stale trust evidence로 신규 commit하지 않는다.",
+    "원 요청의 operationClass/profile/digest/epoch를 보존하며 결과 조회는 현재 원천·읽기권으로 투영한다. old credential metadata를 보존하는 일과 old grant 활성 유지가 다르다.",
+    "DB restore가 grant/epoch/fence의 rollback을 만들 수 있다. 보호 checkpoint 또는 독립 검증 가능한 최신성 근거와 대조할 수 없으면 복구된 저장소를 current로 선언하지 않는다.",
+    "anti-rollback 기록을 같은 롤백 가능한 DB에만 복제한 것을 독립 보호라고 주장하지 않는다. 보드/보호 저장/profile 검증은 아직 없다."
+  ],
+  "atomicity": [
+    "검증된 서명 evidence는 exact digest와 verifier/profile version에 결합한다. commit 시 current anchor/grant/fence/approval/ticket/restore revision을 재검증한다.",
+    "변경 request identity는 environment+trusted requester scope+command+parent+requestId이다. 같은 identity의 다른 digest는 충돌, 같은 digest는 현재 읽기/변경 권한으로 원 outcome만 반환한다.",
+    "bootstrap ticket/recovery case/approval challenge 단회 소비와 key/grant/anchor 전이는 같은 지정 논리 경계다. 외부 HSM·protected storage·DB 전체의 원자성을 가정하지 않는다.",
+    "외부 store commit이 불명하면 unknown outcome을 원 case에 연결하고 새 case/key를 만들어 우회하지 않는다. public trust 상태와 private key 생성/보관의 수명은 별도 원천으로 대사한다.",
+    "변경에 필요한 audit 기록이 남지 않으면 새 trust/grant 활성화를 완료 처리하지 않는다. 단, 로컬 긴급 잠금은 audit 서비스 장애 때문에 풀리지 않으며 durable 전달/기록 불명 상태로 따로 추적한다."
+  ],
+  "crossMappings": [
+    {
+      "id": "TM-01",
+      "policyCandidateRefs": [
+        "PCP-01",
+        "PCP-03"
+      ],
+      "rule": "기존 current trust가 author/activator 권한을 판정한다. target profile 안의 새 root/role을 현재 authority로 읽지 않는다."
+    },
+    {
+      "id": "TM-02",
+      "policyCandidateRefs": [
+        "PCP-02",
+        "PCP-05"
+      ],
+      "rule": "peer identity 키 교체 후 own binding/boot/challenge를 재검증. 예전 device 보고가 새 identity의 준비/적용을 대신하지 않는다."
+    },
+    {
+      "id": "TM-03",
+      "policyCandidateRefs": [
+        "PCP-04"
+      ],
+      "rule": "원 request/result 조회도 현재 observer scope로 투영; 침해된 관리자 토큰에 과거 protected response를 재전달하지 않는다."
+    },
+    {
+      "id": "TM-04",
+      "policyCandidateRefs": [
+        "PCP-06",
+        "PCP-07"
+      ],
+      "rule": "abort/restrict는 현재 scope의 축소 행위. trust.resume 권한으로 확대하거나 commit된 rollout을 없애지 않는다."
+    }
+  ],
+  "uiProjection": {
+    "screenRefs": [
+      "O01",
+      "O02",
+      "O03",
+      "O04",
+      "U05",
+      "U06",
+      "K01",
+      "D01",
+      "D02"
+    ],
+    "fields": [
+      "requestRef",
+      "trustChangeKind",
+      "originalOutcome",
+      "currentAnchorEpoch",
+      "currentGrantRevision",
+      "securityRestriction",
+      "ownConsumerSyncState",
+      "safeNextAction"
+    ],
+    "copy": [
+      {
+        "state": "bootstrap_unverified",
+        "text": "초기 관리 신뢰를 확인하지 못해 설정 변경을 보류했어요."
+      },
+      {
+        "state": "rotation_pending",
+        "text": "새 키를 준비했습니다. 적용 확인 전에는 기존 허용 범위만 사용할 수 있어요."
+      },
+      {
+        "state": "recovered_restricted",
+        "text": "관리 키 복구를 확인했습니다. 기능 재개는 별도 확인이 필요해요."
+      },
+      {
+        "state": "trust_quarantined",
+        "text": "신뢰 정보를 확인할 수 없어 해당 기능을 제한했어요. 확인 가능한 원 기록은 보존합니다."
+      }
+    ],
+    "privateProjection": "복구 secret/private key·share·다른 관리자의 credential·불필요한 fingerprint 목록은 반환하지 않는다. 일반 사용자에게 승인자 토폴로지와 사건 상세를 노출하지 않는다."
+  },
+  "externalReference": {
+    "title": "The Update Framework Specification",
+    "url": "https://theupdateframework.github.io/specification/latest/#update-the-root-role",
+    "checkedOn": "2026-09-19",
+    "supports": "TUF는 별도 경로로 받은 신뢰 root에서 출발하며 root 갱신에 이전/새 root의 승인과 연속 버전 검증을 요구한다.",
+    "application": "관리 anchor 정상 교체의 연속성·이전 신뢰와 새 키 증거 분리에 참고했다. 본 설계의 recovery authority·업무 권한·복구 절차는 별도 제안이다.",
+    "notClaimed": "TUF 전체 채택/호환·최초 신뢰 문제의 자동 해결·NU 기기 지원·root 전체 침해 복구 보장"
+  },
+  "existingTrustResourceRefs": [
+    "TrustPrincipal",
+    "TrustGrantRevision",
+    "TrustChangeRequest"
+  ],
+  "decisionRefs": [
+    "D02",
+    "D05",
+    "D19"
+  ],
+  "taskRefs": [
+    "BASE-03",
+    "BASE-05",
+    "OPS-01",
+    "RELEASE-01",
+    "RELEASE-02",
+    "RELEASE-03"
+  ],
+  "nonGoals": [
+    "실제 키/관리자 생성·등록·교체",
+    "HW/MPC wallet 복구/자산 전송",
+    "정책/threshold 자동 확정",
+    "공개 관리 API·BLE command·SQL migration 추가"
+  ],
+  "nextDesign": "bootstrap/rotation/recovery의 증거 객체에 필수 binding·발급/검증 책임·만료/단회 사용/보존·불명 결과 처리의 구체 명세를 붙인다."
+}

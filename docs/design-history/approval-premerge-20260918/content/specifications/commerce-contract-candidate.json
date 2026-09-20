@@ -1,0 +1,244 @@
+{
+  "status": "review_candidate_not_merged",
+  "profileId": "commerce-reconciliation-candidate-1",
+  "scope": [
+    "LC-GAP-01",
+    "LC-GAP-02",
+    "LC-GAP-03"
+  ],
+  "policyStatus": "proposed_not_user_confirmed",
+  "runtimeVerified": false,
+  "baselineFiles": {
+    "extended-dtos.schema.json": "98d909f06ae9e4fab3289d2f67186d4364260b2f2e274ea57fcc1fdb02f77c68",
+    "critical-dtos.schema.json": "4e79a1f6f963487cb2937856d4fda1ff155e49926a1f3112a2e6718c475c6d62",
+    "api-catalog.json": "e0d17a805154ca16f095725396fac35f192183cee66a37497f44c7683f779970",
+    "event-catalog.json": "8660d596fc893e0f79bbeb46e3969a3894e3870671c5cf791588a057844e1fba",
+    "database/003_commerce_ledger.sql": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+    "authorization-policies.json": "6d193d0899b6019655b247367ddec6b04f83ac86bbf0e3d60caee1dd6985cbb3",
+    "api-access-transactions.json": "df00919cb6a2ab8c74f1c83f1876259b0f40fe9f3deec90784cb05f40887cc9d"
+  },
+  "schemaFile": "commerce-contract-candidate.schema.json",
+  "externalSchemaBindings": {
+    "urn:nu:commerce:baseline": "extended-dtos.schema.json"
+  },
+  "operations": [
+    {
+      "apiId": "API-030",
+      "fragment": "response.body.data",
+      "candidateSchema": "API030Data",
+      "taskRefs": [
+        "PAY-04",
+        "SHOP-03",
+        "OPS-03"
+      ],
+      "notes": "server selects projection by current exact-store refund role; no client projection selector; full source list requires a documented query delta"
+    },
+    {
+      "apiId": "API-035",
+      "fragment": "response.body.data",
+      "candidateSchema": "API035Data",
+      "taskRefs": [
+        "PAY-04",
+        "INDEX-06"
+      ],
+      "notes": "allocation refers to this attempt only"
+    },
+    {
+      "apiId": "API-036",
+      "fragment": "request.body",
+      "candidateSchema": "API036Body",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "notes": "paymentId means payment_allocations.id; retain baseline path/headers/response envelope"
+    },
+    {
+      "apiId": "API-037",
+      "fragment": "request.body",
+      "candidateSchema": "API037Body",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "notes": "derive store and paymentId from stored refund; no client change of payer/source/destination"
+    },
+    {
+      "apiId": "API-038",
+      "fragment": "response.body.data",
+      "candidateSchema": "API038Data",
+      "taskRefs": [
+        "SHOP-04",
+        "INDEX-06"
+      ],
+      "notes": "receipt ownership must match original payment allocation; customer has no source-level refund budget"
+    }
+  ],
+  "queryDelta": {
+    "apiId": "API-030",
+    "candidateQueryFields": {
+      "refundSourcesCursor": "nullable opaque cursor",
+      "refundSourcesLimit": "integer 1..100, proposed default 20"
+    },
+    "authorization": "exact-store store_refund_request permission before source list/cursor processing; cursor bound to principal/store/order/snapshot; public projection rejects these fields",
+    "status": "review_candidate_not_merged"
+  },
+  "events": [
+    {
+      "type": "payment.acceptance.changed",
+      "candidateSchema": "PaymentAcceptanceEvent",
+      "schemaVersion": "2",
+      "taskRefs": [
+        "PAY-04",
+        "INDEX-06"
+      ]
+    },
+    {
+      "type": "refund.state.changed",
+      "candidateSchema": "RefundStateEvent",
+      "schemaVersion": "2",
+      "taskRefs": [
+        "SHOP-04",
+        "INDEX-06"
+      ]
+    }
+  ],
+  "logicalResources": [
+    {
+      "name": "OrderReconciliation",
+      "key": [
+        "orderId"
+      ],
+      "fields": [
+        "primaryPaymentId?",
+        "state",
+        "reconciliationRevision",
+        "policyVersion",
+        "reviewReasons",
+        "observedAt?",
+        "sourceListRevision"
+      ],
+      "existingAnchor": "orders + payment_allocations",
+      "invariants": [
+        "one current primary per order",
+        "primary can remain invalidated; no automatic alternate promotion",
+        "order cancel/accept and revision changes serialized"
+      ]
+    },
+    {
+      "name": "PaymentException",
+      "key": [
+        "paymentId"
+      ],
+      "fields": [
+        "reasonCode",
+        "resolutionState",
+        "policyVersion",
+        "revision"
+      ],
+      "existingAnchor": "payment_allocations.state=exception",
+      "invariants": [
+        "paymentId retains exact evidence/attempt/order/asset",
+        "exception return never adds ordinary sale",
+        "each refund balance is tied to one allocation"
+      ]
+    },
+    {
+      "name": "RefundFundingGuard",
+      "key": [
+        "balanceId"
+      ],
+      "fields": [
+        "paymentId",
+        "fundingRevision",
+        "authorizationHeld",
+        "holdReasons",
+        "sourceObservationRevision",
+        "policyVersion"
+      ],
+      "existingAnchor": "refund_balances",
+      "invariants": [
+        "all reserve/confirm/release/reverse/hold changes bump same funding revision",
+        "held source cannot authorize fresh movement",
+        "locked historical cap is not silently reduced below outstanding amounts"
+      ]
+    },
+    {
+      "name": "RefundReconciliation",
+      "key": [
+        "refundId"
+      ],
+      "fields": [
+        "reconciliationRevision",
+        "observationReference?",
+        "canonicality",
+        "confirmation",
+        "reasonCodes",
+        "reservationState"
+      ],
+      "existingAnchor": "refunds + refund_reservations + transaction_submissions",
+      "invariants": [
+        "reorg reverses confirmed into reserved atomically",
+        "ambiguous signed transaction keeps active reservation",
+        "duplicate observation revision causes no double accounting"
+      ]
+    }
+  ],
+  "openDecisions": [
+    {
+      "decisionId": "D08",
+      "items": [
+        "first committed valid full payment wins vs alternate policies",
+        "partial payment aggregation",
+        "late payment and exception-return authorization policy"
+      ]
+    },
+    {
+      "decisionId": "D02",
+      "items": [
+        "versioned query/response negotiation",
+        "physical storage mapping and aggregate transaction boundary"
+      ]
+    },
+    {
+      "decisionId": "D19",
+      "items": [
+        "operational alert thresholds and source list limits"
+      ]
+    }
+  ],
+  "integrationStatus": {
+    "canonicalApiCount": 107,
+    "canonicalEventCount": 10,
+    "canonicalSqlTableCount": 61,
+    "newPhysicalSqlTables": 0,
+    "mergedIntoCanonical": false,
+    "runtimeTests": "not_run"
+  },
+  "authorizationChanges": [
+    {
+      "apiId": "API-038",
+      "status": "candidate_tightening_of_existing_receipt_rule",
+      "predicate": "store refund role for exact store OR refund.balance.allocation is included in current ReceiptOwnership/Eligibility; order membership alone is insufficient",
+      "taskRefs": [
+        "SHOP-04",
+        "AUTH-01"
+      ]
+    },
+    {
+      "apiId": "API-030",
+      "status": "candidate_projection_rule",
+      "predicate": "order read permission gives public projection; refund source budget/list requires current exact-store refund request permission",
+      "taskRefs": [
+        "SHOP-03",
+        "SHOP-04"
+      ]
+    },
+    {
+      "apiId": "API-035",
+      "status": "preserve_exact_attempt_scope",
+      "predicate": "only allocation/evidence for the path attempt; no other payer data",
+      "taskRefs": [
+        "PAY-04"
+      ]
+    }
+  ]
+}

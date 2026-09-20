@@ -1,0 +1,1450 @@
+{
+  "engineProposal": "PostgreSQL reference dialect; not user-confirmed production choice",
+  "migrations": [
+    {
+      "version": "001",
+      "file": "001_identity_foundation.sql",
+      "dependsOn": [],
+      "sha256": "55d0b6d62b0b5bceee378502667de41508921f608af625237deeefef571049dd",
+      "tableCount": 12
+    },
+    {
+      "version": "002",
+      "file": "002_wallet_device.sql",
+      "dependsOn": [
+        "001"
+      ],
+      "sha256": "4cf3ac3de2fde4d984f1a0f0b1c01742642a63384a3cf115d174140c4b2c81c3",
+      "tableCount": 8
+    },
+    {
+      "version": "003",
+      "file": "003_commerce_ledger.sql",
+      "dependsOn": [
+        "002"
+      ],
+      "sha256": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+      "tableCount": 17
+    },
+    {
+      "version": "004",
+      "file": "004_device_lifecycle.sql",
+      "dependsOn": [
+        "003"
+      ],
+      "sha256": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2",
+      "tableCount": 4
+    },
+    {
+      "version": "005",
+      "file": "005_privacy_recording.sql",
+      "dependsOn": [
+        "004"
+      ],
+      "sha256": "8ed77bba97d44fc5fceae6a72f6aaabb28e960529d4276d0e601546623617602",
+      "tableCount": 5
+    },
+    {
+      "version": "006",
+      "file": "006_onchain_services.sql",
+      "dependsOn": [
+        "005"
+      ],
+      "sha256": "66b69ed4f6dccb9125e310eb075dc2d35d400cdf87ee96a703e11b7b88ccaca7",
+      "tableCount": 7
+    },
+    {
+      "version": "007",
+      "file": "007_travel_challenges.sql",
+      "dependsOn": [
+        "006"
+      ],
+      "sha256": "e4fad1246d9f6e7dbd5d6c11b6a428c5132edd0228edd92fb5040686767e82f9",
+      "tableCount": 8
+    }
+  ],
+  "tables": [
+    {
+      "name": "accounts",
+      "migration": "001",
+      "owner": "identity",
+      "taskRefs": [
+        "AUTH-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "status text NOT NULL CHECK (status IN ('active','deletion_pending','deactivated'))",
+        "display_name_ref text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "auth_identities",
+      "migration": "001",
+      "owner": "identity",
+      "taskRefs": [
+        "AUTH-02",
+        "AUTH-03",
+        "AUTH-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "provider text NOT NULL CHECK (provider IN ('google','apple'))",
+        "provider_subject text NOT NULL",
+        "revoked_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (provider, provider_subject)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "auth_sessions",
+      "migration": "001",
+      "owner": "identity",
+      "taskRefs": [
+        "AUTH-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "credential_hash text NOT NULL UNIQUE",
+        "expires_at timestamptz NOT NULL",
+        "revoked_at timestamptz",
+        "auth_flow_ref text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "stores",
+      "migration": "001",
+      "owner": "merchant",
+      "taskRefs": [
+        "SHOP-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "display_name text NOT NULL",
+        "timezone text NOT NULL",
+        "state text NOT NULL CHECK (state IN ('active','suspended','closed'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "memberships",
+      "migration": "001",
+      "owner": "merchant",
+      "taskRefs": [
+        "AUTH-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "role_code text NOT NULL",
+        "revoked_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (store_id, account_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "protocol_profiles",
+      "migration": "001",
+      "owner": "platform",
+      "taskRefs": [
+        "BASE-03",
+        "BASE-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "version text NOT NULL",
+        "kind text NOT NULL",
+        "schema_digest text NOT NULL",
+        "verifier_ref text NOT NULL",
+        "state text NOT NULL CHECK (state IN ('draft','enabled','revoked'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "assets",
+      "migration": "001",
+      "owner": "chain_registry",
+      "taskRefs": [
+        "TOKEN-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "kind text NOT NULL CHECK (kind IN ('native','erc20'))",
+        "token_address evm_address",
+        "decimals smallint NOT NULL CHECK (decimals BETWEEN 0 AND 255)",
+        "display_symbol text NOT NULL",
+        "is_test_asset boolean NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK ((kind = 'native' AND token_address IS NULL) OR (kind = 'erc20' AND token_address IS NOT NULL))",
+        "UNIQUE (id, chain_id)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX assets_native_unique ON assets(chain_id) WHERE kind = 'native';",
+        "CREATE UNIQUE INDEX assets_token_unique ON assets(chain_id, token_address) WHERE kind = 'erc20';"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "operations",
+      "migration": "001",
+      "owner": "platform",
+      "taskRefs": [
+        "BASE-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id REFERENCES accounts(id)",
+        "principal_scope text NOT NULL",
+        "kind text NOT NULL",
+        "state text NOT NULL CHECK (state IN ('queued','running','succeeded','failed','unknown','cancelled'))",
+        "result_ref text",
+        "safe_error_code text",
+        "updated_at timestamptz NOT NULL DEFAULT now()",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "idempotency_records",
+      "migration": "001",
+      "owner": "platform",
+      "taskRefs": [
+        "BASE-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "principal_scope text NOT NULL",
+        "action text NOT NULL",
+        "request_key text NOT NULL",
+        "normalized_digest text NOT NULL",
+        "operation_id app_id REFERENCES operations(id)",
+        "result_ref text",
+        "expires_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (principal_scope, action, request_key)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "outbox",
+      "migration": "001",
+      "owner": "platform",
+      "taskRefs": [
+        "INDEX-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "aggregate_type text NOT NULL",
+        "aggregate_id app_id NOT NULL",
+        "aggregate_revision bigint NOT NULL CHECK (aggregate_revision >= 0)",
+        "event_type text NOT NULL",
+        "safe_payload jsonb NOT NULL",
+        "correlation_id app_id NOT NULL",
+        "published_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [
+        "CREATE INDEX outbox_unpublished ON outbox(created_at,id) WHERE published_at IS NULL;"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "inbox",
+      "migration": "001",
+      "owner": "platform",
+      "taskRefs": [
+        "INDEX-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "consumer_id text NOT NULL",
+        "event_id app_id NOT NULL",
+        "processed_at timestamptz NOT NULL DEFAULT now()",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (consumer_id, event_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "audit_events",
+      "migration": "001",
+      "owner": "operations",
+      "taskRefs": [
+        "OPS-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "actor_ref text NOT NULL",
+        "subject_type text NOT NULL",
+        "subject_id app_id NOT NULL",
+        "action text NOT NULL",
+        "safe_diff_ref text",
+        "reason text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "wallets",
+      "migration": "002",
+      "owner": "wallet",
+      "taskRefs": [
+        "APP-02",
+        "SMART-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "kind text NOT NULL CHECK (kind IN ('hardware_eoa','cloud_mpc_eoa','smart_account'))",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "address evm_address NOT NULL",
+        "signer_ref text",
+        "profile_id app_id REFERENCES protocol_profiles(id)",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (id, chain_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "wallet_bindings",
+      "migration": "002",
+      "owner": "wallet",
+      "taskRefs": [
+        "APP-02",
+        "SHOP-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "wallet_id app_id NOT NULL REFERENCES wallets(id)",
+        "account_id app_id REFERENCES accounts(id)",
+        "store_id app_id REFERENCES stores(id)",
+        "permission_profile text NOT NULL",
+        "revoked_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK ((account_id IS NOT NULL)::int + (store_id IS NOT NULL)::int = 1)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX wallet_account_active ON wallet_bindings(wallet_id,account_id) WHERE account_id IS NOT NULL AND revoked_at IS NULL;",
+        "CREATE UNIQUE INDEX wallet_store_active ON wallet_bindings(wallet_id,store_id) WHERE store_id IS NOT NULL AND revoked_at IS NULL;"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "devices",
+      "migration": "002",
+      "owner": "device",
+      "taskRefs": [
+        "HW-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "model text NOT NULL",
+        "firmware_version text",
+        "identity_verifier_ref text",
+        "state text NOT NULL CHECK (state IN ('unprovisioned','assigned','active','return_pending','quarantined'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "rentals",
+      "migration": "002",
+      "owner": "rental",
+      "taskRefs": [
+        "STAMP-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "device_id app_id NOT NULL REFERENCES devices(id)",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "state text NOT NULL CHECK (state IN ('assigned','active','return_requested','return_pending','returned'))",
+        "returned_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (id, device_id, account_id)",
+        "CHECK ((state = 'returned') = (returned_at IS NOT NULL))"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX one_active_rental ON rentals(device_id) WHERE state <> 'returned';"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "device_bindings",
+      "migration": "002",
+      "owner": "device",
+      "taskRefs": [
+        "HW-03",
+        "HW-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "device_id app_id NOT NULL REFERENCES devices(id)",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "rental_id app_id",
+        "wallet_id app_id REFERENCES wallets(id)",
+        "wallet_origin text NOT NULL CHECK (wallet_origin IN ('new_travel','imported'))",
+        "revoked_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "FOREIGN KEY (rental_id,device_id,account_id) REFERENCES rentals(id,device_id,account_id)",
+        "UNIQUE (id,device_id,account_id)",
+        "UNIQUE (id,rental_id,wallet_origin)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX one_active_device_owner ON device_bindings(device_id) WHERE revoked_at IS NULL;"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "enrollments",
+      "migration": "002",
+      "owner": "device",
+      "taskRefs": [
+        "HW-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "device_id app_id NOT NULL REFERENCES devices(id)",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "challenge_hash text NOT NULL",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "expires_at timestamptz NOT NULL",
+        "consumed_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "mpc_participants",
+      "migration": "002",
+      "owner": "mpc",
+      "taskRefs": [
+        "MPC-02",
+        "MPC-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "wallet_id app_id NOT NULL REFERENCES wallets(id)",
+        "participant_ref text NOT NULL",
+        "share_store_ref text NOT NULL",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "state text NOT NULL CHECK (state IN ('pending','active','revoked'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (wallet_id,participant_ref)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "signing_sessions",
+      "migration": "002",
+      "owner": "mpc",
+      "taskRefs": [
+        "MPC-03",
+        "MPC-05"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "wallet_id app_id NOT NULL REFERENCES wallets(id)",
+        "operation_id app_id NOT NULL REFERENCES operations(id)",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "payload_digest hash32 NOT NULL",
+        "state text NOT NULL CHECK (state IN ('pending','signing','completed','aborted','failed'))",
+        "expires_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "recipient_configurations",
+      "migration": "003",
+      "owner": "merchant_funds",
+      "taskRefs": [
+        "SHOP-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "wallet_id app_id NOT NULL REFERENCES wallets(id)",
+        "address evm_address NOT NULL",
+        "ownership_proof_ref text NOT NULL",
+        "retired_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (id, store_id)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX current_store_recipient ON recipient_configurations(store_id) WHERE retired_at IS NULL;"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "menu_items",
+      "migration": "003",
+      "owner": "merchant",
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "name text NOT NULL",
+        "options_snapshot jsonb NOT NULL",
+        "price_minor atomic_total NOT NULL",
+        "currency text NOT NULL",
+        "fraction_digits smallint NOT NULL CHECK (fraction_digits BETWEEN 0 AND 18)",
+        "availability text NOT NULL CHECK (availability IN ('available','sold_out','hidden'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (id,store_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "orders",
+      "migration": "003",
+      "owner": "orders",
+      "taskRefs": [
+        "PAY-03",
+        "SHOP-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "account_id app_id REFERENCES accounts(id)",
+        "state text NOT NULL CHECK (state IN ('awaiting_payment','paid','cancelled','expired','fulfilled'))",
+        "recipient_config_id app_id NOT NULL",
+        "recipient_snapshot evm_address NOT NULL",
+        "price_minor atomic_total NOT NULL",
+        "currency text NOT NULL",
+        "fraction_digits smallint NOT NULL CHECK (fraction_digits BETWEEN 0 AND 18)",
+        "capability_hash text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "FOREIGN KEY (recipient_config_id,store_id) REFERENCES recipient_configurations(id,store_id)",
+        "UNIQUE (id,store_id)"
+      ],
+      "indexStatements": [
+        "CREATE INDEX orders_store_cursor ON orders(store_id,created_at,id);"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "order_lines",
+      "migration": "003",
+      "owner": "orders",
+      "taskRefs": [
+        "SHOP-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "order_id app_id NOT NULL REFERENCES orders(id)",
+        "line_no integer NOT NULL CHECK (line_no > 0)",
+        "item_snapshot jsonb NOT NULL",
+        "quantity integer NOT NULL CHECK (quantity > 0)",
+        "line_total atomic_total NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (order_id,line_no)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "payment_attempts",
+      "migration": "003",
+      "owner": "payment",
+      "taskRefs": [
+        "PAY-01",
+        "PAY-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "order_id app_id NOT NULL REFERENCES orders(id)",
+        "asset_id app_id NOT NULL REFERENCES assets(id)",
+        "amount uint256_amount NOT NULL CHECK (amount > 0)",
+        "recipient_snapshot evm_address NOT NULL",
+        "quote_expires_at timestamptz NOT NULL",
+        "state text NOT NULL",
+        "payer_address evm_address",
+        "session_ref text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (id,order_id)",
+        "UNIQUE (id,asset_id)",
+        "UNIQUE (id,order_id,asset_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "transaction_intents",
+      "migration": "003",
+      "owner": "transaction",
+      "taskRefs": [
+        "PAY-01",
+        "SMART-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "attempt_id app_id REFERENCES payment_attempts(id)",
+        "wallet_id app_id REFERENCES wallets(id)",
+        "source_kind text NOT NULL",
+        "source_ref app_id NOT NULL",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "payload_digest hash32 NOT NULL",
+        "review_payload_ref text NOT NULL",
+        "expires_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "transaction_submissions",
+      "migration": "003",
+      "owner": "transaction",
+      "taskRefs": [
+        "PAY-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "intent_id app_id NOT NULL REFERENCES transaction_intents(id)",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "tx_hash hash32",
+        "userop_hash hash32",
+        "state text NOT NULL CHECK (state IN ('prepared','submitted','unknown','observed','failed'))",
+        "signed_payload_ref text",
+        "submission_kind text NOT NULL CHECK (submission_kind IN ('eoa','user_operation'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK ((submission_kind = 'eoa' AND tx_hash IS NOT NULL AND userop_hash IS NULL) OR (submission_kind = 'user_operation' AND userop_hash IS NOT NULL))"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX submission_eoa_unique ON transaction_submissions(chain_id,tx_hash) WHERE submission_kind = 'eoa';",
+        "CREATE UNIQUE INDEX submission_userop_unique ON transaction_submissions(chain_id,userop_hash) WHERE submission_kind = 'user_operation';",
+        "CREATE INDEX submission_bundle_lookup ON transaction_submissions(chain_id,tx_hash) WHERE tx_hash IS NOT NULL;"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "payment_evidence",
+      "migration": "003",
+      "owner": "reconciliation",
+      "taskRefs": [
+        "INDEX-03",
+        "PAY-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "tx_hash hash32 NOT NULL",
+        "kind text NOT NULL CHECK (kind IN ('erc20_log','native_transaction'))",
+        "log_index integer",
+        "asset_id app_id NOT NULL",
+        "payer_address evm_address NOT NULL",
+        "recipient_address evm_address NOT NULL",
+        "amount uint256_amount NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK ((kind = 'erc20_log' AND log_index IS NOT NULL AND log_index >= 0) OR (kind = 'native_transaction' AND log_index IS NULL))",
+        "FOREIGN KEY (asset_id,chain_id) REFERENCES assets(id,chain_id)",
+        "UNIQUE (id,asset_id)",
+        "UNIQUE (id,chain_id,tx_hash)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX evidence_log_unique ON payment_evidence(chain_id,tx_hash,log_index) WHERE kind = 'erc20_log';",
+        "CREATE UNIQUE INDEX evidence_native_unique ON payment_evidence(chain_id,tx_hash) WHERE kind = 'native_transaction';"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "chain_observations",
+      "migration": "003",
+      "owner": "indexer_adapter",
+      "taskRefs": [
+        "INDEX-03",
+        "INDEX-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "evidence_id app_id REFERENCES payment_evidence(id)",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "tx_hash hash32 NOT NULL",
+        "block_hash hash32 NOT NULL",
+        "block_number numeric NOT NULL CHECK (block_number >= 0 AND block_number = trunc(block_number))",
+        "receipt_status text NOT NULL CHECK (receipt_status IN ('success','reverted'))",
+        "canonicality text NOT NULL CHECK (canonicality IN ('canonical','orphaned','unknown'))",
+        "policy_id text NOT NULL",
+        "policy_satisfied boolean NOT NULL",
+        "observed_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK (evidence_id IS NULL OR receipt_status = 'success')",
+        "FOREIGN KEY (evidence_id,chain_id,tx_hash) REFERENCES payment_evidence(id,chain_id,tx_hash)",
+        "UNIQUE (id,evidence_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "payment_allocations",
+      "migration": "003",
+      "owner": "reconciliation",
+      "taskRefs": [
+        "PAY-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "evidence_id app_id NOT NULL UNIQUE REFERENCES payment_evidence(id)",
+        "order_id app_id NOT NULL REFERENCES orders(id)",
+        "attempt_id app_id NOT NULL",
+        "state text NOT NULL CHECK (state IN ('pending','accepted','exception','invalidated'))",
+        "observation_id app_id NOT NULL REFERENCES chain_observations(id)",
+        "asset_id app_id NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "FOREIGN KEY (attempt_id,order_id) REFERENCES payment_attempts(id,order_id)",
+        "FOREIGN KEY (attempt_id,order_id,asset_id) REFERENCES payment_attempts(id,order_id,asset_id)",
+        "FOREIGN KEY (evidence_id,asset_id) REFERENCES payment_evidence(id,asset_id)",
+        "FOREIGN KEY (observation_id,evidence_id) REFERENCES chain_observations(id,evidence_id)",
+        "UNIQUE (id,order_id,asset_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "refund_balances",
+      "migration": "003",
+      "owner": "refund",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "allocation_id app_id NOT NULL UNIQUE REFERENCES payment_allocations(id)",
+        "asset_id app_id NOT NULL REFERENCES assets(id)",
+        "policy_refundable atomic_total NOT NULL",
+        "reserved atomic_total NOT NULL DEFAULT 0",
+        "confirmed atomic_total NOT NULL DEFAULT 0",
+        "order_id app_id NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK (reserved + confirmed <= policy_refundable)",
+        "UNIQUE (id,asset_id)",
+        "FOREIGN KEY (allocation_id,order_id,asset_id) REFERENCES payment_allocations(id,order_id,asset_id)",
+        "UNIQUE (id,asset_id,order_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "refunds",
+      "migration": "003",
+      "owner": "refund",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "order_id app_id NOT NULL REFERENCES orders(id)",
+        "balance_id app_id NOT NULL",
+        "asset_id app_id NOT NULL",
+        "amount uint256_amount NOT NULL CHECK (amount > 0)",
+        "destination evm_address NOT NULL",
+        "destination_proof_ref text NOT NULL",
+        "state text NOT NULL CHECK (state IN ('requested','authorized','signing','submitted','unknown','confirmed','rejected','failed'))",
+        "intent_id app_id REFERENCES transaction_intents(id)",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "FOREIGN KEY (balance_id,asset_id) REFERENCES refund_balances(id,asset_id)",
+        "FOREIGN KEY (balance_id,asset_id,order_id) REFERENCES refund_balances(id,asset_id,order_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "refund_reservations",
+      "migration": "003",
+      "owner": "refund",
+      "taskRefs": [
+        "SHOP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "refund_id app_id NOT NULL UNIQUE REFERENCES refunds(id)",
+        "amount uint256_amount NOT NULL CHECK (amount > 0)",
+        "state text NOT NULL CHECK (state IN ('active','consumed','released'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "settlements",
+      "migration": "003",
+      "owner": "settlement",
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "period_start timestamptz NOT NULL",
+        "period_end timestamptz NOT NULL",
+        "asset_id app_id NOT NULL REFERENCES assets(id)",
+        "state text NOT NULL CHECK (state IN ('open','closed','corrected'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK (period_start < period_end)",
+        "UNIQUE (store_id,period_start,period_end,asset_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "settlement_revisions",
+      "migration": "003",
+      "owner": "settlement",
+      "taskRefs": [
+        "SHOP-05"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "settlement_id app_id NOT NULL REFERENCES settlements(id)",
+        "version bigint NOT NULL CHECK (version >= 0)",
+        "totals_snapshot jsonb NOT NULL",
+        "source_revision bigint NOT NULL",
+        "reason text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (settlement_id,version)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "benefit_entries",
+      "migration": "003",
+      "owner": "benefits",
+      "taskRefs": [
+        "STAMP-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "allocation_id app_id REFERENCES payment_allocations(id)",
+        "rule_version text NOT NULL",
+        "kind text NOT NULL CHECK (kind IN ('grant','consume','correction'))",
+        "source_key text NOT NULL",
+        "units bigint NOT NULL CHECK (units <> 0)",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (account_id,store_id,rule_version,kind,source_key)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "benefit_redemptions",
+      "migration": "003",
+      "owner": "benefits",
+      "taskRefs": [
+        "STAMP-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "grant_entry_id app_id NOT NULL REFERENCES benefit_entries(id)",
+        "order_id app_id NOT NULL REFERENCES orders(id)",
+        "state text NOT NULL CHECK (state IN ('reserved','used','released'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX one_live_redemption ON benefit_redemptions(grant_entry_id) WHERE state IN ('reserved','used');"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "return_checks",
+      "migration": "004",
+      "owner": "rental",
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "rental_id app_id NOT NULL REFERENCES rentals(id)",
+        "binding_id app_id NOT NULL REFERENCES device_bindings(id)",
+        "check_version bigint NOT NULL CHECK (check_version >= 0)",
+        "wallet_origin text NOT NULL CHECK (wallet_origin IN ('new_travel','imported'))",
+        "policy_id text NOT NULL",
+        "checks jsonb NOT NULL",
+        "state text NOT NULL CHECK (state IN ('pending','eligible_for_reset','reset_confirmed','completed'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (rental_id,check_version)",
+        "FOREIGN KEY (binding_id,rental_id,wallet_origin) REFERENCES device_bindings(id,rental_id,wallet_origin)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "reset_clearances",
+      "migration": "004",
+      "owner": "rental",
+      "taskRefs": [
+        "STAMP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "return_check_id app_id NOT NULL REFERENCES return_checks(id)",
+        "challenge_hash text NOT NULL UNIQUE",
+        "expires_at timestamptz NOT NULL",
+        "owner_approval_ref text",
+        "consumed_at timestamptz",
+        "reset_evidence_ref text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "CHECK (consumed_at IS NULL OR (owner_approval_ref IS NOT NULL AND reset_evidence_ref IS NOT NULL))"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "firmware_releases",
+      "migration": "004",
+      "owner": "release",
+      "taskRefs": [
+        "OTA-02",
+        "OTA-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "model text NOT NULL",
+        "firmware_version text NOT NULL",
+        "package_hash hash32 NOT NULL",
+        "package_ref text NOT NULL",
+        "manifest jsonb NOT NULL",
+        "compatibility_profile app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "state text NOT NULL CHECK (state IN ('draft','published','withdrawn'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (model,firmware_version)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "device_jobs",
+      "migration": "004",
+      "owner": "device",
+      "taskRefs": [
+        "OTA-03",
+        "HW-07"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "device_id app_id NOT NULL REFERENCES devices(id)",
+        "release_id app_id REFERENCES firmware_releases(id)",
+        "kind text NOT NULL CHECK (kind IN ('fota','reset','configuration'))",
+        "state text NOT NULL",
+        "progress_ref text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "consents",
+      "migration": "005",
+      "owner": "privacy",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "purpose text NOT NULL",
+        "version bigint NOT NULL CHECK (version >= 0)",
+        "enabled boolean NOT NULL",
+        "superseded_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (account_id,purpose,version)"
+      ],
+      "indexStatements": [
+        "CREATE UNIQUE INDEX current_consent ON consents(account_id,purpose) WHERE superseded_at IS NULL;"
+      ],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "recordings",
+      "migration": "005",
+      "owner": "recording",
+      "taskRefs": [
+        "REC-02",
+        "REC-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "format_profile app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "duration_seconds numeric NOT NULL CHECK (duration_seconds >= 0)",
+        "completeness text NOT NULL CHECK (completeness IN ('complete','partial','failed'))",
+        "cloud_object_ref text",
+        "access_blocked_at timestamptz",
+        "deleted_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "processing_jobs",
+      "migration": "005",
+      "owner": "processing",
+      "taskRefs": [
+        "REC-03",
+        "AI-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "recording_id app_id REFERENCES recordings(id)",
+        "operation_id app_id NOT NULL REFERENCES operations(id)",
+        "consent_id app_id NOT NULL REFERENCES consents(id)",
+        "kind text NOT NULL",
+        "state text NOT NULL CHECK (state IN ('queued','running','succeeded','failed','cancelled'))",
+        "result_ref text",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "privacy_requests",
+      "migration": "005",
+      "owner": "privacy",
+      "taskRefs": [
+        "TRIP-04",
+        "AUTH-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "kind text NOT NULL CHECK (kind IN ('export','delete','account_deletion'))",
+        "scope jsonb NOT NULL",
+        "state text NOT NULL",
+        "operation_id app_id NOT NULL REFERENCES operations(id)",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "data_lineage",
+      "migration": "005",
+      "owner": "privacy",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "owner_id app_id NOT NULL REFERENCES accounts(id)",
+        "source_type text NOT NULL",
+        "source_id app_id NOT NULL",
+        "derived_type text NOT NULL",
+        "derived_id app_id NOT NULL",
+        "source_revision bigint NOT NULL CHECK (source_revision >= 0)",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (source_type,source_id,derived_type,derived_id,source_revision)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "credential_metadata",
+      "migration": "006",
+      "owner": "credentials",
+      "taskRefs": [
+        "DID-02",
+        "DID-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "issuer_ref text NOT NULL",
+        "subject_ref text NOT NULL",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "private_content_ref text NOT NULL",
+        "status text NOT NULL CHECK (status IN ('active','expired','revoked','unknown'))",
+        "expires_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "credential_status_history",
+      "migration": "006",
+      "owner": "credentials",
+      "taskRefs": [
+        "DID-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "credential_id app_id NOT NULL REFERENCES credential_metadata(id)",
+        "status_version bigint NOT NULL CHECK (status_version >= 0)",
+        "status text NOT NULL",
+        "evidence_ref text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (credential_id,status_version)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "paid_resource_requests",
+      "migration": "006",
+      "owner": "paid_resources",
+      "taskRefs": [
+        "X402-02",
+        "X402-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "wallet_id app_id NOT NULL REFERENCES wallets(id)",
+        "resource_ref text NOT NULL",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "price_snapshot jsonb NOT NULL",
+        "payment_state text NOT NULL",
+        "delivery_state text NOT NULL CHECK (delivery_state IN ('awaiting_payment','processing','delivered','failed'))",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "entitlements",
+      "migration": "006",
+      "owner": "paid_resources",
+      "taskRefs": [
+        "X402-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "request_id app_id NOT NULL UNIQUE REFERENCES paid_resource_requests(id)",
+        "payment_evidence_ref text NOT NULL UNIQUE",
+        "resource_result_ref text",
+        "state text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "market_quotes",
+      "migration": "006",
+      "owner": "markets",
+      "taskRefs": [
+        "DEX-02",
+        "FX-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "market_ref text NOT NULL",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "action text NOT NULL",
+        "quote_snapshot jsonb NOT NULL",
+        "price_source_ref text NOT NULL",
+        "expires_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "chain_projections",
+      "migration": "006",
+      "owner": "indexer_projection",
+      "taskRefs": [
+        "INDEX-04",
+        "PERP-05",
+        "STO-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "chain_id bigint NOT NULL CHECK (chain_id = 8283)",
+        "profile_id app_id NOT NULL REFERENCES protocol_profiles(id)",
+        "entity_type text NOT NULL",
+        "entity_key text NOT NULL",
+        "observed_block_hash hash32 NOT NULL",
+        "observed_block_number numeric NOT NULL CHECK (observed_block_number >= 0 AND observed_block_number = trunc(observed_block_number))",
+        "projection jsonb NOT NULL",
+        "validity text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (chain_id,profile_id,entity_type,entity_key)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "keeper_jobs",
+      "migration": "006",
+      "owner": "market_operations",
+      "taskRefs": [
+        "PERP-06"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "market_ref text NOT NULL",
+        "action text NOT NULL",
+        "interval_key text NOT NULL",
+        "operation_id app_id NOT NULL REFERENCES operations(id)",
+        "submission_id app_id REFERENCES transaction_submissions(id)",
+        "state text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (market_ref,action,interval_key)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "places",
+      "migration": "007",
+      "owner": "places",
+      "taskRefs": [
+        "TRIP-01"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "provider text NOT NULL",
+        "provider_place_id text NOT NULL",
+        "name text NOT NULL",
+        "latitude numeric CHECK (latitude BETWEEN -90 AND 90)",
+        "longitude numeric CHECK (longitude BETWEEN -180 AND 180)",
+        "source_observed_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (provider,provider_place_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "store_place_links",
+      "migration": "007",
+      "owner": "places",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "store_id app_id NOT NULL REFERENCES stores(id)",
+        "place_id app_id NOT NULL REFERENCES places(id)",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (store_id,place_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "reviews",
+      "migration": "007",
+      "owner": "reviews",
+      "taskRefs": [
+        "TRIP-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "place_id app_id NOT NULL REFERENCES places(id)",
+        "allocation_id app_id REFERENCES payment_allocations(id)",
+        "rating smallint NOT NULL CHECK (rating BETWEEN 1 AND 5)",
+        "private_text_ref text NOT NULL",
+        "source_type text NOT NULL",
+        "visibility text NOT NULL",
+        "deleted_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "trips",
+      "migration": "007",
+      "owner": "travel",
+      "taskRefs": [
+        "TRIP-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "region_ref text NOT NULL",
+        "locale text NOT NULL",
+        "timezone text NOT NULL",
+        "state text NOT NULL",
+        "deleted_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "travel_evidence",
+      "migration": "007",
+      "owner": "travel",
+      "taskRefs": [
+        "TRIP-04"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "trip_id app_id NOT NULL REFERENCES trips(id)",
+        "place_id app_id NOT NULL REFERENCES places(id)",
+        "source_type text NOT NULL CHECK (source_type IN ('location_visit','testnet_payment','commercial_purchase','user_report'))",
+        "source_ref text NOT NULL",
+        "validity text NOT NULL CHECK (validity IN ('pending','valid','invalidated','unknown'))",
+        "consent_id app_id REFERENCES consents(id)",
+        "observed_at timestamptz NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "itineraries",
+      "migration": "007",
+      "owner": "travel_ai",
+      "taskRefs": [
+        "AI-02"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "trip_id app_id NOT NULL REFERENCES trips(id)",
+        "constraints_snapshot jsonb NOT NULL",
+        "validated_stops jsonb NOT NULL",
+        "validation_state text NOT NULL",
+        "consent_id app_id NOT NULL REFERENCES consents(id)",
+        "deleted_at timestamptz",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "participations",
+      "migration": "007",
+      "owner": "challenges",
+      "taskRefs": [
+        "AI-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "account_id app_id NOT NULL REFERENCES accounts(id)",
+        "trip_id app_id NOT NULL REFERENCES trips(id)",
+        "challenge_ref text NOT NULL",
+        "state text NOT NULL",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (account_id,trip_id,challenge_ref)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    },
+    {
+      "name": "challenge_entries",
+      "migration": "007",
+      "owner": "challenges",
+      "taskRefs": [
+        "AI-03"
+      ],
+      "columnDefinitions": [
+        "id app_id PRIMARY KEY",
+        "participation_id app_id NOT NULL REFERENCES participations(id)",
+        "step_ref text NOT NULL",
+        "evidence_id app_id NOT NULL REFERENCES travel_evidence(id)",
+        "evidence_revision bigint NOT NULL CHECK (evidence_revision >= 0)",
+        "state text NOT NULL",
+        "reward_key text UNIQUE",
+        "created_at timestamptz NOT NULL DEFAULT now()",
+        "revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0)",
+        "UNIQUE (participation_id,step_ref,evidence_id)"
+      ],
+      "indexStatements": [],
+      "status": "reference_design_not_deployed"
+    }
+  ],
+  "deletePolicy": "All foreign keys default NO ACTION; account deactivation and controlled erasure workflow, no broad cascade.",
+  "runtimeApplied": false,
+  "productionApplied": false,
+  "validationReport": "validation-result.json"
+}

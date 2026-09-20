@@ -1,0 +1,65 @@
+{
+  "scope": "design_shapes_and_reference_validation_only",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "checks": [
+    {
+      "command": "python3 content/specifications/validate_lifecycle_bootstrap.py",
+      "chunk_id": "c65100",
+      "wall_time_seconds": 0.070432083,
+      "exit_code": 0,
+      "original_token_count": 56,
+      "output": "{\"scope\": \"design_shapes_and_references_only\", \"httpAliases\": 9, \"bleAliases\": 3, \"pendingRouteOverlays\": 17, \"validShapes\": 36, \"invalidShapes\": 13, \"unchangedInputs\": 8, \"runtimeCasesNotRun\": 22, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_lifecycle_storage.py",
+      "chunk_id": "007726",
+      "wall_time_seconds": 0.000001584,
+      "exit_code": 0,
+      "original_token_count": 65,
+      "output": "{\"scope\": \"storage_design_inventory_only\", \"proposedTables\": 14, \"atomicUnits\": 12, \"firmwareStores\": 4, \"migrationPhasesNotRun\": 8, \"runtimeCasesNotRun\": 26, \"unchangedSqlTables\": 61, \"unchangedSqlFiles\": 7, \"pinnedDesignInputs\": 9, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_rental_admission_cancel.py",
+      "chunk_id": "67273e",
+      "wall_time_seconds": 0.06256825,
+      "exit_code": 0,
+      "original_token_count": 48,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 9, \"blePairs\": 4, \"validShapes\": 36, \"invalidShapes\": 12, \"finiteModelCases\": 29, \"runtimeCasesNotRun\": 23, \"pinnedInputs\": 8, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/specifications/validate_return_routes.py",
+      "chunk_id": "47edd8",
+      "wall_time_seconds": 0.090081125,
+      "exit_code": 0,
+      "original_token_count": 51,
+      "output": "{\"scope\": \"design_only\", \"httpRoutes\": 10, \"blePairs\": 6, \"validShapes\": 33, \"invalidShapes\": 12, \"readinessLogicExamples\": 11, \"runtimeCasesNotRun\": 18, \"unchangedInputs\": 10, \"canonicalMerged\": false}\n"
+    },
+    {
+      "command": "python3 content/planning/render_design_register.py --check",
+      "chunk_id": "5b6b40",
+      "wall_time_seconds": 0.00000125,
+      "exit_code": 0,
+      "original_token_count": 26,
+      "output": "Design register OK: 19 decisions, 15 requirements, 8 integration bundles, 5 differences; design only\n"
+    },
+    {
+      "command": "python3 content/planning/render_integration_adoption.py --check",
+      "chunk_id": "b5b678",
+      "wall_time_seconds": 0.000001291,
+      "exit_code": 0,
+      "original_token_count": 60,
+      "output": "{\"scope\": \"design_integration_inventory_only\", \"bundles\": 8, \"acceptanceCriteria\": 24, \"dispositions\": 20, \"originalRequirements\": 15, \"openDecisions\": 19, \"pinnedSources\": 21, \"canonicalMergedThisTurn\": false, \"runtimeVerified\": false}\n"
+    }
+  ],
+  "review": {
+    "finding": "LW01 relay authorization carrier missing",
+    "resolution": "Explicit primary/relay oneOf, server authority/holder lookup, GET/path/workId/version/authority/nonce binding added",
+    "scope": "Initial bootstrap/consent/pending/unconfigured policy boundary reviewed; later WC inventory routes locally validated, not separately subagent-reviewed"
+  },
+  "limitations": [
+    "49 shape fixtures do not verify cryptography or device behavior",
+    "22 runtime acceptance cases remain not_run",
+    "Profile/root provisioning, post-reservation session recovery and logical resource physical adoption remain open"
+  ]
+}

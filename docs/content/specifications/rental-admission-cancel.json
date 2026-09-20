@@ -1,0 +1,371 @@
+{
+  "status": "rental_admission_cancel_design_not_merged",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "policySelectionUnchanged": true,
+  "schemaFile": "rental-admission-cancel.schema.json",
+  "examplesFile": "rental-admission-cancel.examples.json",
+  "operations": [
+    {
+      "id": "RL-01",
+      "method": "GET",
+      "path": "/v1/devices/{deviceId}/rental-admission",
+      "authorization": "current scoped rental_operator",
+      "requestSchema": "RL01Request",
+      "responseSchema": "RL01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "API-045",
+      "method": "POST",
+      "path": "/v1/rentals",
+      "authorization": "current scoped rental_operator + verified recipient consent",
+      "requestSchema": "API045Request",
+      "responseSchema": "API045Response",
+      "registration": "existing_route_proposed_replacement"
+    },
+    {
+      "id": "RL-02",
+      "method": "POST",
+      "path": "/v1/rental-admissions/{admissionId}/binding-evidence",
+      "authorization": "current scoped rental_operator",
+      "requestSchema": "RL02Request",
+      "responseSchema": "RL02Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RL-03",
+      "method": "POST",
+      "path": "/v1/rental-admissions/{admissionId}/activation-evidence",
+      "authorization": "current scoped rental_operator",
+      "requestSchema": "RL03Request",
+      "responseSchema": "RL03Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RL-04",
+      "method": "GET",
+      "path": "/v1/rental-admissions/{admissionId}",
+      "authorization": "current scoped rental_operator or exact recipient safe projection",
+      "requestSchema": "RL04Request",
+      "responseSchema": "RL04Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RC-01",
+      "method": "POST",
+      "path": "/v1/return-jobs/{jobId}/cancellations",
+      "authorization": "current rental owner; operator cannot inherit owner cancel",
+      "requestSchema": "RC01Request",
+      "responseSchema": "RC01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RC-02",
+      "method": "POST",
+      "path": "/v1/return-cancellations/{cancelId}/prepared-evidence",
+      "authorization": "current original rental owner",
+      "requestSchema": "RC02Request",
+      "responseSchema": "RC02Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RC-03",
+      "method": "POST",
+      "path": "/v1/return-cancellations/{cancelId}/release-evidence",
+      "authorization": "current original rental owner",
+      "requestSchema": "RC03Request",
+      "responseSchema": "RC03Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "RC-04",
+      "method": "GET",
+      "path": "/v1/return-cancellations/{cancelId}",
+      "authorization": "current original rental owner; operator safe view strips permits",
+      "requestSchema": "RC04Request",
+      "responseSchema": "RC04Response",
+      "registration": "alias_not_catalogued"
+    }
+  ],
+  "bleCommands": [
+    {
+      "id": "LB01",
+      "command": "rental.binding.stage",
+      "role": "rental_enrollment",
+      "requestSchema": "LB01Request",
+      "responseSchema": "LB01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "LB02",
+      "command": "rental.binding.activate",
+      "role": "rental_enrollment",
+      "requestSchema": "LB02Request",
+      "responseSchema": "LB02Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "CB01",
+      "command": "reset.cancel.prepare",
+      "role": "owner",
+      "requestSchema": "CB01Request",
+      "responseSchema": "CB01Response",
+      "registration": "alias_not_catalogued"
+    },
+    {
+      "id": "CB02",
+      "command": "reset.cancel.release",
+      "role": "owner",
+      "requestSchema": "CB02Request",
+      "responseSchema": "CB02Response",
+      "registration": "alias_not_catalogued"
+    }
+  ],
+  "guards": [
+    {
+      "id": "RLC-G01",
+      "rule": "RL01 is an authorized snapshot, not admission permission. API045 re-resolves factory or returned basis from authoritative storage, compares epoch/gate/binding revision and candidateDigest, locks device rental uniqueness, and verifies current operator scope + exact recipient consent; no deviceId/accountId-only bypass."
+    },
+    {
+      "id": "RLC-G02",
+      "rule": "Factory genesis requires provisioned device identity, approved inventory admission record, current virgin secure state evidence and never-previously-enrolled history. An old rental device, missing reset records, firmware reinstall or zero-looking epoch cannot become factory genesis. Returned basis requires exact latest completed job, cleanup evidence, nextEpoch and current eligible gate; no active/pending rental/binding/quarantine."
+    },
+    {
+      "id": "RLC-G03",
+      "rule": "API045 atomically creates rental assigned, reserved binding, durable admission permit record, consumes gate/genesis once, advances gate/binding revisions, records idempotency/audit/outbox. It does not create wallet keys or enable signing. Tenant scope/recipient consent checked before idempotent replay. Persisted reservation survives token expiry, timeout and delivery uncertainty; no TTL auto-release."
+    },
+    {
+      "id": "RLC-G04",
+      "rule": "Enrollment BLE session must authenticate exact trusted device and current enrollment holder under selected profile with explicit ephemeral key delivery/proof and no owner-role downgrade. Server resolves enrollmentProofRef to verified holder/session/recipient consent. AdmissionContext fixes enrollmentHolderThumbprint and enrollmentSessionId; permits bind exact device/epoch/rental/binding/recipient/holder/session; not sufficient as a bearer alone. Device validates signature, server trust, live session/recipient context, expected unprovisioned secure state and basis lineage; stages binding durably with signing disabled, emits device identity proof."
+    },
+    {
+      "id": "RLC-G05",
+      "rule": "RL02 verifies BindingReceipt against immutable permit/context/digest/device identity and pending reservation; atomically persists activation permit + activation_issued and retains reservation exclusivity. Device activates only same staged binding under LB02, durable single activation, emits receipt. RL03 verifies receipt and atomically marks rental/binding/admission active. Device may have activated before server receipt: server-dependent spending remains blocked until active; recovery retries exact evidence, never assigns a second owner."
+    },
+    {
+      "id": "RLC-G06",
+      "rule": "Admission GET never creates/resets a reservation. Only current scoped operator receives recoverable permits; exact recipient gets safe state with permit/activation null unless separately verified enrollment-holder capability exists. Historical records hide current next-account details. Holder session/bootstrap, recipient consent issuance and genesis attestation profiles remain explicit adoption prerequisites, not implemented routes."
+    },
+    {
+      "id": "RLC-G07",
+      "rule": "RC01 requires current owner of exact still-active binding/epoch, job checking or prepared, no previously issued execution grant and no accepted/journaled execution evidence. Serialize under same device/job/fence locks as RT01. Winner cancel creates irreversible commit-block tombstone and cancellation intent + fixed permit. Original job phase stays checking/prepared with cancellation overlay until completion; RT01/API046 preparations denied while overlay exists. Owner navigation away is not cancel."
+    },
+    {
+      "id": "RLC-G08",
+      "rule": "CB01 authenticates current owner session and signed exact cancel context; rejects any accepted execution grant/journal or newer epoch/binding. Atomically invalidates matching prepare/all old prepared sessions for that job and persists tombstone+CancelPrepared while retaining return fence. Already absent prepare requires positive identity/epoch and durable proof of never-accepted grant; missing/corrupt history is quarantine, not proof. Same permit returns same durable receipt across reboot."
+    },
+    {
+      "id": "RLC-G09",
+      "rule": "RC02 verifies CancelPrepared and original never-issued history, retains server return fence, persists immutable ReleasePermit. CB02 accepts only matching durable cancel tombstone/prepare receipt/epoch/binding and release digest, atomically releases only this job return-fence reason and stores ReleaseReceipt. Other security/FOTA/administrative fences remain. Missing tombstone, lost marker or contradictory grant history cannot release."
+    },
+    {
+      "id": "RLC-G10",
+      "rule": "RC03 verifies exact ReleaseReceipt and current job/binding/epoch under shared locks, atomically marks job aborted, cancellation completed, clears only own server return fence, restores pre-return rental usability if other gates allow, retains commit-block tombstone/receipts/idempotency/audit. No key erasure, epoch bump, enrollment reset or active rental removal. Aborted return is not reusable inventory."
+    },
+    {
+      "id": "RLC-G11",
+      "rule": "RC01/02/03 and all retries check current owner authority before replay; sender/session anti-replay binds method/path/body digest/requestId/idempotency and device transport transcript under selected profile. Business keys scoped actor+operation+entity; transport nonce/proof rotation cannot change original business content. Device receipts immutable, server permits recoverable via protected GET; stale expectedRevision on exact idempotent replay returns original outcome with current state separately."
+    },
+    {
+      "id": "RLC-G12",
+      "rule": "Same-device competing admission, return commit, cancellation and binding updates share one ordered authoritative gate boundary; cross-service transactions not assumed. Phase/cancellation overlays are checked by all issuance and signing entry points. Previously exposed signatures/dispatch permits are not revoked by fences; cancellation does not auto-resubmit or resurrect prior approval jobs."
+    },
+    {
+      "id": "RLC-G13",
+      "rule": "No grantIssued true ever becomes false. Cancellation cannot be started or completed after grant issuance even when expired or apparently unused. Uncertain/crashed release stays pending/quarantined with exclusivity; no operator override or timed unlock. A new return job is allowed only after prior cancellation completed and fresh checks/physical preparation, new identifiers/revisions."
+    },
+    {
+      "id": "RLC-G14",
+      "rule": "Response view is logically current and ACL-filtered; immutable context revisions identify initial operation, view.revision identifies progress. No mixed historical/new binding readiness. Signed permit validity, offline freshness, antirollback and durable receipt retention require selected profiles; unselected/unsupported profile fails closed."
+    },
+    {
+      "id": "RLC-G15",
+      "rule": "Exactly one cancellation lineage per reset job: UNIQUE(jobId) across all states including completed/quarantined. Under shared lock RC01 first resolves existing cancellation before insert. Same business key replays original result; different key with existing lineage returns CANCELLATION_PENDING/safe original operation reference, never a new cancelId/permit/tombstone. No deletion or replacement to retry; another return attempt needs a new reset job only after cancellation completion."
+    }
+  ],
+  "runtimeCases": [
+    {
+      "id": "RLC-T01",
+      "trigger": "competing operators",
+      "expected": "one device reserved once",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T02",
+      "trigger": "stale eligible snapshot",
+      "expected": "CAS rejects new binding",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T03",
+      "trigger": "fake virgin device",
+      "expected": "genesis rejected by enrolled history",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T04",
+      "trigger": "same API045 retry",
+      "expected": "same rental/permit, no second allocation",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T05",
+      "trigger": "stage response loss",
+      "expected": "same durable receipt recovered",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T06",
+      "trigger": "activation response loss",
+      "expected": "exclusive reservation maintained",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T07",
+      "trigger": "RL03 response loss",
+      "expected": "same active outcome",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T08",
+      "trigger": "recipient changed",
+      "expected": "consent/context denied",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T09",
+      "trigger": "commit wins cancel",
+      "expected": "GRANT_ALREADY_ISSUED",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T10",
+      "trigger": "cancel wins commit",
+      "expected": "tombstone denies RT01",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T11",
+      "trigger": "cancel after expired grant",
+      "expected": "still denied",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T12",
+      "trigger": "CB01 power loss",
+      "expected": "fence held, recover or quarantine",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T13",
+      "trigger": "RC02 reply loss",
+      "expected": "same release permit recovered",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T14",
+      "trigger": "CB02 reply loss",
+      "expected": "durable release receipt, server fence still held",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T15",
+      "trigger": "RC03 reply loss",
+      "expected": "same completed cancellation",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T16",
+      "trigger": "other fence present",
+      "expected": "only return fence removed",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T17",
+      "trigger": "older cancellation after new job",
+      "expected": "epoch/binding/fence lineage rejects",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T18",
+      "trigger": "lost tombstone",
+      "expected": "no inferred release",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T19",
+      "trigger": "operator tries owner cancel",
+      "expected": "denied",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T20",
+      "trigger": "aborted return reused",
+      "expected": "admission denied",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T21",
+      "trigger": "previous exposed signature",
+      "expected": "not treated as revoked",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T22",
+      "trigger": "new return after completed cancel",
+      "expected": "fresh job/checks required",
+      "status": "not_run"
+    },
+    {
+      "id": "RLC-T23",
+      "trigger": "two RC01 with different idempotency keys for same job",
+      "expected": "one immutable cancellation lineage; second receives pending/original reference",
+      "status": "not_run"
+    }
+  ],
+  "sourceHashes": {
+    "return-route-contracts.json": "b61e96958d2e3aac4c29b4bc479a13251943f62476c954f1bb5819e01e81a044",
+    "return-route-contracts.schema.json": "a6b0cc7652624e1ea9372d122de8db1bc5bdce0cab33d5d2896d097af9e74e68",
+    "return-protocol-candidate.json": "6a185cc099ec05d2a9470664a0bc32d553af28bd105a3440974ec7408588d09d",
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "return-screen-design.json": "096d55684aa4ed0a5526145a124fbd18b9865c999af5b5326ce5604b70fa8795",
+    "api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "extended-dtos.schema.json": "ac4851a4a36699bd8f69d368d74f92454c18fd35a0942a9673b42ee8baf01def",
+    "approval-physical-storage-design.json": "f997bb61ce886835346c0277521f9a8a807502f0d13f73fc0ede1707233d1b0f"
+  },
+  "stateOverlays": {
+    "admission": [
+      "reserved",
+      "activation_issued",
+      "active",
+      "quarantined"
+    ],
+    "cancellation": [
+      "intent_recorded",
+      "release_issued",
+      "completed",
+      "quarantined"
+    ]
+  },
+  "screenActions": {
+    "RA-05": "RC01/CB01/RC02/CB02/RC03 with RC04 recovery; draft only",
+    "RA-11": "RL01/API045/LB01/RL02/LB02/RL03 with RL04 recovery; draft only"
+  },
+  "baselineCounts": {
+    "api": 110,
+    "ble": 34,
+    "tables": 61,
+    "migrations": 7
+  },
+  "adoptionPrerequisites": [
+    "trusted genesis registration and virgin-state attestation",
+    "recipient consent issuance + enrollment holder/session proof profile",
+    "secure durable tombstones/receipts and antirollback",
+    "return physical storage mapping and atomic shared gates",
+    "canonical route/ACL/screen adoption; crypto profile selection"
+  ],
+  "nextDesign": "반납·재등록·취소의 논리 저장, 공통 gate 원자 경계와 장애 복구/이행 매핑"
+}

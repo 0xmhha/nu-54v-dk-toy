@@ -1,0 +1,1891 @@
+# 키오스크·결제·환불·스탬프·정산 종단 연결
+
+LG16 설계 보완 반영 · 정책 미선택 · 기준 미병합 · 제품 구현 및 실행 검증 보류
+
+## status
+
+design_proposal_not_merged
+
+## packageRef
+
+DS-03
+
+## implementation
+
+deferred_by_user
+
+## canonicalMerged
+
+False
+
+## runtimeVerified
+
+False
+
+## sqlApplied
+
+False
+
+## policySelectionUnchanged
+
+True
+
+## requirementRefs
+
+- 1
+- 3
+- 7
+- 9
+- 10
+- 12
+## taskRefs
+
+- APP-04
+- BASE-02
+- INDEX-05
+- OPS-01
+- OPS-03
+- PAY-01
+- PAY-02
+- PAY-03
+- PAY-04
+- PAY-05
+- SHOP-01
+- SHOP-02
+- SHOP-03
+- SHOP-04
+- SHOP-05
+- SHOP-06
+- STAMP-01
+- STAMP-02
+## decisionRefs
+
+- D01
+- D02
+- D08
+- D09
+- D17
+- D19
+## journeys
+
+### KJ-01
+
+**title**: 매장 가입·선택·고객 모드
+
+**screenRefs**
+
+```json
+[
+  "K01",
+  "K04"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-103",
+  "API-001",
+  "API-021",
+  "API-022",
+  "API-023",
+  "API-024",
+  "API-025"
+]
+```
+
+**flow**: 소셜 인증→매장 생성/소속 선택→등록 terminal 증명→exact-store 고객 세션 발급. 관리 모드 복귀는 현재 권한/재인증
+
+**userVisibleSuccessWhen**: 매장·단말·역할이 검증된 고객 모드. 고객 화면에서 관리자 token/개인 지갑/매출/복구자료 접근 불가
+
+**recovery**: 재시작 시 관리 모드 자동 복귀 금지. 단말/소속 철회는 새 주문/결제 차단과 원거래 관측을 구분; 이후 고객 세션 발급은 KT04/TERM-NEXT의 원 clearance 단회 소비 필요.
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T01",
+  "KC-T02"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-02
+
+**title**: 메뉴 수정·품절·가격 변경
+
+**screenRefs**
+
+```json
+[
+  "K02"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-026",
+  "API-027",
+  "API-029",
+  "API-030"
+]
+```
+
+**flow**: 관리자는 expectedRevision으로 메뉴 변경. 고객은 메뉴/옵션/수량 선택 후 서버 가격·품절 재검증→불변 주문 snapshot
+
+**userVisibleSuccessWhen**: 서버가 검증한 메뉴·가격·수취 설정 revision의 주문 생성. 가격 변경은 고객 재확인 후 새 요청
+
+**recovery**: MENU_CHANGED면 변경 내역과 새 총액 표시. 응답 유실은 같은 key/body 결과 복구; body를 고쳐 같은 key 재사용 금지
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T03",
+  "KC-T04"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-03
+
+**title**: 매장 수취 지갑 변경
+
+**screenRefs**
+
+```json
+[
+  "K04",
+  "U02"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-028"
+]
+```
+
+**flow**: 자금관리 최근 인증→새 wallet 소유 증명→expectedRevision CAS→적용 시점 표시
+
+**userVisibleSuccessWhen**: 새 설정이 확정되고 이후 주문에 적용. 기존 주문/intent 수취 주소는 보존
+
+**recovery**: 변경 응답 유실은 설정/원요청 조회. 기존 주소 접근 상실이면 영향 주문/환불 보류, 새 주소로 원 snapshot 덮어쓰기 금지
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T05",
+  "KC-T06"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-04
+
+**title**: 고객 NU 결제 정상 흐름
+
+**screenRefs**
+
+```json
+[
+  "K02",
+  "K03",
+  "D01"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-029",
+  "API-032",
+  "API-033",
+  "API-034",
+  "API-108",
+  "API-109",
+  "API-018",
+  "API-019",
+  "API-020",
+  "API-030",
+  "API-035"
+]
+```
+
+**flow**: 주문→자산/EOA 선택·견적→NU 인증→snapshot→기기 새 물리 승인→원 승인 결과/현재 제출권한으로 제출→관측→업무 수락
+
+**userVisibleSuccessWhen**: 유효한 원 지급 allocation을 선택된 policy로 서버가 수락한 뒤에만 결제 완료 표시. 상품 인도는 별도
+
+**recovery**: 원 attempt/context/operation/transaction을 조회; BLE ACK/서명/HTTP접수만으로 결제 완료 금지
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T07",
+  "KC-T08",
+  "KC-T09",
+  "KC-T10"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-05
+
+**title**: 결제 중단·재연결·다음 손님
+
+**screenRefs**
+
+```json
+[
+  "K03",
+  "D01",
+  "O03"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-031",
+  "API-035",
+  "API-030",
+  "API-020",
+  "API-019",
+  "API-110"
+]
+```
+
+**flow**: 거리 이탈/거절/만료/앱 종료→노출 여부와 원상태 조회→안전한 중단 또는 확인 중→고객 세션 분리; KT01~06의 원 종료 요청과 boot/customer/view 세대 경계 적용
+
+**userVisibleSuccessWhen**: 새 손님 화면에서 이전 고객의 결제/주소/영수증/서명 접근 불가; 기존 지급 추적은 서버에서 유지
+
+**recovery**: 서명 가능성 있으면 자동 새 attempt/다른지갑 결제 금지. 고객 세션 복구증명 없이 orderId만으로 결과 공개 금지; OC23/24 정리 확인·현재 상태 조회. 늦은 결과는 TERM-RENDER로 수용하고 기존 서버 거래는 별도 추적.
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T11",
+  "KC-T12",
+  "KC-T13"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-06
+
+**title**: 지연·중복·부분·잘못된 지급
+
+**screenRefs**
+
+```json
+[
+  "K03",
+  "K05",
+  "O03"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-030",
+  "API-035",
+  "API-087"
+]
+```
+
+**flow**: 각 증거를 원 attempt/payer/asset/allocation에 귀속→원 정책·최신 관측 검증→정상 수락 또는 exception/hold
+
+**userVisibleSuccessWhen**: 새 수락은 선택된 D08 policy 필요. 정책 미정·귀속 불명은 보류; 예외를 정상 매출/스탬프로 자동 분류하지 않음
+
+**recovery**: 다른 손님의 지급정보·환불예산 노출 금지. 자동 반환·부분합산·새 결제 요청은 정책/권한 없이 실행하지 않음
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T14",
+  "KC-T15",
+  "KC-T16"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-07
+
+**title**: 주문 접수·상품 인도
+
+**screenRefs**
+
+```json
+[
+  "K05",
+  "K03"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-092",
+  "API-030"
+]
+```
+
+**flow**: 점주가 현재 결제 수락과 주문 이력 확인→상품 준비/인도→중복 방지 인도 기록 후보
+
+**userVisibleSuccessWhen**: fulfillment 권한·revision·idempotency 계약으로 실제 인도 기록 확인. 현재 카탈로그에는 이 mutation이 미등록
+
+**recovery**: 정상 시연의 준비/인도 단계는 미등록 계약 채택 전 완료 주장 금지. reorg가 과거 인도 사실을 삭제하거나 자동 재결제시키지 않음
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T17",
+  "KC-T18"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-08
+
+**title**: 개인 영수증·스탬프 연결
+
+**screenRefs**
+
+```json
+[
+  "U11",
+  "U10",
+  "D02"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-104",
+  "API-105",
+  "API-106",
+  "API-042",
+  "API-043",
+  "API-044"
+]
+```
+
+**flow**: 결제 당시 eligibility→계정 연결 또는 guest pending entitlement→나중 본인 claim→동일 source 한 번 적립/표시→별도 혜택 사용
+
+**userVisibleSuccessWhen**: 본인 영수증 연결·스탬프 원장 반영을 각각 표시; pending/unclaimed는 사용 가능 잔액 아님
+
+**recovery**: 반납/재대여/주소 소유만으로 과거 구매 claim 불가. 소비 후 환불/reorg는 저장 ruleVersion에 따른 목표 감소 때만 correction/deficit; 정책 미정이면 혜택 판단 보류·소비이력 유지, 자동 재지급·자산 차감 금지
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T19",
+  "KC-T20",
+  "KC-T21",
+  "KC-T22"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-09
+
+**title**: 부분·전액 환불
+
+**screenRefs**
+
+```json
+[
+  "K05",
+  "U03",
+  "D01",
+  "U11"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-030",
+  "API-036",
+  "API-037",
+  "API-038",
+  "API-015",
+  "API-108",
+  "API-109",
+  "API-018",
+  "API-019",
+  "API-020"
+]
+```
+
+**flow**: exact-store 환불 권한으로 paymentId 원천 선택→목적지 증명/금액/최신 fundingRevision→예약→업무 승인→지정 signer 검토/서명→제출/대사
+
+**userVisibleSuccessWhen**: 원 allocation에 귀속된 환불 거래의 현재 canonical/confirmation 정책과 서버 상태 확인 뒤 환불 완료. 요청/예약/서명은 완료 아님
+
+**recovery**: 한도는 원 cap-reserved-confirmed. hold면 잔여 한도가 있어도 새승인 불가. 목적지/원천/signer 변경은 새검토; 응답유실은 원 refund 조회
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T23",
+  "KC-T24",
+  "KC-T25",
+  "KC-T26",
+  "KC-T27"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-10
+
+**title**: 매출 조회·기간 마감·보정
+
+**screenRefs**
+
+```json
+[
+  "K06"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-039",
+  "API-040",
+  "API-041",
+  "API-093"
+]
+```
+
+**flow**: 매장/기간/chain/asset 선택→asOf·원천 완전성/정책·음수 차이 확인→닫힌 기간의 저장 candidate 검토→마감/보정
+
+**userVisibleSuccessWhen**: API040 마감 snapshot 또는 API041 새 correction version의 commit 확인. 기존 version 불변; 송금/환전 완료를 뜻하지 않음
+
+**recovery**: revision/generation/digest 충돌 시 새 후보 재검토. stale/null/held 표시, 같은 target 재처리는 NO_CHANGE
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T28",
+  "KC-T29",
+  "KC-T30"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-11
+
+**title**: 운영 예외 재조회·보정
+
+**screenRefs**
+
+```json
+[
+  "O03",
+  "O04"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-087",
+  "API-088",
+  "API-089"
+]
+```
+
+**flow**: 원천 재조회 또는 preview→단일 consumer/projection 차이 검토→별도 publish 권한으로 SR-02 후보→CP-B06 반영 확인
+
+**userVisibleSuccessWhen**: preview 완료와 publication 완료 구분. 새 generation/fence가 실제 commit된 뒤 보정 반영 완료
+
+**recovery**: 운영자가 paid/환불/보상/마감 값을 입력하여 확정 금지. 202 뒤 권한/원천 변경이면 hold. SR-01/02는 미등록
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T31",
+  "KC-T32"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+### KJ-12
+
+**title**: 점주 모바일 자산 조회·환불 승인
+
+**screenRefs**
+
+```json
+[
+  "U01",
+  "U02",
+  "U03",
+  "K05"
+]
+```
+
+**apiRefs**
+
+```json
+[
+  "API-005",
+  "API-007",
+  "API-008",
+  "API-037",
+  "API-015",
+  "API-020",
+  "API-018"
+]
+```
+
+**flow**: 동일 소셜 계정 로그인→매장 context/현재 membership→지갑 조회권→원 merchant_refund snapshot에 지정된 실제 signer 승인
+
+**userVisibleSuccessWhen**: 매장 조회/업무 승인/실제 서명권 세 조건을 각자 충족. NU 또는 Cloud 선정 경로로만 서명
+
+**recovery**: 모바일 개인송금 API017로 환불 우회 금지; 점주 로그인만으로 MPC 복구/NU signer 권한 생성 금지
+
+**runtimeVerified**: False
+
+**caseRefs**
+
+```json
+[
+  "KC-T33",
+  "KC-T34"
+]
+```
+
+**acceptance**
+
+```json
+{
+  "normalControlRequired": true,
+  "negativeBranchPassIsJourneyComplete": false,
+  "status": "not_run",
+  "evidenceRefs": []
+}
+```
+
+## paymentDisplayStates
+
+### PS-01
+
+**label**: 장바구니
+
+**authority**: API-026 현재 메뉴
+
+**action**: 주문 만들기
+
+**guard**: 가격/품절 검증 후 API029; local cart는 가격 권위 아님
+
+### PS-02
+
+**label**: 결제 준비
+
+**authority**: API-030 원 주문 + API-032 견적
+
+**action**: NU 연결/취소 가능 여부 조회
+
+**guard**: policy/profile·자산/가스 조건 미확정이면 진행 불가
+
+### PS-03
+
+**label**: 기기에서 확인해 주세요
+
+**authority**: API-034 snapshot + 원 D01 review
+
+**action**: 기기 물리 승인 또는 거절
+
+**guard**: 가격/수취/체인/가스 변경 시 이전 승인 재사용 금지
+
+### PS-04
+
+**label**: 전송/결제 확인 중
+
+**authority**: 원 operation·API-019·API-035
+
+**action**: 상태 확인/지원 안내
+
+**guard**: 추가 결제 버튼 자동노출 금지; signed/submitted != accepted
+
+### PS-05
+
+**label**: 결제 완료
+
+**authority**: API-030의 현재 유효 수락 projection + 본인 API-035
+
+**action**: 주문번호·허용 영수증 안내
+
+**guard**: order.paid만 보고 현재 유효성 추정 금지; 다른 지급 승자 정보 노출 없음
+
+### PS-06
+
+**label**: 지급 확인 필요
+
+**authority**: invalidated/exception/held projection
+
+**action**: 원내역 조회·지원 요청
+
+**guard**: 과거 fulfilled 이력 보존; 자동 unpaid/재결제 유도 금지
+
+### PS-07
+
+**label**: 환불 처리 중
+
+**authority**: 원 refund reservation/authorization/observation
+
+**action**: 원환불 상태 확인
+
+**guard**: 신규 key로 같은 환불 재요청·예약 임의해제 금지
+
+### PS-08
+
+**label**: 환불 완료
+
+**authority**: API-038 현재 refund reconciliation
+
+**action**: 자기 allocation 환불 내역
+
+**guard**: 환불 reorg 시 확인필요로 표시; 기존 출금 노출은 유지
+
+### PS-09
+
+**label**: 스탬프 연결/반영 대기
+
+**authority**: current eligibility/entitlement/claim revision
+
+**action**: 본인 연결·상태조회
+
+**guard**: 미귀속 적립 사용 금지; 소유 claim이 추가 적립 트리거 아님
+
+### PS-10
+
+**label**: 마감 완료/보정 필요
+
+**authority**: API-093 snapshot + API-039 현재 원천 차이
+
+**action**: 권한 있으면 후보 재검토
+
+**guard**: 지갑잔액·원화정산 완료와 혼동 금지
+
+## policyInputs
+
+### KP-01
+
+**decisionRefs**
+
+```json
+[
+  "D08"
+]
+```
+
+**topic**: 주문 수락·부분/초과/다중 지급
+
+**optionsOrRequiredEvidence**: 최초 업무 수락 한건 또는 명시적 분할 지원 비교; 시각/선착순 추정 금지
+
+**whenUnselected**: selection 없으면 새 수락 보류
+
+**selection**: None
+
+### KP-02
+
+**decisionRefs**
+
+```json
+[
+  "D08"
+]
+```
+
+**topic**: 견적·가격/환율·token decimals·가스
+
+**optionsOrRequiredEvidence**: 주문 KRW 표시와 atomic token 수량 분리; source/version/rounding/expiry를 quote에 고정
+
+**whenUnselected**: 환율/가스 지원 미검증이면 새 quote/서명 차단
+
+**selection**: None
+
+### KP-03
+
+**decisionRefs**
+
+```json
+[
+  "D08",
+  "D09"
+]
+```
+
+**topic**: 취소·지연 입금·환불 목적지·수수료
+
+**optionsOrRequiredEvidence**: 원 allocation별 반환 증명·수수료 부담·환불 조건 비교; 고객 최초 가스 유지
+
+**whenUnselected**: 미정이면 자동 반환/수수료 임의 공제 금지
+
+**selection**: None
+
+### KP-04
+
+**decisionRefs**
+
+```json
+[
+  "D17"
+]
+```
+
+**topic**: 스탬프·부분환불·소비 후 취소
+
+**optionsOrRequiredEvidence**: ruleVersion, 적립/회수/면제와 deficit 정책
+
+**whenUnselected**: 미정 rule이면 새혜택/사용 보류, 과거 기록 보존
+
+**selection**: None
+
+### KP-05
+
+**decisionRefs**
+
+```json
+[
+  "D02",
+  "D19"
+]
+```
+
+**topic**: 단말 관리/고객 세션·다음 손님
+
+**optionsOrRequiredEvidence**: terminal 등록·종료/분실·idle TTL·고객 receipt recovery 전달
+
+**whenUnselected**: 세션 수치·복구 증명 전달 profile 미선정; 자동 권한 확대 금지
+
+**selection**: None
+
+### KP-06
+
+**decisionRefs**
+
+```json
+[
+  "D08",
+  "D19"
+]
+```
+
+**topic**: 매출 기간·정산·보정
+
+**optionsOrRequiredEvidence**: store timezone/사업시각·기간 partition·asset별 manifest
+
+**whenUnselected**: 미선정이면 마감/보정 승인 불가
+
+**selection**: None
+
+### KP-07
+
+**decisionRefs**
+
+```json
+[
+  "D01",
+  "D02"
+]
+```
+
+**topic**: 상품 준비·인도
+
+**optionsOrRequiredEvidence**: fulfillment writer/역할/expectedRevision·멱등·취소 경합
+
+**whenUnselected**: 미등록 mutation으로 실제 인도완료 기록 주장 금지
+
+**selection**: None
+
+## contractDeltas
+
+### KD-01
+
+**apiRefs**
+
+```json
+[
+  "API-023"
+]
+```
+
+**topic**: 단말 등록·증명/고객 세션 종료·철회 확인·관리 복귀
+
+**remaining**: OC04/23/24와 terminalClearanceContract에 종료/정리/조회 논리 계약을 정의. API023 후속 세션 admission 확장 및 정확한 terminal proof/정리 profile/schema의 채택·실기 검증 필요.
+
+### KD-02
+
+**apiRefs**
+
+```json
+[
+  "API-027",
+  "API-029",
+  "API-028"
+]
+```
+
+**topic**: 메뉴 가격/옵션/품절 검증과 recipient snapshot 원자 고정
+
+**remaining**: order writer는 current menu/recipient revision 검증 후 commit. 메뉴변경과 가격재확인 UX·recipient cut 및 소유증명 세부 DTO 채택 필요
+
+### KD-03
+
+**apiRefs**
+
+```json
+[
+  "API-032"
+]
+```
+
+**topic**: 견적·지원 asset·native gas·표시금액/실제금액 일치
+
+**remaining**: 더미 USDC의 검증 주소/decimals/chain manifest 필요. StableNet gas denomination은 현재 baseline/profile 확인; token 잔고=가스 잔고 추정 금지
+
+### KD-04
+
+**apiRefs**
+
+```json
+[
+  "API-092",
+  "API-030"
+]
+```
+
+**topic**: 상품 준비/인도 명령과 지원 직원 권한
+
+**remaining**: fulfillment mutation은 현재 미등록. 서버 accepted 상태·expectedRevision·idempotency·audit 필요. 새 명령명/번호 자동등록 안 함
+
+### KD-05
+
+**apiRefs**
+
+```json
+[
+  "API-030",
+  "API-035",
+  "API-036",
+  "API-037",
+  "API-038"
+]
+```
+
+**topic**: 대사/환불 projection 계약 채택
+
+**remaining**: commerce-reconciliation 후보 채택 필요; API037 merchantSigner+expectedRevision+expectedFundingRevision 및 approval envelope 유지
+
+### KD-06
+
+**apiRefs**
+
+```json
+[
+  "API-042",
+  "API-043",
+  "API-044",
+  "API-104",
+  "API-105",
+  "API-106"
+]
+```
+
+**topic**: 개인영수증·pending entitlement·혜택사용 연결
+
+**remaining**: guest ticket 전달/내보내기와 앱 claim UI; rule/privacy/current ownership revision 연결. ticket/주문번호 단독으로 권한 부여 금지
+
+### KD-07
+
+**apiRefs**
+
+```json
+[
+  "API-039",
+  "API-040",
+  "API-041",
+  "API-093",
+  "API-087"
+]
+```
+
+**topic**: 마감·보정·운영 publish 연결
+
+**remaining**: settlement-ops 후보/별도 SR 권한을 채택하기 전 운영 반영 불가. 기존 API087을 publish 권한으로 확대 금지
+
+## runtimeCases
+
+### KC-T01
+
+**journeyRef**: KJ-01
+
+**scenario**: 다른 매장/미등록 terminal
+
+**expected**: 고객 세션 발급 거절
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T02
+
+**journeyRef**: KJ-01
+
+**scenario**: 재부팅 후 관리자 화면 복원
+
+**expected**: 재인증 전 관리정보 비공개
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T03
+
+**journeyRef**: KJ-02
+
+**scenario**: 장바구니 중 품절/가격 변경
+
+**expected**: 차이 표시·재확인, 원금액 자동결제 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T04
+
+**journeyRef**: KJ-02
+
+**scenario**: 주문 commit 후 응답 유실
+
+**expected**: 같은 key/body로 한 주문 복구
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T05
+
+**journeyRef**: KJ-03
+
+**scenario**: 수취 설정과 주문 생성 경합
+
+**expected**: 일관된 한 recipient revision만 고정
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T06
+
+**journeyRef**: KJ-03
+
+**scenario**: 기존 주문 후 주소 변경
+
+**expected**: 원 주문 수취 유지, 키접근 상실은 보류
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T07
+
+**journeyRef**: KJ-04
+
+**scenario**: 유효 NU EOA 정상 지급
+
+**expected**: 정책/가스/profile 준비 후 accepted 확인, 서명완료만으로 성공 금지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T08
+
+**journeyRef**: KJ-04
+
+**scenario**: USDC 보유·native gas 부족
+
+**expected**: 가스 부족 표시, 자동후원/Cloud 대체 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T09
+
+**journeyRef**: KJ-04
+
+**scenario**: 동명 가짜 토큰/잘못된 decimals
+
+**expected**: chain/address/manifest 불일치 거절
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T10
+
+**journeyRef**: KJ-04
+
+**scenario**: 녹음/FOTA와 결제 경합
+
+**expected**: DS01 busy/사용자 종료 후 새승인, 자동입력재사용 금지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T11
+
+**journeyRef**: KJ-05
+
+**scenario**: 서명후 BLE 끊김
+
+**expected**: 원결과 관측, 자동 재서명/재결제 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T12
+
+**journeyRef**: KJ-05
+
+**scenario**: 다음 손님 이전 주문번호 조회
+
+**expected**: 다른 payer 결과·주소·capability 노출 금지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T13
+
+**journeyRef**: KJ-05
+
+**scenario**: 취소와 지급 수락 경합
+
+**expected**: 같은 원장/권한 경계에서 일관된 결과, 늦은 입금 추적
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T14
+
+**journeyRef**: KJ-06
+
+**scenario**: 두 attempt가 모두 지급
+
+**expected**: 각 allocation 분리, 선택policy 외 자동이중매출/적립 금지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T15
+
+**journeyRef**: KJ-06
+
+**scenario**: 부분/초과/늦은 지급 정책없음
+
+**expected**: policy held; 새 정상수락/자동반환 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T16
+
+**journeyRef**: KJ-06
+
+**scenario**: Indexer 지연/중복 관측
+
+**expected**: unknown/stale 표시, 같은 revision 중복반영 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T17
+
+**journeyRef**: KJ-07
+
+**scenario**: 정상 상품 인도
+
+**expected**: 등록된 writer 권한/멱등/증거 없으면 미검증; 인도중복 기록 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T18
+
+**journeyRef**: KJ-07
+
+**scenario**: 상품 인도후 원지급 reorg
+
+**expected**: 인도이력 유지·현재 지급검토, 자동재결제 금지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T19
+
+**journeyRef**: KJ-08
+
+**scenario**: guest 결제후 앱 claim
+
+**expected**: 당시eligibility 증명, 동일entitlement 한번연결
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T20
+
+**journeyRef**: KJ-08
+
+**scenario**: 다음 대여자의 과거영수증 claim
+
+**expected**: 현재기기/주소만으로 거절
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T21
+
+**journeyRef**: KJ-08
+
+**scenario**: 스탬프 사용후 부분환불/reorg
+
+**expected**: 저장 ruleVersion으로 적립 목표가 감소한 경우에만 correction/deficit; 정책 미정은 판단보류, 소비이력 보존·자동돈청구 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T22
+
+**journeyRef**: KJ-08
+
+**scenario**: 혜택사용과 원지급무효화 경합
+
+**expected**: 현재 source gate 기준 직렬화, stale projection으로 사용 불가
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T23
+
+**journeyRef**: KJ-09
+
+**scenario**: 타매장 allocation을 권한 없이 환불 원천으로 선택
+
+**expected**: exact-store refund 권한 불일치 거절; 정상 매장 환불담당자에게 고객 payer 소유권까지 요구하지 않음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T24
+
+**journeyRef**: KJ-09
+
+**scenario**: 동시 부분환불 cap 초과
+
+**expected**: 한도예약/CAS로 과다노출 방지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T25
+
+**journeyRef**: KJ-09
+
+**scenario**: 환불 승인자와 signer 다름
+
+**expected**: 원 merchant_refund snapshot 유지; 개인송금 우회 금지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T26
+
+**journeyRef**: KJ-09
+
+**scenario**: 환불서명 후 timeout/취소
+
+**expected**: 노출예약 유지, 원 refund 관측
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T27
+
+**journeyRef**: KJ-09
+
+**scenario**: 확정환불 reorg
+
+**expected**: confirmed→reserved 재분류, 가능액 임의증가 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T28
+
+**journeyRef**: KJ-10
+
+**scenario**: 정상 기간마감 commit 응답유실
+
+**expected**: 같은key 원 snapshot 복구; 추가 마감 없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T29
+
+**journeyRef**: KJ-10
+
+**scenario**: 원입금0·유효환불6
+
+**expected**: signed -6/검토필요, 0으로 숨기지 않음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T30
+
+**journeyRef**: KJ-10
+
+**scenario**: 마감후 새 source 보정
+
+**expected**: 원version 불변·correction_pending→별도승인
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T31
+
+**journeyRef**: KJ-11
+
+**scenario**: ops_reconcile만으로 publish
+
+**expected**: 별도권한없음 거절
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T32
+
+**journeyRef**: KJ-11
+
+**scenario**: 202후권한철회/source변경
+
+**expected**: 최종commit 보류, 새금융효과없음
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T33
+
+**journeyRef**: KJ-12
+
+**scenario**: 점주로그인만으로 wallet sign
+
+**expected**: 실제signer/approval 없으면 거절
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+### KC-T34
+
+**journeyRef**: KJ-12
+
+**scenario**: 로그아웃후늦은환불서명결과
+
+**expected**: 현 read/release·gate 재검사, 기존거래관측만 유지
+
+**status**: not_run
+
+**evidenceRefs**
+
+```json
+[]
+```
+
+## baseline
+
+```json
+{
+  "tasks": 104,
+  "steps": 320,
+  "decisions": 19,
+  "apis": 110,
+  "screens": 37
+}
+```
+
+## nextDesign
+
+DS-04 StableNet 자산·스마트계정·Indexer 호환 설계
+
+## declaredScopeRequirementRefs
+
+- 1
+- 3
+- 7
+- 9
+- 10
+- 12
+## transitiveTaskImpactRequirementRefs
+
+- 1
+- 3
+- 4
+- 7
+- 8
+- 9
+- 10
+- 12
+- 14
+- 15
+## requirementRefsMeaning
+
+legacy alias of declaredScopeRequirementRefs; not exhaustive impact or completion evidence
+
+## terminalPredicates
+
+### TERM-CLEAR
+
+**allOf**
+
+```json
+[
+  "end_operation_matches",
+  "terminal_control_proof_current",
+  "terminal_grant_epoch_matches",
+  "customer_generation_matches",
+  "current_boot_matches",
+  "clearance_challenge_current",
+  "session_deny_committed",
+  "local_clearance_manifest_verified",
+  "callback_generation_invalidated",
+  "expected_revisions_match"
+]
+```
+
+**effect**: 원 종료 operation의 clearance receipt와 revision을 CAS 기록한다. ACK는 선택된 profile의 앱 정리 보고이며 물리 메모리 완전 삭제의 하드웨어 증명이라고 주장하지 않는다.
+
+### TERM-NEXT
+
+**allOf**
+
+```json
+[
+  "current_store_terminal_authority",
+  "terminal_head_matches",
+  "clearance_current",
+  "clearance_unconsumed",
+  "current_boot_matches",
+  "no_other_terminal_holds",
+  "expected_revisions_match"
+]
+```
+
+**effect**: 같은 terminal head CAS에서 clearance 소비·단일 새 session/customerGeneration·outbox 반영. 과거 cleared 상태만으로 새 세션을 만들지 않는다.
+
+### TERM-RENDER
+
+**allOf**
+
+```json
+[
+  "current_local_customer_context",
+  "response_ancestry_matches",
+  "view_generation_matches",
+  "boot_generation_matches",
+  "current_read_authority",
+  "response_revision_not_older"
+]
+```
+
+**effect**: 원 주문/attempt/operation의 최신 응답만 현재 화면에 반영. paid→unknown도 더 최신 source revision이면 유효할 수 있으므로 단순 상태 순위로 reorg를 무시하지 않는다.
+
+## terminalHandoffTransitions
+
+### KT-01
+
+**fromState**: active
+
+**toState**: end_requested
+
+**guard**: 사용자 종료/선정 idle policy/관리 종료; 원 customer context 식별
+
+**effect**: 네트워크 요청 전 local deny·viewGeneration 증가·입력/preview/QR 숨김. endRequestId/requestDigest를 원 session에 보존; 서명/체인 노출을 취소됐다고 표시하지 않음.
+
+**predicateRefs**
+
+```json
+[]
+```
+
+### KT-02
+
+**fromState**: end_requested
+
+**toState**: clearance_pending
+
+**guard**: 원 종료권한과 expectedSessionRevision 검증; 동일 요청 멱등
+
+**effect**: 서버 session deny·해당 customer authority 영향·정리 challenge/outbox를 원자 기록. 종료가 이미 서명된 거래를 무효화하지 않음.
+
+**predicateRefs**
+
+```json
+[]
+```
+
+### KT-03
+
+**fromState**: clearance_pending
+
+**toState**: cleared
+
+**guard**: OC23의 TERM-CLEAR 모든 조건; 원 session은 닫힌 채 유지
+
+**effect**: 정리 receipt 저장. 로컬 clear만으로 next customer를 열지 않고 서버 현재 판정 확인.
+
+**predicateRefs**
+
+```json
+[
+  "TERM-CLEAR"
+]
+```
+
+### KT-04
+
+**fromState**: cleared
+
+**toState**: replaced
+
+**guard**: API023 후보 확장에 TERM-NEXT 적용
+
+**effect**: clearance 한 번 소비와 새 고객 세션 발급을 같은 CAS에 기록; 이전 receipt는 이력. 기존 지불 추적은 독립 계속.
+
+**predicateRefs**
+
+```json
+[
+  "TERM-NEXT"
+]
+```
+
+### KT-05
+
+**fromState**: end_requested|clearance_pending|cleared
+
+**toState**: held
+
+**guard**: 현재 boot/terminal 권한 변경·정리 증거 충돌·현재 head 불명
+
+**effect**: 고객 화면 차단 유지. 원 endRequest 결과를 OC24 조회; 이전 receipt로 재사용하지 않음. 단순 응답 유실 자체는 실패/새 요청 생성 근거가 아님.
+
+**predicateRefs**
+
+```json
+[]
+```
+
+### KT-06
+
+**fromState**: held
+
+**toState**: clearance_pending
+
+**guard**: 현재 terminal control 증명·원 종료 operation/head 재확인, 별도 보안 hold의 해제 권한을 추정하지 않음
+
+**effect**: 같은 endRequest 아래 새 boot에 결합한 challenge/revision 갱신 후 원 정리 재수행. 이전 challenge 무효, old customer session 부활 없음.
+
+**predicateRefs**
+
+```json
+[]
+```
+
+## terminalClearanceContract
+
+```json
+{
+  "routes": [
+    "OC-04",
+    "OC-23",
+    "OC-24"
+  ],
+  "identity": [
+    "environmentId",
+    "storeId",
+    "terminalId",
+    "terminalGrantEpoch",
+    "sessionId",
+    "customerGeneration",
+    "endRequestId"
+  ],
+  "ackBindings": [
+    "identityDigest",
+    "currentBootId",
+    "invalidatedViewGeneration",
+    "clearanceChallengeDigest",
+    "clearanceManifestDigest",
+    "expectedSessionRevision",
+    "expectedTerminalRevision"
+  ],
+  "localClearanceManifest": [
+    "customer_navigation_and_view_cache",
+    "app_owned_receipt_qr_clipboard_preview",
+    "customer_ble_transport_and_temporary_credentials",
+    "customer_pending_callback_and_retry_queues",
+    "customer_sensitive_local_cache"
+  ],
+  "bootRule": "currentBootId는 등록 terminal control 증명과 challenge에 결합한 현재 app 실행 세대다. 재시작 때 생성된 임의 값만으로 신뢰하지 않으며, 서버가 검증한 최신 head를 기준으로 이전 boot의 ACK를 거절한다. hardware attestation을 구현했다고 주장하지 않는다.",
+  "localBarrier": "end_requested부터 원 customer viewGeneration의 callback은 폐기한다. 요청 취소 성공만으로 queue가 비었다고 판단하지 않고 generation gate를 유지한다. 정리 대상은 앱 소유 영역이며 임의 외부 앱/사용자 파일을 지우지 않는다.",
+  "ackLoss": "OC24로 같은 endRequest의 현재 상태·receipt·재사용 가능성을 조회한다. 같은 digest ACK 재전송은 한 번 적용. terminal head/revision이 바뀌면 과거 cleared receipt를 현재 허가로 재사용하지 않는다.",
+  "admission": "API023에 원 clearanceRef/expectedTerminalRevision/currentBoot proof를 결합하는 미병합 확장 후보. 최초 단말 발급은 별도의 provisioning 증거 경로이며 이후 세션이 최초 등록이라고 가장해 clearance를 건너뛸 수 없다.",
+  "remoteLimits": "로컬 화면 차단, 서버 deny commit, 단말 정리 보고, 다음 세션 발급을 별도 상태로 표시한다. 오프라인/미선정 정리 profile에서 재사용 완료를 추정하지 않는다.",
+  "receiptDoesNotAuthorizePayment": true,
+  "clearanceConsumesOnce": true,
+  "scope": "terminal_handoff_operation_only; 주문·지급·환불 state와 다른 객체"
+}
+```
+
+## terminalResultIsolation
+
+```json
+{
+  "predicateRef": "TERM-RENDER",
+  "requestBinding": [
+    "environmentId",
+    "storeId",
+    "terminalId",
+    "sessionId",
+    "customerGeneration",
+    "localViewGeneration",
+    "currentBootId",
+    "typedParentRef",
+    "operationRef"
+  ],
+  "callbackRule": "poll/BLE/native/딥링크/복구 응답을 요청 당시 context에 결합한다. 서버 관측은 원 order/attempt에 반영 가능하지만, 현재 고객 context/권한이 달라지면 화면·영수증·알림·자동 인쇄/QR 출력에 사용하지 않는다. current session으로 원 결과의 parent를 재할당하지 않는다.",
+  "readAfterEnd": "종료된 terminal/customer credential은 결과 조회로 부활하지 않는다. API030/035의 독립 exact-order/attempt read capability가 선택 profile에 따라 이전에 적법하게 발급·전달된 경우에만 현 범위/기한/holder 검증으로 읽는다. 미발급/상실이면 orderId 또는 새 terminal session으로 대체 발급 금지.",
+  "claimSeparation": "주문 진행 조회 capability는 영수증 ownership/스탬프 claim 또는 새 서명·재제출·환불 권한이 아니다. API104~106의 원 eligibility와 현재 account 증명은 그대로 유지한다.",
+  "missingDelivery": "고객용 독립 결과 조회 증명의 발급/전달 profile은 KP05 미선정 상태다. 미채택이면 셀프 조회 가능으로 표시하지 않고, 별도 현재 권한을 가진 매장 직원의 제한 조회 절차로 구분한다. 정리 ACK 경로로 결과 읽기권을 우회하지 않는다.",
+  "latePayment": "세션 종료 이후 체인 결과가 도착해도 같은 원 거래의 대사만 진행한다. 종료를 이유로 새 지급·자동 환불·중복 인도 명령을 만들지 않는다."
+}
+```
+

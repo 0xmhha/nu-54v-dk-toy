@@ -1,0 +1,322 @@
+{
+  "methodologyStatus": "awaiting_user_definition",
+  "nodeCount": 2083,
+  "edgeCount": 9723,
+  "danglingEdges": 0,
+  "wbsDependencyEdges": 272,
+  "wbsCycles": [],
+  "packageScopeComparisons": [
+    {
+      "package": "DS-01",
+      "declared": [
+        1,
+        2,
+        3,
+        4,
+        8,
+        10
+      ],
+      "transitive": [
+        1,
+        2,
+        3,
+        4,
+        8,
+        9,
+        10,
+        15
+      ],
+      "transitiveNotDeclared": [
+        9,
+        15
+      ],
+      "declaredNotTransitive": []
+    },
+    {
+      "package": "DS-02",
+      "declared": [
+        4,
+        5,
+        6,
+        8
+      ],
+      "transitive": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        15
+      ],
+      "transitiveNotDeclared": [
+        7,
+        9,
+        10,
+        15
+      ],
+      "declaredNotTransitive": []
+    },
+    {
+      "package": "DS-03",
+      "declared": [
+        1,
+        3,
+        7,
+        9,
+        10,
+        12
+      ],
+      "transitive": [
+        1,
+        3,
+        4,
+        7,
+        8,
+        9,
+        10,
+        12,
+        14,
+        15
+      ],
+      "transitiveNotDeclared": [
+        4,
+        8,
+        14,
+        15
+      ],
+      "declaredNotTransitive": []
+    },
+    {
+      "package": "DS-04",
+      "declared": [
+        11,
+        12,
+        13
+      ],
+      "transitive": [
+        4,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15
+      ],
+      "transitiveNotDeclared": [
+        4,
+        8,
+        9,
+        10,
+        15
+      ],
+      "declaredNotTransitive": [
+        13
+      ]
+    },
+    {
+      "package": "DS-05",
+      "declared": [
+        11,
+        13
+      ],
+      "transitive": [
+        11,
+        13
+      ],
+      "transitiveNotDeclared": [],
+      "declaredNotTransitive": []
+    },
+    {
+      "package": "DS-06",
+      "declared": [
+        11
+      ],
+      "transitive": [
+        11
+      ],
+      "transitiveNotDeclared": [],
+      "declaredNotTransitive": []
+    },
+    {
+      "package": "DS-07",
+      "declared": [
+        3,
+        7,
+        14
+      ],
+      "transitive": [
+        3,
+        4,
+        7,
+        14
+      ],
+      "transitiveNotDeclared": [
+        4
+      ],
+      "declaredNotTransitive": []
+    },
+    {
+      "package": "DS-08",
+      "declared": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "transitive": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "transitiveNotDeclared": [],
+      "declaredNotTransitive": []
+    }
+  ],
+  "stateAudit": [
+    {
+      "source": "content/specifications/device-coexistence-design.json",
+      "section": "fotaTransitions",
+      "transitionCount": 10,
+      "sinks": [
+        "cancelled",
+        "confirmed"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/social-wallet-recovery-design.json",
+      "section": "authTransitions",
+      "transitionCount": 12,
+      "sinks": [
+        "account_restricted",
+        "deletion_pending",
+        "identity_unlinked",
+        "local_context_switched",
+        "restart_required",
+        "session_revoked"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/social-wallet-recovery-design.json",
+      "section": "mpcTransitions",
+      "transitionCount": 18,
+      "sinks": [],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/kiosk-commerce-journey-design.json",
+      "section": "terminalHandoffTransitions",
+      "transitionCount": 6,
+      "sinks": [
+        "replaced"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/stablenet-compatibility-design.json",
+      "section": "accountTransitions",
+      "transitionCount": 7,
+      "sinks": [
+        "held",
+        "ready"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/market-product-design.json",
+      "section": "tradeTransitions",
+      "transitionCount": 16,
+      "sinks": [
+        "cancelled_local",
+        "expired"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "section": "credentialTransitions",
+      "transitionCount": 5,
+      "sinks": [
+        "expired",
+        "revoked"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "section": "paidResourceTransitions",
+      "transitionCount": 14,
+      "sinks": [
+        "cancelled",
+        "refunded"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "section": "presentationTransitions",
+      "transitionCount": 11,
+      "sinks": [
+        "expired",
+        "rejected",
+        "verified"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "section": "paymentAttemptTransitions",
+      "transitionCount": 10,
+      "sinks": [
+        "expired",
+        "rejected"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/credential-paid-resource-design.json",
+      "section": "refundAttemptTransitions",
+      "transitionCount": 8,
+      "sinks": [
+        "cancelled_unexposed"
+      ],
+      "unknownHasRecovery": true
+    },
+    {
+      "source": "content/specifications/recording-travel-ai-design.json",
+      "section": "privacyTransitions",
+      "transitionCount": 7,
+      "sinks": [],
+      "unknownHasRecovery": true
+    }
+  ],
+  "sourceHashChecks": 328,
+  "hashMismatches": [],
+  "runtimeVerified": false
+}

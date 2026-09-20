@@ -1,0 +1,132 @@
+{
+  "checkedAt": "2026-09-18",
+  "scope": "primary documentation review; no library installation or runtime verification",
+  "sources": [
+    {
+      "id": "SRC-01",
+      "title": "Nordic nRF54L FOTA",
+      "url": "https://nrfconnectdocs.nordicsemi.com/ncs/latest/nrf/app_dev/device_guides/nrf54l/fota_update.html",
+      "finding": "MCUboot/SMP FOTA 설명. latest 개발 문서는 채택 SDK 버전이 아님"
+    },
+    {
+      "id": "SRC-02",
+      "title": "Nordic Channel Sounding",
+      "url": "https://www.nordicsemi.com/Products/Wireless/Bluetooth-Low-Energy/Channel-Sounding",
+      "finding": "NCS initiator/reflector와 Nordic DK 예시; NU 포팅 증거는 아님"
+    },
+    {
+      "id": "SRC-03",
+      "title": "Nordic crypto supported operations",
+      "url": "https://nrfconnectdocs.nordicsemi.com/ncs/latest/nrf/security/crypto/crypto_supported_features.html",
+      "finding": "칩·SDK·알고리즘별 지원표; secp256k1 opaque-key 서명 보장으로 해석 금지"
+    },
+    {
+      "id": "SRC-04",
+      "title": "react-native-ble-plx",
+      "url": "https://github.com/dotintent/react-native-ble-plx",
+      "finding": "GATT central 기능; README에서 bonding/peripheral 비지원 명시"
+    },
+    {
+      "id": "SRC-05",
+      "title": "Expo BLE development build",
+      "url": "https://expo.dev/blog/how-to-build-a-bluetooth-low-energy-powered-expo-app",
+      "finding": "native BLE 모듈은 development build 필요; Expo Go만으로 실행 불가"
+    },
+    {
+      "id": "SRC-06",
+      "title": "CTAP 2.2",
+      "url": "https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.html",
+      "finding": "표준 authenticator 계약·전송; 실제 RP/OS 호환 시험 필요"
+    },
+    {
+      "id": "SRC-07",
+      "title": "Coinbase cb-mpc",
+      "url": "https://github.com/coinbase/cb-mpc",
+      "finding": "native MPC primitives. 공개 지원 환경은 macOS/Linux; peer 인증·키 저장·운영 미제공"
+    },
+    {
+      "id": "SRC-08",
+      "title": "LFDT Lockness threshold ECDSA",
+      "url": "https://github.com/LFDT-Lockness/cggmp21",
+      "finding": "현재 README는 CGGMP24 구현 설명; key refresh/identifiable abort 미지원 명시. 저장소 이름을 프로토콜 버전으로 고정하지 않음"
+    },
+    {
+      "id": "SRC-09",
+      "title": "pgx",
+      "url": "https://github.com/jackc/pgx",
+      "finding": "Go PostgreSQL driver/toolkit"
+    },
+    {
+      "id": "SRC-10",
+      "title": "PostgreSQL locking",
+      "url": "https://www.postgresql.org/docs/current/explicit-locking.html",
+      "finding": "행 잠금·경쟁 제어 설명; 기존 single-user DDL 시험과 다중 세션 시험은 별개"
+    },
+    {
+      "id": "SRC-11",
+      "title": "S3 server-side encryption",
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html",
+      "finding": "객체 서버 측 암호화. 실제 열람 권한/앱 동의는 별도 검사"
+    },
+    {
+      "id": "SRC-12",
+      "title": "VC Data Model 2.0",
+      "url": "https://www.w3.org/TR/vc-data-model-2.0/",
+      "finding": "credential 데이터 모델; proof suite/DID method/status 구현을 자동 선정하지 않음"
+    },
+    {
+      "id": "SRC-13",
+      "title": "x402 v2 specification",
+      "url": "https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md",
+      "finding": "CAIP-2 network, mechanism/asset transfer method 구분"
+    },
+    {
+      "id": "SRC-14",
+      "title": "x402 EVM implementation",
+      "url": "https://pkg.go.dev/github.com/coinbase/x402/go/mechanisms/evm",
+      "finding": "exact의 EIP-3009/Permit2 토큰 경로. 고객 gas 부담과 8283 지원은 별도 검증"
+    },
+    {
+      "id": "SRC-15",
+      "title": "Kakao Local API",
+      "url": "https://developers.kakao.com/docs/ko/local/dev-guide",
+      "finding": "키워드/카테고리/좌표 장소 검색. 여행 경로·영업시간 완전성을 보장하지 않음"
+    },
+    {
+      "id": "SRC-16",
+      "title": "whisper.cpp",
+      "url": "https://github.com/ggml-org/whisper.cpp",
+      "finding": "로컬 음성 전사 구현 후보. 모델·실행 장비·품질 선택 필요"
+    },
+    {
+      "id": "SRC-17",
+      "title": "llama.cpp",
+      "url": "https://github.com/ggml-org/llama.cpp",
+      "finding": "로컬 LLM inference 후보. 모델 license/품질/실행 자원 선택 별도"
+    },
+    {
+      "id": "SRC-18",
+      "title": "iOS McuManager",
+      "url": "https://github.com/nordicsemi/IOS-nRF-Connect-Device-Manager",
+      "finding": "SMP 기반 모바일 장치 관리 라이브러리. RN bridge는 별도"
+    },
+    {
+      "id": "SRC-19",
+      "title": "Zephyr application development",
+      "url": "https://docs.zephyrproject.org/latest/develop/application/index.html",
+      "finding": "CMake/Kconfig/devicetree와 application 구조; latest 문서는 채택 release 아님"
+    },
+    {
+      "id": "SRC-20",
+      "title": "Zephyr sysbuild",
+      "url": "https://docs.zephyrproject.org/latest/build/sysbuild/index.html",
+      "finding": "application/bootloader 등 multi-image build 구성의 출발점"
+    },
+    {
+      "id": "SRC-21",
+      "title": "Zephyr MCUmgr",
+      "url": "https://docs.zephyrproject.org/latest/services/device_mgmt/mcumgr.html",
+      "finding": "장치 관리 subsystem; custom fota 논리 명령과 표준 SMP wire를 구분"
+    }
+  ]
+}

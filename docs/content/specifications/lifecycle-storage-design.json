@@ -1,0 +1,1271 @@
+{
+  "status": "lifecycle_storage_proposal_not_applied",
+  "implementation": "deferred_by_user",
+  "canonicalMerged": false,
+  "runtimeVerified": false,
+  "sqlApplied": false,
+  "policySelectionUnchanged": true,
+  "tables": [
+    {
+      "name": "device_lifecycle_heads",
+      "resource": "Current device lifecycle",
+      "primaryKey": [
+        "device_id"
+      ],
+      "fields": [
+        "device_id:app_id",
+        "epoch:decimal-string",
+        "binding_revision:revision",
+        "lifecycle_revision:revision",
+        "active_rental_id:app_id?",
+        "active_binding_id:app_id?",
+        "pending_admission_id:app_id?",
+        "current_reset_job_id:app_id?",
+        "state:unprovisioned|reserved|active|returning|awaiting_cleanup|quarantined",
+        "authority_gate_key:text",
+        "restore_generation:revision"
+      ],
+      "databaseConstraints": [
+        "PK device_id; FK devices(id), authority_gate_key -> approval_authorization_gates(gate_key)",
+        "epoch is exact unsigned integer encoding, no floating point; concrete storage bound awaits device profile"
+      ],
+      "transactionRules": [
+        "Head is current lineage pointer, not independent authorization authority. All writers lock shared rank-0 gate before head; missing head denies; revision monotonic, no epoch inference from firmware version."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "device_fence_reasons",
+      "resource": "Return and other restriction reasons",
+      "primaryKey": [
+        "device_id",
+        "reason_kind",
+        "reason_id"
+      ],
+      "fields": [
+        "device_id:app_id",
+        "reason_kind:return|fota|security|administrative",
+        "reason_id:app_id",
+        "binding_id:app_id?",
+        "epoch:decimal-string",
+        "revision:revision",
+        "state:held|released",
+        "release_evidence_id:app_id?"
+      ],
+      "databaseConstraints": [
+        "PK device_id,reason_kind,reason_id; released history retained"
+      ],
+      "transactionRules": [
+        "Release only exact reason owned by operation; effective shared gate stays held while any blocking reason remains. Purpose-specific recovery commands may operate under held gate; never make global gate open for cleanup. Existing revoke/scope conditions still apply."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_reset_jobs",
+      "resource": "ResetJob",
+      "primaryKey": [
+        "job_id"
+      ],
+      "fields": [
+        "job_id:app_id",
+        "device_id:app_id",
+        "rental_id:app_id",
+        "binding_id:app_id",
+        "previous_epoch:decimal-string",
+        "next_epoch:decimal-string?",
+        "checklist_revision:revision",
+        "fence_revision:revision",
+        "prepare_digest:hash32?",
+        "owner_approval_ref:app_id?",
+        "grant_issued:boolean",
+        "commit_id:app_id?",
+        "phase:checking|prepared|commit_issued|device_started|evidence_pending|completed|aborted|quarantined",
+        "cancel_id:app_id?",
+        "completion_handle:app_id?",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK job_id; UNIQUE commit_id WHERE nonnull; UNIQUE completion_handle WHERE nonnull",
+        "Composite references require matching device/rental/binding lineage, not independent valid IDs"
+      ],
+      "transactionRules": [
+        "grant_issued never true->false; no terminal downgrade; one nonterminal reset lineage per current device enforced under head lock + unique active slot. Issuance reservation is conservative grant-issued barrier even before signing finishes; cancel forbidden thereafter."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_permits",
+      "resource": "Immutable server permits",
+      "primaryKey": [
+        "permit_id"
+      ],
+      "fields": [
+        "permit_id:app_id",
+        "owner_kind:reset|admission|cancellation|relay|challenge",
+        "owner_id:app_id",
+        "purpose:execute|completion_ack|admission|activation|cancel_prepare|cancel_release|relay_authority|cleanup_challenge",
+        "context_digest:hash32",
+        "payload_object_id:app_id",
+        "signed_object_id:app_id?",
+        "proof_profile_id:app_id",
+        "issuance_state:reserved|signed|quarantined",
+        "issued_revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK permit_id; UNIQUE owner_kind,owner_id,purpose",
+        "Explicit owner-kind discriminator; service validates typed owner FK when physical mapping selected"
+      ],
+      "transactionRules": [
+        "Immutable canonical payload authorized before signer starts; payload object reference + issuance reservation committed. Signature worker cannot change context; first durable signed object fixes digest; later alternate bytes quarantined, never overwrite. No response/outbox emits permit bytes before signed link commit; missing bytes never rolls back grant barrier."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_evidence",
+      "resource": "Verified and pending device evidence",
+      "primaryKey": [
+        "evidence_id"
+      ],
+      "fields": [
+        "evidence_id:app_id",
+        "device_id:app_id",
+        "owner_kind:reset|admission|cancellation",
+        "owner_id:app_id",
+        "kind:reset|cleanup|binding_staged|binding_active|cancel_prepared|fence_released",
+        "ciphertext_digest:hash32",
+        "semantic_digest:hash32?",
+        "object_id:app_id",
+        "profile_id:app_id",
+        "identity_key_ref:app_id",
+        "verification_state:pending|valid|invalid|quarantined",
+        "verified_input_revision:revision?",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK evidence_id; UNIQUE owner_kind,owner_id,kind,ciphertext_digest"
+      ],
+      "transactionRules": [
+        "Digest dedup is not authority. Validate full parent context, expected purpose, signer and protected envelope. Challenge-specific cleanup proofs can differ for same result; append evidence, apply semantic business effect once. Recheck current gates after external verification; verified flag alone grants nothing."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_objects",
+      "resource": "Protected lifecycle bytes",
+      "primaryKey": [
+        "object_id"
+      ],
+      "fields": [
+        "object_id:app_id",
+        "object_version:app_id",
+        "kind:payload|permit|device_evidence|replay_result",
+        "store_ref:opaque-text",
+        "digest:hash32",
+        "byte_length:positive-integer",
+        "key_ref:opaque-text",
+        "state:linked|delete_pending|deleted|missing",
+        "retention_class:text",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK object_id; UNIQUE store_ref; immutable object version/digest/length once linked"
+      ],
+      "transactionRules": [
+        "Separate namespace from approval_protected_objects whose kind enum excludes lifecycle payloads. Reuse protected-store adapter only, not false FK to existing unsupported kinds. Stage encrypted bytes before SQL link; no public URL or wallet secrets. GC must serialize reference creation/deletion via shared object registry and durable upload lease, not just age scan."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_reuse_gates",
+      "resource": "ReenrollmentGate",
+      "primaryKey": [
+        "device_id",
+        "epoch"
+      ],
+      "fields": [
+        "device_id:app_id",
+        "epoch:decimal-string",
+        "return_job_id:app_id",
+        "completion_handle:app_id",
+        "reset_evidence_id:app_id",
+        "cleanup_evidence_id:app_id?",
+        "state:awaiting_cleanup|eligible|consumed|quarantined",
+        "consumed_admission_id:app_id?",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK device_id,epoch; UNIQUE return_job_id; consumed state requires consumed_admission_id"
+      ],
+      "transactionRules": [
+        "Derived entitlement under same authority device gate, not a shadow authorization lock. Only valid current cleanup opens eligible; admission consumes once; historical eligible never current permission. Cancelled returns create no reuse gate."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_genesis_records",
+      "resource": "Trusted factory eligibility",
+      "primaryKey": [
+        "genesis_id"
+      ],
+      "fields": [
+        "genesis_id:app_id",
+        "device_id:app_id",
+        "identity_ref:app_id",
+        "virgin_attestation_ref:app_id",
+        "epoch:decimal-string",
+        "inventory_scope_ref:app_id",
+        "state:verified|consumed|quarantined",
+        "consumed_admission_id:app_id?",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK genesis_id; UNIQUE device_id"
+      ],
+      "transactionRules": [
+        "Only trusted provisioning verification creates record. Never reconstruct from missing rentals/reset records; retain consumed history through restore; no user supplied self-asserted virgin state."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_admissions",
+      "resource": "Rental admission reservation",
+      "primaryKey": [
+        "admission_id"
+      ],
+      "fields": [
+        "admission_id:app_id",
+        "device_id:app_id",
+        "rental_id:app_id",
+        "binding_id:app_id",
+        "account_id:app_id",
+        "basis_kind:factory_genesis|returned_device",
+        "basis_id:app_id",
+        "expected_epoch:decimal-string",
+        "expected_gate_revision:revision",
+        "expected_binding_revision:revision",
+        "recipient_consent_ref:app_id",
+        "enrollment_proof_ref:app_id",
+        "holder_thumbprint:hash32",
+        "enrollment_session_id:app_id",
+        "context_digest:hash32",
+        "state:reserved|activation_issued|active|quarantined",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK admission_id; UNIQUE rental_id; UNIQUE binding_id; UNIQUE basis_kind,basis_id",
+        "Device exclusivity through current head and rentals one_active_rental; historical active admissions remain history, not eternal partial unique device constraint"
+      ],
+      "transactionRules": [
+        "Admission reservation consumes basis and creates assigned rental plus reserved binding atomically; no timeout release. Positive matching device evidence advances state; no automatic second admission on lost activation."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_binding_states",
+      "resource": "Ownership availability before wallet setup",
+      "primaryKey": [
+        "binding_id"
+      ],
+      "fields": [
+        "binding_id:app_id",
+        "device_id:app_id",
+        "rental_id:app_id",
+        "admission_id:app_id",
+        "epoch:decimal-string",
+        "state:reserved|activation_issued|active|revoked|quarantined",
+        "wallet_configuration:unconfigured|configured",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK binding_id; FK device_bindings(id); composite lineage verified with matching keys",
+        "Binding state active is necessary, never sufficient, for wallet signing"
+      ],
+      "transactionRules": [
+        "Proposed device_bindings wallet_origin nullable until actual wallet setup; NULL means unconfigured, never inferred new_travel/imported. Existing unique owner index reserves ownership even while unusable. All old signing readers must join this state and actual wallet authority; selecting revoked_at IS NULL alone is unsafe."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_cancellations",
+      "resource": "Single cancellation lineage",
+      "primaryKey": [
+        "cancel_id"
+      ],
+      "fields": [
+        "cancel_id:app_id",
+        "job_id:app_id",
+        "device_id:app_id",
+        "binding_id:app_id",
+        "epoch:decimal-string",
+        "original_fence_revision:revision",
+        "context_digest:hash32",
+        "state:intent_recorded|release_issued|completed|quarantined",
+        "prepared_evidence_id:app_id?",
+        "released_evidence_id:app_id?",
+        "commit_block:boolean",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK cancel_id; UNIQUE job_id across every state; commit_block true",
+        "No delete-and-reinsert to replace cancelled job lineage"
+      ],
+      "transactionRules": [
+        "Create only never-issued grant under shared locks. Keep server fence held until exact release evidence committed. Retain tombstone after completion; new return needs new job."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_relay_authorities",
+      "resource": "Restricted recovery relay",
+      "primaryKey": [
+        "authority_id"
+      ],
+      "fields": [
+        "authority_id:app_id",
+        "job_id:app_id",
+        "device_id:app_id",
+        "epoch:decimal-string",
+        "holder_thumbprint:hash32",
+        "actor_ref:app_id",
+        "actions:action-set",
+        "expires_at:timestamp",
+        "authorization_revision:revision",
+        "state:pending_signing|active|revoked|expired",
+        "signed_object_id:app_id?"
+      ],
+      "databaseConstraints": [
+        "PK authority_id; actions nonempty; signed object linked",
+        "active requires signed_object_id; pending authority cannot authorize relay"
+      ],
+      "transactionRules": [
+        "Exact historical relationship or scoped operator plus primary auth required on issuance; restricted relay does not unlock owner signing. Renewal appends new authority with current proof, never edits original evidence AAD."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_challenges",
+      "resource": "Single-use issue/submission freshness",
+      "primaryKey": [
+        "challenge_id"
+      ],
+      "fields": [
+        "challenge_id:app_id",
+        "kind:authority_issue|submission|cleanup",
+        "owner_ref:app_id",
+        "holder_thumbprint:hash32",
+        "action:text",
+        "payload_digest:hash32",
+        "expires_at:timestamp",
+        "state:issued|consumed|expired",
+        "outcome_id:app_id?"
+      ],
+      "databaseConstraints": [
+        "PK challenge_id; consumed requires outcome_id"
+      ],
+      "transactionRules": [
+        "Challenge consumption and authoritative business result commit together. Verification pending consumes challenge only with durable pending outcome; later apply uses reserved submission lineage and rechecks gates. Fresh retry challenge may map same business outcome without repeating effects."
+      ],
+      "status": "proposed_not_created"
+    },
+    {
+      "name": "lifecycle_outcomes",
+      "resource": "Durable business idempotency",
+      "primaryKey": [
+        "outcome_id"
+      ],
+      "fields": [
+        "outcome_id:app_id",
+        "actor_namespace:text",
+        "action:text",
+        "entity_id:app_id",
+        "business_key:text",
+        "business_digest:hash32",
+        "owner_id:app_id",
+        "state:pending|complete|rejected|quarantined",
+        "result_object_id:app_id?",
+        "revision:revision"
+      ],
+      "databaseConstraints": [
+        "PK outcome_id; UNIQUE actor_namespace,action,entity_id,business_key"
+      ],
+      "transactionRules": [
+        "Durable lineage outlives ordinary response-cache TTL; current authorization before replay. Same key new payload conflicts; current-state projection separated from immutable original outcome. Does not store plaintext tokens/keys."
+      ],
+      "status": "proposed_not_created"
+    }
+  ],
+  "atomicUnits": [
+    {
+      "id": "LST-T01",
+      "title": "반납 점검·제한·준비 기록",
+      "routeRefs": [
+        "API-046",
+        "RB01"
+      ],
+      "reads": [
+        "device_lifecycle_heads",
+        "lifecycle_binding_states"
+      ],
+      "rule": "Create/refresh exact job/check revisions, attach return reason and shared gate hold with audit/outcome/outbox; prepared requires actual device preparation evidence, not server fence alone. Recovery policy unresolved never qualifies destructive reset.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_reset_jobs",
+        "device_fence_reasons",
+        "device_lifecycle_heads",
+        "lifecycle_outcomes"
+      ],
+      "existingWrites": [
+        "return_checks",
+        "devices"
+      ],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T02",
+      "title": "초기화 허가 발급 결정",
+      "routeRefs": [
+        "RT-01"
+      ],
+      "reads": [
+        "lifecycle_reset_jobs",
+        "lifecycle_cancellations",
+        "device_lifecycle_heads"
+      ],
+      "rule": "Under common lock, current checks+fresh prepare+physical approval and no cancellation; persist immutable execution payload and reserved permit; grant_issued=true monotonic, commit_issued phase. Sign only after this committed authorization; failed signing cannot make job cancellable.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_reset_jobs",
+        "lifecycle_permits",
+        "lifecycle_outcomes"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T03",
+      "title": "기존 초기화 증거·반납 완료",
+      "routeRefs": [
+        "API-047"
+      ],
+      "reads": [
+        "lifecycle_permits",
+        "lifecycle_evidence",
+        "device_lifecycle_heads"
+      ],
+      "rule": "Verified exact reset evidence: rental returned/returned_at, revoke original device and wallet binding authority, update current epoch from validated profile transition, gate awaiting_cleanup, preserve fence and device head until cleanup, reserve completion ACK. Returned rental frees old partial unique rental index but lifecycle gate still forbids admission. This apply transaction records verification/application revision on the exact evidence row; raw reception is separately LST-T12.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_reset_jobs",
+        "lifecycle_reuse_gates",
+        "lifecycle_binding_states",
+        "device_lifecycle_heads",
+        "lifecycle_permits",
+        "lifecycle_challenges",
+        "lifecycle_outcomes",
+        "lifecycle_evidence"
+      ],
+      "existingWrites": [
+        "rentals",
+        "device_bindings",
+        "wallet_bindings",
+        "devices",
+        "return_checks",
+        "reset_clearances"
+      ],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T04",
+      "title": "정리 확인",
+      "routeRefs": [
+        "RT-06"
+      ],
+      "reads": [
+        "lifecycle_reset_jobs",
+        "lifecycle_evidence",
+        "device_fence_reasons"
+      ],
+      "rule": "Verify current nextEpoch/ACK/cleanup and no new binding; mark own return cleanup complete, release own reason only. Eligible entitlement must not bypass other reasons or shared authority restrictions; projection reports current admission eligibility, not only reuse row state. This apply transaction records verification/application revision on the exact evidence row; raw reception is separately LST-T12.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_reuse_gates",
+        "device_lifecycle_heads",
+        "device_fence_reasons",
+        "lifecycle_challenges",
+        "lifecycle_outcomes",
+        "lifecycle_evidence"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T05",
+      "title": "대여 예약",
+      "routeRefs": [
+        "API-045"
+      ],
+      "reads": [
+        "lifecycle_genesis_records",
+        "lifecycle_reuse_gates",
+        "device_lifecycle_heads"
+      ],
+      "rule": "Current scoped operator/recipient consent/holder proof + all CAS; consume exactly one basis branch; insert rentals assigned, device_bindings reserved with unknown wallet_origin NULL; fix context; advance revisions and reserve admission permit. No TTL release.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_admissions",
+        "lifecycle_binding_states",
+        "device_lifecycle_heads",
+        "lifecycle_genesis_records",
+        "lifecycle_reuse_gates",
+        "lifecycle_permits",
+        "lifecycle_outcomes"
+      ],
+      "existingWrites": [
+        "rentals",
+        "device_bindings",
+        "devices"
+      ],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T06",
+      "title": "등록·활성화 증거",
+      "routeRefs": [
+        "RL-02",
+        "RL-03"
+      ],
+      "reads": [
+        "lifecycle_admissions",
+        "lifecycle_evidence",
+        "device_lifecycle_heads"
+      ],
+      "rule": "RL02 persists verified binding evidence and activation permit reservation; RL03 separately verifies activation receipt then marks rental/device/binding active. Both keep same exclusive rental and exact context; wallet remains unconfigured until separate setup. This apply transaction records verification/application revision on the exact evidence row; raw reception is separately LST-T12.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_admissions",
+        "lifecycle_binding_states",
+        "device_lifecycle_heads",
+        "lifecycle_permits",
+        "lifecycle_outcomes",
+        "lifecycle_evidence"
+      ],
+      "existingWrites": [
+        "rentals",
+        "devices"
+      ],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T07",
+      "title": "단일 취소 intent",
+      "routeRefs": [
+        "RC-01"
+      ],
+      "reads": [
+        "lifecycle_reset_jobs",
+        "lifecycle_permits",
+        "device_lifecycle_heads"
+      ],
+      "rule": "Lookup existing UNIQUE job lineage before creation. Never-issued exact current job only; persist permanent commit-block + cancel permit reservation; retain both fences. Different idempotency key cannot replace cancelId.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_cancellations",
+        "lifecycle_reset_jobs",
+        "lifecycle_permits",
+        "lifecycle_outcomes"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T08",
+      "title": "취소 준비 무효화 확인",
+      "routeRefs": [
+        "RC-02"
+      ],
+      "reads": [
+        "lifecycle_cancellations",
+        "lifecycle_evidence",
+        "lifecycle_reset_jobs"
+      ],
+      "rule": "Verify exact durable device tombstone and never-issued grant, reserve release permit, mark release_issued; server fence remains held. This apply transaction records verification/application revision on the exact evidence row; raw reception is separately LST-T12.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_cancellations",
+        "lifecycle_permits",
+        "lifecycle_outcomes",
+        "lifecycle_evidence"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T09",
+      "title": "양측 취소 완료",
+      "routeRefs": [
+        "RC-03"
+      ],
+      "reads": [
+        "lifecycle_cancellations",
+        "lifecycle_evidence",
+        "device_lifecycle_heads"
+      ],
+      "rule": "Verify exact release receipt, job aborted + cancellation completed + release only matching reason; original rental/binding preserved, no epoch increment, no reuse gate. Restore only pre-return lifecycle availability allowed by other reasons. This apply transaction records verification/application revision on the exact evidence row; raw reception is separately LST-T12.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_cancellations",
+        "lifecycle_reset_jobs",
+        "device_fence_reasons",
+        "device_lifecycle_heads",
+        "lifecycle_outcomes",
+        "lifecycle_evidence"
+      ],
+      "existingWrites": [
+        "rentals",
+        "devices"
+      ],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T10",
+      "title": "중계 자격·challenge",
+      "routeRefs": [
+        "RT-02",
+        "RT-03",
+        "RT-04",
+        "RT-05"
+      ],
+      "reads": [
+        "lifecycle_reset_jobs",
+        "device_lifecycle_heads"
+      ],
+      "rule": "Issue under current exact auth/action/holder/epoch with durable unique replay and outcomes; real signed bytes protected and no owner capability. Include existing approval_sender_replay adapter with explicit lifecycle namespace, pending schema adoption. Reserve immutable relay/cleanup signed payload before signing; pending relay authority grants no action. LST-T11 exclusively owns signed object linkage + authority activation; this unit only reserves pending issuance.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_relay_authorities",
+        "lifecycle_challenges",
+        "lifecycle_outcomes",
+        "lifecycle_permits"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T11",
+      "title": "서명 객체 연결과 중계 권한 활성화",
+      "routeRefs": [
+        "RT-07",
+        "RL-04",
+        "RC-04",
+        "API-091"
+      ],
+      "reads": [
+        "lifecycle_permits",
+        "lifecycle_objects",
+        "device_lifecycle_heads",
+        "lifecycle_reset_jobs",
+        "lifecycle_admissions",
+        "lifecycle_cancellations",
+        "lifecycle_relay_authorities",
+        "lifecycle_challenges"
+      ],
+      "rule": "Separate signer completion transaction verifies reserved payload/digest/profile before first signed object link. GETs do not sign or issue; current auth checks, safe projection, immutable permit recovery only. No protected bytes delivered before reference commit. For relay, current actor/authority revision, expiry, job/epoch and all scope predicates + signed object link + pending_signing to active commit together here. For all permits recheck applicable parent/current authority before linking/delivery; stale execution authorization remains grant-issued and held, never reset to cancellable. GET response handling itself is read-only except permitted auth replay metadata.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false,
+      "candidateWrites": [
+        "lifecycle_permits",
+        "lifecycle_objects",
+        "lifecycle_outcomes",
+        "lifecycle_relay_authorities"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites; only applicable rows mutated, same enforceable transaction boundary"
+    },
+    {
+      "id": "LST-T12",
+      "title": "증거 접수와 검증 예약",
+      "routeRefs": [
+        "API-047",
+        "RT-06",
+        "RL-02",
+        "RL-03",
+        "RC-02",
+        "RC-03"
+      ],
+      "reads": [
+        "device_lifecycle_heads",
+        "lifecycle_outcomes"
+      ],
+      "candidateWrites": [
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_challenges",
+        "lifecycle_outcomes"
+      ],
+      "existingWrites": [],
+      "commonWrites": [
+        "approval_authorization_gates",
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "completeCommitSet": "candidateWrites + existingWrites + commonWrites",
+      "rule": "Stage durable encrypted object first, validate current submission auth and identity, commit pending evidence/object link + consumed challenge when applicable + pending durable outcome. External verification follows; separate T03/T04/T06/T08/T09 rechecks current authoritative gates and applies verified result. Pending acceptance is not business completion. Retried fresh challenge maps original business outcome, never duplicate effects. Pending response schema extension is part of LST-D03.",
+      "externalEffectsInTransaction": false,
+      "runtimeVerified": false
+    }
+  ],
+  "firmwareStores": [
+    {
+      "id": "LST-F01",
+      "name": "Reset journal",
+      "records": [
+        "exact original job/grant/context",
+        "erase progress",
+        "previous/next epoch",
+        "protected reset evidence"
+      ],
+      "durableBefore": "acknowledging execution acceptance; irreversible erase steps checkpoint before advancing",
+      "recovery": "Same job only; missing or inconsistent history requires quarantine, never infer complete."
+    },
+    {
+      "id": "LST-F02",
+      "name": "Completion/cleanup marker",
+      "records": [
+        "job/commit/completion handle/ACK digest",
+        "next epoch",
+        "cleanup profile and marker digest"
+      ],
+      "durableBefore": "removing detailed reset journal",
+      "recovery": "Retain identity needed for fresh cleanup challenges; no marker means not clean."
+    },
+    {
+      "id": "LST-F03",
+      "name": "Admission state",
+      "records": [
+        "exact recipient/holder/session/context",
+        "staged binding/permit digest",
+        "activation permit digest and immutable receipts"
+      ],
+      "durableBefore": "BindingReceipt or ActivationReceipt response",
+      "recovery": "Power loss preserves exclusive lineage; device activation may precede server evidence. No another owner."
+    },
+    {
+      "id": "LST-F04",
+      "name": "Cancellation tombstone",
+      "records": [
+        "job/cancel/binding/epoch/fence context",
+        "invalidated prepare state",
+        "prepared/released receipt and permit digests"
+      ],
+      "durableBefore": "prepared proof; restriction release and release receipt as one recoverable durable transition",
+      "recovery": "Never reopen prepared grant acceptance. Reset/FOTA cannot discard protection metadata without selected migration profile."
+    }
+  ],
+  "migrations": [
+    {
+      "id": "LST-M01",
+      "dependsOn": [],
+      "phase": "inventory",
+      "procedure": "Freeze hashes and classify current device/active rental/binding/reset evidence and open work; preserve unknowns.",
+      "exitGate": "No generated grant, epoch, consent, genesis or cleanup evidence.",
+      "executed": false
+    },
+    {
+      "id": "LST-M02",
+      "dependsOn": [
+        "LST-M01"
+      ],
+      "phase": "expand",
+      "procedure": "Add proposed tables and FK/index design to new future migration; plan nullable wallet_origin and all dependent reader updates.",
+      "exitGate": "No existing seven SQL files edited or executed.",
+      "executed": false
+    },
+    {
+      "id": "LST-M03",
+      "dependsOn": [
+        "LST-M02"
+      ],
+      "phase": "coordinate",
+      "procedure": "Quiesce incompatible reset/admission/approval writers; shared gate ownership/lock ordering and contract version routing adopted together.",
+      "exitGate": "No eventual dual-write for gates, tombstones or uniqueness.",
+      "executed": false
+    },
+    {
+      "id": "LST-M04",
+      "dependsOn": [
+        "LST-M03"
+      ],
+      "phase": "backfill",
+      "procedure": "Verified evidence-backed current heads; independent immutable history preserved; unknown devices/quarantined holds; CAS cursor checks concurrent revision.",
+      "exitGate": "No default eligible, active, virgin or grant_issued=false for uncertain history.",
+      "executed": false
+    },
+    {
+      "id": "LST-M05",
+      "dependsOn": [
+        "LST-M04"
+      ],
+      "phase": "shadow",
+      "procedure": "Read-only projections compare lineage/rental/binding/gate; no shadow writer or signing.",
+      "exitGate": "Mismatch blocks cutover; signed object retention recoverable.",
+      "executed": false
+    },
+    {
+      "id": "LST-M06",
+      "dependsOn": [
+        "LST-M05"
+      ],
+      "phase": "rehearse",
+      "procedure": "Future crash/restore/power-loss/competing writer tests with chosen profiles and firmware; validate restore authority generation.",
+      "exitGate": "Runtime cases remain not_run until evidence attached.",
+      "executed": false
+    },
+    {
+      "id": "LST-M07",
+      "dependsOn": [
+        "LST-M06"
+      ],
+      "phase": "cutover",
+      "procedure": "Switch compatible writers under gates; enforce durable unique constraints/typed FKs and deny old bypass DTOs.",
+      "exitGate": "Explicit implementation authorization required; old readers cannot treat reserved binding active.",
+      "executed": false
+    },
+    {
+      "id": "LST-M08",
+      "dependsOn": [
+        "LST-M07"
+      ],
+      "phase": "rollback_restore",
+      "procedure": "Hold writes first; never rollback monotonic consumed/grant/cancel history. Restore trusted latest watermark and compare device evidence before unhold.",
+      "exitGate": "Old backup is not authority; without external durable latest watermark stay quarantined.",
+      "executed": false
+    }
+  ],
+  "recoveryCases": [
+    {
+      "id": "LST-R01",
+      "trigger": "permit reservation committed before signer crash",
+      "expected": "grant barrier retained; pending signing recoverable",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R02",
+      "trigger": "signature bytes staged before SQL link crash",
+      "expected": "private orphan; no response; link exact original payload on retry",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R03",
+      "trigger": "same permit gets different signature bytes",
+      "expected": "first link immutable; conflicting candidate quarantined",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R04",
+      "trigger": "API047 returned but cleanup pending",
+      "expected": "no new admission even rental unique slot free",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R05",
+      "trigger": "cleanup alongside administrative hold",
+      "expected": "cleanup entitlement not overall permission",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R06",
+      "trigger": "two API045 current snapshot",
+      "expected": "one basis/device consumed",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R07",
+      "trigger": "reserved binding read by old signer",
+      "expected": "deny old writer; no revoked_at-only authorization",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R08",
+      "trigger": "RL03 response lost",
+      "expected": "same rental active, no duplicate",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R09",
+      "trigger": "two RC01 distinct keys",
+      "expected": "one cancellation row by job",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R10",
+      "trigger": "RT01 races RC01",
+      "expected": "common gate chooses one monotonic outcome",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R11",
+      "trigger": "RC02 crash after commit",
+      "expected": "same release permit, server fence held",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R12",
+      "trigger": "CB02 power loss before proof reply",
+      "expected": "durable receipt or quarantine, no inferred release",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R13",
+      "trigger": "RC03 release while FOTA fence held",
+      "expected": "only own reason released",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R14",
+      "trigger": "cleanup proof challenge retry",
+      "expected": "append evidence; single semantic effect",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R15",
+      "trigger": "relay revoked during proof verification",
+      "expected": "recheck gate before authoritative apply",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R16",
+      "trigger": "object GC races reference creation",
+      "expected": "shared registry/lease prevents missing linked object",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R17",
+      "trigger": "SQL restore older than issued grant",
+      "expected": "hold with trusted watermark; no cancel",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R18",
+      "trigger": "device restore before tombstone",
+      "expected": "reject or quarantine, no prepare resurrection",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R19",
+      "trigger": "genesis consumed history absent",
+      "expected": "never infer virgin",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R20",
+      "trigger": "new epoch old cleanup proof",
+      "expected": "no current gate opening",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R21",
+      "trigger": "idempotency cache expired",
+      "expected": "durable outcome lineage retained",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R22",
+      "trigger": "unsupported proof profile",
+      "expected": "no grant or activation",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R23",
+      "trigger": "late ciphertext old authority",
+      "expected": "fresh holder wrapper, immutable original ciphertext",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R24",
+      "trigger": "unconfigured wallet returns device",
+      "expected": "explicit unsupported profile branch; no fabricated wallet origin",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R25",
+      "trigger": "readiness during new admission",
+      "expected": "one consistent snapshot or unknown",
+      "status": "not_run"
+    },
+    {
+      "id": "LST-R26",
+      "trigger": "outbox duplicated",
+      "expected": "idempotent wakeup, never permission itself",
+      "status": "not_run"
+    }
+  ],
+  "sourceHashes": {
+    "rental-admission-cancel.json": "37e158924b96da20b2f8f36d4e5b32387cf2f82b72852795fbfdc834b7e5f80b",
+    "rental-admission-cancel.schema.json": "d83c59ac4e7a4df41b0656c0e0e20876d37ac364b345f5094cbcafb3d3f0b071",
+    "return-route-contracts.json": "b61e96958d2e3aac4c29b4bc479a13251943f62476c954f1bb5819e01e81a044",
+    "return-route-contracts.schema.json": "a6b0cc7652624e1ea9372d122de8db1bc5bdce0cab33d5d2896d097af9e74e68",
+    "return-recovery-contract.json": "f525a3e321a385f4d6deec49ec650f13f0d5b9ebf84a1a3b336b7602d2a9b761",
+    "approval-physical-storage-design.json": "f997bb61ce886835346c0277521f9a8a807502f0d13f73fc0ede1707233d1b0f",
+    "approval-storage-mapping.json": "3bfa1f9a3dcc5edfd07c7b44c888ffc3edfb00a2dbeb4f8280deff21b2851250",
+    "api-access-transactions.json": "df17268ce7ffb8d0036b62c5e17f16a3ce54bc2aef725f3243c8329bc43362c8",
+    "security-storage-contracts.json": "0c732b973c7515c79e804031ee996a15053ed10427d7b38154fed8d14cdef5a8"
+  },
+  "referenceSqlHashes": {
+    "001_identity_foundation.sql": "55d0b6d62b0b5bceee378502667de41508921f608af625237deeefef571049dd",
+    "002_wallet_device.sql": "4cf3ac3de2fde4d984f1a0f0b1c01742642a63384a3cf115d174140c4b2c81c3",
+    "003_commerce_ledger.sql": "4ebf6ad6fac670c4757eb68d81cc66599b35b6ed12633a1de0f6ff1031914f0f",
+    "004_device_lifecycle.sql": "8e2e701749c6f2a2a9876677f04486502e6dcf00eead3bc2058809c7d7bcc7b2",
+    "005_privacy_recording.sql": "8ed77bba97d44fc5fceae6a72f6aaabb28e960529d4276d0e601546623617602",
+    "006_onchain_services.sql": "66b69ed4f6dccb9125e310eb075dc2d35d400cdf87ee96a703e11b7b88ccaca7",
+    "007_travel_challenges.sql": "e4fad1246d9f6e7dbd5d6c11b6a428c5132edd0228edd92fb5040686767e82f9"
+  },
+  "baseline": {
+    "tables": 61,
+    "migrations": 7,
+    "api": 110,
+    "ble": 34
+  },
+  "lockOrder": [
+    {
+      "rank": 0,
+      "targets": [
+        "approval_authorization_gates"
+      ],
+      "order": "server-resolved sorted gate keys; missing/new scope locked under existing parent gate"
+    },
+    {
+      "rank": 10,
+      "targets": [
+        "auth_sessions",
+        "memberships",
+        "wallet_bindings",
+        "device_bindings"
+      ],
+      "order": "existing approval authority order"
+    },
+    {
+      "rank": 15,
+      "targets": [
+        "devices",
+        "rentals",
+        "device_lifecycle_heads",
+        "device_fence_reasons",
+        "lifecycle_reset_jobs",
+        "lifecycle_permits",
+        "lifecycle_evidence",
+        "lifecycle_objects",
+        "lifecycle_reuse_gates",
+        "lifecycle_genesis_records",
+        "lifecycle_admissions",
+        "lifecycle_binding_states",
+        "lifecycle_cancellations",
+        "lifecycle_relay_authorities",
+        "lifecycle_challenges",
+        "lifecycle_outcomes"
+      ],
+      "order": "listed table order, then PK; all lifecycle entrypoints follow same order"
+    },
+    {
+      "rank": 20,
+      "targets": [
+        "existing commerce rows"
+      ],
+      "order": "existing approval order"
+    },
+    {
+      "rank": 30,
+      "targets": [
+        "existing approval operation rows"
+      ],
+      "order": "existing approval order"
+    },
+    {
+      "rank": 40,
+      "targets": [
+        "existing approval grant/challenge rows"
+      ],
+      "order": "existing approval order"
+    },
+    {
+      "rank": 50,
+      "targets": [
+        "existing nonce/dispatch rows"
+      ],
+      "order": "existing approval order"
+    },
+    {
+      "rank": 60,
+      "targets": [
+        "audit_events",
+        "outbox",
+        "idempotency_records"
+      ],
+      "order": "existing infrastructure order"
+    }
+  ],
+  "schemaDeltas": [
+    {
+      "id": "LST-D01",
+      "target": "device_bindings.wallet_origin",
+      "proposal": "nullable until wallet configuration; no invented new_travel/imported value; lifecycle_binding_states required for availability",
+      "adoption": "all ownership/signing readers and return-check DTOs must be reviewed together"
+    },
+    {
+      "id": "LST-D02",
+      "target": "reset_clearances.consumed_at",
+      "proposal": "preserve existing evidence-backed CHECK semantics; grant issuance tracked separately in lifecycle_reset_jobs/lifecycle_permits; never mark old clearance consumed without evidence",
+      "adoption": "join new issuance barrier when accepting commit; legacy clearance alone insufficient"
+    },
+    {
+      "id": "LST-D03",
+      "target": "permit-producing HTTP responses",
+      "proposal": "durable issuance reservation precedes remote signing; expose pending-signing operation without claiming permit delivered; nullable permits existing views where supported, RT01 needs explicit pending response candidate",
+      "adoption": "response delta design required before canonical adoption"
+    },
+    {
+      "id": "LST-D04",
+      "target": "unconfigured-wallet return",
+      "proposal": "must represent unconfigured explicitly in later DTO/erase-profile design; current walletOrigin two-value reset checks cannot be silently coerced",
+      "adoption": "unconfigured device destructive return stays unsupported until explicit safe profile/schema; cancellation can still restore prior state"
+    }
+  ],
+  "storagePrinciples": [
+    "Shared gate is authorization source; lifecycle summaries and reuse entitlement never independent shadow locks.",
+    "One enforceable SQL transaction domain for gate/lineage/rental/binding/outcome/outbox; split services require separate reservation protocol before adoption.",
+    "No hardware secret, seed, full MPC key, plaintext recording or user token in general SQL/audit/outbox.",
+    "Evidence verification/signing/blob IO outside DB transaction; current authoritative predicates rechecked at apply.",
+    "No grant/tombstone/consumed-basis rollback on TTL, response loss or backup restore.",
+    "Reference engine inherited PostgreSQL15 proposal only; concrete engine, integer bounds, key/retention/profile remain unselected."
+  ],
+  "nextDesign": "등록 bootstrap·수령인 동의·출고 증거와 미설정 지갑 반납/서명 준비 중 응답의 계약 보완",
+  "commonAtomicWrites": [
+    "shared approval_authorization_gates revision/state as needed",
+    "audit_events with metadata only",
+    "durable lifecycle_outcomes plus existing idempotency_records adapter",
+    "outbox with wakeup/reference only, no bearer permit or wallet secret"
+  ],
+  "existingTableEffects": [
+    {
+      "unit": "LST-T01",
+      "writes": [
+        "return_checks",
+        "devices"
+      ],
+      "rule": "existing rows remain projection plus checks; prepared requires device evidence"
+    },
+    {
+      "unit": "LST-T03",
+      "writes": [
+        "rentals",
+        "device_bindings",
+        "wallet_bindings",
+        "devices",
+        "return_checks",
+        "reset_clearances"
+      ],
+      "rule": "revoke only exact rental-scoped prior device/session binding authority; never unrelated external imported-wallet ownership or cloud wallet bindings. consumed_at only after valid evidence."
+    },
+    {
+      "unit": "LST-T05",
+      "writes": [
+        "rentals",
+        "device_bindings",
+        "devices"
+      ],
+      "rule": "reserved ownership protected by existing partial uniqueness; wallet_origin nullable delta required first"
+    },
+    {
+      "unit": "LST-T06",
+      "writes": [
+        "rentals",
+        "devices"
+      ],
+      "rule": "active after exact activation evidence; separate wallet configuration still required"
+    },
+    {
+      "unit": "LST-T09",
+      "writes": [
+        "rentals",
+        "devices"
+      ],
+      "rule": "restore only prior rental lifecycle state with other restrictions preserved"
+    }
+  ]
+}

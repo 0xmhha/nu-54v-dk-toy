@@ -1,0 +1,113 @@
+[
+  {
+    "id": "uint256_max",
+    "sql": "SELECT 115792089237316195423570985008687907853269984665640564039457584007913129639935::uint256_amount;",
+    "expected": "accept"
+  },
+  {
+    "id": "uint256_overflow",
+    "sql": "SELECT 115792089237316195423570985008687907853269984665640564039457584007913129639936::uint256_amount;",
+    "expected": "reject",
+    "sqlstate": "23514"
+  },
+  {
+    "id": "fractional_atomic",
+    "sql": "SELECT 0.5::uint256_amount;",
+    "expected": "reject",
+    "sqlstate": "23514"
+  },
+  {
+    "id": "negative_atomic",
+    "sql": "SELECT (-1)::uint256_amount;",
+    "expected": "reject",
+    "sqlstate": "23514"
+  },
+  {
+    "id": "nan_total",
+    "sql": "SELECT 'NaN'::atomic_total;",
+    "expected": "reject",
+    "sqlstate": "23514"
+  },
+  {
+    "id": "second_active_rental",
+    "sql": "INSERT INTO rentals(id,device_id,account_id,state) VALUES ('r3','d1','a2','active');",
+    "expected": "reject",
+    "sqlstate": "23505"
+  },
+  {
+    "id": "wrong_rental_owner",
+    "sql": "INSERT INTO device_bindings(id,device_id,account_id,rental_id,wallet_origin,revoked_at) VALUES ('b3','d2','a1','r2','imported',now());",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "cross_store_order",
+    "sql": "INSERT INTO orders(id,store_id,state,recipient_config_id,recipient_snapshot,price_minor,currency,fraction_digits,capability_hash) VALUES ('badorder','s1','awaiting_payment','rc2','0x1111111111111111111111111111111111111111',10,'KRW',0,'synthetic');",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "wrong_observation_tx",
+    "sql": "UPDATE chain_observations SET tx_hash='0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' WHERE id='obs1';",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "wrong_allocation_observation",
+    "sql": "UPDATE payment_allocations SET observation_id='obs2' WHERE id='alloc1';",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "wrong_allocation_asset",
+    "sql": "UPDATE payment_allocations SET asset_id='t2' WHERE id='alloc1';",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "refund_wrong_order",
+    "sql": "INSERT INTO refunds(id,order_id,balance_id,asset_id,amount,destination,destination_proof_ref,state) VALUES ('badrefund','o2','bal1','t1',1,'0x4444444444444444444444444444444444444444','synthetic','requested');",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "refund_wrong_asset",
+    "sql": "UPDATE refund_balances SET asset_id='t2' WHERE id='bal1';",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "refund_over_reserve",
+    "sql": "UPDATE refund_balances SET reserved=11 WHERE id='bal1';",
+    "expected": "reject",
+    "sqlstate": "23514"
+  },
+  {
+    "id": "return_wrong_binding",
+    "sql": "INSERT INTO return_checks(id,rental_id,binding_id,check_version,wallet_origin,policy_id,checks,state) VALUES ('badcheck','r1','b2',1,'new_travel','test','[]','pending');",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "return_wrong_origin",
+    "sql": "INSERT INTO return_checks(id,rental_id,binding_id,check_version,wallet_origin,policy_id,checks,state) VALUES ('badcheck','r1','b1',1,'new_travel','test','[]','pending');",
+    "expected": "reject",
+    "sqlstate": "23503"
+  },
+  {
+    "id": "bundle_multiple_userops",
+    "sql": "INSERT INTO transaction_submissions(id,intent_id,chain_id,tx_hash,userop_hash,state,submission_kind) VALUES ('sub1','i1',8283,'0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee','0x1111111111111111111111111111111111111111111111111111111111111111','submitted','user_operation'),('sub2','i1',8283,'0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee','0x2222222222222222222222222222222222222222222222222222222222222222','submitted','user_operation');",
+    "expected": "accept"
+  },
+  {
+    "id": "userop_before_bundle_hash",
+    "sql": "INSERT INTO transaction_submissions(id,intent_id,chain_id,userop_hash,state,submission_kind) VALUES ('sub3','i1',8283,'0x3333333333333333333333333333333333333333333333333333333333333333','prepared','user_operation');",
+    "expected": "accept"
+  },
+  {
+    "id": "duplicate_userop",
+    "sql": "INSERT INTO transaction_submissions(id,intent_id,chain_id,userop_hash,state,submission_kind) VALUES ('sub4','i1',8283,'0x3333333333333333333333333333333333333333333333333333333333333333','prepared','user_operation');",
+    "expected": "reject",
+    "sqlstate": "23505"
+  }
+]
