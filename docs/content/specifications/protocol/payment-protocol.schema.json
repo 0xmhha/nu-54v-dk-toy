@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nu54v-dk/payment-protocol/v1",
+  "title": "NU-54V-DK payment protocol v1",
+  "description": "Normative types for DF-20260925-02. BLE payloads are deterministic CBOR maps with exactly these keys; EIP-712 types are the only structures the device signs. Prose rules live in payment-protocol.md.",
+  "protocolVersion": 1,
+  "eip712Domain": [
+    {"name": "name", "type": "string", "const": "NU54 Payment Settlement"},
+    {"name": "version", "type": "string", "const": "1"},
+    {"name": "chainId", "type": "uint256", "const": 8283},
+    {"name": "verifyingContract", "type": "address"}
+  ],
+  "eip712Types": {
+    "PaymentAuthorization": [
+      {"name": "chainId", "type": "uint256"},
+      {"name": "contract", "type": "address"},
+      {"name": "merchant", "type": "address"},
+      {"name": "payout", "type": "address"},
+      {"name": "token", "type": "address"},
+      {"name": "amount", "type": "uint256"},
+      {"name": "orderId", "type": "bytes32"},
+      {"name": "nonce", "type": "uint256"},
+      {"name": "expiry", "type": "uint64"}
+    ],
+    "LimitChange": [
+      {"name": "chainId", "type": "uint256"},
+      {"name": "contract", "type": "address"},
+      {"name": "perPaymentLimit", "type": "uint256"},
+      {"name": "dailyLimit", "type": "uint256"},
+      {"name": "nonce", "type": "uint256"},
+      {"name": "expiry", "type": "uint64"}
+    ]
+  },
+  "operatorSignedTypes": {
+    "MerchantAttestation": [
+      {"name": "merchant", "type": "address"},
+      {"name": "payout", "type": "address"},
+      {"name": "name", "type": "string"},
+      {"name": "validFrom", "type": "uint64"},
+      {"name": "validUntil", "type": "uint64"}
+    ],
+    "MerchantOrder": [
+      {"name": "orderId", "type": "bytes32"},
+      {"name": "token", "type": "address"},
+      {"name": "amount", "type": "uint256"},
+      {"name": "payout", "type": "address"},
+      {"name": "expiry", "type": "uint64"}
+    ],
+    "TimeAnchor": [
+      {"name": "device", "type": "address"},
+      {"name": "timestamp", "type": "uint64"}
+    ]
+  },
+  "reasonCodes": ["ATTESTATION_EXPIRED", "MERCHANT_REVOKED", "OVER_CAP", "NONCE_REPLAYED", "MERCHANT_FORGED"],
+  "outcomes": ["approved", "refused", "failed", "Checking"],
+  "gatt": {
+    "service": "6e753534-7061-7900-8000-00805f9b0001",
+    "characteristics": {
+      "rx": {"uuid": "6e753534-7061-7900-8000-00805f9b0002", "properties": ["write"], "direction": "kiosk to device"},
+      "tx": {"uuid": "6e753534-7061-7900-8000-00805f9b0003", "properties": ["notify"], "direction": "device to kiosk"}
+    },
+    "security": "LE Secure Connections, authenticated and encrypted link required on both characteristics"
+  },
+  "framing": {
+    "envelope": "length u16 big-endian | digest 8 bytes (SHA-256 prefix of the CBOR body) | CBOR body",
+    "fragment": "sequence u8 | index u8 | envelope bytes up to negotiated ATT_MTU - 5",
+    "maxBodyBytes": 2048
+  },
+  "$defs": {
+    "hex20": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+    "hex32": {"type": "string", "pattern": "^0x[0-9a-fA-F]{64}$"},
+    "signature": {"type": "string", "pattern": "^0x[0-9a-fA-F]{130}$"},
+    "uint": {"type": "string", "pattern": "^[0-9]{1,78}$", "description": "decimal string; CBOR carries it as an unsigned integer or bignum"},
+    "sessionId": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+    "reason": {"enum": ["ATTESTATION_EXPIRED", "MERCHANT_REVOKED", "OVER_CAP", "NONCE_REPLAYED", "MERCHANT_FORGED", "TIME_ANCHOR_MISSING", "USER_REJECTED", "TIMEOUT", "UNSUPPORTED_TYPE", "BAD_FRAME"]},
+    "signedAttestation": {
+      "type": "object",
+      "required": ["merchant", "payout", "name", "validFrom", "validUntil", "operatorSignature"],
+      "additionalProperties": false,
+      "properties": {
+        "merchant": {"$ref": "#/$defs/hex20"},
+        "payout": {"$ref": "#/$defs/hex20"},
+        "name": {"type": "string", "maxLength": 32},
+        "validFrom": {"$ref": "#/$defs/uint"},
+        "validUntil": {"$ref": "#/$defs/uint"},
+        "operatorSignature": {"$ref": "#/$defs/signature"}
+      }
+    }
+  },
+  "messages": {
+    "session.open": {
+      "direction": "kiosk to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "kioskNonce"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "session.open"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "kioskNonce": {"$ref": "#/$defs/hex32"}
+      }
+    },
+    "session.open.ok": {
+      "direction": "device to kiosk",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "device", "deviceNonce", "anchorValid", "firmware"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "session.open.ok"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "device": {"$ref": "#/$defs/hex20"},
+        "deviceNonce": {"$ref": "#/$defs/hex32"},
+        "anchorValid": {"type": "boolean"},
+        "firmware": {"type": "string", "maxLength": 32}
+      }
+    },
+    "session.confirm": {
+      "direction": "kiosk to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "deviceNonce"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "session.confirm"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "deviceNonce": {"$ref": "#/$defs/hex32"}
+      }
+    },
+    "payment.identify": {
+      "direction": "kiosk to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "attestation"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "payment.identify"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "attestation": {"$ref": "#/$defs/signedAttestation"}
+      }
+    },
+    "payment.prepare": {
+      "direction": "kiosk to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "authorization", "merchantSignature"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "payment.prepare"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "authorization": {
+          "type": "object",
+          "required": ["chainId", "contract", "merchant", "payout", "token", "amount", "orderId", "nonce", "expiry"],
+          "additionalProperties": false,
+          "properties": {
+            "chainId": {"$ref": "#/$defs/uint"},
+            "contract": {"$ref": "#/$defs/hex20"},
+            "merchant": {"$ref": "#/$defs/hex20"},
+            "payout": {"$ref": "#/$defs/hex20"},
+            "token": {"$ref": "#/$defs/hex20"},
+            "amount": {"$ref": "#/$defs/uint"},
+            "orderId": {"$ref": "#/$defs/hex32"},
+            "nonce": {"$ref": "#/$defs/uint"},
+            "expiry": {"$ref": "#/$defs/uint"}
+          }
+        },
+        "merchantSignature": {"$ref": "#/$defs/signature", "description": "merchant signing key over MerchantOrder"}
+      }
+    },
+    "payment.result": {
+      "direction": "device to kiosk",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "payment.result"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "outcome": {"enum": ["approved", "refused"]},
+        "signature": {"$ref": "#/$defs/signature"},
+        "reason": {"$ref": "#/$defs/reason"}
+      }
+    },
+    "limit.change": {
+      "direction": "kiosk to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "change"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "limit.change"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "change": {
+          "type": "object",
+          "required": ["chainId", "contract", "perPaymentLimit", "dailyLimit", "nonce", "expiry"],
+          "additionalProperties": false,
+          "properties": {
+            "chainId": {"$ref": "#/$defs/uint"},
+            "contract": {"$ref": "#/$defs/hex20"},
+            "perPaymentLimit": {"$ref": "#/$defs/uint"},
+            "dailyLimit": {"$ref": "#/$defs/uint"},
+            "nonce": {"$ref": "#/$defs/uint"},
+            "expiry": {"$ref": "#/$defs/uint"}
+          }
+        }
+      }
+    },
+    "setup.timeAnchor": {
+      "direction": "operator tool to device (BLE setup session)",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "timestamp", "operatorSignature"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "setup.timeAnchor"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "timestamp": {"$ref": "#/$defs/uint"},
+        "operatorSignature": {"$ref": "#/$defs/signature"}
+      }
+    },
+    "error": {
+      "direction": "either",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "error"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "reason": {"$ref": "#/$defs/reason"}
+      }
+    }
+  }
+}
