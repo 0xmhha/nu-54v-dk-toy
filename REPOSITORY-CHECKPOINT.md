@@ -1,6 +1,6 @@
 # Repository checkpoint
 
-2026-09-20 · `DF-20260920-01` · 설계 동결 이후, 제품 구현 이전
+2026-09-25 · `DF-20260925-02` (`DF-20260920-01` 대체) · 문서 기준선 동결 이후, 제품 구현 이전
 
 이 저장소는 정책·기술 선택과 구현 직전 설계를 끝낸 상태다. 제품 코드, 펌웨어 build, DB migration 적용, 계정 생성, 서버 기동, 컨트랙트 배포는 아직 시작하지 않았다.
 
@@ -8,13 +8,16 @@
 
 1. [프로젝트 안내](README.md)
 2. [제품별 monorepo 진입점](products/README.md)
-3. [구현 진입 설계 동결](docs/content/planning/design-freeze-checkpoint.md)
-4. [채택된 구현 진입 기준 계약](docs/content/specifications/design-baseline-contract.md)
-5. [외부 환경 준비](docs/content/environment/README.md)
-6. [남은 작업 마스터 목록](docs/content/planning/remaining-work-list.md)
-7. [12주 WBS 한눈에 보기](docs/content/planning/product-wbs-overview.md) · [제품별 전체 작업 목록·우선순위·12주 WBS](docs/content/planning/product-worklist-and-12week-wbs.md)
-8. [12주 완료 범위](docs/content/twelve-week-completion-scope-v3.md)
-9. [104개 작업 인계 카드](docs/content/planning/preimplementation-task-handoffs.md)
+3. [설계 동결 DF-20260925-02](docs/content/planning/design-freeze-checkpoint-02.md)
+4. [12주 WBS (DF-20260925-02)](docs/content/planning/product-worklist-and-12week-wbs-02.md)
+5. [결제 프로토콜](docs/content/specifications/protocol/payment-protocol.md) · [12주 수용 로그](docs/content/acceptance/week12-log.md)
+6. [이전 설계 동결 DF-20260920-01](docs/content/planning/design-freeze-checkpoint.md) — DF-20260925-02와 충돌하지 않는 부분만 유효
+7. [채택된 구현 진입 기준 계약](docs/content/specifications/design-baseline-contract.md)
+8. [외부 환경 준비](docs/content/environment/README.md)
+9. [남은 작업 마스터 목록](docs/content/planning/remaining-work-list.md)
+10. [이전 12주 WBS 한눈에 보기](docs/content/planning/product-wbs-overview.md) · [이전 제품별 작업 목록·12주 WBS](docs/content/planning/product-worklist-and-12week-wbs.md)
+11. [12주 완료 범위](docs/content/twelve-week-completion-scope-v3.md)
+12. [104개 작업 인계 카드](docs/content/planning/preimplementation-task-handoffs.md)
 
 충돌 시 위 순서에서 먼저 나온 문서가 현재 상태·선택값·활성화 경계에 관해 우선한다. 세부 API/DTO/상태 필드는 기존 `docs/content/specifications/` inventory를 사용한다.
 

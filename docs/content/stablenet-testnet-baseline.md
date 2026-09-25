@@ -1,3 +1,4 @@
+> **Superseded by DF-20260925-02** — 이 문서의 범위·가스·결제 확정 규칙은 [DF-20260925-02](planning/design-freeze-checkpoint-02.md)가 대체한다. 아래 본문은 2026-09-24 기준 원문이다.
 # StableNet 시연 네트워크와 가스 정책
 
 > 2026-09-18 범위 갱신: [12주 완료 범위 v3](twelve-week-completion-scope-v3.md)가 최신 기준이다. 아래 기존 검토에서 패스키·녹음·스마트 계정 등을 후보/후속으로 둔 부분은 새 범위를 따른다. 초기 EOA 개발 순서와 고객 가스 부담은 유지하며, 새 Cloud Wallet의 MPC는 별도로 설계한다.
