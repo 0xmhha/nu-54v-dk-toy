@@ -1,0 +1,2904 @@
+{
+ "counts": {
+  "documents": 137,
+  "nodes": 349,
+  "edges": 1409,
+  "authority": {
+   "current": 52,
+   "reference": 14,
+   "historical": 9,
+   "superseded": 23,
+   "draft": 37,
+   "withdrawn": 2
+  },
+  "head_types": {
+   "index": 16,
+   "requirement": 3,
+   "verification": 12,
+   "communication": 11,
+   "research": 16,
+   "plan": 18,
+   "design": 36,
+   "decision": 5,
+   "contract": 20
+  }
+ },
+ "missing_records": [],
+ "broken_targets": [],
+ "stale_complements": [
+  {
+   "source": "products/p07-indexer/README.md",
+   "target": "docs/content/indexer-integration-and-test-token.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/ranging-module-validation-plan.md",
+   "target": "docs/content/payment-platform-scope-v2.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/planning/design-closure-review.md",
+   "target": "docs/content/planning/preimplementation-handoff.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/planning/functional-execution-spec.md",
+   "target": "docs/content/planning/work-cards.md",
+   "target_authority": "historical"
+  },
+  {
+   "source": "docs/content/planning/functional-execution-spec.md",
+   "target": "docs/content/planning/decisions.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/planning/technology-validation-plan.md",
+   "target": "docs/content/planning/technology-selection.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/specifications/commerce-lifecycle-design.md",
+   "target": "docs/content/specifications/security-api-integration.md",
+   "target_authority": "historical"
+  },
+  {
+   "source": "docs/content/specifications/extended-dtos.md",
+   "target": "docs/content/specifications/security-api-integration.md",
+   "target_authority": "historical"
+  },
+  {
+   "source": "docs/content/specifications/preimplementation-contract-overlay.md",
+   "target": "docs/content/planning/preimplementation-handoff.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/specifications/profile-adoption-protocol.md",
+   "target": "docs/content/planning/integration-adoption-matrix.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/specifications/selection-profile-contract.md",
+   "target": "docs/content/planning/decision-briefing.md",
+   "target_authority": "superseded"
+  }
+ ],
+ "claim_conflicts": [
+  {
+   "subject": "acceptance.runtime.cases",
+   "values": [
+    {
+     "path": "docs/content/specifications/rental-admission-cancel.md",
+     "value": "23개 전부 not_run"
+    },
+    {
+     "path": "docs/content/specifications/return-route-contracts.md",
+     "value": "18개 모두 not_run"
+    },
+    {
+     "path": "docs/content/specifications/settlement-ops-contracts.md",
+     "value": "18개 not_run"
+    }
+   ]
+  },
+  {
+   "subject": "api.catalog.count",
+   "values": [
+    {
+     "path": "docs/content/planning/technology-validation-plan.md",
+     "value": "107 (VAL-03 판정 항목 표기)"
+    },
+    {
+     "path": "docs/content/specifications/rental-admission-cancel.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/return-protocol-contracts.md",
+     "value": "107"
+    },
+    {
+     "path": "docs/content/specifications/return-recovery-design.md",
+     "value": "107"
+    },
+    {
+     "path": "docs/content/specifications/return-route-contracts.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/security-integration-design.md",
+     "value": "107"
+    },
+    {
+     "path": "docs/content/specifications/settlement-ops-contracts.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/wallet-control-recovery-design.md",
+     "value": "107"
+    }
+   ]
+  },
+  {
+   "subject": "api.count",
+   "values": [
+    {
+     "path": "REPOSITORY-CHECKPOINT.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/analysis/document-logic/review.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/work-breakdown-plan.md",
+     "value": "107 (승인 통합 후 110)"
+    },
+    {
+     "path": "docs/content/specifications/access-transactions.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/api-access-transactions.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/api-catalog.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/approval-baseline.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/commerce-contract-changes.md",
+     "value": "107 (작성 당시 기준)"
+    },
+    {
+     "path": "docs/content/specifications/commerce-lifecycle-design.md",
+     "value": "107 (작성 당시 기준)"
+    },
+    {
+     "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/critical-dtos.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/design-baseline-contract.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/extended-contracts.md",
+     "value": "107 (6행 문맥상 '현재 전체 107개 API')"
+    },
+    {
+     "path": "docs/content/specifications/interface-contracts.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+     "value": "110"
+    },
+    {
+     "path": "docs/content/specifications/profile-control-adoption-map.md",
+     "value": "110"
+    }
+   ]
+  },
+  {
+   "subject": "chain.id",
+   "values": [
+    {
+     "path": "docs/content/environment/README.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/twelve-week-completion-scope-v3.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint.md",
+     "value": "8283(0x205b)"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/planning/remaining-work-list.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/specifications/stablenet-compatibility-design.md",
+     "value": "8283(2026-09-17 관측값)"
+    }
+   ]
+  },
+  {
+   "subject": "db.reference_engine",
+   "values": [
+    {
+     "path": "docs/content/specifications/approval-physical-storage-design.md",
+     "value": "PostgreSQL 15 (비교용, 운영 DB 미정)"
+    },
+    {
+     "path": "docs/content/specifications/database/README.md",
+     "value": "PostgreSQL 15 (참조 엔진 제안)"
+    }
+   ]
+  },
+  {
+   "subject": "db.table.count",
+   "values": [
+    {
+     "path": "docs/content/specifications/access-transactions.md",
+     "value": "61"
+    },
+    {
+     "path": "docs/content/specifications/approval-baseline.md",
+     "value": "61"
+    },
+    {
+     "path": "docs/content/specifications/approval-physical-storage-design.md",
+     "value": "61 (기존, 변경 없음)"
+    },
+    {
+     "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+     "value": "61"
+    },
+    {
+     "path": "docs/content/specifications/commerce-contract-changes.md",
+     "value": "61"
+    },
+    {
+     "path": "docs/content/specifications/data-model.md",
+     "value": "61"
+    },
+    {
+     "path": "docs/content/specifications/database/README.md",
+     "value": "61"
+    },
+    {
+     "path": "docs/content/specifications/database/tables.md",
+     "value": "61"
+    }
+   ]
+  },
+  {
+   "subject": "decision.count",
+   "values": [
+    {
+     "path": "README.md",
+     "value": "20"
+    },
+    {
+     "path": "docs/content/analysis/document-logic/traceability-audit.md",
+     "value": "20"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint.md",
+     "value": "20"
+    },
+    {
+     "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+     "value": "19"
+    }
+   ]
+  },
+  {
+   "subject": "decision.status",
+   "values": [
+    {
+     "path": "docs/content/planning/design-closure-review.md",
+     "value": "19개 결정과 RR-DEC-01 미선택"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint.md",
+     "value": "20개 선택 완료"
+    }
+   ]
+  },
+  {
+   "subject": "design.package",
+   "values": [
+    {
+     "path": "docs/content/specifications/credential-paid-resource-design.md",
+     "value": "DS-06"
+    },
+    {
+     "path": "docs/content/specifications/social-wallet-recovery-design.md",
+     "value": "DS-02"
+    }
+   ]
+  },
+  {
+   "subject": "firmware.sdk",
+   "values": [
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint.md",
+     "value": "NCS v3.4.0 / Zephyr 4.4 계열"
+    },
+    {
+     "path": "docs/content/planning/implementation-sequence.md",
+     "value": "Zephyr; SDK 배포판·버전·NU board target 미선정"
+    }
+   ]
+  },
+  {
+   "subject": "firmware.sdk.selected",
+   "values": [
+    {
+     "path": "docs/content/specifications/device-coexistence-design.md",
+     "value": "None"
+    },
+    {
+     "path": "docs/content/specifications/implementation-interfaces.md",
+     "value": "미선정"
+    }
+   ]
+  },
+  {
+   "subject": "kiosk.platform",
+   "values": [
+    {
+     "path": "products/p04-merchant-kiosk/README.md",
+     "value": "Android 태블릿 React Native"
+    },
+    {
+     "path": "docs/content/week-03-maker-team-meeting-memo.md",
+     "value": "Android 태블릿, React Native"
+    }
+   ]
+  },
+  {
+   "subject": "milestone.m2.content",
+   "values": [
+    {
+     "path": "docs/content/medium-three-month-team-project-en.md",
+     "value": "NU approval → EOA submission → indexer confirmation → kiosk receipt"
+    },
+    {
+     "path": "docs/content/medium-three-month-team-project.md",
+     "value": "NU 승인 → EOA 제출 → Indexer 확정 → 키오스크 영수증"
+    }
+   ]
+  },
+  {
+   "subject": "milestone.m2.week",
+   "values": [
+    {
+     "path": "docs/content/medium-three-month-team-project-en.md",
+     "value": "4"
+    },
+    {
+     "path": "docs/content/medium-three-month-team-project.md",
+     "value": "4"
+    },
+    {
+     "path": "docs/content/planning/product-wbs-overview.md",
+     "value": "4 (NU 승인→EOA→Indexer→paid→키오스크 영수증)"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
+     "value": "4"
+    }
+   ]
+  },
+  {
+   "subject": "recovery.rr_dec_01.selection",
+   "values": [
+    {
+     "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+     "value": "미선택"
+    },
+    {
+     "path": "docs/content/specifications/lifecycle-storage-design.md",
+     "value": "미답변"
+    }
+   ]
+  },
+  {
+   "subject": "return.recovery.policy",
+   "values": [
+    {
+     "path": "docs/content/specifications/return-protocol-contracts.md",
+     "value": "미결정(RECOVERY_POLICY_UNRESOLVED 시 신규 commit 거절)"
+    },
+    {
+     "path": "docs/content/specifications/return-screen-design.md",
+     "value": "사용자 선택 대기"
+    }
+   ]
+  },
+  {
+   "subject": "scope.decision.count",
+   "values": [
+    {
+     "path": "docs/content/work-breakdown-plan.md",
+     "value": "19"
+    },
+    {
+     "path": "docs/content/planning/remaining-work-list.md",
+     "value": "20 (D01~D19 + RR-DEC-01), 모두 선택"
+    },
+    {
+     "path": "docs/content/specifications/stablenet-compatibility-design.md",
+     "value": "19"
+    },
+    {
+     "path": "docs/content/specifications/wallet-control-recovery-design.md",
+     "value": "19"
+    }
+   ]
+  },
+  {
+   "subject": "scope.task.count",
+   "values": [
+    {
+     "path": "docs/content/planning/design-closure-review.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/planning/execution-readiness.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/planning/implementation-sequence.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/planning/preimplementation-task-handoffs.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/planning/product-wbs-overview.md",
+     "value": "104 (표 열 이름은 '세부 작업')"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/planning/remaining-work-list.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/planning/technology-validation-plan.md",
+     "value": "104 (패키지로 표기)"
+    },
+    {
+     "path": "docs/content/specifications/approval-baseline.md",
+     "value": "104 (세부 320)"
+    },
+    {
+     "path": "docs/content/specifications/commerce-lifecycle-design.md",
+     "value": "104"
+    },
+    {
+     "path": "docs/content/specifications/stablenet-compatibility-design.md",
+     "value": "104"
+    }
+   ]
+  },
+  {
+   "subject": "security.storage.logical_resource.count",
+   "values": [
+    {
+     "path": "docs/content/specifications/approval-baseline.md",
+     "value": "28"
+    },
+    {
+     "path": "docs/content/specifications/data-model.md",
+     "value": "15"
+    }
+   ]
+  },
+  {
+   "subject": "task.execution.status",
+   "values": [
+    {
+     "path": "docs/content/planning/execution-readiness.md",
+     "value": "모든 세부 작업 미실행"
+    },
+    {
+     "path": "docs/content/planning/preimplementation-task-handoffs.md",
+     "value": "not_run"
+    }
+   ]
+  },
+  {
+   "subject": "task.readiness.status",
+   "values": [
+    {
+     "path": "docs/content/planning/execution-readiness.md",
+     "value": "착수 가능 여부 미평가"
+    },
+    {
+     "path": "docs/content/planning/implementation-sequence.md",
+     "value": "not_assessed"
+    }
+   ]
+  },
+  {
+   "subject": "team.size",
+   "values": [
+    {
+     "path": "docs/content/medium-three-month-team-project-en.md",
+     "value": "3"
+    },
+    {
+     "path": "docs/content/medium-three-month-team-project.md",
+     "value": "3"
+    },
+    {
+     "path": "docs/content/twelve-week-completion-scope-v3.md",
+     "value": "3명"
+    },
+    {
+     "path": "docs/content/planning/implementation-sequence.md",
+     "value": "3"
+    },
+    {
+     "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+     "value": "3"
+    },
+    {
+     "path": "docs/content/specifications/wallet-control-recovery-design.md",
+     "value": "3"
+    }
+   ]
+  },
+  {
+   "subject": "wallet.mpc.threshold",
+   "values": [
+    {
+     "path": "products/p03-cloud-mpc-wallet/README.md",
+     "value": "2-of-3"
+    },
+    {
+     "path": "docs/content/medium-three-month-team-project-en.md",
+     "value": "2-of-3"
+    },
+    {
+     "path": "docs/content/medium-three-month-team-project.md",
+     "value": "2-of-3"
+    },
+    {
+     "path": "docs/content/series/README.md",
+     "value": "2-of-3"
+    },
+    {
+     "path": "docs/content/twelve-week-completion-scope-v3.md",
+     "value": "미정 (2-of-3 또는 특정 벤더 확정하지 않음)"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint.md",
+     "value": "2-of-3 ECDSA (cb-mpc/cb-mpc-go v0.2.1)"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
+     "value": "2-of-3"
+    },
+    {
+     "path": "docs/content/planning/remaining-work-list.md",
+     "value": "2-of-3 (cb-mpc)"
+    },
+    {
+     "path": "docs/content/specifications/wallet-control-recovery-design.md",
+     "value": "2-of-3 (A+B+C) 우선 비교 후보, 미선택"
+    }
+   ]
+  }
+ ],
+ "orphans": [
+  "docs/content/medium-three-month-team-project-checklist.md",
+  "docs/content/medium-three-month-team-project-en.md",
+  "docs/content/series/README.md",
+  "docs/content/week-03-maker-team-meeting-memo.md"
+ ],
+ "open_questions": {
+  "ALL": [
+   {
+    "path": "docs/content/analysis/document-logic/review.md",
+    "question": "x-theory 정의 미확인"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/review.md",
+    "question": "실제 재개·중단 지원과 분산 저장·서명 검증 미수행(MPC)"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/review.md",
+    "question": "수신 gate native 원자성·BLE 종료 표식 등 실기 검증 대상"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/traceability-audit.md",
+    "question": "NU-54V-DK revision, pin map, memory, secure-service capability require the actual board"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/traceability-audit.md",
+    "question": "OAuth, Kakao, OpenAI credentials registration outside repository"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/traceability-audit.md",
+    "question": "StableNet contract addresses disabled until deployment evidence"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/traceability-audit.md",
+    "question": "MPC, passkey BLE, FOTA, audio throughput, Chain Sounding and app journeys runtime-unverified"
+   },
+   {
+    "path": "docs/content/analysis/document-logic/traceability-audit.md",
+    "question": "Commercial use requires legal and provider-terms review"
+   },
+   {
+    "path": "docs/content/medium-three-month-team-project.md",
+    "question": "팀원별 주당 가능 시간과 대면 작업 시간"
+   },
+   {
+    "path": "docs/content/medium-three-month-team-project.md",
+    "question": "보드 리비전·Zephyr 타깃·핀·메모리·BLE 전송량"
+   },
+   {
+    "path": "docs/content/twelve-week-completion-scope-v3.md",
+    "question": "MPC 조각 보관·복구 주체·도입 방식"
+   },
+   {
+    "path": "docs/content/twelve-week-completion-scope-v3.md",
+    "question": "패스키 대상 서비스·OS·전송 방식"
+   },
+   {
+    "path": "docs/content/twelve-week-completion-scope-v3.md",
+    "question": "실제 결제 데이터 범위와 실제 USDC 필수 여부"
+   },
+   {
+    "path": "docs/content/twelve-week-completion-scope-v3.md",
+    "question": "FX·DeFi·STO·DID·x402 상품/프로토콜 경계"
+   },
+   {
+    "path": "docs/content/twelve-week-completion-scope-v3.md",
+    "question": "FOTA·녹음·찾기 성능/용량/배터리 기준"
+   },
+   {
+    "path": "docs/content/twelve-week-completion-scope-v3.md",
+    "question": "환불·정산·혜택·위치 데이터 운영 정책"
+   },
+   {
+    "path": "docs/content/work-breakdown-plan.md",
+    "question": "SDK 배포판·Zephyr 버전·NU board target"
+   },
+   {
+    "path": "docs/content/work-breakdown-plan.md",
+    "question": "역할·공수 배정"
+   },
+   {
+    "path": "docs/content/work-breakdown-plan.md",
+    "question": "실제 USDC 조달 여부"
+   },
+   {
+    "path": "docs/content/planning/design-closure-review.md",
+    "question": "CS-01 관련 선택 고정(awaiting_selections)"
+   },
+   {
+    "path": "docs/content/planning/design-closure-review.md",
+    "question": "CS-02 선정 모델 구체 계약"
+   },
+   {
+    "path": "docs/content/planning/design-closure-review.md",
+    "question": "CS-03 공통 채택 checkpoint(candidate_not_merged)"
+   },
+   {
+    "path": "docs/content/planning/design-closure-review.md",
+    "question": "CS-04 구현 전환 지시(deferred_by_user)"
+   },
+   {
+    "path": "docs/content/planning/design-freeze-checkpoint.md",
+    "question": "NU-54V-DK 실제 revision·pin·flash/RAM·secure service 측정"
+   },
+   {
+    "path": "docs/content/planning/design-freeze-checkpoint.md",
+    "question": "Google·Apple·Kakao·OpenAI 계정·secret 등록"
+   },
+   {
+    "path": "docs/content/planning/design-freeze-checkpoint.md",
+    "question": "StableNet 계약 배포 주소·code hash·ABI digest 미등록"
+   },
+   {
+    "path": "docs/content/planning/design-freeze-checkpoint.md",
+    "question": "MPC·BLE passkey·오디오·FOTA·거리 측정·12개 통합 여정 미실행"
+   },
+   {
+    "path": "docs/content/planning/design-freeze-checkpoint.md",
+    "question": "실자산·실권리·상용 대여 법률·약관 검토"
+   },
+   {
+    "path": "docs/content/planning/execution-readiness.md",
+    "question": "빌드·실행 전 SDK/board/provider/chain profile 선택·기록 필요"
+   },
+   {
+    "path": "docs/content/planning/functional-execution-spec.md",
+    "question": "폰·키오스크 연결 동시 유지/전환은 HW-07 실기 검증 후 고정"
+   },
+   {
+    "path": "docs/content/planning/functional-execution-spec.md",
+    "question": "백엔드 배포 단위 미정"
+   },
+   {
+    "path": "docs/content/planning/functional-execution-spec.md",
+    "question": "confirmed 전 예약한 환불 한도 해제 방식"
+   },
+   {
+    "path": "docs/content/planning/functional-execution-spec.md",
+    "question": "과거 사용 혜택 처리 정책"
+   },
+   {
+    "path": "docs/content/planning/implementation-sequence.md",
+    "question": "Zephyr SDK 배포판·버전·NU board target 선정"
+   },
+   {
+    "path": "docs/content/planning/implementation-sequence.md",
+    "question": "구현 착수는 사용자 지시 전까지 보류"
+   },
+   {
+    "path": "docs/content/planning/preimplementation-task-handoffs.md",
+    "question": "통합 입력: MPC protocol/provider/threshold/recovery policy"
+   },
+   {
+    "path": "docs/content/planning/preimplementation-task-handoffs.md",
+    "question": "통합 입력: 실제 NU board revision/pins/power, Zephyr/NCS/bootloader"
+   },
+   {
+    "path": "docs/content/planning/preimplementation-task-handoffs.md",
+    "question": "통합 입력: 실 chain identity·addresses/ABI/codehash·AA 버전·Indexer endpoint"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
+    "question": "실제 담당자와 공수(세 사람의 주력 분야·주당 시간 입력 후 추가)"
+   },
+   {
+    "path": "docs/content/planning/remaining-work-list.md",
+    "question": "구 client↔새 server 호환·부분 peer profile 적용 등 공통 검사 6개 미완"
+   },
+   {
+    "path": "docs/content/planning/remaining-work-list.md",
+    "question": "실제 계정·키·주소 등록"
+   },
+   {
+    "path": "docs/content/planning/remaining-work-list.md",
+    "question": "실운영 출시 검토(G-05)는 테스트넷 완료와 별도"
+   },
+   {
+    "path": "docs/content/specifications/access-transactions.md",
+    "question": "점주 역할 기본 권한은 제품 설정으로 확정할 대상"
+   },
+   {
+    "path": "docs/content/specifications/access-transactions.md",
+    "question": "GAP-01~05 adapter 선정·구현 검증"
+   },
+   {
+    "path": "docs/content/specifications/access-transactions.md",
+    "question": "GAP-04 폰 없이 결제한 주문의 영수증 연결 API/보관 방식"
+   },
+   {
+    "path": "docs/content/specifications/access-transactions.md",
+    "question": "실제 다중 세션 잠금 검증은 구현 단계"
+   },
+   {
+    "path": "docs/content/specifications/access-transactions.md",
+    "question": "실제 SQL GRANT는 배포 단위·role 결정 후 작성"
+   },
+   {
+    "path": "docs/content/specifications/compatibility-matrix.md",
+    "question": "모든 COMP 항목의 버전 값 미기입·실행 미검증"
+   },
+   {
+    "path": "docs/content/specifications/data-model.md",
+    "question": "보관 기간과 법적 보존 의무"
+   },
+   {
+    "path": "docs/content/specifications/data-model.md",
+    "question": "MPC 조각 제공 경로·회전·복구·철회"
+   },
+   {
+    "path": "docs/content/specifications/data-model.md",
+    "question": "원음/위치 기본 설정·보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/data-model.md",
+    "question": "백업 복구 목표·주기·키 관리"
+   },
+   {
+    "path": "docs/content/specifications/database/README.md",
+    "question": "운영 DB 선정"
+   },
+   {
+    "path": "docs/content/specifications/database/README.md",
+    "question": "다중 세션 경쟁·잠금·앱 권한 검증"
+   },
+   {
+    "path": "docs/content/specifications/database/README.md",
+    "question": "운영 forward fix·백업 복구·배포 중단 기준"
+   },
+   {
+    "path": "docs/content/specifications/database/README.md",
+    "question": "migration 실행 권한과 앱 권한 분리 배포"
+   },
+   {
+    "path": "docs/content/specifications/design-baseline-contract.md",
+    "question": "생성 schema·후속 migration·실제 profile·배포 manifest·runtime 수용 증거 통과 전까지 실행 비활성"
+   },
+   {
+    "path": "docs/content/specifications/extended-contracts.md",
+    "question": "profile별 상세 payload"
+   },
+   {
+    "path": "docs/content/specifications/extended-contracts.md",
+    "question": "보안 adapter의 실제 저장 매핑"
+   },
+   {
+    "path": "docs/content/specifications/extended-contracts.md",
+    "question": "실제 ABI/주소 manifest"
+   },
+   {
+    "path": "docs/content/specifications/extended-contracts.md",
+    "question": "하드웨어 전송 profile"
+   },
+   {
+    "path": "docs/content/specifications/extended-contracts.md",
+    "question": "DB 엔진·호스팅 제공자"
+   },
+   {
+    "path": "docs/content/specifications/extended-dtos.md",
+    "question": "ProfileInput 내부 profile별 검증기 미선정"
+   },
+   {
+    "path": "docs/content/specifications/implementation-interfaces.md",
+    "question": "Zephyr revision, SDK 배포판(NCS 포함 여부), NU board target, toolchain, crypto/controller 조합 미선정"
+   },
+   {
+    "path": "docs/content/specifications/interface-contracts.md",
+    "question": "GATT UUID·MTU·코덱·프레이밍·암호 suite"
+   },
+   {
+    "path": "docs/content/specifications/interface-contracts.md",
+    "question": "실제 브로커"
+   },
+   {
+    "path": "docs/content/specifications/interface-contracts.md",
+    "question": "DB 엔진·DDL"
+   },
+   {
+    "path": "docs/content/specifications/interface-contracts.md",
+    "question": "BLE transport profile(HW-03)"
+   },
+   {
+    "path": "docs/content/specifications/interface-contracts.md",
+    "question": "D11~16 상품 선택에 따른 actionInput"
+   },
+   {
+    "path": "docs/content/specifications/operations-release-acceptance-design.md",
+    "question": "OP-01 배포주소/ABI·Indexer endpoint"
+   },
+   {
+    "path": "docs/content/specifications/operations-release-acceptance-design.md",
+    "question": "OP-02 RPO/RTO·latency/battery 목표"
+   },
+   {
+    "path": "docs/content/specifications/operations-release-acceptance-design.md",
+    "question": "OP-03 보관기간/삭제 SLA"
+   },
+   {
+    "path": "docs/content/specifications/operations-release-acceptance-design.md",
+    "question": "OP-04 운영 role scope·키 회전·긴급접근"
+   },
+   {
+    "path": "docs/content/specifications/operations-release-acceptance-design.md",
+    "question": "OP-05 실자산 운영 모델"
+   },
+   {
+    "path": "docs/content/specifications/preimplementation-contract-overlay.md",
+    "question": "API 번호·operationClass 미부여"
+   },
+   {
+    "path": "docs/content/specifications/preimplementation-contract-overlay.md",
+    "question": "profile manifest pin 전 wire codec/limit 미확정"
+   },
+   {
+    "path": "docs/content/specifications/preimplementation-contract-overlay.md",
+    "question": "새 물리 DDL 별도 migration 문서"
+   },
+   {
+    "path": "docs/content/specifications/selection-action-gates.md",
+    "question": "현재 wire에 없는 subtype의 계약 고정"
+   },
+   {
+    "path": "docs/content/specifications/selection-profile-contract.md",
+    "question": "선택 필드별 실제 값·버전·근거"
+   },
+   {
+    "path": "docs/content/specifications/selection-profile-contract.md",
+    "question": "action/branch별 schema·권한·원자 저장·호환 reader 고정"
+   },
+   {
+    "path": "docs/content/specifications/storage-operations.md",
+    "question": "DB 엔진·SQL 문법·partial unique index 등 구체 수단"
+   },
+   {
+    "path": "docs/content/specifications/storage-operations.md",
+    "question": "nullable·FK·삭제 규칙·마이그레이션 순서"
+   }
+  ],
+  "P01": [
+   {
+    "path": "products/p01-device-firmware/README.md",
+    "question": "실제 board revision, pin, flash/RAM, bootloader와 BLE 처리량"
+   },
+   {
+    "path": "docs/content/medium-three-month-team-project-checklist.md",
+    "question": "실물 보드 모델명·리비전"
+   },
+   {
+    "path": "docs/content/medium-three-month-team-project-checklist.md",
+    "question": "SDK·Zephyr·툴체인·보드 타깃"
+   },
+   {
+    "path": "docs/content/medium-three-month-team-project-checklist.md",
+    "question": "BLE 광고·GATT 결과"
+   },
+   {
+    "path": "docs/content/medium-three-month-team-project-checklist.md",
+    "question": "공개 전 민감정보 제거"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "거리 측정 안정성"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "키 보관·서명 지원 범위"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "제스처 오인식"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "휴대용 전원 구성"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "디버거 결정"
+   },
+   {
+    "path": "docs/content/nu54v-basic-peripheral-bringup-log.md",
+    "question": "보드 리비전·SoC 표기·내장 디버거·기본 LED/버튼"
+   },
+   {
+    "path": "docs/content/nu54v-basic-peripheral-bringup-log.md",
+    "question": "SDK/Zephyr/툴체인/보드 타깃"
+   },
+   {
+    "path": "docs/content/nu54v-basic-peripheral-bringup-log.md",
+    "question": "Flash·RAM·부팅 시간"
+   },
+   {
+    "path": "docs/content/ranging-module-validation-plan.md",
+    "question": "보드 리비전·폰 OS·빌드 호환성"
+   },
+   {
+    "path": "docs/content/ranging-module-validation-plan.md",
+    "question": "정확도와 로그인 거리 임계값"
+   },
+   {
+    "path": "docs/content/ranging-module-validation-plan.md",
+    "question": "NU 보드 reflector 포팅"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "요청 만료 시간(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "버튼 길게 누름(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "확정으로 볼 블록 수"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "디스플레이 모델·인터페이스"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "배터리·충전 모듈"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "역할 담당자·발표자"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "smart_account/market_action/credential_proof/paid_resource adapter 미등록"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "crypto/profile/실기 호환 24개 시나리오·COMP 26개 미검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "RR-DEC-01과 MPC/지갑 정책 사용자 선택"
+   },
+   {
+    "path": "docs/content/specifications/ble-catalog.md",
+    "question": "실제 GATT/codec/profile/실기 호환 검증"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "D08 분할 지급·늦은 지급·예외 환불 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "timeout 숫자·재시도 횟수(D19)"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "늦은 자산 복구 정책과 하드웨어 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/device-coexistence-design.md",
+    "question": "control_deadline·crypto_nonpreemptible_time·flash_erase_write_latency 등 measurementVariables selectedValue None"
+   },
+   {
+    "path": "docs/content/specifications/device-coexistence-design.md",
+    "question": "DC-X02 apply_prepare_control의 별도 wire 명령 미등록"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "원 holder 분실 복구"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "staged/unknown 등록의 안전한 회수"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "profile과 보드 능력 검증"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "root/profile과 실제 보드 능력"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "예약 후 holder/session 복구"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "동의 철회 후속 처리"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "새 논리 자원의 물리 저장·버전·권한 채택"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-01 RR-DEC-01 신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-02 원 holder 분실·철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-03 staged/unknown 등록 회수"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-04 출고 root·암호/삭제/영속 profile"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-05 최종 wire/SQL/권한/화면 공동 채택"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "epoch 표현 범위(기기 profile 선정 전)"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "다형 owner 참조의 FK/무결성 경계"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "SDK/board target·보안 profile"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "management trust profile·wire codec/limit·lease·proof suite 미선정"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "물리 저장/registry 일관성 미검증"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "API020/107 typed reader 및 BLE 신규 command schema 미채택"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-01 녹음 codec/sampleRate/buffer"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-02 지도/장소/후기 provider"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-03 목적별 동의/보관기간"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-04 코스 평가 합격률"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-05 보상사용 후 증거철회"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-06 STT/AI provider·model·지역"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "출고 증거와 등록 holder bootstrap"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "수령인 동의 발급"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "기기 보호 저장·antirollback"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "profile·버전 협상"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "기존 경로/화면/권한 병합"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "RR-DEC-01 복구 정책 미답변"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "NU 신원/부트·저장·epoch 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "서명/암호화/정규화 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "relay 발급·증거 접수·cleanup 실제 endpoint/명령 및 버전 협상"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "신규 여행 지갑 늦은 자산 복구 정책(개인 암호화 백업 여부)"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "NU 장치 신원/세대·journal 보호 방식"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "recovery relay 인증/암호화 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "commit·완료·재대여 gate 요청/응답 타입"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "기기 상대시간 허용값"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "SDK/board target"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "보호 저장/epoch/저널 능력과 proof/profile"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "RR-DEC-01 개인 복구 백업 정책"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "API045 등록 분기와 grant 발급 전 취소 계약"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "반납 물리 저장·이행안"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "신규 여행 지갑 개인 암호화 백업 여부"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "반납 도움 받기 실제 지원 채널·응답 기준"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "기기 화면 크기·최종 시각 디자인"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "영어 번역 검수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "실제 라우트/페이지 수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "담당자·공수 배정"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P01 HW·Cloud 별도 주소"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P02 MPC C 운영 주체·B+C 권한"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P03 신규 여행 지갑 복구 백업(RR-DEC-01 답변 대기)"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P04 로그아웃·탈퇴 키 삭제·보관 정책"
+   }
+  ],
+  "P02": [
+   {
+    "path": "docs/content/ranging-module-validation-plan.md",
+    "question": "보드 리비전·폰 OS·빌드 호환성"
+   },
+   {
+    "path": "docs/content/ranging-module-validation-plan.md",
+    "question": "정확도와 로그인 거리 임계값"
+   },
+   {
+    "path": "docs/content/ranging-module-validation-plan.md",
+    "question": "NU 보드 reflector 포팅"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "smart_account/market_action/credential_proof/paid_resource adapter 미등록"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "crypto/profile/실기 호환 24개 시나리오·COMP 26개 미검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "RR-DEC-01과 MPC/지갑 정책 사용자 선택"
+   },
+   {
+    "path": "docs/content/specifications/ble-catalog.md",
+    "question": "실제 GATT/codec/profile/실기 호환 검증"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D08 최초수락/부분지급/예외반환 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "소비된 혜택·부분환불·챌린지 보상 보정 정책과 규칙 버전"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "정산 attribution/마감/보정 승인 규칙"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D02 source manifest provider·일관성 모델·물리 저장/브로커"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D19 경보 임계값·운영 보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "D08 분할 지급·늦은 지급·예외 환불 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "timeout 숫자·재시도 횟수(D19)"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "늦은 자산 복구 정책과 하드웨어 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D14 시험 권리/issuer/대표행위·contract 제한"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D15 DID method·VC format/proof suite·registry·status 방식"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D16 x402 버전·scheme·StableNet binding·facilitator"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "유료자원 가격/제공기한/환불 규칙"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D19 보관기간·운영권한"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "후속 commerce/return 후보의 전체 병합"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "RR-DEC-01 미응답"
+   },
+   {
+    "path": "docs/content/specifications/device-coexistence-design.md",
+    "question": "control_deadline·crypto_nonpreemptible_time·flash_erase_write_latency 등 measurementVariables selectedValue None"
+   },
+   {
+    "path": "docs/content/specifications/device-coexistence-design.md",
+    "question": "DC-X02 apply_prepare_control의 별도 wire 명령 미등록"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "원 holder 분실 복구"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "staged/unknown 등록의 안전한 회수"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "profile과 보드 능력 검증"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP-01~ policyInputs selection None"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP05 고객용 독립 결과 조회 증명 발급/전달 profile 미선정"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "API023 후속 세션 admission 확장 채택·실기 검증"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "root/profile과 실제 보드 능력"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "예약 후 holder/session 복구"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "동의 철회 후속 처리"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "새 논리 자원의 물리 저장·버전·권한 채택"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-01 RR-DEC-01 신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-02 원 holder 분실·철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-03 staged/unknown 등록 회수"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-04 출고 root·암호/삭제/영속 profile"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-05 최종 wire/SQL/권한/화면 공동 채택"
+   },
+   {
+    "path": "docs/content/specifications/market-product-design.md",
+    "question": "MD-01 자산쌍·DEX/LP 모델"
+   },
+   {
+    "path": "docs/content/specifications/market-product-design.md",
+    "question": "MD-02 FX 모델"
+   },
+   {
+    "path": "docs/content/specifications/market-product-design.md",
+    "question": "이하 policyInputs selection None"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-01 녹음 codec/sampleRate/buffer"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-02 지도/장소/후기 provider"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-03 목적별 동의/보관기간"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-04 코스 평가 합격률"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-05 보상사용 후 증거철회"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-06 STT/AI provider·model·지역"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "출고 증거와 등록 holder bootstrap"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "수령인 동의 발급"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "기기 보호 저장·antirollback"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "profile·버전 협상"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "기존 경로/화면/권한 병합"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "RR-DEC-01 복구 정책 미답변"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "NU 신원/부트·저장·epoch 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "서명/암호화/정규화 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "relay 발급·증거 접수·cleanup 실제 endpoint/명령 및 버전 협상"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "신규 여행 지갑 늦은 자산 복구 정책(개인 암호화 백업 여부)"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "NU 장치 신원/세대·journal 보호 방식"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "recovery relay 인증/암호화 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "commit·완료·재대여 gate 요청/응답 타입"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "기기 상대시간 허용값"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "SDK/board target"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "보호 저장/epoch/저널 능력과 proof/profile"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "RR-DEC-01 개인 복구 백업 정책"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "API045 등록 분기와 grant 발급 전 취소 계약"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "반납 물리 저장·이행안"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "신규 여행 지갑 개인 암호화 백업 여부"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "반납 도움 받기 실제 지원 채널·응답 기준"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "기기 화면 크기·최종 시각 디자인"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "영어 번역 검수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "실제 라우트/페이지 수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "담당자·공수 배정"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "Google/Apple OS SDK 경로·provider proof 형식"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "BLE 인증 profile·TTL·철회 전달 시간"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "최초 관리자 bootstrap·승인 주체"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "익명 claim ticket 전달/보관"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "객체 저장 제품·키 관리·보관기간"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "providerSdk"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "mpcProvider"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "threshold"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "participantOperators"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "recoveryEvidenceProfile"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "hwCloudAddressPolicy"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "sessionTtl"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "recoveryDelay"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P01 HW·Cloud 별도 주소"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P02 MPC C 운영 주체·B+C 권한"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P03 신규 여행 지갑 복구 백업(RR-DEC-01 답변 대기)"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P04 로그아웃·탈퇴 키 삭제·보관 정책"
+   }
+  ],
+  "P03": [
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "smart_account/market_action/credential_proof/paid_resource adapter 미등록"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "crypto/profile/실기 호환 24개 시나리오·COMP 26개 미검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "RR-DEC-01과 MPC/지갑 정책 사용자 선택"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "운영 DB·isolation level·writer 권한/trigger"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "보호 저장소와 키 관리"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "crypto profile/MPC 구성"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "replay 기록 등 보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "복구 watermark 근거(WAL/감사 원장/외부 authority)"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "providerSdk"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "mpcProvider"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "threshold"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "participantOperators"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "recoveryEvidenceProfile"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "hwCloudAddressPolicy"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "sessionTtl"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "recoveryDelay"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P01 HW·Cloud 별도 주소"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P02 MPC C 운영 주체·B+C 권한"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P03 신규 여행 지갑 복구 백업(RR-DEC-01 답변 대기)"
+   },
+   {
+    "path": "docs/content/specifications/wallet-control-recovery-design.md",
+    "question": "WC-P04 로그아웃·탈퇴 키 삭제·보관 정책"
+   }
+  ],
+  "P04": [
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "거리 측정 안정성"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "키 보관·서명 지원 범위"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "제스처 오인식"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "휴대용 전원 구성"
+   },
+   {
+    "path": "docs/content/medium-week-01-payment-wallet.md",
+    "question": "디버거 결정"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "요청 만료 시간(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "버튼 길게 누름(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "확정으로 볼 블록 수"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "디스플레이 모델·인터페이스"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "배터리·충전 모듈"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "역할 담당자·발표자"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "smart_account/market_action/credential_proof/paid_resource adapter 미등록"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "crypto/profile/실기 호환 24개 시나리오·COMP 26개 미검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "RR-DEC-01과 MPC/지갑 정책 사용자 선택"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "운영 DB·isolation level·writer 권한/trigger"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "보호 저장소와 키 관리"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "crypto profile/MPC 구성"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "replay 기록 등 보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "복구 watermark 근거(WAL/감사 원장/외부 authority)"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/ble-catalog.md",
+    "question": "실제 GATT/codec/profile/실기 호환 검증"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D08 최초수락/부분지급/예외반환 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "소비된 혜택·부분환불·챌린지 보상 보정 정책과 규칙 버전"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "정산 attribution/마감/보정 승인 규칙"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D02 source manifest provider·일관성 모델·물리 저장/브로커"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D19 경보 임계값·운영 보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "D08 최초 수락·분할 지급·늦은 지급 반환 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "D02 버전 협상/물리 저장 구조"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "LC-GAP-04~05는 다음 설계"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "D08 분할 지급·늦은 지급·예외 환불 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "timeout 숫자·재시도 횟수(D19)"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "늦은 자산 복구 정책과 하드웨어 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D08 정책 선택"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D02 버전/저장 adapter"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D19 기본 페이지/운영 임계값"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "후속 commerce/return 후보의 전체 병합"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "RR-DEC-01 미응답"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP-01~ policyInputs selection None"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP05 고객용 독립 결과 조회 증명 발급/전달 profile 미선정"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "API023 후속 세션 admission 확장 채택·실기 검증"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "실제 라우트/페이지 수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "담당자·공수 배정"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "Google/Apple OS SDK 경로·provider proof 형식"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "BLE 인증 profile·TTL·철회 전달 시간"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "최초 관리자 bootstrap·승인 주체"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "익명 claim ticket 전달/보관"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "객체 저장 제품·키 관리·보관기간"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "D02 버전·저장/일관성 protocol"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "D19 목록 기본값·운영 임계값"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "정산 기간/보정 정책"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "제안 운영 권한 scope"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "RR-DEC-01"
+   }
+  ],
+  "P05": [
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "D08 분할 지급·늦은 지급·예외 환불 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "timeout 숫자·재시도 횟수(D19)"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "늦은 자산 복구 정책과 하드웨어 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "후속 commerce/return 후보의 전체 병합"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "RR-DEC-01 미응답"
+   },
+   {
+    "path": "docs/content/specifications/device-coexistence-design.md",
+    "question": "control_deadline·crypto_nonpreemptible_time·flash_erase_write_latency 등 measurementVariables selectedValue None"
+   },
+   {
+    "path": "docs/content/specifications/device-coexistence-design.md",
+    "question": "DC-X02 apply_prepare_control의 별도 wire 명령 미등록"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "원 holder 분실 복구"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "staged/unknown 등록의 안전한 회수"
+   },
+   {
+    "path": "docs/content/specifications/enrollment-continuity-adoption.md",
+    "question": "profile과 보드 능력 검증"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP-01~ policyInputs selection None"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP05 고객용 독립 결과 조회 증명 발급/전달 profile 미선정"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "API023 후속 세션 admission 확장 채택·실기 검증"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "root/profile과 실제 보드 능력"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "예약 후 holder/session 복구"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "동의 철회 후속 처리"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-bootstrap-contracts.md",
+    "question": "새 논리 자원의 물리 저장·버전·권한 채택"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-01 RR-DEC-01 신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-02 원 holder 분실·철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-03 staged/unknown 등록 회수"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-04 출고 root·암호/삭제/영속 profile"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-05 최종 wire/SQL/권한/화면 공동 채택"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "epoch 표현 범위(기기 profile 선정 전)"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "다형 owner 참조의 FK/무결성 경계"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "SDK/board target·보안 profile"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-storage-design.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-01 OOB·최초 설치 증거 발급·검증 주체"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-02 suite·정규화·승인 수"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-03 소비/세대 seal 보호 저장"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-04 독립 복구 채널"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-05 시간 근거·오차"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-06 보관 기간·삭제 권한"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-lifecycle.md",
+    "question": "TP-01~06 selection 모두 null(승인자 수·suite·보호 저장·recovery authority·유효기간·보존)"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "관리 신뢰 root/서명 형식"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "cohort 범위·lease 수명·offline 허용 action"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "동일 scope 중첩·저장 원자 경계"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "native 적용/재시작·peer attestation 증거"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "schema/ACL/ABI/물리 migration 채택값"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "management trust profile·wire codec/limit·lease·proof suite 미선정"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "물리 저장/registry 일관성 미검증"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "API020/107 typed reader 및 BLE 신규 command schema 미채택"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "출고 증거와 등록 holder bootstrap"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "수령인 동의 발급"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "기기 보호 저장·antirollback"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "profile·버전 협상"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "기존 경로/화면/권한 병합"
+   },
+   {
+    "path": "docs/content/specifications/rental-admission-cancel.md",
+    "question": "RR-DEC-01 복구 정책 미답변"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "NU 신원/부트·저장·epoch 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "서명/암호화/정규화 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-protocol-contracts.md",
+    "question": "relay 발급·증거 접수·cleanup 실제 endpoint/명령 및 버전 협상"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "신규 여행 지갑 늦은 자산 복구 정책(개인 암호화 백업 여부)"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "NU 장치 신원/세대·journal 보호 방식"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "recovery relay 인증/암호화 profile"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "commit·완료·재대여 gate 요청/응답 타입"
+   },
+   {
+    "path": "docs/content/specifications/return-recovery-design.md",
+    "question": "기기 상대시간 허용값"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "SDK/board target"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "보호 저장/epoch/저널 능력과 proof/profile"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "RR-DEC-01 개인 복구 백업 정책"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "API045 등록 분기와 grant 발급 전 취소 계약"
+   },
+   {
+    "path": "docs/content/specifications/return-route-contracts.md",
+    "question": "반납 물리 저장·이행안"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "신규 여행 지갑 개인 암호화 백업 여부"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "반납 도움 받기 실제 지원 채널·응답 기준"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "기기 화면 크기·최종 시각 디자인"
+   },
+   {
+    "path": "docs/content/specifications/return-screen-design.md",
+    "question": "영어 번역 검수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "실제 라우트/페이지 수"
+   },
+   {
+    "path": "docs/content/specifications/screen-flows.md",
+    "question": "담당자·공수 배정"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "Google/Apple OS SDK 경로·provider proof 형식"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "BLE 인증 profile·TTL·철회 전달 시간"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "최초 관리자 bootstrap·승인 주체"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "익명 claim ticket 전달/보관"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "객체 저장 제품·키 관리·보관기간"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "D02 버전·저장/일관성 protocol"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "D19 목록 기본값·운영 임계값"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "정산 기간/보정 정책"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "제안 운영 권한 scope"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-01 최초 등록 독립 채널·evidence issuer"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-02 승인 집계·veto·독립성"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-03 보호 저장소·restore 증거"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-04 복구 주체 신원/채널"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-05 세션/승인 만료·재인증"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-06 증거 열람/export/폐기·보존"
+   }
+  ],
+  "P06": [
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "NU-54V-DK 실제 revision·board definition commit·flash 측정"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "Google/Apple/Kakao/OpenAI 계정·redirect·비밀 등록"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "dummy USDC와 상품 계약 배포·주소/codeHash/ABI digest"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "실 endpoint·DB/object store·decoder registry 배포"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "실제 인물·workload identity·KMS/HSM key reference의 2인 등록"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "요청 만료 시간(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "버튼 길게 누름(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "확정으로 볼 블록 수"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "디스플레이 모델·인터페이스"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "배터리·충전 모듈"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "역할 담당자·발표자"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D14 시험 권리/issuer/대표행위·contract 제한"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D15 DID method·VC format/proof suite·registry·status 방식"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D16 x402 버전·scheme·StableNet binding·facilitator"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "유료자원 가격/제공기한/환불 규칙"
+   },
+   {
+    "path": "docs/content/specifications/credential-paid-resource-design.md",
+    "question": "D19 보관기간·운영권한"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "manifest 서명/배포 registry"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "실제 주소/ABI"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "smart_account source/DTO"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "decoder 업그레이드 위치"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "AA event 귀속 profile"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "확정/가스 정책"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "기존 Indexer schema 확장"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "EIP-7702 체인 지원 여부"
+   }
+  ],
+  "P07": [
+   {
+    "path": "products/p07-indexer/README.md",
+    "question": "기존 저장소 가져오기 전 commit pin, 라이선스, 이력 보존 방식 기록"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "NU-54V-DK 실제 revision·board definition commit·flash 측정"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "Google/Apple/Kakao/OpenAI 계정·redirect·비밀 등록"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "dummy USDC와 상품 계약 배포·주소/codeHash/ABI digest"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "실 endpoint·DB/object store·decoder registry 배포"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "실제 인물·workload identity·KMS/HSM key reference의 2인 등록"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "요청 만료 시간(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "버튼 길게 누름(초)"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "확정으로 볼 블록 수"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "디스플레이 모델·인터페이스"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "배터리·충전 모듈"
+   },
+   {
+    "path": "docs/content/week-03-maker-team-meeting-memo.md",
+    "question": "역할 담당자·발표자"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "D08 최초 수락·분할 지급·늦은 지급 반환 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "D02 버전 협상/물리 저장 구조"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "LC-GAP-04~05는 다음 설계"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "D08 분할 지급·늦은 지급·예외 환불 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "timeout 숫자·재시도 횟수(D19)"
+   },
+   {
+    "path": "docs/content/specifications/commerce-lifecycle-design.md",
+    "question": "늦은 자산 복구 정책과 하드웨어 보호 profile"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D08 정책 선택"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D02 버전/저장 adapter"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D19 기본 페이지/운영 임계값"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP-01~ policyInputs selection None"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "KP05 고객용 독립 결과 조회 증명 발급/전달 profile 미선정"
+   },
+   {
+    "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
+    "question": "API023 후속 세션 admission 확장 채택·실기 검증"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "D02 버전·저장/일관성 protocol"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "D19 목록 기본값·운영 임계값"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "정산 기간/보정 정책"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "제안 운영 권한 scope"
+   },
+   {
+    "path": "docs/content/specifications/settlement-ops-contracts.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "manifest 서명/배포 registry"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "실제 주소/ABI"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "smart_account source/DTO"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "decoder 업그레이드 위치"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "AA event 귀속 profile"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "확정/가스 정책"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "기존 Indexer schema 확장"
+   },
+   {
+    "path": "docs/content/specifications/stablenet-compatibility-design.md",
+    "question": "EIP-7702 체인 지원 여부"
+   }
+  ],
+  "P08": [
+   {
+    "path": "docs/content/specifications/market-product-design.md",
+    "question": "MD-01 자산쌍·DEX/LP 모델"
+   },
+   {
+    "path": "docs/content/specifications/market-product-design.md",
+    "question": "MD-02 FX 모델"
+   },
+   {
+    "path": "docs/content/specifications/market-product-design.md",
+    "question": "이하 policyInputs selection None"
+   }
+  ],
+  "P09": [
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D08 최초수락/부분지급/예외반환 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "소비된 혜택·부분환불·챌린지 보상 보정 정책과 규칙 버전"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "정산 attribution/마감/보정 승인 규칙"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D02 source manifest provider·일관성 모델·물리 저장/브로커"
+   },
+   {
+    "path": "docs/content/specifications/commerce-consumer-repair-design.md",
+    "question": "D19 경보 임계값·운영 보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-01 녹음 codec/sampleRate/buffer"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-02 지도/장소/후기 provider"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-03 목적별 동의/보관기간"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-04 코스 평가 합격률"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-05 보상사용 후 증거철회"
+   },
+   {
+    "path": "docs/content/specifications/recording-travel-ai-design.md",
+    "question": "TP-06 STT/AI provider·model·지역"
+   }
+  ],
+  "P10": [
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "NU-54V-DK 실제 revision·board definition commit·flash 측정"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "Google/Apple/Kakao/OpenAI 계정·redirect·비밀 등록"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "dummy USDC와 상품 계약 배포·주소/codeHash/ABI digest"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "실 endpoint·DB/object store·decoder registry 배포"
+   },
+   {
+    "path": "docs/content/environment/README.md",
+    "question": "실제 인물·workload identity·KMS/HSM key reference의 2인 등록"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "smart_account/market_action/credential_proof/paid_resource adapter 미등록"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "crypto/profile/실기 호환 24개 시나리오·COMP 26개 미검증"
+   },
+   {
+    "path": "docs/content/specifications/approval-baseline.md",
+    "question": "RR-DEC-01과 MPC/지갑 정책 사용자 선택"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "운영 DB·isolation level·writer 권한/trigger"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "보호 저장소와 키 관리"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "crypto profile/MPC 구성"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "replay 기록 등 보관 기간"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "복구 watermark 근거(WAL/감사 원장/외부 authority)"
+   },
+   {
+    "path": "docs/content/specifications/approval-physical-storage-design.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "D08 최초 수락·분할 지급·늦은 지급 반환 정책"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "D02 버전 협상/물리 저장 구조"
+   },
+   {
+    "path": "docs/content/specifications/commerce-contract-changes.md",
+    "question": "LC-GAP-04~05는 다음 설계"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D08 정책 선택"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D02 버전/저장 adapter"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "D19 기본 페이지/운영 임계값"
+   },
+   {
+    "path": "docs/content/specifications/commerce-reconciliation-integration.md",
+    "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "후속 commerce/return 후보의 전체 병합"
+   },
+   {
+    "path": "docs/content/specifications/critical-dtos.md",
+    "question": "RR-DEC-01 미응답"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-01 RR-DEC-01 신규 여행 지갑 복구 정책"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-02 원 holder 분실·철회 후 재승인"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-03 staged/unknown 등록 회수"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-04 출고 root·암호/삭제/영속 profile"
+   },
+   {
+    "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
+    "question": "LJG-05 최종 wire/SQL/권한/화면 공동 채택"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-01 OOB·최초 설치 증거 발급·검증 주체"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-02 suite·정규화·승인 수"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-03 소비/세대 seal 보호 저장"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-04 독립 복구 채널"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-05 시간 근거·오차"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-evidence.md",
+    "question": "TP-06 보관 기간·삭제 권한"
+   },
+   {
+    "path": "docs/content/specifications/management-trust-lifecycle.md",
+    "question": "TP-01~06 selection 모두 null(승인자 수·suite·보호 저장·recovery authority·유효기간·보존)"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "관리 신뢰 root/서명 형식"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "cohort 범위·lease 수명·offline 허용 action"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "동일 scope 중첩·저장 원자 경계"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "native 적용/재시작·peer attestation 증거"
+   },
+   {
+    "path": "docs/content/specifications/profile-adoption-protocol.md",
+    "question": "schema/ACL/ABI/물리 migration 채택값"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "management trust profile·wire codec/limit·lease·proof suite 미선정"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "물리 저장/registry 일관성 미검증"
+   },
+   {
+    "path": "docs/content/specifications/profile-control-adoption-map.md",
+    "question": "API020/107 typed reader 및 BLE 신규 command schema 미채택"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "Google/Apple OS SDK 경로·provider proof 형식"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "BLE 인증 profile·TTL·철회 전달 시간"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "최초 관리자 bootstrap·승인 주체"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "익명 claim ticket 전달/보관"
+   },
+   {
+    "path": "docs/content/specifications/security-integration-design.md",
+    "question": "객체 저장 제품·키 관리·보관기간"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "providerSdk"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "mpcProvider"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "threshold"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "participantOperators"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "recoveryEvidenceProfile"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "hwCloudAddressPolicy"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "sessionTtl"
+   },
+   {
+    "path": "docs/content/specifications/social-wallet-recovery-design.md",
+    "question": "recoveryDelay"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-01 최초 등록 독립 채널·evidence issuer"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-02 승인 집계·veto·독립성"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-03 보호 저장소·restore 증거"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-04 복구 주체 신원/채널"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-05 세션/승인 만료·재인증"
+   },
+   {
+    "path": "docs/content/specifications/trust-operations-design.md",
+    "question": "TP-06 증거 열람/export/폐기·보존"
+   }
+  ]
+ }
+}
