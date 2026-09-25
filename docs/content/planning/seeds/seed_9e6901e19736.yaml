@@ -1,7 +1,7 @@
 # Ouroboros Seed generated from interview_20260924_140535, revision 4.
 # Iteration 0 was a copy of the ouroboros_generate_seed output (the MCP server did
 # not persist it). Revision 1 applies the user-accepted refinement candidates
-# S1-S8, W1-W3 and C1-C3; revision 2 applies pass-2 S1-S6 and C4-C6; revision 3 applies pass-3 T1-T3 and M1-M3; revision 4 applies the five post-PASS advisory findings and the P05 time-anchor path; 1.4.1 narrows the stale-literal scan to files added or changed since baseCommit (user decision 2026-09-25); 1.4.2 extends W12-05 to 8 refusal demos (user decision 2026-09-25); audit trail:
+# S1-S8, W1-W3 and C1-C3; revision 2 applies pass-2 S1-S6 and C4-C6; revision 3 applies pass-3 T1-T3 and M1-M3; revision 4 applies the five post-PASS advisory findings and the P05 time-anchor path; 1.4.1 narrows the stale-literal scan to files added or changed since baseCommit (user decision 2026-09-25); 1.4.2 extends W12-05 to 8 refusal demos (user decision 2026-09-25); 1.5.0 applies the cross-document logic review (user decisions 2026-09-25); audit trail:
 # ~/.ouroboros/seed-revisions/interview_20260924_140535.md
 goal: 'Deliver the documentation baseline for the NU-54V-DK merchant-authenticated payment signer, whose
   approved product goal is: the NU-54V-DK (nRF54L15) device, using a non-exportable key generated at rental,
@@ -90,9 +90,9 @@ constraints:
 - 'Documentation-only cycle: no runtime, SQL, firmware or chain deployment is produced; the P10 EIP-712
   test vectors are written as JSON under docs/content/specifications/protocol/ and move to packages/ only
   when code imports them'
-- 3 people over a 12-week window; the user owns P06 and the shared EIP-712 layer (P10), role A owns P01
-  firmware, role B owns P04 kiosk plus P05 scripts and P07; names are bound at the team meeting and recorded
-  only in the WBS assignee column
+- 3 people over a 12-week window; the user owns P06, P10, P07 and board bring-up, role A owns P01 firmware,
+  role B owns P04 kiosk and P05 scripts; names are bound at the team meeting and recorded only in the
+  WBS assignee column
 - DF-20260920-01 and all its generated or hash-pinned artifacts must remain byte-untouched; validate_design_freeze.py,
   validate_product_wbs.py and check_markdown_links.py keep passing
 - 'Single source of truth: every settled decision is recorded exactly once as a record in docs/content/planning/design-freeze-checkpoint-02.json
@@ -151,18 +151,20 @@ constraints:
   refusal as refused with {ATTESTATION_EXPIRED, MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, MERCHANT_FORGED}
   and post-submit status=0 as failed with the tx hash; 10 s hard timeout from request transfer completion,
   then Checking — do not pay again with re-payment blocked; no automatic retry except same-signature rebroadcast'
-- 'Gates: week 4 evidence (BR-01..BR-08, software-signer PaymentSettled on 8283, SE secp256k1 datasheet),
-  week 6 in-board key real-hardware end-to-end as scope-cut trigger, week 8 external SE; cut order if
-  week 6 fails: external SE, P07, delayed-withdrawal demo; the on-device merchant display is never cut'
-- 'Parameters are exactly seven named constants recorded once in the DF-02 register as {value, unit} with
+- 'Gates: W4 evidence (BR-01..BR-08, SE secp256k1 datasheet), W6 contract (software-signer PaymentSettled
+  on 8283), W7 in-board key real-hardware end-to-end as scope-cut trigger, W9 external SE; the freeze
+  date lies in W4 so all work is scheduled from W4; cut order if W7 fails: external SE, P07, NFC handover;
+  the on-device merchant display is never cut'
+- 'Parameters are exactly nine named constants recorded once in the DF-02 register as {value, unit} with
   value > 0: perPaymentCap, dailyCap, withdrawalDelay, payoutChangeDelay, authorizationExpiry, attestationValidity
-  (fixed at 86400 s by the interview), kioskMinGasBalance (an estimate recorded with its provenance: estimated
-  settle gas x the observed StableNet eth_gasPrice of 47,600 gwei x a stated payment-count margin, marked
-  for re-measurement at the week-4 gate); the other values are decided when the register is written within
-  these bounds: 0 < perPaymentCap <= dailyCap, 30 s <= authorizationExpiry <= 300 s (above the 10 s kiosk
-  timeout), 600 s <= withdrawalDelay <= 604800 s, payoutChangeDelay >= 3600 s; one EOA per role (operator,
-  registry admin, kiosk) on testnet with multisig/HSM on hold; firmware update is MCUboot wired serial
-  recovery only, BLE DFU on hold, signing key held offline'
+  (fixed at 86400 s by the interview), kioskMinGasBalance (a busy threshold of two payments estimated
+  from settle gas x the observed StableNet eth_gasPrice of 47,600 gwei, with provenance and a re-measurement
+  week), pinMaxRetries (3..10) and anchorClockSkew (1..300 s); the other values are decided when the register
+  is written within these bounds: 0 < perPaymentCap <= dailyCap, 30 s <= authorizationExpiry <= 300 s
+  (above the 10 s kiosk timeout), 600 s <= withdrawalDelay <= 604800 s, payoutChangeDelay >= attestationValidity,
+  withdrawalDelay >= authorizationExpiry; one EOA per role (operator, registry admin, kiosk) on testnet
+  with multisig/HSM on hold; firmware update is MCUboot wired serial recovery only, BLE DFU on hold, signing
+  key held offline'
 - Anti-exfil (req 10), dependency pinning (req 12) and genuine-device attestation (req 13) are design-only
   waivers recorded in DF-02; no personal data is collected (req 14)
 - 'Evidence and redaction: raw evidence lives in a git-ignored path; files changed since the register
@@ -196,13 +198,19 @@ constraints:
 - 'Schedule feasibility: every WBS-02 row has exactly one owner among the user, role A and role B; each
   owner''s summed effort per week does not exceed that owner''s available days recorded in the WBS md,
   with week 4 recorded as shortened by Chuseok; the check lives in the wbs group'
+- 'Settlement check order: domain, order uniqueness (ORDER_ALREADY_PAID), expiry, signer account, registry,
+  payout, nonce, caps, balance, so a same-signature resubmission resolves to ORDER_ALREADY_PAID and the
+  kiosk accepts it only when the finalized PaymentSettled matches its own device, amount and nonce'
+- 'Setup trust: setup.operator is accepted only in UNPROVISIONED with renter button confirmation, device.reset
+  only as an operator-signed DeviceReset, setup sessions only in UNPROVISIONED or PROVISIONED_NO_ANCHOR;
+  the secure partition binds each button token to one registered digest and purpose'
 acceptance_criteria:
 - description: 'DF-20260925-02 exists as a JSON decision register rendered to md whose content is complete
     and internally resolved: every DF-01 decision D01..D19 and RR-DEC-01 has a disposition (kept/amended/withdrawn)
     with old/new/reason/affectedFiles; every new decision N01..Nxx has value, requiredIn, mustContain
     and resolves; every requiredIn document cites the decision id and contains its mustContain tokens;
     every cited id resolves; every DF-01 product id B-01..B-10 resolves through the B-nn to P-nn mapping;
-    the seven parameters each have a unit and a value inside their stated bounds, with attestationValidity
+    the nine parameters each have a unit and a value inside their stated bounds, with attestationValidity
     = 86400 s and kioskMinGasBalance carrying its estimate provenance'
   semantic_ac_key: ac_0a4ee8040b93e453
   verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check register
@@ -271,7 +279,7 @@ acceptance_criteria:
   - docs/content/specifications/protocol/eip712-vectors.json
   output_assertion: OK
 - description: A regenerated 12-week WBS for DF-02 exists as product-worklist-and-12week-wbs-02.{csv,md},
-    whose rows cover only P01, P04, P05, P06, P07 and P10 and whose md states the week 4/6/8 gates with
+    whose rows cover only P01, P04, P05, P06, P07 and P10 and whose md states the W4/W6/W7/W9 gates with
     BR-01..BR-08, the role owners and the cut order; every row has exactly one owner among the user, role
     A and role B, and no owner exceeds the available days recorded per week, with week 4 marked shortened
     by Chuseok
@@ -387,14 +395,14 @@ ontology_schema:
   - name: gates
     type: array
     required: true
-    description: 'Delivery gates: week 4 evidence gate (board BR-01..BR-08, software-signer PaymentSettled,
-      SE datasheet secp256k1), week 6 in-board key scope-cut trigger, week 8 external SE'
+    description: 'Delivery gates: W4 evidence (BR-01..BR-08, SE datasheet), W6 contract (software-signer
+      PaymentSettled), W7 in-board key end-to-end scope-cut trigger, W9 external SE'
   - name: cut_list
     type: array
     required: true
-    description: 'Pre-agreed scope cuts if the week-6 gate fails, in order: external SE, P07, delayed-withdrawal
-      demo; the on-device merchant display is never cut; cutting P07 turns the P07 receipt acceptance
-      item into its substitute evidence'
+    description: 'Pre-agreed scope cuts if the W7 gate fails, in order: external SE, P07, NFC handover;
+      the on-device merchant display is never cut; cutting P07 turns the P07 receipt acceptance item into
+      its substitute evidence'
   - name: wbs
     type: object
     required: true
@@ -433,9 +441,9 @@ ontology_schema:
   - name: parameters
     type: object
     required: true
-    description: 'Seven named constants perPaymentCap, dailyCap, withdrawalDelay, payoutChangeDelay, authorizationExpiry,
-      attestationValidity, kioskMinGasBalance, each {value > 0, unit}; bounds: 0 < perPaymentCap <= dailyCap,
-      authorizationExpiry 30-300 s, withdrawalDelay 600-604800 s, payoutChangeDelay >= 3600 s'
+    description: Nine named constants perPaymentCap, dailyCap, withdrawalDelay, payoutChangeDelay, authorizationExpiry,
+      attestationValidity, kioskMinGasBalance, pinMaxRetries, anchorClockSkew, each {value > 0, unit,
+      rationale}
   - name: validator_groups
     type: array
     required: true
@@ -527,7 +535,7 @@ exit_conditions:
     and the evidence that forced it
 metadata:
   seed_id: seed_9e6901e19736
-  version: 1.4.2
+  version: 1.5.0
   revision: 4
   created_at: '2026-09-24T16:10:01.628831Z'
   revised_at: '2026-09-25'

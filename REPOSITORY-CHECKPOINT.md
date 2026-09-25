@@ -56,9 +56,11 @@ python3 scripts/check_markdown_links.py
 python3 docs/content/planning/build_design_freeze.py
 python3 docs/content/planning/validate_design_freeze.py
 python3 docs/content/specifications/validate_specs.py
+python3 docs/content/planning/validate_design_freeze_02.py --check all
+python3 docs/content/planning/validate_design_freeze_02.py --self-test
 ```
 
-첫 검사는 checkpoint와 manifest를 재생성한다. 두 번째는 20/10/8/7 개수, ID, source hash, 실행 비활성, chain/secret gate를 검사한다. 세 번째는 기존 API 110개·BLE 34개·권한 60개 등 상세 명세의 구조와 참조를 검사한다.
+첫 검사는 checkpoint와 manifest를 재생성한다. 두 번째는 20/10/8/7 개수, ID, source hash, 실행 비활성, chain/secret gate를 검사한다. 세 번째는 기존 API 110개·BLE 34개·권한 60개 등 상세 명세의 구조와 참조를 검사한다. 마지막 두 줄은 DF-20260925-02 register와 그 문서들을 HEAD 기준으로 검사하고, 각 검사가 틀린 입력을 거부하는지 확인한다.
 
 ## Git 상태
 

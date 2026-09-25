@@ -70,7 +70,7 @@ def render(reg: dict) -> str:
     out.append("")
 
     out.append("## 3. 파라미터\n")
-    out.append("값은 여기 한 곳에만 둔다. 다른 문서는 [N13]·[N10]·[N05]를 인용한다.\n")
+    out.append("값은 여기 한 곳에만 둔다. 다른 문서는 [N13]·[N10]·[N05]·[N06]·[N11]을 인용한다.\n")
     out.append("| 이름 | 값 | 단위 | 범위 | 근거 |")
     out.append("|---|---:|---|---|---|")
     for name, p in reg["parameters"].items():
@@ -92,7 +92,7 @@ def render(reg: dict) -> str:
     out.append("")
     out.append("다음 문서는 첫 줄에 대체 배너가 있고 나머지는 baseCommit 원문과 같다.\n")
     for b in reg["bannerRecord"]:
-        out.append(f"- [{b['path'].removeprefix('docs/content/')}]({link(RENDERED, b['path'])}) `{b['baseSha256'][:19]}…`")
+        out.append(f"- [{b['path'].removeprefix('docs/content/')}]({link(RENDERED, b['path'])}) `{b['baseSha256']}`")
     out.append("")
 
     out.append("## 6. 검증 범위\n")

@@ -177,7 +177,8 @@ def rendered_from(t: Tree) -> str:
 
 EXPECTED_DF01 = [f"D{i:02}" for i in range(1, 20)] + ["RR-DEC-01"]
 PARAMETER_KEYS = ["perPaymentCap", "dailyCap", "withdrawalDelay", "payoutChangeDelay",
-                  "authorizationExpiry", "attestationValidity", "kioskMinGasBalance"]
+                  "authorizationExpiry", "attestationValidity", "kioskMinGasBalance",
+                  "pinMaxRetries", "anchorClockSkew"]
 
 
 def reg_parse(t: Tree) -> None:
@@ -266,12 +267,15 @@ def reg_parameters(t: Tree) -> None:
     require(params["perPaymentCap"]["unit"] == params["dailyCap"]["unit"], a, "caps share a unit")
     require(30 <= v["authorizationExpiry"] <= 300, a, "authorizationExpiry must be 30..300 s")
     require(600 <= v["withdrawalDelay"] <= 604800, a, "withdrawalDelay must be 600..604800 s")
-    require(v["payoutChangeDelay"] >= 3600, a, "payoutChangeDelay must be >= 3600 s")
+    require(v["withdrawalDelay"] >= v["authorizationExpiry"], a, "withdrawalDelay must be >= authorizationExpiry")
+    require(v["payoutChangeDelay"] >= v["attestationValidity"], a, "payoutChangeDelay must be >= attestationValidity")
+    require(3 <= v["pinMaxRetries"] <= 10, a, "pinMaxRetries must be 3..10")
+    require(0 < v["anchorClockSkew"] <= 300, a, "anchorClockSkew must be 1..300 s")
     require(v["attestationValidity"] == 86400 and params["attestationValidity"]["unit"] == "s", a,
             "attestationValidity is fixed at 86400 s")
     prov = params["kioskMinGasBalance"].get("provenance", {})
-    require(prov.get("kind") == "estimate" and prov.get("remeasureAt") == "W4" and prov.get("gasPriceGwei"), a,
-            "kioskMinGasBalance must carry its estimate provenance and W4 re-measurement")
+    require(prov.get("kind") == "estimate" and prov.get("remeasureAt") and prov.get("gasPriceGwei"), a,
+            "kioskMinGasBalance must carry its estimate provenance and a re-measurement week")
 
 
 def reg_rendered(t: Tree) -> None:
@@ -438,8 +442,27 @@ def wbs_capacity(t: Tree) -> None:
     for (w, owner), days in sorted(load.items()):
         require(days <= available[w][owner] + 1e-9, "wbs.capacity",
                 f"W{w} {owner} load {days:.2f} d exceeds available {available[w][owner]} d")
-    require(available[4]["user"] < max(available[3]["user"], available[5]["user"]), "wbs.capacity",
-            "W4 must be recorded shorter than its neighbours (Chuseok)")
+    require(available[4]["user"] < available[5]["user"], "wbs.capacity",
+            "W4 must be recorded shorter than W5 (Chuseok)")
+
+
+def wbs_dependencies(t: Tree) -> None:
+    rows = {r["id"]: r for r in wbs_rows(t)}
+    for r in rows.values():
+        for dep in r["dependsOn"].split():
+            if dep == "-":
+                continue
+            require(dep in rows, "wbs.dependencies", f"{r['id']} depends on unknown {dep}")
+            require(int(rows[dep]["endWeek"]) <= int(r["startWeek"]), "wbs.dependencies",
+                    f"{r['id']} starts W{r['startWeek']} before {dep} ends W{rows[dep]['endWeek']}")
+
+
+def wbs_gates(t: Tree) -> None:
+    for r in wbs_rows(t):
+        if r["gate"] != "-":
+            gate = int(r["gate"].lstrip("W"))
+            require(int(r["endWeek"]) <= gate, "wbs.gates",
+                    f"{r['id']} ends W{r['endWeek']} after its gate {r['gate']}")
 
 
 def wbs_md_tokens(t: Tree) -> None:
@@ -557,6 +580,8 @@ GROUPS: dict[str, list[tuple[str, Callable[[Tree], None]]]] = {
         ("wbs.products", wbs_products),
         ("wbs.owners", wbs_owners),
         ("wbs.capacity", wbs_capacity),
+        ("wbs.dependencies", wbs_dependencies),
+        ("wbs.gates", wbs_gates),
         ("wbs.md_tokens", wbs_md_tokens),
     ],
     "acceptance": [
