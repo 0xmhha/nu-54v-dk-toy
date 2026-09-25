@@ -1,5 +1,7 @@
 # P01 · NU-54V-DK device firmware
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p01/plan.md) · [SRS](../../docs/content/products/p01/srs.md) · [유즈케이스](../../docs/content/products/p01/use-cases.md) · [설계](../../docs/content/products/p01/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
 NU-54V-DK에서 실행되는 Zephyr 기반 제품이다.
 
 - **소유 범위:** 보드 bring-up, 보호 키와 EOA 서명, 인증 BLE, 기기 설정,

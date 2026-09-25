@@ -1,5 +1,7 @@
 # P06 · StableNet contracts
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p06/plan.md) · [SRS](../../docs/content/products/p06/srs.md) · [유즈케이스](../../docs/content/products/p06/use-cases.md) · [설계](../../docs/content/products/p06/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
 StableNet testnet의 자산, 계정, 자격과 유료 리소스 계약 제품이다.
 
 - **소유 범위:** dummy USDC, WKRC, 일반 EOA 경로, Smart Account, DID,

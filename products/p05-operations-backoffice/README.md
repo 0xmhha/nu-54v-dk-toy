@@ -1,5 +1,7 @@
 # P05 · Operations backoffice
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p05/plan.md) · [SRS](../../docs/content/products/p05/srs.md) · [유즈케이스](../../docs/content/products/p05/use-cases.md) · [설계](../../docs/content/products/p05/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
 운영자가 가맹점, 대여 기기와 결제 예외를 관리하는 제품이다.
 
 - **소유 범위:** 운영자 RBAC와 감사, 가맹점 승인, 대여·반납, FOTA 캠페인,

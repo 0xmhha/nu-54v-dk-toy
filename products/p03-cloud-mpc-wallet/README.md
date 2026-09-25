@@ -1,5 +1,7 @@
 # P03 · Cloud MPC wallet
 
+> **DF-20260925-02 기준 (2026-09-25):** 이 제품은 이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle). [설계 동결 DF-20260925-02](../../docs/content/planning/design-freeze-checkpoint-02.md) 참조. 아래 원문은 DF-20260920-01 기준이다.
+
 소셜 계정과 연결되는 2-of-3 Cloud Wallet 제품 경계다.
 
 - **소유 범위:** 분산 키 생성, 계정 연결, 별도 모바일 승인, threshold 서명,

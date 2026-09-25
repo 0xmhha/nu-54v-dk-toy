@@ -1,5 +1,7 @@
 # P04 · Merchant kiosk
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p04/plan.md) · [SRS](../../docs/content/products/p04/srs.md) · [유즈케이스](../../docs/content/products/p04/use-cases.md) · [설계](../../docs/content/products/p04/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
 가맹점 Android 태블릿에서 실행하는 React Native 키오스크 제품이다.
 
 - **소유 범위:** 점주 로그인, 매장·메뉴·재고·주문, BLE 결제 세션,

@@ -1,5 +1,7 @@
 # P08 · Market services
 
+> **DF-20260925-02 기준 (2026-09-25):** 이 제품은 이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle). [설계 동결 DF-20260925-02](../../docs/content/planning/design-freeze-checkpoint-02.md) 참조. 아래 원문은 DF-20260920-01 기준이다.
+
 StableNet testnet에서 학습·시연할 시장 상품 제품 경계다.
 
 - **소유 범위:** AMM/LP/swap, TEST FX, perpetual 포지션·펀딩·청산,

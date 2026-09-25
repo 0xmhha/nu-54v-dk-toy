@@ -1,5 +1,7 @@
 # P10 · Common platform
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p10/plan.md) · [SRS](../../docs/content/products/p10/srs.md) · [유즈케이스](../../docs/content/products/p10/use-cases.md) · [설계](../../docs/content/products/p10/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
 모든 제품이 같은 주문, 결제, 권한과 릴리스 의미를 사용하도록 하는 공통
 플랫폼 제품이다.
 
