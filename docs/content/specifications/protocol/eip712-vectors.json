@@ -1,5 +1,5 @@
 {
-  "description": "Deterministic EIP-712 vectors for DF-20260925-02 [N04][N21]. Test-only EOA from Foundry's public test mnemonic, index 0. Addresses are repeated-byte placeholders. Never fund these accounts.",
+  "description": "Deterministic EIP-712 vectors for DF-20260925-02 [N04][N21]. Test-only EOAs from Foundry's public test mnemonic: device index 0, operator index 1, merchant index 2. Contract and token addresses are repeated-byte placeholders; device, operator and merchant addresses are the derived test EOAs. Reference time for all timestamps is 1790000000 (TimeAnchor TA-01); authorization expiries are reference time + authorizationExpiry (120 s). Never fund these accounts.",
   "schema": "payment-protocol.schema.json",
   "domain": {
     "name": "NU54 Payment Settlement",
@@ -16,7 +16,7 @@
       "message": {
         "chainId": "8283",
         "contract": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
-        "merchant": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
         "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
         "token": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
         "amount": "4500000",
@@ -24,9 +24,9 @@
         "nonce": "1",
         "expiry": "1790000120"
       },
-      "digest": "0x0c3bcfe73d2893ffdc41ee93159cd5fb2f13943c4a96879bab2ac203e0f94308",
+      "digest": "0x0b9fc43a93a39583a9e491c38cecbc4e9d7f019eb50b1edd69abca2c5d3c4c0d",
       "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "signature": "0xba0feae19aa5177348bd2ec00860a7701adbd00f4c49f2ac08999ff917e10cc63ae504ab6a1e48bd6057cdc6a8cdbcf92625f54c30a23cf58de14f4e0b55a8941c"
+      "signature": "0xe9bf5cd78180c0d2b03e1b100a3f02019342c290df5f7a1619cbc305db3eca0c789c6b58a180bb7c89af5a8f1acbbef8d7ef7eadfd3081fb815dd58180c805f61c"
     },
     {
       "id": "PA-02",
@@ -36,17 +36,17 @@
       "message": {
         "chainId": "8283",
         "contract": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
-        "merchant": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
         "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
         "token": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
         "amount": "50000000",
         "orderId": "0x0202020202020202020202020202020202020202020202020202020202020202",
         "nonce": "57896044618658097711785492504343953926634992332820282019728792003956564819975",
-        "expiry": "1790000300"
+        "expiry": "1790000120"
       },
-      "digest": "0xf0f15ae543dfa2b90c5352ef7bdaa235a37d6db410e6b8947eb5985fe1ffd6f7",
+      "digest": "0x1db130efce370efbdcc149253bb7fbb5b2ba1a5d6a4a77dab50edde2e0fb3ead",
       "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "signature": "0x86f1521b8fb4f583ad3a905c78a5bcf6db87a97739712af90eb94be7dcb6ad0063f13eecb2a56c891c7bc7745ae8921f42fa89a0f34d17d6113fab37af02a1321c"
+      "signature": "0x16a6e749d9b699ec8679f8976cab31b971c47b38739f4aa39a4ec98ca95a74f8319428563b1881a11824a88fe339660a19fa06f4945c10aa83fef4322bac432b1b"
     },
     {
       "id": "LC-01",
@@ -71,15 +71,15 @@
       "signerRole": "operator",
       "encodeType": "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
       "message": {
-        "merchant": "0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
         "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
         "name": "Cafe Test 01",
         "validFrom": "1790000000",
         "validUntil": "1790086400"
       },
-      "digest": "0x0386617c40551dbf3c77a72d8d20b9acbf4380e7884c10cce09e3d70913155a2",
-      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "signature": "0x15571388df1b03dfc2b5973bbabab552a8307f0b996c25e763fb3a6749d4e03a40148c1b73569b95cf8e596ae1a7cca0f980a530d4d2baea69ee75e8abb6d50b1b"
+      "digest": "0xde1c3409c70a4e17aa3049f658982a237b069fb5e9266d6045abd6291d828df5",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "signature": "0xfe8720456d23e5b56f0ab427f846b09ffeae2c72baeb9731659a0dfa4fcd0caf693f70d082b35d58496aaca00fd82d7fe8e229dc694fe556a25c7cccb18c6f861c"
     },
     {
       "id": "MO-01",
@@ -94,8 +94,8 @@
         "expiry": "1790000120"
       },
       "digest": "0x157673038d078e2568133862a79a4eed8609faccc15d7b67269c50aef1d5f414",
-      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "signature": "0x2bcf3933affa72384822e1184df4abd7060b8a24f770526a633c12e645f3f3503ba7ac090c786428e465781493346bcf350ce658eb1ccc2e913fdc6ed40a899d1b"
+      "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "signature": "0x4b48fad6055c5a14b7956546416288b6dae0e0db7cd9fa6e199a64c1d9911fb7197623b1f1793b4123dae7ffd82a9b408d72ca456d3668d15e3511e4fe69759f1b"
     },
     {
       "id": "TA-01",
@@ -107,8 +107,21 @@
         "timestamp": "1790000000"
       },
       "digest": "0x6470c1f8b0720f58d0a97c9eb30e6da1e086b2a87a5805467fba797c611adc08",
-      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "signature": "0x215c32f8eeba1d0b64bdeedd4909c958bd2598a96bfbff903f99dc2a15c16e3c0054a9b468b32c4c35536bddf6cc2915fae2052228d519b1444f004ab94a2b271b"
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "signature": "0x23d28a27ff352dfccda1a6cf617291c1fce945cad308edb5d356cc269d7fa2222097f5fd79341c3ccc7f7bb953f9a51949a22c0d1599fc533da6601add87185d1c"
+    },
+    {
+      "id": "DR-01",
+      "primaryType": "DeviceReset",
+      "signerRole": "operator",
+      "encodeType": "DeviceReset(address device,uint256 nonce)",
+      "message": {
+        "device": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "nonce": "1"
+      },
+      "digest": "0x82c3e82ec6c746a57f81d93028e4c4bde9159f0cd16b3b654c80ab1a66fd62cf",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "signature": "0xcdcf7cf747dbee6adf9a63c8364c663fcb222259cf007c1360dc5a375c842022614521e02ac4bf02889241a3004247b2f1d0feb830042ecd5d7ee0dae19f37791b"
     }
   ]
 }

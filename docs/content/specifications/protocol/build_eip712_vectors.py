@@ -6,8 +6,10 @@ Each vector carries the EIP-712 digest computed here (Keccak-256 via Foundry
 hashes the same typed data independently. The script fails if cast's recovered
 signer differs, so the digest and the typed-data encoding are cross-checked.
 
-Signer: Foundry's public test mnemonic, account index 0 (test-only EOA; never
-fund it on any network). No key material is written to the repository.
+Signers: Foundry's public test mnemonic with one index per role (device 0,
+operator 1, merchant 2), so a verifier that checks the wrong role fails the
+vectors. Test-only EOAs; never fund them. No key material is written to the
+repository.
 
 Usage:
     python3 docs/content/specifications/protocol/build_eip712_vectors.py
@@ -79,7 +81,14 @@ def digest(domain_fields: list, domain: dict, name: str, types: dict, message: d
     return keccak("0x1901" + domain_hash + msg_hash)
 
 
-def sign_typed(domain_fields: list, domain: dict, name: str, types: dict, message: dict) -> str:
+ROLE_INDEX = {"device": "0", "operator": "1", "merchant": "2"}
+
+
+def role_address(role: str) -> str:
+    return cast("wallet", "address", "--mnemonic", MNEMONIC, "--mnemonic-index", ROLE_INDEX[role])
+
+
+def sign_typed(domain_fields: list, domain: dict, name: str, types: dict, message: dict, role: str) -> str:
     typed = {
         "types": {"EIP712Domain": [{"name": f["name"], "type": f["type"]} for f in domain_fields], name: types[name]},
         "primaryType": name,
@@ -89,37 +98,39 @@ def sign_typed(domain_fields: list, domain: dict, name: str, types: dict, messag
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
         json.dump(typed, fh)
         path = fh.name
-    return cast("wallet", "sign", "--mnemonic", MNEMONIC, "--mnemonic-index", "0", "--data", "--from-file", path)
+    return cast("wallet", "sign", "--mnemonic", MNEMONIC, "--mnemonic-index", ROLE_INDEX[role], "--data", "--from-file", path)
 
 
 def build() -> dict:
     schema = json.loads(SCHEMA.read_text())
     domain_fields = schema["eip712Domain"]
     types = {**schema["eip712Types"], **schema["operatorSignedTypes"]}
-    signer = cast("wallet", "address", "--mnemonic", MNEMONIC, "--mnemonic-index", "0")
+    device, operator, merchant = role_address("device"), role_address("operator"), role_address("merchant")
     contract = addr("c0")
     domain = {"name": "NU54 Payment Settlement", "version": "1", "chainId": 8283, "verifyingContract": contract}
     cases = [
         ("PA-01", "PaymentAuthorization", "device", {
-            "chainId": 8283, "contract": contract, "merchant": addr("a1"), "payout": addr("b1"), "token": addr("d1"),
+            "chainId": 8283, "contract": contract, "merchant": merchant, "payout": addr("b1"), "token": addr("d1"),
             "amount": 4500000, "orderId": b32("01"), "nonce": 1, "expiry": 1790000120}),
         ("PA-02", "PaymentAuthorization", "device", {
-            "chainId": 8283, "contract": contract, "merchant": addr("a1"), "payout": addr("b1"), "token": addr("d1"),
-            "amount": 50000000, "orderId": b32("02"), "nonce": 2**255 + 7, "expiry": 1790000300}),
+            "chainId": 8283, "contract": contract, "merchant": merchant, "payout": addr("b1"), "token": addr("d1"),
+            "amount": 50000000, "orderId": b32("02"), "nonce": 2**255 + 7, "expiry": 1790000120}),
         ("LC-01", "LimitChange", "device", {
             "chainId": 8283, "contract": contract, "perPaymentLimit": 20000000, "dailyLimit": 100000000,
             "nonce": 3, "expiry": 1790000120}),
         ("MA-01", "MerchantAttestation", "operator", {
-            "merchant": addr("a1"), "payout": addr("b1"), "name": "Cafe Test 01",
+            "merchant": merchant, "payout": addr("b1"), "name": "Cafe Test 01",
             "validFrom": 1790000000, "validUntil": 1790086400}),
         ("MO-01", "MerchantOrder", "merchant", {
             "orderId": b32("01"), "token": addr("d1"), "amount": 4500000, "payout": addr("b1"), "expiry": 1790000120}),
-        ("TA-01", "TimeAnchor", "operator", {"device": signer, "timestamp": 1790000000}),
+        ("TA-01", "TimeAnchor", "operator", {"device": device, "timestamp": 1790000000}),
+        ("DR-01", "DeviceReset", "operator", {"device": device, "nonce": 1}),
     ]
     vectors = []
     for vid, name, role, message in cases:
         d = digest(domain_fields, domain, name, types, message)
-        sig = sign_typed(domain_fields, domain, name, types, message)
+        signer = {"device": device, "operator": operator, "merchant": merchant}[role]
+        sig = sign_typed(domain_fields, domain, name, types, message, role)
         recovered = cast("wallet", "verify", "--address", signer, "--no-hash", d, sig)
         if "succeeded" not in recovered.lower() and "valid" not in recovered.lower():
             raise SystemExit(f"{vid}: cast signature does not verify against the computed digest: {recovered}")
@@ -134,7 +145,7 @@ def build() -> dict:
             "signature": sig,
         })
     return {
-        "description": "Deterministic EIP-712 vectors for DF-20260925-02 [N04][N21]. Test-only EOA from Foundry's public test mnemonic, index 0. Addresses are repeated-byte placeholders. Never fund these accounts.",
+        "description": "Deterministic EIP-712 vectors for DF-20260925-02 [N04][N21]. Test-only EOAs from Foundry's public test mnemonic: device index 0, operator index 1, merchant index 2. Contract and token addresses are repeated-byte placeholders; device, operator and merchant addresses are the derived test EOAs. Reference time for all timestamps is 1790000000 (TimeAnchor TA-01); authorization expiries are reference time + authorizationExpiry (120 s). Never fund these accounts.",
         "schema": "payment-protocol.schema.json",
         "domain": domain,
         "vectors": vectors,
