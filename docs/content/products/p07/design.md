@@ -14,17 +14,17 @@ StableNet 8283 RPC ──(finalized, eth_getLogs)──> ingest loop ──> SQL
 
 1. `eth_getBlockByNumber("finalized")`로 finalized 번호 F를 읽는다.
 2. cursor C가 F 이상이면 폴링 주기만큼 기다린다.
-3. `eth_getLogs{address: 정산 컨트랙트, topics: [PaymentSettled topic], fromBlock: C+1, toBlock: min(F, C+1000)}`를 호출한다.
-4. 로그를 decode해 한 transaction 안에서 영수증 행을 넣고 cursor를 toBlock으로 옮긴다.
+3. `eth_getLogs{address: 정산 컨트랙트, topics: [topic0], fromBlock: C+1, toBlock: min(F, C+1000)}`를 호출한다. topic0는 `keccak256("PaymentSettled(address,bytes32,address,uint256,uint256)")`이다 [N08].
+4. topics[1..3]에서 merchant·orderId·device를, data에서 amount·nonce를 decode해 한 transaction 안에서 영수증 행을 넣고 cursor를 toBlock으로 옮긴다.
 5. RPC나 decode 오류는 transaction 전체를 되돌리고 cursor를 유지한다.
 
-finalized 블록만 읽으므로 reorg rollback은 두지 않는다. 폴링 주기는 2초로 두어 P07-NFR-01(10 s)을 여유 있게 맞춘다.
+finalized 블록만 읽으므로 reorg rollback은 두지 않는다. 폴링 주기는 2초로 두어 제품 목표 P07-NFR-01(10 s)을 여유 있게 맞춘다. 이 값은 영수증 조회 목표이며 paid 판정과 무관하다.
 
 ## 3. 저장
 
 | 테이블 | 열 | 제약 |
 |---|---|---|
-| `receipts` | merchant, orderId, txHash, logIndex, blockNumber, blockTime | PK `(txHash, logIndex)`, 인덱스 `(merchant, orderId, blockNumber)` |
+| `receipts` | merchant, orderId, device, amount, nonce, txHash, logIndex, blockNumber, blockTime | PK `(txHash, logIndex)`, 인덱스 `(merchant, orderId, blockNumber)` |
 | `cursor` | id(=1), blockNumber | 한 행 |
 
 `(merchant, orderId)`에 여러 행이 있으면 조회는 가장 작은 blockNumber를 돌려주고 `duplicate: true`를 붙인다. 컨트랙트가 ORDER_ALREADY_PAID로 막으므로 정상이라면 생기지 않는다.
@@ -35,7 +35,7 @@ finalized 블록만 읽으므로 reorg rollback은 두지 않는다. 폴링 주�
 
 | 응답 | 본문 |
 |---|---|
-| 200 | `{merchant, orderId, blockNumber, blockTime, txHashShort, duplicate}` |
+| 200 | `{merchant, orderId, device, amount, blockNumber, blockTime, txHashShort, duplicate}` |
 | 404 | `{error: "NOT_INDEXED"}` |
 | 503 | `{error: "RPC_STALE", cursor}` (cursor가 finalized보다 60블록 넘게 뒤처질 때) |
 

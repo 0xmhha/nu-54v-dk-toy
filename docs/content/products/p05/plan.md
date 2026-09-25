@@ -6,13 +6,14 @@ P05는 이번 사이클에서 웹 백오피스가 아니라 운영자가 직접 
 
 | 기능 | 하는 일 | 관련 결정 |
 |---|---|---|
-| 가맹점 등록 | 가맹점 서명 주소와 payout을 P06 registry에 등록한다 | [N05] |
-| MerchantAttestation 발급 | 운영자 키로 attestation에 서명하고 attestationValidity가 끝나기 전에 매일 다시 발급한다 | [N05] [N13] |
+| 가맹점 등록 | registry 관리자 키로 가맹점 서명 주소와 payout을 P06 registry에 등록한다 | [N05] |
+| MerchantAttestation 발급 | 운영자 키로 attestation에 서명하고 attestationValidity가 끝나기 전에 매일 다시 발급한다. payout 변경 요청 뒤에는 validUntil을 변경 효력 시각으로 잘라 발급한다 | [N05] [N13] |
 | 시험 가맹점 주문 서명 | 시험 가맹점 키로 MerchantOrder에 서명하는 보조 도구 | [N04] |
-| 대여 셋업 | device.reset 뒤 기기가 만든 주소로 depositFor를 호출하고 TimeAnchor를 기기에 보낸다 | [N06] [N07] [N11] |
-| 반납 | closeAccount를 호출하고 기기 초기화를 확인한다 | [N11] |
-| 가맹점 철회 | 시연용으로 registry에서 가맹점을 철회한다 | [N05] [N22] |
-| payout 변경 | payoutChangeDelay가 지난 뒤 효력이 생기는 payout 변경을 요청한다 | [N13] |
+| 대여 셋업 | 셋업 세션을 열어 `setup.operator`를 보내고(대여자 버튼 확인), 기기가 TRNG 키와 PIN을 만든 뒤 `setup.ack{keygen, device}`로 알린 주소로 TimeAnchor에 서명해 `setup.timeAnchor`를 보내며, 수락 ack를 확인한 뒤에만 depositFor를 호출한다 | [N06] [N07] [N11] [N23] |
+| 반납 | closeAccount를 호출하고 finalized 이벤트를 확인한 뒤 운영자가 서명한 DeviceReset을 `device.reset`으로 보낸다 | [N11] [N23] |
+| 가맹점 철회 | 시연용으로 registry 관리자 키로 가맹점을 철회한다 | [N05] [N22] |
+| payout 변경 | registry 관리자 키로 payoutChangeDelay(attestationValidity 이상)가 지난 뒤 효력이 생기는 payout 변경을 요청하고(필요하면 cancelPayoutChange로 되돌림), 효력 시각에 새 payout attestation을 발급한다 | [N05] [N13] |
+| 시험 가맹점 키 전달 | 시험 가맹점 서명 키를 P05 도구로 만들어 키오스크 설정에 secretRef로 전달한다. 키 원문은 저장소에 올리지 않는다 | [N05] |
 
 ## 2. 산출물
 
@@ -20,32 +21,38 @@ P05는 이번 사이클에서 웹 백오피스가 아니라 운영자가 직접 
 - `script/IssueAttestation.s.sol` — MerchantAttestation 서명과 JSON 출력
 - `script/SignOrder.s.sol` — 시험 가맹점의 MerchantOrder 서명
 - `script/ProvisionRental.s.sol` — depositFor 호출
-- `script/IssueTimeAnchor.s.sol` — TimeAnchor 서명
+- `script/IssueTimeAnchor.s.sol` — keygen ack로 받은 기기 주소로 TimeAnchor 서명
 - `script/CloseRental.s.sol` — closeAccount 호출
-- `script/RevokeMerchant.s.sol`, `script/ChangePayout.s.sol`
-- `tools/setup-client/` — BLE 셋업 세션으로 `setup.timeAnchor`를 보내는 호스트 도구
+- `script/Withdraw.s.sol` — requestWithdrawal·cancelWithdrawal·executeWithdrawal 호출
+- `script/SignDeviceReset.s.sol` — DeviceReset `{device, nonce}` 서명
+- `script/RevokeMerchant.s.sol`, `script/ChangePayout.s.sol`(cancelPayoutChange 포함)
+- `tools/merchant-key/` — 시험 가맹점 키 생성과 키오스크 secretRef 전달
+- `tools/setup-client/` — BLE 셋업 세션으로 `setup.operator`, `setup.timeAnchor`를 보내고 `device.reset`을 보내는 호스트 도구
+- `tools/refusal-host/` — 따로 페어링해 결제 세션을 열고 스키마 밖 요청을 보내는 거절 시연 도구(키오스크 빌드에는 넣지 않는다)
 - 실행 로그 템플릿과 redaction 규칙 문서
 
 ## 3. 일정
 
 | WBS | 내용 | 주차 | 게이트 |
 |---|---|---|---|
-| WBS2-P05-01 | 가맹점 등록·attestation 스크립트 | W1–W3 | W4 증거 게이트에서 소프트웨어 서명 정산에 쓰인다 |
-| WBS2-P05-02 | provisioning(depositFor, TimeAnchor)과 반납(closeAccount) | W5–W7 | W6 실결제 게이트의 대여 셋업에 쓰인다 |
+| WBS2-P05-01 | 가맹점 등록·attestation·주문 서명 스크립트(P06-01의 최소 registry 사용) | W6 | W7 실결제 게이트의 가맹점 준비 |
+| WBS2-P05-02 | provisioning(`setup.operator`, TimeAnchor, depositFor) | W7 | W7 실결제 게이트의 대여 셋업 |
+| WBS2-P05-03 | 반납(closeAccount, 서명된 DeviceReset). P06의 closeAccount 구현(WBS2-P06-04) 뒤에 한다 | W10 | - |
+| WBS2-P05-04 | 철회·payout 변경 스크립트와 거절 시연 host 도구 | W9–W10 | - |
 
-일정과 게이트 정의는 [12주 WBS](../../planning/product-worklist-and-12week-wbs-02.md)를 따른다 [N03].
+게이트는 W4 증거, W6 컨트랙트, W7 실결제, W9 SE이며 일정과 정의는 [12주 WBS](../../planning/product-worklist-and-12week-wbs-02.md)를 따른다 [N03].
 
 ## 4. 의존성
 
-- P06 정산 컨트랙트 ABI와 8283 배포 manifest(WBS2-P06-01, WBS2-P06-02). ABI가 바뀌면 스크립트를 다시 맞춘다.
-- P01의 BLE 셋업 세션. `setup.timeAnchor` 메시지는 [결제 프로토콜](../../specifications/protocol/payment-protocol.md) 5절을 따른다.
+- P06 정산 컨트랙트와 최소 registry의 ABI, 8283 배포 manifest(WBS2-P06-01, WBS2-P06-02). payout 변경은 WBS2-P06-03 뒤에, 반납은 WBS2-P06-04 뒤에 쓴다. ABI가 바뀌면 스크립트를 다시 맞춘다.
+- P01의 BLE 셋업 세션과 `device.reset` 처리. 메시지는 [결제 프로토콜](../../specifications/protocol/payment-protocol.md) 5절을 따른다.
 - P10의 EIP-712 스키마와 `eip712-vectors.json`. 서명 결과를 벡터로 교차 검증한다 [N21].
 
 ## 5. 위험
 
-- 운영자 키가 단일 실패 지점이다. 키가 새면 가짜 attestation과 TimeAnchor를 만들 수 있다. testnet에서는 역할별 EOA 하나씩(운영자, registry 관리자, 키오스크)만 두고 multisig/HSM은 보류한다.
+- 운영자 키가 단일 실패 지점이다. 키가 새면 가짜 attestation과 TimeAnchor를 만들 수 있다. testnet에서는 역할별 EOA 하나씩(운영자, registry 관리자, 키오스크, 시험 가맹점)만 두고 multisig/HSM은 보류한다.
 - 예치금은 운영자가 대신 넣는 custodial 구조다. 시험 전용 토큰만 쓴다.
-- role B가 P04·P07과 함께 맡으므로 W5–W7 부하가 가용 일수에 가깝다.
+- role B가 P04와 함께 맡으므로 W6, W9에 가용 일수를 모두 쓴다.
 
 ## 6. 범위 밖
 
