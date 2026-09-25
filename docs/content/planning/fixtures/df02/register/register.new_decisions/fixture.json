@@ -1,0 +1,11 @@
+{
+  "assertion": "register.new_decisions",
+  "ops": [
+    {
+      "op": "json_set",
+      "path": "docs/content/planning/design-freeze-checkpoint-02.json",
+      "pointer": "/newDecisions/1/id",
+      "value": "N99"
+    }
+  ]
+}

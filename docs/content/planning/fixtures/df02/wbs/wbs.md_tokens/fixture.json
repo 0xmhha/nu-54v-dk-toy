@@ -1,0 +1,11 @@
+{
+  "assertion": "wbs.md_tokens",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+      "old": "Chuseok",
+      "new": "holiday"
+    }
+  ]
+}

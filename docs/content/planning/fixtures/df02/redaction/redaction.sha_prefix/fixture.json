@@ -1,0 +1,10 @@
+{
+  "assertion": "redaction.sha_prefix",
+  "ops": [
+    {
+      "op": "write",
+      "path": "docs/content/planning/fixture-sha-probe.md",
+      "content": "# probe\n\nchecksum cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd 를 접두어 없이 적었다.\n"
+    }
+  ]
+}

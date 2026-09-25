@@ -1,0 +1,11 @@
+{
+  "assertion": "register.rendered",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+      "old": "## 1. 새 결정",
+      "new": "## 1. 새 결정 (손으로 고침)"
+    }
+  ]
+}

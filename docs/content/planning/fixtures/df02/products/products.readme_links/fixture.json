@@ -1,0 +1,11 @@
+{
+  "assertion": "products.readme_links",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "products/p05-operations-backoffice/README.md",
+      "old": "(../../docs/content/products/p05/srs.md)",
+      "new": "(../../docs/content/products/p05/srs-old.md)"
+    }
+  ]
+}

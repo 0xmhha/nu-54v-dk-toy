@@ -1,0 +1,11 @@
+{
+  "assertion": "banners.first_line",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/stablenet-testnet-baseline.md",
+      "old": "> **Superseded by DF-20260925-02**",
+      "new": "> **Superseded**"
+    }
+  ]
+}

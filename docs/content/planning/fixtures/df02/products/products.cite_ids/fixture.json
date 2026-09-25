@@ -1,0 +1,10 @@
+{
+  "assertion": "products.cite_ids",
+  "ops": [
+    {
+      "op": "write",
+      "path": "docs/content/products/p07/use-cases.md",
+      "content": "# P07 유즈케이스\n\n이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. 이 문서는 self-test 전용으로 만든 가짜 유즈케이스다. 결정 ID를 인용하지 않는다. \n"
+    }
+  ]
+}

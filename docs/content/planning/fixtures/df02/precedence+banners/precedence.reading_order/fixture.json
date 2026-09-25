@@ -1,0 +1,11 @@
+{
+  "assertion": "precedence.reading_order",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/README.md",
+      "old": "content/planning/design-freeze-checkpoint-02.md",
+      "new": "content/planning/design-freeze-checkpoint-02-draft.txt"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "assertion": "protocol.md_tokens",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/specifications/protocol/payment-protocol.md",
+      "old": "proximityRef 필드는 removed.",
+      "new": "proximityRef 필드를 유지한다."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "assertion": "protocol.payment_fields",
+  "ops": [
+    {
+      "op": "json_set",
+      "path": "docs/content/specifications/protocol/payment-protocol.schema.json",
+      "pointer": "/eip712Types/PaymentAuthorization/8",
+      "value": {
+        "name": "proximityRef",
+        "type": "bytes32"
+      }
+    }
+  ]
+}

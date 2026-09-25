@@ -1,0 +1,11 @@
+{
+  "assertion": "acceptance.items",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/acceptance/week12-log.md",
+      "old": "| W12-11 |",
+      "new": "| W12-1X |"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "assertion": "register.parse",
+  "ops": [
+    {
+      "op": "json_set",
+      "path": "docs/content/planning/design-freeze-checkpoint-02.json",
+      "pointer": "/checkpointId",
+      "value": "DF-20260925-99"
+    }
+  ]
+}

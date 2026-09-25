@@ -1,0 +1,11 @@
+{
+  "assertion": "register.product_map",
+  "ops": [
+    {
+      "op": "json_set",
+      "path": "docs/content/planning/design-freeze-checkpoint-02.json",
+      "pointer": "/productIdMap/1/status",
+      "value": "buildable"
+    }
+  ]
+}

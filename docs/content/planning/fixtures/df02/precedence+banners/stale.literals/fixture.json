@@ -1,0 +1,10 @@
+{
+  "assertion": "stale.literals",
+  "ops": [
+    {
+      "op": "write",
+      "path": "docs/content/planning/fixture-stale-probe.md",
+      "content": "# probe\n\n초기 결제는 고객 가스 부담으로 한다.\n"
+    }
+  ]
+}

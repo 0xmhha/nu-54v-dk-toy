@@ -1,0 +1,10 @@
+{
+  "assertion": "redaction.hex",
+  "ops": [
+    {
+      "op": "write",
+      "path": "docs/content/planning/fixture-hex-probe.md",
+      "content": "# probe\n\n주소 0xabababababababababababababababababababab 를 그대로 적었다.\n"
+    }
+  ]
+}
