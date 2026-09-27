@@ -60,7 +60,7 @@ any           → Refused         (error UNSUPPORTED_TYPE 또는 NOT_PERMITTED)
 
 ## 5. 키 관리
 
-키오스크에는 키가 둘 있다. 가스 키는 트랜잭션 제출에만, 가맹점 서명 키는 가맹점 대리 MerchantOrder 서명에만 쓰며 둘 다 Android Keystore에 둔다. 사용자 결제 서명은 항상 기기에서 오며 키오스크는 PaymentAuthorization을 만들거나 고칠 수 없다 [N04]. 키오스크가 탈취되면 가맹점 서명 키도 함께 노출되지만, 기기는 운영자가 서명한 attestation의 payout과 다른 곳으로 서명하지 않고 버튼 승인을 요구하므로, 공격자가 할 수 있는 일은 등록된 payout으로 한도 안의 결제를 대여자 승인 아래 받는 것뿐이다 [N05].
+키오스크에는 키가 둘 있다. 가스 키는 트랜잭션 제출에만, 가맹점 서명 키는 가맹점 대리 MerchantOrder 서명과 보안 채널의 `kioskKeySignature`에만 쓴다. Android Keystore는 secp256k1을 직접 지원하지 않는다고 보고, 두 키를 Keystore의 AES 키로 감싸 앱 저장소에 둔다. 이 방식은 W5에 검증한다 [N32]. 키는 운영 도구가 전달한 secretRef로 한 번 받아 감싼 뒤 원문을 지운다. 사용자 결제 서명은 항상 기기에서 오며 키오스크는 PaymentAuthorization을 만들거나 고칠 수 없다 [N04]. 키오스크가 탈취되면 가맹점 서명 키도 함께 노출되지만, 기기는 운영자가 서명한 attestation의 payout과 다른 곳으로 서명하지 않고 버튼 승인을 요구하므로, 공격자가 할 수 있는 일은 등록된 payout으로 한도 안의 결제를 대여자 승인 아래 받는 것뿐이다 [N05].
 
 ## 6. 저장
 

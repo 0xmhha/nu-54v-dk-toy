@@ -830,6 +830,33 @@
         "W7"
       ],
       "resolves": []
+    },
+    {
+      "id": "N31",
+      "title": "금액 표시",
+      "value": "폰 앱은 금액을 토큰 단위(이번 사이클은 시험용 USDC)로 소수점 둘째 자리까지 표시하며, 셋째 자리 이하는 반올림하지 않고 버린다(예: 5.009999 USDC는 5.00 USDC). 그래서 화면 금액과 서명 금액은 결제 한 건에 0.01 USDC 미만만큼 다를 수 있고, 이 차이는 컨트랙트 한도 안에서 받아들인다. 토큰 기호와 소수 자릿수는 앱의 토큰 표에 둔다. 원화 환산 표시는 이번 사이클에 넣지 않는다.",
+      "requiredIn": [
+        "docs/content/products/p02/srs.md",
+        "docs/content/products/p02/design.md"
+      ],
+      "mustContain": [
+        "소수점 둘째 자리"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N32",
+      "title": "운영 키 보관",
+      "value": "배포자, 운영자, registry 관리자처럼 PC에서 쓰는 키는 Foundry와 go-ethereum이 함께 읽는 암호화 JSON keystore 파일로 두고 secretRef(keystore 경로와 암호 환경 변수)로만 연다. 키오스크의 가스 키와 가맹점 서명 키는 Android Keystore가 secp256k1을 직접 지원하지 않는다는 가정 아래 Keystore의 AES 키로 원시 키를 감싸 앱 저장소에 둔다. 두 방식은 개발 중(W5)에 검증하고, 결과가 다르면 이 결정을 개정한다. 사용자 기기 키는 이 결정의 대상이 아니다(N11).",
+      "requiredIn": [
+        "docs/content/products/p05/srs.md",
+        "docs/content/products/p04/design.md"
+      ],
+      "mustContain": [
+        "secretRef",
+        "Android Keystore"
+      ],
+      "resolves": []
     }
   ],
   "parameters": {
@@ -1036,9 +1063,11 @@
         "N27",
         "N28",
         "N29",
-        "N30"
+        "N30",
+        "N31",
+        "N32"
       ],
-      "change": "기기 화면을 없애고 대여자 폰 앱(P02)을 확인 화면으로 이번 사이클에 넣었다(N26). 폰 앱·운영자 도구는 QR passkey로 본딩하고 키오스크는 페어링 없이 보안 채널로 결제한다(N27). PIN은 기기 버튼으로 입력한다(N28). NFC를 뺐다(N29). W7은 non-secure 키와 평문으로 먼저 통과하고, role A가 P02를 맡는다(N30).",
+      "change": "기기 화면을 없애고 대여자 폰 앱(P02)을 확인 화면으로 이번 사이클에 넣었다(N26). 폰 앱·운영자 도구는 QR passkey로 본딩하고 키오스크는 페어링 없이 보안 채널로 결제한다(N27). PIN은 기기 버튼으로 입력한다(N28). NFC를 뺐다(N29). W7은 non-secure 키와 평문으로 먼저 통과하고, role A가 P02를 맡는다(N30). 금액은 토큰 단위 소수점 둘째 자리까지 버림으로 표시하고(N31), 운영 키는 keystore와 secretRef, 키오스크 키는 Android Keystore로 감싼 저장으로 정했다(N32).",
       "reason": "보드를 확인해 보니 화면과 NFC 안테나가 없고, TF-M용 보드 변형도 없었다. 화면 없는 기기에서 Numeric Comparison을 할 수 없고, 키오스크 링크는 카드 결제처럼 페어링 없이 쓰는 편이 사용 흐름에 맞다.",
       "preserves": "EIP-712 서명 타입 두 개, 버튼 승인, 컨트랙트 한도, 게이트 주차(W4·W6·W7·W9)와 cut order의 SE·P07 순서는 바꾸지 않는다.",
       "cost": "P02 작업 약 6일과 보안 채널 약 4.5일(기기 2.5, 키오스크 2)이 늘었다. role A의 W8–W12 부하가 가용 20일에 약 28.5일이며 폰 결제 확인 화면은 W12에 끝난다. 앱에서 PIN을 설정하는 기능은 다음 단계로 미뤘다."
