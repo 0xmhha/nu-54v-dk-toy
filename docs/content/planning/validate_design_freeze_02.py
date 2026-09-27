@@ -116,6 +116,10 @@ class Tree:
         return json.loads(self.read(path))
 
     def changed_since(self, base: str) -> set[str]:
+        # A squash merge drops branch commits, so the base must be a commit on main.
+        reachable = subprocess.run(["git", "merge-base", "--is-ancestor", base, "HEAD"], cwd=ROOT,
+                                   capture_output=True).returncode == 0
+        require(reachable, "register.base_commit", f"baseCommit {base[:12]} is not an ancestor of HEAD")
         changed = set(filter(None, git("diff", "--name-only", base, "HEAD").split("\n")))
         if self.worktree:
             changed |= set(filter(None, git("diff", "--name-only", "HEAD").split("\n")))

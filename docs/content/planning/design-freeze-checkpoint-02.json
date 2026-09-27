@@ -7,7 +7,7 @@
   "decisionAuthority": "interview_20260924_140535 and seed_9e6901e19736 revision 4 (1.4.1)",
   "seed": "docs/content/planning/seeds/seed_9e6901e19736.yaml",
   "freezeScope": {
-    "baseCommit": "e2b15d92c8bb5c43b67b39d4f82dca17479a1ff4",
+    "baseCommit": "c9d66aa2e439cc0566a9232bc46b203bf79bd612",
     "staleLiterals": [
       {
         "id": "SL-01",

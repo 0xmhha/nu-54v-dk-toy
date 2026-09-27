@@ -114,7 +114,7 @@
 
 ## 6. 검증 범위
 
-- baseCommit: `e2b15d92c8bb`
+- baseCommit: `c9d66aa2e439`
 - stale literal: SL-01(가스는 키오스크가 낸다 [N10]), SL-02(제품 정의 기준이 바뀌었다 [N01]), SL-03(finalized 이벤트가 paid를 정한다 [N08]), SL-04(환불은 범위 밖이다 [N17])
 - 예외 경로: DF-01 산출물과 입력, `docs/content/planning/seeds/`, `docs/design-history/`, `docs/content/planning/fixtures/df02/`
 - redaction 예외: `specifications/protocol/eip712-vectors.json`(public test-only EOA, deterministic vector)
