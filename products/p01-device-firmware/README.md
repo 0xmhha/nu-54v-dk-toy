@@ -2,6 +2,24 @@
 
 > **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p01/plan.md) · [SRS](../../docs/content/products/p01/srs.md) · [유즈케이스](../../docs/content/products/p01/use-cases.md) · [설계](../../docs/content/products/p01/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
 
+## 개발 (DF-20260925-02)
+
+| 경로 | 내용 |
+|---|---|
+| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. 지금은 BLE 메시지 조각 재조립(프로토콜 4절) |
+| `app/` | Zephyr 앱(C). `core/`를 링크하고, 지금은 프로토콜 버전을 로그로 내고 LED heartbeat를 낸다 |
+| `boards/nucode/nu54v_dk/` | 제조사 보드 패키지(MIT, 출처 커밋은 `VENDORED.md`) |
+| `test/` | `core/`의 host 단위 시험(CMake + CTest) |
+| `scripts/fw.py` | NCS 툴체인 안에서 west 빌드와 pyOCD 플래시를 실행한다 |
+
+```bash
+make test         # host에서 core/ 시험 (NCS 불필요)
+make fw           # nu54v_dk/nrf54l15/cpuapp, NCS v3.4.1
+make flash        # 또는 저장소 루트에서 make run P=p01
+make reset
+```
+
+
 NU-54V-DK에서 실행되는 Zephyr 기반 제품이다.
 
 - **소유 범위:** 보드 bring-up, 보호 키와 EOA 서명, 인증 BLE, 기기 설정,
@@ -17,5 +35,4 @@ NU-54V-DK에서 실행되는 Zephyr 기반 제품이다.
 - [구현 인터페이스](../../docs/content/specifications/implementation-interfaces.md)
 - [기본 페리페럴 bring-up 기록지](../../docs/content/nu54v-basic-peripheral-bringup-log.md)
 
-구현을 시작할 때 `app/`, `boards/`, `modules/`, `tests/` 구조와 실제 Zephyr
-버전을 이 폴더에 기록한다. 현재 제품 코드는 아직 없다.
+폴더 구조와 Zephyr 버전(NCS v3.4.1)은 위 개발 절을 따른다.

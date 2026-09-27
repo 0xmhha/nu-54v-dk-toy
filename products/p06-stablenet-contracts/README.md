@@ -2,6 +2,21 @@
 
 > **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p06/plan.md) · [SRS](../../docs/content/products/p06/srs.md) · [유즈케이스](../../docs/content/products/p06/use-cases.md) · [설계](../../docs/content/products/p06/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
 
+## 개발 (DF-20260925-02)
+
+| 경로 | 내용 |
+|---|---|
+| `src/IPaymentSettlement.sol` | W6에 고정할 정산 컨트랙트 인터페이스(함수, 이벤트, 오류) |
+| `src/PaymentTypes.sol` | EIP-712 구조체와 typehash |
+| `lib/forge-std/` | forge-std v1.10.0(MIT/Apache-2.0, `VENDORED.md`) |
+
+```bash
+make build        # forge build
+make test         # forge test (typehash가 공유 벡터와 같은지 포함)
+make sandbox-up   # 저장소 루트에서. anvil chainId 8283
+```
+
+
 StableNet testnet의 자산, 계정, 자격과 유료 리소스 계약 제품이다.
 
 - **소유 범위:** dummy USDC, WKRC, 일반 EOA 경로, Smart Account, DID,
