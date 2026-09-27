@@ -3,6 +3,7 @@ name = "nu54-protocol"
 version = "0.1.0"
 description = "NU-54V-DK payment protocol types generated from the protocol schema"
 requires-python = ">=3.11"
+license = "Apache-2.0"
 dependencies = []
 
 [build-system]

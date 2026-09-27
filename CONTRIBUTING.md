@@ -1,73 +1,127 @@
 # Contributing
 
-이 저장소는 펌웨어, 모바일 앱, 서비스, 스마트 컨트랙트를 함께 관리하는
-폴리글랏 monorepo다. 구현을 시작하기 전에는
-[저장소 checkpoint](REPOSITORY-CHECKPOINT.md)와
-[제품 인덱스](products/README.md)를 먼저 확인한다.
+Thank you for your interest in this project. This guide explains how to report problems,
+set up a development environment and send changes.
 
-## 변경 단위
+## Reporting bugs and asking questions
 
-- 한 커밋에는 리뷰와 되돌리기가 가능한 하나의 논리 변경만 담는다.
-- 제품 변경은 해당 `products/pNN-*` 경계 안에서 시작한다.
-- 여러 제품이 공유하는 계약이나 생성 코드는 `packages/`에 둔다.
-- 설계 authority는 `docs/content/`에 유지한다. 과거 기록인
-  `docs/design-history/`는 수정하지 않는다.
-- mnemonic, private key, MPC share, OAuth secret, 실제 사용자 데이터는
-  커밋하지 않는다. 공개 manifest에는 `secretRef`만 기록한다.
+Open a [GitHub issue](https://github.com/0xmhha/nu-54v-dk-toy/issues). Please include:
 
-## 커밋 메시지
+- what you did, what you expected, and what happened instead;
+- the folder you were working in (for example `products/p07-indexer`);
+- tool versions (`go version`, `node --version`, `forge --version`, and for firmware the
+  nRF Connect SDK version and board revision);
+- logs or error output, with any private data removed.
 
-[Conventional Commits](https://www.conventionalcommits.org/) 형식을 사용한다.
+For a larger change, open an issue first so we can agree on the approach before you
+write the code.
 
-```text
-<type>(<scope>): <명령형 요약>
-```
+## Reporting security issues
 
-허용하는 기본 type은 다음과 같다.
+Do not open a public issue for a security problem. Report it privately through
+[GitHub security advisories](https://github.com/0xmhha/nu-54v-dk-toy/security/advisories/new).
+Include the steps to reproduce and the impact you expect. We will reply in the advisory.
 
-- `feat`: 사용자가 확인할 수 있는 기능
-- `fix`: 결함 수정
-- `docs`: 문서만 변경
-- `refactor`: 동작을 바꾸지 않는 구조 변경
-- `test`: 시험 추가 또는 수정
-- `build`: 빌드와 의존성 변경
-- `ci`: 자동화 변경
-- `chore`: 제품 동작과 무관한 유지보수
+## Development setup
 
-scope에는 `p01`부터 `p10`, `docs`, `contracts`, `tooling`처럼 변경 경계를
-표시한다. 제목은 72자 이내의 명령형 문장으로 쓰고 마침표를 붙이지 않는다.
-
-예시:
-
-```text
-feat(p01): add authenticated BLE enrollment
-fix(p07): resume indexing from the canonical cursor
-docs(planning): clarify the M2 payment gate
-```
-
-모든 커밋은 [Developer Certificate of Origin](https://developercertificate.org/)에
-따라 sign-off를 포함한다.
+Install the tools listed in the [README](README.md#prerequisites), then run from the
+repository root:
 
 ```bash
-git commit -s -m "docs(repo): establish the product monorepo"
+make setup
+make build
+make test
 ```
 
-## 브랜치와 리뷰
+Every project folder has a `Makefile` with the same targets:
 
-- 브랜치는 `feat/p01-ble-enrollment`, `fix/p07-reorg-recovery`처럼 목적과
-  제품 경계를 드러낸다.
-- pull request에는 문제, 변경 결과, 검증 방법, 영향을 받는 제품과 계약을
-  적는다.
-- 공통 계약 변경은 소비 제품과 호환성 증거를 함께 갱신한다.
-- 생성 파일은 원본과 생성 명령을 함께 커밋한다.
+| Target | What it does |
+|---|---|
+| `setup` | Install dependencies |
+| `build` | Compile, or generate code |
+| `test` | Run unit tests |
+| `lint` | Check formatting and run static analysis |
+| `run` | Start the project locally, where that makes sense |
+| `docker` | Build the container image, for projects that are deployed |
 
-## 로컬 검증
+Run a target for one project with `make <target> P=<folder prefix>`, for example
+`make test P=p06`.
+
+## Making changes
+
+- Keep each pull request focused on one change. Split unrelated changes.
+- Add or update tests with the code they cover.
+- The message format and signature types are defined in
+  [`payment-protocol.schema.json`](docs/content/specifications/protocol/payment-protocol.schema.json).
+  If you change the schema, run `make build P=protocol` to regenerate the code in
+  `packages/protocol`, and commit the schema and the generated files together. Every
+  implementation must still pass `make test P=p10`, which checks the shared signature
+  test vectors.
+- Do not commit private keys, mnemonics, API secrets or real user data. Put local
+  settings in a `.env` file (ignored by Git) and document them in `.env.example`.
+- Code from other projects must keep its license. Add a `VENDORED.md` file that records
+  the source, the version or commit, and the license.
+
+## Commit messages
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```text
+<type>(<scope>): <summary in the imperative mood>
+```
+
+| Type | Use it for |
+|---|---|
+| `feat` | A new feature |
+| `fix` | A bug fix |
+| `docs` | Documentation only |
+| `refactor` | A code change that does not change behavior |
+| `test` | Adding or fixing tests |
+| `build` | Build system or dependencies |
+| `ci` | Continuous integration |
+| `chore` | Other maintenance |
+
+The scope names the part of the repository you changed:
+
+| Scope | Folder |
+|---|---|
+| `firmware` | `products/p01-device-firmware` |
+| `kiosk` | `products/p04-merchant-kiosk` |
+| `backoffice` | `products/p05-operations-backoffice` |
+| `contracts` | `products/p06-stablenet-contracts` |
+| `indexer` | `products/p07-indexer` |
+| `conformance` | `products/p10-platform` |
+| `protocol` | `packages/protocol` and the protocol schema |
+| `sandbox` | `sandbox` |
+| `docs` | `docs` |
+
+Keep the summary under 72 characters and do not end it with a period. Use the body to
+explain why the change is needed.
+
+```text
+fix(indexer): resume from the last finalized block after a restart
+```
+
+### Sign-off
+
+Every commit must be signed off under the
+[Developer Certificate of Origin](https://developercertificate.org/). The sign-off states
+that you have the right to submit the code under the project license.
 
 ```bash
-python3 scripts/check_markdown_links.py
-python3 docs/content/planning/validate_design_freeze.py
-python3 docs/content/specifications/validate_specs.py
+git commit -s -m "fix(indexer): resume from the last finalized block after a restart"
 ```
 
-제품 코드가 추가되면 각 제품 README에 빌드, 시험, 실제 기기 검증 명령을
-추가한다.
+## Pull requests
+
+1. Fork the repository and create a branch from `main`, for example
+   `fix/indexer-restart`.
+2. Run `make lint test` from the repository root.
+3. Open a pull request and fill in the template: the problem, the resulting behavior,
+   the affected folders, and how you tested the change.
+4. Continuous integration must pass before the pull request can be merged.
+
+## License
+
+By contributing, you agree that your contributions are licensed under the
+[Apache License 2.0](LICENSE).

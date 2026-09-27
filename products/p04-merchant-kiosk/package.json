@@ -2,6 +2,7 @@
   "name": "@nu54/p04-kiosk",
   "version": "0.0.1",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
