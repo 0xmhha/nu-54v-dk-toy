@@ -1,16 +1,27 @@
 # Shared packages
 
-여러 제품이 함께 소비하는 코드만 이 경계에 둔다. 현재는 설계 단계이므로
-공유 package를 생성하지 않았다.
+여러 제품이 함께 소비하는 코드만 이 경계에 둔다. 한 제품에서만 쓰는 코드는
+해당 `products/pNN-*` 폴더에 둔다. 공유 package를 추가할 때는 소비 제품, 버전
+호환성, 생성 원본과 검증 명령을 그 package의 README에 기록한다.
 
-구현 단계의 예상 영역은 다음과 같다.
+## 구성
 
-- API, BLE, event schema와 생성 타입
-- React Native와 웹에서 공유하는 클라이언트 라이브러리
-- StableNet ABI와 배포 manifest reader
-- 합성 fixture와 contract-test 도구
-- 공통 관측, 오류, idempotency 유틸리티
+기술 스택과 작업공간은 [DF-20260925-02](../docs/content/planning/design-freeze-checkpoint-02.md)의
+[N25]를 따른다. 체인 연동과 운영 도구는 Go, 키오스크는 React Native와 TypeScript,
+스크립트와 생성기는 Python, DB는 PostgreSQL이다. package는 도메인으로 먼저 나누고,
+그 아래를 언어별로 나눈다.
 
-한 제품에서만 사용하는 코드는 해당 `products/pNN-*` 폴더에 둔다. 공유
-package를 추가할 때는 소비 제품, 버전 호환성, 생성 원본과 검증 명령을 그
-package의 README에 기록한다.
+| package | 원본 | 언어별 산출물 | 소비 제품 |
+|---|---|---|---|
+| [`protocol/`](protocol/README.md) | `docs/content/specifications/protocol/payment-protocol.schema.json`, `eip712-vectors.json` | `go/`, `ts/`, `python/`, `c/` (생성) | P01, P04, P05, P06, P07, P10 |
+| [`contracts-abi/`](contracts-abi/README.md) (예정) | P06 Foundry 빌드 산출물(ABI, 배포 manifest) | Go, TS, Python reader | P04, P05, P07 |
+
+## 작업공간
+
+| 언어 | 도구 | 설정 |
+|---|---|---|
+| Go | `go.work` | 루트 `go.work` |
+| TypeScript | pnpm workspaces | 루트 `pnpm-workspace.yaml`, `.npmrc`(React Native Metro 때문에 `node-linker=hoisted`) |
+| Python | uv workspace | 루트 `pyproject.toml`(members), package마다 `pyproject.toml` |
+
+로컬 검증은 [`sandbox/`](../sandbox/README.md)의 docker compose 환경에서 한다.

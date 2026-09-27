@@ -1,0 +1,14 @@
+# uv workspace for Python projects ([N25]).
+[project]
+name = "nu54v-dk-monorepo"
+version = "0.0.0"
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/protocol/python"]

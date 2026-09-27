@@ -6,3 +6,29 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Build outputs and dependencies ([N25] workspaces)
+node_modules/
+.pnpm-store/
+dist/
+build/
+.venv/
+.pytest_cache/
+coverage/
+# Foundry
+out/
+cache/
+broadcast/*/31337/
+# Go
+/bin/
+*.test
+# Android / iOS
+.gradle/
+local.properties
+*.keystore
+!debug.keystore
+Pods/
+DerivedData/
+
+# Go binaries built by product Makefiles
+bin/

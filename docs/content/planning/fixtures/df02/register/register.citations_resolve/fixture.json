@@ -1,0 +1,10 @@
+{
+  "assertion": "register.citations_resolve",
+  "ops": [
+    {
+      "op": "write",
+      "path": "docs/content/products/p01/extra.md",
+      "content": "# 추가 메모\n\n존재하지 않는 결정 [N99]을 인용한다.\n"
+    }
+  ]
+}

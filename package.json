@@ -1,11 +1,9 @@
 {
-  "name": "nu-54v-dk-toy",
+  "name": "nu54v-dk-monorepo",
   "private": true,
-  "version": "0.0.0",
-  "description": "NU-54V-DK travel wallet product monorepo",
+  "packageManager": "pnpm@10.18.0",
   "scripts": {
-    "docs:links": "python3 scripts/check_markdown_links.py",
-    "validate:design": "python3 docs/content/planning/validate_design_freeze.py",
-    "validate:specs": "python3 docs/content/specifications/validate_specs.py"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
   }
 }

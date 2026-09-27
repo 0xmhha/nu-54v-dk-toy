@@ -1,5 +1,27 @@
 # P05 · Operations backoffice
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p05/plan.md) · [SRS](../../docs/content/products/p05/srs.md) · [유즈케이스](../../docs/content/products/p05/use-cases.md) · [설계](../../docs/content/products/p05/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
+## 개발 (DF-20260925-02)
+
+설계는 백오피스 전체를 전제로 하고, 이번 사이클에는 Go 운영 코어와 CLI를 만든다 [N20].
+
+| 경로 | 내용 |
+|---|---|
+| `internal/core/` | 체인 호출, EIP-712 서명(공유 벡터로 검증), keystore, 감사 |
+| `internal/ble/` | BLE 셋업 클라이언트 인터페이스(tinygo-org/bluetooth로 구현 예정) |
+| `internal/store/migrations/` | PostgreSQL 스키마 |
+| `cmd/opsctl/` | 운영 CLI(이번 사이클) |
+| `cmd/opsd/` | 백오피스 API 서버(다음 사이클) |
+| `web/` | React + TypeScript 백오피스 UI(다음 사이클) |
+
+```bash
+make test         # Go 시험과 web 타입 검사
+make run          # opsctl
+make docker       # opsd 이미지
+```
+
+
 운영자가 가맹점, 대여 기기와 결제 예외를 관리하는 제품이다.
 
 - **소유 범위:** 운영자 RBAC와 감사, 가맹점 승인, 대여·반납, FOTA 캠페인,

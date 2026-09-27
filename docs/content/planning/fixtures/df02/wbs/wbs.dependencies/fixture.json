@@ -1,0 +1,11 @@
+{
+  "assertion": "wbs.dependencies",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/planning/product-worklist-and-12week-wbs-02.csv",
+      "old": ",role B,6,6,1.5,W7,WBS2-P06-01,",
+      "new": ",role B,5,5,1.5,W7,WBS2-P06-01,"
+    }
+  ]
+}

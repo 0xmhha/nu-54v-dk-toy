@@ -8,15 +8,20 @@
 | `content/specifications/` | API, BLE, DTO, 저장, 상태, 보안 계약과 검사기 |
 | `content/environment/` | 비밀값 없는 toolchain, chain, provider manifest |
 | `content/analysis/document-logic/` | 문서 그래프, 추적성, 논리 검토 결과와 snapshot |
+| `content/products/` | DF-20260925-02 제품별 기획·SRS·유즈케이스·설계 |
+| `content/series/` | 12주 제작기 Medium 시리즈 포맷과 10편 목차 |
 | `content/assets/` | 프로젝트 이미지와 다이어그램 |
 | `design-history/` | 이전 승인 기준의 읽기 전용 archive |
 
 현재 기준은 다음 순서로 읽는다.
 
 1. [저장소 checkpoint](../REPOSITORY-CHECKPOINT.md)
-2. [설계 동결 checkpoint](content/planning/design-freeze-checkpoint.md)
-3. [채택된 기준 계약](content/specifications/design-baseline-contract.md)
-4. [12주 WBS](content/planning/product-wbs-overview.md)
-5. [제품별 작업 원장](content/planning/product-worklist-and-12week-wbs.md)
+2. [설계 동결 DF-20260925-02](content/planning/design-freeze-checkpoint-02.md)
+3. [12주 WBS (DF-20260925-02)](content/planning/product-worklist-and-12week-wbs-02.md)
+4. [결제 프로토콜](content/specifications/protocol/payment-protocol.md)
+5. [이전 설계 동결 DF-20260920-01](content/planning/design-freeze-checkpoint.md) — DF-20260925-02와 충돌하지 않는 부분만 유효
+6. [채택된 기준 계약](content/specifications/design-baseline-contract.md)
+7. [이전 12주 WBS](content/planning/product-wbs-overview.md)
+8. [이전 제품별 작업 원장](content/planning/product-worklist-and-12week-wbs.md)
 
 제품별 진입점은 [products 인덱스](../products/README.md)에서 확인한다.

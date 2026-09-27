@@ -1,0 +1,11 @@
+{
+  "assertion": "acceptance.reason_codes",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/acceptance/week12-log.md",
+      "old": "| NONCE_REPLAYED |",
+      "new": "| NONCE_REUSED |"
+    }
+  ]
+}

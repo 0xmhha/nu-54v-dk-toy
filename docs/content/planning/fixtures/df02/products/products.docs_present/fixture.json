@@ -1,0 +1,9 @@
+{
+  "assertion": "products.docs_present",
+  "ops": [
+    {
+      "op": "delete",
+      "path": "docs/content/products/p04/use-cases.md"
+    }
+  ]
+}

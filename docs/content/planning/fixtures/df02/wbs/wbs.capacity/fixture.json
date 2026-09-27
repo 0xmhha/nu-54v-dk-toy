@@ -1,0 +1,11 @@
+{
+  "assertion": "wbs.capacity",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+      "old": "| W4 | 2 | 2 | 2 |",
+      "new": "| W4 | 1 | 1 | 1 |"
+    }
+  ]
+}

@@ -1,0 +1,549 @@
+# Ouroboros Seed generated from interview_20260924_140535, revision 4.
+# Iteration 0 was a copy of the ouroboros_generate_seed output (the MCP server did
+# not persist it). Revision 1 applies the user-accepted refinement candidates
+# S1-S8, W1-W3 and C1-C3; revision 2 applies pass-2 S1-S6 and C4-C6; revision 3 applies pass-3 T1-T3 and M1-M3; revision 4 applies the five post-PASS advisory findings and the P05 time-anchor path; 1.4.1 narrows the stale-literal scan to files added or changed since baseCommit (user decision 2026-09-25); 1.4.2 extends W12-05 to 8 refusal demos (user decision 2026-09-25); 1.5.0 applies the cross-document logic review (user decisions 2026-09-25); 1.5.1 moves to NCS v3.4.1 to match the board vendor package (user decision 2026-09-26); audit trail:
+# ~/.ouroboros/seed-revisions/interview_20260924_140535.md
+goal: 'Deliver the documentation baseline for the NU-54V-DK merchant-authenticated payment signer, whose
+  approved product goal is: the NU-54V-DK (nRF54L15) device, using a non-exportable key generated at rental,
+  signs an EIP-712 payment authorization with a physical button only for orders verified by an operator
+  merchant attestation and the on-chain registry, after displaying orderId, token, payout and amount;
+  the P04 kiosk receives it over BLE, pays gas and submits it to the pre-deposit settlement contract (P06)
+  on StableNet testnet 8283, which enforces registry, caps, nonce, order uniqueness and expiry; a finalized
+  PaymentSettled event decides paid; week 12 passes on 20 consecutive successes, 8 refusal demos (the
+  5 agreed codes plus 3 device-side codes) and security checks. This cycle produces: the DF-20260925-02
+  decision register superseding DF-20260920-01 (JSON register rendered to md, with its own build/validate
+  pair), a regenerated 12-week WBS for DF-02 as new files, the precedence switch plus superseded banners
+  on the contradicting hand-written docs, a normative BLE GATT + EIP-712 protocol specification (md +
+  JSON schema + test vectors) under docs/content/specifications/protocol/, plan/srs/use-cases/design for
+  the six buildable products (P01, P04, P05, P06, P07, P10) under docs/content/products/pNN/, and the
+  week-12 acceptance log template under docs/content/acceptance/week12-log.md.'
+task_type: code
+brownfield_context:
+  project_type: brownfield
+  context_references:
+  - path: /Users/kevin/work/github/0xmhha/nu-54v-dk-toy
+    role: primary
+    summary: 'NU-54V-DK monorepo: code under products/ and packages/, documentation authority under docs/content/'
+  - path: docs/content/planning/design-freeze-checkpoint.json
+    role: reference
+    summary: 'DF-20260920-01 decision record: decisions D01..D19 plus RR-DEC-01 (20), 10 products B-01..B-10,
+      sourceHashes of five inputs; generated and hash-pinned, superseded but left untouched'
+  - path: docs/content/research/payment-hw-wallet-direction/README.md
+    role: reference
+    summary: '2026-09-23 research that now governs product definition: merchant-authenticated payment
+      signer, external secure element, 14 security requirements, Gnosis Pay 2026-06 exploit as contract-bug
+      evidence'
+  - path: docs/content/analysis/xbar/README.md
+    role: reference
+    summary: Document graph over 137 docs; blocking conflicts F1 two scope baselines, F2 no current doc
+      requires an external SE, F3 first payment gate week 4 vs 5-6 vs 8, with their source documents listed
+  - path: docs/content/planning/build_design_freeze.py
+    role: reference
+    summary: DF-01 generator for the freeze, baseline contract, environment README and manifests; hardcodes
+      indexer paymentConfirmations 2
+  - path: docs/content/planning/validate_design_freeze.py
+    role: reference
+    summary: DF-01 validator hardcoding DF-20260920-01, counts 20/10/8/7, B-01..B-10 and SHA-256 sourceHashes;
+      passes today and must keep passing
+  - path: docs/content/planning/validate_product_wbs.py
+    role: reference
+    summary: DF-01 WBS validator hardcoding 104 tasks; the DF-02 WBS is written as new files so this keeps
+      passing
+  - path: scripts/check_markdown_links.py
+    role: reference
+    summary: Repository link checker; passes today and is part of the regression set
+  - path: REPOSITORY-CHECKPOINT.md
+    role: reference
+    summary: Declares repository reading order; the precedence switch to DF-02 is made here and in docs/README.md
+  - path: docs/content/week-03-maker-team-meeting-memo.md
+    role: reference
+    summary: Week-3 memo whose cafe refund promise is withdrawn; gets a superseded banner
+  - path: docs/design-history/
+    role: reference
+    summary: Precedent for archiving a superseded baseline read-only rather than deleting it
+  existing_patterns:
+  - Dated design freezes (DF-YYYYMMDD-NN) that declare precedence in their own body
+  - Design-freeze artifacts are a JSON decision record rendered to md by a build script and locked by
+    a validator that hardcodes the id, counts and SHA-256 source hashes (docs/content/planning/)
+  - Specifications ship as a markdown + JSON pair, moving into packages/ once code imports them
+  - 'Monorepo split: runnable code under products/ and packages/, authoritative documentation under docs/content/,
+    each products/pNN-*/README.md linking to its docs'
+  - Bring-up log format reused for acceptance evidence logs
+  - Deterministic CBOR (v1-deterministic-cbor) as the existing BLE wire encoding
+  - BLE message flow named as session.open/confirm then payment.identify/prepare/result
+  - Board bring-up checks identified as BR-01..BR-08
+  existing_dependencies:
+  - NCS v3.4.1 / Zephyr 4.4.2 on nRF54L15 (NU-54V-DK, board target nu54v_dk/nrf54l15/cpuapp)
+  - StableNet testnet chain id 8283, RPC https://api.test.stablenet.network/, client Gstable/v1.1.0 with
+    istanbul_* namespace
+  - Foundry for P06 contracts and P05 operator scripts
+  - React Native for the P04 merchant kiosk
+  - EIP-712 typed-data signing shared between firmware, kiosk and contract tests
+  - secp256k1 signing, targeted at an external secure element after week 8
+  - Python build/validate scripts under docs/content/planning/ and scripts/check_markdown_links.py
+  - Existing ble-catalog and interface-contracts documents, superseded for the payment path
+  - Zephyr BLE stack with LE Secure Connections and nRF54L15 passive NFC tag support
+constraints:
+- StableNet testnet only (chain id 8283); no mainnet, no fiat ramps, no card network, no multi-chain
+- Target board is NU-54V-DK (nRF54L15, board target nu54v_dk/nrf54l15/cpuapp), NCS v3.4.1 / Zephyr 4.4.2
+- 'Monorepo layout: code under products/ and packages/, documentation authority under docs/content/'
+- 'Documentation-only cycle: no runtime, SQL, firmware or chain deployment is produced; the P10 EIP-712
+  test vectors are written as JSON under docs/content/specifications/protocol/ and move to packages/ only
+  when code imports them'
+- 3 people over a 12-week window; the user owns P06, P10, P07 and board bring-up, role A owns P01 firmware,
+  role B owns P04 kiosk and P05 scripts; names are bound at the team meeting and recorded only in the
+  WBS assignee column
+- DF-20260920-01 and all its generated or hash-pinned artifacts must remain byte-untouched; validate_design_freeze.py,
+  validate_product_wbs.py and check_markdown_links.py keep passing
+- 'Single source of truth: every settled decision is recorded exactly once as a record in docs/content/planning/design-freeze-checkpoint-02.json
+  (DF-01 decisions D01..D19 and RR-DEC-01 with disposition kept/amended/withdrawn plus old/new/reason/affectedFiles;
+  new decisions as N01..Nxx with value, requiredIn[], mustContain[] and resolves[]); normative values
+  otherwise live only in the protocol schema and test vectors; product documents and payment-protocol.md
+  cite decision ids such as [D08] or [N03] instead of restating values'
+- DF-20260925-02 is rendered by docs/content/planning/build_design_freeze_02.py and validated by docs/content/planning/validate_design_freeze_02.py;
+  the DF-01 generators are not edited
+- The 12-week WBS for DF-02 is written as new files (product-worklist-and-12week-wbs-02.*) so the DF-01
+  WBS and its validator stay intact
+- Precedence switches through REPOSITORY-CHECKPOINT.md and docs/README.md reading order (DF-02 listed
+  first), not by deleting or rewriting DF-01
+- 'Hand-written docs that contradict DF-02 get a one-line superseded banner as their first line and are
+  otherwise byte-identical to the base commit: stablenet-testnet-baseline.md, three-person-delivery-plan.md,
+  week-03-maker-team-meeting-memo.md, twelve-week-completion-scope-v3.md, planning/product-wbs-overview.md,
+  payment-integration-workplan.md, payment-platform-scope-v2.md, poc-platform-reuse-plan.md, stable-contract-reuse-plan.md,
+  indexer-integration-and-test-token.md (all under docs/content/)'
+- Product directories are created only for the six buildable products; P02, P03, P08, P09 are recorded
+  as out-of-cycle in the DF-02 register and their product README
+- BLE GATT is the only normative transport (kiosk central, device peripheral, LE Secure Connections, Numeric
+  Comparison with Passkey fallback); USB CDC is a non-normative test harness and never gate evidence;
+  no QR path because the device has no camera
+- NFC is used for BLE address handover and LESC out-of-band pairing data only, and is not a mandatory
+  week-6 gate condition (BLE scan is the documented fallback)
+- 'The device signs exactly two EIP-712 types and refuses all others: PaymentAuthorization {chainId, contract,
+  merchant, payout, token, amount, orderId, nonce, expiry} and LimitChange (PIN + button); it never signs
+  a transaction, approve or Permit'
+- 'Merchant trust: the operator (P05) issues EIP-712 merchant attestations (name, signing address, payout
+  address, about 24h validity); the device holds the operator address written once at provisioning and
+  hard-refuses unless attestation signer, order signer, payout and expiry check out; the device keeps
+  time from an operator-signed time anchor written during rental setup (device.reset followed by setup;
+  the target path is the renter''s phone setup app in P02, which is design-only this cycle, so the P05
+  provisioning script delivers the same operator-signed time-anchor message over the BLE setup session
+  and P05 design.md documents this substitute) and advanced by the on-chip RTC, so it deterministically
+  refuses an expired attestation with ATTESTATION_EXPIRED; a new anchor is accepted only if signed by
+  the provisioned operator address and not earlier than the last anchor; after power loss the anchor is
+  invalid and the device refuses payments until re-anchored through the setup path; the contract (block.timestamp)
+  and on-chain registry remain authoritative'
+- 'Settlement: the operator calls depositFor(deviceAddress, amount, withdrawAddress) at rental; the deposit
+  belongs to the renter (testnet custodial PoC); single token per deployment; the contract checks registry,
+  signed payout == registry payout, per-payment and daily caps, unordered 256-bit device nonces, expiry,
+  and uniqueness of (merchant, orderId) with ORDER_ALREADY_PAID; merchant proceeds are credited to a merchant
+  balance and cashed out to the registered payout (delay only on payout change); refunds are out of scope
+  this cycle'
+- 'Key and account lifecycle: the key is generated on-device by TRNG at rental, never exported, no backup;
+  a PIN is set at rental and re-confirmed for LimitChange; until the external SE lands the key is sealed
+  in the TF-M secure partition (testnet waiver recorded in DF-02) with a firmware PIN retry counter; from
+  week 8 the key is SE-wrapped; an SE swap is closeAccount then a new depositFor; at return the operator
+  calls closeAccount (device address deactivated immediately, balance paid to the registered withdrawal
+  address after the delay) and device.reset wipes the key; withdrawal and closeAccount are callable by
+  the operator or permissionlessly but only pay out to the registered address'
+- 'Paid and failure semantics: a finalized PaymentSettled(merchant, orderId) event decides paid, and a
+  kiosk tx reverting with ORDER_ALREADY_PAID for the same orderId counts as success; the kiosk pays gas
+  with a minimum-balance rule (busy below it), simulates with eth_call before submit, reports pre-submit
+  refusal as refused with {ATTESTATION_EXPIRED, MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, MERCHANT_FORGED}
+  and post-submit status=0 as failed with the tx hash; 10 s hard timeout from request transfer completion,
+  then Checking — do not pay again with re-payment blocked; no automatic retry except same-signature rebroadcast'
+- 'Gates: W4 evidence (BR-01..BR-08, SE secp256k1 datasheet), W6 contract (software-signer PaymentSettled
+  on 8283), W7 in-board key real-hardware end-to-end as scope-cut trigger, W9 external SE; the freeze
+  date lies in W4 so all work is scheduled from W4; cut order if W7 fails: external SE, P07, NFC handover;
+  the on-device merchant display is never cut'
+- 'Parameters are exactly nine named constants recorded once in the DF-02 register as {value, unit} with
+  value > 0: perPaymentCap, dailyCap, withdrawalDelay, payoutChangeDelay, authorizationExpiry, attestationValidity
+  (fixed at 86400 s by the interview), kioskMinGasBalance (a busy threshold of two payments estimated
+  from settle gas x the observed StableNet eth_gasPrice of 47,600 gwei, with provenance and a re-measurement
+  week), pinMaxRetries (3..10) and anchorClockSkew (1..300 s); the other values are decided when the register
+  is written within these bounds: 0 < perPaymentCap <= dailyCap, 30 s <= authorizationExpiry <= 300 s
+  (above the 10 s kiosk timeout), 600 s <= withdrawalDelay <= 604800 s, payoutChangeDelay >= attestationValidity,
+  withdrawalDelay >= authorizationExpiry; one EOA per role (operator, registry admin, kiosk) on testnet
+  with multisig/HSM on hold; firmware update is MCUboot wired serial recovery only, BLE DFU on hold, signing
+  key held offline'
+- Anti-exfil (req 10), dependency pinning (req 12) and genuine-device attestation (req 13) are design-only
+  waivers recorded in DF-02; no personal data is collected (req 14)
+- 'Evidence and redaction: raw evidence lives in a git-ignored path; files changed since the register
+  baseCommit contain no 0x-prefixed 40-hex addresses or 64-hex hashes except files listed with a reason
+  in the register redactionExemptions (the EIP-712 test vectors, which use public test-only EOAs); checksums
+  are written as sha256:<64 hex>; no keys committed'
+- 'Verification scope is recorded in the DF-02 register freeze_scope: baseCommit (fixed when the register
+  is created), staleLiterals as regexes, exemptPaths derived mechanically from the DF-01 artifact list
+  plus docs/content/planning/seeds/, docs/design-history/ and docs/content/planning/fixtures/df02/, and
+  redactionExemptions; the stale-literal check covers docs/content/**/*.md files added or changed since
+  baseCommit, outside bannered files and exempt paths (the pre-existing corpus is superseded as a whole
+  by the reading-order switch)'
+- All acceptance checks except the DF-01 regression run through one validator, docs/content/planning/validate_design_freeze_02.py
+  --check <group>, which reads facts from the register and schema rather than from this seed; --self-test
+  runs one known-bad fixture per named assertion and passes only if every assertion rejects its fixture
+- 'Product identifiers: DF-01 product records B-01..B-10 correspond one-to-one by number to P01..P10 in
+  products/README.md; the DF-02 register records this mapping once and every DF-01 product id resolves
+  to a buildable product or to the out-of-cycle list (P02, P03, P08, P09)'
+- 'Self-test fixtures: every named assertion of every check group has its own known-bad fixture committed
+  under docs/content/planning/fixtures/df02/<group>/<assertion>/; --self-test passes only if each fixture
+  is rejected and the failure message names that assertion; the fixtures directory is excluded from the
+  stale-literal and redaction scans'
+- 'Comparison referent: every check group of the validator reads the committed tree at HEAD, and every
+  group fails with a dirty-worktree error when docs/content, REPOSITORY-CHECKPOINT.md, docs/README.md
+  or products/ has uncommitted changes, so baseSha256, "changed since baseCommit" and all content assertions
+  refer to committed state'
+- 'Conditional acceptance: a week-12 item whose evidence depends on a cut-list scope item is conditional;
+  the P07 receipt item is conditional on P07 not being cut, and when P07 is cut its evidence is the kiosk
+  reading the finalized PaymentSettled(merchant, orderId) event directly; no other W12 item depends on
+  a cut-list item'
+- 'Schedule feasibility: every WBS-02 row has exactly one owner among the user, role A and role B; each
+  owner''s summed effort per week does not exceed that owner''s available days recorded in the WBS md,
+  with week 4 recorded as shortened by Chuseok; the check lives in the wbs group'
+- 'Settlement check order: domain, order uniqueness (ORDER_ALREADY_PAID), expiry, signer account, registry,
+  payout, nonce, caps, balance, so a same-signature resubmission resolves to ORDER_ALREADY_PAID and the
+  kiosk accepts it only when the finalized PaymentSettled matches its own device, amount and nonce'
+- 'Setup trust: setup.operator is accepted only in UNPROVISIONED with renter button confirmation, device.reset
+  only as an operator-signed DeviceReset, setup sessions only in UNPROVISIONED or PROVISIONED_NO_ANCHOR;
+  the secure partition binds each button token to one registered digest and purpose'
+acceptance_criteria:
+- description: 'DF-20260925-02 exists as a JSON decision register rendered to md whose content is complete
+    and internally resolved: every DF-01 decision D01..D19 and RR-DEC-01 has a disposition (kept/amended/withdrawn)
+    with old/new/reason/affectedFiles; every new decision N01..Nxx has value, requiredIn, mustContain
+    and resolves; every requiredIn document cites the decision id and contains its mustContain tokens;
+    every cited id resolves; every DF-01 product id B-01..B-10 resolves through the B-nn to P-nn mapping;
+    the nine parameters each have a unit and a value inside their stated bounds, with attestationValidity
+    = 86400 s and kioskMinGasBalance carrying its estimate provenance'
+  semantic_ac_key: ac_0a4ee8040b93e453
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check register
+  expected_artifacts:
+  - docs/content/planning/design-freeze-checkpoint-02.json
+  - docs/content/planning/design-freeze-checkpoint-02.md
+  - docs/content/planning/build_design_freeze_02.py
+  - docs/content/planning/validate_design_freeze_02.py
+  output_assertion: OK
+- description: 'The DF-02 validator is proven able to fail: for every named assertion of every check group
+    (register, precedence+banners, products, protocol+vectors, wbs, acceptance, conflicts, redaction)
+    a committed known-bad fixture exists and --self-test reports that assertion rejecting it'
+  semantic_ac_key: ac_selftest_df02_validator
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --self-test
+  expected_artifacts:
+  - docs/content/planning/fixtures/df02/
+  - docs/content/planning/validate_design_freeze_02.py
+  output_assertion: OK
+- description: The DF-01 baseline and the existing regression set are untouched and still pass
+  semantic_ac_key: ac_fa5699c5379e7a47
+  verify_command: python3 docs/content/planning/validate_design_freeze.py && python3 docs/content/planning/validate_product_wbs.py
+    && python3 scripts/check_markdown_links.py && echo OK
+  expected_artifacts:
+  - docs/content/planning/design-freeze-checkpoint.json
+  output_assertion: OK
+- description: 'DF-20260925-02 governs for every reader: REPOSITORY-CHECKPOINT.md and docs/README.md list
+    DF-20260925-02 before DF-20260920-01, and every entry in the register banner_record has a first line
+    equal to its bannerLine naming DF-20260925-02 and a remainder whose sha256 equals its baseSha256 computed
+    at baseCommit (the ten hand-written contradicting docs, covering the x-bar F1/F3 sources and the customer-gas
+    files); and no register staleLiterals regex matches a docs/content/**/*.md file added or changed since
+    baseCommit outside bannered files and exemptPaths'
+  semantic_ac_key: ac_2e872ad5255b0ff4
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check precedence+banners
+  expected_artifacts:
+  - REPOSITORY-CHECKPOINT.md
+  - docs/README.md
+  - docs/content/stablenet-testnet-baseline.md
+  - docs/content/week-03-maker-team-meeting-memo.md
+  output_assertion: OK
+- description: The six buildable products each have plan.md, srs.md, use-cases.md and design.md of at
+    least 400 bytes that cite DF-02 decision ids ([Dnn], [RR-DEC-01] or [Nnn]); each of the six products/pNN-*/README.md
+    links to its docs/content/products/pNN/ documents; the four out-of-cycle products have no docs directory
+    and their products/pNN-*/README.md names DF-20260925-02
+  semantic_ac_key: ac_c7f6736cb8d6a63b
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check products
+  expected_artifacts:
+  - docs/content/products/p01
+  - docs/content/products/p04
+  - docs/content/products/p05
+  - docs/content/products/p06
+  - docs/content/products/p07
+  - docs/content/products/p10
+  output_assertion: OK
+- description: 'The protocol is frozen as md + JSON schema + test vectors: the schema defines exactly
+    two signed types, PaymentAuthorization with exactly {chainId, contract, merchant, payout, token, amount,
+    orderId, nonce, expiry} and LimitChange; eip712-vectors.json holds at least one vector per type whose
+    message keys equal the schema field set; the md fixes BLE GATT roles, LE Secure Connections, negotiated
+    MTU with length/sequence/digest reassembly, the session.open/confirm to payment.identify/prepare/result
+    flow, NFC handover with BLE scan fallback, the four outcomes and five reason codes with their rejecting
+    layer, the operator-signed time anchor message, and records proximityRef as removed'
+  semantic_ac_key: ac_1e54fb25dfa4402c
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check protocol+vectors
+  expected_artifacts:
+  - docs/content/specifications/protocol/payment-protocol.md
+  - docs/content/specifications/protocol/payment-protocol.schema.json
+  - docs/content/specifications/protocol/eip712-vectors.json
+  output_assertion: OK
+- description: A regenerated 12-week WBS for DF-02 exists as product-worklist-and-12week-wbs-02.{csv,md},
+    whose rows cover only P01, P04, P05, P06, P07 and P10 and whose md states the W4/W6/W7/W9 gates with
+    BR-01..BR-08, the role owners and the cut order; every row has exactly one owner among the user, role
+    A and role B, and no owner exceeds the available days recorded per week, with week 4 marked shortened
+    by Chuseok
+  semantic_ac_key: ac_c4970c483a8b5cf5
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check wbs
+  expected_artifacts:
+  - docs/content/planning/product-worklist-and-12week-wbs-02.csv
+  - docs/content/planning/product-worklist-and-12week-wbs-02.md
+  output_assertion: OK
+- description: 'The week-12 acceptance log template lists W12-01..W12-12 in bring-up log format with evidence
+    artifacts: functional items (connect, display, settle at finalized, 20 consecutive successes within
+    10 s, 8 refusal demos with rejecting layer, grouped as the five agreed reason codes and the device-side
+    USER_REJECTED, UNSUPPORTED_TYPE and TIME_ANCHOR_MISSING, run in a fixed runbook order, P07 receipt
+    marked conditional on P07 not being cut with the kiosk-read PaymentSettled event as its substitute
+    evidence, kiosk gas balance) and security items (TRNG-only seed, no plaintext seed in NVM, AP-Protect
+    debug lock, MCUboot rejecting unsigned firmware, no key-export BLE command with button-only approval)'
+  semantic_ac_key: ac_abd7fcbf6847bd1a
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check acceptance
+  expected_artifacts:
+  - docs/content/acceptance/week12-log.md
+  output_assertion: OK
+- description: The x-bar blocking conflicts F1 (two scope baselines), F2 (no current doc requires an external
+    secure element) and F3 (first payment gate) each map to at least one DF-02 decision whose resolves
+    lists it
+  semantic_ac_key: ac_8774499469a8ecc3
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check conflicts
+  expected_artifacts:
+  - docs/content/planning/design-freeze-checkpoint-02.json
+  output_assertion: OK
+- description: 'Files under docs/content changed or added since the register baseCommit contain no 0x-prefixed
+    40-hex address or 64-hex hash, except files listed with a reason in redactionExemptions; checksums
+    use the sha256: prefix'
+  semantic_ac_key: ac_17f1c013024d4cc2
+  verify_command: python3 docs/content/planning/validate_design_freeze_02.py --check redaction
+  expected_artifacts:
+  - docs/content/planning/design-freeze-checkpoint-02.json
+  output_assertion: OK
+ontology_schema:
+  name: MerchantAuthenticatedPaymentSignerSpec
+  description: 'The specification domain for the NU-54V-DK merchant-authenticated payment signer: the
+    governing decision register and its amendments, the six buildable products and their four-document
+    sets, the BLE/EIP-712 protocol contract between device, kiosk and settlement chain, the delivery gates
+    and role split, and the week-12 acceptance evidence.'
+  fields:
+  - name: freeze_id
+    type: string
+    required: true
+    description: Dated design-freeze identifier that governs a decision, e.g. DF-20260925-02 or the superseded
+      DF-20260920-01
+  - name: decision_register
+    type: array
+    required: true
+    description: 'Records in design-freeze-checkpoint-02.json: DF-01 decisions D01..D19 and RR-DEC-01
+      with disposition, old, new, reason, affectedFiles; new decisions N01..Nxx with value, requiredIn,
+      mustContain and resolves (F1/F2/F3)'
+  - name: products
+    type: array
+    required: true
+    description: 'Product records: id P01-P10, tier (core, reduced, design-only), owner role, and whether
+      it ships running code in the 12-week window'
+  - name: document_set
+    type: array
+    required: true
+    description: Per-product documents under docs/content/products/pNN/ (plan.md, srs.md, use-cases.md,
+      design.md) that cite decision ids
+  - name: protocol
+    type: object
+    required: true
+    description: 'Normative wire contract: BLE GATT roles and characteristics, LESC pairing with NFC out-of-band
+      handover, CBOR framing with length/sequence/digest, message flow, and the four response outcomes;
+      the operator-signed time anchor message written during rental setup; proximityRef is recorded as
+      a removed element'
+  - name: device_signed_types
+    type: array
+    required: true
+    description: 'Exactly two EIP-712 types: PaymentAuthorization {chainId, contract, merchant, payout,
+      token, amount, orderId, nonce, expiry} and LimitChange; everything else is refused'
+  - name: merchant_attestation
+    type: object
+    required: true
+    description: 'Operator-signed EIP-712 attestation: merchant name, merchant signing address, payout
+      address, validity window (about 24h, re-issued daily)'
+  - name: settlement_rules
+    type: object
+    required: true
+    description: 'Contract behaviour: depositFor pre-deposit, internal balance move emitting PaymentSettled,
+      registry and payout enforcement, caps, unordered nonce set, order uniqueness (ORDER_ALREADY_PAID),
+      contract-enforced expiry, delayed withdrawal and closeAccount to the registered address, merchant
+      cash-out delay on payout change'
+  - name: key_lifecycle
+    type: object
+    required: true
+    description: On-device TRNG key at rental, non-exportable, no backup, PIN; TF-M sealed until the SE
+      lands (waiver), SE-wrapped from week 8; SE swap via closeAccount + new depositFor; device.reset
+      at return; rental setup after device.reset writes the operator-signed time anchor
+  - name: refusal_reason_codes
+    type: array
+    required: true
+    description: 'Pre-submit refusal codes and their rejecting layer: ATTESTATION_EXPIRED (device, against
+      its operator-anchored RTC time), MERCHANT_REVOKED (contract), OVER_CAP (contract), NONCE_REPLAYED
+      (contract), MERCHANT_FORGED (device and contract); device-only codes USER_REJECTED, UNSUPPORTED_TYPE,
+      TIME_ANCHOR_MISSING are demonstrated at week 12, TIMEOUT and BAD_FRAME are test-only'
+  - name: finality_rule
+    type: string
+    required: true
+    description: A finalized PaymentSettled(merchant, orderId) event decides paid; ORDER_ALREADY_PAID
+      for the same orderId counts as success; P07 is not on the paid-decision path
+  - name: latency_budget
+    type: object
+    required: true
+    description: Single 10 s hard timeout measured from completion of the request transfer to the device,
+      including the human button press; numeric p95 target deferred to weeks 5-6
+  - name: gates
+    type: array
+    required: true
+    description: 'Delivery gates: W4 evidence (BR-01..BR-08, SE datasheet), W6 contract (software-signer
+      PaymentSettled), W7 in-board key end-to-end scope-cut trigger, W9 external SE'
+  - name: cut_list
+    type: array
+    required: true
+    description: 'Pre-agreed scope cuts if the W7 gate fails, in order: external SE, P07, NFC handover;
+      the on-device merchant display is never cut; cutting P07 turns the P07 receipt acceptance item into
+      its substitute evidence'
+  - name: wbs
+    type: object
+    required: true
+    description: Regenerated 12-week WBS for DF-02 in product-worklist-and-12week-wbs-02.{csv,md}, limited
+      to the six buildable products; each row has one owner among the user, role A and role B, per-owner
+      weekly effort within recorded available days, week 4 shortened by Chuseok
+  - name: acceptance_items
+    type: array
+    required: true
+    description: Week-12 log items W12-01..W12-12 (seven functional, five security) with the evidence
+      artifact each requires; each item flags whether it is conditional on a cut-list item and names its
+      substitute evidence (only the P07 receipt is conditional)
+  - name: evidence_policy
+    type: object
+    required: true
+    description: 'Raw evidence in a git-ignored path; docs/content/ holds redacted copies with shortened
+      hashes and addresses plus sha256: checksums; test-only EOAs'
+  - name: risks
+    type: array
+    required: true
+    description: 'Recorded risks: operator key as single point of failure, custodial deposits, unaudited
+      larger contract, TF-M-only key protection until the SE lands, revoked merchant undetectable on the
+      offline device, unverified NFC antenna and driver, Chuseok-shortened week 4, user carrying bring-up
+      and contract work together'
+  - name: freeze_scope
+    type: object
+    required: true
+    description: 'Register verification scope: baseCommit fixed at register creation, staleLiterals as
+      regexes, exemptPaths derived from the DF-01 artifact list plus seeds/ and design-history/, redactionExemptions
+      with path and reason'
+  - name: banner_record
+    type: array
+    required: true
+    description: 'Per bannered file: path, bannerLine naming DF-20260925-02, baseSha256 (sha256:<64 hex>)
+      of the file at baseCommit'
+  - name: parameters
+    type: object
+    required: true
+    description: Nine named constants perPaymentCap, dailyCap, withdrawalDelay, payoutChangeDelay, authorizationExpiry,
+      attestationValidity, kioskMinGasBalance, pinMaxRetries, anchorClockSkew, each {value > 0, unit,
+      rationale}
+  - name: validator_groups
+    type: array
+    required: true
+    description: Check groups of validate_design_freeze_02.py (register, precedence+banners including
+      the stale-literal scan, products, protocol+vectors, wbs including schedule feasibility, acceptance,
+      conflicts, redaction); each named assertion has a known-bad fixture under docs/content/planning/fixtures/df02/<group>/<assertion>/
+      run by --self-test; every group reads HEAD and fails on a dirty worktree
+  - name: precedence
+    type: array
+    required: true
+    description: Reading-order entries in REPOSITORY-CHECKPOINT.md and docs/README.md, each naming the
+      governing freeze id; DF-20260925-02 is listed before DF-20260920-01
+  - name: product_id_map
+    type: object
+    required: true
+    description: One-to-one mapping of DF-01 product ids B-01..B-10 to P01..P10, with each P id marked
+      buildable or out of cycle
+  - name: time_anchor
+    type: object
+    required: true
+    description: 'Operator-signed time written during rental setup: timestamp, operator signature, monotonic
+      (not earlier than the previous anchor), invalid after power loss until re-anchored; delivered this
+      cycle by the P05 provisioning script over the BLE setup session in place of the design-only P02
+      phone setup app'
+evaluation_principles:
+- name: Decision fidelity
+  weight: 1.0
+  description: Every value in the generated documents matches what the interview and the acceptance guard
+    settled, with no silently reintroduced DF-01 value.
+- name: Baseline integrity
+  weight: 0.95
+  description: DF-20260920-01 and its hash-pinned generated artifacts stay byte-identical and the regression
+    set keeps passing; DF-02 supersedes through reading order and banners rather than by editing history.
+- name: Conflict closure
+  weight: 0.9
+  description: The x-bar blocking conflicts F1, F2 and F3 each have exactly one current answer, and no
+    surviving document asserts a contradicting value without a superseded banner.
+- name: Cross-document consistency
+  weight: 0.9
+  description: Each normative value exists once (register, schema or vectors) and every other document
+    cites it by decision id, so values cannot drift.
+- name: Buildability by three people
+  weight: 0.8
+  description: Each product plan is sized to its owner role within the 12-week window and names the cut
+    that protects the week-12 demo when a gate slips.
+- name: Specification testability
+  weight: 0.8
+  description: Requirements are written so a firmware, kiosk or contract test can decide them — concrete
+    fields, caps, timeouts and reason codes rather than prose intent.
+- name: Security-claim honesty
+  weight: 0.75
+  description: 'The documents state accepted weaknesses plainly: custodial deposits, operator key single
+    point of failure, unaudited contract, TF-M-only protection until the SE lands, and the design-only
+    waivers.'
+- name: Redaction discipline
+  weight: 0.7
+  description: 'Committed documents carry only shortened hashes and addresses with sha256: checksums;
+    no keys, no full addresses, no personal data.'
+exit_conditions:
+- name: Freeze set complete
+  description: The DF-02 register, its rendered md and its build/validate pair exist and validate, while
+    the DF-01 regression set still passes.
+  criteria: validate_design_freeze_02.py --check register and --self-test exit 0; validate_design_freeze.py,
+    validate_product_wbs.py and check_markdown_links.py still exit 0
+- name: Product documentation complete
+  description: All six buildable products carry four decision-citing documents linked from their products/pNN-*/README.md,
+    and P02/P03/P08/P09 are marked out of cycle.
+  criteria: 24 product documents present, non-trivial and citing decision ids; no docs/content/products
+    directory for the four out-of-cycle products
+- name: Protocol frozen
+  description: The md + schema + vectors specify the BLE GATT transport, NFC handover, framing, message
+    flow, outcomes, reason codes and the two signed types.
+  criteria: Schema parses with exactly two types and the nine PaymentAuthorization fields; vectors match
+    the schema
+- name: WBS regenerated
+  description: The DF-02 WBS exists as new files with gates, owners and cut order.
+  criteria: product-worklist-and-12week-wbs-02.{csv,md} present and limited to the six buildable products
+- name: Acceptance bar recorded
+  description: week12-log.md lists W12-01..W12-12 with evidence artifacts.
+  criteria: All twelve item ids and all five reason codes present
+- name: Contradictions resolved
+  description: Every contradicting hand-written doc is bannered and F1/F2/F3 each map to a resolving DF-02
+    decision.
+  criteria: Banner on the first line of each of the ten files; resolves covers F1, F2 and F3
+- name: Blocked on an unsettled premise
+  description: Work stops for a decision only the user can make — for example if the finalized-tag observation
+    fails the 1-hour reorg poll and a confirmation depth must be chosen.
+  criteria: A named decision is required that the interview did not settle, recorded with the options
+    and the evidence that forced it
+metadata:
+  seed_id: seed_9e6901e19736
+  version: 1.5.1
+  revision: 4
+  created_at: '2026-09-24T16:10:01.628831Z'
+  revised_at: '2026-09-25'
+  ambiguity_score: 0.1425
+  gate_forced: false
+  interview_id: interview_20260924_140535
+  parent_seed_id: null
+  generation_mode: normal
+  degraded: false
+  unresolved_slots: []
+  recovery_reason: null

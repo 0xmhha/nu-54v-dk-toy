@@ -1,5 +1,7 @@
 # P02 · User app
 
+> **DF-20260925-02 기준 (2026-09-25):** 이 제품은 이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle). [설계 동결 DF-20260925-02](../../docs/content/planning/design-freeze-checkpoint-02.md) 참조. 아래 원문은 DF-20260920-01 기준이다.
+
 여행자와 점주가 기기와 지갑 기능을 사용하는 React Native 모바일 앱이다.
 
 - **소유 범위:** Google/Apple 로그인, 계정 수명주기, 기기 등록·설정,

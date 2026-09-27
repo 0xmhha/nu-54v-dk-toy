@@ -1,0 +1,127 @@
+{
+  "description": "Deterministic EIP-712 vectors for DF-20260925-02 [N04][N21]. Test-only EOAs from Foundry's public test mnemonic: device index 0, operator index 1, merchant index 2. Contract and token addresses are repeated-byte placeholders; device, operator and merchant addresses are the derived test EOAs. Reference time for all timestamps is 1790000000 (TimeAnchor TA-01); authorization expiries are reference time + authorizationExpiry (120 s). Never fund these accounts.",
+  "schema": "payment-protocol.schema.json",
+  "domain": {
+    "name": "NU54 Payment Settlement",
+    "version": "1",
+    "chainId": 8283,
+    "verifyingContract": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
+  },
+  "vectors": [
+    {
+      "id": "PA-01",
+      "primaryType": "PaymentAuthorization",
+      "signerRole": "device",
+      "encodeType": "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
+      "message": {
+        "chainId": "8283",
+        "contract": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+        "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+        "token": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "amount": "4500000",
+        "orderId": "0x0101010101010101010101010101010101010101010101010101010101010101",
+        "nonce": "1",
+        "expiry": "1790000120"
+      },
+      "digest": "0x0b9fc43a93a39583a9e491c38cecbc4e9d7f019eb50b1edd69abca2c5d3c4c0d",
+      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "signature": "0xe9bf5cd78180c0d2b03e1b100a3f02019342c290df5f7a1619cbc305db3eca0c789c6b58a180bb7c89af5a8f1acbbef8d7ef7eadfd3081fb815dd58180c805f61c"
+    },
+    {
+      "id": "PA-02",
+      "primaryType": "PaymentAuthorization",
+      "signerRole": "device",
+      "encodeType": "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
+      "message": {
+        "chainId": "8283",
+        "contract": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+        "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+        "token": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "amount": "50000000",
+        "orderId": "0x0202020202020202020202020202020202020202020202020202020202020202",
+        "nonce": "57896044618658097711785492504343953926634992332820282019728792003956564819975",
+        "expiry": "1790000120"
+      },
+      "digest": "0x1db130efce370efbdcc149253bb7fbb5b2ba1a5d6a4a77dab50edde2e0fb3ead",
+      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "signature": "0x16a6e749d9b699ec8679f8976cab31b971c47b38739f4aa39a4ec98ca95a74f8319428563b1881a11824a88fe339660a19fa06f4945c10aa83fef4322bac432b1b"
+    },
+    {
+      "id": "LC-01",
+      "primaryType": "LimitChange",
+      "signerRole": "device",
+      "encodeType": "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)",
+      "message": {
+        "chainId": "8283",
+        "contract": "0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+        "perPaymentLimit": "20000000",
+        "dailyLimit": "100000000",
+        "nonce": "3",
+        "expiry": "1790000120"
+      },
+      "digest": "0xa4e0c9ff6ed5456d3ad79594c10f29828ac5ba30521097ab5cb9057a302e1965",
+      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "signature": "0x4753c4ded24e9d71a7692c3bdb9965c28442842c924a06eb04c579540bf9d4b21c29250fe2014dc81298729d5c36a8a3d9265730bd042c4109ae366c6011c6241b"
+    },
+    {
+      "id": "MA-01",
+      "primaryType": "MerchantAttestation",
+      "signerRole": "operator",
+      "encodeType": "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
+      "message": {
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+        "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+        "name": "Cafe Test 01",
+        "validFrom": "1790000000",
+        "validUntil": "1790086400"
+      },
+      "digest": "0xde1c3409c70a4e17aa3049f658982a237b069fb5e9266d6045abd6291d828df5",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "signature": "0xfe8720456d23e5b56f0ab427f846b09ffeae2c72baeb9731659a0dfa4fcd0caf693f70d082b35d58496aaca00fd82d7fe8e229dc694fe556a25c7cccb18c6f861c"
+    },
+    {
+      "id": "MO-01",
+      "primaryType": "MerchantOrder",
+      "signerRole": "merchant",
+      "encodeType": "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
+      "message": {
+        "orderId": "0x0101010101010101010101010101010101010101010101010101010101010101",
+        "token": "0xd1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "amount": "4500000",
+        "payout": "0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+        "expiry": "1790000120"
+      },
+      "digest": "0x157673038d078e2568133862a79a4eed8609faccc15d7b67269c50aef1d5f414",
+      "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "signature": "0x4b48fad6055c5a14b7956546416288b6dae0e0db7cd9fa6e199a64c1d9911fb7197623b1f1793b4123dae7ffd82a9b408d72ca456d3668d15e3511e4fe69759f1b"
+    },
+    {
+      "id": "TA-01",
+      "primaryType": "TimeAnchor",
+      "signerRole": "operator",
+      "encodeType": "TimeAnchor(address device,uint64 timestamp)",
+      "message": {
+        "device": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "timestamp": "1790000000"
+      },
+      "digest": "0x6470c1f8b0720f58d0a97c9eb30e6da1e086b2a87a5805467fba797c611adc08",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "signature": "0x23d28a27ff352dfccda1a6cf617291c1fce945cad308edb5d356cc269d7fa2222097f5fd79341c3ccc7f7bb953f9a51949a22c0d1599fc533da6601add87185d1c"
+    },
+    {
+      "id": "DR-01",
+      "primaryType": "DeviceReset",
+      "signerRole": "operator",
+      "encodeType": "DeviceReset(address device,uint256 nonce)",
+      "message": {
+        "device": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "nonce": "1"
+      },
+      "digest": "0x82c3e82ec6c746a57f81d93028e4c4bde9159f0cd16b3b654c80ab1a66fd62cf",
+      "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "signature": "0xcdcf7cf747dbee6adf9a63c8364c663fcb222259cf007c1360dc5a375c842022614521e02ac4bf02889241a3004247b2f1d0feb830042ecd5d7ee0dae19f37791b"
+    }
+  ]
+}

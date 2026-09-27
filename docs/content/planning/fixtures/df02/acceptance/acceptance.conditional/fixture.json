@@ -1,0 +1,11 @@
+{
+  "assertion": "acceptance.conditional",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/acceptance/week12-log.md",
+      "old": "(conditional: P07이 컷되지 않았을 때)",
+      "new": "(P07)"
+    }
+  ]
+}

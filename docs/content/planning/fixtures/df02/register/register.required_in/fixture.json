@@ -1,0 +1,9 @@
+{
+  "assertion": "register.required_in",
+  "ops": [
+    {
+      "op": "delete",
+      "path": "docs/content/products/p07/srs.md"
+    }
+  ]
+}

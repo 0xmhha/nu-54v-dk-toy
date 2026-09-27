@@ -1,0 +1,10 @@
+{
+  "assertion": "products.out_of_cycle",
+  "ops": [
+    {
+      "op": "write",
+      "path": "docs/content/products/p08/plan.md",
+      "content": "# P08 기획\n"
+    }
+  ]
+}

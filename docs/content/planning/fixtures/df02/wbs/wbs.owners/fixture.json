@@ -1,0 +1,11 @@
+{
+  "assertion": "wbs.owners",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/planning/product-worklist-and-12week-wbs-02.csv",
+      "old": ",role B,4,6,4.5,",
+      "new": ",role C,4,6,4.5,"
+    }
+  ]
+}

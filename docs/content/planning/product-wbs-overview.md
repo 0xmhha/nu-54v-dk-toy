@@ -1,3 +1,4 @@
+> **Superseded by DF-20260925-02** — 이 문서의 범위·가스·결제 확정 규칙은 [DF-20260925-02](design-freeze-checkpoint-02.md)가 대체한다. 아래 본문은 2026-09-24 기준 원문이다.
 # 12주 WBS 한눈에 보기
 
 상세 추적 정보는 [제품별 전체 작업 목록·우선순위·12주 WBS](product-worklist-and-12week-wbs.md), 실제 상태 갱신은 [관리용 CSV](product-worklist-and-12week-wbs.csv)를 사용한다. 이 문서는 회의와 일정 검토를 위한 읽기 전용 요약이다.

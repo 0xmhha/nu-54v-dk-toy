@@ -1,0 +1,11 @@
+{
+  "assertion": "wbs.products",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/planning/product-worklist-and-12week-wbs-02.csv",
+      "old": ",P07,Minimal",
+      "new": ",P08,Minimal"
+    }
+  ]
+}

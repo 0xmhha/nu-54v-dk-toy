@@ -1,0 +1,9 @@
+{
+  "assertion": "wbs.files",
+  "ops": [
+    {
+      "op": "delete",
+      "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md"
+    }
+  ]
+}

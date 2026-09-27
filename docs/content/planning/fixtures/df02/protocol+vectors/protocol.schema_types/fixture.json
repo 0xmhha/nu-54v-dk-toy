@@ -1,0 +1,16 @@
+{
+  "assertion": "protocol.schema_types",
+  "ops": [
+    {
+      "op": "json_set",
+      "path": "docs/content/specifications/protocol/payment-protocol.schema.json",
+      "pointer": "/eip712Types/Permit",
+      "value": [
+        {
+          "name": "owner",
+          "type": "address"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+<title>NU-54V-DK 12주 간트</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2130; --muted:#5d6678; --line:#dfe3ea; --line-soft:#eceff4;
+  --band:#f0f2f6; --focus:#2f5bd3;
+  --c0:#2b3fa0; --c1:#0f7c74; --c2:#b8741a; --c3:#8a3f6e;
+  --ms:#1b2130; --on-bar:#ffffff;
+  --font:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#12151c; --surface:#1a1e27; --ink:#e6e9f0; --muted:#98a1b3; --line:#2c3240; --line-soft:#232834;
+    --band:#1f2430; --focus:#8aa6ff;
+    --c0:#7d8ff0; --c1:#3fbfb2; --c2:#e0a14a; --c3:#d07aac; --ms:#e6e9f0; --on-bar:#10131a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#12151c; --surface:#1a1e27; --ink:#e6e9f0; --muted:#98a1b3; --line:#2c3240; --line-soft:#232834;
+  --band:#1f2430; --focus:#8aa6ff;
+  --c0:#7d8ff0; --c1:#3fbfb2; --c2:#e0a14a; --c3:#d07aac; --ms:#e6e9f0; --on-bar:#10131a;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:grid;gap:20px}
+header h1{margin:0;font-size:24px;font-weight:700;text-wrap:balance;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--muted);max-width:68ch}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.controls{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 12px 4px 8px;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.chip[aria-pressed="false"]{opacity:.45}
+.chip:focus-visible,.row:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.sel{font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.label{font-size:12px;color:var(--muted)}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+.grid{min-width:960px;display:grid;grid-template-columns:300px repeat(12,1fr)}
+.hcell{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:8px 0 6px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--muted);z-index:2}
+.hcell.first{text-align:left;padding-left:14px}
+.mscell{border-bottom:1px solid var(--line);height:34px;position:relative}
+.ms{position:absolute;top:6px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--mono);font-size:11px;font-weight:500}
+.ms i{width:9px;height:9px;background:var(--ms);transform:rotate(45deg);display:block}
+.group{grid-column:1/-1;background:var(--band);padding:7px 14px;font-weight:700;font-size:13px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+.group span{font-family:var(--mono);font-weight:400;font-size:12px;color:var(--muted)}
+.row{grid-column:1/-1;display:grid;grid-template-columns:subgrid;cursor:pointer}
+.name{padding:6px 10px 6px 14px;border-bottom:1px solid var(--line-soft);display:flex;gap:8px;align-items:baseline;min-width:0}
+.name code{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none}
+.name b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{grid-column:2/-1;border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:repeat(12,1fr);position:relative;background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(100%/12 - 1px),var(--line-soft) calc(100%/12 - 1px),var(--line-soft) calc(100%/12))}
+.bar{grid-row:1;align-self:center;height:18px;margin:0 3px;border-radius:4px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-family:var(--mono);font-size:11px;color:var(--on-bar);font-weight:500;white-space:nowrap;overflow:hidden}
+.row:hover .name,.row:hover .track{background:var(--band)}
+.row.open .name b{white-space:normal}
+.detail{grid-column:1/-1;padding:10px 14px 14px 14px;border-bottom:1px solid var(--line);background:var(--band);display:grid;gap:6px;font-size:13px}
+.detail dl{margin:0;display:grid;grid-template-columns:88px 1fr;gap:4px 12px}
+.detail dt{color:var(--muted)}
+.detail dd{margin:0}
+.foot{color:var(--muted);font-size:12px;max-width:80ch}
+@media (max-width:600px){ .grid{grid-template-columns:200px repeat(12,1fr);min-width:760px} header h1{font-size:20px} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="meta">WBS · 10 products · 57 work packages · 104 tasks</div>
+    <h1>NU-54V-DK 12주 간트 차트</h1>
+    <p>제품별 상위 작업 패키지의 계획 주차입니다. 막대 색은 우선순위(C0~C3), 위쪽 마름모는 통합 관문(M0~M7)입니다. 행을 누르면 작업 내용, 선행 작업, 완료 증거가 펼쳐집니다.</p>
+  </header>
+
+  <div class="controls">
+    <span class="label">우선순위</span>
+    <div class="chips" id="prio"></div>
+    <label class="label" for="prod">제품</label>
+    <select class="sel" id="prod"><option value="">전체</option></select>
+  </div>
+
+  <div class="chart"><div class="grid" id="grid"></div></div>
+
+  <p class="foot">출처: docs/content/planning/product-worklist-and-12week-wbs.csv. 주차는 WBS 기준의 상대 주차이며 달력 날짜와 매핑하지 않았습니다. 모든 작업의 상태는 현재 planned입니다.</p>
+</div>
+
+<script>
+const DATA = [{"id": "WBS-P01-01", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "실기기 bring-up과 자원 기준선", "d": "보드 리비전·핀·SDK·Zephyr target을 확인하고 빌드/플래시, Flash/RAM, 기본 LED·버튼·로그·BLE 기준선을 측정한다.", "pr": "C0", "s": 1, "e": 1, "pre": "-", "m": "M0", "ev": "실물 사진, 재현 빌드/플래시 로그, pin·Flash·RAM 보고서", "st": "planned", "t": "HW-01"}, {"id": "WBS-P01-02", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "보호 키와 HW 지갑 수명주기", "d": "secure service에서 키 생성·보관·주소·서명·초기화와 zeroization을 구현한다.", "pr": "C0", "s": 1, "e": 3, "pre": "WBS-P01-01 WBS-P10-01", "m": "M2", "ev": "실기기 생성/초기화/서명, 키 비반출·잘못된 요청 거절 증거", "st": "planned", "t": "HW-02"}, {"id": "WBS-P01-03", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "인증 BLE 등록과 세션", "d": "기기 등록, SAS 확인, 인증 세션, envelope·재연결·만료 처리를 구현한다.", "pr": "C0", "s": 1, "e": 2, "pre": "WBS-P01-01 WBS-P10-01", "m": "M1", "ev": "S25에서 등록·재연결·오류/만료 재현 로그", "st": "planned", "t": "HW-03"}, {"id": "WBS-P01-04", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "지갑 import와 기기 설정", "d": "앱에서 mnemonic/private key를 암호화 전송하고 기기 표시 확인·취소·재시도·민감정보 제거를 구현한다.", "pr": "C1", "s": 2, "e": 3, "pre": "WBS-P01-02 WBS-P01-03 WBS-P02-01", "m": "M2", "ev": "SAS 일치/불일치, import 성공·취소, 로그/메모리 정리 증거", "st": "planned", "t": "HW-04"}, {"id": "WBS-P01-05", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "결제 표시·물리 승인·EOA 서명", "d": "매장·금액·체인·수신처를 표시하고 버튼 승인/거절 후 EOA 거래를 서명한다.", "pr": "C1", "s": 2, "e": 4, "pre": "WBS-P01-02 WBS-P01-03 WBS-P06-01", "m": "M2", "ev": "기기 표시값과 tx intent 일치, 승인/거절, 테스트넷 거래 해시", "st": "planned", "t": "HW-05"}, {"id": "WBS-P01-06", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "근접 모듈과 결제 세션", "d": "외부 peer 거리 신호를 보조 정보로 연결하고 unknown·이탈·연결 끊김을 결제 세션에 반영한다.", "pr": "C2", "s": 3, "e": 5, "pre": "WBS-P01-03 WBS-P04-03", "m": "M3", "ev": "실측 거리/상태 로그와 근접값 단독 승인 금지 증거", "st": "planned", "t": "HW-06"}, {"id": "WBS-P01-07", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "FOTA 부트·패키지 기반", "d": "MCUboot 슬롯, 서명 이미지, trial/confirm/rollback과 배포 메타데이터를 구성한다.", "pr": "C1", "s": 2, "e": 4, "pre": "WBS-P01-01 WBS-P10-03", "m": "M2", "ev": "정상/변조 이미지, trial boot, rollback, 버전 manifest", "st": "planned", "t": "OTA-01 OTA-02"}, {"id": "WBS-P01-08", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "앱 FOTA와 호환 복구", "d": "BLE 전송·진행률·재연결·중단 복구와 앱/프로토콜/키 저장 호환을 구현한다.", "pr": "C1", "s": 4, "e": 6, "pre": "WBS-P01-07 WBS-P02-01", "m": "M3", "ev": "실기기 업데이트·전원/통신 중단·키/설정 보존 증거", "st": "planned", "t": "OTA-03 OTA-04"}, {"id": "WBS-P01-09", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "패스키 등록·인증·해제", "d": "통제 RP에서 CTAP 등록/인증, 물리 presence·PIN verification, 분실/반납 삭제를 연결한다.", "pr": "C2", "s": 3, "e": 6, "pre": "WBS-P01-02 WBS-P01-03 WBS-P02-02", "m": "M3", "ev": "S25/Chrome RP 등록·인증·실패·해제 증거", "st": "planned", "t": "KEY-01 KEY-02 KEY-03"}, {"id": "WBS-P01-10", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "녹음 전송과 기기 찾기", "d": "버튼 녹음·PCM frame·BLE gap 복구·폰 저장과 RSSI/버저 찾기·끊김 안내를 구현한다.", "pr": "C2", "s": 3, "e": 6, "pre": "WBS-P01-03 WBS-P02-01", "m": "M3", "ev": "30분 녹음/재생·sequence/CRC·찾기 연결/단절 증거", "st": "planned", "t": "REC-01 REC-02 FIND-01 FIND-02"}, {"id": "WBS-P01-11", "p": "P01", "pn": "NU-54V-DK 펌웨어·주변 부품", "n": "동시 동작과 자원 중재", "d": "서명·import·FOTA·녹음·찾기·스탬프의 배타/동시 규칙과 메모리·전력 경합을 처리한다.", "pr": "C2", "s": 5, "e": 7, "pre": "WBS-P01-05 WBS-P01-08 WBS-P01-09 WBS-P01-10", "m": "M4", "ev": "기능 조합별 허용/거절, crash/reboot, 배터리·자원 측정", "st": "planned", "t": "HW-07"}, {"id": "WBS-P02-01", "p": "P02", "pn": "유저 앱·소셜 로그인·기기 설정", "n": "앱 골격·계정·권한 기반", "d": "RN 앱 탐색, 한/영, 권한, 계정·매장 소속·역할 서버와 오류/재시작 상태를 구성한다.", "pr": "C0", "s": 1, "e": 2, "pre": "WBS-P10-01 WBS-P10-02", "m": "M1", "ev": "S25 설치 빌드, 로그인 전/후 탐색, 역할 거부와 재시작 증거", "st": "planned", "t": "APP-01 AUTH-01"}, {"id": "WBS-P02-02", "p": "P02", "pn": "유저 앱·소셜 로그인·기기 설정", "n": "Google·Apple 계정 수명주기", "d": "두 OIDC 제공자의 가입·로그인·연결·로그아웃·탈퇴·중복 계정을 구현한다.", "pr": "C1", "s": 1, "e": 4, "pre": "WBS-P02-01", "m": "M2", "ev": "Google/Apple 실제 callback, token revocation, 계정 연결/탈퇴 증거", "st": "planned", "t": "AUTH-02 AUTH-03 AUTH-04"}, {"id": "WBS-P02-03", "p": "P02", "pn": "유저 앱·소셜 로그인·기기 설정", "n": "두 지갑·자산 선택 경험", "d": "HW/Cloud 주소·잔액·가스·선택 signer를 분리해 표시하고 기기 상태를 연결한다.", "pr": "C1", "s": 2, "e": 4, "pre": "WBS-P02-01 WBS-P01-04 WBS-P03-02", "m": "M2", "ev": "두 주소/잔액 분리, 선택 signer와 승인 주체 표시", "st": "planned", "t": "APP-02"}, {"id": "WBS-P02-04", "p": "P02", "pn": "유저 앱·소셜 로그인·기기 설정", "n": "송금·견적·승인·영수증 공통 UI", "d": "송금/결제 intent, pending/unknown/result 조회, 개인 결제·영수증·환불 기록을 공통 흐름으로 구현한다.", "pr": "C1", "s": 2, "e": 5, "pre": "WBS-P02-03 WBS-P04-03 WBS-P07-02", "m": "M3", "ev": "실거래 상태 재조회, 응답 유실 복구, 개인 이력/영수증 증거", "st": "planned", "t": "APP-03 APP-04"}, {"id": "WBS-P03-01", "p": "P03", "pn": "Cloud MPC Wallet", "n": "MPC 도입·신뢰·복구 기준선", "d": "2-of-3 참여자, 독립 KMS, 모바일 approval, 복구 custodian과 라이브러리 실행 경로를 검증한다.", "pr": "C0", "s": 1, "e": 2, "pre": "WBS-P10-02", "m": "M1", "ev": "선택 revision, threat boundary, 참여자 격리·실행 spike", "st": "planned", "t": "MPC-01"}, {"id": "WBS-P03-02", "p": "P03", "pn": "Cloud MPC Wallet", "n": "분산 키 생성과 계정 연결", "d": "DKG·주소 생성과 소셜 계정/모바일 승인키 바인딩을 구현한다.", "pr": "C1", "s": 2, "e": 4, "pre": "WBS-P03-01 WBS-P02-02", "m": "M2", "ev": "전체키 재조립 없는 DKG, 주소·epoch·계정 연결 증거", "st": "planned", "t": "MPC-02"}, {"id": "WBS-P03-03", "p": "P03", "pn": "Cloud MPC Wallet", "n": "MPC 승인·서명·결과", "d": "모바일 별도 승인 후 threshold 서명과 테스트넷 제출·결과 조회를 앱에 연결한다.", "pr": "C1", "s": 3, "e": 5, "pre": "WBS-P03-02 WBS-P02-04 WBS-P07-03", "m": "M3", "ev": "A/B threshold 서명, 모바일 승인 거부, tx/Indexer 결과", "st": "planned", "t": "MPC-03"}, {"id": "WBS-P03-04", "p": "P03", "pn": "Cloud MPC Wallet", "n": "복구·refresh·참여자 장애", "d": "기기 변경, share refresh/회전/철회, A/C 복구와 중단 세션·quorum 상실을 처리한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P03-03 WBS-P05-01", "m": "M4", "ev": "old epoch 거절, 참여자 장애·timeout/unknown·독립 복구 감사", "st": "planned", "t": "MPC-04 MPC-05"}, {"id": "WBS-P04-01", "p": "P04", "pn": "RN 키오스크·매장 운영", "n": "태블릿·매장·메뉴·주문 기반", "d": "Android RN 키오스크, 매장 가입/로그인, 관리 모드, 메뉴·가격·품절·장바구니·주문을 구현한다.", "pr": "C0", "s": 1, "e": 3, "pre": "WBS-P02-01 WBS-P10-01", "m": "M2", "ev": "태블릿 설치, 매장 격리, 메뉴→주문 snapshot 증거", "st": "planned", "t": "SHOP-01 SHOP-02"}, {"id": "WBS-P04-02", "p": "P04", "pn": "RN 키오스크·매장 운영", "n": "EOA 견적·제출·주문 연결", "d": "환율·수수료·만료 견적, 서명 요청, 제출/재시도와 주문 payment attempt를 연결한다.", "pr": "C1", "s": 2, "e": 4, "pre": "WBS-P06-01 WBS-P01-05 WBS-P07-02", "m": "M2", "ev": "quote TTL/rounding, 멱등 제출, 주문·attempt·tx 연결", "st": "planned", "t": "PAY-01 PAY-02 PAY-03"}, {"id": "WBS-P04-03", "p": "P04", "pn": "RN 키오스크·매장 운영", "n": "입금 대사와 NU 수직 결제", "d": "Indexer 관측·2 block 확정·payment allocation과 키오스크 BLE 승인/영수증을 한 흐름으로 연결한다.", "pr": "C1", "s": 3, "e": 5, "pre": "WBS-P04-01 WBS-P04-02 WBS-P07-03", "m": "M2", "ev": "NU 승인→StableNet→Indexer→paid→영수증 종단 증거", "st": "planned", "t": "PAY-04 PAY-05 SHOP-03"}, {"id": "WBS-P04-04", "p": "P04", "pn": "RN 키오스크·매장 운영", "n": "점주 환불 수명주기", "d": "원 결제·권한·서명자를 확인하고 부분/전체 환불의 제출·확정·오류를 구현한다.", "pr": "C2", "s": 4, "e": 6, "pre": "WBS-P04-03 WBS-P06-01", "m": "M3", "ev": "무권한 거절, 부분 환불, 응답 유실/지연 결과 재조회", "st": "planned", "t": "SHOP-04"}, {"id": "WBS-P04-05", "p": "P04", "pn": "RN 키오스크·매장 운영", "n": "매출·정산·수취 권한", "d": "매출·수취·환불·정산 대조와 수취 주소 변경/환불 signer 권한 분리를 구현한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P04-04 WBS-P05-01 WBS-P07-05", "m": "M4", "ev": "일 마감/보정, 주소 변경 승인, 점주 역할별 조회·서명 거절", "st": "planned", "t": "SHOP-05 SHOP-06"}, {"id": "WBS-P05-01", "p": "P05", "pn": "백오피스·대여·운영 신뢰", "n": "운영자 권한·감사·관리 골격", "d": "가맹점·계정·기기·거래를 역할별로 조회/관리하고 typed command·audit를 남긴다.", "pr": "C1", "s": 2, "e": 4, "pre": "WBS-P02-01 WBS-P10-01", "m": "M2", "ev": "역할별 허용/거절, append-only 감사, 원 결과 조회", "st": "planned", "t": "OPS-01"}, {"id": "WBS-P05-02", "p": "P05", "pn": "백오피스·대여·운영 신뢰", "n": "가맹점·대여·FOTA 운영", "d": "가맹점 승인, 기기 대여/반납, 잔액 회수·접근 해제, FOTA campaign을 연결한다.", "pr": "C2", "s": 4, "e": 7, "pre": "WBS-P05-01 WBS-P01-08 WBS-P04-03", "m": "M4", "ev": "대여→지급→반납, import/new 지갑 분기, staged FOTA 증거", "st": "planned", "t": "OPS-02 STAMP-03"}, {"id": "WBS-P05-03", "p": "P05", "pn": "백오피스·대여·운영 신뢰", "n": "반납 후 권한·늦은 효과 정리", "d": "미확정 거래, passkey, DID/스마트 계정, BLE 권한과 복구 package 확인 후 재대여 gate를 처리한다.", "pr": "C2", "s": 6, "e": 8, "pre": "WBS-P05-02 WBS-P01-09 WBS-P06-02", "m": "M4", "ev": "늦은 자산/unknown 거래, 권한 철회, reset hold·재대여 조건 증거", "st": "planned", "t": "STAMP-04"}, {"id": "WBS-P05-04", "p": "P05", "pn": "백오피스·대여·운영 신뢰", "n": "결제 예외·Indexer 지연·대사", "d": "부분/초과/중복/지연 지급과 reorg·Indexer stale을 대사 queue와 운영 화면에서 처리한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P05-01 WBS-P04-03 WBS-P07-04", "m": "M4", "ev": "예외 분류·재처리 멱등성·수동 결정 audit와 보정 증거", "st": "planned", "t": "OPS-03"}, {"id": "WBS-P06-01", "p": "P06", "pn": "StableNet 토큰·스마트계정·자격·x402", "n": "네트워크·dummy USDC·WKRC 기반", "d": "chain 8283, 단위·가스·주소 gate와 dummy USDC 배포/권한, WKRC/native·wrapped 경계를 구성한다.", "pr": "C0", "s": 1, "e": 3, "pre": "WBS-P10-02", "m": "M2", "ev": "배포 manifest, address/codeHash/ABI/block, 단위·가스 golden vector", "st": "planned", "t": "TOKEN-01 TOKEN-02 TOKEN-03"}, {"id": "WBS-P06-02", "p": "P06", "pn": "StableNet 토큰·스마트계정·자격·x402", "n": "EOA→스마트 계정 전환", "d": "Kernel/ERC-7579·ERC-4337 stack, Bundler와 별도 주소·사용자 선택 전환·앱 결과를 구현한다.", "pr": "C2", "s": 4, "e": 7, "pre": "WBS-P04-03 WBS-P06-01 WBS-P07-03", "m": "M4", "ev": "UserOp 실행, EOA/SA 주소·자산 분리, 내부 실패·allowance 표시", "st": "planned", "t": "SMART-01 SMART-02 SMART-03"}, {"id": "WBS-P06-03", "p": "P06", "pn": "StableNet 토큰·스마트계정·자격·x402", "n": "DID 자격 발급·검증·철회", "d": "did:web issuer, did:key holder, VC 발급/제시/검증/상태 철회와 앱 자격 관리를 구현한다.", "pr": "C2", "s": 4, "e": 7, "pre": "WBS-P02-04 WBS-P06-01", "m": "M4", "ev": "발급·제시·current status·철회 경쟁·앱 결과 증거", "st": "planned", "t": "DID-01 DID-02 DID-03"}, {"id": "WBS-P06-04", "p": "P06", "pn": "StableNet 토큰·스마트계정·자격·x402", "n": "제한형 CafePass 테스트 발행물", "d": "DID 자격 기반 발행·보유·전송 제한과 앱 결과를 구현한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P06-03 WBS-P07-04", "m": "M4", "ev": "적격/부적격 transfer, 철회 후 거절, 권리 없음 표시", "st": "planned", "t": "STO-01 STO-02 STO-03"}, {"id": "WBS-P06-05", "p": "P06", "pn": "StableNet 토큰·스마트계정·자격·x402", "n": "x402 유료 AI 코스", "d": "402 challenge, EIP-3009 승인·지급 검증, entitlement·재조회·공급 실패 환불과 앱 사용 흐름을 구현한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P06-01 WBS-P07-04 WBS-P09-04", "m": "M4", "ev": "1 dUSDC 지급, 중복 재시도 1효과, 결과 재조회/실패 환불", "st": "planned", "t": "X402-01 X402-02 X402-03"}, {"id": "WBS-P07-01", "p": "P07", "pn": "Indexer·조회 프런트엔드", "n": "체인·배포 계약 등록", "d": "StableNet RPC와 활성 deployment registry를 indexer source로 구성한다.", "pr": "C0", "s": 1, "e": 2, "pre": "WBS-P10-02", "m": "M1", "ev": "RPC capability, 등록/미등록 주소 gate, source revision", "st": "planned", "t": "INDEX-01"}, {"id": "WBS-P07-02", "p": "P07", "pn": "Indexer·조회 프런트엔드", "n": "SDK·조회 schema 정합화", "d": "기존 SDK/Indexer 요청·응답, 정수 금액, 이벤트 변환과 typed reader를 맞춘다.", "pr": "C0", "s": 1, "e": 3, "pre": "WBS-P07-01", "m": "M2", "ev": "contract tests, amount/unit golden vector, 오류 schema", "st": "planned", "t": "INDEX-02"}, {"id": "WBS-P07-03", "p": "P07", "pn": "Indexer·조회 프런트엔드", "n": "canonical ingest·backfill·reorg", "d": "cursor, raw block/log, 중복 제거, 2-block confirmation, backfill과 reorg rollback을 구현한다.", "pr": "C0", "s": 2, "e": 4, "pre": "WBS-P07-01 WBS-P06-01", "m": "M2", "ev": "중복/reorg fixture, 재시작 cursor, full backfill 결과", "st": "planned", "t": "INDEX-03"}, {"id": "WBS-P07-04", "p": "P07", "pn": "Indexer·조회 프런트엔드", "n": "확장 계약 decoder·projection", "d": "스마트계정·DEX·FX·Perp·STO·DID·x402 ABI와 versioned projection을 등록한다.", "pr": "C2", "s": 4, "e": 8, "pre": "WBS-P07-03 WBS-P06-02 WBS-P06-03", "m": "M4", "ev": "구/신 decoder 공존, quarantine, 계약별 이벤트/조회 증거", "st": "planned", "t": "INDEX-04"}, {"id": "WBS-P07-05", "p": "P07", "pn": "Indexer·조회 프런트엔드", "n": "앱 조회·탐색기·상태 관측", "d": "거래 상세, confirmation/reorg/stale, explorer link와 권한 안전 reader를 앱에 제공한다.", "pr": "C1", "s": 3, "e": 8, "pre": "WBS-P07-02 WBS-P07-03 WBS-P02-04", "m": "M4", "ev": "앱 실제 조회, stale/unknown 표시, cursor generation 거절", "st": "planned", "t": "INDEX-05"}, {"id": "WBS-P07-06", "p": "P07", "pn": "Indexer·조회 프런트엔드", "n": "원장·혜택·여행 보정 전파", "d": "관측 변경을 결제 원장·매출·스탬프·verified review·추천 입력에 멱등 보정한다.", "pr": "C2", "s": 6, "e": 9, "pre": "WBS-P07-04 WBS-P07-05 WBS-P05-04 WBS-P09-03", "m": "M5", "ev": "reorg/decoder 보정 후 업무·혜택·여행 projection 일치", "st": "planned", "t": "INDEX-06"}, {"id": "WBS-P08-01", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "AMM 상품·pool·swap/LP 실행", "d": "dummy USDC/WKRC pool, quote·slippage·allowance, swap과 유동성 공급/회수를 구현한다.", "pr": "C2", "s": 4, "e": 6, "pre": "WBS-P06-01", "m": "M3", "ev": "integer/rounding·stale quote·slippage·LP 실행 증거", "st": "planned", "t": "DEX-01 DEX-02"}, {"id": "WBS-P08-02", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "DEX 앱 경험", "d": "견적·승인·swap/LP·이력과 pending/revert/reorg 상태를 앱에 연결한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P08-01 WBS-P02-04 WBS-P07-05", "m": "M4", "ev": "앱 입력→서명→실행→Indexer 결과 종단 증거", "st": "planned", "t": "DEX-03"}, {"id": "WBS-P08-03", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "TEST FX 모델·교환 서비스", "d": "지정 통화 쌍, 가격 snapshot과 TEST FX 표시, 교환 실행을 구성한다.", "pr": "C2", "s": 5, "e": 7, "pre": "WBS-P08-01", "m": "M4", "ev": "가격 근거·만료·교환 수량과 pool 효과 증거", "st": "planned", "t": "FX-01 FX-02"}, {"id": "WBS-P08-04", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "FX 앱 경험", "d": "FX 견적·승인·교환·기록과 만료/재견적을 앱에 연결한다.", "pr": "C2", "s": 6, "e": 8, "pre": "WBS-P08-03 WBS-P02-04", "m": "M4", "ev": "앱 견적→사용자 재승인→교환→이력 증거", "st": "planned", "t": "FX-03"}, {"id": "WBS-P08-05", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "Perpetual 시장·오라클 기준", "d": "TEST BTC/WKRC 시장, margin/leverage/funding/liquidation과 signed oracle stale guard를 구현한다.", "pr": "C2", "s": 4, "e": 6, "pre": "WBS-P06-01", "m": "M3", "ev": "위험 golden vector, oracle age/stale 거절 증거", "st": "planned", "t": "PERP-01 PERP-02"}, {"id": "WBS-P08-06", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "포지션·펀딩·청산 실행", "d": "포지션 개설/축소/종료, funding, liquidation keeper lease와 중복/장애 복구를 구현한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P08-05", "m": "M4", "ev": "3배/증거금 경계, funding, 단일 청산 효과, keeper 복구", "st": "planned", "t": "PERP-03 PERP-04 PERP-06"}, {"id": "WBS-P08-07", "p": "P08", "pn": "DEX·FX·Perpetual 서비스", "n": "Perpetual 앱 경험", "d": "시장·주문·포지션·PnL·펀딩·청산 이력과 실패 상태를 앱에 연결한다.", "pr": "C2", "s": 6, "e": 8, "pre": "WBS-P08-06 WBS-P02-04 WBS-P07-05", "m": "M4", "ev": "앱 실제 포지션 수명주기와 Indexer 결과 증거", "st": "planned", "t": "PERP-05"}, {"id": "WBS-P09-01", "p": "P09", "pn": "여행·기록·추천·혜택", "n": "전사·AI 회의 기록", "d": "폰에 저장된 음성을 전사·요약하고 원음/텍스트/결과 내보내기·삭제를 연결한다.", "pr": "C2", "s": 4, "e": 7, "pre": "WBS-P01-10 WBS-P02-01", "m": "M4", "ev": "audio manifest→전사→요약 연결, 공급자 실패·삭제 fanout 증거", "st": "planned", "t": "REC-03"}, {"id": "WBS-P09-02", "p": "P09", "pn": "여행·기록·추천·혜택", "n": "장소 검색·verified 후기", "d": "Kakao 장소, 위치 권한, 맛집 검색과 결제 출처가 있는 후기/노출 정책을 구현한다.", "pr": "C2", "s": 3, "e": 6, "pre": "WBS-P02-01 WBS-P04-03", "m": "M3", "ev": "권한 허용/거절, place snapshot, verified/일반 후기 구분", "st": "planned", "t": "TRIP-01 TRIP-02"}, {"id": "WBS-P09-03", "p": "P09", "pn": "여행·기록·추천·혜택", "n": "여행 모드·발자취·데이터 수명주기", "d": "결제/위치 발자취, session·배경 동의, 장소 식별·보관·삭제를 구현한다.", "pr": "C2", "s": 4, "e": 8, "pre": "WBS-P09-02 WBS-P02-04 WBS-P07-05", "m": "M4", "ev": "여행 session, 100m/5분 규칙, 동의 철회·삭제/restore seal", "st": "planned", "t": "TRIP-03 TRIP-04"}, {"id": "WBS-P09-04", "p": "P09", "pn": "여행·기록·추천·혜택", "n": "근거 있는 AI 코스", "d": "결제·후기·위치 입력, 코스 제약/평가 corpus와 생성·근거·수정·저장/apply를 구현한다.", "pr": "C2", "s": 5, "e": 8, "pre": "WBS-P09-02 WBS-P09-03", "m": "M4", "ev": "20개 평가 corpus, 존재 장소/근거, user apply revision", "st": "planned", "t": "AI-01 AI-02"}, {"id": "WBS-P09-05", "p": "P09", "pn": "여행·기록·추천·혜택", "n": "챌린지·스탬프·보상", "d": "따라하기 방문/결제 증명과 스탬프 발급·사용·취소 원장, 앱·기기 표시를 구현한다.", "pr": "C2", "s": 6, "e": 9, "pre": "WBS-P09-04 WBS-P04-03 WBS-P07-06", "m": "M5", "ev": "중복 발급 금지, 환불 debt, 챌린지 완료/미완료·기기 표시", "st": "planned", "t": "AI-03 STAMP-01 STAMP-02"}, {"id": "WBS-P10-01", "p": "P10", "pn": "공통 기반·검증·릴리스 도구", "n": "요구·데이터·연결 계약 기준선", "d": "15개 요구를 화면/시나리오에 연결하고 공통 ID·상태·HTTP/BLE envelope를 runtime 작업으로 고정한다.", "pr": "C0", "s": 1, "e": 2, "pre": "-", "m": "M1", "ev": "계약 예제, 상태/권한/멱등성 contract test와 소비자 확인", "st": "planned", "t": "BASE-01 BASE-02 BASE-03"}, {"id": "WBS-P10-02", "p": "P10", "pn": "공통 기반·검증·릴리스 도구", "n": "재사용·환경·지원 행렬", "d": "기존 네 저장소 차이, secretRef 환경, 보존 정책과 두 지갑/기능/서명 지원 행렬을 고정한다.", "pr": "C0", "s": 1, "e": 2, "pre": "WBS-P10-01", "m": "M1", "ev": "pinned revision, 호환 gap, 비밀 없는 환경 manifest, 지원/거절표", "st": "planned", "t": "BASE-04 BASE-05 BASE-06"}, {"id": "WBS-P10-03", "p": "P10", "pn": "공통 기반·검증·릴리스 도구", "n": "CI·재현 빌드·시험 도구", "d": "펌웨어·앱·서비스·계약·Indexer 재현 빌드와 fixture/배포 manifest 검사기를 구성한다.", "pr": "C0", "s": 1, "e": 3, "pre": "WBS-P10-02", "m": "M2", "ev": "clean build, artifact digest, CI 결과, synthetic fixture 실행", "st": "planned", "t": "RELEASE-01"}, {"id": "WBS-P10-04", "p": "P10", "pn": "공통 기반·검증·릴리스 도구", "n": "두 지갑·기기 수용 시험", "d": "소셜/Cloud MPC/대여와 지갑·FOTA·패스키·녹음·찾기의 정상/실패/공존 시험을 수행한다.", "pr": "C3", "s": 8, "e": 11, "pre": "WBS-P01-11 WBS-P02-04 WBS-P03-04 WBS-P05-03", "m": "M6", "ev": "실기기/실계정 수용 결과, 실패·복구 로그, 교차 검토", "st": "planned", "t": "VERIFY-01 VERIFY-02"}, {"id": "WBS-P10-05", "p": "P10", "pn": "공통 기반·검증·릴리스 도구", "n": "매장·온체인·여행 수용 시험", "d": "매장/환불/정산/운영, 9개 온체인 영역·DEX, 여행/혜택을 종단 시험한다.", "pr": "C3", "s": 8, "e": 11, "pre": "WBS-P04-05 WBS-P06-05 WBS-P08-07 WBS-P09-05 WBS-P07-06", "m": "M6", "ev": "카페·테스트넷·앱 정상/실패/복구 evidence index", "st": "planned", "t": "VERIFY-03 VERIFY-04 VERIFY-05"}, {"id": "WBS-P10-06", "p": "P10", "pn": "공통 기반·검증·릴리스 도구", "n": "관측·백업·릴리스·인수", "d": "RPO/RTO 복구, 관측/경보, release/rollback과 전체 증거·설치·운영 인수를 마친다.", "pr": "C3", "s": 10, "e": 12, "pre": "WBS-P10-04 WBS-P10-05", "m": "M7", "ev": "복구 drill, release manifest, 운영 runbook, 15요구 evidence index", "st": "planned", "t": "RELEASE-02 RELEASE-03"}];
+const PRIO = {C0:"즉시 착수",C1:"첫 종단 경로",C2:"필수 확장",C3:"통합·출시"};
+const MS = [["M0",1],["M1",2],["M2",4],["M3",6],["M4",8],["M5",10],["M6",11],["M7",12]];
+const MSDESC = {M0:"보드 flash·앱 실행·RPC·재현 build",M1:"인증 BLE·token manifest·Indexer 원 이벤트·주문 골격",M2:"NU 승인→EOA→Indexer→paid→키오스크 영수증",M3:"기기 부가기능·환불/정산·MPC·여행 core",M4:"15개 요구 전체의 첫 실제 연결",M5:"카페 회귀·장애/권한/삭제/성능·복구 통과",M6:"VERIFY-01~05 수용 판정",M7:"재현 릴리스·운영 문서·evidence index·시연"};
+const on = {C0:true,C1:true,C2:true,C3:true};
+let prodFilter = "", openId = null;
+
+const prioEl = document.getElementById("prio");
+Object.keys(PRIO).forEach(k=>{
+  const b=document.createElement("button");
+  b.className="chip"; b.type="button"; b.id="chip-"+k; b.setAttribute("aria-pressed","true");
+  b.innerHTML=`<span class="sw" style="background:var(--${k.toLowerCase()})"></span>${k} ${PRIO[k]}`;
+  b.onclick=()=>{on[k]=!on[k]; b.setAttribute("aria-pressed",String(on[k])); render();};
+  prioEl.appendChild(b);
+});
+const products=[...new Map(DATA.map(d=>[d.p,d.pn])).entries()];
+const sel=document.getElementById("prod");
+products.forEach(([p,n])=>{const o=document.createElement("option");o.value=p;o.textContent=`${p} · ${n}`;sel.appendChild(o);});
+sel.onchange=()=>{prodFilter=sel.value;render();};
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(){
+  const g=document.getElementById("grid");
+  let h=`<div class="hcell first">작업 패키지</div>`;
+  for(let w=1;w<=12;w++) h+=`<div class="hcell">W${w}</div>`;
+  h+=`<div class="mscell" style="padding:8px 14px" ><span class="label">통합 관문</span></div>`;
+  for(let w=1;w<=12;w++){
+    const m=MS.find(x=>x[1]===w);
+    h+=`<div class="mscell">${m?`<span class="ms" title="${esc(m[0]+": "+MSDESC[m[0]])}"><i></i>${m[0]}</span>`:""}</div>`;
+  }
+  products.forEach(([p,n])=>{
+    if(prodFilter && prodFilter!==p) return;
+    const rows=DATA.filter(d=>d.p===p && on[d.pr]);
+    if(!rows.length) return;
+    h+=`<div class="group">${esc(p)} ${esc(n)}<span>${rows.length}개</span></div>`;
+    rows.forEach(d=>{
+      const open=openId===d.id;
+      h+=`<div class="row${open?" open":""}" tabindex="0" role="button" aria-expanded="${open}" data-id="${d.id}">
+        <div class="name"><code>${esc(d.id.replace("WBS-",""))}</code><b title="${esc(d.n)}">${esc(d.n)}</b></div>
+        <div class="track"><div class="bar" style="grid-column:${d.s}/${d.e+1};background:var(--${d.pr.toLowerCase()})" title="${esc(`${d.n} · W${d.s}–W${d.e} · ${d.pr} · ${d.m}`)}"><span>${d.pr}</span><span>${d.m}</span></div></div>
+      </div>`;
+      if(open) h+=`<div class="detail"><dl>
+        <dt>기간</dt><dd>W${d.s}${d.e!==d.s?"–W"+d.e:""} · ${d.pr} ${PRIO[d.pr]} · 관문 ${d.m}</dd>
+        <dt>내용</dt><dd>${esc(d.d)}</dd>
+        <dt>선행 작업</dt><dd>${esc(d.pre)}</dd>
+        <dt>완료 증거</dt><dd>${esc(d.ev)}</dd>
+        <dt>세부 작업</dt><dd>${esc(d.t)}</dd>
+      </dl></div>`;
+    });
+  });
+  g.innerHTML=h;
+  g.querySelectorAll(".row").forEach(r=>{
+    const t=()=>{const id=r.dataset.id; openId=openId===id?null:id; render(); const n=document.querySelector(`.row[data-id="${id}"]`); n&&n.focus();};
+    r.onclick=t; r.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();t();}};
+  });
+}
+render();
+</script>

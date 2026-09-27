@@ -1,0 +1,11 @@
+{
+  "assertion": "banners.remainder_hash",
+  "ops": [
+    {
+      "op": "replace",
+      "path": "docs/content/week-03-maker-team-meeting-memo.md",
+      "old": "# 3주차 메이커 소그룹 모임 메모 (9/23)",
+      "new": "# 3주차 메이커 소그룹 모임 메모 (9/24)"
+    }
+  ]
+}

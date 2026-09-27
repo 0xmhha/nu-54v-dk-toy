@@ -1,0 +1,28 @@
+id,product,title,owner,startWeek,endWeek,effortDays,gate,dependsOn,decisions,evidence
+WBS2-P01-00,P01,Board bring-up BR-01..BR-08,user,4,4,1.5,W4,-,N03,bring-up log with BR-01..BR-08 results
+WBS2-P01-10,P01,External SE datasheet check for secp256k1,role A,4,4,0.5,W4,-,N02 N03,datasheet excerpt and decision note
+WBS2-P10-01,P10,Shared EIP-712 type package from schema and vectors,user,4,4,0.5,W6,-,N04 N21,package build log
+WBS2-P01-01,P01,Zephyr app skeleton buttons and merchant display,role A,4,5,3,W7,-,N09,build and flash log with display photo
+WBS2-P04-01,P04,RN kiosk skeleton order entry BLE central and framing,role B,4,6,4.5,W7,-,N09,kiosk build and BLE connect log
+WBS2-P06-01,P06,Settlement contract core with minimal merchant registry,user,5,6,4.5,W6,WBS2-P10-01,N07 N13,Foundry test report
+WBS2-P01-02,P01,TRNG key TF-M sealing PIN and token-digest binding,role A,5,6,3,W7,WBS2-P01-01,N02 N11 N24,key lifecycle test log
+WBS2-P06-02,P06,Testnet 8283 deploy and software-signer PaymentSettled,user,6,6,0.75,W6,WBS2-P06-01,N03 N08,finalized PaymentSettled log with shortened tx hash
+WBS2-P01-03,P01,BLE GATT service LESC and message reassembly,role A,6,7,3,W7,WBS2-P01-01,N09,pairing and reassembly log
+WBS2-P05-01,P05,Go ops core and opsctl merchant registration attestation and order signing,role B,6,6,1.5,W7,WBS2-P06-01,N05 N20,opsctl run log
+WBS2-P01-04,P01,EIP-712 signing verification TimeAnchor setup commands and refusals,role A,7,7,2.5,W7,WBS2-P01-02 WBS2-P10-01,N04 N05 N06 N22 N23,vector conformance and refusal log
+WBS2-P04-02,P04,Minimal submission and finalized PaymentSettled watcher,role B,7,7,2,W7,WBS2-P04-01 WBS2-P06-02,N08 N10,end-to-end payment log
+WBS2-P05-02,P05,opsctl rental provision setup.operator TimeAnchor and depositFor,role B,7,7,1.5,W7,WBS2-P05-01,N06 N11 N20 N23,provisioning run log
+WBS2-P10-02,P10,Vector conformance harness for firmware kiosk and contract,user,7,7,1.5,W7,WBS2-P10-01,N21,conformance run log
+WBS2-P06-03,P06,Payout change delay and LimitChange,user,7,8,4,-,WBS2-P06-01,N05 N13,Foundry test report
+WBS2-P04-03,P04,Simulation gas threshold session.cancel Checking error mapping and LimitChange relay,role B,8,9,5,-,WBS2-P04-02 WBS2-P06-03,N08 N10 N22,submission test log
+WBS2-P05-03,P05,opsctl rental return closeAccount withdrawal and signed DeviceReset,role B,10,10,1.5,-,WBS2-P05-02 WBS2-P06-04,N11 N23,return run log
+WBS2-P01-05,P01,External secure element integration,role A,8,9,6,W9,WBS2-P01-02,N02,SE sign log
+WBS2-P06-04,P06,Delayed withdrawal and closeAccount,user,8,9,3,-,WBS2-P06-03,N07 N11,Foundry test report
+WBS2-P01-06,P01,NFC handover with BLE scan fallback,role A,9,9,1,-,WBS2-P01-03,N09,handover log
+WBS2-P05-04,P05,opsctl merchant revoke payout change and refusal-host,role B,9,10,3,-,WBS2-P05-01 WBS2-P06-03,N05 N22,opsctl run log
+WBS2-P06-05,P06,Contract hardening and finality observation,user,9,10,4,-,WBS2-P06-04,N08,review notes and 1-hour finality poll log
+WBS2-P01-07,P01,MCUboot signed image AP-Protect and release build without USB CDC,role A,10,10,3,-,WBS2-P01-01,N12,unsigned image rejection log
+WBS2-P07-01,P07,Minimal PaymentSettled indexer and receipt lookup,user,10,11,4,-,WBS2-P06-02,N19,receipt lookup log
+WBS2-P01-08,P01,Security checks and stabilization for W12,role A,11,12,5,-,WBS2-P01-07 WBS2-P01-04,N18 N24,W12 security item evidence
+WBS2-P04-04,P04,W12 rehearsal 20 consecutive payments and 8 refusal demos,role B,11,12,6,-,WBS2-P04-03 WBS2-P05-04,N18 N22,rehearsal log
+WBS2-P10-03,P10,Week-12 acceptance log and evidence redaction,user,11,12,4,-,WBS2-P06-05,N16 N18,week12-log.md with sha256 checksums

@@ -1,5 +1,24 @@
 # P04 · Merchant kiosk
 
+> **DF-20260925-02 기준 (2026-09-25):** 이번 12주 사이클의 범위와 설계는 [기획](../../docs/content/products/p04/plan.md) · [SRS](../../docs/content/products/p04/srs.md) · [유즈케이스](../../docs/content/products/p04/use-cases.md) · [설계](../../docs/content/products/p04/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+
+## 개발 (DF-20260925-02)
+
+| 경로 | 내용 |
+|---|---|
+| `src/` | React Native 0.87(New Architecture, TypeScript) 키오스크 앱 |
+| `src/specs/NativeNusBle.ts` | BLE central Turbo Module 명세. Kotlin·Swift 구현은 WBS2-P04-01에서 붙인다 |
+| `android/`, `ios/` | 네이티브 프로젝트(Turbo Module 구현 위치) |
+| `test/` | Jest 시험 |
+
+```bash
+make setup        # 저장소 루트에서 pnpm install
+make test
+make lint
+make run          # react-native run-android
+```
+
+
 가맹점 Android 태블릿에서 실행하는 React Native 키오스크 제품이다.
 
 - **소유 범위:** 점주 로그인, 매장·메뉴·재고·주문, BLE 결제 세션,

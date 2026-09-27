@@ -1,0 +1,11 @@
+{
+  "assertion": "protocol.vectors",
+  "ops": [
+    {
+      "op": "json_set",
+      "path": "docs/content/specifications/protocol/eip712-vectors.json",
+      "pointer": "/vectors/2/primaryType",
+      "value": "LimitChangeV0"
+    }
+  ]
+}
