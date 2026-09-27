@@ -6,7 +6,7 @@
 
 ## 현재 기준 읽기 순서
 
-1. [프로젝트 안내](README.md)
+1. [개발 현황과 문서 안내](docs/development-overview.md)
 2. [제품별 monorepo 진입점](products/README.md)
 3. [설계 동결 DF-20260925-02](docs/content/planning/design-freeze-checkpoint-02.md)
 4. [12주 WBS (DF-20260925-02)](docs/content/planning/product-worklist-and-12week-wbs-02.md)
@@ -66,7 +66,7 @@ python3 docs/content/planning/validate_design_freeze_02.py --self-test
 
 `main`의 최초 공개 snapshot은 제품별 monorepo 경계, 현재 설계 문서와 보존
 이력 전체를 함께 기록한다. 이후 변경은 Conventional Commits와 DCO sign-off를
-사용하며, 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따른다.
+사용하며, 규칙은 [개발 규칙](docs/development-conventions.md)를 따른다.
 
 ## 다음 시작점
 
