@@ -6,7 +6,8 @@
 
 | 모듈 | 책임 |
 |---|---|
-| `ble/central` | NFC handover 읽기, BLE scan, LE Secure Connections 페어링, rx write와 tx notify 구독 |
+| `ble/central` | BLE scan, RSSI 기준 연결, 페어링 없는 연결, rx write와 tx notify 구독 [N27] |
+| `ble/secure_channel` | 결제 세션 보안 채널: 1회용 키, 가맹점 키로 한 `kioskKeySignature`, HKDF `session.key`, AES-GCM (W10–W11) [N27] |
 | `ble/framing` | envelope(length, digest) 생성·검증, MTU에 맞춘 조각 분할과 sequence/index 재조립 |
 | `protocol/codec` | deterministic CBOR 인코딩·디코딩, 메시지 스키마 검증 |
 | `merchant/signer` | 가맹점 서명 키로 MerchantOrder EIP-712 서명(가맹점 대리) |
@@ -17,7 +18,7 @@
 
 ## 2. 연결과 조각 처리
 
-키오스크는 central이고 기기는 peripheral이다. NFC로 BLE 주소와 OOB 데이터를 얻으면 OOB 페어링을, 없으면 BLE scan 후 Numeric Comparison 페어링을 쓴다 [N09]. 연결 후 ATT MTU를 협상하고, 조각 크기를 `ATT_MTU - 5`로 둔다. 모든 envelope에 조각 헤더를 붙인다. 받는 쪽은 sequence가 연속인지, index가 0부터 이어지는지 확인하고 length만큼 모이면 digest를 검증한다. 어긋나면 `error{BAD_FRAME}`을 보내고 세션을 닫는다. 서명을 받기 전이면 session.open부터 다시 시작하고, 이미 서명을 받았으면 세션 없이 제출 단계를 계속한다.
+키오스크는 central이고 기기는 peripheral이다. 키오스크는 카드 리더기처럼 기기와 페어링하지 않는다. LE Secure Connections Passkey Entry 본딩은 대여자 폰 앱과 운영자 도구만 한다. BLE scan으로 결제 모드의 기기를 찾고, RSSI가 기준값 이상인 기기에만 연결한다. 기준값은 W8에 실측해 프로토콜 3절에 적는다 [N09][N27]. W7 게이트는 평문 결제 세션으로 통과하고, W10–W11에 보안 채널을 넣은 뒤에는 `session.open`에 1회용 공개키, attestation, `kioskKeySignature`를 담아 `session.key`로 본문을 AES-GCM 암호화한다 [N27][N30]. NFC는 쓰지 않는다 [N29]. 연결 후 ATT MTU를 협상하고, 조각 크기를 `ATT_MTU - 5`로 둔다. 모든 envelope에 조각 헤더를 붙인다. 받는 쪽은 sequence가 연속인지, index가 0부터 이어지는지 확인하고 length만큼 모이면 digest를 검증한다. 어긋나면 `error{BAD_FRAME}`을 보내고 세션을 닫는다. 서명을 받기 전이면 session.open부터 다시 시작하고, 이미 서명을 받았으면 세션 없이 제출 단계를 계속한다.
 
 ## 3. 결제 상태 기계
 
@@ -59,7 +60,7 @@ any           → Refused         (error UNSUPPORTED_TYPE 또는 NOT_PERMITTED)
 
 ## 5. 키 관리
 
-키오스크에는 키가 둘 있다. 가스 키는 트랜잭션 제출에만, 가맹점 서명 키는 가맹점 대리 MerchantOrder 서명에만 쓰며 둘 다 Android Keystore에 둔다. 사용자 결제 서명은 항상 기기에서 오며 키오스크는 PaymentAuthorization을 만들거나 고칠 수 없다 [N04]. 키오스크가 탈취되면 가맹점 서명 키도 함께 노출되지만, 기기는 운영자가 서명한 attestation의 payout과 다른 곳으로 서명하지 않고 버튼 승인을 요구하므로, 공격자가 할 수 있는 일은 등록된 payout으로 한도 안의 결제를 대여자 승인 아래 받는 것뿐이다 [N05].
+키오스크에는 키가 둘 있다. 가스 키는 트랜잭션 제출에만, 가맹점 서명 키는 가맹점 대리 MerchantOrder 서명과 보안 채널의 `kioskKeySignature`에만 쓴다. Android Keystore는 secp256k1을 직접 지원하지 않는다고 보고, 두 키를 Keystore의 AES 키로 감싸 앱 저장소에 둔다. 이 방식은 W5에 검증한다 [N32]. 키는 운영 도구가 전달한 secretRef로 한 번 받아 감싼 뒤 원문을 지운다. 사용자 결제 서명은 항상 기기에서 오며 키오스크는 PaymentAuthorization을 만들거나 고칠 수 없다 [N04]. 키오스크가 탈취되면 가맹점 서명 키도 함께 노출되지만, 기기는 운영자가 서명한 attestation의 payout과 다른 곳으로 서명하지 않고 버튼 승인을 요구하므로, 공격자가 할 수 있는 일은 등록된 payout으로 한도 안의 결제를 대여자 승인 아래 받는 것뿐이다 [N05].
 
 ## 6. 저장
 

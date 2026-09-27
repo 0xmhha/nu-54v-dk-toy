@@ -75,5 +75,5 @@ export type Reason = (typeof REASONS)[number];
 export const OUTCOMES = ["approved", "refused", "failed", "Checking"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
-export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset"] as const;
+export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];

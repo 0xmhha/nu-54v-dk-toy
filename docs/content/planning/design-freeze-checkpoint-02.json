@@ -116,7 +116,7 @@
     {
       "df01": "B-02",
       "product": "P02",
-      "status": "out_of_cycle"
+      "status": "buildable"
     },
     {
       "df01": "B-03",
@@ -160,13 +160,13 @@
     }
   ],
   "outOfCycleProducts": [
-    "P02",
     "P03",
     "P08",
     "P09"
   ],
   "buildableProducts": [
     "P01",
+    "P02",
     "P04",
     "P05",
     "P06",
@@ -385,9 +385,10 @@
     {
       "id": "N01",
       "title": "제품 정의 기준",
-      "value": "결제 HW 지갑 방향(2026-09-23 조사)이 제품 정의를 정한다. 만드는 제품은 P01·P04·P05(Foundry 스크립트)·P06·P07(최소)·P10(공유 EIP-712)이고 P02·P03·P08·P09는 설계만 한다.",
+      "value": "결제 HW 지갑 방향(2026-09-23 조사)이 제품 정의를 정한다. 만드는 제품은 P01·P02(대여자 폰 앱, 2026-09-28 추가)·P04·P05(Go 운영 코어와 opsctl)·P06·P07(최소)·P10(공유 EIP-712)이고 P03·P08·P09는 설계만 한다.",
       "requiredIn": [
         "docs/content/products/p01/plan.md",
+        "docs/content/products/p02/plan.md",
         "docs/content/products/p04/plan.md",
         "docs/content/products/p05/plan.md",
         "docs/content/products/p06/plan.md",
@@ -517,7 +518,7 @@
     {
       "id": "N09",
       "title": "전송 계층",
-      "value": "BLE GATT만 규범 전송이다(키오스크 central, 기기 peripheral, LE Secure Connections Numeric Comparison, Passkey fallback). NFC는 BLE 주소 handover와 LESC OOB 데이터에만 쓰고 BLE scan이 대체 경로다. MTU 초과 메시지는 length/sequence/digest로 재조립한다. USB CDC는 시험 harness일 뿐 게이트 증거가 아니다.",
+      "value": "BLE GATT만 규범 전송이다(기기 peripheral). 대여자 폰 앱과 운영자 도구는 LE Secure Connections Passkey Entry로 본딩하고, 키오스크는 페어링하지 않으며 결제 세션을 응용 계층 보안 채널로 보호한다(N27). 기기에 화면이 없어 Numeric Comparison은 쓰지 않는다. 이 보드는 NFC 핀을 I2C로 써서 NFC handover를 쓰지 않고 BLE scan으로 찾는다(N29). MTU 초과 메시지는 length/sequence/digest로 재조립한다. USB CDC는 시험 harness일 뿐 게이트 증거가 아니다.",
       "requiredIn": [
         "docs/content/specifications/protocol/payment-protocol.md",
         "docs/content/products/p01/design.md",
@@ -548,7 +549,7 @@
     {
       "id": "N11",
       "title": "키·계정 수명주기",
-      "value": "키는 대여 셋업에서 TRNG로 기기 안에서 만들고 내보내지 않으며 백업이 없다. PIN은 셋업 때 정하고 LimitChange에서 다시 확인하며 pinMaxRetries를 넘으면 서명을 잠근다. 반납 시 운영자가 closeAccount를 호출하고 finalized 이벤트를 확인한 뒤 운영자 서명 device.reset 명령으로 키를 지운다.",
+      "value": "키는 대여 셋업에서 TRNG로 기기 안에서 만들고 내보내지 않으며 백업이 없다. PIN은 셋업 때 기기 버튼으로 정하고(N28) LimitChange에서 다시 확인하며 pinMaxRetries를 넘으면 서명을 잠근다. 반납 시 운영자가 closeAccount를 호출하고 finalized 이벤트를 확인한 뒤 운영자 서명 device.reset 명령으로 키를 지운다.",
       "requiredIn": [
         "docs/content/products/p01/srs.md",
         "docs/content/products/p05/srs.md"
@@ -604,7 +605,7 @@
     {
       "id": "N15",
       "title": "역할 분담",
-      "value": "3명이 W4부터 W12까지 만든다. 사용자는 P06, P10, P07과 보드 bring-up, role A는 P01, role B는 P04와 P05를 맡는다. 동결일 이후 일정에서 role B 부하가 넘쳐 P07을 사용자에게 옮겼다. 이름은 WBS 담당자 열에만 적는다.",
+      "value": "3명이 W4부터 W12까지 만든다. 사용자는 P06, P10, P07과 보드 bring-up, role A는 P01과 P02(폰 앱, 2026-09-28 추가), role B는 P04와 P05를 맡는다. 동결일 이후 일정에서 role B 부하가 넘쳐 P07을 사용자에게 옮겼다. role A의 W8–W12 부하가 가용 일수를 넘는 것은 담당자가 감수하기로 했다(N30). 이름은 WBS 담당자 열에만 적는다.",
       "requiredIn": [
         "docs/content/planning/product-worklist-and-12week-wbs-02.md"
       ],
@@ -757,6 +758,105 @@
         "docker compose"
       ],
       "resolves": []
+    },
+    {
+      "id": "N26",
+      "title": "기기 화면 없음과 폰 확인 화면",
+      "value": "이번 사이클의 기기에는 화면이 없다. 대여자 본인의 폰 앱(P02)이 기기와 본딩한 링크로 받은 confirm.show 필드(가맹점 이름, orderId, token, payout, amount)만 표시하고, 키오스크에서 받은 값은 표시하지 않는다. 폰 앱에는 승인 버튼이 없고 승인은 기기 버튼으로만 한다. 표시와 서명의 일치는 기기 non-secure 코드와 폰 앱이 무결하다는 가정 아래의 주장이며, 폰이 뚫린 경우는 한도가 손실을 제한한다.",
+      "requiredIn": [
+        "docs/content/specifications/protocol/payment-protocol.md",
+        "docs/content/products/p01/design.md",
+        "docs/content/products/p02/design.md"
+      ],
+      "mustContain": [
+        "confirm.show"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N27",
+      "title": "페어링과 결제 세션 보안",
+      "value": "폰 앱과 운영자 도구는 기기별 6자리 passkey(대여 셋업 때 운영자 도구가 정해 기기에 기록하고 라벨 QR로 인쇄)로 LE Secure Connections Passkey Entry 본딩을 하며, 기기는 버튼을 길게 눌렀을 때만 페어링 모드를 연다. 키오스크는 카드 리더기처럼 페어링 없이 결제 세션만 연다. 결제 세션은 응용 계층 보안 채널로 보호한다: 키오스크 1회용 secp256k1 키를 가맹점 키로 서명(kioskKeySignature)하고, 기기가 attestation과 함께 확인한 뒤 ECDH와 HKDF-SHA256으로 session.key를 만들어 본문을 AES-GCM으로 암호화한다. 키오스크는 RSSI 기준값 이상인 기기에만 연결하며 기준값은 W8에 실측한다. 셋업 세션과 confirm.show는 본딩한 링크에서만 주고받는다.",
+      "requiredIn": [
+        "docs/content/specifications/protocol/payment-protocol.md",
+        "docs/content/products/p01/design.md",
+        "docs/content/products/p04/design.md"
+      ],
+      "mustContain": [
+        "Passkey Entry",
+        "session.key",
+        "AES-GCM"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N28",
+      "title": "PIN 입력",
+      "value": "이번 단계의 PIN은 기기 버튼으로 입력하고 LED가 자릿수와 누를 버튼을 안내하므로 PIN이 BLE로 나가지 않는다. 폰 앱에서 PIN을 설정하는 기능은 다음 단계에 추가하며, 그때 PIN이 BLE를 거치는 위험을 위험 수용으로 기록한다.",
+      "requiredIn": [
+        "docs/content/products/p01/srs.md",
+        "docs/content/products/p02/srs.md"
+      ],
+      "mustContain": [
+        "PIN",
+        "LED"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N29",
+      "title": "NFC 미사용",
+      "value": "NU-54V-DK는 NFC 핀(P1.02/P1.03)을 Qwiic와 PMIC용 I2C로 쓰고 NFC 안테나가 없다. 이번 사이클은 NFC handover를 쓰지 않고 BLE scan으로 기기를 찾으며, WBS에서 NFC 작업을 뺀다.",
+      "requiredIn": [
+        "docs/content/specifications/protocol/payment-protocol.md",
+        "docs/content/products/p01/design.md"
+      ],
+      "mustContain": [
+        "NFC",
+        "I2C"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N30",
+      "title": "W7 단계 적용과 role A 부하",
+      "value": "W7 실결제 게이트는 non-secure PSA 키, 개발 빌드 전용 고정 셋업, 평문 키오스크 링크로 통과한다. TF-M 키 서비스와 BLE 셋업 명령은 W8, 결제 세션 보안 채널은 기기 W9·키오스크 W10–W11에 넣는다. W7 게이트 증거에는 이 사실을 waiver로 적는다. role A가 P02를 함께 맡아 W8–W12 부하가 가용 일수를 넘지만 게이트와 일정은 바꾸지 않는다.",
+      "requiredIn": [
+        "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+        "docs/content/products/p01/plan.md"
+      ],
+      "mustContain": [
+        "non-secure",
+        "W7"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N31",
+      "title": "금액 표시",
+      "value": "폰 앱은 금액을 토큰 단위(이번 사이클은 시험용 USDC)로 소수점 둘째 자리까지 표시하며, 셋째 자리 이하는 반올림하지 않고 버린다(예: 5.009999 USDC는 5.00 USDC). 그래서 화면 금액과 서명 금액은 결제 한 건에 0.01 USDC 미만만큼 다를 수 있고, 이 차이는 컨트랙트 한도 안에서 받아들인다. 토큰 기호와 소수 자릿수는 앱의 토큰 표에 둔다. 원화 환산 표시는 이번 사이클에 넣지 않는다.",
+      "requiredIn": [
+        "docs/content/products/p02/srs.md",
+        "docs/content/products/p02/design.md"
+      ],
+      "mustContain": [
+        "소수점 둘째 자리"
+      ],
+      "resolves": []
+    },
+    {
+      "id": "N32",
+      "title": "운영 키 보관",
+      "value": "배포자, 운영자, registry 관리자처럼 PC에서 쓰는 키는 Foundry와 go-ethereum이 함께 읽는 암호화 JSON keystore 파일로 두고 secretRef(keystore 경로와 암호 환경 변수)로만 연다. 키오스크의 가스 키와 가맹점 서명 키는 Android Keystore가 secp256k1을 직접 지원하지 않는다는 가정 아래 Keystore의 AES 키로 원시 키를 감싸 앱 저장소에 둔다. 두 방식은 개발 중(W5)에 검증하고, 결과가 다르면 이 결정을 개정한다. 사용자 기기 키는 이 결정의 대상이 아니다(N11).",
+      "requiredIn": [
+        "docs/content/products/p05/srs.md",
+        "docs/content/products/p04/design.md"
+      ],
+      "mustContain": [
+        "secretRef",
+        "Android Keystore"
+      ],
+      "resolves": []
     }
   ],
   "parameters": {
@@ -829,7 +929,8 @@
     "req 10 anti-exfil",
     "req 12 dependency pinning",
     "req 13 genuine-device attestation",
-    "TF-M key sealing until the external SE lands"
+    "TF-M key sealing until the external SE lands",
+    "W7 gate with a non-secure key, fixed development provisioning and a plaintext kiosk link"
   ],
   "citationScope": [
     "docs/content/products/",
@@ -950,6 +1051,26 @@
       "reason": "체인 호출과 서명 키를 다루는 코드를 한 언어(Go)로 모아 실수를 줄이고, P05를 나중에 백오피스로 키울 때 코어를 그대로 쓰기 위해서다.",
       "preserves": "P05의 기능 범위와 WBS 공수, 결제 프로토콜은 바꾸지 않는다.",
       "cost": "P05 문서와 WBS 작업 제목을 고친다. Go BLE 라이브러리(tinygo-org/bluetooth)는 아직 이 환경에서 시험하지 않았다."
+    },
+    {
+      "date": "2026-09-28",
+      "decisions": [
+        "N01",
+        "N09",
+        "N11",
+        "N15",
+        "N26",
+        "N27",
+        "N28",
+        "N29",
+        "N30",
+        "N31",
+        "N32"
+      ],
+      "change": "기기 화면을 없애고 대여자 폰 앱(P02)을 확인 화면으로 이번 사이클에 넣었다(N26). 폰 앱·운영자 도구는 QR passkey로 본딩하고 키오스크는 페어링 없이 보안 채널로 결제한다(N27). PIN은 기기 버튼으로 입력한다(N28). NFC를 뺐다(N29). W7은 non-secure 키와 평문으로 먼저 통과하고, role A가 P02를 맡는다(N30). 금액은 토큰 단위 소수점 둘째 자리까지 버림으로 표시하고(N31), 운영 키는 keystore와 secretRef, 키오스크 키는 Android Keystore로 감싼 저장으로 정했다(N32).",
+      "reason": "보드를 확인해 보니 화면과 NFC 안테나가 없고, TF-M용 보드 변형도 없었다. 화면 없는 기기에서 Numeric Comparison을 할 수 없고, 키오스크 링크는 카드 결제처럼 페어링 없이 쓰는 편이 사용 흐름에 맞다.",
+      "preserves": "EIP-712 서명 타입 두 개, 버튼 승인, 컨트랙트 한도, 게이트 주차(W4·W6·W7·W9)와 cut order의 SE·P07 순서는 바꾸지 않는다.",
+      "cost": "P02 작업 약 6일과 보안 채널 약 4.5일(기기 2.5, 키오스크 2)이 늘었다. role A의 W8–W12 부하가 가용 20일에 약 28.5일이며 폰 결제 확인 화면은 W12에 끝난다. 앱에서 PIN을 설정하는 기능은 다음 단계로 미뤘다."
     }
   ],
   "wbsRequiredTokens": [

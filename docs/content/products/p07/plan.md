@@ -2,7 +2,7 @@
 
 ## 1. 목표와 범위
 
-P07은 [DF-20260925-02](../../planning/design-freeze-checkpoint-02.md)에서 만드는 여섯 제품 중 하나다 [N01]. 정산 컨트랙트(P06)가 내는 `PaymentSettled(address indexed merchant, bytes32 indexed orderId, address indexed device, uint256 amount, uint256 nonce)` 이벤트를 finalized 블록에서 모아, 키오스크가 영수증을 다시 조회할 수 있게 하는 최소 indexer다 [N19].
+P07은 [DF-20260925-02](../../planning/design-freeze-checkpoint-02.md)에서 만드는 일곱 제품 중 하나다 [N01]. 정산 컨트랙트(P06)가 내는 `PaymentSettled(address indexed merchant, bytes32 indexed orderId, address indexed device, uint256 amount, uint256 nonce)` 이벤트를 finalized 블록에서 모아, 키오스크가 영수증을 다시 조회할 수 있게 하는 최소 indexer다 [N19].
 
 P07은 영수증 조회용이다. 결제가 끝났는지(paid)는 키오스크가 체인에서 finalized PaymentSettled를 직접 확인해서 정하고, P07은 그 판정에 쓰지 않는다 [N08].
 

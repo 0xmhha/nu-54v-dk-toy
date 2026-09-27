@@ -171,17 +171,17 @@
         "properties": [
           "write"
         ],
-        "direction": "kiosk to device"
+        "direction": "central (kiosk, phone app, operator tool) to device"
       },
       "tx": {
         "uuid": "6e753534-7061-7900-8000-00805f9b0003",
         "properties": [
           "notify"
         ],
-        "direction": "device to kiosk"
+        "direction": "device to central"
       }
     },
-    "security": "LE Secure Connections, authenticated and encrypted link required on both characteristics"
+    "security": "payment sessions are accepted on an unpaired link (application-layer secure channel from week 8-9); setup sessions and confirm.show require a bonded LE Secure Connections Passkey Entry link"
   },
   "framing": {
     "envelope": "length u16 big-endian | digest 8 bytes (SHA-256 prefix of the CBOR body) | CBOR body; length is the whole envelope including the 10-byte header (10..2058)",
@@ -701,7 +701,7 @@
           "$ref": "#/$defs/reason"
         }
       },
-      "description": "final kiosk outcome shown on the device display"
+      "description": "final kiosk outcome; the device shows it with LEDs and forwards it to the phone app"
     },
     "limit.result": {
       "direction": "device to kiosk",
@@ -882,6 +882,49 @@
         }
       },
       "description": "operator-signed DeviceReset; wipes key, PIN, operator address, contract, TimeAnchor and nonce records"
+    },
+    "confirm.show": {
+      "direction": "device to phone app",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "merchantName",
+        "orderId",
+        "token",
+        "payout",
+        "amount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "confirm.show"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "merchantName": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "orderId": {
+          "$ref": "#/$defs/hex32"
+        },
+        "token": {
+          "$ref": "#/$defs/hex20"
+        },
+        "payout": {
+          "$ref": "#/$defs/hex20"
+        },
+        "amount": {
+          "$ref": "#/$defs/uint"
+        }
+      },
+      "description": "payment fields the device is about to sign, sent over the bonded phone-app link; the app shows only these values and has no approve button"
     }
   },
   "w12AgreedCodes": [

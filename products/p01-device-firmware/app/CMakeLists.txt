@@ -15,5 +15,7 @@ target_include_directories(app PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../core/include
 
 target_sources(app PRIVATE
   src/main.c
+  src/board_io.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_frame.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_button.c
 )
