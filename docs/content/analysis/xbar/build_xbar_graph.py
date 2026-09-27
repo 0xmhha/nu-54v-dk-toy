@@ -54,6 +54,8 @@ def norm_value(value):
 
 
 def build(records):
+    # A later batch may refresh an earlier record for the same path; keep the last one.
+    records = list({r["path"]: r for r in records}.values())
     by_path = {r["path"]: r for r in records}
     nodes, edges, broken = {}, [], []
 

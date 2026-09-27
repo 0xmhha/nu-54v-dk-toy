@@ -68,12 +68,12 @@
    "kind": "document",
    "label": "Repository checkpoint",
    "type": "index",
-   "proposition": "설계 동결 이후·구현 이전 시점의 현재 기준 문서 읽기 순서를 정하고, 충돌 시 목록에서 먼저 나온 문서가 현재 상태·선택값·활성화 경계에 관해 우선한다.",
+   "proposition": "DF-20260925-02 동결 이후·제품 구현 이전 시점의 현재 기준 문서 읽기 순서를 정하고, 충돌 시 먼저 나온 문서가 우선하며 이전 동결 DF-20260920-01은 DF-20260925-02와 충돌하지 않는 부분만 유효하다.",
    "authority": "current",
    "products": [
     "ALL"
    ],
-   "as_of": "2026-09-20"
+   "as_of": "2026-09-25"
   },
   {
    "id": "CONTRIBUTING.md",
@@ -104,120 +104,120 @@
    "kind": "document",
    "label": "P01 · NU-54V-DK device firmware",
    "type": "index",
-   "proposition": "P01은 NU-54V-DK에서 실행되는 Zephyr 기반 펌웨어 제품으로 보드 bring-up·보호 키·인증 BLE·결제 승인·FOTA·패스키·오디오·찾기를 소유한다.",
+   "proposition": "P01는 NU-54V-DK에서 실행되는 Zephyr 기반 펌웨어 제품이며, DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 docs/content/products/p01의 기획·SRS·유즈케이스·설계가 정하고 아래 DF-20260920-01 원문은 충돌 시 그 문서를 따른다.",
    "authority": "current",
    "products": [
     "P01"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p02-user-app/README.md",
    "kind": "document",
    "label": "P02 · User app",
    "type": "index",
-   "proposition": "P02는 여행자와 점주가 기기와 지갑 기능을 사용하는 React Native 모바일 앱으로 소셜 로그인·기기 등록·두 지갑·승인·영수증 UI를 소유한다.",
+   "proposition": "P02는 여행자와 점주가 기기와 지갑 기능을 사용하는 React Native 모바일 앱이며, DF-20260925-02 기준 이번 12주 사이클에서는 설계만 하고 구현하지 않는다(out of cycle).",
    "authority": "current",
    "products": [
     "P02"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p03-cloud-mpc-wallet/README.md",
    "kind": "document",
    "label": "P03 · Cloud MPC wallet",
    "type": "index",
-   "proposition": "P03은 소셜 계정과 연결되는 2-of-3 Cloud Wallet 제품으로 분산 키 생성·threshold 서명·share refresh·복구를 소유한다.",
+   "proposition": "P03는 소셜 계정과 연결되는 2-of-3 Cloud Wallet 제품 경계이며, DF-20260925-02 기준 이번 12주 사이클에서는 설계만 하고 구현하지 않는다(out of cycle).",
    "authority": "current",
    "products": [
     "P03"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p04-merchant-kiosk/README.md",
    "kind": "document",
    "label": "P04 · Merchant kiosk",
    "type": "index",
-   "proposition": "P04는 가맹점 Android 태블릿용 React Native 키오스크로 점주 로그인·주문·BLE 결제 세션·stablecoin 결제·환불·매출정산 화면을 소유한다.",
+   "proposition": "P04는 가맹점 Android 태블릿에서 실행하는 React Native 키오스크 제품이며, DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 docs/content/products/p04의 기획·SRS·유즈케이스·설계가 정하고 아래 DF-20260920-01 원문은 충돌 시 그 문서를 따른다.",
    "authority": "current",
    "products": [
     "P04"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p05-operations-backoffice/README.md",
    "kind": "document",
    "label": "P05 · Operations backoffice",
    "type": "index",
-   "proposition": "P05는 운영자가 가맹점·대여 기기·결제 예외를 관리하는 백오피스 제품으로 RBAC·감사·대여반납·FOTA 캠페인·대사를 소유한다.",
+   "proposition": "P05는 운영자가 가맹점, 대여 기기와 결제 예외를 관리하는 제품이며, DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 docs/content/products/p05의 기획·SRS·유즈케이스·설계가 정하고 아래 DF-20260920-01 원문은 충돌 시 그 문서를 따른다.",
    "authority": "current",
    "products": [
     "P05"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p06-stablenet-contracts/README.md",
    "kind": "document",
    "label": "P06 · StableNet contracts",
    "type": "index",
-   "proposition": "P06은 StableNet testnet의 dummy USDC·WKRC·Smart Account·DID·CafePass·x402 계약과 배포 manifest를 소유하는 제품이다.",
+   "proposition": "P06는 StableNet testnet의 자산, 계정, 자격과 유료 리소스 계약 제품이며, DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 docs/content/products/p06의 기획·SRS·유즈케이스·설계가 정하고 아래 DF-20260920-01 원문은 충돌 시 그 문서를 따른다.",
    "authority": "current",
    "products": [
     "P06"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p07-indexer/README.md",
    "kind": "document",
    "label": "P07 · Indexer and query frontend",
    "type": "index",
-   "proposition": "P07은 StableNet canonical event를 업무 projection으로 만드는 Indexer·조회 프런트엔드 제품이며 ingest·cursor·backfill·reorg rollback·decoder를 소유한다.",
+   "proposition": "P07는 StableNet의 canonical event를 업무 projection으로 만드는 제품이며, DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 docs/content/products/p07의 기획·SRS·유즈케이스·설계가 정하고 아래 DF-20260920-01 원문은 충돌 시 그 문서를 따른다.",
    "authority": "current",
    "products": [
     "P07"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p08-market-services/README.md",
    "kind": "document",
    "label": "P08 · Market services",
    "type": "index",
-   "proposition": "P08은 StableNet testnet에서 AMM·TEST FX·perpetual·oracle·keeper를 학습·시연하는 시장 상품 제품 경계다.",
+   "proposition": "P08는 StableNet testnet에서 학습·시연할 시장 상품 제품 경계이며, DF-20260925-02 기준 이번 12주 사이클에서는 설계만 하고 구현하지 않는다(out of cycle).",
    "authority": "current",
    "products": [
     "P08"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p09-travel-ai/README.md",
    "kind": "document",
    "label": "P09 · Travel and AI",
    "type": "index",
-   "proposition": "P09는 실제 결제와 사용자 동의를 근거로 장소·후기·발자취·음성 전사·AI 코스·챌린지·스탬프를 만드는 여행 제품이다.",
+   "proposition": "P09는 실제 결제와 사용자 동의를 근거로 여행 기록과 추천을 만드는 제품이며, DF-20260925-02 기준 이번 12주 사이클에서는 설계만 하고 구현하지 않는다(out of cycle).",
    "authority": "current",
    "products": [
     "P09"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/p10-platform/README.md",
    "kind": "document",
    "label": "P10 · Common platform",
    "type": "index",
-   "proposition": "P10은 모든 제품이 같은 주문·결제·권한·릴리스 의미를 쓰도록 API·인증·공통 ID·schema·CI·수용 시험을 제공하고 C1~C9 계약의 authority를 가진다.",
+   "proposition": "P10는 모든 제품이 같은 주문, 결제, 권한과 릴리스 의미를 사용하도록 하는 공통 플랫폼 제품이며, DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 docs/content/products/p10의 기획·SRS·유즈케이스·설계가 정하고 아래 DF-20260920-01 원문은 충돌 시 그 문서를 따른다.",
    "authority": "current",
    "products": [
     "P10"
    ],
-   "as_of": ""
+   "as_of": "2026-09-25"
   },
   {
    "id": "products/README.md",
@@ -660,14 +660,14 @@
   {
    "id": "docs/content/series/README.md",
    "kind": "document",
-   "label": "NU-54V-DK 구현 전 핵심 정리 시리즈: 포맷과 10편 아웃라인",
-   "type": "plan",
-   "proposition": "구현 전 결정 내용을 Medium 시리즈 10편으로 남기며 모든 편은 공통 포맷·작성 규칙·편별 아웃라인을 따른다.",
+   "label": "가맹점을 확인하는 결제 기기, 12주 제작기: 포맷과 10편 목차",
+   "type": "communication",
+   "proposition": "NU-54V-DK로 가맹점을 검증하는 결제 서명 기기를 만드는 과정을 W3부터 W12까지 주 1편씩 Medium 10편으로 쓰며, 모든 편은 공통 포맷·작성 규칙과 DF-20260925-02·12주 WBS에 맞춘 목차를 따른다.",
    "authority": "current",
    "products": [
     "ALL"
    ],
-   "as_of": ""
+   "as_of": "2026-09-26"
   },
   {
    "id": "docs/content/software-product-blueprint.md",
@@ -704,7 +704,7 @@
    "label": "StableNet 시연 네트워크와 가스 정책",
    "type": "decision",
    "proposition": "이 제품의 시연 체인은 사용자가 지정한 StableNet 테스트 RPC(체인 ID 8283)이며 초기 가스비는 고객이 네이티브 토큰으로 부담한다.",
-   "authority": "reference",
+   "authority": "superseded",
    "products": [
     "P06",
     "P07"
@@ -717,7 +717,7 @@
    "label": "3인 작업 분류와 12주 통합 계획",
    "type": "plan",
    "proposition": "15개 요구사항을 기기·앱/업무·온체인의 A/B/C 세 역할에 주담당으로 매핑하고 8주차까지 전체 첫 실제 연결을 목표로 하는 12주 배치를 제안한다.",
-   "authority": "historical",
+   "authority": "superseded",
    "products": [
     "ALL"
    ],
@@ -729,7 +729,7 @@
    "label": "12주 완료 범위 v3 — 기기·지갑·매장·여행·온체인 서비스",
    "type": "requirement",
    "proposition": "사용자가 확정한 15개 요구사항 전부를 3명이 12주 안에 앱 연동까지 완료하는 것을 고정 계획 전제로 하고, 이전 좁은 결제 시연 범위와 상충하는 부분을 대체한다.",
-   "authority": "current",
+   "authority": "superseded",
    "products": [
     "ALL"
    ],
@@ -741,7 +741,7 @@
    "label": "3주차 메이커 소그룹 모임 메모 (9/23)",
    "type": "communication",
    "proposition": "팀이 만들 것은 카페에서 스테이블코인으로 결제하려는 외국인 여행자가 손에 든 기기에서 매장과 금액을 확인하고 버튼 한 번으로 테스트넷 결제를 승인하게 하는 것이다.",
-   "authority": "draft",
+   "authority": "superseded",
    "products": [
     "P01",
     "P04",
@@ -767,7 +767,7 @@
    "kind": "document",
    "label": "Documentation",
    "type": "index",
-   "proposition": "docs 디렉터리는 제품 구현과 분리된 설계 authority, 발행 원고, 분석 결과를 보관하며 현재 기준은 정해진 다섯 문서 순서로 읽는다.",
+   "proposition": "docs 디렉터리는 제품 구현과 분리된 설계 authority, 발행 원고, 분석 결과를 보관하며 현재 기준은 저장소 checkpoint 다음 DF-20260925-02를 첫 설계 문서로 두는 여덟 문서 순서로 읽는다.",
    "authority": "current",
    "products": [
     "ALL"
@@ -816,7 +816,7 @@
    "label": "구현 진입 설계 동결 checkpoint",
    "type": "decision",
    "proposition": "DF-20260920-01은 20개 정책·기술 결정의 권장 선택을 채택하고 10개 제품 상세 설계·8개 계약 묶음·7개 환경 준비를 구현 진입 기준으로 확정한다.",
-   "authority": "current",
+   "authority": "superseded",
    "products": [
     "ALL"
    ],
@@ -924,7 +924,7 @@
    "label": "12주 WBS 한눈에 보기",
    "type": "plan",
    "proposition": "10개 제품의 57개 상위 패키지·104개 작업을 C0~C3 우선순위와 12주 로드맵, M0~M7 통합 관문으로 한 페이지에 요약한 읽기 전용 일정 개요다.",
-   "authority": "current",
+   "authority": "superseded",
    "products": [
     "ALL"
    ],
@@ -1791,6 +1791,388 @@
    "as_of": "2026-09-18"
   },
   {
+   "id": "docs/content/products/p01/plan.md",
+   "kind": "document",
+   "label": "P01 기획 — NU-54V-DK 결제 서명 펌웨어",
+   "type": "plan",
+   "proposition": "P01은 이번 12주 사이클에 NU-54V-DK(nRF54L15)가 셋업 때 기기 안에서 만든 키로, 운영자 attestation과 온체인 registry가 보증한 가맹점 주문에 대해서만 화면 표시 후 버튼을 눌렀을 때 PaymentAuthorization에 서명하는 펌웨어를 만든다.",
+   "authority": "current",
+   "products": [
+    "P01"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p01/srs.md",
+   "kind": "document",
+   "label": "P01 요구사항 명세 (SRS)",
+   "type": "requirement",
+   "proposition": "P01 펌웨어는 트랜잭션을 만들지 않고 PaymentAuthorization과 LimitChange 두 EIP-712 타입에만 서명하는 결제 서명기로서, 기능 요구 P01-FR-01..20과 비기능 요구 P01-NFR-01..06을 검증 방법과 W12 항목에 연결해 만족해야 한다.",
+   "authority": "current",
+   "products": [
+    "P01"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p01/use-cases.md",
+   "kind": "document",
+   "label": "P01 유즈케이스",
+   "type": "requirement",
+   "proposition": "P01 펌웨어가 참여하는 대여 셋업, 페어링과 세션, 결제 승인, 기기 층 거절, 한도 변경, reset 후 재-anchor, 반납과 초기화 흐름을 대여자·운영자(P05)·키오스크(P04) 관점으로 정한다.",
+   "authority": "current",
+   "products": [
+    "P01"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p01/design.md",
+   "kind": "document",
+   "label": "P01 설계",
+   "type": "design",
+   "proposition": "P01은 키 관련 동작과 버튼 토큰을 TF-M secure partition의 key_service에만 두고 non-secure 앱은 메시지 처리와 화면만 맡도록 나누며, sign_digest가 등록된 digest·purpose 한 건에만 버튼 토큰으로 서명하는 서명 권한 경계를 둔다.",
+   "authority": "current",
+   "products": [
+    "P01"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p04/plan.md",
+   "kind": "document",
+   "label": "P04 기획 — 가맹점 키오스크",
+   "type": "plan",
+   "proposition": "P04 키오스크는 Android 태블릿용 React Native 앱으로, 이번 사이클에 BLE로 기기 서명을 받아 정산 컨트랙트에 직접 제출하고 finalized 이벤트로 결제 완료를 판정하며 가스를 내는 기능을 만든다.",
+   "authority": "current",
+   "products": [
+    "P04"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p04/srs.md",
+   "kind": "document",
+   "label": "P04 요구사항 명세 — 가맹점 키오스크",
+   "type": "requirement",
+   "proposition": "P04 키오스크는 LESC 링크로 기기 서명을 받고 eth_call 시뮬레이션 뒤 제출하며, finalized PaymentSettled의 device·amount·nonce 일치로 approved를 확정하고 요청 전달 완료부터 10 s 기준으로 취소·Checking을 가르는 요구를 만족해야 한다.",
+   "authority": "current",
+   "products": [
+    "P04"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p04/use-cases.md",
+   "kind": "document",
+   "label": "P04 유즈케이스 — 가맹점 키오스크",
+   "type": "requirement",
+   "proposition": "키오스크의 정상 결제, 거절 표시, 시간 초과와 Checking 복구, 가스 잔액 부족, 이미 결제된 주문, 제출 실패, 한도 변경 흐름을 점원·대여자·기기·정산 컨트랙트 관점으로 정한다.",
+   "authority": "current",
+   "products": [
+    "P04"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p04/design.md",
+   "kind": "document",
+   "label": "P04 설계 — 가맹점 키오스크",
+   "type": "design",
+   "proposition": "P04는 React Native 앱을 BLE·framing·codec·가맹점 서명·체인·가스·주문 저장·UI 모듈로 나누고, 서명 수신과 제출 여부에 따라 Approved·Refused·Failed·Checking으로 가는 결제 상태 기계와 custom error 매핑으로 SRS를 구현한다.",
+   "authority": "current",
+   "products": [
+    "P04"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p05/plan.md",
+   "kind": "document",
+   "label": "P05 기획 — 운영 스크립트",
+   "type": "plan",
+   "proposition": "P05는 이번 사이클에 웹 백오피스가 아니라 가맹점 등록, MerchantAttestation 발급, 대여 셋업과 반납처럼 운영자만 할 수 있는 일을 한 번 실행으로 끝내고 로그를 증거로 남기는 Foundry 스크립트 묶음이다.",
+   "authority": "current",
+   "products": [
+    "P05"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p05/srs.md",
+   "kind": "document",
+   "label": "P05 SRS — 운영 스크립트",
+   "type": "requirement",
+   "proposition": "P05 운영 스크립트는 가맹점 등록, attestation 발급, 셋업·TimeAnchor·depositFor 순서, 반납 순서, 철회·payout 변경, 거절 시연 도구 요구를 Foundry 테스트·anvil 로그·기기 로그로 판정할 수 있게 만족해야 한다.",
+   "authority": "current",
+   "products": [
+    "P05"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p05/use-cases.md",
+   "kind": "document",
+   "label": "P05 유즈케이스 — 운영 스크립트",
+   "type": "requirement",
+   "proposition": "운영자가 가맹점 등록, attestation 매일 재발급, 대여 셋업, 반납, 가맹점 철회, payout 변경, reset 뒤 재anchor, 거절 시연 준비를 스크립트로 수행하는 흐름을 정한다.",
+   "authority": "current",
+   "products": [
+    "P05"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p05/design.md",
+   "kind": "document",
+   "label": "P05 설계 — 운영 스크립트",
+   "type": "design",
+   "proposition": "P05는 Foundry forge script와 작은 호스트 도구로 운영자 서명 세 가지(MerchantAttestation, TimeAnchor, DeviceReset)와 P06 registry·정산 컨트랙트 호출을 한곳에 모아 운영 절차를 코드로 재현하며, P02 설정 앱 대신 BLE 셋업 세션으로 setup.timeAnchor를 보낸다.",
+   "authority": "current",
+   "products": [
+    "P05"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p06/plan.md",
+   "kind": "document",
+   "label": "P06 기획 — 정산 컨트랙트",
+   "type": "plan",
+   "proposition": "P06은 기기가 서명한 PaymentAuthorization을 키오스크가 제출하면 가맹점 권한·한도·nonce·주문 유일성·만료를 검사하고 예치금에서 가맹점 잔액으로 옮긴 뒤 PaymentSettled를 남기는 정산 컨트랙트와 가맹점 registry를 StableNet testnet 8283에 만든다.",
+   "authority": "current",
+   "products": [
+    "P06"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p06/srs.md",
+   "kind": "document",
+   "label": "P06 SRS — 정산 컨트랙트 요구사항",
+   "type": "requirement",
+   "proposition": "정산 컨트랙트와 가맹점 registry는 depositFor, settle 검사, nonce bitmap, 한도, 지연 출금, closeAccount, payout 변경 지연 요구 P06-FR-01..17과 NFR-01..05를 Foundry 시험 이름으로 판정할 수 있게 만족해야 한다.",
+   "authority": "current",
+   "products": [
+    "P06"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p06/use-cases.md",
+   "kind": "document",
+   "label": "P06 유즈케이스 — 정산 컨트랙트",
+   "type": "requirement",
+   "proposition": "운영자·registry admin·키오스크·가맹점·누구나가 정산 컨트랙트를 호출하는 예치, 결제 정산, 가맹점 등록·철회, payout 변경, 한도 변경, closeAccount, cash-out 흐름을 정한다.",
+   "authority": "current",
+   "products": [
+    "P06"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p06/design.md",
+   "kind": "document",
+   "label": "P06 설계 — 정산 컨트랙트",
+   "type": "design",
+   "proposition": "P06은 PaymentSettlement와 MerchantRegistry 두 계약으로 운영자 키와 registry admin 키를 분리하고, settle을 외부 호출 없이 도메인→주문 유일성→만료→계정→registry→payout→nonce→한도→잔액 순서로 검사한 뒤 PaymentSettled를 낸다.",
+   "authority": "current",
+   "products": [
+    "P06"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p07/plan.md",
+   "kind": "document",
+   "label": "P07 기획 — 최소 PaymentSettled indexer",
+   "type": "plan",
+   "proposition": "P07은 P06의 PaymentSettled 이벤트를 finalized 블록에서 모아 키오스크가 영수증을 다시 조회하게 하는 최소 indexer이며, paid 판정에는 쓰지 않는다.",
+   "authority": "current",
+   "products": [
+    "P07"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p07/srs.md",
+   "kind": "document",
+   "label": "P07 SRS — 최소 PaymentSettled indexer",
+   "type": "requirement",
+   "proposition": "P07은 설정된 정산 컨트랙트의 PaymentSettled 로그만 finalized 범위에서 cursor 기반으로 중복 없이 수집하고 (merchant, orderId)로 영수증을 읽기 전용 조회하게 해야 하며, paid 판정 경로에 들어가지 않아야 한다.",
+   "authority": "current",
+   "products": [
+    "P07"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p07/use-cases.md",
+   "kind": "document",
+   "label": "P07 유즈케이스 — 최소 PaymentSettled indexer",
+   "type": "requirement",
+   "proposition": "키오스크와 운영자가 영수증 조회, 이벤트 수집, 재시작 후 이어 읽기, P07이 컷된 경우의 대체 증거를 수행하는 흐름을 정한다.",
+   "authority": "current",
+   "products": [
+    "P07"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p07/design.md",
+   "kind": "document",
+   "label": "P07 설계 — 최소 PaymentSettled indexer",
+   "type": "design",
+   "proposition": "P07은 한 프로세스 안에서 폴링 ingest 루프와 읽기 전용 HTTP 서버가 같은 SQLite 파일을 공유하는 구조이며, 결제 판정에는 참여하지 않는다.",
+   "authority": "current",
+   "products": [
+    "P07"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p10/plan.md",
+   "kind": "document",
+   "label": "P10 기획 — 공유 EIP-712 타입·벡터와 수용 기준",
+   "type": "plan",
+   "proposition": "이번 사이클의 P10은 공통 플랫폼이 아니라 공유 EIP-712 타입·시험 벡터, 세 구현의 digest 적합성 harness, 12주차 수용 기록지와 증거 redaction 규칙 세 가지만 맡는다.",
+   "authority": "current",
+   "products": [
+    "P10"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p10/srs.md",
+   "kind": "document",
+   "label": "P10 SRS — 공유 EIP-712 타입·벡터와 수용 기준",
+   "type": "requirement",
+   "proposition": "P10의 스키마는 기기 서명 타입을 PaymentAuthorization과 LimitChange로만 한정하고, 벡터 생성기·적합성 harness·수용 기록지·redaction 규칙이 P10-FR-01..07을 시험으로 판정할 수 있게 만족해야 한다.",
+   "authority": "current",
+   "products": [
+    "P10"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p10/use-cases.md",
+   "kind": "document",
+   "label": "P10 유즈케이스 — 공유 EIP-712 타입·벡터와 수용 기준",
+   "type": "requirement",
+   "proposition": "제품 개발자와 시험 담당이 서명 타입 변경, 구현 적합성 확인, 12주차 수용 기록을 수행하는 흐름을 정한다.",
+   "authority": "current",
+   "products": [
+    "P10"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/products/p10/design.md",
+   "kind": "document",
+   "label": "P10 설계 — 공유 EIP-712 타입·벡터와 수용 기준",
+   "type": "design",
+   "proposition": "P10의 정답은 스키마와 eip712-vectors.json 두 파일이며, 생성기가 cast로 digest와 서명을 교차 검증해 벡터를 만들고 펌웨어·키오스크·컨트랙트 시험이 모두 이 두 파일을 읽어 적합성을 확인한다.",
+   "authority": "current",
+   "products": [
+    "P10"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "kind": "document",
+   "label": "설계 동결 DF-20260925-02",
+   "type": "decision",
+   "proposition": "DF-20260925-02는 DF-20260920-01을 대체해 결제 HW 지갑 방향을 제품 정의 기준으로 삼고, N01~N24 새 결정과 D01~D19·RR-DEC-01 처분, 단일 파라미터 레지스터, 만드는 6개·설계만 하는 4개 제품 범위를 구현 이전 문서 기준선으로 확정한다.",
+   "authority": "current",
+   "products": [
+    "ALL"
+   ],
+   "as_of": "2026-09-25"
+  },
+  {
+   "id": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "kind": "document",
+   "label": "12주 WBS (DF-20260925-02)",
+   "type": "plan",
+   "proposition": "DF-20260925-02에 맞춰 만드는 6개 제품(P01·P04·P05·P06·P07·P10)의 작업을 W4부터 배정하고 W4·W6·W7·W9 게이트, W7 실패 시 cut order, 주차별 가용 일수와 위험을 정한다.",
+   "authority": "current",
+   "products": [
+    "P01",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P10"
+   ],
+   "as_of": ""
+  },
+  {
+   "id": "docs/content/specifications/protocol/payment-protocol.md",
+   "kind": "document",
+   "label": "결제 프로토콜 v1",
+   "type": "contract",
+   "proposition": "결제 프로토콜 v1은 기기(P01)·키오스크(P04)·운영 스크립트(P05)·정산 컨트랙트(P06)가 주고받는 BLE 메시지 틀, 기기가 서명하는 두 EIP-712 타입, 셋업·TimeAnchor·reset 규칙, 제출·판정 순서와 거절 코드를 정한다.",
+   "authority": "current",
+   "products": [
+    "P01",
+    "P04",
+    "P05",
+    "P06",
+    "P10"
+   ],
+   "as_of": ""
+  },
+  {
+   "id": "docs/content/acceptance/week12-log.md",
+   "kind": "document",
+   "label": "12주차 수용 기록지",
+   "type": "verification",
+   "proposition": "12주차(11/25) 시연에서 W12-01..W12-12(기능 7, 보안 5)를 실물 기기와 StableNet 8283에서 확인한 결과로만 DF-20260925-02의 완료를 판정한다.",
+   "authority": "current",
+   "products": [
+    "P01",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P10"
+   ],
+   "as_of": ""
+  },
+  {
+   "id": "docs/content/analysis/xbar/README.md",
+   "kind": "document",
+   "label": "X-bar document graph",
+   "type": "index",
+   "proposition": "현재 설계 코퍼스 137개 문서를 X-bar 구로 읽은 레코드와 그래프 산출물을 안내하고, 결정을 바꾸는 검토 결과 F1~F10과 요구사항 인터뷰에 넘길 질문을 정리한다.",
+   "authority": "reference",
+   "products": [
+    "ALL"
+   ],
+   "as_of": ""
+  },
+  {
+   "id": "docs/content/analysis/xbar/METHOD.md",
+   "kind": "document",
+   "label": "X-bar document classification method",
+   "type": "research",
+   "proposition": "각 현재 문서를 하나의 구(XP)로 보고 specifier·head·complement·adjunct로 분해해 설계 코퍼스를 의존 그래프로 읽는 레코드 스키마와 분류 규칙을 정한다.",
+   "authority": "reference",
+   "products": [],
+   "as_of": ""
+  },
+  {
+   "id": "CLAUDE.md",
+   "kind": "document",
+   "label": "Ouroboros — Specification-First AI Development",
+   "type": "index",
+   "proposition": "이 저장소의 AI 작업 지침은 코드 작성 전에 숨은 가정을 드러내는 Ouroboros 명세 우선 워크플로(Interview → Seed → Execute → Evaluate)이며 ooo 명령과 필요 시 불러오는 에이전트를 안내한다.",
+   "authority": "reference",
+   "products": [],
+   "as_of": ""
+  },
+  {
    "id": "docs/content/planning/design-freeze-checkpoint.json",
    "kind": "artifact",
    "label": "design-freeze-checkpoint.json"
@@ -1799,6 +2181,11 @@
    "id": "docs/content/specifications/design-baseline-contract.json",
    "kind": "artifact",
    "label": "design-baseline-contract.json"
+  },
+  {
+   "id": "docs/content/planning/validate_design_freeze_02.py",
+   "kind": "artifact",
+   "label": "validate_design_freeze_02.py"
   },
   {
    "id": "scripts/check_markdown_links.py",
@@ -2799,6 +3186,71 @@
    "id": "docs/content/specifications/wallet-control-recovery-design.json",
    "kind": "artifact",
    "label": "wallet-control-recovery-design.json"
+  },
+  {
+   "id": "docs/content/specifications/protocol/eip712-vectors.json",
+   "kind": "artifact",
+   "label": "eip712-vectors.json"
+  },
+  {
+   "id": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "kind": "artifact",
+   "label": "payment-protocol.schema.json"
+  },
+  {
+   "id": "docs/content/specifications/protocol/build_eip712_vectors.py",
+   "kind": "artifact",
+   "label": "build_eip712_vectors.py"
+  },
+  {
+   "id": "docs/content/planning/design-freeze-checkpoint-02.json",
+   "kind": "artifact",
+   "label": "design-freeze-checkpoint-02.json"
+  },
+  {
+   "id": "docs/content/planning/build_design_freeze_02.py",
+   "kind": "artifact",
+   "label": "build_design_freeze_02.py"
+  },
+  {
+   "id": "docs/content/planning/product-worklist-and-12week-wbs-02.csv",
+   "kind": "artifact",
+   "label": "product-worklist-and-12week-wbs-02.csv"
+  },
+  {
+   "id": "docs/content/analysis/xbar/build_xbar_graph.py",
+   "kind": "artifact",
+   "label": "build_xbar_graph.py"
+  },
+  {
+   "id": "docs/content/analysis/xbar/graph.json",
+   "kind": "artifact",
+   "label": "graph.json"
+  },
+  {
+   "id": "docs/content/analysis/xbar/graph.html",
+   "kind": "artifact",
+   "label": "graph.html"
+  },
+  {
+   "id": "docs/content/analysis/xbar/FINDINGS.md",
+   "kind": "artifact",
+   "label": "FINDINGS.md"
+  },
+  {
+   "id": "docs/content/analysis/xbar/findings.json",
+   "kind": "artifact",
+   "label": "findings.json"
+  },
+  {
+   "id": "concept:X-bar theory",
+   "kind": "concept",
+   "label": "X-bar theory"
+  },
+  {
+   "id": "concept:Ouroboros",
+   "kind": "concept",
+   "label": "Ouroboros"
   }
  ],
  "edges": [
@@ -2966,69 +3418,99 @@
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
    "relation": "requires",
-   "note": "읽기 순서 3번; 현재 선택 authority"
+   "note": "읽기 순서 3번; 현재 설계 동결"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/planning/design-freeze-checkpoint.json",
-   "relation": "requires",
-   "note": "D01~D19와 RR-DEC-01의 선택 authority"
-  },
-  {
-   "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/specifications/design-baseline-contract.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
    "relation": "requires",
    "note": "읽기 순서 4번"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/specifications/design-baseline-contract.json",
-   "relation": "requires",
-   "note": "UA-01~08 공동 계약 authority"
-  },
-  {
-   "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/environment/README.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
    "relation": "requires",
    "note": "읽기 순서 5번"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/planning/remaining-work-list.md",
+   "target": "docs/content/acceptance/week12-log.md",
    "relation": "requires",
-   "note": "읽기 순서 6번"
+   "note": "읽기 순서 5번"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "relation": "requires",
+   "note": "읽기 순서 6번; DF-20260925-02와 충돌하지 않는 부분만 유효"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/specifications/design-baseline-contract.md",
    "relation": "requires",
    "note": "읽기 순서 7번"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "docs/content/twelve-week-completion-scope-v3.md",
+   "target": "docs/content/environment/README.md",
    "relation": "requires",
    "note": "읽기 순서 8번"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/planning/remaining-work-list.md",
+   "relation": "requires",
+   "note": "읽기 순서 9번"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
    "target": "docs/content/planning/preimplementation-task-handoffs.md",
    "relation": "requires",
-   "note": "읽기 순서 9번; 구현 착수 시작점"
+   "note": "읽기 순서 12번; 구현 착수 시작점"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs.md",
+   "relation": "elaborates",
+   "note": "history"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/twelve-week-completion-scope-v3.md",
+   "relation": "elaborates",
+   "note": "history"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/specifications/design-baseline-contract.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/planning/validate_design_freeze_02.py",
+   "relation": "elaborates",
+   "note": "evidence"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
    "target": "CONTRIBUTING.md",
    "relation": "elaborates",
    "note": "rationale"
-  },
-  {
-   "source": "REPOSITORY-CHECKPOINT.md",
-   "target": "scripts/check_markdown_links.py",
-   "relation": "elaborates",
-   "note": "evidence"
   },
   {
    "source": "REPOSITORY-CHECKPOINT.md",
@@ -3230,27 +3712,51 @@
   },
   {
    "source": "products/p01-device-firmware/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/products/p01/plan.md",
    "relation": "requires",
-   "note": "WBS-P01-01~11 작업 정의"
+   "note": "DF-20260925-02 기준 기획"
+  },
+  {
+   "source": "products/p01-device-firmware/README.md",
+   "target": "docs/content/products/p01/srs.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 SRS"
+  },
+  {
+   "source": "products/p01-device-firmware/README.md",
+   "target": "docs/content/products/p01/use-cases.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 유즈케이스"
+  },
+  {
+   "source": "products/p01-device-firmware/README.md",
+   "target": "docs/content/products/p01/design.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 설계"
+  },
+  {
+   "source": "products/p01-device-firmware/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p01-device-firmware/README.md",
    "target": "docs/content/specifications/device-coexistence-design.md",
-   "relation": "requires",
-   "note": "기기 동시동작과 FOTA 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p01-device-firmware/README.md",
    "target": "docs/content/specifications/implementation-interfaces.md",
-   "relation": "requires",
-   "note": "구현 인터페이스"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p01-device-firmware/README.md",
    "target": "docs/content/nu54v-basic-peripheral-bringup-log.md",
    "relation": "elaborates",
-   "note": "evidence"
+   "note": "history"
   },
   {
    "source": "products/p01-device-firmware/README.md",
@@ -3260,27 +3766,33 @@
   },
   {
    "source": "products/p02-user-app/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
    "relation": "requires",
-   "note": "WBS-P02-01~04 작업 정의"
+   "note": "out of cycle 판정 근거 [N01]"
+  },
+  {
+   "source": "products/p02-user-app/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p02-user-app/README.md",
    "target": "docs/content/specifications/social-wallet-recovery-design.md",
-   "relation": "requires",
-   "note": "소셜 로그인과 두 지갑 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p02-user-app/README.md",
    "target": "docs/content/specifications/screen-flows.md",
-   "relation": "requires",
-   "note": "화면 흐름"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p02-user-app/README.md",
    "target": "docs/content/specifications/lifecycle-journey-acceptance.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p02-user-app/README.md",
@@ -3290,27 +3802,33 @@
   },
   {
    "source": "products/p03-cloud-mpc-wallet/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
    "relation": "requires",
-   "note": "WBS-P03-01~04 작업 정의"
+   "note": "out of cycle 판정 근거 [N01]"
+  },
+  {
+   "source": "products/p03-cloud-mpc-wallet/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p03-cloud-mpc-wallet/README.md",
    "target": "docs/content/specifications/social-wallet-recovery-design.md",
-   "relation": "requires",
-   "note": "소셜 지갑 복구 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p03-cloud-mpc-wallet/README.md",
    "target": "docs/content/specifications/wallet-control-recovery-design.md",
-   "relation": "requires",
-   "note": "지갑 통제와 복구"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p03-cloud-mpc-wallet/README.md",
    "target": "docs/content/specifications/security-integration-design.md",
    "relation": "elaborates",
-   "note": "rationale"
+   "note": "history"
   },
   {
    "source": "products/p03-cloud-mpc-wallet/README.md",
@@ -3320,27 +3838,51 @@
   },
   {
    "source": "products/p04-merchant-kiosk/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/products/p04/plan.md",
    "relation": "requires",
-   "note": "WBS-P04-01~05 작업 정의"
+   "note": "DF-20260925-02 기준 기획"
+  },
+  {
+   "source": "products/p04-merchant-kiosk/README.md",
+   "target": "docs/content/products/p04/srs.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 SRS"
+  },
+  {
+   "source": "products/p04-merchant-kiosk/README.md",
+   "target": "docs/content/products/p04/use-cases.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 유즈케이스"
+  },
+  {
+   "source": "products/p04-merchant-kiosk/README.md",
+   "target": "docs/content/products/p04/design.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 설계"
+  },
+  {
+   "source": "products/p04-merchant-kiosk/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p04-merchant-kiosk/README.md",
    "target": "docs/content/specifications/kiosk-commerce-journey-design.md",
-   "relation": "requires",
-   "note": "키오스크 상거래 여정"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p04-merchant-kiosk/README.md",
    "target": "docs/content/specifications/commerce-lifecycle-design.md",
-   "relation": "requires",
-   "note": "결제·환불·반납 상태"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p04-merchant-kiosk/README.md",
    "target": "docs/content/specifications/settlement-ops-contracts.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p04-merchant-kiosk/README.md",
@@ -3350,27 +3892,51 @@
   },
   {
    "source": "products/p05-operations-backoffice/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/products/p05/plan.md",
    "relation": "requires",
-   "note": "WBS-P05-01~04 작업 정의"
+   "note": "DF-20260925-02 기준 기획"
+  },
+  {
+   "source": "products/p05-operations-backoffice/README.md",
+   "target": "docs/content/products/p05/srs.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 SRS"
+  },
+  {
+   "source": "products/p05-operations-backoffice/README.md",
+   "target": "docs/content/products/p05/use-cases.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 유즈케이스"
+  },
+  {
+   "source": "products/p05-operations-backoffice/README.md",
+   "target": "docs/content/products/p05/design.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 설계"
+  },
+  {
+   "source": "products/p05-operations-backoffice/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p05-operations-backoffice/README.md",
    "target": "docs/content/specifications/trust-operations-design.md",
-   "relation": "requires",
-   "note": "운영 신뢰 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p05-operations-backoffice/README.md",
    "target": "docs/content/specifications/management-trust-lifecycle.md",
-   "relation": "requires",
-   "note": "관리 신뢰 수명주기"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p05-operations-backoffice/README.md",
    "target": "docs/content/specifications/operations-release-acceptance-design.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p05-operations-backoffice/README.md",
@@ -3380,27 +3946,51 @@
   },
   {
    "source": "products/p06-stablenet-contracts/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/products/p06/plan.md",
    "relation": "requires",
-   "note": "WBS-P06-01~05 작업 정의"
+   "note": "DF-20260925-02 기준 기획"
+  },
+  {
+   "source": "products/p06-stablenet-contracts/README.md",
+   "target": "docs/content/products/p06/srs.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 SRS"
+  },
+  {
+   "source": "products/p06-stablenet-contracts/README.md",
+   "target": "docs/content/products/p06/use-cases.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 유즈케이스"
+  },
+  {
+   "source": "products/p06-stablenet-contracts/README.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 설계"
+  },
+  {
+   "source": "products/p06-stablenet-contracts/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p06-stablenet-contracts/README.md",
    "target": "docs/content/specifications/stablenet-compatibility-design.md",
-   "relation": "requires",
-   "note": "StableNet 호환 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p06-stablenet-contracts/README.md",
    "target": "docs/content/specifications/credential-paid-resource-design.md",
-   "relation": "requires",
-   "note": "자격과 유료 리소스"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p06-stablenet-contracts/README.md",
    "target": "docs/content/stable-contract-reuse-plan.md",
    "relation": "elaborates",
-   "note": "rationale"
+   "note": "history"
   },
   {
    "source": "products/p06-stablenet-contracts/README.md",
@@ -3410,27 +4000,51 @@
   },
   {
    "source": "products/p07-indexer/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/products/p07/plan.md",
    "relation": "requires",
-   "note": "WBS-P07-01~06 작업 정의"
+   "note": "DF-20260925-02 기준 기획"
+  },
+  {
+   "source": "products/p07-indexer/README.md",
+   "target": "docs/content/products/p07/srs.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 SRS"
+  },
+  {
+   "source": "products/p07-indexer/README.md",
+   "target": "docs/content/products/p07/use-cases.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 유즈케이스"
+  },
+  {
+   "source": "products/p07-indexer/README.md",
+   "target": "docs/content/products/p07/design.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 설계"
+  },
+  {
+   "source": "products/p07-indexer/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p07-indexer/README.md",
    "target": "docs/content/indexer-integration-and-test-token.md",
-   "relation": "requires",
-   "note": "Indexer 통합 계획"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p07-indexer/README.md",
    "target": "docs/content/stablenet-testnet-baseline.md",
-   "relation": "requires",
-   "note": "StableNet 기준"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p07-indexer/README.md",
    "target": "docs/content/specifications/commerce-consumer-repair-design.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p07-indexer/README.md",
@@ -3440,27 +4054,33 @@
   },
   {
    "source": "products/p08-market-services/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
    "relation": "requires",
-   "note": "WBS-P08-01~07 작업 정의"
+   "note": "out of cycle 판정 근거 [N01]"
+  },
+  {
+   "source": "products/p08-market-services/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p08-market-services/README.md",
    "target": "docs/content/specifications/market-product-design.md",
-   "relation": "requires",
-   "note": "시장 상품 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p08-market-services/README.md",
    "target": "docs/content/specifications/stablenet-compatibility-design.md",
-   "relation": "requires",
-   "note": "StableNet 호환 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p08-market-services/README.md",
    "target": "docs/content/specifications/interface-contracts.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p08-market-services/README.md",
@@ -3470,27 +4090,33 @@
   },
   {
    "source": "products/p09-travel-ai/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
    "relation": "requires",
-   "note": "WBS-P09-01~05 작업 정의"
+   "note": "out of cycle 판정 근거 [N01]"
+  },
+  {
+   "source": "products/p09-travel-ai/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p09-travel-ai/README.md",
    "target": "docs/content/specifications/recording-travel-ai-design.md",
-   "relation": "requires",
-   "note": "녹음·여행·AI 설계"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p09-travel-ai/README.md",
    "target": "docs/content/specifications/credential-paid-resource-design.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p09-travel-ai/README.md",
    "target": "docs/content/specifications/screen-flows.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p09-travel-ai/README.md",
@@ -3500,51 +4126,63 @@
   },
   {
    "source": "products/p10-platform/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/products/p10/plan.md",
    "relation": "requires",
-   "note": "WBS-P10-01~06 작업 정의"
+   "note": "DF-20260925-02 기준 기획"
+  },
+  {
+   "source": "products/p10-platform/README.md",
+   "target": "docs/content/products/p10/srs.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 SRS"
+  },
+  {
+   "source": "products/p10-platform/README.md",
+   "target": "docs/content/products/p10/use-cases.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 유즈케이스"
+  },
+  {
+   "source": "products/p10-platform/README.md",
+   "target": "docs/content/products/p10/design.md",
+   "relation": "requires",
+   "note": "DF-20260925-02 기준 설계"
+  },
+  {
+   "source": "products/p10-platform/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p10-platform/README.md",
    "target": "docs/content/specifications/design-baseline-contract.md",
-   "relation": "requires",
-   "note": "채택된 기준 계약"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p10-platform/README.md",
    "target": "docs/content/specifications/interface-contracts.md",
-   "relation": "requires",
-   "note": "API·BLE·데이터 계약"
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "products/p10-platform/README.md",
    "target": "docs/content/planning/implementation-sequence.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p10-platform/README.md",
    "target": "docs/content/environment/README.md",
    "relation": "elaborates",
-   "note": "example"
+   "note": "history"
   },
   {
    "source": "products/p10-platform/README.md",
    "target": "P10",
    "relation": "scopes",
    "note": null
-  },
-  {
-   "source": "products/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
-   "relation": "requires",
-   "note": "전체 의존 관계와 한 페이지 제품 아키텍처"
-  },
-  {
-   "source": "products/README.md",
-   "target": "docs/content/planning/product-worklist-and-12week-wbs.md",
-   "relation": "requires",
-   "note": "상세 WBS"
   },
   {
    "source": "products/README.md",
@@ -3605,6 +4243,18 @@
    "target": "products/p10-platform/README.md",
    "relation": "requires",
    "note": "P10 제품 README"
+  },
+  {
+   "source": "products/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "requires",
+   "note": "전체 의존 관계와 한 페이지 제품 아키텍처"
+  },
+  {
+   "source": "products/README.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs.md",
+   "relation": "requires",
+   "note": "상세 WBS"
   },
   {
    "source": "products/README.md",
@@ -4159,7 +4809,7 @@
    "note": "rationale"
   },
   {
-   "source": "docs/content/twelve-week-completion-scope-v3.md",
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
    "target": "docs/content/indexer-integration-and-test-token.md",
    "relation": "supersedes",
    "note": null
@@ -4453,7 +5103,7 @@
    "note": "미정 값을 null로 기록"
   },
   {
-   "source": "docs/content/twelve-week-completion-scope-v3.md",
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
    "target": "docs/content/payment-integration-workplan.md",
    "relation": "supersedes",
    "note": null
@@ -4531,7 +5181,7 @@
    "note": "example"
   },
   {
-   "source": "docs/content/twelve-week-completion-scope-v3.md",
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
    "target": "docs/content/payment-platform-scope-v2.md",
    "relation": "supersedes",
    "note": null
@@ -4633,7 +5283,7 @@
    "note": "history"
   },
   {
-   "source": "docs/content/twelve-week-completion-scope-v3.md",
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
    "target": "docs/content/poc-platform-reuse-plan.md",
    "relation": "supersedes",
    "note": null
@@ -4892,25 +5542,25 @@
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/medium-three-month-team-project.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "목차의 설계 기준"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "편 순서를 정하는 주차와 게이트"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/research/payment-hw-wallet-direction/README.md",
    "relation": "elaborates",
    "note": "evidence"
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/proximity-wallet-kiosk.md",
-   "relation": "elaborates",
-   "note": "evidence"
-  },
-  {
-   "source": "docs/content/series/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
-   "relation": "elaborates",
-   "note": "evidence"
-  },
-  {
-   "source": "docs/content/series/README.md",
-   "target": "docs/content/planning/product-worklist-and-12week-wbs.md",
+   "target": "docs/content/analysis/xbar/README.md",
    "relation": "elaborates",
    "note": "evidence"
   },
@@ -4922,37 +5572,85 @@
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/specifications/interface-contracts.md",
+   "target": "docs/content/products/p01/plan.md",
    "relation": "elaborates",
    "note": "evidence"
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/specifications/wallet-control-recovery-design.md",
+   "target": "docs/content/products/p01/srs.md",
    "relation": "elaborates",
    "note": "evidence"
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/specifications/commerce-lifecycle-design.md",
+   "target": "docs/content/products/p01/design.md",
    "relation": "elaborates",
    "note": "evidence"
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/stablenet-testnet-baseline.md",
+   "target": "docs/content/products/p06/srs.md",
    "relation": "elaborates",
    "note": "evidence"
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/specifications/return-recovery-design.md",
+   "target": "docs/content/products/p06/design.md",
    "relation": "elaborates",
    "note": "evidence"
   },
   {
    "source": "docs/content/series/README.md",
-   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/products/p05/design.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/products/p04/design.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/products/p05/use-cases.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/products/p06/use-cases.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/products/p07/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "docs/content/products/p10/design.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/series/README.md",
+   "target": "REPOSITORY-CHECKPOINT.md",
    "relation": "elaborates",
    "note": "evidence"
   },
@@ -5119,7 +5817,7 @@
    "note": "history"
   },
   {
-   "source": "docs/content/twelve-week-completion-scope-v3.md",
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
    "target": "docs/content/stable-contract-reuse-plan.md",
    "relation": "supersedes",
    "note": null
@@ -5155,6 +5853,12 @@
    "note": "history"
   },
   {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/stablenet-testnet-baseline.md",
+   "relation": "supersedes",
+   "note": null
+  },
+  {
    "source": "docs/content/stablenet-testnet-baseline.md",
    "target": "P06",
    "relation": "scopes",
@@ -5177,6 +5881,12 @@
    "target": "docs/content/work-breakdown-plan.md",
    "relation": "elaborates",
    "note": "history"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/three-person-delivery-plan.md",
+   "relation": "supersedes",
+   "note": null
   },
   {
    "source": "docs/content/three-person-delivery-plan.md",
@@ -5269,6 +5979,12 @@
    "note": "history"
   },
   {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/twelve-week-completion-scope-v3.md",
+   "relation": "supersedes",
+   "note": null
+  },
+  {
    "source": "docs/content/twelve-week-completion-scope-v3.md",
    "target": "P01",
    "relation": "scopes",
@@ -5345,6 +6061,12 @@
    "target": "docs/content/nu54v-basic-peripheral-bringup-log.md",
    "relation": "requires",
    "note": "기준 자료: bring-up 기록지 BR-01~BR-08"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/week-03-maker-team-meeting-memo.md",
+   "relation": "supersedes",
+   "note": null
   },
   {
    "source": "docs/content/week-03-maker-team-meeting-memo.md",
@@ -5498,27 +6220,45 @@
   },
   {
    "source": "docs/README.md",
-   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
    "relation": "requires",
    "note": "읽기 순서 2번"
   },
   {
    "source": "docs/README.md",
-   "target": "docs/content/specifications/design-baseline-contract.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
    "relation": "requires",
    "note": "읽기 순서 3번"
   },
   {
    "source": "docs/README.md",
-   "target": "docs/content/planning/product-wbs-overview.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
    "relation": "requires",
    "note": "읽기 순서 4번"
   },
   {
    "source": "docs/README.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "relation": "requires",
+   "note": "읽기 순서 5번; DF-20260925-02와 충돌하지 않는 부분만 유효"
+  },
+  {
+   "source": "docs/README.md",
+   "target": "docs/content/specifications/design-baseline-contract.md",
+   "relation": "requires",
+   "note": "읽기 순서 6번"
+  },
+  {
+   "source": "docs/README.md",
    "target": "docs/content/planning/product-worklist-and-12week-wbs.md",
    "relation": "requires",
-   "note": "읽기 순서 5번"
+   "note": "읽기 순서 8번; 이전 제품별 작업 원장"
+  },
+  {
+   "source": "docs/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "elaborates",
+   "note": "history"
   },
   {
    "source": "docs/README.md",
@@ -6023,6 +6763,12 @@
    "target": "docs/content/planning/decision-briefing.md",
    "relation": "elaborates",
    "note": "rationale"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "relation": "supersedes",
+   "note": null
   },
   {
    "source": "docs/content/planning/design-freeze-checkpoint.md",
@@ -7013,6 +7759,12 @@
    "target": "docs/content/assets/diagrams/generate_product_architecture.py",
    "relation": "elaborates",
    "note": "evidence"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
+   "relation": "supersedes",
+   "note": null
   },
   {
    "source": "docs/content/planning/product-wbs-overview.md",
@@ -11255,6 +12007,1344 @@
    "target": "P03",
    "relation": "scopes",
    "note": null
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "제품 범위, 게이트, 컷 순서, 역할 분담 결정(N01·N03·N15)"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "작업 행과 주차의 원본 CSV"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "결제 GATT 서비스의 rx/tx, envelope, 조각 규칙"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "서명 모듈 시험의 선행 입력(P10 제공)"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p01/srs.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p01/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p01/design.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p10/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p05/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p04/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "docs/content/products/p06/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p01/plan.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N11·N22·N23·N24 등)와 parameters(authorizationExpiry, anchorClockSkew, pinMaxRetries)"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지와 필드 정의"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "스키마에 없는 요청 판정 기준"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "P01-FR-02 digest 일치 기준"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "requires",
+   "note": "각 요구가 연결되는 W12 수용 항목"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/products/p01/design.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "docs/content/products/p01/plan.md",
+   "relation": "elaborates",
+   "note": "rationale"
+  },
+  {
+   "source": "docs/content/products/p01/srs.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p01/use-cases.md",
+   "target": "docs/content/products/p01/srs.md",
+   "relation": "requires",
+   "note": "요구 ID 출처"
+  },
+  {
+   "source": "docs/content/products/p01/use-cases.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지 이름 출처"
+  },
+  {
+   "source": "docs/content/products/p01/use-cases.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N06·N09·N22·N23·N24) 인용"
+  },
+  {
+   "source": "docs/content/products/p01/use-cases.md",
+   "target": "docs/content/products/p05/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p01/use-cases.md",
+   "target": "docs/content/products/p04/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p01/use-cases.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "docs/content/products/p01/srs.md",
+   "relation": "requires",
+   "note": "구현 대상 요구"
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지 규칙"
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "서명 정답"
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N02·N05·N06·N09·N12·N14·N23·N24)"
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "docs/content/products/p01/plan.md",
+   "relation": "elaborates",
+   "note": "rationale"
+  },
+  {
+   "source": "docs/content/products/p01/design.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "제품 범위, 게이트, 결정 ID(N01·N03·N05·N08·N10)"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "규칙과 메시지"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "게이트 일정과 작업 행"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/products/p01/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/products/p06/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/products/p05/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "docs/content/products/p07/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/plan.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N08·N09·N10·N17·N22)와 kioskMinGasBalance"
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지 형식"
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "P01 인터페이스 기준"
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "docs/content/products/p04/design.md",
+   "relation": "requires",
+   "note": "오류 매핑 표(7절)와 상태 전이(3절) 참조"
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "requires",
+   "note": "ABI와 custom error"
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/srs.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p04/use-cases.md",
+   "target": "docs/content/products/p04/srs.md",
+   "relation": "requires",
+   "note": "요구사항 번호 출처"
+  },
+  {
+   "source": "docs/content/products/p04/use-cases.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지 출처"
+  },
+  {
+   "source": "docs/content/products/p04/use-cases.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N06·N08·N09·N10·N22)"
+  },
+  {
+   "source": "docs/content/products/p04/use-cases.md",
+   "target": "docs/content/products/p01/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p04/use-cases.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/products/p04/srs.md",
+   "relation": "requires",
+   "note": "구현 대상 요구"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "전송·서명 형식"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "메시지 스키마"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "requires",
+   "note": "PaymentSettled와 custom error ABI"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N05·N08·N09·N10·N21·N22)"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p04/design.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "제품 범위와 결정 ID(N01·N05·N13·N15·N20·N23)"
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "게이트 일정과 정의"
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "BLE 셋업 세션과 device.reset 메시지(5절)"
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "docs/content/products/p06/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "docs/content/products/p01/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/plan.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "parameters(attestationValidity, payoutChangeDelay, anchorClockSkew)와 결정 ID"
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "4절 envelope와 5절 셋업 메시지"
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "operatorSignedTypes와 eip712Domain"
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "requires",
+   "note": "호출하는 컨트랙트 ABI"
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/srs.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p05/use-cases.md",
+   "target": "docs/content/products/p05/srs.md",
+   "relation": "requires",
+   "note": "요구 출처"
+  },
+  {
+   "source": "docs/content/products/p05/use-cases.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N05·N06·N07·N11·N13·N20·N22·N23)"
+  },
+  {
+   "source": "docs/content/products/p05/use-cases.md",
+   "target": "docs/content/products/p01/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p05/use-cases.md",
+   "target": "docs/content/products/p06/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p05/use-cases.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "docs/content/products/p05/srs.md",
+   "relation": "requires",
+   "note": "구현 대상 요구"
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "eip712Domain과 operatorSignedTypes"
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "셋업 세션 메시지"
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N05·N06·N07·N09·N11·N13·N16·N20·N21·N22·N23)"
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p05/design.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "제품 범위, 게이트, parameters(N01·N03·N07·N08·N13)"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "작업 행"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "EIP-712 적합성 시험 입력"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/research/payment-hw-wallet-direction/README.md",
+   "relation": "elaborates",
+   "note": "rationale"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/products/p10/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/products/p05/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "docs/content/products/p04/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p06/plan.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p06/srs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "parameters(perPaymentCap, dailyCap, authorizationExpiry, withdrawalDelay, payoutChangeDelay)와 결정 ID"
+  },
+  {
+   "source": "docs/content/products/p06/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지 형식"
+  },
+  {
+   "source": "docs/content/products/p06/srs.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "P06-FR-03 digest 일치 기준"
+  },
+  {
+   "source": "docs/content/products/p06/srs.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "requires",
+   "note": "검사 순서 상세(5절)"
+  },
+  {
+   "source": "docs/content/products/p06/srs.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p06/srs.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p06/use-cases.md",
+   "target": "docs/content/products/p06/srs.md",
+   "relation": "requires",
+   "note": "요구 ID 출처"
+  },
+  {
+   "source": "docs/content/products/p06/use-cases.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지 출처"
+  },
+  {
+   "source": "docs/content/products/p06/use-cases.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N05·N07·N08·N10·N11·N13·N22)"
+  },
+  {
+   "source": "docs/content/products/p06/use-cases.md",
+   "target": "docs/content/products/p05/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p06/use-cases.md",
+   "target": "docs/content/products/p04/use-cases.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/products/p06/use-cases.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p06/design.md",
+   "target": "docs/content/products/p06/srs.md",
+   "relation": "requires",
+   "note": "구현 대상 요구"
+  },
+  {
+   "source": "docs/content/products/p06/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "타입과 도메인"
+  },
+  {
+   "source": "docs/content/products/p06/design.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "해시 정답"
+  },
+  {
+   "source": "docs/content/products/p06/design.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "constructor 인자 parameters와 결정 ID(N03·N05·N07·N08·N13·N21)"
+  },
+  {
+   "source": "docs/content/products/p06/design.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p07/plan.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "제품 범위와 결정 ID(N01·N03·N08·N15·N18·N19)"
+  },
+  {
+   "source": "docs/content/products/p07/plan.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "WBS2-P07-01 작업 행"
+  },
+  {
+   "source": "docs/content/products/p07/plan.md",
+   "target": "docs/content/products/p06/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p07/plan.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p07/srs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 N08·N19·N16과 D19"
+  },
+  {
+   "source": "docs/content/products/p07/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "메시지·이벤트 형식"
+  },
+  {
+   "source": "docs/content/products/p07/srs.md",
+   "target": "docs/content/products/p06/design.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p07/srs.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p07/use-cases.md",
+   "target": "docs/content/products/p07/srs.md",
+   "relation": "requires",
+   "note": "요구 번호 출처"
+  },
+  {
+   "source": "docs/content/products/p07/use-cases.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N03·N08·N18·N19)"
+  },
+  {
+   "source": "docs/content/products/p07/use-cases.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p07/design.md",
+   "target": "docs/content/products/p07/srs.md",
+   "relation": "requires",
+   "note": "구현 대상 요구"
+  },
+  {
+   "source": "docs/content/products/p07/design.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N08·N16·N19)"
+  },
+  {
+   "source": "docs/content/products/p07/design.md",
+   "target": "docs/content/products/p07/plan.md",
+   "relation": "elaborates",
+   "note": "rationale"
+  },
+  {
+   "source": "docs/content/products/p07/design.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "제품 범위와 결정 ID(N01·N03·N14·N15·N16·N18·N21)"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "프로토콜 스키마 산출물"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "시험 벡터 산출물"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "requires",
+   "note": "수용 기록지 산출물"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "requires",
+   "note": "작업 행"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/specifications/protocol/build_eip712_vectors.py",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/products/p06/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "docs/content/products/p01/plan.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p10/plan.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "규칙 본문"
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "eip712Types와 operatorSignedTypes"
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "벡터 요구 대상"
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N13·N14·N16·N18·N21)와 acceptanceRefusalCodes"
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "requires",
+   "note": "수용 기록지 요구 대상"
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "docs/content/products/p01/design.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p10/srs.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p10/use-cases.md",
+   "target": "docs/content/products/p10/srs.md",
+   "relation": "requires",
+   "note": "요구 번호 출처"
+  },
+  {
+   "source": "docs/content/products/p10/use-cases.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N04·N16·N18·N21)"
+  },
+  {
+   "source": "docs/content/products/p10/use-cases.md",
+   "target": "docs/content/specifications/protocol/build_eip712_vectors.py",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p10/use-cases.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "타입과 필드의 정답"
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "digest와 서명의 정답"
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "docs/content/specifications/protocol/build_eip712_vectors.py",
+   "relation": "requires",
+   "note": "벡터 생성기"
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "docs/content/products/p10/srs.md",
+   "relation": "requires",
+   "note": "구현 대상 요구"
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "결정 ID(N14·N16·N18·N21)와 redactionExemptions"
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/products/p10/design.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.json",
+   "relation": "requires",
+   "note": "값의 원본; 이 문서는 렌더링 결과"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/research/payment-hw-wallet-direction/README.md",
+   "relation": "requires",
+   "note": "N01 제품 정의 기준(결제 HW 지갑 방향, 2026-09-23 조사)"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "relation": "requires",
+   "note": "처분 대상인 D01~D19·RR-DEC-01의 이전 결정"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/build_design_freeze_02.py",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/validate_design_freeze_02.py",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/analysis/xbar/README.md",
+   "relation": "elaborates",
+   "note": "rationale"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/acceptance/week12-log.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "REPOSITORY-CHECKPOINT.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/README.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P02",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P03",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P08",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P09",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "N01 제품 범위·N03 게이트·N15 역할 분담의 출처"
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs-02.csv",
+   "relation": "requires",
+   "note": "행 데이터 원본"
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "docs/content/planning/product-worklist-and-12week-wbs.md",
+   "relation": "elaborates",
+   "note": "history"
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "docs/content/planning/validate_design_freeze_02.py",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.schema.json",
+   "relation": "requires",
+   "note": "타입과 필드 정의"
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "docs/content/specifications/protocol/eip712-vectors.json",
+   "relation": "requires",
+   "note": "서명 해시의 정답 [N21]"
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "한도·유효 기간·가스 잔액·시계 오차 값과 인용 결정 N04~N24"
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/specifications/protocol/payment-protocol.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "relation": "requires",
+   "note": "N18 수용 기준·N16 증거 규칙·N13 파라미터"
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "docs/content/specifications/protocol/payment-protocol.md",
+   "relation": "requires",
+   "note": "거절 코드와 층, 셋업·재-anchor 절차"
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "docs/content/nu54v-basic-peripheral-bringup-log.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/acceptance/week12-log.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "docs/content/analysis/xbar/METHOD.md",
+   "relation": "requires",
+   "note": "방법과 레코드 스키마"
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "docs/content/analysis/xbar/build_xbar_graph.py",
+   "relation": "requires",
+   "note": "레코드에서 산출물을 만드는 빌더"
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "docs/content/analysis/xbar/graph.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "docs/content/analysis/xbar/graph.html",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "docs/content/analysis/xbar/FINDINGS.md",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "docs/content/analysis/xbar/findings.json",
+   "relation": "elaborates",
+   "note": "evidence"
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P01",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P02",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P03",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P04",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P05",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P06",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P07",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P08",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P09",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/README.md",
+   "target": "P10",
+   "relation": "scopes",
+   "note": null
+  },
+  {
+   "source": "docs/content/analysis/xbar/METHOD.md",
+   "target": "concept:X-bar theory",
+   "relation": "requires",
+   "note": "문서 분해 틀"
+  },
+  {
+   "source": "docs/content/analysis/xbar/METHOD.md",
+   "target": "products/README.md",
+   "relation": "requires",
+   "note": "products 필드의 P01..P10 정의"
+  },
+  {
+   "source": "docs/content/analysis/xbar/METHOD.md",
+   "target": "docs/content/specifications/ble-catalog.md",
+   "relation": "elaborates",
+   "note": "example"
+  },
+  {
+   "source": "CLAUDE.md",
+   "target": "concept:Ouroboros",
+   "relation": "requires",
+   "note": "명령과 에이전트를 제공하는 도구"
   }
  ]
 }

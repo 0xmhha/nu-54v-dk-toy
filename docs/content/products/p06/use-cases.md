@@ -6,8 +6,8 @@
 
 | 행위자 | 역할 |
 |---|---|
-| 운영자(P05 스크립트) | 예치, closeAccount, 출금 요청과 취소 |
-| registry admin(P05 스크립트) | 가맹점 등록·철회·payout 변경과 취소 |
+| 운영자(P05 `opsctl`) | 예치, closeAccount, 출금 요청과 취소 |
+| registry admin(P05 `opsctl`) | 가맹점 등록·철회·payout 변경과 취소 |
 | 키오스크(P04) | settle 시뮬레이션과 제출, 가스 부담 [N10] |
 | 가맹점 | cashOut 호출 |
 | 누구나 | 지연이 끝난 출금 실행 |

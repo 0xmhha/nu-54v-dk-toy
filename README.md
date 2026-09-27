@@ -3,9 +3,10 @@
 NU-54V-DK 기기, 사용자 앱, 매장 키오스크, 운영 도구와 StableNet 테스트넷
 서비스를 함께 개발하기 위한 폴리글랏 monorepo다.
 
-**현재 단계: 구현 진입 설계 동결 완료. 제품 구현은 아직 시작하지 않았다.**
-`DF-20260920-01`에서 정책·기술 결정 20개, 제품 상세 설계 10개, 기준 계약
-8묶음, 외부 환경 준비 7개를 정리했다.
+**현재 단계: 설계 동결 `DF-20260925-02` 이후, 제품 구현 착수.** 가맹점을 검증하는
+결제 서명 기기로 범위를 좁혀 여섯 제품(P01, P04, P05, P06, P07, P10)을 만들고,
+보드 bring-up(BR-01~BR-09)을 마쳤다. 이전 동결 `DF-20260920-01`은 충돌하지 않는
+부분만 유효하다. 읽기 순서는 [저장소 checkpoint](REPOSITORY-CHECKPOINT.md)를 따른다.
 
 ## Monorepo 구조
 
@@ -15,15 +16,21 @@ NU-54V-DK 기기, 사용자 앱, 매장 키오스크, 운영 도구와 StableNet
 | [`packages/`](packages/README.md) | 여러 제품이 공유하는 생성 타입, 클라이언트, ABI, fixture |
 | [`docs/`](docs/README.md) | 설계 authority, WBS, 명세, 분석, 발행 원고와 이력 |
 | [`scripts/`](scripts/check_markdown_links.py) | 저장소 공통 검증 도구 |
+| [`sandbox/`](sandbox/README.md) | 로컬 docker 검증 환경(anvil chainId 8283, PostgreSQL) |
+| `Makefile` | 모든 제품과 package에 `setup`·`build`·`test`·`lint`를 실행한다. `P=pNN`으로 하나만 고른다 |
+| `go.work`, `pnpm-workspace.yaml`, `pyproject.toml` | Go·TypeScript·Python workspace |
+| `.github/workflows/ci.yml` | pull request마다 `make lint test`와 문서 검사를 돌린다 |
 
 제품 코드는 각 `products/pNN-*` 폴더에서 시작한다. 제품 간 계약의 원본은
 `docs/content/specifications/`에 두고, 생성된 공유 코드는 `packages/`에 둔다.
+제품 폴더의 공통 모양은 [제품 폴더 표준](products/README.md#제품-폴더-표준)을 따른다.
 커밋과 리뷰 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따른다.
 
 ## 현재 기준 문서
 
 - **[저장소 checkpoint와 기준 읽기 순서](REPOSITORY-CHECKPOINT.md)** — 현재 authority, 디렉터리 역할, 과거 문서의 효력, 비밀정보 규칙, 검증과 다음 시작점.
-- **[구현 진입 설계 동결 checkpoint](docs/content/planning/design-freeze-checkpoint.md)** — 20개 결정의 채택값, 10개 제품 영역의 구성·계약·저장·상태·장애·수용 기준, 8개 설계 계약 채택, 7개 환경 준비 결과.
+- **[설계 동결 DF-20260925-02](docs/content/planning/design-freeze-checkpoint-02.md)** · **[12주 WBS (DF-20260925-02)](docs/content/planning/product-worklist-and-12week-wbs-02.md)** · **[결제 프로토콜](docs/content/specifications/protocol/payment-protocol.md)** — 현재 결정 register, 일정, 제품 간 메시지·서명 형식.
+- **[이전 설계 동결 checkpoint (DF-20260920-01)](docs/content/planning/design-freeze-checkpoint.md)** — 20개 결정의 채택값, 10개 제품 영역의 구성·계약·저장·상태·장애·수용 기준, 8개 설계 계약 채택, 7개 환경 준비 결과.
 - **[채택된 구현 진입 기준 계약](docs/content/specifications/design-baseline-contract.md)** — HTTP/BLE/profile v1과 8개 공동 채택 묶음의 불변조건. runtime·SQL·기기·체인은 아직 비활성.
 - **[구현 전 외부 환경 manifest](docs/content/environment/README.md)** — toolchain/repo pin, StableNet·Indexer, 공급자 계정·trust bootstrap 템플릿, synthetic 시험 데이터.
 - **[3개월 팀 프로젝트 Medium 원고](docs/content/medium-three-month-team-project.md)** — 메이커 항목, 10개 제품 모듈과 핵심 기능, Local·Cloud·Blockchain 통합 다이어그램, C0~C3 우선순위와 M0~M7 관문, NU-54V-DK 기본 페리페럴 실험 계획을 담은 Markdown 발행 초안.

@@ -1,39 +1,59 @@
 {
  "counts": {
-  "documents": 137,
-  "nodes": 349,
-  "edges": 1409,
+  "documents": 168,
+  "nodes": 394,
+  "edges": 1682,
   "authority": {
-   "current": 52,
-   "reference": 14,
-   "historical": 9,
-   "superseded": 23,
-   "draft": 37,
+   "current": 77,
+   "reference": 16,
+   "historical": 8,
+   "superseded": 29,
+   "draft": 36,
    "withdrawn": 2
   },
   "head_types": {
-   "index": 16,
-   "requirement": 3,
-   "verification": 12,
-   "communication": 11,
-   "research": 16,
-   "plan": 18,
-   "design": 36,
-   "decision": 5,
-   "contract": 20
+   "index": 18,
+   "requirement": 15,
+   "verification": 13,
+   "communication": 12,
+   "research": 17,
+   "plan": 24,
+   "design": 42,
+   "decision": 6,
+   "contract": 21
   }
  },
  "missing_records": [],
  "broken_targets": [],
  "stale_complements": [
   {
-   "source": "products/p07-indexer/README.md",
-   "target": "docs/content/indexer-integration-and-test-token.md",
+   "source": "README.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "REPOSITORY-CHECKPOINT.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "products/README.md",
+   "target": "docs/content/planning/product-wbs-overview.md",
    "target_authority": "superseded"
   },
   {
    "source": "docs/content/ranging-module-validation-plan.md",
    "target": "docs/content/payment-platform-scope-v2.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/work-breakdown-plan.md",
+   "target": "docs/content/twelve-week-completion-scope-v3.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/README.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
    "target_authority": "superseded"
   },
   {
@@ -52,6 +72,16 @@
    "target_authority": "superseded"
   },
   {
+   "source": "docs/content/planning/product-worklist-and-12week-wbs.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/planning/remaining-work-list.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
+  },
+  {
    "source": "docs/content/planning/technology-validation-plan.md",
    "target": "docs/content/planning/technology-selection.md",
    "target_authority": "superseded"
@@ -62,9 +92,19 @@
    "target_authority": "historical"
   },
   {
+   "source": "docs/content/specifications/design-baseline-contract.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
+  },
+  {
    "source": "docs/content/specifications/extended-dtos.md",
    "target": "docs/content/specifications/security-api-integration.md",
    "target_authority": "historical"
+  },
+  {
+   "source": "docs/content/specifications/management-trust-lifecycle.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
   },
   {
    "source": "docs/content/specifications/preimplementation-contract-overlay.md",
@@ -80,9 +120,53 @@
    "source": "docs/content/specifications/selection-profile-contract.md",
    "target": "docs/content/planning/decision-briefing.md",
    "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/specifications/stablenet-compatibility-design.md",
+   "target": "docs/content/stablenet-testnet-baseline.md",
+   "target_authority": "superseded"
+  },
+  {
+   "source": "docs/content/planning/design-freeze-checkpoint-02.md",
+   "target": "docs/content/planning/design-freeze-checkpoint.md",
+   "target_authority": "superseded"
   }
  ],
  "claim_conflicts": [
+  {
+   "subject": "acceptance.items",
+   "values": [
+    {
+     "path": "docs/content/products/p10/plan.md",
+     "value": "W12-01..W12-12 열두 항목(기능 7개, 보안 5개)"
+    },
+    {
+     "path": "docs/content/acceptance/week12-log.md",
+     "value": "W12-01..W12-12"
+    }
+   ]
+  },
+  {
+   "subject": "acceptance.refusal.demo",
+   "values": [
+    {
+     "path": "docs/content/products/p04/plan.md",
+     "value": "거절 8종(합의 5종 + 기기 3종)"
+    },
+    {
+     "path": "docs/content/products/p10/plan.md",
+     "value": "합의 5종과 기기 3종, 모두 8종"
+    },
+    {
+     "path": "docs/content/products/p10/srs.md",
+     "value": "합의 5종과 기기 3종"
+    },
+    {
+     "path": "docs/content/products/p10/design.md",
+     "value": "거절 시연 8종(register acceptanceRefusalCodes의 합의 5종과 기기 3종)"
+    }
+   ]
+  },
   {
    "subject": "acceptance.runtime.cases",
    "values": [
@@ -219,19 +303,37 @@
    ]
   },
   {
+   "subject": "ble.mtu",
+   "values": [
+    {
+     "path": "docs/content/products/p04/design.md",
+     "value": "MTU 23, 185, 247에서 분할·재조립 시험"
+    },
+    {
+     "path": "docs/content/specifications/protocol/payment-protocol.md",
+     "value": "데이터 길이는 협상된 MTU에서 `ATT_MTU - 5`까지"
+    }
+   ]
+  },
+  {
+   "subject": "chain.finality",
+   "values": [
+    {
+     "path": "docs/content/products/p04/srs.md",
+     "value": "1초 블록이며 latest와 같다"
+    },
+    {
+     "path": "docs/content/products/p07/srs.md",
+     "value": "8283은 1초 블록이고 finalized가 latest와 같다"
+    }
+   ]
+  },
+  {
    "subject": "chain.id",
    "values": [
     {
      "path": "docs/content/environment/README.md",
      "value": "8283"
-    },
-    {
-     "path": "docs/content/twelve-week-completion-scope-v3.md",
-     "value": "8283"
-    },
-    {
-     "path": "docs/content/planning/design-freeze-checkpoint.md",
-     "value": "8283(0x205b)"
     },
     {
      "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
@@ -244,6 +346,64 @@
     {
      "path": "docs/content/specifications/stablenet-compatibility-design.md",
      "value": "8283(2026-09-17 관측값)"
+    },
+    {
+     "path": "docs/content/products/p05/srs.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/products/p05/design.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/products/p06/plan.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/specifications/protocol/payment-protocol.md",
+     "value": "8283"
+    },
+    {
+     "path": "docs/content/acceptance/week12-log.md",
+     "value": "StableNet testnet 8283"
+    }
+   ]
+  },
+  {
+   "subject": "contract.upgradeability",
+   "values": [
+    {
+     "path": "docs/content/products/p06/srs.md",
+     "value": "업그레이드 proxy와 pause를 두지 않는다"
+    },
+    {
+     "path": "docs/content/products/p06/design.md",
+     "value": "upgrade proxy와 pause는 없다"
+    }
+   ]
+  },
+  {
+   "subject": "cut.order",
+   "values": [
+    {
+     "path": "docs/content/products/p01/plan.md",
+     "value": "외부 SE 통합(WBS2-P01-05), P07, NFC handover(WBS2-P01-06)"
+    },
+    {
+     "path": "docs/content/products/p06/plan.md",
+     "value": "외부 SE, P07, NFC handover"
+    },
+    {
+     "path": "docs/content/products/p07/plan.md",
+     "value": "외부 SE → P07 → NFC handover"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+     "value": "외부 SE(TF-M waiver로 진행), P07(W12-06 대체 증거), NFC handover(BLE scan만 사용)이며 기기 가맹점 표시는 자르지 않는다"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "외부 SE 통합(WBS2-P01-05) → P07 최소 indexer(WBS2-P07-01) → NFC handover(WBS2-P01-06)"
     }
    ]
   },
@@ -309,25 +469,25 @@
      "value": "20"
     },
     {
-     "path": "docs/content/planning/design-freeze-checkpoint.md",
-     "value": "20"
-    },
-    {
      "path": "docs/content/specifications/kiosk-commerce-journey-design.md",
      "value": "19"
     }
    ]
   },
   {
-   "subject": "decision.status",
+   "subject": "design.freeze.id",
    "values": [
     {
-     "path": "docs/content/planning/design-closure-review.md",
-     "value": "19개 결정과 RR-DEC-01 미선택"
+     "path": "REPOSITORY-CHECKPOINT.md",
+     "value": "DF-20260925-02 (DF-20260920-01 대체)"
     },
     {
-     "path": "docs/content/planning/design-freeze-checkpoint.md",
-     "value": "20개 선택 완료"
+     "path": "docs/content/series/README.md",
+     "value": "DF-20260925-02"
+    },
+    {
+     "path": "docs/README.md",
+     "value": "DF-20260925-02"
     }
    ]
   },
@@ -345,15 +505,19 @@
    ]
   },
   {
-   "subject": "firmware.sdk",
+   "subject": "evidence.redaction",
    "values": [
     {
-     "path": "docs/content/planning/design-freeze-checkpoint.md",
-     "value": "NCS v3.4.0 / Zephyr 4.4 계열"
+     "path": "docs/content/products/p05/srs.md",
+     "value": "줄인 주소·해시와 원본의 sha256: checksum만"
     },
     {
-     "path": "docs/content/planning/implementation-sequence.md",
-     "value": "Zephyr; SDK 배포판·버전·NU board target 미선정"
+     "path": "docs/content/products/p10/srs.md",
+     "value": "줄인 주소·tx hash(앞 6자리…뒤 4자리)와 원본 파일의 64자리 전체 sha256: checksum"
+    },
+    {
+     "path": "docs/content/products/p10/design.md",
+     "value": "앞 6자리…뒤 4자리로 줄인 주소·tx hash, 원본 파일의 64자리 전체 sha256: checksum"
     }
    ]
   },
@@ -371,15 +535,82 @@
    ]
   },
   {
-   "subject": "kiosk.platform",
+   "subject": "gate.w4",
    "values": [
     {
-     "path": "products/p04-merchant-kiosk/README.md",
-     "value": "Android 태블릿 React Native"
+     "path": "docs/content/products/p01/plan.md",
+     "value": "BR-01..BR-08 bring-up 결과, 외부 SE 데이터시트의 secp256k1 지원 확인"
     },
     {
-     "path": "docs/content/week-03-maker-team-meeting-memo.md",
-     "value": "Android 태블릿, React Native"
+     "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+     "value": "W4(9/30) 증거 게이트: BR-01..BR-08 bring-up과 외부 SE 데이터시트의 secp256k1 확인"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "4주차(9/30) BR-01..BR-08 bring-up 결과(WBS2-P01-00), 외부 SE 데이터시트의 secp256k1 지원 확인(WBS2-P01-10)"
+    }
+   ]
+  },
+  {
+   "subject": "gate.w6",
+   "values": [
+    {
+     "path": "docs/content/products/p06/plan.md",
+     "value": "기기 없이 소프트웨어 서명으로 8283에서 finalized PaymentSettled 1건, 최소 registry 검사가 켜져 있어야 한다"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+     "value": "W6(10/14) 컨트랙트 게이트: 소프트웨어 서명으로 8283에 낸 finalized PaymentSettled"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "6주차(10/14) 소프트웨어 서명으로 8283에 낸 finalized PaymentSettled(WBS2-P06-02)"
+    }
+   ]
+  },
+  {
+   "subject": "gate.w7",
+   "values": [
+    {
+     "path": "docs/content/products/p01/plan.md",
+     "value": "보드 내장 키로 서명한 결제 1건이 키오스크를 거쳐 finalized PaymentSettled까지 가는 실기 end-to-end. 첫 실결제 게이트이자 컷 트리거"
+    },
+    {
+     "path": "docs/content/products/p04/plan.md",
+     "value": "W7에 보드 내장 키로 실기 end-to-end 1건"
+    },
+    {
+     "path": "docs/content/products/p05/plan.md",
+     "value": "W7 실결제 게이트의 가맹점 준비, 대여 셋업"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+     "value": "W7(10/21) 실결제 게이트: 보드 내장 키로 기기 버튼 승인부터 finalized PaymentSettled까지 end-to-end 1건(첫 실결제 게이트이자 컷 트리거)"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "7주차(10/21) 보드 내장 키로 기기 버튼 승인 → 키오스크 제출 → finalized PaymentSettled까지 실기 end-to-end 1건"
+    }
+   ]
+  },
+  {
+   "subject": "gate.w9",
+   "values": [
+    {
+     "path": "docs/content/products/p01/plan.md",
+     "value": "외부 secure element로 감싼 키로 같은 end-to-end 1건"
+    },
+    {
+     "path": "docs/content/products/p06/plan.md",
+     "value": "외부 SE 키로 같은 흐름을 반복하므로 컨트랙트 변경 없이 통과"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+     "value": "W9(11/4) SE 게이트"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "9주차(11/4) 외부 secure element로 감싼 키로 같은 end-to-end 1건"
     }
    ]
   },
@@ -397,23 +628,215 @@
    ]
   },
   {
-   "subject": "milestone.m2.week",
+   "subject": "ops.role_keys",
    "values": [
     {
-     "path": "docs/content/medium-three-month-team-project-en.md",
-     "value": "4"
+     "path": "docs/content/products/p05/plan.md",
+     "value": "역할별 EOA 하나씩(운영자, registry 관리자, 키오스크, 시험 가맹점)"
     },
     {
-     "path": "docs/content/medium-three-month-team-project.md",
-     "value": "4"
+     "path": "docs/content/products/p05/srs.md",
+     "value": "운영자·registry 관리자·키오스크·시험 가맹점 키는 서로 다른 EOA"
+    }
+   ]
+  },
+  {
+   "subject": "owner.p01",
+   "values": [
+    {
+     "path": "docs/content/products/p01/plan.md",
+     "value": "role A"
     },
     {
-     "path": "docs/content/planning/product-wbs-overview.md",
-     "value": "4 (NU 승인→EOA→Indexer→paid→키오스크 영수증)"
+     "path": "docs/content/products/p10/use-cases.md",
+     "value": "role A(펌웨어)"
     },
     {
-     "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
-     "value": "4"
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "role A(bring-up은 user)"
+    }
+   ]
+  },
+  {
+   "subject": "owner.p04",
+   "values": [
+    {
+     "path": "docs/content/products/p04/plan.md",
+     "value": "role B"
+    },
+    {
+     "path": "docs/content/products/p10/use-cases.md",
+     "value": "role B(키오스크)"
+    }
+   ]
+  },
+  {
+   "subject": "owner.p06",
+   "values": [
+    {
+     "path": "docs/content/products/p06/plan.md",
+     "value": "사용자(user)"
+    },
+    {
+     "path": "docs/content/products/p10/use-cases.md",
+     "value": "user(컨트랙트)"
+    }
+   ]
+  },
+  {
+   "subject": "owner.p07",
+   "values": [
+    {
+     "path": "docs/content/products/p07/plan.md",
+     "value": "사용자(user)"
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "user"
+    }
+   ]
+  },
+  {
+   "subject": "payment.timeout",
+   "values": [
+    {
+     "path": "docs/content/products/p01/srs.md",
+     "value": "10 s"
+    },
+    {
+     "path": "docs/content/products/p01/use-cases.md",
+     "value": "키오스크가 10 s 뒤 session.cancel"
+    },
+    {
+     "path": "docs/content/products/p04/plan.md",
+     "value": "10 s hard timeout"
+    },
+    {
+     "path": "docs/content/products/p04/srs.md",
+     "value": "요청 전달 완료부터 10 s"
+    },
+    {
+     "path": "docs/content/products/p04/use-cases.md",
+     "value": "요청 전달 완료부터 10 s"
+    },
+    {
+     "path": "docs/content/products/p04/design.md",
+     "value": "요청 전달 완료 후 10 s"
+    },
+    {
+     "path": "docs/content/products/p07/srs.md",
+     "value": "키오스크 10 s timeout"
+    },
+    {
+     "path": "docs/content/specifications/protocol/payment-protocol.md",
+     "value": "`payment.prepare` 전송이 끝난 뒤 10 s 안에 `payment.result`가 없으면 `session.cancel`"
+    },
+    {
+     "path": "docs/content/acceptance/week12-log.md",
+     "value": "연속 20회 결제가 모두 요청 전달 완료부터 10 s 안에 approved로 끝난다"
+    }
+   ]
+  },
+  {
+   "subject": "product.status",
+   "values": [
+    {
+     "path": "products/p01-device-firmware/README.md",
+     "value": "DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 기획 · SRS · 유즈케이스 · 설계가 정한다"
+    },
+    {
+     "path": "products/p02-user-app/README.md",
+     "value": "이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle)"
+    },
+    {
+     "path": "products/p03-cloud-mpc-wallet/README.md",
+     "value": "이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle)"
+    },
+    {
+     "path": "products/p04-merchant-kiosk/README.md",
+     "value": "DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 기획 · SRS · 유즈케이스 · 설계가 정한다"
+    },
+    {
+     "path": "products/p05-operations-backoffice/README.md",
+     "value": "DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 기획 · SRS · 유즈케이스 · 설계가 정한다"
+    },
+    {
+     "path": "products/p06-stablenet-contracts/README.md",
+     "value": "DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 기획 · SRS · 유즈케이스 · 설계가 정한다"
+    },
+    {
+     "path": "products/p07-indexer/README.md",
+     "value": "DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 기획 · SRS · 유즈케이스 · 설계가 정한다"
+    },
+    {
+     "path": "products/p08-market-services/README.md",
+     "value": "이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle)"
+    },
+    {
+     "path": "products/p09-travel-ai/README.md",
+     "value": "이번 12주 사이클에서 설계만 하고 구현하지 않는다(out of cycle)"
+    },
+    {
+     "path": "products/p10-platform/README.md",
+     "value": "DF-20260925-02 기준 이번 12주 사이클의 범위와 설계는 기획 · SRS · 유즈케이스 · 설계가 정한다"
+    },
+    {
+     "path": "docs/content/series/README.md",
+     "value": "10개 제품을 설계하고 6개만 만들기로 한 이유"
+    },
+    {
+     "path": "docs/content/products/p01/plan.md",
+     "value": "이번 사이클에 실제로 만드는 여섯 제품 가운데 하나"
+    },
+    {
+     "path": "docs/content/products/p05/plan.md",
+     "value": "만드는 제품 여섯 개 중 하나"
+    },
+    {
+     "path": "docs/content/products/p06/plan.md",
+     "value": "이번 사이클에 만드는 여섯 제품 중 하나"
+    },
+    {
+     "path": "docs/content/products/p07/plan.md",
+     "value": "만드는 여섯 제품 중 하나"
+    },
+    {
+     "path": "docs/content/products/p10/plan.md",
+     "value": "만드는 여섯 제품 중 하나"
+    },
+    {
+     "path": "docs/content/planning/design-freeze-checkpoint-02.md",
+     "value": "만드는 제품은 P01·P04·P05(Foundry 스크립트)·P06·P07(최소)·P10(공유 EIP-712)이고 P02·P03·P08·P09는 설계만 한다."
+    },
+    {
+     "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+     "value": "만드는 제품은 P01, P04, P05, P06, P07, P10 여섯 개뿐이다"
+    }
+   ]
+  },
+  {
+   "subject": "receipt.api",
+   "values": [
+    {
+     "path": "docs/content/products/p07/srs.md",
+     "value": "GET /receipts/{merchant}/{orderId} → JSON 영수증 또는 404"
+    },
+    {
+     "path": "docs/content/products/p07/use-cases.md",
+     "value": "GET /receipts/{merchant}/{orderId}"
+    }
+   ]
+  },
+  {
+   "subject": "receipt.latency.target",
+   "values": [
+    {
+     "path": "docs/content/products/p07/srs.md",
+     "value": "이벤트가 finalized 된 뒤 10 s 안(폴링 주기 포함)"
+    },
+    {
+     "path": "docs/content/products/p07/design.md",
+     "value": "10 s 이내"
     }
    ]
   },
@@ -427,6 +850,91 @@
     {
      "path": "docs/content/specifications/lifecycle-storage-design.md",
      "value": "미답변"
+    }
+   ]
+  },
+  {
+   "subject": "refund",
+   "values": [
+    {
+     "path": "docs/content/products/p04/srs.md",
+     "value": "refund 기능은 제공하지 않는다"
+    },
+    {
+     "path": "docs/content/products/p06/srs.md",
+     "value": "refund 경로는 없다"
+    }
+   ]
+  },
+  {
+   "subject": "refusal.codes",
+   "values": [
+    {
+     "path": "docs/content/products/p04/use-cases.md",
+     "value": "ATTESTATION_EXPIRED, MERCHANT_FORGED, MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, USER_REJECTED, TIME_ANCHOR_MISSING"
+    },
+    {
+     "path": "docs/content/specifications/protocol/payment-protocol.md",
+     "value": "ATTESTATION_EXPIRED, MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, MERCHANT_FORGED, USER_REJECTED, TIME_ANCHOR_MISSING, UNSUPPORTED_TYPE, BAD_FRAME, TIMEOUT, EXPIRED, WRONG_DOMAIN, ACCOUNT_INACTIVE, INSUFFICIENT_BALANCE"
+    }
+   ]
+  },
+  {
+   "subject": "refusal.codes.contract",
+   "values": [
+    {
+     "path": "docs/content/products/p01/srs.md",
+     "value": "MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED"
+    },
+    {
+     "path": "docs/content/products/p04/srs.md",
+     "value": "MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, MERCHANT_FORGED"
+    },
+    {
+     "path": "docs/content/products/p06/srs.md",
+     "value": "MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, MERCHANT_FORGED"
+    },
+    {
+     "path": "docs/content/products/p06/use-cases.md",
+     "value": "MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED, MERCHANT_FORGED"
+    }
+   ]
+  },
+  {
+   "subject": "refusal.codes.device",
+   "values": [
+    {
+     "path": "docs/content/products/p01/srs.md",
+     "value": "UNSUPPORTED_TYPE, MERCHANT_FORGED, ATTESTATION_EXPIRED, TIME_ANCHOR_MISSING, USER_REJECTED"
+    },
+    {
+     "path": "docs/content/products/p01/use-cases.md",
+     "value": "ATTESTATION_EXPIRED, MERCHANT_FORGED, TIME_ANCHOR_MISSING, UNSUPPORTED_TYPE"
+    },
+    {
+     "path": "docs/content/products/p01/design.md",
+     "value": "MERCHANT_FORGED, ATTESTATION_EXPIRED, TIME_ANCHOR_MISSING, USER_REJECTED, PIN_LOCKED, TIMEOUT (시험 전용), UNSUPPORTED_TYPE, NOT_PERMITTED, BAD_FRAME"
+    }
+   ]
+  },
+  {
+   "subject": "return.order",
+   "values": [
+    {
+     "path": "docs/content/products/p01/use-cases.md",
+     "value": "closeAccount 호출과 finalized 이벤트 확인 뒤 DeviceReset `{device, nonce}` 서명 device.reset"
+    },
+    {
+     "path": "docs/content/products/p05/srs.md",
+     "value": "closeAccount 호출, finalized 이벤트 확인 뒤 DeviceReset `{device, nonce}`를 device.reset으로"
+    },
+    {
+     "path": "docs/content/products/p05/use-cases.md",
+     "value": "CloseRental로 closeAccount, finalized 이벤트 확인 뒤 SignDeviceReset으로 device.reset"
+    },
+    {
+     "path": "docs/content/products/p06/use-cases.md",
+     "value": "closeAccount(device), AccountClosed finalized 확인 뒤 운영자 서명 DeviceReset"
     }
    ]
   },
@@ -484,10 +992,6 @@
      "value": "104"
     },
     {
-     "path": "docs/content/planning/product-wbs-overview.md",
-     "value": "104 (표 열 이름은 '세부 작업')"
-    },
-    {
      "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
      "value": "104"
     },
@@ -527,6 +1031,40 @@
    ]
   },
   {
+   "subject": "settle.check_order",
+   "values": [
+    {
+     "path": "docs/content/products/p06/srs.md",
+     "value": "WrongDomain → OrderAlreadyPaid → Expired → AccountInactive → MerchantRevoked → MerchantForged → NonceReplayed → OverCap → InsufficientBalance"
+    },
+    {
+     "path": "docs/content/products/p06/use-cases.md",
+     "value": "도메인(chainId, contract, token), 주문 유일성, 만료, 서명자 계정, registry, payout, nonce, 한도, 잔액"
+    },
+    {
+     "path": "docs/content/products/p06/design.md",
+     "value": "WrongDomain, OrderAlreadyPaid, Expired, AccountInactive, MerchantRevoked, MerchantForged, NonceReplayed, OverCap, InsufficientBalance"
+    },
+    {
+     "path": "docs/content/specifications/protocol/payment-protocol.md",
+     "value": "domain → 주문 유일성 → expiry → 서명자 계정 → registry → payout → nonce → 한도 → 잔액"
+    }
+   ]
+  },
+  {
+   "subject": "setup.sequence",
+   "values": [
+    {
+     "path": "docs/content/products/p01/use-cases.md",
+     "value": "session.open mode=setup → setup.operator(버튼 확인) → TRNG 키 → PIN → setup.ack{step: keygen, device} → setup.timeAnchor → setup.ack → depositFor"
+    },
+    {
+     "path": "docs/content/products/p05/srs.md",
+     "value": "session.open(setup) → setup.operator{operator, contract, chainId}(대여자 버튼 확인) → 기기 TRNG 키와 PIN → setup.ack{keygen, device} → setup.timeAnchor → 수락 setup.ack"
+    }
+   ]
+  },
+  {
    "subject": "task.execution.status",
    "values": [
     {
@@ -553,31 +1091,15 @@
    ]
   },
   {
-   "subject": "team.size",
+   "subject": "vector.signer.index",
    "values": [
     {
-     "path": "docs/content/medium-three-month-team-project-en.md",
-     "value": "3"
+     "path": "docs/content/products/p10/srs.md",
+     "value": "기기 0, 운영자 1, 가맹점 2"
     },
     {
-     "path": "docs/content/medium-three-month-team-project.md",
-     "value": "3"
-    },
-    {
-     "path": "docs/content/twelve-week-completion-scope-v3.md",
-     "value": "3명"
-    },
-    {
-     "path": "docs/content/planning/implementation-sequence.md",
-     "value": "3"
-    },
-    {
-     "path": "docs/content/specifications/lifecycle-journey-acceptance.md",
-     "value": "3"
-    },
-    {
-     "path": "docs/content/specifications/wallet-control-recovery-design.md",
-     "value": "3"
+     "path": "docs/content/products/p10/design.md",
+     "value": "index 0(기기), 1(운영자), 2(가맹점)"
     }
    ]
   },
@@ -597,18 +1119,6 @@
      "value": "2-of-3"
     },
     {
-     "path": "docs/content/series/README.md",
-     "value": "2-of-3"
-    },
-    {
-     "path": "docs/content/twelve-week-completion-scope-v3.md",
-     "value": "미정 (2-of-3 또는 특정 벤더 확정하지 않음)"
-    },
-    {
-     "path": "docs/content/planning/design-freeze-checkpoint.md",
-     "value": "2-of-3 ECDSA (cb-mpc/cb-mpc-go v0.2.1)"
-    },
-    {
      "path": "docs/content/planning/product-worklist-and-12week-wbs.md",
      "value": "2-of-3"
     },
@@ -626,8 +1136,7 @@
  "orphans": [
   "docs/content/medium-three-month-team-project-checklist.md",
   "docs/content/medium-three-month-team-project-en.md",
-  "docs/content/series/README.md",
-  "docs/content/week-03-maker-team-meeting-memo.md"
+  "docs/content/series/README.md"
  ],
  "open_questions": {
   "ALL": [
@@ -672,30 +1181,6 @@
     "question": "보드 리비전·Zephyr 타깃·핀·메모리·BLE 전송량"
    },
    {
-    "path": "docs/content/twelve-week-completion-scope-v3.md",
-    "question": "MPC 조각 보관·복구 주체·도입 방식"
-   },
-   {
-    "path": "docs/content/twelve-week-completion-scope-v3.md",
-    "question": "패스키 대상 서비스·OS·전송 방식"
-   },
-   {
-    "path": "docs/content/twelve-week-completion-scope-v3.md",
-    "question": "실제 결제 데이터 범위와 실제 USDC 필수 여부"
-   },
-   {
-    "path": "docs/content/twelve-week-completion-scope-v3.md",
-    "question": "FX·DeFi·STO·DID·x402 상품/프로토콜 경계"
-   },
-   {
-    "path": "docs/content/twelve-week-completion-scope-v3.md",
-    "question": "FOTA·녹음·찾기 성능/용량/배터리 기준"
-   },
-   {
-    "path": "docs/content/twelve-week-completion-scope-v3.md",
-    "question": "환불·정산·혜택·위치 데이터 운영 정책"
-   },
-   {
     "path": "docs/content/work-breakdown-plan.md",
     "question": "SDK 배포판·Zephyr 버전·NU board target"
    },
@@ -722,26 +1207,6 @@
    {
     "path": "docs/content/planning/design-closure-review.md",
     "question": "CS-04 구현 전환 지시(deferred_by_user)"
-   },
-   {
-    "path": "docs/content/planning/design-freeze-checkpoint.md",
-    "question": "NU-54V-DK 실제 revision·pin·flash/RAM·secure service 측정"
-   },
-   {
-    "path": "docs/content/planning/design-freeze-checkpoint.md",
-    "question": "Google·Apple·Kakao·OpenAI 계정·secret 등록"
-   },
-   {
-    "path": "docs/content/planning/design-freeze-checkpoint.md",
-    "question": "StableNet 계약 배포 주소·code hash·ABI digest 미등록"
-   },
-   {
-    "path": "docs/content/planning/design-freeze-checkpoint.md",
-    "question": "MPC·BLE passkey·오디오·FOTA·거리 측정·12개 통합 여정 미실행"
-   },
-   {
-    "path": "docs/content/planning/design-freeze-checkpoint.md",
-    "question": "실자산·실권리·상용 대여 법률·약관 검토"
    },
    {
     "path": "docs/content/planning/execution-readiness.md",
@@ -1026,30 +1491,6 @@
     "question": "NU 보드 reflector 포팅"
    },
    {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "요청 만료 시간(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "버튼 길게 누름(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "확정으로 볼 블록 수"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "디스플레이 모델·인터페이스"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "배터리·충전 모듈"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "역할 담당자·발표자"
-   },
-   {
     "path": "docs/content/specifications/approval-baseline.md",
     "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
    },
@@ -1312,6 +1753,50 @@
    {
     "path": "docs/content/specifications/wallet-control-recovery-design.md",
     "question": "WC-P04 로그아웃·탈퇴 키 삭제·보관 정책"
+   },
+   {
+    "path": "docs/content/products/p01/plan.md",
+    "question": "NFC 안테나와 드라이버가 검증되지 않았다"
+   },
+   {
+    "path": "docs/content/products/p01/design.md",
+    "question": "trusted display는 범위 밖"
+   },
+   {
+    "path": "docs/content/products/p01/design.md",
+    "question": "anti-exfil 프로토콜, 정품 기기 attestation, 의존성 pinning은 보류(waiver)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "사람 이름(팀 모임에서 확정할 때 CSV owner 열에 기록)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "주차별 실제 가용 일수(팀 모임에서 확인해 고침)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "기기 펌웨어 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키 보관(SE / TF-M waiver)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 빌드 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "정산 컨트랙트 주소"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "도구·의존성 버전"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 시작 가스 잔액"
    }
   ],
   "P02": [
@@ -1800,30 +2285,6 @@
     "question": "디버거 결정"
    },
    {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "요청 만료 시간(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "버튼 길게 누름(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "확정으로 볼 블록 수"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "디스플레이 모델·인터페이스"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "배터리·충전 모듈"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "역할 담당자·발표자"
-   },
-   {
     "path": "docs/content/specifications/approval-baseline.md",
     "question": "승인 ancestry·provenance 등 새 물리 제약의 SQL 반영·실행 검증"
    },
@@ -1994,6 +2455,46 @@
    {
     "path": "docs/content/specifications/settlement-ops-contracts.md",
     "question": "RR-DEC-01"
+   },
+   {
+    "path": "docs/content/products/p04/plan.md",
+    "question": "p95 지연 수치 목표는 W7 실결제 게이트 이후 정한다"
+   },
+   {
+    "path": "docs/content/products/p04/srs.md",
+    "question": "p95 지연 수치 목표는 W7 실결제 게이트 이후 정한다"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "사람 이름(팀 모임에서 확정할 때 CSV owner 열에 기록)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "주차별 실제 가용 일수(팀 모임에서 확인해 고침)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "기기 펌웨어 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키 보관(SE / TF-M waiver)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 빌드 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "정산 컨트랙트 주소"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "도구·의존성 버전"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 시작 가스 잔액"
    }
   ],
   "P05": [
@@ -2332,6 +2833,42 @@
    {
     "path": "docs/content/specifications/trust-operations-design.md",
     "question": "TP-06 증거 열람/export/폐기·보존"
+   },
+   {
+    "path": "docs/content/products/p05/plan.md",
+    "question": "multisig/HSM은 보류"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "사람 이름(팀 모임에서 확정할 때 CSV owner 열에 기록)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "주차별 실제 가용 일수(팀 모임에서 확인해 고침)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "기기 펌웨어 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키 보관(SE / TF-M waiver)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 빌드 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "정산 컨트랙트 주소"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "도구·의존성 버전"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 시작 가스 잔액"
    }
   ],
   "P06": [
@@ -2354,30 +2891,6 @@
    {
     "path": "docs/content/environment/README.md",
     "question": "실제 인물·workload identity·KMS/HSM key reference의 2인 등록"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "요청 만료 시간(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "버튼 길게 누름(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "확정으로 볼 블록 수"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "디스플레이 모델·인터페이스"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "배터리·충전 모듈"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "역할 담당자·발표자"
    },
    {
     "path": "docs/content/specifications/credential-paid-resource-design.md",
@@ -2430,13 +2943,41 @@
    {
     "path": "docs/content/specifications/stablenet-compatibility-design.md",
     "question": "EIP-7702 체인 지원 여부"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "사람 이름(팀 모임에서 확정할 때 CSV owner 열에 기록)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "주차별 실제 가용 일수(팀 모임에서 확인해 고침)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "기기 펌웨어 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키 보관(SE / TF-M waiver)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 빌드 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "정산 컨트랙트 주소"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "도구·의존성 버전"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 시작 가스 잔액"
    }
   ],
   "P07": [
-   {
-    "path": "products/p07-indexer/README.md",
-    "question": "기존 저장소 가져오기 전 commit pin, 라이선스, 이력 보존 방식 기록"
-   },
    {
     "path": "docs/content/environment/README.md",
     "question": "NU-54V-DK 실제 revision·board definition commit·flash 측정"
@@ -2456,30 +2997,6 @@
    {
     "path": "docs/content/environment/README.md",
     "question": "실제 인물·workload identity·KMS/HSM key reference의 2인 등록"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "요청 만료 시간(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "버튼 길게 누름(초)"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "확정으로 볼 블록 수"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "디스플레이 모델·인터페이스"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "배터리·충전 모듈"
-   },
-   {
-    "path": "docs/content/week-03-maker-team-meeting-memo.md",
-    "question": "역할 담당자·발표자"
    },
    {
     "path": "docs/content/specifications/commerce-contract-changes.md",
@@ -2584,6 +3101,46 @@
    {
     "path": "docs/content/specifications/stablenet-compatibility-design.md",
     "question": "EIP-7702 체인 지원 여부"
+   },
+   {
+    "path": "docs/content/products/p07/plan.md",
+    "question": "W9 끝에 P07 착수 여부를 다시 정한다"
+   },
+   {
+    "path": "docs/content/products/p07/plan.md",
+    "question": "indexer-go 재사용 여부는 W10 첫날 판단"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "사람 이름(팀 모임에서 확정할 때 CSV owner 열에 기록)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "주차별 실제 가용 일수(팀 모임에서 확인해 고침)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "기기 펌웨어 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키 보관(SE / TF-M waiver)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 빌드 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "정산 컨트랙트 주소"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "도구·의존성 버전"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 시작 가스 잔액"
    }
   ],
   "P08": [
@@ -2898,6 +3455,38 @@
    {
     "path": "docs/content/specifications/trust-operations-design.md",
     "question": "TP-06 증거 열람/export/폐기·보존"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "사람 이름(팀 모임에서 확정할 때 CSV owner 열에 기록)"
+   },
+   {
+    "path": "docs/content/planning/product-worklist-and-12week-wbs-02.md",
+    "question": "주차별 실제 가용 일수(팀 모임에서 확인해 고침)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "기기 펌웨어 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키 보관(SE / TF-M waiver)"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 빌드 버전/커밋"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "정산 컨트랙트 주소"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "도구·의존성 버전"
+   },
+   {
+    "path": "docs/content/acceptance/week12-log.md",
+    "question": "키오스크 시작 가스 잔액"
    }
   ]
  }

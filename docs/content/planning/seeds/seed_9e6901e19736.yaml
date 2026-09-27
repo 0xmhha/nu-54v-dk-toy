@@ -1,7 +1,7 @@
 # Ouroboros Seed generated from interview_20260924_140535, revision 4.
 # Iteration 0 was a copy of the ouroboros_generate_seed output (the MCP server did
 # not persist it). Revision 1 applies the user-accepted refinement candidates
-# S1-S8, W1-W3 and C1-C3; revision 2 applies pass-2 S1-S6 and C4-C6; revision 3 applies pass-3 T1-T3 and M1-M3; revision 4 applies the five post-PASS advisory findings and the P05 time-anchor path; 1.4.1 narrows the stale-literal scan to files added or changed since baseCommit (user decision 2026-09-25); 1.4.2 extends W12-05 to 8 refusal demos (user decision 2026-09-25); 1.5.0 applies the cross-document logic review (user decisions 2026-09-25); audit trail:
+# S1-S8, W1-W3 and C1-C3; revision 2 applies pass-2 S1-S6 and C4-C6; revision 3 applies pass-3 T1-T3 and M1-M3; revision 4 applies the five post-PASS advisory findings and the P05 time-anchor path; 1.4.1 narrows the stale-literal scan to files added or changed since baseCommit (user decision 2026-09-25); 1.4.2 extends W12-05 to 8 refusal demos (user decision 2026-09-25); 1.5.0 applies the cross-document logic review (user decisions 2026-09-25); 1.5.1 moves to NCS v3.4.1 to match the board vendor package (user decision 2026-09-26); audit trail:
 # ~/.ouroboros/seed-revisions/interview_20260924_140535.md
 goal: 'Deliver the documentation baseline for the NU-54V-DK merchant-authenticated payment signer, whose
   approved product goal is: the NU-54V-DK (nRF54L15) device, using a non-exportable key generated at rental,
@@ -73,7 +73,7 @@ brownfield_context:
   - BLE message flow named as session.open/confirm then payment.identify/prepare/result
   - Board bring-up checks identified as BR-01..BR-08
   existing_dependencies:
-  - NCS v3.4.0 / Zephyr 4.4 on nRF54L15 (NU-54V-DK)
+  - NCS v3.4.1 / Zephyr 4.4.2 on nRF54L15 (NU-54V-DK, board target nu54v_dk/nrf54l15/cpuapp)
   - StableNet testnet chain id 8283, RPC https://api.test.stablenet.network/, client Gstable/v1.1.0 with
     istanbul_* namespace
   - Foundry for P06 contracts and P05 operator scripts
@@ -85,7 +85,7 @@ brownfield_context:
   - Zephyr BLE stack with LE Secure Connections and nRF54L15 passive NFC tag support
 constraints:
 - StableNet testnet only (chain id 8283); no mainnet, no fiat ramps, no card network, no multi-chain
-- Target board is NU-54V-DK (nRF54L15), NCS v3.4.0 / Zephyr 4.4
+- Target board is NU-54V-DK (nRF54L15, board target nu54v_dk/nrf54l15/cpuapp), NCS v3.4.1 / Zephyr 4.4.2
 - 'Monorepo layout: code under products/ and packages/, documentation authority under docs/content/'
 - 'Documentation-only cycle: no runtime, SQL, firmware or chain deployment is produced; the P10 EIP-712
   test vectors are written as JSON under docs/content/specifications/protocol/ and move to packages/ only
@@ -535,7 +535,7 @@ exit_conditions:
     and the evidence that forced it
 metadata:
   seed_id: seed_9e6901e19736
-  version: 1.5.0
+  version: 1.5.1
   revision: 4
   created_at: '2026-09-24T16:10:01.628831Z'
   revised_at: '2026-09-25'

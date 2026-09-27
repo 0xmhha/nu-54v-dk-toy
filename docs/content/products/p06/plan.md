@@ -41,7 +41,7 @@ W7 게이트가 실패해도 P06 작업은 컷 대상이 아니다. 컷 순서(�
 ## 4. 의존성
 
 - **P10:** EIP-712 타입 패키지(WBS2-P10-01, W4). P06-01의 서명 검증 시험이 이 벡터에 의존한다 [N21].
-- **P05:** 가맹점 등록, attestation 발급(WBS2-P05-01, W6), provisioning과 depositFor(WBS2-P05-02, W7), 반납 closeAccount(WBS2-P05-03, W10, P06-04 뒤) 스크립트. W6에는 settle, PaymentSettled, custom error 이름을 고정해 P05-01이 같은 주에 쓸 수 있게 한다. W7–W9에 더하는 함수(payout 변경 지연, LimitChange, 출금, closeAccount)는 이 고정분을 바꾸지 않는 추가만 하고, W12 배포는 P06-05 뒤의 재배포다 [N20].
+- **P05:** 가맹점 등록, attestation 발급(WBS2-P05-01, W6), provisioning과 depositFor(WBS2-P05-02, W7), 반납 closeAccount(WBS2-P05-03, W10, P06-04 뒤)를 수행하는 Go 운영 코어와 `opsctl` [N20]. W6에는 settle, PaymentSettled, custom error 이름을 고정해 P05-01이 같은 주에 쓸 수 있게 한다. W7–W9에 더하는 함수(payout 변경 지연, LimitChange, 출금, closeAccount)는 이 고정분을 바꾸지 않는 추가만 하고, W12 배포는 P06-05 뒤의 재배포다 [N20].
 - **P04:** 키오스크가 settle을 eth_call로 시뮬레이션하고 custom error 이름을 읽는다. error 이름과 PaymentSettled 시그니처는 W6에 고정하며 이후 추가 함수는 이를 바꾸지 않는다 [N22].
 
 ## 5. 위험

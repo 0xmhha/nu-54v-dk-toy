@@ -184,7 +184,7 @@
     "security": "LE Secure Connections, authenticated and encrypted link required on both characteristics"
   },
   "framing": {
-    "envelope": "length u16 big-endian | digest 8 bytes (SHA-256 prefix of the CBOR body) | CBOR body",
+    "envelope": "length u16 big-endian | digest 8 bytes (SHA-256 prefix of the CBOR body) | CBOR body; length is the whole envelope including the 10-byte header (10..2058)",
     "fragment": "sequence u8 | index u8 | envelope bytes up to negotiated ATT_MTU - 5",
     "maxBodyBytes": 2048
   },

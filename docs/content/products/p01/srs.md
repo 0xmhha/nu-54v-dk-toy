@@ -55,14 +55,14 @@ P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않
 
 ## 5. 인터페이스
 
-- **BLE GATT (P04, P05 host 도구):** peripheral 역할. `rx` write, `tx` notify, deterministic CBOR 메시지. 규칙은 payment-protocol.md 3–7절.
-- **셋업 세션 (P05 스크립트):** 같은 GATT 서비스에서 `session.open` mode=setup으로 열고 `setup.operator`, `setup.timeAnchor{device, timestamp, operatorSignature}`를 받아 단계마다 `setup.ack`로 답한다. 키 생성과 PIN 설정 뒤에는 `setup.ack{step: keygen, device}`로 새 주소를 알린다. UNPROVISIONED에서는 `session.open.ok`에 device가 없다. `device.reset`은 어느 세션에서나 받는다. 목표 경로는 P02 설정 앱이지만 이번 사이클은 설계만 한다 [N06][N23].
+- **BLE GATT (P04, P05 `opsctl`):** peripheral 역할. `rx` write, `tx` notify, deterministic CBOR 메시지. 규칙은 payment-protocol.md 3–7절.
+- **셋업 세션 (P05 `opsctl`):** 같은 GATT 서비스에서 `session.open` mode=setup으로 열고 `setup.operator`, `setup.timeAnchor{device, timestamp, operatorSignature}`를 받아 단계마다 `setup.ack`로 답한다. 키 생성과 PIN 설정 뒤에는 `setup.ack{step: keygen, device}`로 새 주소를 알린다. UNPROVISIONED에서는 `session.open.ok`에 device가 없다. `device.reset`은 어느 세션에서나 받는다. 목표 경로는 P02 설정 앱이지만 이번 사이클은 설계만 한다 [N06][N23].
 - **NFC 태그:** 펌웨어가 NFCT로 에뮬레이션하며 페어링마다 BLE 주소와 새 LESC OOB 데이터를 쓴다.
 - **유선 serial(UART):** MCUboot recovery 전용. USB CDC 시험 harness는 개발 빌드에만 있고 게이트 증거가 아니다.
 
 ## 6. 제약과 waiver
 
-- 대상 보드 NU-54V-DK(nRF54L15), NCS v3.4.0/Zephyr 4.4 [D05]
+- 대상 보드 NU-54V-DK(nRF54L15), NCS v3.4.1/Zephyr 4.4.2, 보드 타깃 `nu54v_dk/nrf54l15/cpuapp` [D05]
 - SE가 붙기 전 TF-M 봉인은 testnet waiver다 [N02][N14]
 - anti-exfil, 의존성 pinning, 정품 기기 attestation은 설계만 하는 waiver이며 설계안은 [design.md](design.md) 8절에 있다 [N14]
 - 개인정보를 저장하지 않는다 [N14]

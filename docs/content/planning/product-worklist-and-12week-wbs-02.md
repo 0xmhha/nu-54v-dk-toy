@@ -54,7 +54,7 @@ W7 게이트가 실패하면 다음 순서로 범위를 줄인다 [N03]. 기기�
 | P06 정산 컨트랙트 | user | 핵심 로직과 최소 registry(P06-01), 8283 배포·소프트웨어 서명 정산(P06-02), payout 변경 지연·LimitChange(P06-03), 지연 출금·closeAccount(P06-04), 강화·finality 관측(P06-05) | W5–W10 |
 | P07 최소 indexer | user | PaymentSettled 영수증 조회(P07-01) | W10–W11 |
 | P01 펌웨어 | role A(bring-up은 user) | bring-up(P01-00), SE 데이터시트(P01-10), 골격·표시(P01-01), 키·토큰 바인딩(P01-02), BLE(P01-03), 서명·검증·셋업 명령(P01-04), SE(P01-05), NFC(P01-06), MCUboot·릴리스 빌드(P01-07), 보안 점검(P01-08) | W4–W12 |
-| P05 운영 스크립트 | role B | 가맹점 등록·attestation(P05-01), provisioning(P05-02), 반납(P05-03, closeAccount 구현 뒤), 철회·payout 변경·host 거절 도구(P05-04) | W6–W10 |
+| P05 운영 백오피스(Go 코어·`opsctl`) | role B | 가맹점 등록·attestation(P05-01), provisioning(P05-02), 반납(P05-03, closeAccount 구현 뒤), 철회·payout 변경·거절 시연 도구(P05-04) | W6–W10 |
 | P04 키오스크 | role B | 골격·BLE(P04-01), 최소 제출(P04-02), 시뮬레이션·timeout·오류 처리·LimitChange 중계(P04-03), W12 리허설(P04-04) | W4–W12 |
 
 ## 5. 위험

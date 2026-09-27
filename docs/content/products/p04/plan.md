@@ -39,7 +39,7 @@
 
 - P01: GATT 서비스와 payment.result 응답. W7 이전에는 USB CDC harness로 시험하되 게이트 증거로 쓰지 않는다 [N09].
 - P06: 8283에 배포된 정산 컨트랙트 주소와 ABI(W6, WBS2-P06-02).
-- P05: 가맹점 등록과 MerchantAttestation 발급 스크립트, 시험 가맹점 키를 키오스크 설정의 secretRef로 전달 [N05][N20].
+- P05: 가맹점 등록과 MerchantAttestation 발급(`opsctl`), 시험 가맹점 키를 키오스크 설정의 secretRef로 전달 [N05][N20].
 - P07: 영수증 조회. 선택 사항이며 판정에는 쓰지 않는다 [N19].
 
 ## 6. 위험

@@ -41,17 +41,17 @@ W12-05는 두 묶음으로 판정한다. 3.1은 인터뷰에서 합의한 5종�
 | MERCHANT_REVOKED | 컨트랙트 | registry에서 철회한 가맹점으로 결제 | 미실행 |  |
 | OVER_CAP | 컨트랙트 | 건당 한도를 넘는 금액으로 결제 | 미실행 |  |
 | NONCE_REPLAYED | 컨트랙트 | 시연 중에 LimitChange에 서명해 적용하고, 그 서명의 expiry(authorizationExpiry) 안에 같은 서명을 다시 제출한다. 결제 서명 재제출은 주문 유일성에서 먼저 걸려 approved로 끝나므로 이 코드를 만들지 않는다 | 미실행 |  |
-| MERCHANT_FORGED | 기기 | P05 host 도구가 결제 세션으로 운영자가 서명하지 않은 attestation과 payout을 바꾼 주문을 보낸다. 컨트랙트 층 MerchantForged는 P06 Foundry 시험으로 확인한다 | 미실행 |  |
+| MERCHANT_FORGED | 기기 | P05 `opsctl refusal-host`가 결제 세션으로 운영자가 서명하지 않은 attestation과 payout을 바꾼 주문을 보낸다. 컨트랙트 층 MerchantForged는 P06 Foundry 시험으로 확인한다 | 미실행 |  |
 
 ### 3.2 기기 거절 3종
 
 | 코드 | 거절하는 층 | 만드는 방법 | 결과 | 증거 |
 |---|---|---|---|---|
 | USER_REJECTED | 기기 | 금액 표시 뒤 대여자가 거절 버튼을 누른다 | 미실행 | 기기 화면 영상, payment.result 로그 |
-| UNSUPPORTED_TYPE | 기기 | P05 host 도구가 따로 페어링해 결제 세션(session.open, session.confirm)을 연 뒤, 스키마에 없는 원시 트랜잭션 서명·Permit 서명 요청을 보낸다 | 미실행 | 두 요청의 error 응답 로그, 등록되지 않은 purpose를 거부하는 secure 쪽 시험 로그 |
+| UNSUPPORTED_TYPE | 기기 | P05 `opsctl refusal-host`가 따로 페어링해 결제 세션(session.open, session.confirm)을 연 뒤, 스키마에 없는 원시 트랜잭션 서명·Permit 서명 요청을 보낸다 | 미실행 | 두 요청의 error 응답 로그, 등록되지 않은 purpose를 거부하는 secure 쪽 시험 로그 |
 | TIME_ANCHOR_MISSING | 기기 | 기기 전원을 뽑았다 꽂은 뒤 결제를 시도한다 | 미실행 | anchorValid=false 로그, 재-anchor 후 결제 성공 로그 |
 
-UNSUPPORTED_TYPE 요청은 키오스크가 아니라 P05 host 도구로 보낸다. 키오스크 배포 빌드에 거절 유도 기능을 넣지 않기 위해서다.
+UNSUPPORTED_TYPE 요청은 키오스크가 아니라 P05 `opsctl refusal-host`로 보낸다. 키오스크 배포 빌드에 거절 유도 기능을 넣지 않기 위해서다.
 
 ### 3.3 시연 순서 (runbook)
 
@@ -60,8 +60,8 @@ UNSUPPORTED_TYPE 요청은 키오스크가 아니라 P05 host 도구로 보낸�
 1. **준비.** 만료된 attestation은 시연 시각보다 attestationValidity와 anchorClockSkew를 더한 시간 이상 먼저(시연 이틀 전) P05로 발급해 둔다. 철회용 시험 가맹점과 payout을 바꾼 주문은 시연 전날 만든다. LimitChange는 만료가 짧아 미리 만들지 않는다. W12 컨트랙트가 재배포되었으면 기기를 반납 절차(closeAccount, DeviceReset)로 되돌리고 새 컨트랙트 주소로 다시 셋업한다. 거절을 유도하는 요청(위조 attestation, 변조 주문, LimitChange 재제출)은 모두 P05 도구로 보내고 키오스크 배포 빌드에는 넣지 않는다. 기기는 대여 셋업과 TimeAnchor를 마친 상태로 둔다.
 2. **합의 5종(약 10분).** 3.1 표 순서대로 진행한다. NONCE_REPLAYED는 이 자리에서 LimitChange에 서명·적용한 뒤 2분 안에 같은 서명을 다시 제출한다.
 3. **USER_REJECTED(약 2분).** 정상 주문을 보내고 거절 버튼을 누른다.
-4. **UNSUPPORTED_TYPE(약 3분).** P05 host 도구로 두 요청을 보낸다. 끝나면 host 도구 연결을 끊는다.
-5. **TIME_ANCHOR_MISSING(약 10분, 마지막).** 전원을 뽑았다 꽂고 결제를 시도해 거절을 확인한다. 이어서 P05 provisioning 스크립트로 TimeAnchor를 다시 기록하고 결제 1건이 approved로 끝나는 것까지 보인다. 이 단계를 마지막에 두는 이유는 재-anchor 전까지 다른 결제가 모두 거절되기 때문이다.
+4. **UNSUPPORTED_TYPE(약 3분).** P05 `opsctl refusal-host`로 두 요청을 보낸다. 끝나면 연결을 끊는다.
+5. **TIME_ANCHOR_MISSING(약 10분, 마지막).** 전원을 뽑았다 꽂고 결제를 시도해 거절을 확인한다. 이어서 P05 `opsctl rental re-anchor`로 TimeAnchor를 다시 기록하고 결제 1건이 approved로 끝나는 것까지 보인다. 이 단계를 마지막에 두는 이유는 재-anchor 전까지 다른 결제가 모두 거절되기 때문이다.
 
 ## 4. 보안 항목
 

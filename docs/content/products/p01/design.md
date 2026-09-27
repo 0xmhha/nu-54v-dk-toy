@@ -1,6 +1,6 @@
 # P01 설계
 
-[srs.md](srs.md)의 요구를 NCS v3.4.0/Zephyr 4.4 위에서 어떻게 나누어 구현하는지 정한다. 메시지 규칙은 [payment-protocol.md](../../specifications/protocol/payment-protocol.md)가, 서명 정답은 [eip712-vectors.json](../../specifications/protocol/eip712-vectors.json)이 정한다.
+[srs.md](srs.md)의 요구를 NCS v3.4.1/Zephyr 4.4.2(보드 타깃 `nu54v_dk/nrf54l15/cpuapp`) 위에서 어떻게 나누어 구현하는지 정한다. 메시지 규칙은 [payment-protocol.md](../../specifications/protocol/payment-protocol.md)가, 서명 정답은 [eip712-vectors.json](../../specifications/protocol/eip712-vectors.json)이 정한다.
 
 ## 1. 구조
 

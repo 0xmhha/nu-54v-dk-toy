@@ -1,17 +1,17 @@
 # P01 유즈케이스
 
-P01 펌웨어가 참여하는 사용 흐름이다. 요구 ID는 [srs.md](srs.md), 메시지 이름은 [payment-protocol.md](../../specifications/protocol/payment-protocol.md)를 따른다. 행위자는 대여자, 운영자(P05 스크립트), 키오스크(P04)다.
+P01 펌웨어가 참여하는 사용 흐름이다. 요구 ID는 [srs.md](srs.md), 메시지 이름은 [payment-protocol.md](../../specifications/protocol/payment-protocol.md)를 따른다. 행위자는 대여자, 운영자(P05 `opsctl`), 키오스크(P04)다.
 
 ## 1. UC-P01-01 대여 셋업
 
 - **행위자:** 운영자, 대여자
-- **사전 조건:** 기기가 UNPROVISIONED 상태다. 운영자 스크립트가 운영자 키를 가진다.
+- **사전 조건:** 기기가 UNPROVISIONED 상태다. 운영자 도구(`opsctl`)가 운영자 키를 가진다.
 - **기본 흐름:**
-  1. 운영자 스크립트가 `session.open` mode=setup으로 셋업 세션을 연다. 키가 아직 없으므로 `session.open.ok`에는 device가 없다 [N23].
-  2. 운영자 스크립트가 `setup.operator{operator, contract, chainId}`를 보낸다. 기기가 세 값을 표시하고 대여자가 버튼으로 확인하면 기록하고 `setup.ack{step: setup.operator}`로 답한다.
+  1. `opsctl`이 `session.open` mode=setup으로 셋업 세션을 연다. 키가 아직 없으므로 `session.open.ok`에는 device가 없다 [N23].
+  2. `opsctl`이 `setup.operator{operator, contract, chainId}`를 보낸다. 기기가 세 값을 표시하고 대여자가 버튼으로 확인하면 기록하고 `setup.ack{step: setup.operator}`로 답한다.
   3. 기기가 TRNG로 새 키를 만들고 기기 주소를 표시한다 [N11].
   4. 대여자가 기기 버튼으로 PIN을 정한다. 기기가 `setup.ack{step: keygen, device}`로 새 주소를 알린다.
-  5. 운영자 스크립트가 받은 주소로 TimeAnchor에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`를 보낸다. 이번 사이클은 P05 스크립트가 보내고, 목표 경로인 P02 설정 앱은 설계만 한다 [N06].
+  5. `opsctl`이 받은 주소로 TimeAnchor에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`를 보낸다. 이번 사이클은 P05 `opsctl`이 보내고, 목표 경로인 P02 설정 앱은 설계만 한다 [N06].
   6. 기기가 `device`가 자기 주소인지, 서명자가 기록한 운영자 주소인지, timestamp가 이전 값보다 엄격히 늦은지 확인하고 anchor를 기록한다.
   7. 기기가 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`로 답한다.
   8. 운영자가 ack를 확인한 뒤 depositFor로 기기 주소에 예치한다 [N07].
@@ -51,7 +51,7 @@ P01 펌웨어가 참여하는 사용 흐름이다. 요구 ID는 [srs.md](srs.md)
 
 ## 4. UC-P01-04 기기 층 거절
 
-- **행위자:** 키오스크(시연에서는 P05 host 도구)
+- **행위자:** 키오스크(시연에서는 P05 `opsctl refusal-host`)
 - **사전 조건:** 세션이 열려 있다.
 - **흐름과 결과:**
 
@@ -87,7 +87,7 @@ P01 펌웨어가 참여하는 사용 흐름이다. 요구 ID는 [srs.md](srs.md)
 - **기본 흐름:**
   1. 기기가 재부팅 후 anchor를 무효로 표시하고 PROVISIONED_NO_ANCHOR가 된다.
   2. 키오스크 세션에서 `anchorValid=false`를 보고하고 결제를 `TIME_ANCHOR_MISSING`으로 거절한다.
-  3. 운영자 스크립트가 셋업 세션을 열고 새 `setup.timeAnchor`를 보낸다 [N06].
+  3. `opsctl rental re-anchor`가 셋업 세션을 열고 새 `setup.timeAnchor`를 보낸다 [N06].
   4. 기기가 새 anchor가 이전 값보다 엄격히 늦은지 확인하고 받아들인다.
 - **사후 조건:** 키와 예치금은 그대로이고 결제가 다시 가능하다.
 - **요구:** P01-FR-09

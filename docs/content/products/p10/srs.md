@@ -16,7 +16,7 @@ P10이 제공하는 타입, 벡터, 적합성 harness, 수용 기록지의 요�
 | P10-FR-02 | 벡터 파일은 기기 서명 타입마다 한 개 이상, 운영자·가맹점 타입(DR-01 DeviceReset 포함)마다 한 개 이상의 벡터를 담고, 각 벡터의 message 키는 스키마 필드와 같다. PaymentAuthorization·LimitChange 벡터의 expiry는 기준 시각부터 authorizationExpiry 안에 있다 [N13] | 같은 검사 |
 | P10-FR-03 | 생성기는 digest를 직접 계산하고 `cast wallet sign --data`의 서명이 그 digest로 검증되지 않으면 실패한다 | 생성기 실행 |
 | P10-FR-04 | 생성기 `--check`는 커밋된 벡터 파일과 새로 만든 결과가 바이트 단위로 같을 때만 통과한다 | `build_eip712_vectors.py --check` |
-| P10-FR-05 | 적합성 harness는 펌웨어(C), 키오스크(TS), 컨트랙트(Solidity) 구현이 각자 계산하는 타입의 벡터 digest를 같게 만들고(펌웨어는 7개 벡터 전부, 키오스크는 PaymentAuthorization·LimitChange·MerchantOrder, 컨트랙트는 PaymentAuthorization·LimitChange), 벡터 서명에서 복원한 signer가 그 벡터의 signerRole(device, operator, merchant)에 해당하는 주소인지 확인한다 | harness 실행 로그 |
+| P10-FR-05 | 적합성 harness는 펌웨어(C), 키오스크(TS), 운영 코어·indexer(Go), 컨트랙트(Solidity) 구현이 각자 계산하는 타입의 벡터 digest를 같게 만들고(펌웨어는 7개 벡터 전부, 키오스크는 PaymentAuthorization·LimitChange·MerchantOrder, 컨트랙트는 PaymentAuthorization·LimitChange), 벡터 서명에서 복원한 signer가 그 벡터의 signerRole(device, operator, merchant)에 해당하는 주소인지 확인한다 | harness 실행 로그 |
 | P10-FR-06 | 수용 기록지는 W12-01..W12-12와 register `acceptanceRefusalCodes`의 거절 시연 8종(합의 5종과 기기 3종)을 담고, P07 항목은 conditional로 표시한다 [N18] | `--check acceptance` |
 | P10-FR-07 | 증거는 원본을 git 밖에 두고, 문서에는 줄인 주소·tx hash(앞 6자리…뒤 4자리)와 원본 파일의 64자리 전체 `sha256:` checksum만 남긴다 [N16] | `--check redaction` |
 

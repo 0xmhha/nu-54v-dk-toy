@@ -21,7 +21,7 @@ P01은 이번 사이클에 실제로 만드는 여섯 제품 가운데 하나다
 
 | 산출물 | 내용 | 완료 증거 |
 |---|---|---|
-| 펌웨어 이미지 | NCS v3.4.0/Zephyr 4.4, project-owned board definition, USB CDC harness를 뺀 W12 릴리스 빌드 | 재현 빌드 로그와 `sha256:` checksum |
+| 펌웨어 이미지 | NCS v3.4.1/Zephyr 4.4.2, 제조사 board package `nu54v_dk/nrf54l15/cpuapp`, USB CDC harness를 뺀 W12 릴리스 빌드 | 재현 빌드 로그와 `sha256:` checksum |
 | 결제 GATT 서비스 | [payment-protocol.md](../../specifications/protocol/payment-protocol.md)의 `rx`/`tx`, envelope, 조각 규칙 | 페어링·재조립 로그 |
 | 서명 모듈 | EIP-712 hasher, 서명 권한 경계, 거절 코드 | P10 벡터 적합성 로그 |
 | 키 수명주기 | 셋업 명령, TRNG 생성, PIN, DeviceReset | 키 수명주기 시험 로그 |
@@ -57,10 +57,10 @@ P01은 이번 사이클에 실제로 만드는 여섯 제품 가운데 하나다
 | 필요한 것 | 주는 쪽 | 시점 | 없으면 |
 |---|---|---|---|
 | EIP-712 타입 패키지와 [eip712-vectors.json](../../specifications/protocol/eip712-vectors.json) | P10 (WBS2-P10-01) | W4 | 서명 모듈 시험을 시작할 수 없다 |
-| MerchantAttestation 발급, 셋업·TimeAnchor provisioning 스크립트 | P05 (WBS2-P05-01, WBS2-P05-02) | W6, W7 | 셋업과 identify 경로를 실기로 돌릴 수 없다 |
+| MerchantAttestation 발급, 셋업·TimeAnchor provisioning(`opsctl`) | P05 (WBS2-P05-01, WBS2-P05-02) | W6, W7 | 셋업과 identify 경로를 실기로 돌릴 수 없다 |
 | BLE central과 최소 제출 | P04 (WBS2-P04-01, WBS2-P04-02) | W4–W6, W7 | W7 end-to-end를 할 수 없다 |
 | 8283 배포 컨트랙트 | P06 (WBS2-P06-02) | W6 | 컨트랙트 층 거절을 확인할 수 없다 |
-| 반납 DeviceReset 스크립트 | P05 (WBS2-P05-03) | W10 | 반납·재셋업 시험을 할 수 없다 |
+| 반납 DeviceReset(`opsctl rental return`) | P05 (WBS2-P05-03) | W10 | 반납·재셋업 시험을 할 수 없다 |
 
 ## 5. 위험과 컷
 

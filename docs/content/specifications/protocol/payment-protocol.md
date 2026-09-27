@@ -1,6 +1,6 @@
 # 결제 프로토콜 v1
 
-NU-54V-DK 기기(P01), 키오스크(P04), 운영 스크립트(P05), 정산 컨트랙트(P06)가 주고받는 메시지와 서명 형식을 정한다. 이 문서는 규칙을 설명하고, 타입과 필드는 [payment-protocol.schema.json](payment-protocol.schema.json)이, 서명 해시의 정답은 [eip712-vectors.json](eip712-vectors.json)이 정한다 [N21]. 값(한도, 유효 기간, 가스 잔액, 시계 오차)은 [DF-20260925-02](../../planning/design-freeze-checkpoint-02.md)의 parameters에만 있고 여기서는 이름으로만 부른다 [N13].
+NU-54V-DK 기기(P01), 키오스크(P04), 운영 백오피스(P05), 정산 컨트랙트(P06)가 주고받는 메시지와 서명 형식을 정한다. 이 문서는 규칙을 설명하고, 타입과 필드는 [payment-protocol.schema.json](payment-protocol.schema.json)이, 서명 해시의 정답은 [eip712-vectors.json](eip712-vectors.json)이 정한다 [N21]. 값(한도, 유효 기간, 가스 잔액, 시계 오차)은 [DF-20260925-02](../../planning/design-freeze-checkpoint-02.md)의 parameters에만 있고 여기서는 이름으로만 부른다 [N13].
 
 ## 1. 누가 무엇을 믿는가
 
@@ -40,6 +40,8 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도�
 
 `length(u16, big-endian) | digest(CBOR 본문 SHA-256의 앞 8바이트) | CBOR 본문`
 
+`length`는 헤더 10바이트(`length` 2바이트와 digest 8바이트)를 포함한 envelope 전체 길이다. 본문이 최대 2048바이트이므로 `length`는 10 이상 2058 이하이며, 이 범위를 벗어나면 `BAD_FRAME`이다.
+
 모든 envelope는 조각 헤더를 붙여 보낸다(조각이 하나여도 붙인다). 각 조각은 `sequence(u8) | index(u8) | 데이터`이며 데이터 길이는 협상된 MTU에서 `ATT_MTU - 5`까지다. `sequence`는 방향별 메시지 번호로 메시지마다 1씩 늘고, `index`는 0부터 센다. 받는 쪽은 `length`만큼 모일 때까지 이어 붙인 뒤 digest를 확인한다. 순서가 어긋나거나 digest가 다르거나 본문이 2048바이트를 넘으면, 받은 쪽(기기든 central이든)이 메시지를 버리고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다. 키오스크가 아직 서명을 받지 못했으면 새 세션에서 처음부터 다시 시작한다. 이미 서명을 받았으면 세션 없이 7절의 제출 단계로 계속 간다(서명은 키오스크에 있으므로 새 서명을 요청하지 않는다).
 
 ## 5. 셋업, TimeAnchor, reset
@@ -53,7 +55,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도�
 3. 운영자 도구는 받은 주소와 최신 finalized 블록 시각으로 TimeAnchor `{device, timestamp}`에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`를 보낸다. 기기는 `device`가 자기 주소이고, 서명자가 기록한 운영자 주소이며, `timestamp`가 이전 anchor보다 엄격히 늦을 때만 받아들이고 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`로 답한다 [N06].
 4. 운영자 도구는 anchor가 받아들여진 뒤에만 `depositFor(device, amount, withdrawAddress)`를 호출한다.
 
-목표 경로는 대여자 휴대폰의 설정 앱(P02)이지만 P02는 이번 사이클에서 설계만 하므로 P05 provisioning 스크립트가 같은 메시지를 보낸다.
+목표 경로는 대여자 휴대폰의 설정 앱(P02)이지만 P02는 이번 사이클에서 설계만 하므로 P05 운영 도구 `opsctl`이 같은 메시지를 보낸다.
 
 **재-anchor.** RAM이 초기화되는 모든 reset(전원 손실, watchdog, System OFF에서 깨어남, serial recovery 뒤 재부팅) 뒤에는 anchor가 무효가 되고 기기는 `PROVISIONED_NO_ANCHOR`가 된다. 키와 예치금은 그대로다. 이 상태에서 결제 요청은 `TIME_ANCHOR_MISSING`으로 거절하고, 운영자 도구가 셋업 세션을 열어 3단계(TimeAnchor)만 다시 하면 `READY`로 돌아간다. 예치는 다시 하지 않는다.
 

@@ -8,6 +8,8 @@
 | `content/specifications/` | API, BLE, DTO, 저장, 상태, 보안 계약과 검사기 |
 | `content/environment/` | 비밀값 없는 toolchain, chain, provider manifest |
 | `content/analysis/document-logic/` | 문서 그래프, 추적성, 논리 검토 결과와 snapshot |
+| `content/products/` | DF-20260925-02 제품별 기획·SRS·유즈케이스·설계 |
+| `content/series/` | 12주 제작기 Medium 시리즈 포맷과 10편 목차 |
 | `content/assets/` | 프로젝트 이미지와 다이어그램 |
 | `design-history/` | 이전 승인 기준의 읽기 전용 archive |
 

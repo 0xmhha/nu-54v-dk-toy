@@ -29,6 +29,7 @@ payment-protocol.schema.json ──> build_eip712_vectors.py ──(cast keccak,
 |---|---|---|
 | 펌웨어(C) | 각 벡터의 message, signature | 기기 서명 코드가 digest를 같게 계산하고, MA·MO·TA·DR 벡터의 서명자를 운영자·가맹점 주소로 검증 |
 | 키오스크(TS) | message, signature | digest가 같고 복원한 signer가 signerRole 주소와 같음 |
+| 운영 코어·indexer(Go) | message, digest | `packages/protocol/go` 타입으로 모든 벡터의 digest를 같게 계산함(P05 `internal/core` 시험) |
 | 컨트랙트(Solidity) | message, signature | `settle` 검증 경로의 digest와 `ecrecover` 결과가 기기 signer와 같음 |
 
 harness는 벡터 파일을 복사하지 않고 경로로 읽는다. 코드가 import하기 시작하면 벡터는 `packages/`로 옮긴다.
