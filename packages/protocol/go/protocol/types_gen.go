@@ -127,4 +127,5 @@ var MessageTypes = []string{
 	"setup.operator",
 	"setup.ack",
 	"device.reset",
+	"confirm.show",
 }

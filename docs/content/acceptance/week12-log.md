@@ -21,8 +21,8 @@
 
 | ID | 시험 | 완료 조건 | 결과 | 증거 |
 |---|---|---|---|---|
-| W12-01 | 연결 | 키오스크가 NFC 또는 BLE scan으로 기기를 찾아 LE Secure Connections로 페어링하고 session.open/session.confirm을 마친다 | 미실행 | 양쪽 로그 `sha256:` |
-| W12-02 | 표시 | 기기 화면에 가맹점 이름, orderId, token, payout, amount가 서명 필드와 같게 표시된다 | 미실행 | 화면 사진, 서명 필드 덤프 |
+| W12-01 | 연결 | 대여자 폰 앱이 기기와 Passkey Entry로 본딩해 있고, 키오스크가 BLE scan으로 기기를 찾아 페어링 없이 보안 채널로 session.open/session.confirm을 마친다 | 미실행 | 양쪽 로그 `sha256:` |
+| W12-02 | 표시 | 대여자 폰 앱에 가맹점 이름, orderId, token, payout, amount가 서명 필드와 같게 표시된다(기기에는 화면이 없다) | 미실행 | 폰 화면 캡처, 서명 필드 덤프 |
 | W12-03 | 정산 | 버튼 승인 뒤 finalized PaymentSettled(merchant, orderId)가 관측되고 키오스크가 approved를 표시한다. 같은 서명을 다시 제출해도 ORDER_ALREADY_PAID 경로로 approved가 유지된다 [N08] | 미실행 | 줄인 tx hash, 이벤트 로그, 재제출 로그 |
 | W12-04 | 반복 성공 | 연속 20회 결제가 모두 요청 전달 완료부터 10 s 안에 approved로 끝난다 | 미실행 | 20회 시간 기록표 |
 | W12-05 | 거절 시연 8종 | 아래 3절의 합의 5종과 기기 3종이 각각 정해진 층에서 거절되고 체인에 결제가 남지 않는다 [N22] | 미실행 | 코드별 로그 |
@@ -47,8 +47,8 @@ W12-05는 두 묶음으로 판정한다. 3.1은 인터뷰에서 합의한 5종�
 
 | 코드 | 거절하는 층 | 만드는 방법 | 결과 | 증거 |
 |---|---|---|---|---|
-| USER_REJECTED | 기기 | 금액 표시 뒤 대여자가 거절 버튼을 누른다 | 미실행 | 기기 화면 영상, payment.result 로그 |
-| UNSUPPORTED_TYPE | 기기 | P05 `opsctl refusal-host`가 따로 페어링해 결제 세션(session.open, session.confirm)을 연 뒤, 스키마에 없는 원시 트랜잭션 서명·Permit 서명 요청을 보낸다 | 미실행 | 두 요청의 error 응답 로그, 등록되지 않은 purpose를 거부하는 secure 쪽 시험 로그 |
+| USER_REJECTED | 기기 | 폰 앱에 금액이 뜬 뒤 대여자가 거절 버튼을 누른다 | 미실행 | 폰 화면과 기기 영상, payment.result 로그 |
+| UNSUPPORTED_TYPE | 기기 | P05 `opsctl refusal-host`가 페어링 없이 결제 세션(session.open, session.confirm)을 연 뒤, 스키마에 없는 원시 트랜잭션 서명·Permit 서명 요청을 보낸다 | 미실행 | 두 요청의 error 응답 로그, 등록되지 않은 purpose를 거부하는 secure 쪽 시험 로그 |
 | TIME_ANCHOR_MISSING | 기기 | 기기 전원을 뽑았다 꽂은 뒤 결제를 시도한다 | 미실행 | anchorValid=false 로그, 재-anchor 후 결제 성공 로그 |
 
 UNSUPPORTED_TYPE 요청은 키오스크가 아니라 P05 `opsctl refusal-host`로 보낸다. 키오스크 배포 빌드에 거절 유도 기능을 넣지 않기 위해서다.

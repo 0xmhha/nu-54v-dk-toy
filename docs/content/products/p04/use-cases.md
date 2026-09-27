@@ -7,7 +7,7 @@
 | 행위자 | 역할 |
 |---|---|
 | 점원 | 금액을 입력하고 결과를 확인한다 |
-| 대여자 | 기기 화면을 보고 버튼으로 승인하거나 거절한다 |
+| 대여자 | 자기 폰 앱의 확인 화면을 보고 기기 버튼으로 승인하거나 거절한다 [N26] |
 | 기기(P01) | 가맹점을 검증하고 nonce를 골라 PaymentAuthorization에 서명한다 |
 | 정산 컨트랙트(P06) | 주문 유일성·registry·한도·nonce를 검사하고 PaymentSettled를 낸다 |
 
@@ -16,9 +16,9 @@
 - **사전 조건:** 키오스크 가스 잔액이 kioskMinGasBalance 이상이다 [N10]. 기기는 대여 셋업을 마쳐 유효한 TimeAnchor와 예치금이 있다 [N06].
 - **주 흐름:**
   1. 점원이 금액을 넣으면 키오스크가 orderId를 만들고 가맹점 대리로 MerchantOrder에 서명한다.
-  2. 대여자가 기기를 NFC에 대거나 키오스크가 BLE scan으로 찾아 페어링한다.
+  2. 대여자가 기기를 결제 모드로 두고 키오스크 가까이 가져가면, 키오스크가 BLE scan으로 찾아 페어링 없이 연결한다 [N27].
   3. 키오스크가 session.open, session.confirm, payment.identify, payment.prepare(nonce 없음)를 차례로 보낸다.
-  4. 대여자가 기기 화면의 금액과 가맹점을 확인하고 버튼을 누른다. 기기는 서명과 nonce를 payment.result로 보낸다.
+  4. 대여자가 폰 앱에 뜬 금액과 가맹점을 확인하고 기기 버튼을 누른다. 기기는 서명과 nonce를 payment.result로 보낸다.
   5. 키오스크가 eth_call로 시뮬레이션한 뒤 제출하고, finalized PaymentSettled의 device·amount·nonce를 확인해 approved를 표시한다 [N08].
   6. 키오스크가 payment.outcome으로 기기에 결과를 알린다.
 - **사후 조건:** 주문이 approved로 저장되고 영수증 화면이 뜬다.

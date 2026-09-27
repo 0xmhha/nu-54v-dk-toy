@@ -15,8 +15,8 @@ DF-20260925-02 기준 P04의 기능·비기능 요구사항이다. 각 요구사
 
 | ID | 요구사항 | 검증 | W12 |
 |---|---|---|---|
-| P04-FR-01 | 기기의 NFC 태그에서 BLE 주소와 OOB 데이터를 읽고, 실패하면 서비스 UUID로 BLE scan을 한다 [N09] | NFC 있는/없는 두 경우 연결 로그 | W12-01 |
-| P04-FR-02 | LE Secure Connections로 페어링하고 암호화 링크에서만 rx/tx를 연다 [N09] | 비암호화 연결에서 write 거부 확인 | W12-01 |
+| P04-FR-01 | 서비스 UUID로 BLE scan을 해서 결제 모드의 기기를 찾고, RSSI 기준값 이상인 기기에만 연결한다. NFC는 쓰지 않는다 [N27][N29] | 거리별 연결 로그 | W12-01 |
+| P04-FR-02 | 기기와 페어링하지 않는다. W10–W11부터 결제 세션을 보안 채널(1회용 키, `kioskKeySignature`, AES-GCM)로 열고, 그 전(W7 게이트)에는 평문 세션을 쓴다 [N27][N30] | 암호화 세션 로그와 평문 세션 거부 확인 | W12-01 |
 | P04-FR-03 | session.open(mode payment) → session.confirm을 수행하고 deviceNonce를 그대로 돌려준다 | 프로토콜 로그 | W12-01 |
 | P04-FR-04 | payment.identify로 MerchantAttestation을 전달한다. 키오스크는 attestation을 만들거나 바꾸지 않는다 [N05] | 변조 attestation이 기기에서 거절되는지 확인 | W12-05 |
 | P04-FR-05 | payment.prepare로 nonce를 뺀 PaymentAuthorization 필드와 가맹점 서명을 보낸다. 필드는 주문 입력에서만 만든다 [N04] | 서명 필드 덤프와 주문 기록 비교 | W12-02 |
@@ -30,7 +30,7 @@ DF-20260925-02 기준 P04의 기능·비기능 요구사항이다. 각 요구사
 | P04-FR-13 | 요청 전달 완료부터 10 s 안에 payment.result가 없으면 session.cancel을 보내고 주문을 취소한다. 서명이 없었으므로 재결제를 허용한다 [N10] | 기기 버튼을 누르지 않는 시험 | W12-04 |
 | P04-FR-14 | 서명을 받아 제출한 뒤 요청 전달 완료부터 10 s 안에 최종 결과가 없으면 Checking으로 바꾸고 같은 주문의 재결제를 막는다. Checking에서 자동 재시도는 같은 서명의 재전송만 허용하며, 재전송도 먼저 시뮬레이션을 거친다 [N10] | 재전송 로그에서 새 서명 요청이 없는지 확인 | W12-04 |
 | P04-FR-15 | Checking 중 체인 시각이 서명의 expiry를 넘었는데 PaymentSettled가 없으면 failed로 끝내고 재결제를 허용한다 [N10] | expiry 경과 시험 | W12-04 |
-| P04-FR-16 | 최종 결과가 정해지면 기기에 payment.outcome으로 알린다 | 기기 화면 로그 | W12-02 |
+| P04-FR-16 | 최종 결과가 정해지면 기기에 payment.outcome으로 알린다 | 기기 로그와 폰 앱 화면 | W12-02 |
 | P04-FR-17 | 한도 변경은 limit.change를 기기에 중계하고 limit.result의 서명·nonce로 setLimits를 제출한다 [N04] | LimitChange 적용 로그 | W12-05 |
 | P04-FR-18 | refund 기능은 제공하지 않는다. refund는 이번 사이클 범위 밖이다 [N17] | 화면 목록 검토 | - |
 

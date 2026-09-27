@@ -48,7 +48,7 @@ products/p05-operations-backoffice/
 
 | 단계 | 구성 요소 | 동작 |
 |---|---|---|
-| 1 | `internal/ble` | 기기와 LE Secure Connections로 페어링하고 `session.open`(mode=setup)으로 셋업 세션을 연다. 기기가 `UNPROVISIONED`나 `PROVISIONED_NO_ANCHOR`가 아니면 `NOT_PERMITTED`로 거절된다. `UNPROVISIONED`에서는 `session.open.ok`에 device가 없다 |
+| 1 | `internal/ble` | 기기와 LE Secure Connections로 본딩하고(첫 셋업은 운영 장소에서 Just Works와 기기 버튼 확인, 재-anchor는 기기별 passkey로 Passkey Entry [N27]) `session.open`(mode=setup)으로 셋업 세션을 연다. 기기가 `UNPROVISIONED`나 `PROVISIONED_NO_ANCHOR`가 아니면 `NOT_PERMITTED`로 거절된다. `UNPROVISIONED`에서는 `session.open.ok`에 device가 없다 |
 | 2 | 기기 | 첫 셋업이면 `setup.operator` 수락과 키 생성·PIN 뒤 `setup.ack{step: keygen, device}`로 새 주소를 알린다. 재-anchor면 `session.open.ok`의 device와 lastAnchor를 그대로 쓴다 |
 | 3 | `internal/core/signer` | 2단계에서 받은 device와 8283 최신 finalized 블록 시각으로 `{device, timestamp}`에 운영자 키로 서명한다(세션 중 온라인 서명) |
 | 4 | `internal/ble` | `setup.timeAnchor{sessionId, device, timestamp, operatorSignature}`를 CBOR envelope로 보낸다 |
@@ -58,9 +58,9 @@ products/p05-operations-backoffice/
 
 ## 4. 대여·반납 흐름
 
-- **대여** (`opsctl rental provision`): `session.open`(setup) → `setup.operator{operator, contract, chainId}`(대여자 버튼 확인) [N23] → 기기 TRNG 키 생성 → PIN → `setup.ack{keygen, device}` → TimeAnchor 서명 → `setup.timeAnchor` → `setup.ack` 수락 → depositFor [N07] [N11].
+- **대여** (`opsctl rental provision`): `session.open`(setup) → `setup.operator{operator, contract, chainId}`(대여자 버튼 확인) [N23] → 기기 TRNG 키 생성 → 버튼으로 PIN 설정 → 기기별 passkey 기록과 라벨 QR 인쇄 [N27] → `setup.ack{keygen, device}` → TimeAnchor 서명 → `setup.timeAnchor` → `setup.ack` 수락 → depositFor [N07] [N11].
 - **반납** (`opsctl rental return`): closeAccount → finalized 이벤트 확인 → 운영자가 서명한 DeviceReset `{device, nonce}`를 `device.reset`으로 전송. 순서를 바꾸지 않는다. 계정을 먼저 비활성화해 키가 없는 활성 계정이 남지 않게 한다.
-- **거절 시연** (`opsctl refusal-host`): 따로 페어링해 결제 세션(`session.open`, `session.confirm`)을 열고 스키마에 없는 원시 트랜잭션·Permit 서명 요청을 보내 `error{UNSUPPORTED_TYPE}`을 기록한다 [N22]. 키오스크 빌드에는 넣지 않는다.
+- **거절 시연** (`opsctl refusal-host`): 키오스크처럼 페어링 없이 결제 세션(`session.open`, `session.confirm`)을 열고 스키마에 없는 원시 트랜잭션·Permit 서명 요청을 보내 `error{UNSUPPORTED_TYPE}`을 기록한다 [N22]. 키오스크 빌드에는 넣지 않는다.
 
 ## 5. EIP-712 서명
 

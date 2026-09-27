@@ -10,10 +10,11 @@ NU-54V-DK 기기(P01), 키오스크(P04), 운영 백오피스(P05), 정산 컨�
 | 운영자(P05) | 운영자 키 | MerchantAttestation, TimeAnchor, DeviceReset [N05][N06][N23] | 기기 |
 | 가맹점 | 가맹점 서명 키(키오스크에 둔다) | MerchantOrder | 기기 |
 | 키오스크(P04) | 가스용 키오스크 키, 가맹점 서명 키 | 트랜잭션 제출, 가맹점 대리 MerchantOrder | 체인, 기기 |
+| 대여자 폰 앱(P02) | 없음(기기와 본딩만 한다) | 없음. 기기가 보낸 결제 필드를 표시만 한다 [N26] | — |
 
 이번 사이클에서 키오스크는 가맹점의 POS이므로 가맹점 서명 키를 갖고 가맹점을 대리한다. 따라서 키오스크가 뚫리면 가맹점이 뚫린 것과 같다. 그래도 기기는 운영자가 서명한 attestation의 payout과 다른 곳으로는 서명하지 않으므로, 뚫린 키오스크가 할 수 있는 일은 대여자가 버튼으로 승인한 금액을 등록된 payout으로 결제받는 것뿐이고 손실은 한도로 제한된다.
 
-온체인 registry가 가맹점의 최종 권한이며, 오프라인 기기가 모르는 가맹점 철회는 컨트랙트가 MERCHANT_REVOKED로 막는다 [N05]. 키오스크에는 특별한 BLE 신원이 없다. 페어링한 central은 누구든 결제 세션을 열 수 있고, 기기는 서명 규칙과 버튼 승인으로만 자신을 지킨다. 셋업과 reset 권한은 5절의 규칙으로만 생긴다 [N23].
+온체인 registry가 가맹점의 최종 권한이며, 오프라인 기기가 모르는 가맹점 철회는 컨트랙트가 MERCHANT_REVOKED로 막는다 [N05]. 키오스크는 기기와 페어링하지 않는다. 카드 리더기에 카드를 대는 것처럼, 근처의 central은 누구든 결제 세션을 열 수 있다. 보안 채널을 적용하기 전(7주차 게이트)에는 기기가 서명 규칙, 폰 확인 화면, 버튼 승인으로만 자신을 지키고, 적용한 뒤에는 4.1절의 보안 채널이 결제 세션을 암호화하고 키오스크를 가맹점 키로 인증한다 [N27]. 셋업과 reset 권한은 5절의 규칙으로만 생긴다 [N23].
 
 ## 2. 서명 타입
 
@@ -28,11 +29,13 @@ EIP-712 domain은 `{name: "NU54 Payment Settlement", version: "1", chainId: 8283
 
 ## 3. 연결과 페어링
 
-BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도구가 central, 기기가 peripheral이다. 서비스에는 central→기기 `rx`(write)와 기기→central `tx`(notify) 두 characteristic이 있고, 둘 다 LE Secure Connections로 인증·암호화된 링크에서만 열린다. UUID는 스키마의 `gatt` 항목을 따른다.
+BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, central은 셋이다. 대여자 폰 앱과 운영자 도구는 기기와 본딩하고, 키오스크는 페어링하지 않는다. 서비스에는 central→기기 `rx`(write)와 기기→central `tx`(notify) 두 characteristic이 있다. 결제 세션 메시지는 페어링하지 않은 링크에서도 받고, 셋업 세션과 `confirm.show`는 본딩한 링크(LE Secure Connections)에서만 주고받는다. UUID는 스키마의 `gatt` 항목을 따른다.
 
-1. **발견.** central은 기기의 NFC 태그에서 BLE 주소와 LESC out-of-band 데이터를 읽는다. 태그는 기기가 NFCT로 에뮬레이션하며 페어링마다 OOB 값을 새로 쓴다. NFC를 못 쓰면 서비스 UUID로 BLE scan을 해서 찾는다. NFC는 게이트 조건이 아니다 [N09].
-2. **페어링.** NFC OOB 데이터가 있으면 OOB로, 없으면 Numeric Comparison으로 페어링한다. 기기 화면과 central 화면에 같은 6자리 숫자가 뜨고 사용자가 기기 버튼으로 확인한다. 기기 화면을 쓸 수 없는 시험 환경에서만 Passkey entry를 쓴다. 페어링만으로는 셋업 권한이 생기지 않는다 [N23].
-3. **USB CDC.** 개발용 시험 harness로만 쓰고 게이트 증거로 인정하지 않는다. W12 릴리스 이미지에는 넣지 않는다.
+1. **발견.** central은 서비스 UUID로 BLE scan을 해서 기기를 찾는다. 기기는 본딩한 폰 앱이 결제 모드를 켜거나 대여자가 기기 버튼으로 결제 모드에 들어갔을 때만 결제용 광고를 한다. 이 보드는 NFC 핀을 I2C로 쓰고 NFC 안테나가 없어 NFC handover를 쓰지 않는다 [N29].
+2. **폰 앱과 운영자 도구의 페어링.** LE Secure Connections Passkey Entry로 본딩한다. 기기에 화면이 없어 Numeric Comparison은 쓰지 않는다 [N26]. passkey는 기기별 6자리이며, 운영자 도구가 대여 셋업 때 정해 기기에 기록하고 기기 라벨의 QR 코드(BLE 주소와 passkey)로 인쇄한다. 기기는 버튼을 길게 눌러 페어링 모드에 들어갔을 때만 새 본딩을 받는다. passkey가 아직 없는 `UNPROVISIONED` 기기의 첫 셋업은 운영 장소에서 Just Works 본딩과 기기 버튼 확인으로 하고, 이 셋업에서 기록한 passkey가 이후의 본딩(폰 앱, 재-anchor)에 쓰인다. 페어링만으로는 셋업 권한이 생기지 않는다 [N23][N27].
+3. **키오스크 연결.** 키오스크는 페어링하지 않고 연결한다. 연결은 신호 세기(RSSI)가 기준값 이상인 기기에만 하며, 기준값은 8주차에 실측해 이 절에 적는다. 기기는 이 링크에서 결제 세션(6절)과 한도 변경만 받는다 [N27].
+4. **폰 확인 화면.** 결제 세션 중 기기는 서명할 필드를 본딩한 폰 앱 링크로 `confirm.show`에 담아 보내고, 폰 앱은 그 값만 표시한다. 폰 앱은 승인 버튼을 두지 않으며 승인은 기기 버튼으로만 한다 [N26]. 폰 앱이 연결되어 있지 않으면 12주차 릴리스 빌드는 `refused{NOT_PERMITTED}`로 답한다. 폰 앱이 나오기 전의 개발 빌드(7주차 게이트)는 표시 없이 진행한다 [N30].
+5. **USB CDC.** 개발용 시험 harness로만 쓰고 게이트 증거로 인정하지 않는다. W12 릴리스 이미지에는 넣지 않는다.
 
 ## 4. 메시지 틀
 
@@ -44,14 +47,24 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도�
 
 모든 envelope는 조각 헤더를 붙여 보낸다(조각이 하나여도 붙인다). 각 조각은 `sequence(u8) | index(u8) | 데이터`이며 데이터 길이는 협상된 MTU에서 `ATT_MTU - 5`까지다. `sequence`는 방향별 메시지 번호로 메시지마다 1씩 늘고, `index`는 0부터 센다. 받는 쪽은 `length`만큼 모일 때까지 이어 붙인 뒤 digest를 확인한다. 순서가 어긋나거나 digest가 다르거나 본문이 2048바이트를 넘으면, 받은 쪽(기기든 central이든)이 메시지를 버리고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다. 키오스크가 아직 서명을 받지 못했으면 새 세션에서 처음부터 다시 시작한다. 이미 서명을 받았으면 세션 없이 7절의 제출 단계로 계속 간다(서명은 키오스크에 있으므로 새 서명을 요청하지 않는다).
 
-## 5. 셋업, TimeAnchor, reset
+### 4.1 결제 세션 보안 채널 (기기 9주차, 키오스크 10~11주차 적용)
+
+키오스크 링크는 페어링하지 않으므로 결제 세션을 응용 계층에서 보호한다 [N27]. 7주차 실결제 게이트는 이 채널 없이 평문으로 통과한다. 기기는 9주차, 키오스크는 10~11주차에 적용하고, 양쪽이 적용된 뒤 릴리스 빌드의 기기는 평문 결제 세션을 거절한다 [N30].
+
+1. 키오스크는 세션마다 secp256k1 1회용 키 쌍을 만든다. `session.open`에 1회용 공개키(`kioskEphemeral`), `kioskNonce`, 가맹점 attestation, 그리고 가맹점 키로 `{merchant, kioskEphemeral, kioskNonce}`에 한 서명(`kioskKeySignature`)을 담는다. 이 서명 형식(EIP-712 타입)과 시험 벡터는 적용 작업에서 스키마에 추가한다.
+2. 기기는 attestation 서명자가 운영자인지, `kioskKeySignature` 서명자가 attestation의 `merchant`인지 확인한다. 아니면 `MERCHANT_FORGED`로 세션을 닫는다. 통과하면 자기 1회용 공개키(`deviceEphemeral`)를 `session.open.ok`에 담는다.
+3. 두 쪽은 ECDH 공유값에서 HKDF-SHA256(salt = `kioskNonce ‖ deviceNonce`, info = `nu54 session v1`)으로 128비트 세션 키(`session.key`)를 만든다.
+4. 이후 모든 메시지 본문은 AES-GCM으로 암호화한다. IV는 방향 1바이트와 방향별 메시지 번호 11바이트이고, 태그 검증이 실패하면 `BAD_FRAME`으로 세션을 닫는다. envelope의 digest는 암호문 기준이다.
+5. 1회용 키는 세션이 끝나면 지운다. 이전 세션의 `session.open`을 다시 보내도 1회용 개인키가 없으면 세션 키를 만들 수 없다.
+
+
 
 기기 상태는 `UNPROVISIONED`, `PROVISIONED_NO_ANCHOR`, `READY`, `PIN_LOCKED` 넷이다. `session.open`의 `mode`가 `setup`이면 셋업 세션이고, 셋업 세션은 `UNPROVISIONED` 또는 `PROVISIONED_NO_ANCHOR`에서만 열린다. 다른 상태에서는 `error{NOT_PERMITTED}`로 거절한다 [N23].
 
 **대여 셋업**은 다음 순서로 한다. 대상 기기는 반납 절차의 device.reset으로 `UNPROVISIONED` 상태다.
 
 1. 운영자 도구가 셋업 세션을 연다. `UNPROVISIONED`에서는 키가 없으므로 `session.open.ok`에 `device`가 없다. 운영자 도구가 `setup.operator{operator, contract, chainId}`를 보내면, 기기는 세 값을 화면에 보여 주고 대여자가 버튼으로 확인할 때만 기록한 뒤 `setup.ack{step: setup.operator}`로 답한다. 이 기록은 `UNPROVISIONED`에서 한 번만 가능하다 [N23]. 기기는 운영자 값을 2단계의 키 생성과 함께 한 번에 저장하므로, keygen ack 전에 세션이 끊기면 아무것도 남지 않고 `UNPROVISIONED`로 다시 시작한다.
-2. 기기가 TRNG로 새 키를 만들고 대여자가 기기에서 PIN을 정한다. 기기는 `setup.ack{step: keygen, device}`로 새 주소를 알린다 [N11].
+2. 기기가 TRNG로 새 키를 만들고 대여자가 기기 버튼으로 PIN을 정한다. LED가 입력할 자릿수와 누를 버튼을 안내한다 [N28]. 기기는 `setup.ack{step: keygen, device}`로 새 주소를 알린다 [N11].
 3. 운영자 도구는 받은 주소와 최신 finalized 블록 시각으로 TimeAnchor `{device, timestamp}`에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`를 보낸다. 기기는 `device`가 자기 주소이고, 서명자가 기록한 운영자 주소이며, `timestamp`가 이전 anchor보다 엄격히 늦을 때만 받아들이고 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`로 답한다 [N06].
 4. 운영자 도구는 anchor가 받아들여진 뒤에만 `depositFor(device, amount, withdrawAddress)`를 호출한다.
 
@@ -71,10 +84,10 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도�
 |---|---|---|---|
 | 1 | `session.open{sessionId, mode: payment, kioskNonce}` | 키오스크→기기 | `session.open.ok{device, deviceNonce, anchorValid, state, lastAnchor, firmware}`로 답한다 |
 | 2 | `session.confirm{sessionId, deviceNonce}` | 키오스크→기기 | 자기가 보낸 deviceNonce와 같을 때만 세션을 연다 |
-| 3 | `payment.identify{attestation}` | 키오스크→기기 | MerchantAttestation 서명자가 운영자인지, 현재 시각이 `validFrom..validUntil`(± `anchorClockSkew`) 안인지 확인하고 가맹점 이름을 표시한다 |
-| 4 | `payment.prepare{authorization, merchantSignature}` | 키오스크→기기 | 아래 검사를 모두 통과하면 orderId·token·payout·amount를 표시하고 버튼을 기다린다 |
+| 3 | `payment.identify{attestation}` | 키오스크→기기 | MerchantAttestation 서명자가 운영자인지, 현재 시각이 `validFrom..validUntil`(± `anchorClockSkew`) 안인지 확인하고 폰 앱에 보낼 가맹점 이름을 정한다 |
+| 4 | `payment.prepare{authorization, merchantSignature}` | 키오스크→기기 | 아래 검사를 모두 통과하면 가맹점 이름·orderId·token·payout·amount를 `confirm.show`로 폰 앱에 보내고 버튼을 기다린다 |
 | 5 | `payment.result{outcome, signature, nonce \| reason}` | 기기→키오스크 | 버튼을 누르면 nonce를 골라 서명하고 `approved`를, 거절 버튼이나 검사 실패면 `refused`와 reason을 보낸다 |
-| 6 | `payment.outcome{orderId, outcome, reason}` | 키오스크→기기 | 키오스크의 최종 결과를 화면에 보여 준다 |
+| 6 | `payment.outcome{orderId, outcome, reason}` | 키오스크→기기 | 키오스크의 최종 결과를 LED로 알리고 폰 앱에 전달한다 |
 
 4단계 검사는 다음과 같다. 하나라도 틀리면 `refused`다.
 
@@ -84,9 +97,9 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도�
 - `expiry`가 현재 시각부터 `authorizationExpiry` 안이다. 아니면 `ATTESTATION_EXPIRED`.
 - anchor가 유효하다. 아니면 `TIME_ANCHOR_MISSING`.
 
-**한도 변경.** 키오스크가 `limit.change{change}`를 보내면 기기는 PIN과 버튼을 확인하고 nonce를 골라 `limit.result{approved, signature, nonce}`를, 거절하면 `refused`와 reason을 보낸다. 키오스크는 `setLimits`로 제출하고, 컨트랙트는 expiry와 nonce를 결제와 같은 방식으로 확인한다 [N04].
+**한도 변경.** 키오스크가 `limit.change{change}`를 보내면 기기는 버튼으로 입력한 PIN과 승인 버튼을 확인하고 nonce를 골라 `limit.result{approved, signature, nonce}`를, 거절하면 `refused`와 reason을 보낸다. 키오스크는 `setLimits`로 제출하고, 컨트랙트는 expiry와 nonce를 결제와 같은 방식으로 확인한다 [N04].
 
-버튼 승인은 서명 권한 경계를 거친다. 기기는 서명할 digest와 purpose를 secure partition에 먼저 등록하고, secure 쪽 버튼 인터럽트는 그 digest 한 건에만 서명 토큰을 발급한다 [N24]. 표시 내용과 서명 내용이 같다는 보장은 non-secure 코드가 무결하다는 가정 아래의 주장이다.
+버튼 승인은 서명 권한 경계를 거친다. 기기는 서명할 digest와 purpose를 secure partition에 먼저 등록하고, secure 쪽 버튼 인터럽트는 그 digest 한 건에만 서명 토큰을 발급한다 [N24]. 폰 앱이 표시하는 값은 기기가 보낸 값이며, 표시 내용과 서명 내용이 같다는 보장은 기기의 non-secure 코드와 폰 앱이 무결하다는 가정 아래의 주장이다 [N26].
 
 키오스크는 `payment.prepare` 전송이 끝난 뒤 10 s 안에 `payment.result`가 없으면 `session.cancel`을 보낸다. 기기는 버튼 대기를 멈추고 아무것도 서명하지 않는다. 키오스크는 주문을 취소하고, 서명이 없었으므로 다시 결제를 받아도 된다 [N10].
 
@@ -127,6 +140,6 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 키오스크나 운영자 도�
 
 ## 9. 이전 설계에서 없앤 것
 
-- proximityRef 필드는 removed. 근접 증명은 BLE LESC 페어링과 기기 버튼으로 대신한다.
+- proximityRef 필드는 removed. 근접 증명은 RSSI 기준 연결, 폰 확인 화면, 기기 버튼으로 대신한다 [N27].
 - QR 경로는 없다. 기기에 카메라가 없다.
 - 기기가 원시 트랜잭션에 서명하던 경로는 없앴다. 트랜잭션은 키오스크가 내고 가스도 키오스크가 낸다 [N10].

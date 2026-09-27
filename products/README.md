@@ -3,15 +3,15 @@
 이 디렉터리는 10개 제품을 독립된 작업 경계로 나눈다. 제품 README는 구현
 진입점이며, 상세 설계 authority와 일정은 `docs/content/`에 유지한다.
 2026-09-25 설계 동결 [DF-20260925-02](../docs/content/planning/design-freeze-checkpoint-02.md)에
-따라 이번 12주 사이클에는 여섯 제품만 만들고, 나머지 넷은 설계만 둔다.
+따라 이번 12주 사이클에는 일곱 제품을 만들고, 나머지 셋은 설계만 둔다. P02 폰 앱은 2026-09-28 개정에서 추가했다.
 
 | ID | 제품 폴더 | 실행 영역 | 이번 사이클 | 핵심 책임 | 설계 문서 |
 |---|---|---|---|---|---|
 | P01 | [device-firmware](p01-device-firmware/README.md) | Local | 만든다 | Zephyr 펌웨어, 가맹점을 검증하는 결제 서명, BLE, 셋업·TimeAnchor, 외부 SE | [p01](../docs/content/products/p01/plan.md) |
-| P02 | [user-app](p02-user-app/README.md) | Local | 설계만 | 사용자 RN 앱, 대여 셋업 설정 앱(목표 경로) | - |
+| P02 | [user-app](p02-user-app/README.md) | Local | 만든다 | 대여자 RN 폰 앱: 기기 본딩과 설정, 결제 확인 화면(기기에는 화면이 없다) | [p02](../docs/content/products/p02/plan.md) |
 | P03 | [cloud-mpc-wallet](p03-cloud-mpc-wallet/README.md) | Cloud | 설계만 | DKG, threshold 서명, refresh, 복구 | - |
 | P04 | [merchant-kiosk](p04-merchant-kiosk/README.md) | Local | 만든다 | RN 태블릿 키오스크, 주문, BLE central, 제출과 finalized 판정 | [p04](../docs/content/products/p04/plan.md) |
-| P05 | [operations-backoffice](p05-operations-backoffice/README.md) | Local 도구 | 만든다(축소) | 운영 스크립트: 가맹점 등록, attestation, 예치, TimeAnchor, 반납 | [p05](../docs/content/products/p05/plan.md) |
+| P05 | [operations-backoffice](p05-operations-backoffice/README.md) | Local 도구 | 만든다(축소) | Go 운영 코어와 `opsctl`: 가맹점 등록, attestation, 예치, BLE 셋업·TimeAnchor·passkey, 반납 | [p05](../docs/content/products/p05/plan.md) |
 | P06 | [stablenet-contracts](p06-stablenet-contracts/README.md) | Blockchain | 만든다 | 사전 예치 정산 컨트랙트와 가맹점 registry | [p06](../docs/content/products/p06/plan.md) |
 | P07 | [indexer](p07-indexer/README.md) | Cloud | 만든다(최소) | PaymentSettled 영수증 조회 indexer | [p07](../docs/content/products/p07/plan.md) |
 | P08 | [market-services](p08-market-services/README.md) | Cloud/Blockchain | 설계만 | DEX, TEST FX, perpetual, oracle·keeper | - |
@@ -30,6 +30,7 @@ PostgreSQL)에서 한 뒤 컨테이너 이미지로 AWS 또는 Google Cloud에 �
 | 제품 | 스택 | 폴더 |
 |---|---|---|
 | P01 | C (Zephyr, NCS v3.4.1), 제조사 보드 패키지, Python 빌드 스크립트 | `p01-device-firmware/core`, `app`, `boards`, `test` |
+| P02 | React Native(TypeScript), Kotlin Turbo Module (Android만) | `p02-user-app` (골격 예정) |
 | P04 | React Native(TypeScript), Kotlin·Swift Turbo Module | `p04-merchant-kiosk/src`, `android`, `ios` |
 | P05 | Go 운영 코어와 `opsctl`, 다음 사이클에 `opsd` API와 React 웹, PostgreSQL | `p05-operations-backoffice` |
 | P06 | Solidity, Foundry | `p06-stablenet-contracts` |

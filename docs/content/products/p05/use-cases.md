@@ -23,8 +23,8 @@
 - **사전 조건**: 반납 절차로 `UNPROVISIONED` 상태인 기기, 대여자 withdrawAddress, 예치 토큰.
 - **기본 흐름**:
   1. 운영자가 `opsctl rental provision`을 실행하면 `session.open`(mode=setup)으로 셋업 세션이 열린다.
-  2. `opsctl`이 `setup.operator{operator, contract, chainId}`를 보내고, 대여자가 기기 화면의 세 값을 버튼으로 확인한다 [N23].
-  3. 기기가 TRNG로 새 키를 만들고 대여자가 기기에서 PIN을 정한 뒤 `setup.ack{step: keygen, device}`로 새 주소를 알린다 [N11].
+  2. `opsctl`이 `setup.operator{operator, contract, chainId}`를 보내고 세 값을 운영자 화면에 보여 준다. 대여자가 기기 버튼으로 확인한다 [N23].
+  3. 기기가 TRNG로 새 키를 만들고 대여자가 기기 버튼으로 PIN을 정한다. `opsctl`이 기기별 passkey를 기록하고 라벨 QR을 인쇄한 뒤 기기가 `setup.ack{step: keygen, device}`로 새 주소를 알린다 [N11].
   4. `opsctl`이 그 주소와 최신 finalized 블록 시각으로 TimeAnchor에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`로 보낸다 [N06].
   5. 기기가 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`로 수락을 알린다.
   6. `opsctl rental provision`이 keygen ack의 device 주소로 depositFor(deviceAddress, amount, withdrawAddress)를 호출한다 [N07].
@@ -58,5 +58,5 @@
 
 ## 8. UC-P05-08 거절 시연 준비
 
-- **기본 흐름**: 1) 시연 시각보다 attestationValidity와 anchorClockSkew를 더한 시간 이상 먼저 attestation을 발급해 둔다(소급 발급 없음). 2) 시연 때 `opsctl refusal-host`가 따로 페어링해 결제 세션을 열고 스키마 밖 요청을 보낸다 [N22].
+- **기본 흐름**: 1) 시연 시각보다 attestationValidity와 anchorClockSkew를 더한 시간 이상 먼저 attestation을 발급해 둔다(소급 발급 없음). 2) 시연 때 `opsctl refusal-host`가 페어링 없이 결제 세션을 열고 스키마 밖 요청을 보낸다 [N22].
 - **요구**: P05-FR-11, P05-FR-12

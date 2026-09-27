@@ -11,7 +11,7 @@
 | 영역 | 이번 사이클에 만드는 것 |
 |---|---|
 | 주문 입력 | 금액·토큰 입력, orderId 생성, 가맹점 대리 MerchantOrder 서명 |
-| BLE central | NFC 또는 BLE scan으로 기기 발견, LESC 페어링, 메시지 조각 재조립 [N09] |
+| BLE central | BLE scan과 RSSI 기준으로 기기 발견, 페어링 없는 연결, 결제 세션 보안 채널(W10–W11), 메시지 조각 재조립 [N09][N27] |
 | 결제 흐름 | session.open부터 payment.result, payment.outcome까지 [N09] |
 | 제출 | eth_call 시뮬레이션, 트랜잭션 제출, 가스 잔액 관리 [N10] |
 | 판정 | finalized PaymentSettled 확인, 네 가지 결과 표시 [N08][N22] |
