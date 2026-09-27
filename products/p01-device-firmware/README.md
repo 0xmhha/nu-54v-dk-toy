@@ -11,6 +11,7 @@
 | `boards/nucode/nu54v_dk/` | 제조사 보드 패키지(MIT, 출처 커밋은 `VENDORED.md`) |
 | `test/` | `core/`의 host 단위 시험(CMake + CTest) |
 | `scripts/fw.py` | NCS 툴체인 안에서 west 빌드와 pyOCD 플래시를 실행한다 |
+| `tools/bringup/` | 보드 bring-up 도구: 시리얼 CLI, BLE 스캔·연결, 버튼 시뮬레이션, 레지스터 읽기 ([README](tools/bringup/README.md)) |
 
 ```bash
 make test         # host에서 core/ 시험 (NCS 불필요)

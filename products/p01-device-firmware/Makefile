@@ -18,7 +18,7 @@ test: build
 
 # Host build already uses -Wall -Wextra -Werror; this also checks the helper scripts.
 lint: build
-	python3 -m py_compile scripts/fw.py
+	python3 -m py_compile scripts/fw.py tools/bringup/*.py
 
 run: flash
 
