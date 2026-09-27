@@ -9,7 +9,7 @@ debug registers. They run on a computer connected to the board over USB.
 | `ble_scan.py` | Finds the board's BLE advertisements | reference `ble_nus` | [bleak](https://github.com/hbldh/bleak) |
 | `ble_nus_cli.py` | Connects over BLE and runs CLI commands through the Nordic UART Service | reference `ble_nus` | bleak |
 | `ble_adv_rate.py` | Measures how often advertisements arrive | reference `ble_nus` | bleak |
-| `button_sim.py` | Simulates button presses from the debugger and prints the firmware's button log | reference `button` | [pyOCD](https://pyocd.io) |
+| `button_sim.py` | Simulates button presses from the debugger and prints the firmware's button log | product firmware or reference `button` | [pyOCD](https://pyocd.io) |
 | `button_watch.py` | Compares real button pin levels with what the firmware reports | reference `button` | pyOCD |
 | `debug_regs.py` | Reads core state (DHCSR) and GPIO/GPIOTE registers without halting | any | pyOCD |
 
@@ -46,7 +46,11 @@ Otherwise pass `--port` or set `NU54_VCOM`. The device name changes with the USB
   expected on a development board.
 - The BLE scripts use the host's Bluetooth stack (CoreBluetooth on macOS). They do not run in CI.
 - `button_sim.py` changes a pin's pull resistor for the length of the press and then restores
-  the original configuration. If the script is interrupted, reset the board.
+  the original pull setting. If the script is interrupted, reset the board.
+- `button_sim.py` attaches the debugger only while it changes a pin. With a debug session held
+  open, the core's sleep and kernel timers stalled in testing, so firmware that polls a held
+  button (the product firmware's click/long-press logic) missed releases. The product firmware
+  needs no CLI: it logs `SWn click` and `SWn long press` on VCOM by itself.
 
 ## Factory firmware backup
 

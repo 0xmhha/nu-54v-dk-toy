@@ -6,8 +6,10 @@
 """Simulate button presses from the debugger, without touching the board.
 
 The buttons are active low with pull-ups. While a button is "held", this tool switches
-its pin to pull-down (the pin stays an input), then restores the original PIN_CNF.
-The firmware keeps running (pyOCD attach, no halt).
+its pin to pull-down (the pin stays an input), then restores the original pull setting.
+The firmware keeps running (pyOCD attach, no halt). The pull change alone makes the
+GPIO SENSE logic fire. `--kick` also raises the port event by hand; it is off by default
+because pending the interrupt by hand can confuse a firmware's sleep and timers.
 
 It turns on the reference CLI's `button event` log over VCOM and prints the log next
 to each simulated press. With --query it also runs `button info` while the button is held.
@@ -35,6 +37,8 @@ def main() -> int:
     ap.add_argument("--button", choices=sorted(BUTTONS), help="press only this button")
     ap.add_argument("--hold", type=float, default=0.3, help="seconds to hold (with --button)")
     ap.add_argument("--query", action="store_true", help="run `button info` while held and after release")
+    ap.add_argument("--kick", action="store_true",
+                    help="also raise the GPIOTE port event by hand (needed only if a firmware misses the pull change)")
     args = ap.parse_args()
     plan = [(args.button, args.hold)] if args.button else DEFAULT_PLAN
 
@@ -52,32 +56,44 @@ def main() -> int:
             vcom.command("button event", 0.8)
             thread = threading.Thread(target=reader)
             thread.start()
-        with probe_session() as session:
-            target = session.target
-            for name, hold in plan:
-                port, pin = BUTTONS[name]
-                addr = pin_cnf(port, pin)
+        # The debugger is attached only for the moment a pin is changed. While a
+        # debug session stays open the core's sleep and kernel timers can stall,
+        # which hides releases from firmware that polls the button while it is held.
+        for name, hold in plan:
+            port, pin = BUTTONS[name]
+            addr = pin_cnf(port, pin)
+            with probe_session() as session:
+                target = session.target
                 cnf = target.read32(addr)
                 target.write32(addr, (cnf & ~PULL_MASK) | PULL_DOWN)
-                time.sleep(0.005)
-                kick_gpiote(target, port)
-                log.append(f"{time.time() - t0:6.2f}s SIM  {name} P{port}.{pin:02d} pressed for {hold}s")
-                if args.query:
-                    time.sleep(0.3)
-                    log.append("held:\n" + vcom.command("button info", 0.8))
-                    time.sleep(max(0.0, hold - 1.1))
-                else:
-                    time.sleep(hold)
+                if args.kick:
+                    time.sleep(0.005)
+                    kick_gpiote(target, port)
+            pressed_at = time.time()
+            log.append(f"{pressed_at - t0:6.2f}s SIM  {name} P{port}.{pin:02d} pressed for {hold}s")
+            if args.query:
+                time.sleep(0.3)
+                log.append("held:\n" + vcom.command("button info", 0.8))
+            time.sleep(max(0.0, hold - (time.time() - pressed_at)))
+            with probe_session() as session:
+                target = session.target
                 level = (target.read32(GPIO[port] + GPIO_IN) >> pin) & 1
-                target.write32(addr, cnf)
-                time.sleep(0.005)
-                kick_gpiote(target, port)
-                log.append(f"{time.time() - t0:6.2f}s SIM  {name} released (pin level while held: {level})")
-                if args.query:
-                    time.sleep(0.3)
-                    log.append("released:\n" + vcom.command("button info", 0.8))
-                    log.append(f"LATCH P{port} 0x{target.read32(GPIO[port] + GPIO_LATCH):08x}")
-                time.sleep(1.0)
+                # Restore only the pull bits. The GPIO driver may have flipped the
+                # SENSE field during the press; writing the whole saved PIN_CNF back
+                # would undo that and hide the release.
+                target.write32(addr, (target.read32(addr) & ~PULL_MASK) | (cnf & PULL_MASK))
+                if args.kick:
+                    time.sleep(0.005)
+                    kick_gpiote(target, port)
+                released_at = time.time()
+                latch = target.read32(GPIO[port] + GPIO_LATCH)
+            log.append(f"{released_at - t0:6.2f}s SIM  {name} released after {released_at - pressed_at:.2f}s "
+                       f"(pin level while held: {level})")
+            if args.query:
+                time.sleep(0.3)
+                log.append("released:\n" + vcom.command("button info", 0.8))
+                log.append(f"LATCH P{port} 0x{latch:08x}")
+            time.sleep(1.0)
         if not args.query:
             time.sleep(0.5)
             stop.set()
