@@ -35,6 +35,9 @@ jobs:
           cache: pnpm
       - uses: astral-sh/setup-uv@v6
       - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          # Same release as local development, so the gas snapshot matches.
+          version: v1.5.1
       # P01 firmware needs the NCS toolchain and is built locally; CI runs the host tests of core/.
       - run: pnpm install --frozen-lockfile
       - run: uv sync --all-packages
