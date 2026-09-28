@@ -19,6 +19,8 @@ coverage/
 out/
 cache/
 broadcast/*/31337/
+# Sandbox (anvil, chain id 8283) broadcast logs; testnet deployments go to deployments/ instead
+products/p06-stablenet-contracts/broadcast/
 # Go
 /bin/
 *.test

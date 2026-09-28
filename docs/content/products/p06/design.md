@@ -57,13 +57,14 @@ mapping(address => Merchant) merchants;
 |---|---|
 | `Deposited(device, amount)` | 예치 관측 |
 | `PaymentSettled(address indexed merchant, bytes32 indexed orderId, address indexed device, uint256 amount, uint256 nonce)` | paid 판정의 유일한 근거. P04와 P07은 merchant·orderId topic으로 조회한다 [N08] |
+| `CashedOut(merchant, payout, amount)` | 가맹점 인출 관측 |
 | `LimitsChanged(device, perPayment, daily)` | 한도 이력 |
 | `WithdrawalRequested/Executed(device, amount)` | 출금 관측 |
 | `AccountClosed(device)` | 반납 관측 |
 | `WithdrawalCancelled(device)` | 출금 취소 관측 |
 | `MerchantRegistered/Revoked/PayoutChangeQueued/PayoutChangeCancelled(merchant, ...)` | registry 이력. payout 변경은 이 이벤트로 공개되어 가맹점이 확인할 수 있다 |
 
-오류: `WrongDomain`, `OrderAlreadyPaid`(ORDER_ALREADY_PAID), `Expired`, `AccountInactive`, `MerchantRevoked`, `MerchantForged`, `NonceReplayed`, `OverCap`, `InsufficientBalance`, `NotOperator`. 키오스크의 매핑은 srs 3절에 있다.
+오류: `WrongDomain`, `OrderAlreadyPaid`(ORDER_ALREADY_PAID), `Expired`, `AccountInactive`, `MerchantRevoked`, `MerchantForged`, `NonceReplayed`, `OverCap`, `InsufficientBalance`, `NotOperator`, `ZeroAddress`, `TransferFailed`, 생성자 범위 오류 `InvalidParameters`. registry는 `NotRegistryAdmin`, `ZeroAddress`. 키오스크의 매핑은 srs 3절에 있다.
 
 ## 4. EIP-712 해시
 
@@ -73,7 +74,7 @@ mapping(address => Merchant) merchants;
 
 ## 5. settle 검사 순서
 
-checks-effects-interactions를 지킨다. settle에는 외부 호출이 없다.
+checks-effects-interactions를 지킨다. settle은 상태를 바꾸는 외부 호출을 하지 않는다. 배포 때 고정한 MerchantRegistry의 view 함수(`isActive`, `payoutOf`)만 읽는다.
 
 순서는 [N07]을 따른다.
 
