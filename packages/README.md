@@ -14,7 +14,7 @@
 | package | 원본 | 언어별 산출물 | 소비 제품 |
 |---|---|---|---|
 | [`protocol/`](protocol/README.md) | `docs/content/specifications/protocol/payment-protocol.schema.json`, `eip712-vectors.json` | `go/`, `ts/`, `python/`, `c/` (생성) | P01, P04, P05, P06, P07, P10 |
-| [`contracts-abi/`](contracts-abi/README.md) (예정) | P06 Foundry 빌드 산출물(ABI, 배포 manifest) | Go, TS, Python reader | P04, P05, P07 |
+| [`contracts-abi/`](contracts-abi/README.md) | P06 Foundry 빌드 산출물(ABI) | `abi/`(JSON, sha256 manifest), `go/`(abigen 바인딩), `ts/`(`as const` ABI) (생성) | P04, P05, P07 |
 
 ## 작업공간
 

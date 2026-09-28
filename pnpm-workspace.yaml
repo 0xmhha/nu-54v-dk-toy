@@ -1,6 +1,7 @@
 # TypeScript workspaces ([N25]). Products join as they are scaffolded.
 # .npmrc uses node-linker=hoisted because React Native's Metro does not follow pnpm symlinks.
 packages:
+  - packages/contracts-abi/ts
   - packages/protocol/ts
   - products/p04-merchant-kiosk
   - products/p05-operations-backoffice/web

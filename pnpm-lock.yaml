@@ -8,6 +8,12 @@ importers:
 
   .: {}
 
+  packages/contracts-abi/ts:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   packages/protocol/ts:
     devDependencies:
       '@types/node':
