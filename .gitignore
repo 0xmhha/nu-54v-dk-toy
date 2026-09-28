@@ -32,3 +32,6 @@ DerivedData/
 
 # Go binaries built by product Makefiles
 bin/
+
+# Prompts for other models; they contain local absolute paths
+docs/publish/prompts/
