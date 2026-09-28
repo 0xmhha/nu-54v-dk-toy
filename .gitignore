@@ -35,3 +35,6 @@ bin/
 
 # Prompts for other models; they contain local absolute paths
 docs/publish/prompts/
+
+# Raw test evidence (logs, photos). Docs keep only sha256 checksums.
+evidence/

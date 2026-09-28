@@ -7,7 +7,9 @@ services:
   chain:
     image: ghcr.io/foundry-rs/foundry:stable
     entrypoint: ["anvil"]
-    command: ["--host", "0.0.0.0", "--chain-id", "8283", "--block-time", "1"]
+    # --slots-in-an-epoch 1: by default anvil's "finalized" tag lags latest by 64 blocks,
+    # which would push every kiosk finality check past its 10 s budget.
+    command: ["--host", "0.0.0.0", "--chain-id", "8283", "--block-time", "1", "--slots-in-an-epoch", "1"]
     ports:
       - "${NU54_RPC_PORT:-8545}:8545"
     healthcheck:
