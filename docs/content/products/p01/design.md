@@ -81,7 +81,7 @@ anchor를 무효로 만드는 reset은 다음과 같다. 모두 RAM이 초기화
 
 - **발견과 페어링:** 기기는 결제 모드에서만 결제용 광고를 한다. 이 보드는 NFC 핀을 I2C로 쓰고 안테나가 없어 NFC handover를 쓰지 않는다 [N29]. 폰 앱과 운영자 도구는 페어링 모드에서 LE Secure Connections Passkey Entry로 본딩하고, 키오스크는 페어링 없이 결제 세션만 연다 [N27]. 셋업 세션과 `confirm.show`는 본딩한 링크에서만 처리한다.
 - **보안 채널:** 9주차부터 결제 세션은 `secure_channel`로 연다. `session.open`의 attestation과 `kioskKeySignature`를 확인한 뒤 1회용 키로 `session.key`를 만들고, 이후 본문을 AES-GCM으로 복호화·암호화한다. 7주차 게이트는 평문으로 통과한다 [N27][N30].
-- **재조립:** 모든 envelope에 조각 헤더가 붙는다. 협상된 MTU에서 조각 크기 `ATT_MTU - 5`를 계산한다. sequence가 기대값과 다르거나 index가 건너뛰거나 digest가 다르거나 본문이 2048바이트를 넘으면 버퍼를 비우고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다.
+- **재조립:** 모든 envelope에 조각 헤더가 붙는다. 협상된 MTU에서 조각 크기 `ATT_MTU - 5`를 계산한다. sequence가 기대값과 다르거나 index가 건너뛰거나 digest가 다르거나 본문이 2048바이트를 넘으면 버퍼를 비우고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다. CBOR 본문은 결제 프로토콜 4.2절의 필드 인코딩 규칙(결정적 순서, 고정 길이 byte string, uint 표현)으로 해석하고, 규칙을 어기면 같은 `BAD_FRAME`으로 처리한다.
 - **setup.operator:** UNPROVISIONED에서만 받는다. 운영자 도구가 operator, contract, chainId를 보여 주고, 기기는 LED로 확인 대기를 알린 뒤 대여자 버튼 확인을 받아 RAM에 보관하고 `setup.ack{step: setup.operator}`를 보낸다. 운영자 값은 키 생성과 함께 `setup_store`로 한 번에 저장하므로 keygen ack 전에 세션이 끊기면 아무것도 남지 않는다. 이어서 키 생성과 버튼으로 하는 PIN 설정(LED가 자릿수 안내) [N28], 페어링 passkey 기록이 끝나면 `setup.ack{step: keygen, device}`로 새 주소를 보낸다. UNPROVISIONED에서는 키가 없으므로 `session.open.ok`에 device를 넣지 않는다 [N23].
 - **setup.timeAnchor:** 셋업 세션에서만 받는다. `device`가 자기 주소인지, 서명자가 운영자 주소인지, timestamp가 이전 값보다 엄격히 늦은지 확인한 뒤 `anchor_store`를 호출하고 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`를 보낸다 [N06].
 - **device.reset:** DeviceReset `{device, nonce}` digest로 서명자를 복구해 운영자 주소와, device를 자기 주소와 비교한 뒤 `reset_all`을 호출한다.

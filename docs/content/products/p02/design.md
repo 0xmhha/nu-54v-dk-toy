@@ -8,7 +8,7 @@
 |---|---|
 | `ble/bond` (Kotlin) | QR의 BLE 주소로 연결, `createBond`와 Passkey Entry에 QR passkey 입력, 본딩 상태 이벤트 [N27] |
 | `ble/link` (Kotlin) | 본딩한 링크의 rx write, tx notify 구독, MTU 요청. 본딩하지 않은 링크의 메시지는 버린다 |
-| `protocol` (TS, `packages/protocol/ts`) | 조각 재조립, envelope digest, 결정적 CBOR. 키오스크와 같은 코드를 쓴다 |
+| `protocol` (TS, `packages/protocol/ts`) | 조각 재조립, envelope digest, 결정적 CBOR(필드 인코딩은 결제 프로토콜 4.2절). 키오스크와 같은 코드를 쓴다 |
 | `confirm` (TS) | `confirm.show` 검증(스키마), 표시 문자열 생성(EIP-55 주소, 토큰 표 기반 금액), 결과 표시 [N26] |
 | `settings` (TS) | 결제 모드, 연결 상태, 한도 표시, PIN 안내 [N28] |
 | `qr` (TS) | 라벨 QR 파싱: `nu54://bond?addr=<BLE 주소>&passkey=<6자리>` |
