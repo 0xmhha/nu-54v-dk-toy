@@ -40,7 +40,7 @@ P05는 백오피스 전체(HTTP API, React UI, PostgreSQL)를 전제로 설계�
 | WBS2-P05-03 | `opsctl rental return`과 `withdraw`: closeAccount, 서명된 DeviceReset, 출금 요청·취소·실행. P06의 closeAccount 구현(WBS2-P06-04) 뒤에 한다 | W10 | - |
 | WBS2-P05-04 | `opsctl merchant revoke/payout-change`와 거절 시연 `refusal-host` | W9–W10 | - |
 
-게이트는 W4 증거, W6 컨트랙트, W7 실결제, W9 SE이며 일정과 정의는 [12주 WBS](../../planning/product-worklist-and-12week-wbs-02.md)를 따른다 [N03].
+게이트는 W4 증거, W6 컨트랙트, W7 실결제이며(W9 SE 게이트는 2026-09-29에 없앴다) 일정과 정의는 [12주 WBS](../../planning/product-worklist-and-12week-wbs-02.md)를 따른다 [N03].
 
 ## 4. 의존성
 

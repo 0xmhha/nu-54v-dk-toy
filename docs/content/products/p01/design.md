@@ -19,7 +19,6 @@
 | `verifier` | non-secure | MerchantAttestation, MerchantOrder, TimeAnchor, DeviceReset 서명 복구와 비교 [N05][N06] |
 | `indicator` | non-secure | LED 4개로 상태와 PIN 입력을 안내한다. 버튼 입력은 secure 쪽이 받는다 [N28] |
 | `key_service` | TF-M secure partition | 키 생성·서명·삭제, 버튼 토큰, PIN 카운터, 셋업 값과 anchor 저장 [N02] |
-| `se_driver` | secure (W9부터) | 외부 secure element와 통신, 키 감싸기와 서명 |
 | MCUboot | 부트로더 | 서명 이미지 확인, 유선 serial recovery [N12] |
 
 ## 2. 서명 권한 경계
@@ -34,7 +33,7 @@
 
 이 경계는 non-secure 코드가 뚫려도 버튼 없이 서명이 나오거나 등록되지 않은 purpose로 서명하는 것을 막는다. 그러나 "표시한 내용과 서명한 내용이 같다"는 보장은 digest와 `confirm.show` 필드를 non-secure 코드가 만들고 폰 앱이 그대로 표시한다는 가정 아래의 주장이다 [N26]. trusted display는 범위 밖이며, 이 경우에도 손실은 컨트랙트 한도로 제한된다.
 
-W9부터 `key_service`는 TRNG로 만든 키를 외부 secure element로 감싸 두고 TF-M 쪽에는 SE 세션 키와 키 핸들만 둔다. SE가 컷되면 TF-M 봉인으로 남고 이를 waiver로 기록한다 [N14].
+`key_service`는 nRF54L15의 TrustZone 위 TF-M secure partition에서 키를 만들고 서명한다 [N02]. secp256k1 키는 칩의 KMU가 받지 않는 것으로 보여(NCS `cracen_psa_kmu.c`는 P-256, Ed25519, X25519만 다룬다) TF-M 보호 저장소(ITS)에 암호화해 두고, 서명할 때 secure RAM으로 불러와 CRACEN으로 서명한 뒤 지운다. 서명(r, s)의 low-s 정규화와 recovery id(v) 계산도 secure partition이 한다. 외부 secure element는 2026-09-29에 컷했고, 칩 덤프·fault injection·부채널 같은 물리 공격 방어가 약한 점은 waiver로 기록한다 [N14]. ITS 암호화와 AP-Protect(WBS2-P01-07)가 켜져 있어야 이 설계가 성립한다.
 
 ## 3. 상태 기계
 

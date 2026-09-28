@@ -33,7 +33,7 @@
 | WBS2-P04-03 | eth_call 시뮬레이션, 가스 하한, session.cancel, Checking, 오류 매핑, LimitChange 중계(limit.change → limit.result → setLimits) | W8–W9 | - |
 | WBS2-P04-04 | 연속 20회 결제와 거절 8종 리허설 | W11–W12 | - |
 
-게이트는 W4 증거 게이트, W6 컨트랙트 게이트, W7 실결제 게이트, W9 SE 게이트다 [N03]. P04의 첫 게이트는 W7이다. W7에 보드 내장 키로 실기 end-to-end 1건을 보이려면 WBS2-P04-02가 W6 컨트랙트 게이트(소프트웨어 서명 PaymentSettled)를 통과한 배포에 맞춰 W7 안에 끝나야 한다. W9에는 SE 키로 같은 흐름을 다시 확인한다.
+게이트는 W4 증거 게이트, W6 컨트랙트 게이트, W7 실결제 게이트다. W9 SE 게이트는 2026-09-29 외부 SE 컷으로 없앴다 [N03]. P04의 첫 게이트는 W7이다. W7에 보드 내장 키로 실기 end-to-end 1건을 보이려면 WBS2-P04-02가 W6 컨트랙트 게이트(소프트웨어 서명 PaymentSettled)를 통과한 배포에 맞춰 W7 안에 끝나야 한다. W9에는 SE 키로 같은 흐름을 다시 확인한다.
 
 ## 5. 의존성
 
