@@ -15,7 +15,7 @@
 | 체인 | StableNet testnet 8283 | `eth_chainId` 응답 |
 | 파라미터 | DF-20260925-02 parameters [N13] | register 커밋 |
 | 도구·의존성 버전 | `[NCS, Zephyr, Foundry, RN, 라이브러리 버전]` | 빌드 로그. 의존성 pinning은 waiver라 버전만 기록한다 [N14] |
-| 키오스크 시작 가스 잔액 | `[WKRC]` | 잔액 조회. kioskMinGasBalance에 W12 결제 30건분(결제 1건 약 7.14 WKRC)을 더한 약 230 WKRC 이상으로 시작한다 [N10] |
+| 키오스크 시작 가스 잔액 | `[WKRC]` | 잔액 조회. kioskMinGasBalance에 W12 결제 30건분(결제 1건 약 7.9 WKRC, 2026-09-29 sandbox 실측 165,399 gas)을 더한 약 260 WKRC 이상으로 시작한다(kioskMinGasBalance 20 WKRC 기준) [N10] |
 
 ## 2. 기능 항목
 
