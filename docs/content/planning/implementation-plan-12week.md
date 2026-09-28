@@ -91,6 +91,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - 가스는 테스트넷 faucet(`https://faucet.stablenet.network`)에서 받는다. 주소당 24시간에 한 번 2,000 WKRC를 준다. 거래소·커스터디 주소는 쓸 수 없고, 더 많이 필요하면 faucet 페이지의 요청 양식을 쓴다.
 - `finalized`와 `safe` 태그를 지원하며 최신 블록과 같다(즉시 확정). gas price는 47,600 gwei로, 결제 1건(약 15만 gas)에 약 7 WKRC, 컨트랙트 1세트 배포(약 400만 gas 추정)에 약 190 WKRC가 든다. 12주 전체는 약 850~1,000 WKRC로 추정하며(실측 전), 배포자·운영자·키오스크 계정을 각각 faucet으로 채우면 하루에 충분하다. 5주차 sandbox 배포에서 gas를 실측해 이 추정과 키오스크 시작 잔액을 고친다.
 - RPC는 EIP-1559 트랜잭션을 지원한다. 키오스크 제출은 EIP-1559 형식을 쓴다.
+- **2026-09-29 sandbox 실측:** 컨트랙트 1세트 배포는 1,784,971 gas(시험 토큰 406,821, registry 239,617, 정산 1,138,533)로 테스트넷 가격 기준 약 85 WKRC다. 첫 결제 settle 트랜잭션은 165,399 gas로 약 7.9 WKRC다. 그 밖에 가맹점 등록 46,076, mint 68,295, approve 46,127, depositFor 97,947 gas다. 배포 3회와 결제·운영 트랜잭션을 합친 12주 필요량은 약 550 WKRC로 줄었다. settle이 이전 추정 150,000 gas를 넘어, settleGasEstimate를 170,000 gas로, 결제 2건분인 kioskMinGasBalance를 15에서 20 WKRC로 올렸다(2026-09-29 register 개정).
 
 ### 컨트랙트 재배포 일정이 WBS에 없다 [중요]
 
@@ -230,7 +231,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - 10/7까지 인터페이스, error 이름, 이벤트 시그니처를 고정하고 ABI JSON을 `packages/contracts-abi`에 둔다. 인터페이스를 6주차 고정분(결제, 예치, 가맹점)과 확장분(한도, 출금, 반납)으로 나누는 것을 권장한다. 그래야 "고정분은 바꾸지 않는다"를 지킬 수 있다.
 - `src/PaymentSettlement.sol`: 생성자에서 register 범위 검사, domain separator, depositFor, settle(설계 5절의 검사 순서 그대로), cashOut.
 - 시험 토큰(6자리, 소유자만 mint)을 배포에도 쓸 수 있는 위치에 둔다.
-- 시험: 요구사항 이름을 그대로 쓴 단위 시험, 벡터 파일을 읽어 digest와 서명자를 확인하는 시험, nonce·일일 한도 fuzz, 잔액 합 invariant, settle 가스 150,000 이하.
+- 시험: 요구사항 이름을 그대로 쓴 단위 시험, 벡터 파일을 읽어 digest와 서명자를 확인하는 시험, nonce·일일 한도 fuzz, 잔액 합 invariant, settle 트랜잭션 가스 170,000 이하.
 - 완료 판정: `forge test`가 모두 통과하고 `forge snapshot --check`가 통과한다.
 
 **테스트넷 배포와 소프트웨어 서명 정산** (WBS2-P06-02, 6주차, 0.75일, 컨트랙트 게이트)

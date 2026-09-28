@@ -6,15 +6,28 @@
 
 | 경로 | 내용 |
 |---|---|
-| `src/IPaymentSettlement.sol` | W6에 고정할 정산 컨트랙트 인터페이스(함수, 이벤트, 오류) |
-| `src/PaymentTypes.sol` | EIP-712 구조체와 typehash |
+| `src/IPaymentSettlement.sol` | W6에 고정하는 정산 인터페이스: 결제, 예치, cashOut, 조회 |
+| `src/IPaymentSettlementExtensions.sol` | 나중에 더하는 확장: 한도 변경, 출금, 반납(WBS2-P06-03, P06-04) |
+| `src/PaymentSettlement.sol` | 정산 컨트랙트: depositFor, settle(설계 5절 검사 순서), cashOut |
+| `src/IMerchantRegistry.sol`, `src/MerchantRegistry.sol` | 가맹점 registry: 등록, 철회, 현재 payout 조회 |
+| `src/test-token/TestUSDC.sol` | 시험 토큰(6자리, owner만 mint). 실제 자산이 아니다 |
+| `src/PaymentTypes.sol` | EIP-712 구조체, typehash, domain separator |
+| `test/` | 요구사항 ID별 단위 시험, EIP-712 벡터 시험, 재진입 시험, invariant 시험 |
+| `script/Deploy.s.sol` | 시험 토큰, registry, 정산 컨트랙트 배포. 파라미터는 register에서 읽는다 |
+| `script/SoftwareSettle.s.sol` | 소프트웨어 서명으로 결제 1건(6주차 게이트 경로) |
 | `lib/forge-std/` | forge-std v1.10.0(MIT/Apache-2.0, `VENDORED.md`) |
 
 ```bash
 make build        # forge build
-make test         # forge test (typehash가 공유 벡터와 같은지 포함)
+make test         # forge test
 make sandbox-up   # 저장소 루트에서. anvil chainId 8283
+
+# sandbox 배포 (anvil 키는 로컬 전용)
+NU54_OPERATOR=... NU54_REGISTRY_ADMIN=... NU54_TOKEN_OWNER=... \
+  forge script script/Deploy.s.sol --rpc-url sandbox --broadcast --private-key <anvil key>
 ```
+
+ABI와 Go·TypeScript 바인딩은 [`packages/contracts-abi`](../../packages/contracts-abi/README.md)가 이 폴더의 빌드에서 생성한다.
 
 
 StableNet testnet의 자산, 계정, 자격과 유료 리소스 계약 제품이다.

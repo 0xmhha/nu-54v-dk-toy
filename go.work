@@ -1,6 +1,7 @@
 go 1.25
 
 use (
+	./packages/contracts-abi/go
 	./packages/protocol/go
 	./products/p05-operations-backoffice
 	./products/p07-indexer

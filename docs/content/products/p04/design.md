@@ -9,7 +9,7 @@
 | `ble/central` | BLE scan, RSSI 기준 연결, 페어링 없는 연결, rx write와 tx notify 구독 [N27] |
 | `ble/secure_channel` | 결제 세션 보안 채널: 1회용 키, 가맹점 키로 한 `kioskKeySignature`, HKDF `session.key`, AES-GCM (W10–W11) [N27] |
 | `ble/framing` | envelope(length, digest) 생성·검증, MTU에 맞춘 조각 분할과 sequence/index 재조립 |
-| `protocol/codec` | deterministic CBOR 인코딩·디코딩, 메시지 스키마 검증 |
+| `protocol/codec` | deterministic CBOR 인코딩·디코딩(필드 인코딩은 [결제 프로토콜](../../specifications/protocol/payment-protocol.md) 4.2절), 메시지 스키마 검증 |
 | `merchant/signer` | 가맹점 서명 키로 MerchantOrder EIP-712 서명(가맹점 대리) |
 | `chain/client` | eth_call 시뮬레이션, eth_sendRawTransaction, finalized 태그 기준 eth_getLogs |
 | `chain/gas` | 키오스크 잔액 조회와 kioskMinGasBalance 비교 [N10] |

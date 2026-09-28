@@ -47,6 +47,24 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 
 모든 envelope는 조각 헤더를 붙여 보낸다(조각이 하나여도 붙인다). 각 조각은 `sequence(u8) | index(u8) | 데이터`이며 데이터 길이는 협상된 MTU에서 `ATT_MTU - 5`까지다. `sequence`는 방향별 메시지 번호로 메시지마다 1씩 늘고, `index`는 0부터 센다. 받는 쪽은 `length`만큼 모일 때까지 이어 붙인 뒤 digest를 확인한다. 순서가 어긋나거나 digest가 다르거나 본문이 2048바이트를 넘으면, 받은 쪽(기기든 central이든)이 메시지를 버리고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다. 키오스크가 아직 서명을 받지 못했으면 새 세션에서 처음부터 다시 시작한다. 이미 서명을 받았으면 세션 없이 7절의 제출 단계로 계속 간다(서명은 키오스크에 있으므로 새 서명을 요청하지 않는다).
 
+### 4.2 CBOR 필드 인코딩 규칙
+
+스키마는 필드를 JSON 형식(`0x…` hex 문자열, 10진 문자열)으로 적는다. BLE로 보낼 때는 아래 규칙으로 CBOR에 옮긴다. 기기, 키오스크, 폰 앱, 운영 도구가 같은 바이트를 만들어야 envelope digest와 교차 시험 벡터가 맞는다.
+
+| 스키마 타입 | CBOR 표현 | 비고 |
+|---|---|---|
+| 메시지와 중첩 객체 | map (major type 5), 키는 스키마 속성 이름 그대로의 text string | 키 순서는 RFC 8949 4.2.1절의 core deterministic 규칙(인코딩한 키 바이트의 사전순)을 따른다 |
+| `hex20`(주소) | byte string 20바이트 | hex 문자열을 디코딩한 값. 대소문자 차이는 사라진다 |
+| `hex32`(orderId, nonce, digest 등) | byte string 32바이트 | |
+| `signature` | byte string 65바이트, `r ‖ s ‖ v`(v는 27 또는 28) | |
+| `sessionId` | byte string 8바이트 | 스키마의 16자리 hex |
+| `uint` | 2^64 미만이면 unsigned integer(major type 0), 이상이면 tag 2 bignum(앞자리 0 없는 big-endian) | 10진 문자열로 보내지 않는다 |
+| `v`, 정수 필드 | unsigned integer | |
+| 문자열(`type`, 이름, enum 값) | text string(UTF-8) | |
+| boolean | `true`/`false` | |
+
+정수와 길이는 가장 짧은 형식으로 인코딩한다. 부정 길이(indefinite length), 부동소수점, tag 2 외의 tag, 중복 키, 스키마에 없는 키는 쓰지 않는다. 받은 쪽은 이 규칙을 어긴 본문을 `BAD_FRAME`으로 거절한다. 로그와 운영 도구 출력, EIP-712 JSON은 스키마의 JSON 형식을 그대로 쓴다.
+
 ### 4.1 결제 세션 보안 채널 (기기 9주차, 키오스크 10~11주차 적용)
 
 키오스크 링크는 페어링하지 않으므로 결제 세션을 응용 계층에서 보호한다 [N27]. 7주차 실결제 게이트는 이 채널 없이 평문으로 통과한다. 기기는 9주차, 키오스크는 10~11주차에 적용하고, 양쪽이 적용된 뒤 릴리스 빌드의 기기는 평문 결제 세션을 거절한다 [N30].

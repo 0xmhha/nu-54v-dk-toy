@@ -186,7 +186,17 @@
   "framing": {
     "envelope": "length u16 big-endian | digest 8 bytes (SHA-256 prefix of the CBOR body) | CBOR body; length is the whole envelope including the 10-byte header (10..2058)",
     "fragment": "sequence u8 | index u8 | envelope bytes up to negotiated ATT_MTU - 5",
-    "maxBodyBytes": 2048
+    "maxBodyBytes": 2048,
+    "cborMapping": {
+      "ordering": "RFC 8949 4.2.1 core deterministic: map keys sorted by their encoded bytes; shortest-form integers and lengths",
+      "hex20": "byte string, 20 bytes",
+      "hex32": "byte string, 32 bytes",
+      "signature": "byte string, 65 bytes: r || s || v (27 or 28)",
+      "sessionId": "byte string, 8 bytes",
+      "uint": "unsigned integer below 2^64, otherwise tag 2 bignum without leading zero bytes",
+      "text": "text string (UTF-8)",
+      "forbidden": "indefinite lengths, floats, tags other than 2, duplicate or unknown keys; receivers reply BAD_FRAME"
+    }
   },
   "$defs": {
     "hex20": {

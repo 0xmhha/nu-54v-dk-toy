@@ -25,6 +25,7 @@ CHECKS = [
     ("protocol Python encodeType", ["uv", "run", "--quiet", "--package", "nu54-protocol", "pytest", "-q", "python/tests"], "packages/protocol"),
     ("P05 Go core digests", ["go", "test", "./internal/core/..."], "products/p05-operations-backoffice"),
     ("P06 Solidity typehashes", ["forge", "test", "--match-contract", "PaymentTypesTest"], "products/p06-stablenet-contracts"),
+    ("P06 Solidity EIP-712 digest and signer", ["forge", "test", "--match-contract", "Eip712VectorsTest"], "products/p06-stablenet-contracts"),
 ]
 
 
