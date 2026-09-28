@@ -4,12 +4,34 @@
   "observedAt": "2026-09-20",
   "chain": {
     "rpc": "https://api.test.stablenet.network/",
+    "rpcWebSocket": "wss://ws.test.stablenet.network",
     "explorer": "https://explorer.stablenet.network/",
     "chainId": 8283,
     "chainIdHex": "0x205b",
     "nativeCurrency": {
       "symbol": "WKRC",
       "decimals": 18
+    },
+    "features": [
+      "EIP155",
+      "EIP1559",
+      "EIP7702",
+      "EIP2930"
+    ],
+    "finality": {
+      "observedAt": "2026-09-29",
+      "finalizedTag": "supported",
+      "finalizedEqualsLatest": true,
+      "gasPriceGwei": 47600,
+      "note": "read-only cast queries; the priority tip is fixed by governance"
+    },
+    "faucet": {
+      "url": "https://faucet.stablenet.network",
+      "token": "WKRC",
+      "amountPerRequest": 2000,
+      "cooldown": "one request per address per 24 h",
+      "restrictions": "no exchange or custodial addresses; bulk needs go through the faucet's request form",
+      "observedAt": "2026-09-29"
     },
     "observedBlockHex": "0x13435dd"
   },
@@ -81,7 +103,7 @@
     }
   ],
   "rejectedCandidate": {
-    "address": "0xEf6817fe73741A8F10088f9511c64b666a338A14",
+    "address": "0xEf6817…8A14",
     "reason": "eth_getCode returned 0x on the selected RPC at inspection time"
   },
   "activationRule": "enabled requires address, ABI digest, runtime code hash, deployment block, admin-role evidence and indexer decoder registration."
