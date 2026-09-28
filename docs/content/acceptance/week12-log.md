@@ -9,7 +9,7 @@
 | 항목 | 실제 값 | 증거 |
 |---|---|---|
 | 기기 펌웨어 | `[버전/커밋]` | `sha256:[이미지 checksum]` |
-| 키 보관 | `[SE / TF-M waiver]` | W9 SE 게이트 결과 [N02] |
+| 키 보관 | `[TF-M waiver]` | 외부 SE 컷(2026-09-29), TrustZone TF-M 봉인 [N02][N14] |
 | 키오스크 빌드 | `[버전/커밋]` | `sha256:[APK checksum]` |
 | 정산 컨트랙트 | `[줄인 주소]` | 배포 manifest |
 | 체인 | StableNet testnet 8283 | `eth_chainId` 응답 |

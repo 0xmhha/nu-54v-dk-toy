@@ -28,7 +28,7 @@ P10은 [DF-20260925-02](../../planning/design-freeze-checkpoint-02.md)에서 만
 | WBS2-P10-02 | Vector conformance harness for firmware kiosk and contract | W7 | W7 |
 | WBS2-P10-03 | Week-12 acceptance log and evidence redaction | W11–W12 | - |
 
-스키마와 벡터는 문서 단계에서 이미 만들었고, WBS2-P10-01은 이를 세 구현이 읽는 타입 패키지로 묶는 작업이다. P06 컨트랙트(WBS2-P06-01, W5 시작)와 P01 서명(WBS2-P01-04, W7)의 선행 작업이므로 W4 안에 끝낸다. 게이트는 W4 증거, W6 컨트랙트, W7 실결제, W9 SE다 [N03].
+스키마와 벡터는 문서 단계에서 이미 만들었고, WBS2-P10-01은 이를 세 구현이 읽는 타입 패키지로 묶는 작업이다. P06 컨트랙트(WBS2-P06-01, W5 시작)와 P01 서명(WBS2-P01-04, W7)의 선행 작업이므로 W4 안에 끝낸다. 게이트는 W4 증거, W6 컨트랙트, W7 실결제다. W9 SE 게이트는 2026-09-29에 없앴다 [N03].
 
 ## 4. 수용 기준
 

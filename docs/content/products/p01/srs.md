@@ -24,7 +24,7 @@ P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않
 | P01-FR-01 | 기기는 PaymentAuthorization과 LimitChange 두 EIP-712 타입에만 서명하고, 다른 타입·원시 트랜잭션·approve·Permit·스키마에 없는 요청은 `error{UNSUPPORTED_TYPE}`으로 거절한다 [N04] | 타입별 요청 주입 시험 | W12-05, W12-12 |
 | P01-FR-02 | 서명 digest는 eip712-vectors.json의 모든 벡터와 바이트 단위로 같다 [N21] | P10 적합성 harness | W12-03 |
 | P01-FR-03 | 키는 대여 셋업에서 TRNG로만 만들며 import, 니모닉, 백업 경로가 없다 [N11] | 코드 경로 검토, 셋업 로그 | W12-08 |
-| P01-FR-04 | 키는 W9 전에는 TF-M secure partition에 봉인하고, W9부터는 TRNG로 만든 키를 외부 secure element로 감싼다. SE가 컷되면 W12까지 TF-M 봉인으로 남고 waiver로 기록한다 [N14]. 키 원문은 어느 경우에도 non-secure 영역에 나오지 않는다 [N02] | NVM 덤프 검색, SE 서명 로그 | W12-09 |
+| P01-FR-04 | 키는 TrustZone 위 TF-M secure partition에서 만들고 서명하며, secp256k1 키는 암호화한 TF-M 보호 저장소(ITS)에 둔다. 외부 secure element는 이번 사이클에 쓰지 않고 TF-M 봉인을 waiver로 기록한다 [N02][N14]. 키 원문은 어느 경우에도 non-secure 영역에 쓰지 않는다 | NVM 덤프 검색, SE 서명 로그 | W12-09 |
 | P01-FR-05 | 셋업에서 기기 버튼으로 PIN을 정하고(LED가 자릿수와 누를 버튼을 안내하며 PIN은 BLE로 나가지 않는다) [N28], LimitChange 서명은 `sign_digest`의 LimitChange purpose 안에서 secure 쪽 PIN 확인과 버튼을 모두 요구한다 [N11][N24] | LimitChange 시험 | W12-12 |
 | P01-FR-06 | device.reset은 운영자가 DeviceReset `{device, nonce}`에 서명한 명령만 받으며, 기기 키, PIN, 운영자 주소, 셋업 값, TimeAnchor, 사용한 nonce 기록을 지우고 UNPROVISIONED가 된다. 반납 순서(closeAccount 확인 뒤 reset)는 P05 도구가 지킨다 [N11][N23] | 초기화 후 NVM 덤프, 서명 없는 reset 거절, 재셋업 시험 | W12-09 |
 | P01-FR-07 | MerchantAttestation 서명자가 운영자 주소가 아니거나, MerchantOrder 서명자가 attestation의 merchant가 아니거나, authorization.merchant가 attestation의 merchant와 다르거나, payout이 attestation·주문과 다르거나, orderId·token·amount·expiry가 주문과 다르거나, chainId·contract가 셋업 값과 다르면 `payment.result refused{MERCHANT_FORGED}`로 거절한다 [N22] | 위조 attestation·주문·필드 주입 | W12-05 |
@@ -63,7 +63,7 @@ P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않
 ## 6. 제약과 waiver
 
 - 대상 보드 NU-54V-DK(nRF54L15), NCS v3.4.1/Zephyr 4.4.2, 보드 타깃 `nu54v_dk/nrf54l15/cpuapp` [D05]
-- SE가 붙기 전 TF-M 봉인은 testnet waiver다 [N02][N14]
+- 외부 SE를 컷했으므로 TF-M 봉인은 이번 사이클 끝까지 testnet waiver다 [N02][N14]
 - anti-exfil, 의존성 pinning, 정품 기기 attestation은 설계만 하는 waiver이며 설계안은 [design.md](design.md) 8절에 있다 [N14]
 - 개인정보를 저장하지 않는다 [N14]
 

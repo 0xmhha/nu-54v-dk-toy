@@ -37,7 +37,7 @@ P10이 제공하는 타입, 벡터, 적합성 harness, 수용 기록지의 요�
 | req 10 anti-exfil | 서명 nonce 조작으로 키가 새는 경로 방지는 설계만 한다 | P01 design의 waiver 절 |
 | req 12 dependency pinning | 의존성 해시 고정 자동화는 하지 않는다. 사용한 버전은 수용 기록지 1절의 도구·의존성 버전 행에 적는다 | week12-log 1절 |
 | req 13 genuine-device attestation | 정품 기기 증명은 설계만 한다 | P01 design의 waiver 절 |
-| TF-M 키 봉인 | 외부 SE 도입(W9 SE 게이트) 전까지, 또는 SE가 컷되면 W12까지 TF-M 봉인으로 운영한다 | week12-log 1절 |
+| TF-M 키 봉인 | 외부 SE를 2026-09-29에 컷해 W12까지 TF-M(TrustZone) 봉인으로 운영한다 | week12-log 1절 |
 
 ## 6. 추적
 

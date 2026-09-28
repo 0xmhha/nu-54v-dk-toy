@@ -405,7 +405,7 @@
     {
       "id": "N02",
       "title": "외부 secure element",
-      "value": "W9 SE 게이트부터 대여 셋업 때 TRNG로 만든 키를 외부 SE로 감싼다. 그 전까지, 그리고 SE가 컷되면 W12까지 TF-M secure partition 봉인을 testnet waiver로 기록한다.",
+      "value": "외부 secure element는 이번 사이클에 쓰지 않는다(2026-09-29 컷). 기기 키는 nRF54L15의 TrustZone 위 TF-M secure partition에서 만들고 서명하며, secp256k1 키는 TF-M 보호 저장소(ITS, 암호화 사용)에 두고 CRACEN으로 서명한다. 키와 서명 경로는 non-secure 코드가 접근할 수 없고 버튼 토큰 경계(N24)를 지킨다. 물리 공격(칩 덤프, fault injection, 부채널)에 대한 방어가 SE보다 약한 점은 testnet waiver로 W12 수용 로그에 기록한다. W4에 확인한 SE050 자료는 다음 사이클을 위한 기록으로 남긴다.",
       "requiredIn": [
         "docs/content/products/p01/srs.md",
         "docs/content/products/p01/design.md"
@@ -421,7 +421,7 @@
     {
       "id": "N03",
       "title": "게이트와 컷 순서",
-      "value": "게이트는 네 개다. W4(9/30) 증거 게이트: BR-01..BR-08 bring-up과 외부 SE 데이터시트의 secp256k1 확인. W6(10/14) 컨트랙트 게이트: 소프트웨어 서명으로 8283에 낸 finalized PaymentSettled. W7(10/21) 실결제 게이트: 보드 내장 키로 기기 버튼 승인부터 finalized PaymentSettled까지 end-to-end 1건(첫 실결제 게이트이자 컷 트리거). W9(11/4) SE 게이트. 동결일(9/25)이 W4 안이므로 모든 작업은 W4부터 배정한다. W7 실패 시 컷 순서는 외부 SE(TF-M waiver로 진행), P07(W12-06 대체 증거), NFC handover(BLE scan만 사용)이며 기기 가맹점 표시는 자르지 않는다.",
+      "value": "게이트는 세 개다(W9 SE 게이트는 2026-09-29에 SE 컷으로 없앴다). W4(9/30) 증거 게이트: BR-01..BR-08 bring-up과 외부 SE 데이터시트의 secp256k1 확인. W6(10/14) 컨트랙트 게이트: 소프트웨어 서명으로 8283에 낸 finalized PaymentSettled. W7(10/21) 실결제 게이트: 보드 내장 키로 기기 버튼 승인부터 finalized PaymentSettled까지 end-to-end 1건(첫 실결제 게이트이자 컷 트리거). 동결일(9/25)이 W4 안이므로 모든 작업은 W4부터 배정한다. W7 실패 시 컷 대상은 P07(W12-06 대체 증거)이다. 외부 SE와 NFC handover는 이미 뺐고, 가맹점 정보 확인 화면은 자르지 않는다.",
       "requiredIn": [
         "docs/content/planning/product-worklist-and-12week-wbs-02.md",
         "docs/content/products/p01/plan.md",
@@ -592,7 +592,7 @@
     {
       "id": "N14",
       "title": "보안 waiver",
-      "value": "anti-exfil(req 10), 의존성 pinning(req 12), 정품 기기 attestation(req 13)은 설계만 하는 waiver이며 설계안은 P01 design의 waiver 절에 둔다. TF-M 봉인은 SE 도입 전까지 waiver다. 개인정보는 수집하지 않는다(req 14).",
+      "value": "anti-exfil(req 10), 의존성 pinning(req 12), 정품 기기 attestation(req 13)은 설계만 하는 waiver이며 설계안은 P01 design의 waiver 절에 둔다. 외부 SE를 컷했으므로 TF-M(TrustZone) 키 봉인은 이번 사이클 끝까지 waiver다. 개인정보는 수집하지 않는다(req 14).",
       "requiredIn": [
         "docs/content/products/p01/srs.md",
         "docs/content/products/p10/srs.md"
@@ -820,7 +820,7 @@
     {
       "id": "N30",
       "title": "W7 단계 적용과 role A 부하",
-      "value": "W7 실결제 게이트는 non-secure PSA 키, 개발 빌드 전용 고정 셋업, 평문 키오스크 링크로 통과한다. TF-M 키 서비스와 BLE 셋업 명령은 W8, 결제 세션 보안 채널은 기기 W9·키오스크 W10–W11에 넣는다. W7 게이트 증거에는 이 사실을 waiver로 적는다. role A가 P02를 함께 맡아 W8–W12 부하가 가용 일수를 넘지만 게이트와 일정은 바꾸지 않는다.",
+      "value": "W7 실결제 게이트는 non-secure PSA 키, 개발 빌드 전용 고정 셋업, 평문 키오스크 링크로 통과한다. TF-M 키 서비스와 BLE 셋업 명령은 W8, 결제 세션 보안 채널은 기기 W9·키오스크 W10–W11에 넣는다. W7 게이트 증거에는 이 사실을 waiver로 적는다. role A가 P02를 함께 맡아 W8–W12 부하가 가용 일수를 넘는다. 2026-09-29 SE 컷으로 6일이 빠졌고, 남은 초과는 담당자가 감수한다.",
       "requiredIn": [
         "docs/content/planning/product-worklist-and-12week-wbs-02.md",
         "docs/content/products/p01/plan.md"
@@ -929,8 +929,8 @@
     "req 10 anti-exfil",
     "req 12 dependency pinning",
     "req 13 genuine-device attestation",
-    "TF-M key sealing until the external SE lands",
-    "W7 gate with a non-secure key, fixed development provisioning and a plaintext kiosk link"
+    "W7 gate with a non-secure key, fixed development provisioning and a plaintext kiosk link",
+    "TF-M (TrustZone) key sealing for the whole cycle; the external SE was cut"
   ],
   "citationScope": [
     "docs/content/products/",
@@ -1071,6 +1071,29 @@
       "reason": "보드를 확인해 보니 화면과 NFC 안테나가 없고, TF-M용 보드 변형도 없었다. 화면 없는 기기에서 Numeric Comparison을 할 수 없고, 키오스크 링크는 카드 결제처럼 페어링 없이 쓰는 편이 사용 흐름에 맞다.",
       "preserves": "EIP-712 서명 타입 두 개, 버튼 승인, 컨트랙트 한도, 게이트 주차(W4·W6·W7·W9)와 cut order의 SE·P07 순서는 바꾸지 않는다.",
       "cost": "P02 작업 약 6일과 보안 채널 약 4.5일(기기 2.5, 키오스크 2)이 늘었다. role A의 W8–W12 부하가 가용 20일에 약 28.5일이며 폰 결제 확인 화면은 W12에 끝난다. 앱에서 PIN을 설정하는 기능은 다음 단계로 미뤘다."
+    },
+    {
+      "date": "2026-09-29",
+      "decisions": [
+        "N02"
+      ],
+      "change": "외부 SE에서 키를 만들고 SE 안에서 서명하기로 바꿨다. 이전에는 TRNG로 만든 키를 SE로 감쌌다.",
+      "reason": "4주차 게이트에서 NXP SE050이 secp256k1 ECDSA를 지원한다는 것을 AN12436 표 1로 확인했다. SE 안에서 서명하면 개인 키가 MCU 메모리를 지나지 않는다.",
+      "preserves": "W9 SE 게이트와 cut order, 버튼 토큰 경계(N24), SE가 컷될 때의 TF-M waiver는 바꾸지 않는다.",
+      "cost": "SE 명령 경로를 secure partition에 두어야 하고, SE 서명의 low-s 정규화와 recovery id 계산을 MCU에서 한다. 실물에서 secp256k1 키 생성이 실패하면 감싸기 방식으로 되돌린다."
+    },
+    {
+      "date": "2026-09-29",
+      "decisions": [
+        "N02",
+        "N03",
+        "N14",
+        "N30"
+      ],
+      "change": "외부 SE 통합(WBS2-P01-05)과 W9 SE 게이트를 없애고, 키 생성과 서명을 TrustZone 위 TF-M secure partition에서 한다. 같은 날 앞선 개정(SE 안에서 서명)은 이 개정으로 대체된다.",
+      "reason": "외부 SE를 조달해 연결할 시간이 없다. nRF54L15의 TrustZone과 CRACEN(secp256k1 ECDSA)으로 non-secure 코드에 대한 키 격리와 버튼 토큰 경계는 유지된다.",
+      "preserves": "게이트 W4·W6·W7, 버튼 토큰 경계(N24), 결제 프로토콜, 컨트랙트 한도는 바꾸지 않는다.",
+      "cost": "물리 공격 방어가 SE보다 약하고 이를 waiver로 남긴다. KMU는 secp256k1 키를 받지 않는 것으로 보여 키를 ITS에 두므로 ITS 암호화와 AP-Protect가 필수다. role A 부하는 6일 줄어 W8–W12 합계 22.5일이 된다."
     }
   ],
   "wbsRequiredTokens": [

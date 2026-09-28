@@ -14,24 +14,23 @@ WBS2-P04-02,P04,Minimal submission and finalized PaymentSettled watcher,role B,7
 WBS2-P05-02,P05,opsctl depositFor and fixed provisioning values for the W7 device,role B,7,7,0.5,W7,WBS2-P05-01,N11 N20 N30,depositFor run log
 WBS2-P06-03,P06,Payout change delay and LimitChange,user,7,8,4,-,WBS2-P06-01,N05 N13,Foundry test report
 WBS2-P10-02,P10,Vector conformance harness for firmware kiosk and contract,user,7,7,1.5,W7,WBS2-P10-01,N21,conformance run log
-WBS2-P01-05,P01,External secure element integration,role A,8,9,6,W9,WBS2-P01-11,N02,SE sign log
 WBS2-P01-11,P01,TF-M key service ns board variant secure button and button PIN,role A,8,8,3,-,WBS2-P01-04,N02 N24 N28,key lifecycle test log
 WBS2-P01-12,P01,BLE setup commands and per-device passkey provisioning,role A,8,8,1,-,WBS2-P01-04,N23 N27,setup session log
 WBS2-P04-03,P04,Simulation gas threshold session.cancel Checking error mapping and LimitChange relay,role B,8,9,5,-,WBS2-P04-02 WBS2-P06-03,N08 N10 N22,submission test log
 WBS2-P05-05,P05,opsctl BLE rental setup TimeAnchor and passkey label,role B,8,8,1.5,-,WBS2-P05-02 WBS2-P01-12,N06 N23 N27,provisioning run log
 WBS2-P06-04,P06,Delayed withdrawal and closeAccount,user,8,9,3,-,WBS2-P06-03,N07 N11,Foundry test report
+WBS2-P01-13,P01,Phone link confirm.show and outcome forwarding,role A,9,9,2,-,WBS2-P01-03,N26,confirm.show capture
 WBS2-P01-14,P01,Payment session secure channel on the device,role A,9,9,2.5,-,WBS2-P01-04,N27,encrypted session log
 WBS2-P05-04,P05,opsctl merchant revoke payout change and refusal-host,role B,9,10,3,-,WBS2-P05-01 WBS2-P06-03,N05 N22,opsctl run log
 WBS2-P06-05,P06,Contract hardening and finality observation,user,9,10,4,-,WBS2-P06-04,N08,review notes and 1-hour finality poll log
 WBS2-P01-07,P01,MCUboot signed image AP-Protect and release build without USB CDC,role A,10,10,3,-,WBS2-P01-01,N12,unsigned image rejection log
-WBS2-P01-13,P01,Phone link confirm.show and outcome forwarding,role A,10,10,2,-,WBS2-P01-03,N26,confirm.show capture
-WBS2-P02-01,P02,Android app skeleton BLE module QR scan and Passkey Entry bonding,role A,10,11,2.5,-,WBS2-P01-12,N26 N27,bonding log
+WBS2-P02-01,P02,Android app skeleton BLE module QR scan and Passkey Entry bonding,role A,10,10,2.5,-,WBS2-P01-12,N26 N27,bonding log
 WBS2-P04-05,P04,Kiosk payment session secure channel,role B,10,11,2,-,WBS2-P04-02 WBS2-P01-14,N27,encrypted session log
 WBS2-P05-03,P05,opsctl rental return closeAccount withdrawal and signed DeviceReset,role B,10,10,1.5,-,WBS2-P05-05 WBS2-P06-04,N11 N23,return run log
 WBS2-P07-01,P07,Minimal PaymentSettled indexer and receipt lookup,user,10,11,4,-,WBS2-P06-02,N19,receipt lookup log
 WBS2-P01-08,P01,Security checks and stabilization for W12,role A,11,12,5,-,WBS2-P01-07 WBS2-P01-04 WBS2-P01-14,N18 N24,W12 security item evidence
 WBS2-P02-02,P02,Device settings screens,role A,11,11,1,-,WBS2-P02-01,N28,settings screen capture
-WBS2-P04-04,P04,W12 rehearsal 20 consecutive payments and 8 refusal demos,role B,11,12,6,-,WBS2-P04-03 WBS2-P05-04 WBS2-P04-05,N18 N22,rehearsal log
+WBS2-P02-03,P02,Payment confirm screen from confirm.show,role A,11,11,1.5,-,WBS2-P02-01 WBS2-P01-13,N26,phone screenshot matching signed fields
+WBS2-P04-04,P04,W12 rehearsal 20 consecutive payments and 8 refusal demos,role B,11,12,6,-,WBS2-P04-03 WBS2-P05-04 WBS2-P04-05 WBS2-P02-03,N18 N22,rehearsal log
 WBS2-P10-03,P10,Week-12 acceptance log and evidence redaction,user,11,12,4,-,WBS2-P06-05,N16 N18,week12-log.md with sha256 checksums
-WBS2-P02-03,P02,Payment confirm screen from confirm.show,role A,12,12,1.5,-,WBS2-P02-01 WBS2-P01-13,N26,phone screenshot matching signed fields
 WBS2-P02-04,P02,Phone and kiosk concurrent payment test,role A,12,12,1,-,WBS2-P02-03,N26 N27,concurrent connection payment log
