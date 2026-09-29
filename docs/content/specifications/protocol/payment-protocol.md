@@ -63,7 +63,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 | 문자열(`type`, 이름, enum 값) | text string(UTF-8) | |
 | boolean | `true`/`false` | |
 
-정수와 길이는 가장 짧은 형식으로 인코딩한다. 부정 길이(indefinite length), 부동소수점, tag 2 외의 tag, 중복 키, 스키마에 없는 키는 쓰지 않는다. 받은 쪽은 이 규칙을 어긴 본문을 `BAD_FRAME`으로 거절한다. 로그와 운영 도구 출력, EIP-712 JSON은 스키마의 JSON 형식을 그대로 쓴다.
+정수와 길이는 가장 짧은 형식으로 인코딩한다. 부정 길이(indefinite length), 부동소수점, tag 2 외의 tag, 중복 키, 스키마에 없는 키는 쓰지 않는다. 받은 쪽은 이 규칙을 어긴 본문을 `BAD_FRAME`으로 거절한다. 메시지 8개의 기대 바이트는 [cbor-vectors.json](cbor-vectors.json)에 있고(`packages/protocol/cbor-gen/generate.py`로 생성), 모든 구현은 같은 바이트를 만들어야 한다. 로그와 운영 도구 출력, EIP-712 JSON은 스키마의 JSON 형식을 그대로 쓴다.
 
 ### 4.1 결제 세션 보안 채널 (기기 9주차, 키오스크 10~11주차 적용)
 
