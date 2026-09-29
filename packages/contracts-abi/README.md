@@ -17,4 +17,26 @@ make build   # 컨트랙트를 빌드하고 ABI, TS, Go 바인딩을 다시 만�
 make test    # 생성물이 최신인지 확인하고 Go 바인딩을 빌드한다
 ```
 
+## 사용법
+
+**Go (운영 도구, indexer):** `go.work`에 이 모듈이 들어 있으므로 import만 하면 된다. 예제는 [`go/examples/example_test.go`](go/examples/example_test.go)에 있고 CI에서 컴파일된다.
+
+```go
+import "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/registry"
+
+reg, err := registry.NewRegistry(registryAddress, client) // client: *ethclient.Client
+tx, err := reg.RegisterMerchant(adminOpts, merchant, payout) // adminOpts: keystore를 secretRef로 연 TransactOpts
+```
+
+**TypeScript (키오스크, 폰 앱):** pnpm 작업공간 의존성으로 추가한다(`"@nu54/contracts-abi": "workspace:*"`). ABI는 `as const`라서 viem 같은 라이브러리가 함수 이름과 인자 타입을 추론한다.
+
+```ts
+import { paymentSettlementAbi } from "@nu54/contracts-abi";
+
+// 예: viem으로 settle 호출 데이터 만들기
+const data = encodeFunctionData({ abi: paymentSettlementAbi, functionName: "settle", args: [authorization, signature] });
+```
+
+`settle`의 오류는 ABI의 custom error(`WrongDomain`, `OrderAlreadyPaid`, `Expired` 등)로 디코딩해 키오스크 설계 7절의 결과로 매핑한다.
+
 배포 주소는 여기에 두지 않는다. 테스트넷 배포 결과는 `products/p06-stablenet-contracts/deployments/`에 기록한다. 키와 관리자 secret은 저장하지 않는다.
