@@ -279,6 +279,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - 테스트넷에서 1시간 동안 finalized와 latest를 기록하는 스크립트.
 - 12주차용 최종 배포. 이 배포 뒤에도 기기 재셋업이 필요하므로 12주차 리허설 전에 끝낸다.
 - 완료 판정: review notes, 3600초 관측 로그(결제 블록 hash 불변), 최종 배포 결과의 해시.
+- 2026-10-01 진행: 3600초 관측을 마쳤다. reorg 0, 결제 블록 hash 불변([finality 관측 기록](../acceptance/finality-8283.md)). review notes와 최종 배포가 남았다.
 
 **최소 indexer와 영수증 조회** (WBS2-P07-01, 10~11주차, 4일, 컷 순서 2번)
 - migration을 고친다: 기본 키 `(tx_hash, log_index)`, 인덱스 `(merchant, order_id, block_number)`, `block_time` 열.

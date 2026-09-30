@@ -23,7 +23,15 @@
       "finalizedTag": "supported",
       "finalizedEqualsLatest": true,
       "gasPriceGwei": 47600,
-      "note": "read-only cast queries; the priority tip is fixed by governance"
+      "note": "read-only cast queries; the priority tip is fixed by governance",
+      "observation": {
+        "observedAt": "2026-10-01",
+        "seconds": 3700,
+        "reorgedBlocks": 0,
+        "paymentBlockHashUnchanged": true,
+        "record": "docs/content/acceptance/finality-8283.md",
+        "note": "latest and finalized read by separate calls differed by -2..+1 blocks, which read timing explains; judge payments by the finalized tag"
+      }
     },
     "faucet": {
       "url": "https://faucet.stablenet.network",
