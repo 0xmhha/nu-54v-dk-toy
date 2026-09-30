@@ -2,6 +2,8 @@
   "chainId": 8283,
   "network": "StableNet testnet",
   "sourceCommit": "66a5f433d11ba87119959b6f3b477b4843e93bae",
+  "sourceCommitOnMain": "a8c0c440256ead014f751575cb9735e8135297c1",
+  "sourceNote": "sourceCommit is the branch commit that was built and deployed; after the squash merge, main commit sourceCommitOnMain has the same git trees for src, foundry.toml and lib, so main rebuilds the deployed code",
   "compiler": {
     "solc": "0.8.30",
     "optimizerRuns": 200,
