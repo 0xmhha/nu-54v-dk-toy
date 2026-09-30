@@ -262,6 +262,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - 벡터마다 서명자가 역할별 기대 주소(공개 시험 mnemonic의 index 0, 1, 2)와 같은지 확인한다.
 - 도구가 없는 환경에서는 PASS 대신 SKIP으로 찍는다.
 - 완료 판정: `make conformance`가 SKIP 없이 모두 통과한다. 펌웨어 C 항목이 7주차에 준비되지 않으면 SKIP으로 기록하고 8주차 첫날 채운다.
+- 2026-10-01 진행: SKIP 표시, `--strict`, 역할별 서명자 복원 검사를 넣었다. 키오스크(`test:conformance` 스크립트)와 펌웨어(`eip712_vectors` ctest) 진입점은 각 담당이 [harness README](../../../products/p10-platform/harness/README.md)의 규칙대로 추가한다. 현재 9개 통과, 2개 SKIP.
 
 **한도 변경과 payout 변경 지연** (WBS2-P06-03, 7~8주차, 4일)
 - registry의 payout 변경 요청·취소와 효력 시각, cashOut이 효력이 생긴 payout으로만 보내게 하기, `setLimits`.
