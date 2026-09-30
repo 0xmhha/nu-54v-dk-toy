@@ -8,7 +8,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 소스 커밋 | `66a5f433d11b` (solc 0.8.30, optimizer 200, evm prague) |
+| 소스 커밋 | `66a5f433d11b` (solc 0.8.30, optimizer 200, evm prague). 스쿼시 머지 뒤 main `a8c0c440256e`의 `src`, `foundry.toml`, `lib`가 같은 git tree다 |
 | TestUSDC | `0x500ef6…A2BA`, 블록 21129130, 990,001 gas |
 | MerchantRegistry | `0x0c293f…2ae0`, 블록 21129131, 539,362 gas |
 | PaymentSettlement | `0xDe7596…caA4`, 블록 21129134, 1,953,730 gas |
