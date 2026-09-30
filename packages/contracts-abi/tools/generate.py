@@ -30,6 +30,8 @@ ABIGEN = "github.com/ethereum/go-ethereum/cmd/abigen@v1.16.4"
 TARGETS = [
     ("IPaymentSettlement", "settlement", "paymentSettlement", True),
     ("IMerchantRegistry", "registry", "merchantRegistry", True),
+    ("IPaymentSettlementExtensions", "settlementext", "paymentSettlementExtensions", False),
+    ("IMerchantRegistryExtensions", "registryext", "merchantRegistryExtensions", False),
     ("TestUSDC", "testusdc", "testUsdc", False),
 ]
 

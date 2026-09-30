@@ -6,11 +6,11 @@
 |---|---|
 | `abi/*.json` | ABI JSON(키 정렬) |
 | `abi/manifest.json` | ABI별 sha256과 6주차 게이트에 고정한 인터페이스 표시(`frozenAtW6`) |
-| `ts/src/` | `@nu54/contracts-abi`: `paymentSettlementAbi`, `merchantRegistryAbi`, `testUsdcAbi` (`as const`) |
-| `go/` | go-ethereum abigen 바인딩: `settlement`, `registry`, `testusdc` 패키지 |
+| `ts/src/` | `@nu54/contracts-abi`: `paymentSettlementAbi`, `merchantRegistryAbi`, `paymentSettlementExtensionsAbi`, `merchantRegistryExtensionsAbi`, `testUsdcAbi` (`as const`) |
+| `go/` | go-ethereum abigen 바인딩: `settlement`, `registry`, `settlementext`, `registryext`, `testusdc` 패키지 |
 | `tools/generate.py` | 생성기. `--check`는 커밋된 파일이 새로 만든 결과와 같은지 확인한다 |
 
-6주차에 고정하는 인터페이스는 `IPaymentSettlement`(결제, 예치, cashOut)와 `IMerchantRegistry`(등록, 철회, 조회)다. 한도 변경, 출금, 반납은 `IPaymentSettlementExtensions`로 나중에 추가하며, 고정한 ABI의 함수·이벤트·오류는 바꾸지 않는다.
+6주차에 고정하는 인터페이스는 `IPaymentSettlement`(결제, 예치, cashOut)와 `IMerchantRegistry`(등록, 철회, 조회)다. 한도 변경, 출금, 반납, 가맹점 대리 cashOut(`cashOutFor`)은 `IPaymentSettlementExtensions`, payout 변경 지연은 `IMerchantRegistryExtensions`에 있다. 두 확장은 배포 컨트랙트에 구현되어 있지만 고정 대상이 아니며, 고정한 ABI의 함수·이벤트·오류는 바꾸지 않는다. 같은 주소에 고정 ABI와 확장 ABI를 함께 붙여 쓴다.
 
 ```bash
 make build   # 컨트랙트를 빌드하고 ABI, TS, Go 바인딩을 다시 만든다

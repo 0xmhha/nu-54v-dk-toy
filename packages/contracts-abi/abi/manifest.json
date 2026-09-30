@@ -4,13 +4,21 @@
       "frozenAtW6": true,
       "sha256": "8c7171ee96c74a4e13249122f56bd7b8ae8a8d865ddfeec2d60943a202ad7da4"
     },
+    "IMerchantRegistryExtensions": {
+      "frozenAtW6": false,
+      "sha256": "a213f04d87bbfab5bc3209a2c1393a341f803c02b9082d3cba9dd21cd3be86ea"
+    },
     "IPaymentSettlement": {
       "frozenAtW6": true,
       "sha256": "05bbfd86dc59243e5456ce494036f33870e319d66aa96a91ee82e7054670ca4d"
     },
+    "IPaymentSettlementExtensions": {
+      "frozenAtW6": false,
+      "sha256": "c2c1803a94af6450615e93505dbe45dd18432b66284b7e4215143172f05be002"
+    },
     "TestUSDC": {
       "frozenAtW6": false,
-      "sha256": "1d1018e752a63688a82aa5afcc4885d1128b8f0d52a38c5cd702b4fd36012fef"
+      "sha256": "1df01bbf69311f478a878017966fae0a6fcc9b6c95324f37ad2a4a6d5e357bb8"
     }
   },
   "source": "products/p06-stablenet-contracts"

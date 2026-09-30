@@ -33,6 +33,29 @@ contract Eip712VectorsTest is Test {
             address signer = ecrecover(d, uint8(sig[64]), r, s);
             assertEq(signer, vm.parseJsonAddress(json, string.concat(p, ".signer")), "signer");
         }
+        _checkLimitChange(json, domainSep);
+    }
+
+    /// Vector 2 is LimitChange (LC-01), the other type the device signs.
+    function _checkLimitChange(string memory json, bytes32 domainSep) internal pure {
+        string memory p = ".vectors[2]";
+        assertEq(vm.parseJsonString(json, string.concat(p, ".primaryType")), "LimitChange");
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PaymentTypes.LIMIT_CHANGE_TYPEHASH,
+                vm.parseUint(vm.parseJsonString(json, string.concat(p, ".message.chainId"))),
+                vm.parseJsonAddress(json, string.concat(p, ".message.contract")),
+                vm.parseUint(vm.parseJsonString(json, string.concat(p, ".message.perPaymentLimit"))),
+                vm.parseUint(vm.parseJsonString(json, string.concat(p, ".message.dailyLimit"))),
+                vm.parseUint(vm.parseJsonString(json, string.concat(p, ".message.nonce"))),
+                vm.parseUint(vm.parseJsonString(json, string.concat(p, ".message.expiry")))
+            )
+        );
+        bytes32 d = keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
+        assertEq(d, vm.parseJsonBytes32(json, string.concat(p, ".digest")), "LimitChange digest");
+        bytes memory sig = vm.parseJsonBytes(json, string.concat(p, ".signature"));
+        address signer = ecrecover(d, uint8(sig[64]), bytes32(_slice(sig, 0)), bytes32(_slice(sig, 32)));
+        assertEq(signer, vm.parseJsonAddress(json, string.concat(p, ".signer")), "LimitChange signer");
     }
 
     function _hash(PaymentTypes.PaymentAuthorization memory a) internal pure returns (bytes32) {

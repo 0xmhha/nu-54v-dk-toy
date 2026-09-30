@@ -7,7 +7,7 @@ import {MerchantRegistry} from "../src/MerchantRegistry.sol";
 import {TestUSDC} from "../src/test-token/TestUSDC.sol";
 import {PaymentTypes} from "../src/PaymentTypes.sol";
 
-/// Drives deposits, payments (including resubmissions) and cash-outs with random inputs.
+/// Drives deposits, payments (including resubmissions), withdrawals, closing and cash-outs with random inputs.
 contract SettlementHandler is Test {
     PaymentSettlement public settlement;
     TestUSDC public token;
@@ -18,6 +18,7 @@ contract SettlementHandler is Test {
     bytes[] internal settledSigs;
     mapping(bytes32 => uint256) public settledCount;
     bytes32[] public orders;
+    uint256 public settledOnClosed; // must stay 0
 
     constructor(PaymentSettlement s, TestUSDC t, address op, address m) {
         settlement = s;
@@ -36,7 +37,7 @@ contract SettlementHandler is Test {
         vm.startPrank(operator);
         token.mint(operator, amount);
         token.approve(address(settlement), amount);
-        settlement.depositFor(dev, amount, operator);
+        try settlement.depositFor(dev, amount, operator) {} catch {} // closed accounts refuse
         vm.stopPrank();
     }
 
@@ -54,7 +55,9 @@ contract SettlementHandler is Test {
             expiry: uint64(block.timestamp + 60)
         });
         bytes memory sig = _sign(key, a);
+        bool wasClosed = settlement.accountOf(vm.addr(key)).closedAt != 0;
         try settlement.settle(a, sig) {
+            if (wasClosed) settledOnClosed++;
             if (settledCount[a.orderId] == 0) orders.push(a.orderId);
             settledCount[a.orderId]++;
             settledAuths.push(a);
@@ -75,6 +78,34 @@ contract SettlementHandler is Test {
     function cashOut() external {
         vm.prank(merchant);
         settlement.cashOut();
+    }
+
+    function requestWithdrawal(uint256 who, uint256 amount) external {
+        vm.prank(operator);
+        try settlement.requestWithdrawal(devices(who % 3), bound(amount, 1, 200e6)) {} catch {}
+    }
+
+    function cancelWithdrawal(uint256 who) external {
+        vm.prank(operator);
+        try settlement.cancelWithdrawal(devices(who % 3)) {} catch {}
+    }
+
+    function closeAccount(uint256 who) external {
+        vm.prank(operator);
+        try settlement.closeAccount(devices(who % 3)) {} catch {}
+    }
+
+    function donateAndRecover(uint256 amount) external {
+        amount = bound(amount, 1, 10e6);
+        vm.prank(operator);
+        token.mint(address(settlement), amount); // tokens arriving outside any account
+        uint256 spare = settlement.surplus();
+        vm.prank(operator);
+        settlement.recoverSurplus(operator, spare);
+    }
+
+    function executeWithdrawal(uint256 who) external {
+        try settlement.executeWithdrawal(devices(who % 3)) {} catch {}
     }
 
     function warp(uint256 secs) external {
@@ -117,7 +148,7 @@ contract SettlementInvariantTest is Test {
         vm.warp(1_790_000_000);
         address operator = makeAddr("operator");
         address admin = makeAddr("admin");
-        MerchantRegistry registry = new MerchantRegistry(admin);
+        MerchantRegistry registry = new MerchantRegistry(admin, 86400);
         token = new TestUSDC(operator); // the handler mints as the operator
         settlement = new PaymentSettlement(address(token), address(registry), operator, 50e6, 200e6, 3600, 120);
         vm.prank(admin);
@@ -132,6 +163,19 @@ contract SettlementInvariantTest is Test {
             owed += settlement.balanceOf(handler.devices(i));
         }
         assertLe(owed, token.balanceOf(address(settlement)));
+    }
+
+    function invariant_totalOwedIsTheSumOfBalances() public view {
+        uint256 owed = settlement.merchantBalance(merchant);
+        for (uint256 i = 0; i < 3; i++) {
+            owed += settlement.balanceOf(handler.devices(i));
+        }
+        assertEq(settlement.totalOwed(), owed);
+        assertLe(settlement.totalOwed(), token.balanceOf(address(settlement)));
+    }
+
+    function invariant_closedAccountNeverSettles() public view {
+        assertEq(handler.settledOnClosed(), 0);
     }
 
     function invariant_orderSettlesAtMostOnce() public view {

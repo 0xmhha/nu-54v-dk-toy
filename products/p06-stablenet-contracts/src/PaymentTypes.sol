@@ -60,6 +60,14 @@ library PaymentTypes {
         );
     }
 
+    function hashLimitChange(LimitChange calldata c) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                LIMIT_CHANGE_TYPEHASH, c.chainId, c.contractAddress, c.perPaymentLimit, c.dailyLimit, c.nonce, c.expiry
+            )
+        );
+    }
+
     /// @notice `\x19\x01 || domainSeparator || structHash`, hashed.
     function digest(bytes32 domainSep, bytes32 structHash) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));

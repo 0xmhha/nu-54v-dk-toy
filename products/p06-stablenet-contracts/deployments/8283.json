@@ -1,0 +1,80 @@
+{
+  "chainId": 8283,
+  "network": "StableNet testnet",
+  "sourceCommit": "66a5f433d11ba87119959b6f3b477b4843e93bae",
+  "compiler": {
+    "solc": "0.8.30",
+    "optimizerRuns": 200,
+    "evmVersion": "prague"
+  },
+  "deployedAt": "2026-09-30T20:57:09Z",
+  "bytecodeCheck": "runtime code of all three contracts equals the build of sourceCommit, immutable slots excluded (2026-10-01)",
+  "roles": {
+    "deployer": "0x262c9C682d4aE5032822B7ACE7565DF93d4F9B3f",
+    "operator": "0x246aE7E5b14f096342B96A65E375524Da80c101B",
+    "registryAdmin": "0xECacd5F34Ffb78F1e6aC4d4662CDF5390D024d34",
+    "tokenOwner": "0x5289961A877B28819b11bbCC550C527E52C7B1ed",
+    "kiosk": "0xF92a32CEB9d940057be7b76BF4e2Eb76409F61A4",
+    "softwareDevice": "0xa8Edf32009d5a46aB40C30c7Eb0fA1145855C3dF"
+  },
+  "parameters": {
+    "perPaymentCap": 50000000,
+    "dailyCap": 200000000,
+    "withdrawalDelay": 3600,
+    "authorizationExpiry": 120,
+    "payoutChangeDelay": 86400,
+    "testTokenReturnDelay": 259200
+  },
+  "contracts": {
+    "TestUSDC": {
+      "address": "0x500ef69da230E42bFF34487B578eA0cBefbdA2BA",
+      "deployTx": "0x5ac96f58a5241fed962493b4247d218ef9a9d114d7806387b25c273a0a1682ed",
+      "block": 21129130,
+      "gasUsed": 990001,
+      "runtimeCodeKeccak": "0x3fe6cc45290cfe6b01ba55d34513f0be3d614253d0ee0fde33cf43633d2561bb",
+      "abiSha256": "1df01bbf69311f478a878017966fae0a6fcc9b6c95324f37ad2a4a6d5e357bb8"
+    },
+    "MerchantRegistry": {
+      "address": "0x0c293f18815D8336f4F299bF59b796a6CFDA2ae0",
+      "deployTx": "0x7030c65cf9caff2b84f0a41db46a58707dcee0fb7dc90e8fefff054f1ed9d428",
+      "block": 21129131,
+      "gasUsed": 539362,
+      "runtimeCodeKeccak": "0xb77b0a74749086b832121812588398f69e541bb972db6ad6bf6827ed25539ca9",
+      "abiSha256": {
+        "IMerchantRegistry": "8c7171ee96c74a4e13249122f56bd7b8ae8a8d865ddfeec2d60943a202ad7da4",
+        "IMerchantRegistryExtensions": "a213f04d87bbfab5bc3209a2c1393a341f803c02b9082d3cba9dd21cd3be86ea"
+      }
+    },
+    "PaymentSettlement": {
+      "address": "0xDe7596556D35Fa62F238F074A0f0E59cF730caA4",
+      "deployTx": "0x355e0b9bec86cb93e2f2487e192dbdb8568af0fa34248d2e766a54f22aca8e99",
+      "block": 21129134,
+      "gasUsed": 1953730,
+      "runtimeCodeKeccak": "0xe62e549103f9db8abbd232efda36fd910702e5004de9248153ec9656555586d3",
+      "abiSha256": {
+        "IPaymentSettlement": "05bbfd86dc59243e5456ce494036f33870e319d66aa96a91ee82e7054670ca4d",
+        "IPaymentSettlementExtensions": "c2c1803a94af6450615e93505dbe45dd18432b66284b7e4215143172f05be002"
+      }
+    }
+  },
+  "setup": [
+    {
+      "step": "trust the settlement contract in the test token",
+      "tx": "0x8908798545a3bcf1eaddceb8ced8120b8dfd87966be1b6ca25b1872c79f663ab",
+      "block": 21129151,
+      "gasUsed": 45816
+    }
+  ],
+  "contractGate": {
+    "softwareSignedSettlement": {
+      "tx": "0x2e0c26fa9ee23c6629cf452ec847779113ee21c0bf747975860af2272d957b0b",
+      "block": 21129166,
+      "gasUsed": 120888,
+      "merchant": "0xF92a32CEB9d940057be7b76BF4e2Eb76409F61A4",
+      "orderId": "0x209f73ded70ab766b39a1505163019f2e1323e6abeb1824dee46a51c855740e8",
+      "device": "0xa8Edf32009d5a46aB40C30c7Eb0fA1145855C3dF",
+      "amount": 4500000
+    },
+    "resubmission": "eth_call of the same calldata reverts with OrderAlreadyPaid (0x7f61b868)"
+  }
+}
