@@ -50,6 +50,13 @@ for role in "$@"; do
   wallet_args+=(--keystores "$keystore" --password-file "$pw")
 done
 
+# StableNet refuses a priority fee below its minimum (27,600 gwei on 2026-10-01) and a fee cap
+# below base fee + that tip; forge would offer a 1 wei tip. Use the tip the node suggests.
+rpc_url="$(cd "$(dirname "$0")/.." && forge config --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["rpc_endpoints"]["stablenet_testnet"])')"
+tip="$(cast to-dec "$(cast rpc eth_maxPriorityFeePerGas --rpc-url "$rpc_url" | tr -d '"')")"
+# Fee cap = 2 x base fee + tip, so a base fee rise between blocks does not strand the tx.
+fee_cap=$(( 2 * $(cast base-fee --rpc-url "$rpc_url") + tip ))
+
 sender_var="NU54_ADDR_$(echo "$1" | tr 'a-z-' 'A-Z_')"
 forge script "$script" --rpc-url stablenet_testnet "${broadcast[@]}" \
-  --sender "${!sender_var}" "${wallet_args[@]}"
+  --priority-gas-price "$tip" --with-gas-price "$fee_cap" --sender "${!sender_var}" "${wallet_args[@]}"

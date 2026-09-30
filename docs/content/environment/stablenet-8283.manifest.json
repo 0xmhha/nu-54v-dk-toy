@@ -106,5 +106,32 @@
     "address": "0xEf6817…8A14",
     "reason": "eth_getCode returned 0x on the selected RPC at inspection time"
   },
-  "activationRule": "enabled requires address, ABI digest, runtime code hash, deployment block, admin-role evidence and indexer decoder registration."
+  "activationRule": "enabled requires address, ABI digest, runtime code hash, deployment block, admin-role evidence and indexer decoder registration.",
+  "settlementDeployment": {
+    "status": "deployed_not_activated",
+    "record": "products/p06-stablenet-contracts/deployments/8283.json",
+    "sourceCommit": "66a5f433d11b",
+    "deployedAt": "2026-09-30T20:57:09Z",
+    "contracts": {
+      "TestUSDC": {
+        "address": "0x500ef6…A2BA",
+        "block": 21129130
+      },
+      "MerchantRegistry": {
+        "address": "0x0c293f…2ae0",
+        "block": 21129131
+      },
+      "PaymentSettlement": {
+        "address": "0xDe7596…caA4",
+        "block": 21129134
+      }
+    },
+    "fees": {
+      "observedAt": "2026-10-01",
+      "baseFeeGwei": 20000,
+      "minPriorityFeeGwei": 27600,
+      "note": "a transaction with a lower tip or a fee cap below base fee + tip is refused; script/testnet-forge.sh uses the node's eth_maxPriorityFeePerGas"
+    },
+    "activationPending": "indexer decoder registration and admin-role evidence (activationRule); the contracts list above stays disabled until then"
+  }
 }
