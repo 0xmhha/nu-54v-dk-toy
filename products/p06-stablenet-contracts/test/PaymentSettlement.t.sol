@@ -3,22 +3,26 @@ pragma solidity ^0.8.30;
 
 import {SettlementBase} from "./Base.t.sol";
 import {IPaymentSettlement} from "../src/IPaymentSettlement.sol";
+import {IPaymentSettlementExtensions} from "../src/IPaymentSettlementExtensions.sol";
 import {PaymentTypes} from "../src/PaymentTypes.sol";
 
 /// Test names follow docs/content/products/p06/srs.md (P06-FR-*).
 contract PaymentSettlementTest is SettlementBase {
     bytes32 internal constant ORDER = bytes32(uint256(0x0101));
 
-    // P06-FR-01
+    // P06-FR-01: later deposits pass the same address or zero; a different one is refused
     function test_depositFor_withdrawAddressImmutable() public {
         assertEq(settlement.balanceOf(device), 150e6);
-        address other = makeAddr("other");
         vm.startPrank(operator);
-        token.mint(operator, 1e6);
-        token.approve(address(settlement), 1e6);
-        settlement.depositFor(device, 1e6, other); // second deposit: withdraw address ignored
+        token.mint(operator, 2e6);
+        token.approve(address(settlement), 2e6);
+        settlement.depositFor(device, 1e6, renter);
+        settlement.depositFor(device, 1e6, address(0));
+        vm.expectRevert(IPaymentSettlementExtensions.WithdrawAddressMismatch.selector);
+        settlement.depositFor(device, 1e6, makeAddr("other"));
         vm.stopPrank();
-        assertEq(settlement.balanceOf(device), 151e6);
+        assertEq(settlement.balanceOf(device), 152e6);
+        assertEq(settlement.accountOf(device).withdrawAddress, renter);
     }
 
     function test_depositFor_onlyOperator() public {
@@ -203,7 +207,8 @@ contract PaymentSettlementTest is SettlementBase {
     }
 
     // P06-NFR-02: a whole settle transaction stays within settleGasEstimate (170,000),
-    // which kioskMinGasBalance is derived from. Sandbox measurement: 165,399.
+    // which kioskMinGasBalance is derived from. Sandbox first payment: 165,399 before the
+    // storage packing, 120,188 after it (2026-10-01).
     function test_settle_txGasRecorded() public {
         PaymentTypes.PaymentAuthorization memory a = _auth(45e5, ORDER, 1);
         bytes memory sig = _sign(deviceKey, a);
@@ -263,8 +268,7 @@ contract PaymentSettlementTest is SettlementBase {
         vm.expectRevert(IPaymentSettlement.AccountInactive.selector);
         _settle(a, forged);
         vm.prank(operator);
-        vm.expectRevert(IPaymentSettlement.ZeroAddress.selector); // the operator is not a merchant
-        settlement.cashOut();
+        settlement.cashOut(); // the operator is not a merchant: nothing owed, nothing moves
         assertEq(settlement.balanceOf(device), 150e6);
         assertEq(token.balanceOf(address(settlement)), held);
         assertEq(token.balanceOf(attacker), 0);

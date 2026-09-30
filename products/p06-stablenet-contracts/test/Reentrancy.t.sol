@@ -67,7 +67,7 @@ contract ReentrancyTest is Test {
         address device = vm.addr(deviceKey);
 
         ReentrantToken token = new ReentrantToken();
-        MerchantRegistry registry = new MerchantRegistry(admin);
+        MerchantRegistry registry = new MerchantRegistry(admin, 86400);
         PaymentSettlement settlement =
             new PaymentSettlement(address(token), address(registry), operator, 50e6, 200e6, 3600, 120);
         ReentrantMerchant merchant = new ReentrantMerchant(settlement);

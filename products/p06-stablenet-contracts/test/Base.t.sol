@@ -13,6 +13,7 @@ abstract contract SettlementBase is Test {
     uint256 internal constant DAILY_CAP = 200e6;
     uint256 internal constant WITHDRAWAL_DELAY = 3600;
     uint256 internal constant AUTH_EXPIRY = 120;
+    uint256 internal constant PAYOUT_CHANGE_DELAY = 86400;
 
     TestUSDC internal token;
     MerchantRegistry internal registry;
@@ -31,7 +32,7 @@ abstract contract SettlementBase is Test {
         vm.warp(1_790_000_000);
         device = vm.addr(deviceKey);
         token = new TestUSDC(operator);
-        registry = new MerchantRegistry(registryAdmin);
+        registry = new MerchantRegistry(registryAdmin, PAYOUT_CHANGE_DELAY);
         settlement = new PaymentSettlement(
             address(token), address(registry), operator, PER_PAYMENT_CAP, DAILY_CAP, WITHDRAWAL_DELAY, AUTH_EXPIRY
         );
@@ -92,5 +93,37 @@ abstract contract SettlementBase is Test {
     function _settle(PaymentTypes.PaymentAuthorization memory a, bytes memory sig) internal {
         vm.prank(kiosk);
         settlement.settle(a, sig);
+    }
+
+    function _limitChange(uint256 perPayment, uint256 daily, uint256 nonce)
+        internal
+        view
+        returns (PaymentTypes.LimitChange memory c)
+    {
+        c = PaymentTypes.LimitChange({
+            chainId: block.chainid,
+            contractAddress: address(settlement),
+            perPaymentLimit: perPayment,
+            dailyLimit: daily,
+            nonce: nonce,
+            expiry: uint64(block.timestamp + 60)
+        });
+    }
+
+    function _signLimits(uint256 key, PaymentTypes.LimitChange memory c) internal view returns (bytes memory) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PaymentTypes.LIMIT_CHANGE_TYPEHASH,
+                c.chainId,
+                c.contractAddress,
+                c.perPaymentLimit,
+                c.dailyLimit,
+                c.nonce,
+                c.expiry
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(key, keccak256(abi.encodePacked("\x19\x01", settlement.domainSeparator(), structHash)));
+        return abi.encodePacked(r, s, v);
     }
 }
