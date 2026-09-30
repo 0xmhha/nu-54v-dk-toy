@@ -99,6 +99,8 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 
 권장안: 재배포를 9주차 말에 한 번으로 합치고, 그 전까지 한도 변경 중계는 로컬 sandbox에서만 검증한다. 단점은 한도 변경의 테스트넷 증거가 10주차로 늦어진다는 것이다. 이후 12주차용 최종 배포는 10주차 강화 작업 끝에 한 번 더 한다.
 
+**2026-09-30 변경:** 첫 테스트넷 배포 전 검토에서 6주차 배포본에 출금·반납·payout 변경 지연이 없으면 기기 계정을 멈추거나 잔액을 돌려받을 수 없고 registry admin이 payout을 즉시 바꿀 수 있다는 문제가 나왔다. 그래서 한도 변경, payout 변경 지연, 지연 출금·closeAccount의 컨트랙트 구현(WBS2-P06-03, WBS2-P06-04의 컨트랙트 부분)을 6주차 첫 배포 전으로 당겼고, 가맹점 키 분실 대비 `cashOutFor`를 더했다. 고정 ABI(`IPaymentSettlement`, `IMerchantRegistry`)는 바뀌지 않고, 확장은 별도 interface에 있다. 이 기능을 위한 9주차 재배포는 필요 없어지며, 재배포는 10주차 강화 결과가 컨트랙트를 바꿀 때만 한다. 해당 WBS 항목의 남은 일은 중계·운영 도구와 테스트넷 시연이다.
+
 ### 키 보관 형식과 키오스크 키 보관 [중요]
 
 운영 도구의 키 참조 형식이 문서마다 다르다. `.env.example`은 `secretRef://p05/operator` URI를 쓰고, 요구사항 문서는 "keystore 경로 + 암호 환경 변수"라고 적는다. 컨트랙트 배포는 Foundry keystore 계정 이름을 쓴다.
@@ -244,6 +246,16 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
   - finalized 블록 번호가 결제 블록 이상이고, 그 블록의 hash가 receipt의 hash와 같다.
   - PaymentSettled의 merchant, orderId, device가 서명한 값과 같다. 특히 device가 소프트웨어 서명 키 주소와 같다.
   - 같은 서명을 다시 보내면 `OrderAlreadyPaid`로 되돌려진다.
+- 배포 순서: Deploy → `TrustSettlement.s.sol`(token-owner, 정산 컨트랙트를 시험 토큰 신뢰 송신자로 등록) → 입금과 정산. 신뢰 등록 전에 지급하면 받지않을권리 모드인 수신자에게 보류된다.
+- **배포 뒤 재검토 (2026-10-01 기록, 놓치지 않도록 게이트 기록 `gate-w6.md`에서 닫는다).** 아래 값은 컨트랙트 가스 개선(storage 재배치, 보류 기록 2 slot, registry 조회 통합, 순차 nonce) 전의 sandbox 실측으로 정했다. 테스트넷 실측으로 다시 정한다.
+
+  | 재검토 항목 | 지금 값과 근거 | 개선 후 sandbox 실측 | 확인할 것 | 바뀌면 고칠 곳 |
+  |---|---|---|---|---|
+  | settleGasEstimate | 170,000 gas. 2026-09-29 첫 결제 165,399에 여유를 더함 | 첫 결제 약 120,000(테스트 추정 121,206), 평상시 86,689 | 테스트넷 첫 결제와 평상시 settle의 receipt gasUsed | register parameters, P06-NFR-02, `test_settle_txGasRecorded`의 상한 |
+  | kioskMinGasBalance | 20 WKRC. 결제 2건분(정산 1건과 재전송 1건) × 170,000 gas × 47,600 gwei | 첫 결제 기준 약 11.4 WKRC | 위 실측과 테스트넷 가스 가격 | register parameters, 키오스크 가스 경고 기준 |
+  | 12주 WKRC 필요량 | 약 550 WKRC. 배포 1세트 1,784,971 gas 기준 | 배포 1세트 3,484,141 gas(약 166 WKRC). 확장 기능이 들어가 늘었다 | 테스트넷 배포 3건의 gasUsed 합 | 1장의 2026-09-29 sandbox 실측 문단, faucet 계획 |
+  | 9주차 재배포 | 3장 9주차 행, 4장 인계 표(10/21), 5장 "한도 변경은 9주차 재배포 전까지 sandbox에서만", 6장 공수 표(9주차·10주차 재배포)에 9주차 재배포가 남아 있다 | 확장 기능을 6주차 배포에 넣어 이 기능 때문의 9주차 재배포는 필요 없어졌다(2026-09-30 변경) | 10주차 강화 결과가 컨트랙트를 바꾸는지, 9주차 재배포를 뺄지(일정 결정) | 왼쪽에 적은 네 곳, WBS의 9주차 재배포 행 |
+  | 기기 nonce 규칙 | 2026-10-01 순차 nonce로 변경(결제 프로토콜 2절) | 무작위 대비 결제당 약 17,000 gas 절감 | 펌웨어 구현이 시작값·카운터 저장·256 구간 건너뛰기를 따르는지 | 펌웨어 서명 모듈, 적합성 harness |
 
 **적합성 harness 확장** (WBS2-P10-02, 7주차, 1.5일)
 - 컨트랙트 벡터 시험, 키오스크 TypeScript의 digest·서명자 복원, 펌웨어 C host 시험을 검사 목록에 추가한다.
@@ -451,6 +463,7 @@ WBS와 결정 register에서 바꿀 것:
 아래는 계획의 전제이지만 아직 돌려 보거나 문서로 확인하지 않았다. 해당 작업을 시작하기 전에 확인한다.
 
 - 테스트넷 RPC의 `finalized` 태그 지원, 실제 가스 사용량, WKRC 공급 경로
+- 가스 개선 뒤의 settleGasEstimate, kioskMinGasBalance, 12주 WKRC 필요량, 9주차 재배포 여부, 기기 순차 nonce 구현. 테스트넷 배포 뒤 5장 WBS2-P06-02의 "배포 뒤 재검토" 표에서 하나씩 닫는다
 - Android Keystore의 secp256k1 지원 여부
 - TF-M 안에서 CRACEN secp256k1 ECDSA가 동작하는지, GPIO 포트 이벤트를 secure 쪽으로 분리할 수 있는지
 - tinygo-org/bluetooth의 macOS 동작(write, MTU, 페어링)

@@ -20,8 +20,8 @@ NU-54V-DK 기기(P01), 키오스크(P04), 운영 백오피스(P05), 정산 컨�
 
 기기는 EIP-712 타입 두 개만 서명한다 [N04]. 그 밖의 요청(원시 트랜잭션, approve, Permit, 스키마에 없는 메시지)은 `error{UNSUPPORTED_TYPE}`으로 거절한다.
 
-- **PaymentAuthorization** `{chainId, contract, merchant, payout, token, amount, orderId, nonce, expiry}` — 결제 1건. 키오스크는 nonce를 뺀 필드를 보내고, 기기가 256비트 난수 nonce를 골라 서명과 함께 돌려준다. `expiry`는 현재 시각부터 `authorizationExpiry` 안이어야 한다 [N13].
-- **LimitChange** `{chainId, contract, perPaymentLimit, dailyLimit, nonce, expiry}` — 대여자가 자기 한도를 register 상한(`perPaymentCap`, `dailyCap`) 안에서 정한다. 한도 0은 "상한을 그대로 적용"이다. nonce는 기기가 고르고 결제와 같은 nonce 공간을 쓰며, `expiry`는 `authorizationExpiry` 안이어야 한다. 기기에서 PIN과 버튼을 모두 요구하고, 키오스크가 `setLimits`로 제출한다 [N11].
+- **PaymentAuthorization** `{chainId, contract, merchant, payout, token, amount, orderId, nonce, expiry}` — 결제 1건. 키오스크는 nonce를 뺀 필드를 보내고, 기기가 nonce를 골라 서명과 함께 돌려준다. nonce는 재사용 방지용이며 예측할 수 없을 필요가 없다(서명이 없으면 누구도 그 nonce를 쓸 수 없다). 기기는 셋업 때 256으로 나누어떨어지는 시작값을 무작위로 한 번 정하고, 이후 결제와 한도 변경마다 1씩 늘린 순차 nonce를 쓴다. 컨트랙트의 nonce bitmap은 연속한 256개 nonce를 storage slot 하나에 담으므로, 순차 nonce는 무작위 nonce보다 결제당 약 17,000 gas가 적다(2026-10-01 sandbox 실측 93,906 대 111,378). 기기는 카운터를 서명 전에 플래시에 먼저 기록한다. 카운터를 잃어 이미 쓴 nonce를 다시 쓰면 컨트랙트가 `NonceReplayed`로 거절하므로 자산 손실은 없고, 기기는 카운터를 다음 256 구간으로 넘겨 이어 쓴다. ECDSA 서명 내부의 난수 k는 이 nonce와 별개이며 서명 구현(결정론적 k 또는 하드웨어 난수)이 맡는다. `expiry`는 현재 시각부터 `authorizationExpiry` 안이어야 한다 [N13].
+- **LimitChange** `{chainId, contract, perPaymentLimit, dailyLimit, nonce, expiry}` — 대여자가 자기 한도를 register 상한(`perPaymentCap`, `dailyCap`) 안에서 정한다. 한도 0은 "상한을 그대로 적용"이다. nonce는 결제와 같은 순차 카운터에서 받으며, `expiry`는 `authorizationExpiry` 안이어야 한다. 기기에서 PIN과 버튼을 모두 요구하고, 키오스크가 `setLimits`로 제출한다 [N11].
 
 운영자와 가맹점이 서명하는 타입은 `operatorSignedTypes`에 있다. MerchantAttestation `{merchant, payout, name, validFrom, validUntil}`의 유효 기간은 `attestationValidity`다 [N05]. MerchantOrder `{orderId, token, amount, payout, expiry}`는 가맹점 키가 주문 내용을 보증한다. TimeAnchor `{device, timestamp}`와 DeviceReset `{device, nonce}`는 5절에서 쓴다.
 
