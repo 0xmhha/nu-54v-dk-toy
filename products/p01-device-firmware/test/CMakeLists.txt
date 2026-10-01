@@ -53,3 +53,9 @@ target_include_directories(test_frame_vectors PRIVATE ../core/include ${CMAKE_CU
 target_compile_options(test_frame_vectors PRIVATE -Wall -Wextra -Werror)
 add_dependencies(test_frame_vectors nu54_vectors)
 add_test(NAME frame_vectors COMMAND test_frame_vectors)
+
+add_executable(test_cbor test_cbor.c ../core/src/nu54_cbor.c)
+target_include_directories(test_cbor PRIVATE ../core/include ../../../packages/protocol/c/include ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_options(test_cbor PRIVATE -Wall -Wextra -Werror)
+add_dependencies(test_cbor nu54_vectors)
+add_test(NAME cbor_vectors COMMAND test_cbor)

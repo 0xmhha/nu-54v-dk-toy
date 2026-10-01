@@ -63,8 +63,8 @@ CHECKS = [
     Check("contract Solidity EIP-712 digest and signer", ["forge", "test", "--match-contract", "Eip712VectorsTest"], "products/p06-stablenet-contracts", ["forge"]),
     Check("kiosk TypeScript EIP-712, CBOR and fragments", ["pnpm", "run", "test:conformance"], "products/p04-merchant-kiosk", ["pnpm"], kiosk_has_conformance_script),
     Check(
-        "firmware C EIP-712, signatures and fragments (host)",
-        ["ctest", "--test-dir", FIRMWARE_BUILD, "-R", "eip712_vectors|frame_vectors", "--output-on-failure", "--no-tests=error"],
+        "firmware C EIP-712, signatures, CBOR and fragments (host)",
+        ["ctest", "--test-dir", FIRMWARE_BUILD, "-R", "eip712_vectors|frame_vectors|cbor_vectors", "--output-on-failure", "--no-tests=error"],
         "products/p01-device-firmware",
         ["cmake", "ctest"],
         firmware_has_eip712_test,

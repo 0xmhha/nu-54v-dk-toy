@@ -62,4 +62,70 @@ static const char *const nu54_reason_str[] = {
     "INSUFFICIENT_BALANCE",
 };
 
+/* CBOR field kinds per message; nested objects point to their own table. */
+typedef enum { NU54_K_HEX20, NU54_K_HEX32, NU54_K_SIGNATURE, NU54_K_SESSION_ID, NU54_K_UINT, NU54_K_INT,
+               NU54_K_TEXT, NU54_K_BOOL, NU54_K_OBJECT } nu54_field_kind_t;
+struct nu54_object;
+typedef struct { const char *name; nu54_field_kind_t kind; unsigned char required; const struct nu54_object *object; } nu54_field_t;
+typedef struct nu54_object { const nu54_field_t *fields; unsigned char count; } nu54_object_t;
+typedef struct { const char *type; const nu54_object_t *object; } nu54_message_t;
+
+static const nu54_field_t nu54_msg_session_open_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"kioskNonce", NU54_K_HEX32, 1, 0}, {"mode", NU54_K_TEXT, 1, 0}};
+static const nu54_object_t nu54_msg_session_open = {nu54_msg_session_open_fields, 5};
+static const nu54_field_t nu54_msg_session_open_ok_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"device", NU54_K_HEX20, 0, 0}, {"deviceNonce", NU54_K_HEX32, 1, 0}, {"anchorValid", NU54_K_BOOL, 1, 0}, {"firmware", NU54_K_TEXT, 1, 0}, {"state", NU54_K_TEXT, 1, 0}, {"lastAnchor", NU54_K_UINT, 0, 0}};
+static const nu54_object_t nu54_msg_session_open_ok = {nu54_msg_session_open_ok_fields, 9};
+static const nu54_field_t nu54_msg_session_confirm_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"deviceNonce", NU54_K_HEX32, 1, 0}};
+static const nu54_object_t nu54_msg_session_confirm = {nu54_msg_session_confirm_fields, 4};
+static const nu54_field_t nu54_msg_payment_identify_attestation_fields[] = {{"merchant", NU54_K_HEX20, 1, 0}, {"payout", NU54_K_HEX20, 1, 0}, {"name", NU54_K_TEXT, 1, 0}, {"validFrom", NU54_K_UINT, 1, 0}, {"validUntil", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}};
+static const nu54_object_t nu54_msg_payment_identify_attestation = {nu54_msg_payment_identify_attestation_fields, 6};
+static const nu54_field_t nu54_msg_payment_identify_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"attestation", NU54_K_OBJECT, 1, &nu54_msg_payment_identify_attestation}};
+static const nu54_object_t nu54_msg_payment_identify = {nu54_msg_payment_identify_fields, 4};
+static const nu54_field_t nu54_msg_payment_prepare_authorization_fields[] = {{"chainId", NU54_K_UINT, 1, 0}, {"contract", NU54_K_HEX20, 1, 0}, {"merchant", NU54_K_HEX20, 1, 0}, {"payout", NU54_K_HEX20, 1, 0}, {"token", NU54_K_HEX20, 1, 0}, {"amount", NU54_K_UINT, 1, 0}, {"orderId", NU54_K_HEX32, 1, 0}, {"expiry", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_payment_prepare_authorization = {nu54_msg_payment_prepare_authorization_fields, 8};
+static const nu54_field_t nu54_msg_payment_prepare_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"authorization", NU54_K_OBJECT, 1, &nu54_msg_payment_prepare_authorization}, {"merchantSignature", NU54_K_SIGNATURE, 1, 0}};
+static const nu54_object_t nu54_msg_payment_prepare = {nu54_msg_payment_prepare_fields, 5};
+static const nu54_field_t nu54_msg_payment_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"outcome", NU54_K_TEXT, 1, 0}, {"signature", NU54_K_SIGNATURE, 0, 0}, {"reason", NU54_K_TEXT, 0, 0}, {"nonce", NU54_K_UINT, 0, 0}};
+static const nu54_object_t nu54_msg_payment_result = {nu54_msg_payment_result_fields, 7};
+static const nu54_field_t nu54_msg_limit_change_change_fields[] = {{"chainId", NU54_K_UINT, 1, 0}, {"contract", NU54_K_HEX20, 1, 0}, {"perPaymentLimit", NU54_K_UINT, 1, 0}, {"dailyLimit", NU54_K_UINT, 1, 0}, {"expiry", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_limit_change_change = {nu54_msg_limit_change_change_fields, 5};
+static const nu54_field_t nu54_msg_limit_change_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"change", NU54_K_OBJECT, 1, &nu54_msg_limit_change_change}};
+static const nu54_object_t nu54_msg_limit_change = {nu54_msg_limit_change_fields, 4};
+static const nu54_field_t nu54_msg_setup_timeAnchor_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"timestamp", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}, {"device", NU54_K_HEX20, 1, 0}};
+static const nu54_object_t nu54_msg_setup_timeAnchor = {nu54_msg_setup_timeAnchor_fields, 6};
+static const nu54_field_t nu54_msg_error_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"reason", NU54_K_TEXT, 1, 0}};
+static const nu54_object_t nu54_msg_error = {nu54_msg_error_fields, 4};
+static const nu54_field_t nu54_msg_session_cancel_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}};
+static const nu54_object_t nu54_msg_session_cancel = {nu54_msg_session_cancel_fields, 3};
+static const nu54_field_t nu54_msg_payment_outcome_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"orderId", NU54_K_HEX32, 1, 0}, {"outcome", NU54_K_TEXT, 1, 0}, {"reason", NU54_K_TEXT, 0, 0}};
+static const nu54_object_t nu54_msg_payment_outcome = {nu54_msg_payment_outcome_fields, 6};
+static const nu54_field_t nu54_msg_limit_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"outcome", NU54_K_TEXT, 1, 0}, {"signature", NU54_K_SIGNATURE, 0, 0}, {"nonce", NU54_K_UINT, 0, 0}, {"reason", NU54_K_TEXT, 0, 0}};
+static const nu54_object_t nu54_msg_limit_result = {nu54_msg_limit_result_fields, 7};
+static const nu54_field_t nu54_msg_setup_operator_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"operator", NU54_K_HEX20, 1, 0}, {"contract", NU54_K_HEX20, 1, 0}, {"chainId", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_setup_operator = {nu54_msg_setup_operator_fields, 6};
+static const nu54_field_t nu54_msg_setup_ack_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"step", NU54_K_TEXT, 1, 0}, {"accepted", NU54_K_BOOL, 1, 0}, {"reason", NU54_K_TEXT, 0, 0}, {"device", NU54_K_HEX20, 0, 0}, {"lastAnchor", NU54_K_UINT, 0, 0}};
+static const nu54_object_t nu54_msg_setup_ack = {nu54_msg_setup_ack_fields, 8};
+static const nu54_field_t nu54_msg_device_reset_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"device", NU54_K_HEX20, 1, 0}, {"nonce", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}};
+static const nu54_object_t nu54_msg_device_reset = {nu54_msg_device_reset_fields, 6};
+static const nu54_field_t nu54_msg_confirm_show_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"merchantName", NU54_K_TEXT, 1, 0}, {"orderId", NU54_K_HEX32, 1, 0}, {"token", NU54_K_HEX20, 1, 0}, {"payout", NU54_K_HEX20, 1, 0}, {"amount", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_confirm_show = {nu54_msg_confirm_show_fields, 8};
+static const nu54_message_t nu54_messages[] = {
+    {"session.open", &nu54_msg_session_open},
+    {"session.open.ok", &nu54_msg_session_open_ok},
+    {"session.confirm", &nu54_msg_session_confirm},
+    {"payment.identify", &nu54_msg_payment_identify},
+    {"payment.prepare", &nu54_msg_payment_prepare},
+    {"payment.result", &nu54_msg_payment_result},
+    {"limit.change", &nu54_msg_limit_change},
+    {"setup.timeAnchor", &nu54_msg_setup_timeAnchor},
+    {"error", &nu54_msg_error},
+    {"session.cancel", &nu54_msg_session_cancel},
+    {"payment.outcome", &nu54_msg_payment_outcome},
+    {"limit.result", &nu54_msg_limit_result},
+    {"setup.operator", &nu54_msg_setup_operator},
+    {"setup.ack", &nu54_msg_setup_ack},
+    {"device.reset", &nu54_msg_device_reset},
+    {"confirm.show", &nu54_msg_confirm_show}
+};
+#define NU54_MESSAGE_COUNT 16
+
 #endif /* NU54_PROTOCOL_H */

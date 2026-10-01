@@ -102,6 +102,12 @@ def main() -> int:
     out += ["typedef struct { const char *id; int valid; const uint8_t *const *frags; const size_t *lens; size_t count; const uint8_t *body; size_t body_len; const uint8_t *sha8; } frame_vector_t;",
             "static const frame_vector_t FRAME_VECTORS[] = {", ",\n".join(frames), "};",
             f"#define FRAME_VECTOR_COUNT {len(frames)}", ""]
+    cb = []
+    for n, v in enumerate(CBOR["vectors"]):
+        out.append(f"static const uint8_t CBOR_{n}[] = {arr(hx(v['cborHex']))};")
+        cb.append(f'{{"{v["id"]}", "{v["message"]["type"]}", CBOR_{n}, {len(hx(v["cborHex"]))}}}')
+    out += ["typedef struct { const char *id; const char *type; const uint8_t *cbor; size_t len; } cbor_vector_t;",
+            "static const cbor_vector_t CBOR_VECTORS[] = {", ",\n".join(cb), "};", f"#define CBOR_VECTOR_COUNT {len(cb)}", ""]
     Path(sys.argv[1]).write_text("\n".join(out))
     return 0
 
