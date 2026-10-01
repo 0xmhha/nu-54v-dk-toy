@@ -36,6 +36,8 @@ export interface DeviceConfig {
   /** The renter's button: approve or reject a payment shown on the phone. */
   approve?: (show: Message) => boolean;
   firmware?: string;
+  /** Random bytes (deviceNonce); injectable so session vectors are deterministic. */
+  random?: (n: number) => Uint8Array;
 }
 
 const FIRMWARE = "sim-0.1.0";
@@ -59,6 +61,7 @@ export class SoftwareDevice {
       now: () => Math.floor(Date.now() / 1000),
       approve: () => true,
       firmware: FIRMWARE,
+      random: (n: number) => globalThis.crypto.getRandomValues(new Uint8Array(n)),
       nonceStart: 0n,
       ...cfg,
     } as SoftwareDevice["cfg"];
@@ -127,7 +130,7 @@ export class SoftwareDevice {
     if (mode === "setup" && this.state !== "UNPROVISIONED" && this.state !== "PROVISIONED_NO_ANCHOR") {
       return this.error("NOT_PERMITTED", String(m.sessionId));
     }
-    const deviceNonce = bytesToHex(globalThis.crypto.getRandomValues(new Uint8Array(32)));
+    const deviceNonce = bytesToHex(this.cfg.random(32));
     this.session = { id: String(m.sessionId), mode, deviceNonce, confirmed: false };
     this.attestation = null;
     return this.reply("session.open.ok", {
@@ -165,10 +168,11 @@ export class SoftwareDevice {
         hexToBytes(String(m.operatorSignature)),
       );
     } catch {
-      return ack(false, "MERCHANT_FORGED");
+      return ack(false, "NOT_PERMITTED");
     }
-    if (String(m.device).toLowerCase() !== this.address || signer !== this.cfg.operator.toLowerCase()) return ack(false, "MERCHANT_FORGED");
-    if (ts <= this.lastAnchor) return ack(false, "TIME_ANCHOR_MISSING");
+    // Refused anchors (other device, not the recorded operator, not strictly later) are NOT_PERMITTED.
+    if (String(m.device).toLowerCase() !== this.address || signer !== this.cfg.operator.toLowerCase()) return ack(false, "NOT_PERMITTED");
+    if (ts <= this.lastAnchor) return ack(false, "NOT_PERMITTED");
     this.anchor = { timestamp: ts, at: this.cfg.now() };
     this.lastAnchor = ts;
     if (this.state === "PROVISIONED_NO_ANCHOR") this.state = "READY";

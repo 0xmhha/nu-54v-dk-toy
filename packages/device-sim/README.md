@@ -7,6 +7,7 @@
 | `src/device.ts` | `SoftwareDevice`: 상태(`PROVISIONED_NO_ANCHOR`, `READY`), 셋업 세션의 TimeAnchor, 결제 세션(`session.open` → `session.confirm` → `payment.identify` → `payment.prepare` → `payment.result`), 6절 4단계 검사와 거절 사유, 순차 nonce, 폰 앱으로 보내는 `confirm.show` |
 | `src/link.ts` | 중앙 장치와 기기 사이의 선. 모든 메시지가 BLE와 같은 층(CBOR, envelope, 조각, 재조립)을 지난다 |
 | `src/keystore.ts` | `cast wallet new`가 만든 keystore를 Keychain 암호로 연다(Node 전용) |
+| `scripts/gen-session-vectors.ts` | 공용 세션 벡터(`session-vectors.json`)를 만든다. 시나리오 12개, 메시지마다 보낸 바이트와 기기가 돌려줄 바이트. 펌웨어는 이 바이트를 그대로 내야 한다 |
 | `scripts/rehearse.ts` | 테스트넷 결제 리허설. 트랜잭션 없이 정산 컨트랙트에 eth_call로 확인한다 |
 
 아직 흉내 내지 않는 것: `setup.operator`, 키 생성, PIN, `limit.change`, `device.reset`(모두 `NOT_PERMITTED`), 보안 채널(4.1절). 기기는 셋업이 끝난 `PROVISIONED_NO_ANCHOR` 상태로 시작하고, 셋업 세션의 TimeAnchor로 `READY`가 된다.

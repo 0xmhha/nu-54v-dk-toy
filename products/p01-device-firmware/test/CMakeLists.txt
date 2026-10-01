@@ -35,7 +35,8 @@ set(VECTORS_H ${CMAKE_CURRENT_BINARY_DIR}/vectors.h)
 set(VECTOR_JSON
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../docs/content/specifications/protocol/eip712-vectors.json
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../docs/content/specifications/protocol/cbor-vectors.json
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../../docs/content/specifications/protocol/frame-vectors.json)
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../docs/content/specifications/protocol/frame-vectors.json
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../docs/content/specifications/protocol/session-vectors.json)
 add_custom_command(OUTPUT ${VECTORS_H}
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/gen_vectors.py ${VECTORS_H}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_vectors.py ${VECTOR_JSON})
@@ -59,3 +60,10 @@ target_include_directories(test_cbor PRIVATE ../core/include ../../../packages/p
 target_compile_options(test_cbor PRIVATE -Wall -Wextra -Werror)
 add_dependencies(test_cbor nu54_vectors)
 add_test(NAME cbor_vectors COMMAND test_cbor)
+
+add_executable(test_session test_session.c ../core/src/nu54_session.c ../core/src/nu54_cbor.c)
+target_include_directories(test_session PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(test_session PRIVATE nu54_crypto)
+target_compile_options(test_session PRIVATE -Wall -Wextra -Werror)
+add_dependencies(test_session nu54_vectors)
+add_test(NAME session_vectors COMMAND test_session)

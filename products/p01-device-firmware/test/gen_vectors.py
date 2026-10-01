@@ -18,6 +18,7 @@ PROTO = Path(__file__).resolve().parents[3] / "docs/content/specifications/proto
 EIP = json.loads((PROTO / "eip712-vectors.json").read_text())
 CBOR = json.loads((PROTO / "cbor-vectors.json").read_text())
 FRAME = json.loads((PROTO / "frame-vectors.json").read_text())
+SESSION = json.loads((PROTO / "session-vectors.json").read_text())
 
 
 def arr(b: bytes) -> str:
@@ -108,6 +109,41 @@ def main() -> int:
         cb.append(f'{{"{v["id"]}", "{v["message"]["type"]}", CBOR_{n}, {len(hx(v["cborHex"]))}}}')
     out += ["typedef struct { const char *id; const char *type; const uint8_t *cbor; size_t len; } cbor_vector_t;",
             "static const cbor_vector_t CBOR_VECTORS[] = {", ",\n".join(cb), "};", f"#define CBOR_VECTOR_COUNT {len(cb)}", ""]
+    dev = SESSION["device"]
+    out += [f"static const uint8_t SV_KEY[32] = {arr(hx(dev['privateKey']))};",
+            f"static const uint8_t SV_ADDRESS[20] = {arr(hx(dev['address']))};",
+            f"static const uint8_t SV_OPERATOR[20] = {arr(hx(dev['operator']))};",
+            f"static const uint8_t SV_CONTRACT[20] = {arr(hx(dev['contract']))};",
+            f"static const uint8_t SV_CHAIN_ID[32] = {u256(str(dev['chainId']))};",
+            f"static const uint8_t SV_NONCE_START[32] = {u256(dev['nonceStart'])};",
+            f"#define SV_ANCHOR_SKEW {dev['anchorClockSkew']}", f"#define SV_AUTH_EXPIRY {dev['authorizationExpiry']}",
+            f'#define SV_FIRMWARE "{dev["firmware"]}"']
+    steps_all, scen = [], []
+    for si, sc in enumerate(SESSION["scenarios"]):
+        rows = []
+        for ti, st in enumerate(sc["steps"]):
+            tag = f"SV_{si}_{ti}"
+            if st.get("powerCycle"):
+                rows.append(f"{{{st['at']}ULL, 1, NULL, 0, {{NULL, NULL}}, {{0, 0}}, 0, NULL, 0}}")
+                continue
+            send = hx(st["send"])
+            out.append(f"static const uint8_t {tag}_SEND[] = {arr(send)};")
+            ex = [hx(e) for e in st["expect"]]
+            for ei, e in enumerate(ex):
+                out.append(f"static const uint8_t {tag}_E{ei}[] = {arr(e)};")
+            ph = hx(st["phone"][0]) if st["phone"] else None
+            if ph is not None:
+                out.append(f"static const uint8_t {tag}_P[] = {arr(ph)};")
+            eptr = ", ".join([f"{tag}_E{i}" for i in range(len(ex))] + ["NULL"] * (2 - len(ex)))
+            elen = ", ".join([str(len(e)) for e in ex] + ["0"] * (2 - len(ex)))
+            rows.append(f"{{{st['at']}ULL, 0, {tag}_SEND, {len(send)}, {{{eptr}}}, {{{elen}}}, {len(ex)}, "
+                        f"{tag + '_P' if ph is not None else 'NULL'}, {len(ph) if ph is not None else 0}}}")
+        out.append(f"static const session_step_t SV_STEPS_{si}[] = {{{', '.join(rows)}}};")
+        scen.append(f'{{"{sc["id"]}", {1 if sc["button"] == "approve" else 0}, SV_STEPS_{si}, {len(rows)}}}')
+    out.insert(0, "typedef struct { unsigned long long at; int power_cycle; const unsigned char *send; unsigned long send_len; const unsigned char *expect[2]; unsigned long expect_len[2]; int expect_count; const unsigned char *phone; unsigned long phone_len; } session_step_t;")
+    out += ["typedef struct { const char *id; int approve; const session_step_t *steps; unsigned long count; } session_scenario_t;",
+            "static const session_scenario_t SESSION_SCENARIOS[] = {", ",\n".join(scen), "};",
+            f"#define SESSION_SCENARIO_COUNT {len(scen)}", ""]
     Path(sys.argv[1]).write_text("\n".join(out))
     return 0
 

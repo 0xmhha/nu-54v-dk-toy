@@ -44,6 +44,10 @@
       {
         "path": "docs/content/specifications/protocol/cbor-vectors.json",
         "reason": "public test-only EOA values reused from eip712-vectors.json, deterministic vector"
+      },
+      {
+        "path": "docs/content/specifications/protocol/session-vectors.json",
+        "reason": "public test-only keys and placeholder addresses reused from eip712-vectors.json, deterministic vector"
       }
     ]
   },
