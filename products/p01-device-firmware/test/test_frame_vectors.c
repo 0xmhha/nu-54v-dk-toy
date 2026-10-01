@@ -40,6 +40,25 @@ int main(void)
 			failures++;
 		}
 	}
+	/* One receiver for every valid stream in a row, as on a real link: each message must be
+	 * rebuilt after the previous one completed, with no reset in between. */
+	nu54_reassembler_reset(&r);
+	for (size_t i = 0; i < FRAME_VECTOR_COUNT; i++) {
+		const frame_vector_t *v = &FRAME_VECTORS[i];
+		nu54_frame_result_t res = NU54_FRAME_NEED_MORE;
+		if (!v->valid) {
+			continue;
+		}
+		for (size_t k = 0; k < v->count; k++) {
+			res = nu54_reassembler_feed(&r, v->frags[k], v->lens[k]);
+		}
+		size_t len = 0;
+		const uint8_t *body = res == NU54_FRAME_DONE ? nu54_reassembler_body(&r, &len) : NULL;
+		if (!body || len != v->body_len || memcmp(body, v->body, len) != 0) {
+			printf("FAIL %s: not rebuilt after the previous message\n", v->id);
+			failures++;
+		}
+	}
 	printf("%s: %zu fragment vectors, %d failures\n", failures ? "FAIL" : "ok", (size_t)FRAME_VECTOR_COUNT, failures);
 	return failures ? 1 : 0;
 }

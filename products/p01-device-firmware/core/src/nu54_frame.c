@@ -47,6 +47,9 @@ nu54_frame_result_t nu54_reassembler_feed(nu54_reassembler_t *r, const uint8_t *
 		if (idx != 0) {
 			return bad(r);
 		}
+		/* A new message: drop what the previous (completed) message left. */
+		r->have = 0;
+		r->want = 0;
 		r->active = 1;
 		r->sequence = seq;
 		r->next_index = 0;

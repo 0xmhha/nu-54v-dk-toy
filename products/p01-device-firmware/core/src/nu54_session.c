@@ -345,6 +345,10 @@ void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out)
 	nu54_payment_authorization_t p = d->pending_auth;
 	memcpy(p.nonce, d->next_nonce, 32);
 	increment(d->next_nonce); /* sequential: consecutive nonces share one bitmap slot */
+	if (d->platform.persist_nonce && d->platform.persist_nonce(d->platform.ctx, d->next_nonce) != 0) {
+		refused(d, out, "NOT_PERMITTED"); /* the counter must be stored before signing */
+		return;
+	}
 	uint8_t domain[32], h[32], digest[32], rs[64], sig[65];
 	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
 	nu54_hash_payment_authorization(&p, h);

@@ -59,6 +59,7 @@ def load() -> dict:
         "messages": list(schema["messages"]),
         "version": schema["protocolVersion"],
         "messageFields": {name: _fields(schema, node) for name, node in schema["messages"].items()},
+        "gatt": schema["gatt"],
     }
 
 
@@ -175,6 +176,7 @@ def gen_c(m: dict) -> str:
     out += [f"    NU54_REASON_{r} = {i}," for i, r in enumerate(m["reasons"])]
     out += ["    NU54_REASON_COUNT", "} nu54_reason_t;", "", "static const char *const nu54_reason_str[] = {"]
     out += [f'    "{r}",' for r in m["reasons"]] + ["};", ""]
+    out += _c_gatt(m["gatt"])
     out += _c_message_tables(m["messageFields"])
     out += ["#endif /* NU54_PROTOCOL_H */", ""]
     return "\n".join(out)
@@ -182,6 +184,17 @@ def gen_c(m: dict) -> str:
 
 C_KINDS = {"hex20": "NU54_K_HEX20", "hex32": "NU54_K_HEX32", "signature": "NU54_K_SIGNATURE", "sessionId": "NU54_K_SESSION_ID",
            "uint": "NU54_K_UINT", "int": "NU54_K_INT", "text": "NU54_K_TEXT", "bool": "NU54_K_BOOL"}
+
+
+def _c_gatt(g: dict) -> list[str]:
+    """GATT UUIDs as Zephyr BT_UUID_128_ENCODE arguments (payment-protocol.md 3)."""
+    def enc(u: str) -> str:
+        p = u.split("-")
+        return f"0x{p[0]}, 0x{p[1]}, 0x{p[2]}, 0x{p[3]}, 0x{p[4]}"
+    return ["/* GATT service of the payment protocol: pass to BT_UUID_128_ENCODE(). */",
+            f"#define NU54_GATT_SERVICE_UUID_PARTS {enc(g['service'])}",
+            f"#define NU54_GATT_RX_UUID_PARTS {enc(g['characteristics']['rx']['uuid'])}",
+            f"#define NU54_GATT_TX_UUID_PARTS {enc(g['characteristics']['tx']['uuid'])}", ""]
 
 
 def _c_message_tables(messages: dict) -> list[str]:
