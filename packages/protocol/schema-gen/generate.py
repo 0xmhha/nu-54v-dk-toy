@@ -58,7 +58,32 @@ def load() -> dict:
         "outcomes": schema["outcomes"],
         "messages": list(schema["messages"]),
         "version": schema["protocolVersion"],
+        "messageFields": {name: _fields(schema, node) for name, node in schema["messages"].items()},
     }
+
+
+BYTE_KINDS = {"hex20", "hex32", "signature", "sessionId", "uint"}
+
+
+def _kind(schema: dict, node: dict):
+    """Compact CBOR field kind for codecs: a byte/uint kind, text, int, bool or a nested object."""
+    ref = node.get("$ref")
+    if ref:
+        name = ref.rsplit("/", 1)[-1]
+        if name in BYTE_KINDS:
+            return name
+        return _kind(schema, schema["$defs"][name])
+    if node.get("type") == "object":
+        return _fields(schema, node)
+    if node.get("type") == "boolean":
+        return "bool"
+    if node.get("type") == "integer" or isinstance(node.get("const"), int):
+        return "int"
+    return "text"
+
+
+def _fields(schema: dict, node: dict) -> dict:
+    return {"fields": {k: _kind(schema, v) for k, v in node["properties"].items()}, "required": node.get("required", [])}
 
 
 def gen_go(m: dict) -> str:
@@ -89,8 +114,14 @@ def gen_go(m: dict) -> str:
     return "\n".join(out)
 
 
+def _domain_const(m: dict, field: str) -> str:
+    return next(f["const"] for f in m["domain"] if f["name"] == field)
+
+
 def gen_ts(m: dict) -> str:
-    out = [f"// {HEADER}", "", f"export const PROTOCOL_VERSION = {m['version']} as const;", ""]
+    out = [f"// {HEADER}", "", f"export const PROTOCOL_VERSION = {m['version']} as const;", "",
+           "/** EIP-712 domain constants; chainId and verifyingContract come from the deployment. */",
+           "export const EIP712_DOMAIN = { name: " + json.dumps(_domain_const(m, "name")) + ", version: " + json.dumps(_domain_const(m, "version")) + " } as const;", ""]
     for name, fields in m["types"].items():
         out.append(f"export interface {name} {{")
         out += [f"  {f['name']}: {TS_TYPES[f['type']]};" for f in fields] + ["}", ""]
@@ -106,7 +137,11 @@ def gen_ts(m: dict) -> str:
             "export const OUTCOMES = [" + ", ".join(f'"{o}"' for o in m["outcomes"]) + "] as const;",
             "export type Outcome = (typeof OUTCOMES)[number];", "",
             "export const MESSAGE_TYPES = [" + ", ".join(f'"{t}"' for t in m["messages"]) + "] as const;",
-            "export type MessageType = (typeof MESSAGE_TYPES)[number];", ""]
+            "export type MessageType = (typeof MESSAGE_TYPES)[number];", "",
+            "/** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */",
+            "export type FieldKind = \"hex20\" | \"hex32\" | \"signature\" | \"sessionId\" | \"uint\" | \"int\" | \"text\" | \"bool\" | ObjectKind;",
+            "export interface ObjectKind { fields: Record<string, FieldKind>; required: readonly string[] }",
+            "export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = " + json.dumps(m["messageFields"], indent=2) + ";", ""]
     return "\n".join(out)
 
 
