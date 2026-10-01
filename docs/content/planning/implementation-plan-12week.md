@@ -368,6 +368,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - settle ABI 인코딩, eth_call, 전송, finalized 태그 기준 PaymentSettled 조회. 가스 키로 tx 서명. 최소 흐름(기기 대기 → 제출 → 승인)과 `payment.outcome` 전송.
 - 테스트넷의 tx 형식(legacy인지 EIP-1559인지)을 확인한다.
 - 완료 판정: jest 통과, sandbox 통합 시험, 테스트넷에서 버튼 승인부터 finalized PaymentSettled까지 1건.
+- 2026-10-01 진행: 제출·판정 모듈(`src/payment/submit.ts`)과 체인 모듈을 만들었다. 테스트넷은 EIP-1559(type 2)를 받는다. jest 31건 통과(판정 경로는 가짜 체인). 테스트넷에서 소프트웨어 기기 시뮬레이터의 승인부터 finalized PaymentSettled까지 1건이 approved였다(103,473 gas). 실기기 버튼 승인과 키오스크 앱 화면·BLE 연결은 남았다.
 
 **운영 도구 대여 셋업** (WBS2-P05-02, 7주차 depositFor, 8주차 BLE 셋업, 1.5일)
 - 5주차에 macOS에서 tinygo-org/bluetooth로 scan, 연결, write, notify를 사전 시험한다(0.25일). macOS 동작은 검증된 적이 없다. 실패하면 Linux(BlueZ) 호스트로 opsctl을 돌리거나, 임시로 bleak 기반 Python 전송 보조 도구를 쓴다(후자는 "같은 Go 바이너리" 결정과 어긋나므로 기록한다).
