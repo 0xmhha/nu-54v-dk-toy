@@ -124,6 +124,16 @@ MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED는 컨트랙트가 만든다. 기기�
 - **req 13 정품 기기 attestation:** 공장 provisioning 때 TF-M에 기기 증명 키를 넣고, 셋업 때 기기 주소를 이 키로 서명해 운영자가 확인하는 방식이 설계안이다. 이번 사이클에는 공장 provisioning 절차가 없어 보류하며, P05는 셋업 세션에서 기기가 `setup.ack{step: keygen, device}`로 보고한 주소를 그대로 믿는다.
 - **req 12 의존성 pinning:** west manifest의 NCS·모듈 revision을 커밋 hash로 고정하고 빌드 도구의 lockfile을 두는 것이 설계안이다. 이번 사이클에는 재현 빌드 검증 절차를 만들지 않아 보류하고, 사용한 버전은 week12-log 1절의 도구·의존성 버전 행에 기록한다.
 
+### 7주차 개발 빌드에만 있는 것 (2026-10-01)
+
+7주차 실결제 게이트는 "보드 내장 키로 버튼 승인 결제 1건"을 요구하고, 결정(2026-09-27)에 따라 non-secure 경로로 먼저 통과한다. 아래는 그 개발 빌드에만 있는 예외이며, 8주차 `/ns` 변형과 셋업 세션 구현에서 없앤다.
+
+- **키:** PSA Crypto(CRACEN)가 secp256k1 키를 만들어 Zephyr Secure storage(ZMS)에 둔다. 서명은 결정론적 ECDSA(RFC 6979)로, 위 req 10의 결정론적 nonce 설계를 따른다. secure 쪽 버튼 토큰 경계는 아직 없다.
+- **셋업:** 운영자 주소, 정산 컨트랙트, chainId는 `setup.operator` 대신 빌드 때 `deployments/8283.json`에서 생성한다(`app/gen_dev_setup.py`). TimeAnchor는 페어링하지 않은 링크의 셋업 세션으로도 받는다.
+- **폰 확인 화면:** 본딩한 폰 앱이 없으므로 `confirm.show`는 로그로만 남기고 버튼을 기다린다(N30). 릴리스 빌드는 `refused{NOT_PERMITTED}`로 답한다.
+- **버튼과 LED(임시 배치):** SW4 길게 = 결제 모드(120초 광고), SW1 = 승인, SW2 = 거절. LED1 = 결제 모드, LED2 = 버튼 대기, LED3 = 승인, LED4 = 거절·실패. 최종 배치는 PIN LED 안내 설계(N28)와 함께 정한다.
+- **nonce 카운터:** 첫 부팅 때 256 배수 시작값을 TRNG로 정하고 Zephyr settings에 둔다. 서명하기 전에 다음 값을 먼저 저장한다(결제 프로토콜 2절).
+
 ## 9. 시험 설계
 
 | 시험 | 방법 | 통과 기준 |

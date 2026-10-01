@@ -62,3 +62,8 @@ this repository when needed. Check the copy against this hash before you restore
 | File | Size | SHA-256 |
 |---|---|---|
 | `nu54dk-factory-rram.bin` | 1,560,576 bytes | `cbd6664d3e847a473916446a3c2eaa3004c4a23bdd5039c5be1743c1db445707` |
+
+## 결제 BLE 전송 브리지
+
+`pay_bridge.py`는 결제 서비스를 광고하는 기기를 찾아 연결하고, 표준 입출력의 JSON 줄로 CBOR 메시지 본문을 주고받는다. envelope와 조각 나누기, 알림 재조립을 맡는다(결제 프로토콜 4절). `packages/device-sim/scripts/rehearse.ts --transport ble`가 이 브리지를 띄운다. 기기는 SW4를 길게 눌러 결제 모드에 넣어야 광고한다(`uv run button_sim.py --button BTN4 --hold 1.6`).
+

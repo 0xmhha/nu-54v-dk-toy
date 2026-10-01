@@ -31,6 +31,9 @@ typedef struct {
 	int (*sign)(void *ctx, const uint8_t digest[32], uint8_t rs[64]);
 	/* Fills `out` with random bytes (TRNG on the device). */
 	void (*random)(void *ctx, uint8_t *out, size_t n);
+	/* Stores the next nonce before a signature is made (payment-protocol.md 2), so a reset can
+	 * never reuse one. Returns 0 on success; on failure nothing is signed. May be NULL in tests. */
+	int (*persist_nonce)(void *ctx, const uint8_t next_nonce[32]);
 	void *ctx;
 } nu54_platform_t;
 

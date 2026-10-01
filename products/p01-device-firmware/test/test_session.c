@@ -57,7 +57,7 @@ int main(void)
 		d.anchor_clock_skew = SV_ANCHOR_SKEW;
 		d.authorization_expiry = SV_AUTH_EXPIRY;
 		d.firmware = SV_FIRMWARE;
-		d.platform = (nu54_platform_t){host_sign, vector_random, NULL};
+		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL};
 		nu54_device_init(&d, SV_NONCE_START);
 		draws = 0;
 
