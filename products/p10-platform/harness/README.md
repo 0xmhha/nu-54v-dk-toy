@@ -43,6 +43,9 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 1. 7개 벡터 모두의 digest를 펌웨어 코드로 계산해 벡터 값과 같은지. 기기는 운영자·가맹점 서명도 검증하므로 모든 타입의 digest가 필요하다.
 2. MerchantAttestation, TimeAnchor, DeviceReset 서명의 복원 주소가 operator 역할 주소이고, MerchantOrder 서명의 복원 주소가 merchant 역할 주소인지.
 3. PA-01과 LC-01 digest를 device 시험 키(index 0)로 서명한 결과가 low-s이고 `v`가 27 또는 28이며, 복원 주소가 device 역할 주소인지. 서명 구현이 무작위 k를 쓰면 바이트 비교는 하지 않는다.
+4. 조각 벡터를 reassembler가 같은 본문으로 다시 모으고, 거절 조각열은 reassembler 또는 digest 확인에서 BAD_FRAME이 되는지(ctest `frame_vectors`).
+
+2026-10-01부터 펌웨어는 `core/src/nu54_eip712.c`, `nu54_sig.c`(서명자 복원, secure partition이 준 (r, s)의 low-s 정규화와 v 계산), `nu54_keccak.c`와 `third_party`의 libsecp256k1 v0.8.0(MIT), Keccak compact(CC0)로 이 검사를 통과한다. 벡터는 `test/gen_vectors.py`가 빌드할 때 C 헤더로 만든다.
 
 ## 검사 목록
 
@@ -59,4 +62,4 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 | contract Solidity typehashes | forge | 컨트랙트의 typehash |
 | contract Solidity EIP-712 digest and signer | forge | 결제·한도 변경 digest와 서명자 |
 | kiosk TypeScript EIP-712, CBOR and fragments | pnpm | 위 키오스크 항목 |
-| firmware C digest and signature (host) | cmake, ctest | 위 펌웨어 항목 |
+| firmware C EIP-712, signatures and fragments (host) | cmake, ctest | 위 펌웨어 항목 |
