@@ -4,6 +4,10 @@
 
 #define NU54_PROTOCOL_VERSION 1
 
+/* EIP-712 domain constants; chainId and verifyingContract come from the deployment. */
+#define NU54_EIP712_DOMAIN_NAME "NU54 Payment Settlement"
+#define NU54_EIP712_DOMAIN_VERSION "1"
+
 #define NU54_ENCODE_TYPE_PAYMENT_AUTHORIZATION "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)"
 #define NU54_FIELDS_PAYMENT_AUTHORIZATION 9
 #define NU54_ENCODE_TYPE_LIMIT_CHANGE "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)"

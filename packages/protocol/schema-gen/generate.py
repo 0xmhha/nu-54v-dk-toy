@@ -163,7 +163,10 @@ def gen_py(m: dict) -> str:
 
 def gen_c(m: dict) -> str:
     out = [f"/* {HEADER} */", "#ifndef NU54_PROTOCOL_H", "#define NU54_PROTOCOL_H", "",
-           f"#define NU54_PROTOCOL_VERSION {m['version']}", ""]
+           f"#define NU54_PROTOCOL_VERSION {m['version']}", "",
+           "/* EIP-712 domain constants; chainId and verifyingContract come from the deployment. */",
+           "#define NU54_EIP712_DOMAIN_NAME " + json.dumps(_domain_const(m, "name")),
+           "#define NU54_EIP712_DOMAIN_VERSION " + json.dumps(_domain_const(m, "version")), ""]
     for name, fields in m["types"].items():
         macro = "".join("_" + c if c.isupper() else c.upper() for c in name).lstrip("_")
         out.append(f'#define NU54_ENCODE_TYPE_{macro} "{encode_type(name, fields)}"')
