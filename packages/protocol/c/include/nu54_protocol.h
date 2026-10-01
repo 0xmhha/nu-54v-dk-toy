@@ -62,6 +62,11 @@ static const char *const nu54_reason_str[] = {
     "INSUFFICIENT_BALANCE",
 };
 
+/* GATT service of the payment protocol: pass to BT_UUID_128_ENCODE(). */
+#define NU54_GATT_SERVICE_UUID_PARTS 0x6e753534, 0x7061, 0x7900, 0x8000, 0x00805f9b0001
+#define NU54_GATT_RX_UUID_PARTS 0x6e753534, 0x7061, 0x7900, 0x8000, 0x00805f9b0002
+#define NU54_GATT_TX_UUID_PARTS 0x6e753534, 0x7061, 0x7900, 0x8000, 0x00805f9b0003
+
 /* CBOR field kinds per message; nested objects point to their own table. */
 typedef enum { NU54_K_HEX20, NU54_K_HEX32, NU54_K_SIGNATURE, NU54_K_SESSION_ID, NU54_K_UINT, NU54_K_INT,
                NU54_K_TEXT, NU54_K_BOOL, NU54_K_OBJECT } nu54_field_kind_t;
