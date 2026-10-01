@@ -45,6 +45,7 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 3. PA-01과 LC-01 digest를 device 시험 키(index 0)로 서명한 결과가 low-s이고 `v`가 27 또는 28이며, 복원 주소가 device 역할 주소인지. 서명 구현이 무작위 k를 쓰면 바이트 비교는 하지 않는다.
 4. 조각 벡터를 reassembler가 같은 본문으로 다시 모으고, 거절 조각열은 reassembler 또는 digest 확인에서 BAD_FRAME이 되는지(ctest `frame_vectors`).
 5. CBOR 벡터 8개를 디코딩해 스키마 표로 검사하고 같은 바이트로 다시 인코딩하는지, 거절 규칙을 지키는지(ctest `cbor_vectors`).
+6. 세션 벡터의 시나리오 12개를 재생해 메시지마다 같은 바이트로 답하는지(ctest `session_vectors`). 기기 시뮬레이터가 이 벡터를 만들고, 펌웨어는 같은 응답을 내야 한다.
 
 2026-10-01부터 펌웨어는 `core/src/nu54_eip712.c`, `nu54_sig.c`(서명자 복원, secure partition이 준 (r, s)의 low-s 정규화와 v 계산), `nu54_keccak.c`와 `third_party`의 libsecp256k1 v0.8.0(MIT), Keccak compact(CC0)로 이 검사를 통과한다. 벡터는 `test/gen_vectors.py`가 빌드할 때 C 헤더로 만든다.
 
@@ -63,4 +64,5 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 | contract Solidity typehashes | forge | 컨트랙트의 typehash |
 | contract Solidity EIP-712 digest and signer | forge | 결제·한도 변경 digest와 서명자 |
 | kiosk TypeScript EIP-712, CBOR and fragments | pnpm | 위 키오스크 항목 |
-| firmware C EIP-712, signatures, CBOR and fragments (host) | cmake, ctest | 위 펌웨어 항목 |
+| session vectors reproduced by the device simulator | node | 세션 벡터가 시뮬레이터 동작과 같은가 |
+| firmware C EIP-712, signatures, CBOR, fragments and sessions (host) | cmake, ctest | 위 펌웨어 항목 |

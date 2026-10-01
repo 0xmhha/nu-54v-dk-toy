@@ -6,11 +6,11 @@
 
 | 경로 | 내용 |
 |---|---|
-| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. BLE 메시지 조각 재조립(프로토콜 4절), EIP-712 digest(`nu54_eip712`), 서명자 복원과 low-s·v 계산(`nu54_sig`), keccak-256(`nu54_keccak`), 결정적 CBOR 디코딩·스키마 검사·인코딩(`nu54_cbor`) |
+| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. BLE 메시지 조각 재조립(프로토콜 4절), EIP-712 digest(`nu54_eip712`), 서명자 복원과 low-s·v 계산(`nu54_sig`), keccak-256(`nu54_keccak`), 결정적 CBOR 디코딩·스키마 검사·인코딩(`nu54_cbor`), 결제·셋업 세션(`nu54_session`, 서명과 난수는 플랫폼 콜백, 버튼은 비동기) |
 | `third_party/` | libsecp256k1 v0.8.0(MIT), Keccak compact(CC0). 출처 커밋과 빌드 설정은 [`third_party/README.md`](third_party/README.md) |
 | `app/` | Zephyr 앱(C). `core/`를 링크하고, 지금은 프로토콜 버전을 로그로 내고 LED heartbeat를 낸다 |
 | `boards/nucode/nu54v_dk/` | 제조사 보드 패키지(MIT, 출처 커밋은 `VENDORED.md`) |
-| `test/` | `core/`의 host 단위 시험(CMake + CTest). `eip712_vectors`, `frame_vectors`, `cbor_vectors`는 공용 벡터로 시험하며 적합성 harness가 실행한다 |
+| `test/` | `core/`의 host 단위 시험(CMake + CTest). `eip712_vectors`, `frame_vectors`, `cbor_vectors`, `session_vectors`는 공용 벡터로 시험하며 적합성 harness가 실행한다 |
 | `scripts/fw.py` | NCS 툴체인 안에서 west 빌드와 pyOCD 플래시를 실행한다 |
 | `tools/bringup/` | 보드 bring-up 도구: 시리얼 CLI, BLE 스캔·연결, 버튼 시뮬레이션, 레지스터 읽기 ([README](tools/bringup/README.md)) |
 
