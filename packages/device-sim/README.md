@@ -37,4 +37,6 @@ node --experimental-strip-types scripts/rehearse.ts --attestation ../../att.json
 
 2026-10-01 실행: 1 tUSDC 결제가 `success`, 60 tUSDC 결제는 `OverCap`(`0x342fa66d`)으로 거절되었다.
 
+`--transport ble`이면 시뮬레이터 대신 보드와 BLE로 결제 세션을 연다(펌웨어 `tools/bringup/pay_bridge.py`). 이때 `--anchor`는 보드 주소로 서명한 것이어야 하고 실행 직전에 발급한다(오래된 anchor는 기기 시각을 늦춰 만료 검사에 걸린다). 승인은 보드의 SW1이며, `--press-sim`은 개발 실행에서 버튼 시뮬레이터로 누른다. 7주차 게이트는 사람이 누른다.
+
 `--submit`을 붙이면 시뮬레이션 뒤 키오스크의 `src/payment/submit.ts`가 키오스크 가스 키(`nu54-kiosk`)로 settle 트랜잭션을 보내고 finalized `PaymentSettled`까지 판정한 뒤, 기기에 `payment.outcome`을 보낸다. 실제 트랜잭션이므로 키오스크 계정의 WKRC와 기기 계정의 tUSDC가 쓰인다. 2026-10-01 실행: 1 tUSDC 결제가 approved(type-2 트랜잭션, 103,473 gas, 약 4.93 WKRC), 이벤트의 device·amount·nonce가 기기 서명과 같았다.
