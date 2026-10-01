@@ -170,7 +170,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 |---|---|---|---|---|
 | 1 | 참조 하드월렛 암호 코드 가져오기 | keccak, 서명(RFC 6979, low-s, recid), micro-ecc, 벡터가 `core/vendor/`에 출처 기록(VENDORED.md)과 함께 있고 host 시험이 통과한다. 서명 명령 경로와 키 저장 코드는 가져오지 않는다 | 10/6 | 결제 필드 인코딩, 서명, 서명자 복원이 모두 밀린다 |
 | 2 | 결제 필드 인코딩 | PA-01 벡터의 필드에서 `confirm.show` 값(가맹점 이름, orderId, EIP-55 주소, amount)을 만드는 host 시험이 통과한다 | 10/7 | 7주차 게이트 경로가 밀린다 |
-| 3 | non-secure PSA 키와 서명 착수 | 6주차 안에 PSA 영속 키로 서명하고 host에서 복원한 주소가 기기 주소와 같다 | 10/14 | 6주차 안에 끝내면 된다 |
+| 3 | non-secure PSA 키와 서명 착수 | 6주차 안에 PSA 영속 키로 서명하고 host에서 복원한 주소가 기기 주소와 같다 | 10/14 | 6주차 안에 끝내면 된다  2026-10-01 충족: CRACEN 결정론적 ECDSA, Zephyr Secure storage 영속 키. 기기 주소 `0xbc3152…f4d8`, host 복원 주소 일치, 리셋 뒤 같은 서명([P01 README](../../../products/p01-device-firmware/README.md)) |
 
 **키오스크·운영 담당**
 
