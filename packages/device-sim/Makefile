@@ -11,7 +11,7 @@ test:
 	pnpm --filter @nu54/device-sim test
 
 run:
-	@echo "rehearsal: node --experimental-strip-types bin/rehearse.ts --attestation <file> --anchor <file>"
+	@echo "rehearsal: node --experimental-strip-types scripts/rehearse.ts --attestation <file> --anchor <file>"
 
 docker:
 	@echo "packages/device-sim has no container image"
