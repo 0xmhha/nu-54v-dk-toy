@@ -8,6 +8,9 @@
 |---|---|
 | `src/` | React Native 0.87(New Architecture, TypeScript) 키오스크 앱 |
 | `src/specs/NativeNusBle.ts` | BLE central Turbo Module 명세. Kotlin·Swift 구현은 WBS2-P04-01에서 붙인다 |
+| `src/payment/signing.ts` | 가맹점 주문 서명, 기기가 돌려준 결제 서명 확인 |
+| `src/payment/submit.ts` | 결제 프로토콜 7절의 제출과 판정: 가스 잔액(busy), eth_call 시뮬레이션, custom error → 거절 코드, OrderAlreadyPaid 대조, EIP-1559 전송, finalized PaymentSettled, status 0 재시뮬레이션, 10초 뒤 Checking, expiry 경과 failed |
+| `src/chain/` | 외부 웹3 라이브러리 없이 쓰는 JSON-RPC, settle 호출 데이터·custom error·이벤트(공용 ABI package에서 계산), EIP-1559 서명(`Signer`는 앱에서 Android Keystore가 맡는다) |
 | `android/`, `ios/` | 네이티브 프로젝트(Turbo Module 구현 위치) |
 | `test/` | Jest 시험 |
 
@@ -17,6 +20,8 @@ make test
 make lint
 make run          # react-native run-android
 ```
+
+settle 호출 데이터는 6주차 게이트 트랜잭션의 입력과 같고, 서명한 트랜잭션은 `cast mktx` 결과와 바이트까지 같다(`test/submit.test.ts`). 판정 흐름은 가짜 체인으로 P04-FR-06, 08~12, 14, 15를 시험한다. 테스트넷 결제 1건은 [`packages/device-sim`](../../packages/device-sim/README.md)의 `scripts/rehearse.ts --submit`으로 실행한다.
 
 
 가맹점 Android 태블릿에서 실행하는 React Native 키오스크 제품이다.

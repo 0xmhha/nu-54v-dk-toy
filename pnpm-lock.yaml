@@ -48,6 +48,12 @@ importers:
 
   products/p04-merchant-kiosk:
     dependencies:
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
+      '@nu54/contracts-abi':
+        specifier: workspace:*
+        version: link:../../packages/contracts-abi/ts
       '@nu54/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol/ts
