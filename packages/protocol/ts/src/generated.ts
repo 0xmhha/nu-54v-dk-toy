@@ -2,6 +2,9 @@
 
 export const PROTOCOL_VERSION = 1 as const;
 
+/** EIP-712 domain constants; chainId and verifyingContract come from the deployment. */
+export const EIP712_DOMAIN = { name: "NU54 Payment Settlement", version: "1" } as const;
+
 export interface PaymentAuthorization {
   chainId: bigint;
   contract: `0x${string}`;
@@ -77,3 +80,330 @@ export type Outcome = (typeof OUTCOMES)[number];
 
 export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
+
+/** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */
+export type FieldKind = "hex20" | "hex32" | "signature" | "sessionId" | "uint" | "int" | "text" | "bool" | ObjectKind;
+export interface ObjectKind { fields: Record<string, FieldKind>; required: readonly string[] }
+export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
+  "session.open": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "kioskNonce": "hex32",
+      "mode": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "kioskNonce",
+      "mode"
+    ]
+  },
+  "session.open.ok": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "device": "hex20",
+      "deviceNonce": "hex32",
+      "anchorValid": "bool",
+      "firmware": "text",
+      "state": "text",
+      "lastAnchor": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "deviceNonce",
+      "anchorValid",
+      "firmware",
+      "state"
+    ]
+  },
+  "session.confirm": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "deviceNonce": "hex32"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "deviceNonce"
+    ]
+  },
+  "payment.identify": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "attestation": {
+        "fields": {
+          "merchant": "hex20",
+          "payout": "hex20",
+          "name": "text",
+          "validFrom": "uint",
+          "validUntil": "uint",
+          "operatorSignature": "signature"
+        },
+        "required": [
+          "merchant",
+          "payout",
+          "name",
+          "validFrom",
+          "validUntil",
+          "operatorSignature"
+        ]
+      }
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "attestation"
+    ]
+  },
+  "payment.prepare": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "authorization": {
+        "fields": {
+          "chainId": "uint",
+          "contract": "hex20",
+          "merchant": "hex20",
+          "payout": "hex20",
+          "token": "hex20",
+          "amount": "uint",
+          "orderId": "hex32",
+          "expiry": "uint"
+        },
+        "required": [
+          "chainId",
+          "contract",
+          "merchant",
+          "payout",
+          "token",
+          "amount",
+          "orderId",
+          "expiry"
+        ]
+      },
+      "merchantSignature": "signature"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "authorization",
+      "merchantSignature"
+    ]
+  },
+  "payment.result": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "outcome": "text",
+      "signature": "signature",
+      "reason": "text",
+      "nonce": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "outcome"
+    ]
+  },
+  "limit.change": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "change": {
+        "fields": {
+          "chainId": "uint",
+          "contract": "hex20",
+          "perPaymentLimit": "uint",
+          "dailyLimit": "uint",
+          "expiry": "uint"
+        },
+        "required": [
+          "chainId",
+          "contract",
+          "perPaymentLimit",
+          "dailyLimit",
+          "expiry"
+        ]
+      }
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "change"
+    ]
+  },
+  "setup.timeAnchor": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "timestamp": "uint",
+      "operatorSignature": "signature",
+      "device": "hex20"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "device",
+      "timestamp",
+      "operatorSignature"
+    ]
+  },
+  "error": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "reason": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "reason"
+    ]
+  },
+  "session.cancel": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId"
+    ]
+  },
+  "payment.outcome": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "orderId": "hex32",
+      "outcome": "text",
+      "reason": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "orderId",
+      "outcome"
+    ]
+  },
+  "limit.result": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "outcome": "text",
+      "signature": "signature",
+      "nonce": "uint",
+      "reason": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "outcome"
+    ]
+  },
+  "setup.operator": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "operator": "hex20",
+      "contract": "hex20",
+      "chainId": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "operator",
+      "contract",
+      "chainId"
+    ]
+  },
+  "setup.ack": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "step": "text",
+      "accepted": "bool",
+      "reason": "text",
+      "device": "hex20",
+      "lastAnchor": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "step",
+      "accepted"
+    ]
+  },
+  "device.reset": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "device": "hex20",
+      "nonce": "uint",
+      "operatorSignature": "signature"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "device",
+      "nonce",
+      "operatorSignature"
+    ]
+  },
+  "confirm.show": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "merchantName": "text",
+      "orderId": "hex32",
+      "token": "hex20",
+      "payout": "hex20",
+      "amount": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "merchantName",
+      "orderId",
+      "token",
+      "payout",
+      "amount"
+    ]
+  }
+};
