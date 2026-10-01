@@ -15,6 +15,7 @@
 |---|---|---|---|
 | [`protocol/`](protocol/README.md) | `docs/content/specifications/protocol/payment-protocol.schema.json`, `eip712-vectors.json` | `go/`, `ts/`, `python/`, `c/` (생성) | P01, P04, P05, P06, P07, P10 |
 | [`contracts-abi/`](contracts-abi/README.md) | P06 Foundry 빌드 산출물(ABI) | `abi/`(JSON, sha256 manifest), `go/`(abigen 바인딩), `ts/`(`as const` ABI) (생성) | P04, P05, P07 |
+| [`device-sim/`](device-sim/README.md) | `payment-protocol.md` 5, 6절 | `src/`(TypeScript, `@nu54/protocol` 사용) | P04(결제 흐름 시험), P01(기준 동작), 리허설 |
 
 ## 작업공간
 

@@ -1,0 +1,22 @@
+{
+  "name": "@nu54/device-sim",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "serve": "node --experimental-strip-types --no-warnings bin/serve.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "1.8.0",
+    "@nu54/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}
