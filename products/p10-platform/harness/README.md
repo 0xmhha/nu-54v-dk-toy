@@ -32,6 +32,9 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 1. PaymentAuthorization(PA-01, PA-02), LimitChange(LC-01), MerchantOrder(MO-01)의 digest를 키오스크 코드로 계산해 벡터 값과 같은지.
 2. PA-01, PA-02, LC-01의 서명에서 복원한 주소가 device 역할 주소와 같은지. 키오스크는 기기가 돌려준 서명을 제출 전에 이렇게 확인한다.
 3. MO-01 digest를 merchant 시험 키(index 2)로 서명한 결과가 벡터 서명과 바이트까지 같은지. 결정론적 서명(RFC 6979)이면 같아야 한다.
+4. CBOR 벡터 8개를 같은 바이트로 인코딩하고 디코딩하는지, 조각 벡터를 같은 바이트로 나누고 다시 모으는지, 거절 조각열을 BAD_FRAME으로 거절하는지.
+
+2026-10-01부터 키오스크는 `src/payment/signing.ts`(가맹점 주문 서명, 기기 서명 확인)와 공용 `@nu54/protocol`(CBOR, 조각, EIP-712, 서명)로 이 검사를 통과한다.
 
 ### 펌웨어 (C, host 빌드)
 
@@ -52,7 +55,8 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 | protocol Python encodeType | uv | encodeType 문자열 |
 | operations tool Go digests | go | 운영 도구의 7개 digest |
 | CBOR message vectors round-trip | 없음 | CBOR 메시지 벡터 |
+| BLE fragment vectors reassemble | 없음 | 조각 벡터(기준 수신기) |
 | contract Solidity typehashes | forge | 컨트랙트의 typehash |
 | contract Solidity EIP-712 digest and signer | forge | 결제·한도 변경 digest와 서명자 |
-| kiosk TypeScript digest and signer recovery | pnpm | 위 키오스크 항목 |
+| kiosk TypeScript EIP-712, CBOR and fragments | pnpm | 위 키오스크 항목 |
 | firmware C digest and signature (host) | cmake, ctest | 위 펌웨어 항목 |

@@ -61,7 +61,7 @@ CHECKS = [
     Check("BLE fragment vectors reassemble", ["python3", "frame-gen/generate.py", "--check"], "packages/protocol"),
     Check("contract Solidity typehashes", ["forge", "test", "--match-contract", "PaymentTypesTest"], "products/p06-stablenet-contracts", ["forge"]),
     Check("contract Solidity EIP-712 digest and signer", ["forge", "test", "--match-contract", "Eip712VectorsTest"], "products/p06-stablenet-contracts", ["forge"]),
-    Check("kiosk TypeScript digest and signer recovery", ["pnpm", "run", "test:conformance"], "products/p04-merchant-kiosk", ["pnpm"], kiosk_has_conformance_script),
+    Check("kiosk TypeScript EIP-712, CBOR and fragments", ["pnpm", "run", "test:conformance"], "products/p04-merchant-kiosk", ["pnpm"], kiosk_has_conformance_script),
     Check(
         "firmware C digest and signature (host)",
         ["ctest", "--test-dir", FIRMWARE_BUILD, "-R", "eip712_vectors", "--output-on-failure", "--no-tests=error"],
