@@ -174,8 +174,48 @@ def gen_c(m: dict) -> str:
     out += ["", "typedef enum {"]
     out += [f"    NU54_REASON_{r} = {i}," for i, r in enumerate(m["reasons"])]
     out += ["    NU54_REASON_COUNT", "} nu54_reason_t;", "", "static const char *const nu54_reason_str[] = {"]
-    out += [f'    "{r}",' for r in m["reasons"]] + ["};", "", "#endif /* NU54_PROTOCOL_H */", ""]
+    out += [f'    "{r}",' for r in m["reasons"]] + ["};", ""]
+    out += _c_message_tables(m["messageFields"])
+    out += ["#endif /* NU54_PROTOCOL_H */", ""]
     return "\n".join(out)
+
+
+C_KINDS = {"hex20": "NU54_K_HEX20", "hex32": "NU54_K_HEX32", "signature": "NU54_K_SIGNATURE", "sessionId": "NU54_K_SESSION_ID",
+           "uint": "NU54_K_UINT", "int": "NU54_K_INT", "text": "NU54_K_TEXT", "bool": "NU54_K_BOOL"}
+
+
+def _c_message_tables(messages: dict) -> list[str]:
+    """CBOR field tables per message (payment-protocol.md 4.2), the C form of MESSAGE_FIELDS."""
+    out = ["/* CBOR field kinds per message; nested objects point to their own table. */",
+           "typedef enum { NU54_K_HEX20, NU54_K_HEX32, NU54_K_SIGNATURE, NU54_K_SESSION_ID, NU54_K_UINT, NU54_K_INT,",
+           "               NU54_K_TEXT, NU54_K_BOOL, NU54_K_OBJECT } nu54_field_kind_t;",
+           "struct nu54_object;",
+           "typedef struct { const char *name; nu54_field_kind_t kind; unsigned char required; const struct nu54_object *object; } nu54_field_t;",
+           "typedef struct nu54_object { const nu54_field_t *fields; unsigned char count; } nu54_object_t;",
+           "typedef struct { const char *type; const nu54_object_t *object; } nu54_message_t;", ""]
+    tables: list[str] = []
+    entries: list[str] = []
+
+    def emit(cname: str, obj: dict) -> None:
+        rows = []
+        for fname, kind in obj["fields"].items():
+            req = 1 if fname in obj["required"] else 0
+            if isinstance(kind, dict):
+                emit(f"{cname}_{fname}", kind)
+                rows.append(f'{{"{fname}", NU54_K_OBJECT, {req}, &{cname}_{fname}}}')
+            else:
+                rows.append(f'{{"{fname}", {C_KINDS[kind]}, {req}, 0}}')
+        tables.append(f"static const nu54_field_t {cname}_fields[] = {{{', '.join(rows)}}};")
+        tables.append(f"static const nu54_object_t {cname} = {{{cname}_fields, {len(rows)}}};")
+
+    for name, obj in messages.items():
+        cname = "nu54_msg_" + name.replace(".", "_")
+        emit(cname, obj)
+        entries.append(f'{{"{name}", &{cname}}}')
+    out += tables
+    out += ["static const nu54_message_t nu54_messages[] = {", "    " + ",\n    ".join(entries), "};",
+            f"#define NU54_MESSAGE_COUNT {len(entries)}", ""]
+    return out
 
 
 def gofmt(text: str) -> str:
