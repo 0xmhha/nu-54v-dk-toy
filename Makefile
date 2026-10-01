@@ -17,7 +17,7 @@
 
 SHELL := /bin/bash
 
-PACKAGES := packages/protocol packages/contracts-abi
+PACKAGES := packages/protocol packages/contracts-abi packages/device-sim
 PRODUCTS := products/p01-device-firmware products/p04-merchant-kiosk \
             products/p05-operations-backoffice products/p06-stablenet-contracts \
             products/p07-indexer products/p10-platform

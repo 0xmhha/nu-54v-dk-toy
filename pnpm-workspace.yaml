@@ -3,5 +3,6 @@
 packages:
   - packages/contracts-abi/ts
   - packages/protocol/ts
+  - packages/device-sim
   - products/p04-merchant-kiosk
   - products/p05-operations-backoffice/web

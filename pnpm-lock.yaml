@@ -14,6 +14,22 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  packages/device-sim:
+    dependencies:
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
+      '@nu54/protocol':
+        specifier: workspace:*
+        version: link:../protocol/ts
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.4
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   packages/protocol/ts:
     dependencies:
       '@noble/curves':
