@@ -362,6 +362,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - keystore(역할 키 4개가 서로 다른지 검사), 체인 연결(chain id 8283 검사, finalized 시각), 서명과 복원, 가맹점 등록(같은 값이면 tx 0건), attestation 발급, 시험 가맹점 주문 서명, opsctl 명령 연결.
 - 1.5일은 부족할 가능성이 크다. 감사 기록은 6주차에는 JSONL 파일로만 남기고 PostgreSQL 기록은 8주차로 미룬다.
 - 완료 판정: sandbox에서 등록 2회 실행 시 두 번째 tx 0건, attestation 서명이 운영자 주소로 복원됨, 주문 서명 digest가 MO-01과 같음, 테스트넷 등록 로그.
+- 2026-10-01 진행: `opsctl merchant register`, `attestation issue`, `anchor sign`, `order sign`, 개발용 `token mint`, `rental deposit`을 구현했다. 로컬 anvil에서 두 번째 등록 tx 0건, 테스트넷에서 attestation·TimeAnchor 서명이 운영자 주소로 복원됨(TypeScript 코어로 교차 확인), MO-01·MA-01·TA-01 서명 바이트 일치. 감사 기록은 `evidence/p05/` 파일로만 남긴다. 사용법은 [P05 README](../../../products/p05-operations-backoffice/README.md)의 개발용 고정 셋업 절이다.
 
 **최소 제출과 finalized 확인** (WBS2-P04-02, 7주차, 2일, 실결제 게이트)
 - settle ABI 인코딩, eth_call, 전송, finalized 태그 기준 PaymentSettled 조회. 가스 키로 tx 서명. 최소 흐름(기기 대기 → 제출 → 승인)과 `payment.outcome` 전송.

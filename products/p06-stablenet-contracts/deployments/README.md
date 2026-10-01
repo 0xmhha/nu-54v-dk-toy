@@ -30,6 +30,8 @@
 
 ### 역할과 요청 경로
 
+개발용 고정 셋업(가맹점 등록, attestation, TimeAnchor, 입금)은 [opsctl 안내](../../p05-operations-backoffice/README.md)의 명령으로 한다.
+
 역할 키는 배포 때 고정되어 바꿀 수 없다. 역할 주소는 `8283.json`의 `roles`에 있다.
 
 | 필요한 일 | 누가 한다 | 요청 방법 |

@@ -21,6 +21,33 @@ make run          # opsctl
 make docker       # opsd 이미지
 ```
 
+### 개발용 고정 셋업 (7주차, StableNet 테스트넷 8283)
+
+BLE 셋업 세션(`rental provision`)이 생기기 전까지 키오스크와 기기가 테스트넷 결제를 시험할 자료를 `opsctl`로 만든다. 역할 키는 `~/.nu54/keystores/nu54-<role>`의 keystore이고 암호는 macOS Keychain(`nu54-<role>`)에서 메모리로만 읽는다. 컨트랙트 주소는 `products/p06-stablenet-contracts/deployments/8283.json`에서 읽고, 시각은 finalized 블록 시각을 쓴다.
+
+```bash
+make build                                  # bin/opsctl
+O=products/p05-operations-backoffice/bin/opsctl
+
+# 1. 가맹점 등록: 키오스크의 가맹점 서명 주소와 payout. 같은 값이면 트랜잭션 없이 끝난다 (P05-FR-01)
+$O merchant register --merchant <kiosk 가맹점 주소> --payout <payout>
+
+# 2. attestation 발급: registry payout과 같아야 하고, 기간은 register의 attestationValidity(24시간) (P05-FR-02, 03, 09)
+$O attestation issue --merchant <kiosk 가맹점 주소> --payout <payout> --name "NU54 Test Cafe" > attestation.json
+
+# 3. TimeAnchor: 기기 주소와 기기가 보고한 lastAnchor (P05-FR-06)
+$O anchor sign --device <기기 주소> --last-anchor <lastAnchor> > anchor.json
+
+# 4. 기기 계정 입금: 운영자 잔액이 모자라면 먼저 시험 토큰을 발급한다
+$O token mint --to <운영자 주소> --amount 50000000
+$O rental deposit --device <기기 주소> --withdraw <대여자 출금 주소> --amount 50000000
+```
+
+- attestation은 24시간 뒤 만료되므로 파일로 고정해 두지 않고 필요할 때 다시 발급한다.
+- 결과 JSON은 표준 출력과 `evidence/p05/<날짜>-<명령>.log`(git 미추적)에 남는다.
+- 로컬 anvil에서는 `--rpc http://127.0.0.1:8545 --deployment <로컬 배포 기록> --read latest`를 붙인다. anvil의 finalized 태그는 최신 블록보다 뒤라서, 방금 배포한 registry가 finalized 시점에는 아직 없다.
+- 2026-10-01에 테스트넷에서 1~3단계를 실행했다. 키오스크 역할 주소는 이미 등록되어 있어 트랜잭션이 없었고, attestation과 TimeAnchor 서명은 TypeScript 코어로 복원해 운영자 주소와 같음을 확인했다.
+
 
 운영자가 가맹점, 대여 기기와 결제 예외를 관리하는 제품이다.
 
