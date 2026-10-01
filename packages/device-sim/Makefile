@@ -9,6 +9,7 @@ build lint:
 
 test:
 	pnpm --filter @nu54/device-sim test
+	node --experimental-strip-types --no-warnings scripts/gen-session-vectors.ts --check
 
 run:
 	@echo "rehearsal: node --experimental-strip-types scripts/rehearse.ts --attestation <file> --anchor <file>"

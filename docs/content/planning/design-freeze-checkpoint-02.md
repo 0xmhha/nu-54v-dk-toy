@@ -124,7 +124,7 @@
 - baseCommit: `c9d66aa2e439`
 - stale literal: SL-01(가스는 키오스크가 낸다 [N10]), SL-02(제품 정의 기준이 바뀌었다 [N01]), SL-03(finalized 이벤트가 paid를 정한다 [N08]), SL-04(환불은 범위 밖이다 [N17])
 - 예외 경로: DF-01 산출물과 입력, `docs/content/planning/seeds/`, `docs/design-history/`, `docs/content/planning/fixtures/df02/`
-- redaction 예외: `specifications/protocol/eip712-vectors.json`(public test-only EOA, deterministic vector), `specifications/protocol/cbor-vectors.json`(public test-only EOA values reused from eip712-vectors.json, deterministic vector)
+- redaction 예외: `specifications/protocol/eip712-vectors.json`(public test-only EOA, deterministic vector), `specifications/protocol/cbor-vectors.json`(public test-only EOA values reused from eip712-vectors.json, deterministic vector), `specifications/protocol/session-vectors.json`(public test-only keys and placeholder addresses reused from eip712-vectors.json, deterministic vector)
 - waiver: req 10 anti-exfil, req 12 dependency pinning, req 13 genuine-device attestation, W7 gate with a non-secure key, fixed development provisioning and a plaintext kiosk link, TF-M (TrustZone) key sealing for the whole cycle; the external SE was cut
 
 ## 7. 사이클 중 변경

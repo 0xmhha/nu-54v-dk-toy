@@ -45,7 +45,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 
 `length`는 헤더 10바이트(`length` 2바이트와 digest 8바이트)를 포함한 envelope 전체 길이다. 본문이 최대 2048바이트이므로 `length`는 10 이상 2058 이하이며, 이 범위를 벗어나면 `BAD_FRAME`이다.
 
-모든 envelope는 조각 헤더를 붙여 보낸다(조각이 하나여도 붙인다). 각 조각은 `sequence(u8) | index(u8) | 데이터`이며 데이터 길이는 협상된 MTU에서 `ATT_MTU - 5`까지다. `sequence`는 방향별 메시지 번호로 메시지마다 1씩 늘고, `index`는 0부터 센다. 받는 쪽은 `length`만큼 모일 때까지 이어 붙인 뒤 digest를 확인한다. 순서가 어긋나거나 digest가 다르거나 본문이 2048바이트를 넘으면, 받은 쪽(기기든 central이든)이 메시지를 버리고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다. 받는 쪽의 규칙은 다음과 같다. 메시지는 index 0으로 시작하고, 메시지 안에서 sequence는 같으며 index는 1씩 는다. 메시지와 메시지 사이의 sequence는 비교하지 않는다. 모든 조각은 데이터를 1바이트 이상 담는다. length는 10~2058이고 그것을 넘는 바이트는 거절한다. digest는 envelope가 다 모인 뒤 확인한다. 정상 분할(ATT_MTU 23, 185, 247)과 거절해야 하는 조각열은 [frame-vectors.json](frame-vectors.json)에 있다. 키오스크가 아직 서명을 받지 못했으면 새 세션에서 처음부터 다시 시작한다. 이미 서명을 받았으면 세션 없이 7절의 제출 단계로 계속 간다(서명은 키오스크에 있으므로 새 서명을 요청하지 않는다).
+모든 envelope는 조각 헤더를 붙여 보낸다(조각이 하나여도 붙인다). 각 조각은 `sequence(u8) | index(u8) | 데이터`이며 데이터 길이는 협상된 MTU에서 `ATT_MTU - 5`까지다. `sequence`는 방향별 메시지 번호로 메시지마다 1씩 늘고, `index`는 0부터 센다. 받는 쪽은 `length`만큼 모일 때까지 이어 붙인 뒤 digest를 확인한다. 순서가 어긋나거나 digest가 다르거나 본문이 2048바이트를 넘으면, 받은 쪽(기기든 central이든)이 메시지를 버리고 `error{BAD_FRAME}`을 보낸 뒤 세션을 닫는다. 받는 쪽의 규칙은 다음과 같다. 메시지는 index 0으로 시작하고, 메시지 안에서 sequence는 같으며 index는 1씩 는다. 메시지와 메시지 사이의 sequence는 비교하지 않는다. 모든 조각은 데이터를 1바이트 이상 담는다. length는 10~2058이고 그것을 넘는 바이트는 거절한다. digest는 envelope가 다 모인 뒤 확인한다. 정상 분할(ATT_MTU 23, 185, 247)과 거절해야 하는 조각열은 [frame-vectors.json](frame-vectors.json)에 있다. 세션 단위로 기기가 메시지마다 돌려줘야 할 바이트는 [session-vectors.json](session-vectors.json)에 있다(5, 6절의 시나리오 12개). 키오스크가 아직 서명을 받지 못했으면 새 세션에서 처음부터 다시 시작한다. 이미 서명을 받았으면 세션 없이 7절의 제출 단계로 계속 간다(서명은 키오스크에 있으므로 새 서명을 요청하지 않는다).
 
 ### 4.2 CBOR 필드 인코딩 규칙
 
@@ -83,7 +83,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 
 1. 운영자 도구가 셋업 세션을 연다. `UNPROVISIONED`에서는 키가 없으므로 `session.open.ok`에 `device`가 없다. 운영자 도구가 `setup.operator{operator, contract, chainId}`를 보내면, 기기는 세 값을 화면에 보여 주고 대여자가 버튼으로 확인할 때만 기록한 뒤 `setup.ack{step: setup.operator}`로 답한다. 이 기록은 `UNPROVISIONED`에서 한 번만 가능하다 [N23]. 기기는 운영자 값을 2단계의 키 생성과 함께 한 번에 저장하므로, keygen ack 전에 세션이 끊기면 아무것도 남지 않고 `UNPROVISIONED`로 다시 시작한다.
 2. 기기가 TRNG로 새 키를 만들고 대여자가 기기 버튼으로 PIN을 정한다. LED가 입력할 자릿수와 누를 버튼을 안내한다 [N28]. 기기는 `setup.ack{step: keygen, device}`로 새 주소를 알린다 [N11].
-3. 운영자 도구는 받은 주소와 최신 finalized 블록 시각으로 TimeAnchor `{device, timestamp}`에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`를 보낸다. 기기는 `device`가 자기 주소이고, 서명자가 기록한 운영자 주소이며, `timestamp`가 이전 anchor보다 엄격히 늦을 때만 받아들이고 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`로 답한다 [N06].
+3. 운영자 도구는 받은 주소와 최신 finalized 블록 시각으로 TimeAnchor `{device, timestamp}`에 서명해 `setup.timeAnchor{device, timestamp, operatorSignature}`를 보낸다. 기기는 `device`가 자기 주소이고, 서명자가 기록한 운영자 주소이며, `timestamp`가 이전 anchor보다 엄격히 늦을 때만 받아들이고 `setup.ack{step: setup.timeAnchor, accepted, lastAnchor}`로 답한다. 받아들이지 않으면 `accepted: false`와 `reason: NOT_PERMITTED`를 보낸다 [N06].
 4. 운영자 도구는 anchor가 받아들여진 뒤에만 `depositFor(device, amount, withdrawAddress)`를 호출한다.
 
 목표 경로는 대여자 휴대폰의 설정 앱(P02)이지만 P02는 이번 사이클에서 설계만 하므로 P05 운영 도구 `opsctl`이 같은 메시지를 보낸다.
