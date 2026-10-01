@@ -58,6 +58,7 @@ CHECKS = [
     Check("protocol Python encodeType", ["uv", "run", "--quiet", "--package", "nu54-protocol", "pytest", "-q", "python/tests"], "packages/protocol", ["uv"]),
     Check("operations tool Go digests", ["go", "test", "./internal/core/..."], "products/p05-operations-backoffice", ["go"]),
     Check("CBOR message vectors round-trip", ["python3", "cbor-gen/generate.py", "--check"], "packages/protocol"),
+    Check("BLE fragment vectors reassemble", ["python3", "frame-gen/generate.py", "--check"], "packages/protocol"),
     Check("contract Solidity typehashes", ["forge", "test", "--match-contract", "PaymentTypesTest"], "products/p06-stablenet-contracts", ["forge"]),
     Check("contract Solidity EIP-712 digest and signer", ["forge", "test", "--match-contract", "Eip712VectorsTest"], "products/p06-stablenet-contracts", ["forge"]),
     Check("kiosk TypeScript digest and signer recovery", ["pnpm", "run", "test:conformance"], "products/p04-merchant-kiosk", ["pnpm"], kiosk_has_conformance_script),

@@ -7,10 +7,12 @@ setup:
 build:
 	python3 schema-gen/generate.py
 	python3 cbor-gen/generate.py
+	python3 frame-gen/generate.py
 
 test:
 	python3 schema-gen/generate.py --check
 	python3 cbor-gen/generate.py --check
+	python3 frame-gen/generate.py --check
 	cd go && go test ./...
 	pnpm --filter @nu54/protocol test
 	uv run --package nu54-protocol pytest -q python/tests
