@@ -48,6 +48,18 @@ $O rental deposit --device <기기 주소> --withdraw <대여자 출금 주소> 
 - 로컬 anvil에서는 `--rpc http://127.0.0.1:8545 --deployment <로컬 배포 기록> --read latest`를 붙인다. anvil의 finalized 태그는 최신 블록보다 뒤라서, 방금 배포한 registry가 finalized 시점에는 아직 없다.
 - 2026-10-01에 테스트넷에서 1~3단계를 실행했다. 키오스크 역할 주소는 이미 등록되어 있어 트랜잭션이 없었고, attestation과 TimeAnchor 서명은 TypeScript 코어로 복원해 운영자 주소와 같음을 확인했다.
 
+### BLE 대여 셋업 (`rental provision`, `rental re-anchor`)
+
+`UNPROVISIONED` 기기에 BLE 셋업 세션을 열어 결제 프로토콜 5절의 순서대로 진행한다. 대여자가 기기 버튼으로 운영자 값을 확인하고 PIN을 정하면, `opsctl`이 finalized 블록 시각으로 TimeAnchor를 서명해 보내고, 기기가 받아들인 뒤에만 입금한다. 라벨 QR 내용(`NU54:<BLE 주소>:<passkey>`)을 출력한다. reset 뒤 anchor만 잃은 기기(`PROVISIONED_NO_ANCHOR`)는 `rental re-anchor`로 3단계만 다시 한다.
+
+```bash
+$O rental provision --withdraw <대여자 출금 주소> --amount 10000000 [--passkey 042195]
+$O rental re-anchor
+```
+
+- BLE는 `tinygo.org/x/bluetooth`(macOS CoreBluetooth, Linux BlueZ)를 쓴다. 셋업 세션의 본딩은 기기가 요구할 때 운영체제가 처리한다.
+- 메시지와 바이트는 공용 세션 벡터 SV-13~15로 시험한다(`internal/core/ops/provision_test.go`: opsctl이 보내는 본문이 벡터와 바이트까지 같다). 실제 기기와의 BLE 연결은 아직 실행하지 않았다(보드에 셋업 명령을 올린 뒤 실행).
+
 
 운영자가 가맹점, 대여 기기와 결제 예외를 관리하는 제품이다.
 
