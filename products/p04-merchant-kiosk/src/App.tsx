@@ -24,6 +24,7 @@ import { JsonRpcChain } from './chain/rpc.ts';
 import { loadKiosk, takeAnchor, type Loaded } from './kiosk/config.ts';
 import { pay, submitContext, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
 import { recheck } from './payment/submit.ts';
+import { blockTimeText, fetchReceipt, type ReceiptResult } from './kiosk/receipt.ts';
 import Vault from './specs/NativeKioskVault.ts';
 
 const PHASE_TEXT: Record<Phase, string> = {
@@ -103,6 +104,7 @@ function Kiosk() {
   const [kiosk, setKiosk] = useState<Loaded | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'loading' });
   const [amountText, setAmountText] = useState('1');
+  const [receipt, setReceipt] = useState<ReceiptResult | 'loading' | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -187,15 +189,45 @@ function Kiosk() {
             <Text style={styles.amount}>{shown(screen.amount, decimals)} {symbol}</Text>
             <Text style={[styles.title, styles[t.tone]]}>{t.title}</Text>
             {t.detail && <Text style={styles.body}>{t.detail}</Text>}
+            {r.status === 'approved' && kiosk?.config.indexerUrl && (
+              <ReceiptView
+                state={receipt}
+                onLoad={async () => {
+                  setReceipt('loading');
+                  setReceipt(await fetchReceipt(kiosk.config.indexerUrl!, r.event.merchant, r.event.orderId));
+                }}
+                format={a => `${shown(BigInt(a), decimals)} ${symbol}`}
+              />
+            )}
             {r.status === 'Checking' ? (
               <Button label="다시 확인" onPress={() => check(r, screen.amount)} />
             ) : (
-              <Button label="새 주문" onPress={() => setScreen({ kind: 'idle' })} />
+              <Button label="새 주문" onPress={() => { setReceipt(null); setScreen({ kind: 'idle' }); }} />
             )}
           </View>
         );
       })()}
     </SafeAreaView>
+  );
+}
+
+/** The P07 receipt for an approved payment; its absence never changes the result above. */
+function ReceiptView({ state, onLoad, format }: { state: ReceiptResult | 'loading' | null; onLoad: () => void; format: (amount: string) => string }) {
+  if (state === null) return <Button label="영수증 보기" onPress={onLoad} />;
+  if (state === 'loading') return <Text style={styles.body}>영수증 조회 중</Text>;
+  if (state.status !== 'found') {
+    const why = state.status === 'notIndexed' ? '아직 indexer에 없습니다' : state.status === 'stale' ? 'indexer가 뒤처져 있습니다' : state.reason;
+    return <Text style={styles.body}>영수증을 가져오지 못했습니다({why}). 결제 결과는 그대로입니다.</Text>;
+  }
+  const v = state.receipt;
+  return (
+    <View style={styles.receipt}>
+      <Text style={styles.body}>영수증</Text>
+      <Text style={styles.small}>금액 {format(v.amount)}</Text>
+      <Text style={styles.small}>블록 {v.blockNumber} · {blockTimeText(v.blockTime)}</Text>
+      <Text style={styles.small}>tx {v.txHashShort} · 기기 {v.device.slice(0, 8)}…{v.device.slice(-4)}</Text>
+      {v.duplicate && <Text style={styles.error}>같은 주문의 로그가 둘 이상입니다(가장 이른 것을 표시)</Text>}
+    </View>
   );
 }
 
@@ -225,6 +257,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
   body: { fontSize: 18, color: '#333', marginBottom: 16 },
   error: { fontSize: 14, color: '#b00020', marginBottom: 16 },
+  small: { fontSize: 14, color: '#333', marginBottom: 4 },
+  receipt: { borderTopWidth: 1, borderColor: '#ddd', paddingTop: 12, marginBottom: 12 },
   ok: { color: '#1b7f3a' },
   bad: { color: '#b00020' },
   wait: { color: '#a15c00' },
