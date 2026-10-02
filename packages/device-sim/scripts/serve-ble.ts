@@ -4,7 +4,8 @@
 // peripheral/SimPeripheral.swift owns GATT (advertising, RX writes, TX notifications) and passes
 // raw fragments; this script does the rest with the shared protocol code: reassembly, envelope,
 // CBOR and the device itself (src/device.ts). The renter's button is this terminal: the
-// confirm.show the phone app would display is printed, and y approves, n rejects.
+// confirm.show the phone app would display is printed (and sent to a listening phone app), and y
+// approves, n rejects.
 //
 // Differences from the board: macOS picks the ATT MTU and gives no control over it, the link is
 // unpaired (as the week-7 payment session is), and the device key is the nu54-device test key.
@@ -20,7 +21,7 @@ import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
-import { bytesToHex, GATT, hexToBytes, type Message } from "@nu54/protocol";
+import { bytesToHex, encodeMessage, FrameWriter, GATT, hexToBytes, type Message } from "@nu54/protocol";
 import { DeviceEndpoint, SoftwareDevice } from "../src/index.ts";
 import { openKeystore } from "../src/keystore.ts";
 
@@ -88,29 +89,48 @@ console.error(`device ${device.address} on chain ${dep.chainId}, settlement ${de
 const periph = spawn(peripheralBinary(), [a.name!, GATT.service, GATT.rx, GATT.tx], {
   stdio: ["pipe", "pipe", "inherit"],
 });
-const send = (fragment: Uint8Array) => periph.stdin.write(JSON.stringify({ tx: bytesToHex(fragment, false) }) + "\n");
+const send = (central: string, fragment: Uint8Array) =>
+  periph.stdin.write(JSON.stringify({ tx: bytesToHex(fragment, false), central }) + "\n");
 
-let endpoint: DeviceEndpoint | null = null;
+// Each subscribed central has its own link (reassembler and sequence numbers). A central that
+// writes is a session peer (the kiosk); one that only listens is taken as the renter's phone app
+// and gets confirm.show and the forwarded payment.outcome. The board tells them apart by bonding;
+// macOS gives a peripheral no bonding state, so this simulator goes by behaviour.
+type Link = { endpoint: DeviceEndpoint; phone: FrameWriter; wrote: boolean };
+const links = new Map<string, Link>();
+device.onPhone = (m) => {
+  const body = encodeMessage(m);
+  for (const [id, link] of links) {
+    if (!link.wrote) link.phone.write(body).forEach((f) => send(id, f));
+  }
+  console.error(`phone: ${m.type} sent to ${[...links.values()].filter((l) => !l.wrote).length} listening central(s)`);
+};
 createInterface({ input: periph.stdout }).on("line", async (line) => {
   const ev = JSON.parse(line);
   if (ev.event === "advertising") {
     console.error(`ble: advertising as "${ev.name}"; connect from the kiosk app`);
   } else if (ev.event === "connected") {
     // A new link starts a new reassembler and sequence; the device keeps its anchor and nonces.
-    endpoint = new DeviceEndpoint(device, ev.mtu);
+    links.set(ev.central, { endpoint: new DeviceEndpoint(device, ev.mtu), phone: new FrameWriter(ev.mtu), wrote: false });
     console.error(`ble: central ${ev.central} connected, ATT MTU ${ev.mtu}`);
   } else if (ev.event === "disconnected") {
-    endpoint = null;
-    if (waiting) waiting(false);
-    waiting = null;
-    device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
+    const link = links.get(ev.central);
+    links.delete(ev.central);
+    if (link?.wrote) {
+      // The session peer left: a pending press ends without a signature.
+      if (waiting) waiting(false);
+      waiting = null;
+      device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
+    }
     console.error(`ble: central ${ev.central} disconnected`);
   } else if (ev.rx !== undefined) {
-    if (!endpoint) return;
-    const ep = endpoint;
+    const link = links.get(ev.central);
+    if (!link) return;
+    link.wrote = true;
     // receiveAsync reassembles synchronously, so fragment order holds while a press is pending.
-    for (const f of await ep.receiveAsync(hexToBytes(ev.rx))) {
-      if (ep === endpoint) send(f);
+    const early = (fs: Uint8Array[]) => fs.forEach((f) => send(ev.central, f));
+    for (const f of await link.endpoint.receiveAsync(hexToBytes(ev.rx), early)) {
+      if (links.get(ev.central) === link) send(ev.central, f);
     }
   } else if (ev.error) {
     console.error(`ble: ${ev.error}`);

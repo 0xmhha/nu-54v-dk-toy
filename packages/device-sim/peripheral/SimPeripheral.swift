@@ -5,11 +5,14 @@
 // serve-ble.ts), which does the envelope, reassembly and the device itself. This file only
 // knows GATT: it never parses a fragment.
 //
-//   stdin   {"tx": "<fragment hex>"}                 notify one fragment on the TX characteristic
+// Several centrals may be subscribed at once (the kiosk and the renter's phone app); each event
+// names its central, and a fragment goes to one central.
+//
+//   stdin   {"tx": "<fragment hex>", "central": "<id>"}   notify one fragment to that central
 //   stdout  {"event": "advertising", "name": "..."}
 //           {"event": "connected", "central": "...", "mtu": 185}   (on TX subscription)
 //           {"event": "disconnected", "central": "..."}
-//           {"rx": "<fragment hex>"}                  one write to the RX characteristic
+//           {"rx": "<fragment hex>", "central": "..."}  one write to the RX characteristic
 //           {"error": "..."}
 //
 // mtu is the ATT_MTU: CoreBluetooth reports the largest notification value (ATT_MTU - 3).
@@ -44,9 +47,9 @@ final class Peripheral: NSObject, CBPeripheralManagerDelegate {
     let service: CBUUID, rxUUID: CBUUID, txUUID: CBUUID
     var manager: CBPeripheralManager!
     var tx: CBMutableCharacteristic!
-    var central: CBCentral?
-    /// Fragments waiting for the notification queue to drain (updateValue returned false).
-    var pending: [Data] = []
+    var centrals: [String: CBCentral] = [:]
+    /// Fragments waiting for the notification queue to drain (updateValue returned false), in order.
+    var pending: [(Data, CBCentral)] = []
 
     init(name: String, service: String, rx: String, tx: String) {
         self.name = name
@@ -83,38 +86,40 @@ final class Peripheral: NSObject, CBPeripheralManagerDelegate {
     }
 
     func peripheralManager(_ p: CBPeripheralManager, central c: CBCentral, didSubscribeTo ch: CBCharacteristic) {
-        central = c
-        pending.removeAll()
-        emit(["event": "connected", "central": c.identifier.uuidString, "mtu": c.maximumUpdateValueLength + 3])
+        let id = c.identifier.uuidString
+        centrals[id] = c
+        pending.removeAll { $0.1.identifier == c.identifier }
+        emit(["event": "connected", "central": id, "mtu": c.maximumUpdateValueLength + 3])
     }
 
     func peripheralManager(_ p: CBPeripheralManager, central c: CBCentral, didUnsubscribeFrom ch: CBCharacteristic) {
-        if central?.identifier == c.identifier { central = nil }
-        pending.removeAll()
-        emit(["event": "disconnected", "central": c.identifier.uuidString])
+        let id = c.identifier.uuidString
+        centrals[id] = nil
+        pending.removeAll { $0.1.identifier == c.identifier }
+        emit(["event": "disconnected", "central": id])
     }
 
     func peripheralManager(_ p: CBPeripheralManager, didReceiveWrite requests: [CBATTRequest]) {
         // CoreBluetooth answers the whole batch with the first request's result.
         for r in requests where r.characteristic.uuid == rxUUID {
-            emit(["rx": hex(r.value ?? Data())])
+            emit(["rx": hex(r.value ?? Data()), "central": r.central.identifier.uuidString])
         }
         p.respond(to: requests[0], withResult: .success)
     }
 
-    func notify(_ fragment: Data) {
-        guard let c = central else { emit(["error": "no central subscribed; fragment dropped"]); return }
+    func notify(_ fragment: Data, to id: String) {
+        guard let c = centrals[id] else { emit(["error": "central \(id) is not subscribed; fragment dropped"]); return }
         if fragment.count > c.maximumUpdateValueLength {
             emit(["error": "fragment of \(fragment.count) bytes exceeds the notification size \(c.maximumUpdateValueLength)"])
             return
         }
-        pending.append(fragment)
+        pending.append((fragment, c))
         drain()
     }
 
     func drain() {
-        while let f = pending.first {
-            guard manager.updateValue(f, for: tx, onSubscribedCentrals: nil) else { return } // resumes below
+        while let (f, c) = pending.first {
+            guard manager.updateValue(f, for: tx, onSubscribedCentrals: [c]) else { return } // resumes below
             pending.removeFirst()
         }
     }
@@ -137,8 +142,8 @@ Thread {
             continue
         }
         if obj["stop"] != nil { DispatchQueue.main.async { exit(0) } }
-        if let t = obj["tx"] as? String, let f = unhex(t) {
-            DispatchQueue.main.async { peripheral.notify(f) }
+        if let t = obj["tx"] as? String, let f = unhex(t), let id = obj["central"] as? String {
+            DispatchQueue.main.async { peripheral.notify(f, to: id) }
         }
     }
     DispatchQueue.main.async { exit(0) } // the parent closed stdin

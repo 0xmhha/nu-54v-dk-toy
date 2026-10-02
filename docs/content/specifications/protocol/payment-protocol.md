@@ -105,7 +105,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 | 3 | `payment.identify{attestation}` | 키오스크→기기 | MerchantAttestation 서명자가 운영자인지, 현재 시각이 `validFrom..validUntil`(± `anchorClockSkew`) 안인지 확인하고 폰 앱에 보낼 가맹점 이름을 정한다 |
 | 4 | `payment.prepare{authorization, merchantSignature}` | 키오스크→기기 | 아래 검사를 모두 통과하면 가맹점 이름·orderId·token·payout·amount를 `confirm.show`로 폰 앱에 보내고 버튼을 기다린다 |
 | 5 | `payment.result{outcome, signature, nonce \| reason}` | 기기→키오스크 | 버튼을 누르면 nonce를 골라 서명하고 `approved`를, 거절 버튼이나 검사 실패면 `refused`와 reason을 보낸다 |
-| 6 | `payment.outcome{orderId, outcome, reason}` | 키오스크→기기 | 키오스크의 최종 결과를 LED로 알리고 폰 앱에 전달한다 |
+| 6 | `payment.outcome{orderId, outcome, reason}` | 키오스크→기기 | 키오스크의 최종 결과를 LED로 알리고, 같은 결제 세션의 것이면 받은 본문을 바꾸지 않고 폰 앱에 전달한다. 키오스크에는 답하지 않는다 |
 
 4단계 검사는 다음과 같다. 하나라도 틀리면 `refused`다.
 

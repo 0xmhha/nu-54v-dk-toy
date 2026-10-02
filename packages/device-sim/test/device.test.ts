@@ -300,3 +300,18 @@ test("a real press: handleAsync waits for the button, handle refuses a promise",
   assert.deepEqual(await again, []);
   now += 1;
 });
+
+test("the device forwards the kiosk's payment.outcome to the phone app, for its own session only", () => {
+  const { device, link } = setup();
+  const seen: Message[] = [];
+  device.onPhone = (m) => seen.push(m);
+  anchor(link, device, T0);
+  const auth = order();
+  assert.equal(pay(link, attestation(), auth).outcome, "approved");
+  const outcome = { v: 1, type: "payment.outcome", sessionId: SID, orderId: auth.orderId, outcome: "approved" } as Message;
+  assert.deepEqual(link.send(outcome), [], "no reply to the kiosk");
+  assert.deepEqual(seen.map((m) => m.type), ["confirm.show", "payment.outcome"]);
+  assert.deepEqual(seen[1], outcome, "forwarded unchanged");
+  link.send({ ...outcome, sessionId: "0909090909090909" } as Message);
+  assert.equal(seen.length, 2, "an outcome for another session is not forwarded");
+});

@@ -74,8 +74,15 @@ const webCrypto = () => (globalThis as unknown as { crypto: { getRandomValues<T 
 
 export class SoftwareDevice {
   state: DeviceState;
-  /** Messages the device sent to the phone app (confirm.show). */
+  /** Messages the device sent to the phone app (confirm.show, the forwarded payment.outcome). */
   readonly phone: Message[] = [];
+  /** Called for each message to the phone app as it is sent (the BLE peripheral routes it). */
+  onPhone: ((m: Message) => void) | null = null;
+
+  private toPhone(m: Message): void {
+    this.phone.push(m);
+    this.onPhone?.(m);
+  }
   private readonly cfg: Required<Omit<DeviceConfig, "nonceStart" | "key" | "operator" | "contract" | "chainId">>;
   /** Values that setup records and device.reset wipes. */
   private setup: { key: Uint8Array; address: string; operator: string; contract: string; chainId: bigint; passkey?: number; pin?: string } | null;
@@ -205,6 +212,9 @@ export class SoftwareDevice {
       case "payment.identify":
         return [this.identify(m)].filter((x): x is Message => x !== null);
       case "payment.outcome":
+        // The kiosk's final result: the device forwards it unchanged to the phone app, for the
+        // payment session it belongs to (schema payment.outcome; P02-FR-07). No reply to the kiosk.
+        if (this.inSession(m, "payment")) this.toPhone(m);
         return [];
       case "device.reset":
         return [this.reset(m)];
@@ -324,7 +334,7 @@ export class SoftwareDevice {
       payout: auth.payout,
       amount: auth.amount,
     });
-    this.phone.push(show);
+    this.toPhone(show);
     return { show, auth };
   }
 

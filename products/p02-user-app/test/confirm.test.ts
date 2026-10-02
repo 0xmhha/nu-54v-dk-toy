@@ -101,3 +101,11 @@ test("the software device's confirm.show bytes decode to the same screen", () =>
   p.deliverBody(hexToBytes(step.phone[0]));
   expect(p.link.current()).toMatchObject({ kind: "confirming", view: { merchantName: "Cafe Test 01", payout: checksumAddress(PA01.message.payout) } });
 });
+
+test("the device's phone messages from SV-01 end on the approved result for that order", () => {
+  // SV-01's second payment: confirm.show at prepare, then the forwarded payment.outcome.
+  const steps = sessionVectors.scenarios[0].steps.filter((st) => (st.phone?.length ?? 0) > 0) as { phone: string[] }[];
+  const p = phone();
+  for (const st of steps.slice(-2)) p.deliverBody(hexToBytes(st.phone[0]));
+  expect(p.link.current()).toMatchObject({ kind: "result", outcome: "approved", view: { merchantName: "Cafe Test 01" } });
+});
