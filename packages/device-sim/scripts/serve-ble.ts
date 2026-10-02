@@ -20,7 +20,7 @@ import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
-import { bytesToHex, hexToBytes, type Message } from "@nu54/protocol";
+import { bytesToHex, GATT, hexToBytes, type Message } from "@nu54/protocol";
 import { DeviceEndpoint, SoftwareDevice } from "../src/index.ts";
 import { openKeystore } from "../src/keystore.ts";
 
@@ -35,8 +35,6 @@ const { values: a } = parseArgs({
 if (!["ask", "yes", "no"].includes(a.approve!)) throw new Error("--approve is ask, yes or no");
 
 const dep = JSON.parse(readFileSync(a.deployment!, "utf8"));
-const schema = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../docs/content/specifications/protocol/payment-protocol.schema.json"), "utf8"));
-const gatt = schema.gatt as { service: string; characteristics: { rx: { uuid: string }; tx: { uuid: string } } };
 
 /** Builds the Swift peripheral once per source version (the binary is cached in the temp dir). */
 function peripheralBinary(): string {
@@ -87,7 +85,7 @@ const device = new SoftwareDevice({
 });
 console.error(`device ${device.address} on chain ${dep.chainId}, settlement ${dep.contracts.PaymentSettlement.address}`);
 
-const periph = spawn(peripheralBinary(), [a.name!, gatt.service, gatt.characteristics.rx.uuid, gatt.characteristics.tx.uuid], {
+const periph = spawn(peripheralBinary(), [a.name!, GATT.service, GATT.rx, GATT.tx], {
   stdio: ["pipe", "pipe", "inherit"],
 });
 const send = (fragment: Uint8Array) => periph.stdin.write(JSON.stringify({ tx: bytesToHex(fragment, false) }) + "\n");

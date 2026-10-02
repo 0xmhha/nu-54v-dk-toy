@@ -10,7 +10,8 @@
     "start": "react-native start",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "test:conformance": "jest test/conformance.test.ts"
+    "test:conformance": "jest test/conformance.test.ts",
+    "provision:dev": "node --experimental-strip-types --no-warnings scripts/provision-dev.ts"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",

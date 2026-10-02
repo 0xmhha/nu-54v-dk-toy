@@ -23,7 +23,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { addressOfPrivateKey, bytesToHex, decodeMessage, encodeMessage, hexToBytes, signDigest, type Message } from "@nu54/protocol";
+import { addressOfPrivateKey, bytesToHex, decodeMessage, encodeMessage, hexToBytes, REASONS, signDigest, type Message } from "@nu54/protocol";
 import { connect, SoftwareDevice } from "../src/index.ts";
 import { openKeystore } from "../src/keystore.ts";
 import { signMerchantOrder } from "../../../products/p04-merchant-kiosk/src/payment/signing.ts";
@@ -173,7 +173,8 @@ if (a.submit && simulation === "success") {
   );
   outcome = { ...out, event: "event" in out ? { ...out.event, amount: String(out.event.amount), nonce: String(out.event.nonce), block: String(out.event.block) } : undefined };
   // P04-FR-16: tell the device the final result.
-  await link.send({ v: 1, type: "payment.outcome", sessionId: session.sessionId, orderId: auth.orderId, outcome: out.status, ...("reason" in out ? { reason: out.reason } : {}) } as Message, 0, 500);
+  const reason = "reason" in out && (REASONS as readonly string[]).includes(out.reason) ? { reason: out.reason } : {}; // protocol codes only
+  await link.send({ v: 1, type: "payment.outcome", sessionId: session.sessionId, orderId: auth.orderId, outcome: out.status, ...reason } as Message, 0, 500);
 }
 link.close();
 console.log(JSON.stringify({ transport: a.transport, device, merchant: att.merchant, amount: auth.amount, nonce: result.nonce, orderId: auth.orderId, kioskCheck: check, settleSimulation: simulation, outcome }, null, 2));
