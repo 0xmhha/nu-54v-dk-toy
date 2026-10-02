@@ -9,7 +9,7 @@
 import { hexToBytes } from "@nu54/protocol";
 import type { Hex } from "../chain/rpc.ts";
 import type { Attestation, TimeAnchor } from "../payment/session.ts";
-import { fromBase64, toBase64 } from "../ble/base64.ts";
+import { fromBase64, toBase64 } from "@nu54/protocol";
 
 export interface KioskConfig {
   rpc: string;

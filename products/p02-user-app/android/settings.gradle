@@ -1,0 +1,7 @@
+// node_modules is hoisted to the repository root (.npmrc node-linker=hoisted).
+pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'NU54Renter'
+include ':app'
+includeBuild('../../../node_modules/@react-native/gradle-plugin')

@@ -3,7 +3,7 @@
 
 import { GATT } from "@nu54/protocol";
 import NusBle, { type FoundDevice } from "../specs/NativeNusBle.ts";
-import { fromBase64, toBase64 } from "./base64.ts";
+import { fromBase64, toBase64 } from "@nu54/protocol";
 import type { FragmentTransport } from "./framing.ts";
 
 

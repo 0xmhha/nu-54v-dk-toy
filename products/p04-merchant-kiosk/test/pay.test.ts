@@ -159,7 +159,7 @@ test("no device in payment mode: noDevice", async () => {
 });
 
 test("base64 round-trips every length and matches RFC 4648 vectors", () => {
-  const { toBase64, fromBase64 } = jest.requireActual("../src/ble/base64.ts");
+  const { toBase64, fromBase64 } = jest.requireActual("@nu54/protocol");
   const vectors: [string, string][] = [["", ""], ["f", "Zg=="], ["fo", "Zm8="], ["foo", "Zm9v"], ["foob", "Zm9vYg=="], ["fooba", "Zm9vYmE="], ["foobar", "Zm9vYmFy"]];
   for (const [plain, enc] of vectors) {
     const bytes = Uint8Array.from([...plain].map((c) => c.charCodeAt(0)));

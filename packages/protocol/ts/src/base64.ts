@@ -1,5 +1,5 @@
 // Base64 (RFC 4648, with padding) for bytes crossing the native module boundary.
-/* eslint-disable no-bitwise -- base64 is bit packing */
+
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const INDEX = new Map([...ALPHABET].map((c, i) => [c, i] as const));
