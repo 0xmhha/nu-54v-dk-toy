@@ -2,10 +2,10 @@
 
 ## 1. 구조
 
-P07은 프로세스 하나에 두 부분이 있다. 폴링 루프가 체인에서 로그를 모으고, 읽기 전용 HTTP 서버가 영수증을 돌려준다. 둘은 같은 SQLite 파일을 쓴다. 근거 결정은 [N19]이며, 결제 판정에는 참여하지 않는다 [N08].
+P07은 프로세스 하나에 두 부분이 있다. 폴링 루프가 체인에서 로그를 모으고, 읽기 전용 HTTP 서버가 영수증을 돌려준다. 둘은 같은 PostgreSQL 데이터베이스를 쓴다(기술 스택 결정 [N25]). 근거 결정은 [N19]이며, 결제 판정에는 참여하지 않는다 [N08].
 
 ```
-StableNet 8283 RPC ──(finalized, eth_getLogs)──> ingest loop ──> SQLite(receipts, cursor)
+StableNet 8283 RPC ──(finalized, eth_getLogs)──> ingest loop ──> PostgreSQL(receipts, cursor)
                                                                     │
 키오스크(P04) ──GET /receipts/{merchant}/{orderId}──> HTTP 서버 ──────┘
 ```

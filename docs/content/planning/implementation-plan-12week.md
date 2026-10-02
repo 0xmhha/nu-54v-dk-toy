@@ -448,9 +448,9 @@ WBS와 결정 register에서 바꿀 것:
 | 위치 | 내용 | 심각도 |
 |---|---|---|
 | 펌웨어 설계·요구사항 | 화면, NFC, TF-M을 보드가 지원한다고 가정한다(1절). 화면은 폰 앱으로, 페어링은 QR passkey로 바꾸는 설계 수정이 필요하다 | [치명] |
-| indexer migration `001_receipts.sql` | 기본 키가 `(merchant, order_id)`라 같은 주문의 두 번째 결제를 저장할 수 없다. 설계는 `(txHash, logIndex)`다. `block_time` 열도 없다 | [중요] |
-| indexer 응답 | `blockTime`, `txHashShort`, `duplicate`가 없고 전체 tx hash를 돌려준다. 404 본문이 평문이다 | [중요] |
-| indexer 설계 1·3절 | SQLite라고 적었지만 기술 스택 결정과 코드는 PostgreSQL이다 | [중요] |
+| indexer migration `001_receipts.sql` | 기본 키가 `(merchant, order_id)`라 같은 주문의 두 번째 결제를 저장할 수 없다. 설계는 `(txHash, logIndex)`다. `block_time` 열도 없다 | 해결(2026-10-02, 최소 indexer 구현) |
+| indexer 응답 | `blockTime`, `txHashShort`, `duplicate`가 없고 전체 tx hash를 돌려준다. 404 본문이 평문이다 | 해결(2026-10-02) |
+| indexer 설계 1·3절 | SQLite라고 적었지만 기술 스택 결정과 코드는 PostgreSQL이다 | 해결(2026-10-02, 설계를 PostgreSQL로 고침) |
 | 정산 컨트랙트 인터페이스 | 설계 3절의 `NotOperator` error와 registry 이벤트가 없다 | [중요] |
 | WBS CSV 선행 관계 | 운영 도구 셋업에 펌웨어 GATT·셋업 명령이, 키오스크 제출에 운영 도구 셋업·펌웨어 서명이 선행으로 빠져 있다. 그래서 WBS 검사기가 실제 경로를 보지 못한다 | [중요] |
 | 운영 도구 설계 6절 | `evidence/p05/`가 git에서 무시된다고 적었지만 `.gitignore`에 없다 | [중요] |
