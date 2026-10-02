@@ -301,8 +301,10 @@ static K_WORK_DEFINE(button_work, button_work_handler);
 void pay_link_button(int approve)
 {
 	if (!device.pending) {
+		LOG_INF("no payment is waiting for the button");
 		return;
 	}
+	LOG_INF("%s", approve ? "approved by the button" : "rejected by the button");
 	button_choice = approve;
 	k_work_submit_to_queue(&work_q, &button_work);
 }

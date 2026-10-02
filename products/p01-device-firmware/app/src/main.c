@@ -84,17 +84,18 @@ int main(void)
 		if (board_button_wait(&ev, -1) != 0) {
 			continue;
 		}
+		LOG_INF("SW%u %s", ev.button + 1, ev.event == NU54_BTN_CLICK ? "click" : "long press");
 		if (ev.button == 3 && ev.event == NU54_BTN_LONG) {
 			for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
 				board_led_set(i, false);
 			}
 			pay_link_payment_mode(120);
 		} else if (ev.button == 0 && ev.event == NU54_BTN_CLICK) {
-			LOG_INF("SW1: approve");
 			pay_link_button(1);
 		} else if (ev.button == 1 && ev.event == NU54_BTN_CLICK) {
-			LOG_INF("SW2: reject");
 			pay_link_button(0);
+		} else if (ev.button <= 1) {
+			LOG_WRN("SW%u was held: approve and reject need a short press", ev.button + 1);
 		}
 	}
 	return 0;

@@ -149,14 +149,16 @@ const auth = {
 const merchantKey = openKeystore(join(a.keystores!, "nu54-kiosk"), "keychain:nu54-kiosk");
 const merchantSignature = signMerchantOrder(domain, { orderId: auth.orderId, token, amount: auth.amount, payout: auth.payout, expiry: auth.expiry }, merchantKey);
 if (a.transport === "ble") {
-  console.error(a["press-sim"] ? "device: pressing SW1 with the button simulator" : "device: press SW1 on the board to approve (SW2 rejects)");
+  console.error(a["press-sim"] ? "device: pressing SW1 with the button simulator"
+    : "device: when LED2 lights, press SW1 briefly (under 1 s) to approve, SW2 to reject; waiting up to 120 s");
   if (a["press-sim"]) {
     setTimeout(() => execFile("uv", ["run", "button_sim.py", "--button", "BTN1", "--hold", "0.3"], { cwd: BRINGUP }), 2500);
   }
 }
-const result = (await link.send({ v: 1, type: "payment.prepare", sessionId: SID, authorization: auth, merchantSignature } as Message, 1, a.transport === "ble" ? 60_000 : 5000))[0];
+const result = (await link.send({ v: 1, type: "payment.prepare", sessionId: SID, authorization: auth, merchantSignature } as Message, 1, a.transport === "ble" ? 120_000 : 5000))[0];
 const requestedAt = Date.now();
-if (result?.outcome !== "approved") throw new Error(`device refused: ${JSON.stringify(result)}`);
+if (!result) throw new Error("no payment.result from the device within the wait (was SW1 pressed briefly while LED2 was on?)");
+if (result.outcome !== "approved") throw new Error(`device refused: ${JSON.stringify(result)}`);
 const check = checkDeviceAuthorization(domain, auth, { signature: String(result.signature), nonce: String(result.nonce) }, device);
 if (!check.ok) throw new Error(`kiosk check failed: ${JSON.stringify(check)}`);
 
