@@ -33,14 +33,20 @@ export interface DeviceConfig {
   nonceStart?: bigint;
   /** Clock in seconds since the epoch; the device's time is the anchor plus the elapsed time. */
   now?: () => number;
-  /** The renter's button: approve or reject a payment shown on the phone. */
-  approve?: (show: Message) => boolean;
+  /**
+   * The renter's button: approve or reject a payment shown on the phone. A promise models a
+   * real press (for example from a terminal); only handleAsync accepts it.
+   */
+  approve?: (show: Message) => boolean | Promise<boolean>;
   firmware?: string;
   /** Random bytes (deviceNonce); injectable so session vectors are deterministic. */
   random?: (n: number) => Uint8Array;
 }
 
 const FIRMWARE = "sim-0.1.0";
+
+/** Web Crypto of Node; typed here so the package also typechecks under the React Native lib. */
+const webCrypto = () => (globalThis as unknown as { crypto: { getRandomValues<T extends Uint8Array>(a: T): T } }).crypto;
 
 export class SoftwareDevice {
   readonly address: string;
@@ -61,7 +67,7 @@ export class SoftwareDevice {
       now: () => Math.floor(Date.now() / 1000),
       approve: () => true,
       firmware: FIRMWARE,
-      random: (n: number) => globalThis.crypto.getRandomValues(new Uint8Array(n)),
+      random: (n: number) => webCrypto().getRandomValues(new Uint8Array(n)),
       nonceStart: 0n,
       ...cfg,
     } as SoftwareDevice["cfg"];
@@ -100,6 +106,31 @@ export class SoftwareDevice {
 
   /** Handles one message from a central and returns the messages the device sends back. */
   handle(m: Message): Message[] {
+    if (m.type === "payment.prepare") {
+      const p = this.prepare(m);
+      if (Array.isArray(p)) return p;
+      const ok = this.cfg.approve(p.show);
+      if (typeof ok !== "boolean") throw new Error("approve returned a promise: use handleAsync");
+      return [this.decide(ok, p.auth)];
+    }
+    return this.handleOther(m);
+  }
+
+  /** Like handle, but waits for an approve callback that returns a promise (a real press). */
+  async handleAsync(m: Message): Promise<Message[]> {
+    if (m.type === "payment.prepare") {
+      const p = this.prepare(m);
+      if (Array.isArray(p)) return p;
+      const sid = this.session?.id;
+      const approved = await this.cfg.approve(p.show);
+      // session.cancel (or a new session) while the renter decided: no signature leaves the device.
+      if (this.session?.id !== sid) return [];
+      return [this.decide(approved, p.auth)];
+    }
+    return this.handleOther(m);
+  }
+
+  private handleOther(m: Message): Message[] {
     switch (m.type) {
       case "session.open":
         return [this.open(m)];
@@ -112,8 +143,6 @@ export class SoftwareDevice {
         return [this.timeAnchor(m)];
       case "payment.identify":
         return [this.identify(m)].filter((x): x is Message => x !== null);
-      case "payment.prepare":
-        return this.prepare(m);
       case "payment.outcome":
         return [];
       case "setup.operator":
@@ -198,7 +227,8 @@ export class SoftwareDevice {
     return null; // accepted: the device answers payment.prepare
   }
 
-  private prepare(m: Message): Message[] {
+  /** Step-4 checks; on success the confirm.show the renter decides on. */
+  private prepare(m: Message): Message[] | { show: Message; auth: Record<string, string> } {
     if (!this.inSession(m, "payment")) return [this.error("NOT_PERMITTED", String(m.sessionId))];
     const t = this.time();
     if (t === null || this.state !== "READY") return [this.refused("TIME_ANCHOR_MISSING")];
@@ -233,10 +263,13 @@ export class SoftwareDevice {
       amount: auth.amount,
     });
     this.phone.push(show);
-    if (!this.cfg.approve(show)) return [this.refused("USER_REJECTED")];
+    return { show, auth };
+  }
 
+  private decide(approved: boolean, auth: Record<string, string>): Message {
+    if (!approved) return this.refused("USER_REJECTED");
     const nonce = this.nextNonce++; // sequential: consecutive nonces share one bitmap slot
     const sig = signDigest(digest(this.domain, "PaymentAuthorization", { ...auth, nonce }), this.cfg.key);
-    return [this.reply("payment.result", { outcome: "approved", signature: bytesToHex(sig), nonce: nonce.toString() })];
+    return this.reply("payment.result", { outcome: "approved", signature: bytesToHex(sig), nonce: nonce.toString() });
   }
 }

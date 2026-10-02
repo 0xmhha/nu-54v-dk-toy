@@ -16,17 +16,32 @@ export class DeviceEndpoint {
   }
 
   receive(fragment: Uint8Array): Uint8Array[] {
-    let replies: Message[];
+    const m = this.decode(fragment);
+    if (m === null) return [];
+    return this.frame(Array.isArray(m) ? m : this.device.handle(m));
+  }
+
+  /** Like receive, for a device whose button is a real (asynchronous) press. */
+  async receiveAsync(fragment: Uint8Array): Promise<Uint8Array[]> {
+    const m = this.decode(fragment);
+    if (m === null) return [];
+    return this.frame(Array.isArray(m) ? m : await this.device.handleAsync(m));
+  }
+
+  /** A complete message, null while fragments are missing, or the error replies of a bad frame. */
+  private decode(fragment: Uint8Array): Message | Message[] | null {
     try {
       const r = this.rx.feed(fragment);
-      if (r.status === "more") return [];
-      replies = this.device.handle(decodeMessage(r.body));
+      return r.status === "more" ? null : decodeMessage(r.body);
     } catch (e) {
       if (!(e instanceof ProtocolError)) throw e;
       // The receiver drops the message, reports the reason and closes the session (4, 4.2).
-      replies = [{ v: 1, type: "error", sessionId: "0000000000000000", reason: e.reason } as Message];
       this.device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
+      return [{ v: 1, type: "error", sessionId: "0000000000000000", reason: e.reason } as Message];
     }
+  }
+
+  private frame(replies: Message[]): Uint8Array[] {
     return replies.flatMap((m) => this.tx.write(encodeMessage(m)));
   }
 }

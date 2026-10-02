@@ -165,3 +165,40 @@ test("a corrupted frame is answered with BAD_FRAME and closes the session", () =
   assert.equal(replies[0].type, "error");
   assert.equal(replies[0].reason, "BAD_FRAME");
 });
+
+test("a real press: handleAsync waits for the button, handle refuses a promise", async () => {
+  let press: (v: boolean) => void = () => {};
+  let now = T0;
+  const device = new SoftwareDevice({
+    key: KEY.device, operator: OPERATOR, contract: CONTRACT, chainId: 8283, nonceStart: 256n * 7n,
+    now: () => now, approve: () => new Promise<boolean>((r) => (press = r)),
+  });
+  const sync = connect(device, 23);
+  anchor(sync, device, T0);
+  const ok = sync.send({ v: 1, type: "session.open", sessionId: SID, mode: "payment", kioskNonce: "0x" + "a5".repeat(32) } as Message)[0];
+  sync.send({ v: 1, type: "session.confirm", sessionId: SID, deviceNonce: ok.deviceNonce } as Message);
+  sync.send({ v: 1, type: "payment.identify", sessionId: SID, attestation: attestation() } as Message);
+  const auth = order();
+  const { orderId, token, amount, payout, expiry } = auth;
+  const prepare = { v: 1, type: "payment.prepare", sessionId: SID, authorization: auth,
+    merchantSignature: sign(KEY.merchant, "MerchantOrder", { orderId, token, amount, payout, expiry }) } as Message;
+  assert.throws(() => device.handle(prepare), /handleAsync/);
+
+  const pending = device.handleAsync(prepare);
+  let settled = false;
+  pending.then(() => (settled = true));
+  await new Promise((r) => setImmediate(r));
+  assert.equal(settled, false, "the device answers only after the press");
+  press(true);
+  const [result] = await pending;
+  assert.equal(result.outcome, "approved");
+
+  // The kiosk gives up (session.cancel) before the press: nothing is signed.
+  const auth2 = order({ orderId: "0x" + "02".repeat(32) });
+  const again = device.handleAsync({ ...prepare, authorization: auth2,
+    merchantSignature: sign(KEY.merchant, "MerchantOrder", { orderId: auth2.orderId, token, amount, payout, expiry }) } as Message);
+  device.handle({ v: 1, type: "session.cancel", sessionId: SID } as Message);
+  press(true);
+  assert.deepEqual(await again, []);
+  now += 1;
+});

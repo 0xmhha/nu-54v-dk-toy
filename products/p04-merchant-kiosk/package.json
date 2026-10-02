@@ -10,7 +10,8 @@
     "start": "react-native start",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "test:conformance": "jest test/conformance.test.ts"
+    "test:conformance": "jest test/conformance.test.ts",
+    "provision:dev": "node --experimental-strip-types --no-warnings scripts/provision-dev.ts"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",
@@ -25,6 +26,7 @@
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.25.3",
     "@babel/runtime": "^7.25.0",
+    "@nu54/device-sim": "workspace:*",
     "@react-native-community/cli": "20.2.0",
     "@react-native-community/cli-platform-android": "20.2.0",
     "@react-native-community/cli-platform-ios": "20.2.0",

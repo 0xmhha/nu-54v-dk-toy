@@ -407,3 +407,6 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
     ]
   }
 };
+
+/** GATT service of the payment protocol (payment-protocol.md 3). */
+export const GATT = { service: "6e753534-7061-7900-8000-00805f9b0001", rx: "6e753534-7061-7900-8000-00805f9b0002", tx: "6e753534-7061-7900-8000-00805f9b0003" } as const;

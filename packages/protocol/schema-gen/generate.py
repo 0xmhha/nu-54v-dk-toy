@@ -142,7 +142,10 @@ def gen_ts(m: dict) -> str:
             "/** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */",
             "export type FieldKind = \"hex20\" | \"hex32\" | \"signature\" | \"sessionId\" | \"uint\" | \"int\" | \"text\" | \"bool\" | ObjectKind;",
             "export interface ObjectKind { fields: Record<string, FieldKind>; required: readonly string[] }",
-            "export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = " + json.dumps(m["messageFields"], indent=2) + ";", ""]
+            "export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = " + json.dumps(m["messageFields"], indent=2) + ";", "",
+            "/** GATT service of the payment protocol (payment-protocol.md 3). */",
+            "export const GATT = { service: " + json.dumps(m["gatt"]["service"]) + ", rx: " + json.dumps(m["gatt"]["characteristics"]["rx"]["uuid"])
+            + ", tx: " + json.dumps(m["gatt"]["characteristics"]["tx"]["uuid"]) + " } as const;", ""]
     return "\n".join(out)
 
 
