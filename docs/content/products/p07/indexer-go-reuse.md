@@ -2,7 +2,7 @@
 
 P07 최소 indexer는 직접 폴링 방식으로 만들었다. 하지만 [기획](plan.md) 4절은 `indexer-go`를 먼저 재사용할 수 있는지 판단하라고 정한다. 이 문서가 그 판단을 대신한다. 순서는 셋이다. 먼저 `indexer-go`(백엔드)와 `indexer-ui`(프런트엔드)의 코드를 AST로 읽어 그래프로 만들고 구조를 본다. 다음으로 P07이 서비스로 돌아가는 데 필요한 기능을 정리한다. 마지막으로 그 기능마다 `indexer-go`에서 가져올 수 있는지, 가져오면 무엇이 함께 딸려 오는지를 적는다.
 
-대상은 `stable-platform/indexer-go` 커밋 `5baff64`와 같은 디렉터리의 `indexer-ui`다. 그래프 도구와 분석 스크립트는 [products/p10-platform/tools/astgraph](../../../../products/p10-platform/tools/astgraph/README.md)에 있다.
+대상은 `stable-platform/indexer-go` 커밋 `5baff64`와 같은 디렉터리의 `indexer-ui`다. 구조 문제와 대용량 서비스 관점의 평가는 [indexer-go 구조 검토](indexer-go-review.md)에 따로 있다. 그래프 도구와 분석 스크립트는 [products/p10-platform/tools/astgraph](../../../../products/p10-platform/tools/astgraph/README.md)에 있다.
 
 ## 1. 결론
 
