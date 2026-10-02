@@ -459,9 +459,9 @@ func rentalProvision(args []string) error {
 	if err != nil {
 		return err
 	}
-	// The label QR carries the BLE address and the passkey for later bonding (payment-protocol.md 3).
+	// The label QR carries the BLE address and the passkey for the renter app's bonding (P02 design 1).
 	return emit(e, "rental-provision", map[string]any{"result": res, "bleAddress": found.Address.String(),
-		"label": fmt.Sprintf("NU54:%s:%s", found.Address.String(), res.Passkey), "withdraw": w, "amount": amt.String()})
+		"label": fmt.Sprintf("nu54://bond?addr=%s&passkey=%s", strings.ToUpper(found.Address.String()), res.Passkey), "withdraw": w, "amount": amt.String()})
 }
 
 // rentalReanchor gives a PROVISIONED_NO_ANCHOR device a fresh TimeAnchor after a reset.

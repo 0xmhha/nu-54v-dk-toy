@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { fromBase64 } from './ble/base64.ts';
+import { fromBase64 } from '@nu54/protocol';
 import { findDevice, openTransport } from './ble/central.ts';
 import { FramedLink } from './ble/framing.ts';
 import { JsonRpcChain } from './chain/rpc.ts';

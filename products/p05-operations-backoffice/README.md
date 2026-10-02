@@ -50,7 +50,7 @@ $O rental deposit --device <기기 주소> --withdraw <대여자 출금 주소> 
 
 ### BLE 대여 셋업 (`rental provision`, `rental re-anchor`)
 
-`UNPROVISIONED` 기기에 BLE 셋업 세션을 열어 결제 프로토콜 5절의 순서대로 진행한다. 대여자가 기기 버튼으로 운영자 값을 확인하고 PIN을 정하면, `opsctl`이 finalized 블록 시각으로 TimeAnchor를 서명해 보내고, 기기가 받아들인 뒤에만 입금한다. 라벨 QR 내용(`NU54:<BLE 주소>:<passkey>`)을 출력한다. reset 뒤 anchor만 잃은 기기(`PROVISIONED_NO_ANCHOR`)는 `rental re-anchor`로 3단계만 다시 한다.
+`UNPROVISIONED` 기기에 BLE 셋업 세션을 열어 결제 프로토콜 5절의 순서대로 진행한다. 대여자가 기기 버튼으로 운영자 값을 확인하고 PIN을 정하면, `opsctl`이 finalized 블록 시각으로 TimeAnchor를 서명해 보내고, 기기가 받아들인 뒤에만 입금한다. 라벨 QR 내용(`nu54://bond?addr=<BLE 주소>&passkey=<6자리>`, 폰 앱 설계 1절의 형식)을 출력한다. reset 뒤 anchor만 잃은 기기(`PROVISIONED_NO_ANCHOR`)는 `rental re-anchor`로 3단계만 다시 한다.
 
 ```bash
 $O rental provision --withdraw <대여자 출금 주소> --amount 10000000 [--passkey 042195]
