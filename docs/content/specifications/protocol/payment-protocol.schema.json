@@ -790,7 +790,8 @@
         "sessionId",
         "operator",
         "contract",
-        "chainId"
+        "chainId",
+        "passkey"
       ],
       "additionalProperties": false,
       "properties": {
@@ -811,9 +812,13 @@
         },
         "chainId": {
           "$ref": "#/$defs/uint"
+        },
+        "passkey": {
+          "$ref": "#/$defs/uint",
+          "description": "per-device LE Secure Connections passkey, 0 to 999999 (printed as six digits on the label QR)"
         }
       },
-      "description": "accepted only in UNPROVISIONED state after the renter confirms on the device button"
+      "description": "accepted only in UNPROVISIONED state after the renter confirms on the device button; the device stores these values together with the new key and PIN"
     },
     "setup.ack": {
       "direction": "device to operator tool",
@@ -857,7 +862,7 @@
           "$ref": "#/$defs/uint"
         }
       },
-      "description": "sent after each setup step; the keygen ack carries the new device address that the operator tool signs into TimeAnchor"
+      "description": "sent after each setup step; after setup.operator the device sends the setup.operator ack on the button press and the keygen ack once the key and PIN exist, which carries the new device address that the operator tool signs into TimeAnchor"
     },
     "device.reset": {
       "direction": "operator tool to device",

@@ -71,7 +71,31 @@ const paySession = (opens: number, at: number, ...rest: Message[]): Step[] => [
   ...rest.map((send) => ({ at, send })),
 ];
 
-const SCENARIOS: { id: string; description: string; button: "approve" | "reject"; steps: Step[] }[] = [
+// Rental setup (payment-protocol.md 5). The device starts UNPROVISIONED; draw 0 is the setup
+// session's deviceNonce, draw 1 the new key (32 bytes of 0x5b), draw 2 the nonce start (31 bytes
+// of 0x5c and a zero low byte).
+const PASSKEY = "042195";
+const NEW_KEY = new Uint8Array(32).fill(0x5b);
+const NEW_DEVICE = addressOfPrivateKey(NEW_KEY);
+const operatorMsg = (passkey = PASSKEY): Message =>
+  ({ v: 1, type: "setup.operator", sessionId: SID, operator: addressOfPrivateKey(k("operator")), contract: CONTRACT, chainId: String(CHAIN_ID), passkey } as Message);
+const anchorFor = (device: string, ts: number): Message =>
+  ({ v: 1, type: "setup.timeAnchor", sessionId: SID, device, timestamp: String(ts), operatorSignature: sign("operator", "TimeAnchor", { device, timestamp: BigInt(ts) }) } as Message);
+const resetMsg = (device: string, key: keyof typeof KEY = "operator", nonce = 1n): Message =>
+  ({ v: 1, type: "device.reset", sessionId: SID, device, nonce: String(nonce), operatorSignature: sign(key, "DeviceReset", { device, nonce }) } as Message);
+
+type Scenario = {
+  id: string;
+  description: string;
+  /** The renter's button for payment.prepare and setup.operator. */
+  button: "approve" | "reject";
+  steps: Step[];
+  /** Setup scenarios: the device starts UNPROVISIONED; pin is what the renter enters (null: timeout). */
+  initialState?: "UNPROVISIONED";
+  pin?: string | null;
+};
+
+const SCENARIOS: Scenario[] = [
   { id: "SV-01", description: "anchor, two approved payments with sequential nonces, payment.outcome", button: "approve",
     steps: [...anchored(), ...paySession(1, T0 + 5, identify(), prepare()),
       ...paySession(2, T0 + 10, identify(), prepare({ orderId: "0x" + "02".repeat(32), expiry: String(T0 + 70) }),
@@ -99,15 +123,35 @@ const SCENARIOS: { id: string; description: string; button: "approve" | "reject"
       { at: T0, send: anchorMsg(T0 + 1, "stranger") }, { at: T0, send: anchorMsg(T0 + 1) }] },
   { id: "SV-12", description: "a device-to-kiosk type sent to the device: UNSUPPORTED_TYPE", button: "approve",
     steps: [...anchored(), { at: T0, send: { v: 1, type: "payment.result", sessionId: SID, outcome: "approved" } as Message }] },
+  { id: "SV-13", description: "rental setup: setup.operator acked on the press, keygen ack with the new address after the PIN, anchor, then a payment from the new key starting at the nonce start",
+    button: "approve", initialState: "UNPROVISIONED", pin: "2580",
+    steps: [{ at: T0, send: open("setup") }, { at: T0, send: operatorMsg() }, { at: T0, send: anchorFor(NEW_DEVICE, T0) },
+      ...paySession(3, T0 + 5, identify(), prepare())] },
+  { id: "SV-14", description: "the renter refuses setup.operator: USER_REJECTED, the device stays UNPROVISIONED",
+    button: "reject", initialState: "UNPROVISIONED", pin: "2580",
+    steps: [{ at: T0, send: open("setup") }, { at: T0, send: operatorMsg() }, { at: T0, send: open("setup") }] },
+  { id: "SV-15", description: "the PIN is not entered in time: keygen TIMEOUT, nothing stored",
+    button: "approve", initialState: "UNPROVISIONED", pin: null,
+    steps: [{ at: T0, send: open("setup") }, { at: T0, send: operatorMsg() }, { at: T0, send: open("setup") }] },
+  { id: "SV-16", description: "setup.operator on a provisioned device or with a passkey over six digits: NOT_PERMITTED",
+    button: "approve",
+    steps: [{ at: T0, send: open("setup") }, { at: T0, send: operatorMsg() }, { at: T0, send: operatorMsg("1000000") }] },
+  { id: "SV-17", description: "device.reset: refused for another signer or device, accepted from the recorded operator in any session; the device ends UNPROVISIONED",
+    button: "approve",
+    steps: [...anchored(), { at: T0, send: open("payment") }, { at: T0, send: resetMsg(DEVICE, "stranger") }, { at: T0, send: resetMsg(NEW_DEVICE) },
+      { at: T0, send: resetMsg(DEVICE) }, { at: T0, send: identify() }, { at: T0, send: open("setup") }, { at: T0, send: resetMsg(DEVICE) }] },
 ];
 
 function run() {
   return SCENARIOS.map((sc) => {
     let now = 0;
     let draws = 0;
+    const provisioned = sc.initialState === "UNPROVISIONED"
+      ? {}
+      : { key: k("device"), operator: addressOfPrivateKey(k("operator")), contract: CONTRACT, chainId: CHAIN_ID, nonceStart: NONCE_START };
     const device = new SoftwareDevice({
-      key: k("device"), operator: addressOfPrivateKey(k("operator")), contract: CONTRACT, chainId: CHAIN_ID,
-      nonceStart: NONCE_START, now: () => now, approve: () => sc.button === "approve",
+      ...provisioned, now: () => now, approve: () => sc.button === "approve",
+      confirmSetup: () => sc.button === "approve", enterPin: () => (sc.pin === undefined ? "2580" : sc.pin),
       random: (n) => new Uint8Array(n).fill(0x5a + draws++),
     });
     const steps = sc.steps.map((st) => {
@@ -126,13 +170,13 @@ function run() {
         phone: device.phone.slice(phoneBefore).map((p) => bytesToHex(encodeMessage(p), false)),
       };
     });
-    return { id: sc.id, description: sc.description, button: sc.button, steps };
+    return { id: sc.id, description: sc.description, button: sc.button, ...(sc.initialState ? { initialState: sc.initialState, pin: sc.pin ?? null } : {}), steps };
   });
 }
 
 const doc = {
   description:
-    "Shared session vectors (payment-protocol.md 5, 6), generated by packages/device-sim. A device implementation set up with the values below must answer every step's `send` CBOR body with exactly the `expect` bodies (in order) and send the `phone` bodies to the phone app. `at` is the device clock (unix seconds) for that step. `powerCycle` is a RAM-clearing reset. The k-th random request (k = 0, 1, ...) returns bytes all equal to 0x5a + k. Device signatures are deterministic (RFC 6979).",
+    "Shared session vectors (payment-protocol.md 5, 6), generated by packages/device-sim. A device implementation set up with the values below must answer every step's `send` CBOR body with exactly the `expect` bodies (in order) and send the `phone` bodies to the phone app. `at` is the device clock (unix seconds) for that step. `powerCycle` is a RAM-clearing reset. `button` is the renter's answer to payment.prepare and setup.operator. A scenario with `initialState` UNPROVISIONED starts without key or setup values, and `pin` is the PIN the renter enters at setup (null: not entered in time). The k-th random request (k = 0, 1, ...) returns bytes all equal to 0x5a + k: deviceNonce at each session.open, then at setup the new key (32 bytes) and the nonce start (31 bytes, followed by a zero byte). Device signatures are deterministic (RFC 6979).",
   generator: "packages/device-sim/scripts/gen-session-vectors.ts",
   device: {
     privateKey: KEY.device,

@@ -1,5 +1,8 @@
 // A software stand-in for the payment device (payment-protocol.md 5 and 6).
 //
+// Setup (5): setup.operator with the renter's confirmation, key generation, PIN, TimeAnchor and
+// device.reset. Payments (6): the payment session with its step-4 checks.
+//
 // It answers the same messages the firmware does, with the same checks and refusal reasons,
 // and signs with a software key instead of the TF-M secure partition. The kiosk uses it to
 // run the whole payment flow before the firmware is ready; the firmware team uses it as the
@@ -20,12 +23,15 @@ import {
 export type DeviceState = "UNPROVISIONED" | "PROVISIONED_NO_ANCHOR" | "READY" | "PIN_LOCKED";
 
 export interface DeviceConfig {
-  /** Device key (test key). */
-  key: Uint8Array;
-  /** Setup values recorded by setup.operator: operator address, settlement contract, chain id. */
-  operator: string;
-  contract: string;
-  chainId: bigint | number;
+  /**
+   * A provisioned device: its key (test key) and the values setup.operator recorded (operator
+   * address, settlement contract, chain id). Without them the device starts UNPROVISIONED and
+   * gets them through a setup session.
+   */
+  key?: Uint8Array;
+  operator?: string;
+  contract?: string;
+  chainId?: bigint | number;
   /** Register parameters (seconds). */
   anchorClockSkew?: number;
   authorizationExpiry?: number;
@@ -38,10 +44,28 @@ export interface DeviceConfig {
    * real press (for example from a terminal); only handleAsync accepts it.
    */
   approve?: (show: Message) => boolean | Promise<boolean>;
+  /** The renter's button for setup.operator: confirm or refuse the operator values. */
+  confirmSetup?: (values: SetupValues) => boolean | Promise<boolean>;
+  /** The PIN the renter enters on the buttons at setup; null when it was not finished in time. */
+  enterPin?: () => string | null | Promise<string | null>;
   firmware?: string;
-  /** Random bytes (deviceNonce); injectable so session vectors are deterministic. */
+  /** Random bytes (deviceNonce, new key, nonce start); injectable so session vectors are deterministic. */
   random?: (n: number) => Uint8Array;
 }
+
+export interface SetupValues {
+  operator: string;
+  contract: string;
+  chainId: bigint;
+  passkey: number;
+}
+
+/** What a step waits for: a button or the PIN. A promise is a real press (handleAsync only). */
+type Wait = boolean | string | null | Promise<boolean | string | null>;
+/** A step yields early messages ({send}) or waits ({wait}) and returns the remaining replies. */
+type Step = Generator<{ send: Message } | { wait: Wait }, Message[], boolean | string | null>;
+
+const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
 
 const FIRMWARE = "sim-0.1.0";
 
@@ -49,11 +73,12 @@ const FIRMWARE = "sim-0.1.0";
 const webCrypto = () => (globalThis as unknown as { crypto: { getRandomValues<T extends Uint8Array>(a: T): T } }).crypto;
 
 export class SoftwareDevice {
-  readonly address: string;
-  state: DeviceState = "PROVISIONED_NO_ANCHOR";
+  state: DeviceState;
   /** Messages the device sent to the phone app (confirm.show). */
   readonly phone: Message[] = [];
-  private readonly cfg: Required<Omit<DeviceConfig, "nonceStart">> & { nonceStart: bigint };
+  private readonly cfg: Required<Omit<DeviceConfig, "nonceStart" | "key" | "operator" | "contract" | "chainId">>;
+  /** Values that setup records and device.reset wipes. */
+  private setup: { key: Uint8Array; address: string; operator: string; contract: string; chainId: bigint; passkey?: number; pin?: string } | null;
   private anchor: { timestamp: number; at: number } | null = null;
   private lastAnchor = 0;
   private nextNonce: bigint;
@@ -61,23 +86,39 @@ export class SoftwareDevice {
   private attestation: { merchant: string; payout: string; name: string } | null = null;
 
   constructor(cfg: DeviceConfig) {
+    const { key, operator, contract, chainId, nonceStart = 0n, ...rest } = cfg;
     this.cfg = {
       anchorClockSkew: 60,
       authorizationExpiry: 120,
       now: () => Math.floor(Date.now() / 1000),
       approve: () => true,
+      confirmSetup: () => true,
+      enterPin: () => "2580",
       firmware: FIRMWARE,
       random: (n: number) => webCrypto().getRandomValues(new Uint8Array(n)),
-      nonceStart: 0n,
-      ...cfg,
-    } as SoftwareDevice["cfg"];
-    if (this.cfg.nonceStart % 256n !== 0n) throw new Error("nonceStart must be a multiple of 256");
-    this.nextNonce = this.cfg.nonceStart;
-    this.address = addressOfPrivateKey(cfg.key);
+      ...rest,
+    };
+    if (nonceStart % 256n !== 0n) throw new Error("nonceStart must be a multiple of 256");
+    this.nextNonce = nonceStart;
+    if (key) {
+      if (!operator || !contract || chainId === undefined) throw new Error("a provisioned device needs operator, contract and chainId");
+      this.setup = { key, address: addressOfPrivateKey(key), operator, contract, chainId: BigInt(chainId) };
+      this.state = "PROVISIONED_NO_ANCHOR";
+    } else {
+      this.setup = null;
+      this.state = "UNPROVISIONED";
+    }
+  }
+
+  /** The device address; a provisioned device only. */
+  get address(): string {
+    if (!this.setup) throw new Error("the device is UNPROVISIONED: it has no key yet");
+    return this.setup.address;
   }
 
   private get domain(): Domain {
-    return { chainId: this.cfg.chainId, verifyingContract: this.cfg.contract };
+    const s = this.setup!;
+    return { chainId: s.chainId, verifyingContract: s.contract };
   }
 
   /** Device time: last anchor plus the elapsed time since it was accepted. */
@@ -106,27 +147,47 @@ export class SoftwareDevice {
 
   /** Handles one message from a central and returns the messages the device sends back. */
   handle(m: Message): Message[] {
-    if (m.type === "payment.prepare") {
-      const p = this.prepare(m);
-      if (Array.isArray(p)) return p;
-      const ok = this.cfg.approve(p.show);
-      if (typeof ok !== "boolean") throw new Error("approve returned a promise: use handleAsync");
-      return [this.decide(ok, p.auth)];
+    const step = this.step(m);
+    const out: Message[] = [];
+    let r = step.next(null);
+    while (!r.done) {
+      if ("send" in r.value) {
+        out.push(r.value.send);
+        r = step.next(null);
+      } else {
+        const v = r.value.wait;
+        if (v instanceof Promise) throw new Error("a button callback returned a promise: use handleAsync");
+        r = step.next(v);
+      }
     }
-    return this.handleOther(m);
+    return [...out, ...r.value];
   }
 
-  /** Like handle, but waits for an approve callback that returns a promise (a real press). */
-  async handleAsync(m: Message): Promise<Message[]> {
-    if (m.type === "payment.prepare") {
-      const p = this.prepare(m);
-      if (Array.isArray(p)) return p;
-      const sid = this.session?.id;
-      const approved = await this.cfg.approve(p.show);
-      // session.cancel (or a new session) while the renter decided: no signature leaves the device.
-      if (this.session?.id !== sid) return [];
-      return [this.decide(approved, p.auth)];
+  /**
+   * Like handle, but waits for button callbacks that return a promise (a real press). Messages
+   * the device sends before the end of the step (the setup.operator ack, before the PIN) go to
+   * `emit` as soon as they exist; without it they come first in the result.
+   */
+  async handleAsync(m: Message, emit?: (m: Message) => void): Promise<Message[]> {
+    const step = this.step(m);
+    const out: Message[] = [];
+    let r = step.next(null);
+    while (!r.done) {
+      if ("send" in r.value) {
+        if (emit) emit(r.value.send);
+        else out.push(r.value.send);
+        r = step.next(null);
+      } else {
+        r = step.next(await r.value.wait);
+      }
     }
+    return [...out, ...r.value];
+  }
+
+  /** The steps that wait for the renter run as generators; every other message answers at once. */
+  private *step(m: Message): Step {
+    if (m.type === "payment.prepare") return yield* this.prepareStep(m);
+    if (m.type === "setup.operator") return yield* this.operatorStep(m);
     return this.handleOther(m);
   }
 
@@ -145,8 +206,8 @@ export class SoftwareDevice {
         return [this.identify(m)].filter((x): x is Message => x !== null);
       case "payment.outcome":
         return [];
-      case "setup.operator":
       case "device.reset":
+        return [this.reset(m)];
       case "limit.change":
         return [this.error("NOT_PERMITTED", String(m.sessionId))]; // not simulated yet
       default:
@@ -163,7 +224,7 @@ export class SoftwareDevice {
     this.session = { id: String(m.sessionId), mode, deviceNonce, confirmed: false };
     this.attestation = null;
     return this.reply("session.open.ok", {
-      device: this.address,
+      ...(this.setup ? { device: this.setup.address } : {}), // an UNPROVISIONED device has no key yet
       deviceNonce,
       anchorValid: this.anchor !== null,
       firmware: this.cfg.firmware,
@@ -189,6 +250,7 @@ export class SoftwareDevice {
     const ack = (accepted: boolean, reason?: string) =>
       this.reply("setup.ack", { step: "setup.timeAnchor", accepted, ...(reason ? { reason } : {}), lastAnchor: String(this.lastAnchor) });
     if (!this.inSession(m, "setup")) return this.error("NOT_PERMITTED", String(m.sessionId));
+    if (!this.setup) return ack(false, "NOT_PERMITTED"); // no key and no operator to check against
     const ts = Number(m.timestamp);
     let signer: string;
     try {
@@ -200,7 +262,7 @@ export class SoftwareDevice {
       return ack(false, "NOT_PERMITTED");
     }
     // Refused anchors (other device, not the recorded operator, not strictly later) are NOT_PERMITTED.
-    if (String(m.device).toLowerCase() !== this.address || signer !== this.cfg.operator.toLowerCase()) return ack(false, "NOT_PERMITTED");
+    if (String(m.device).toLowerCase() !== this.setup.address || signer !== this.setup.operator.toLowerCase()) return ack(false, "NOT_PERMITTED");
     if (ts <= this.lastAnchor) return ack(false, "NOT_PERMITTED");
     this.anchor = { timestamp: ts, at: this.cfg.now() };
     this.lastAnchor = ts;
@@ -220,7 +282,7 @@ export class SoftwareDevice {
     } catch {
       return this.refused("MERCHANT_FORGED");
     }
-    if (signer !== this.cfg.operator.toLowerCase()) return this.refused("MERCHANT_FORGED");
+    if (signer !== this.setup!.operator.toLowerCase()) return this.refused("MERCHANT_FORGED");
     const skew = this.cfg.anchorClockSkew;
     if (t + skew < Number(a.validFrom) || t - skew > Number(a.validUntil)) return this.refused("ATTESTATION_EXPIRED");
     this.attestation = { merchant: a.merchant.toLowerCase(), payout: a.payout.toLowerCase(), name: a.name };
@@ -247,8 +309,8 @@ export class SoftwareDevice {
       orderSigner !== att.merchant ||
       !same(auth.merchant, att.merchant) ||
       !same(auth.payout, att.payout) ||
-      BigInt(auth.chainId) !== BigInt(this.cfg.chainId) ||
-      !same(auth.contract, this.cfg.contract)
+      BigInt(auth.chainId) !== this.setup!.chainId ||
+      !same(auth.contract, this.setup!.contract)
     ) {
       return [this.refused("MERCHANT_FORGED")];
     }
@@ -266,10 +328,81 @@ export class SoftwareDevice {
     return { show, auth };
   }
 
-  private decide(approved: boolean, auth: Record<string, string>): Message {
-    if (!approved) return this.refused("USER_REJECTED");
+  private *prepareStep(m: Message): Step {
+    const p = this.prepare(m);
+    if (Array.isArray(p)) return p;
+    const sid = this.session?.id;
+    const approved = yield { wait: this.cfg.approve(p.show) };
+    // session.cancel (or a new session) while the renter decided: no signature leaves the device.
+    if (this.session?.id !== sid) return [];
+    if (!approved) return [this.refused("USER_REJECTED")];
     const nonce = this.nextNonce++; // sequential: consecutive nonces share one bitmap slot
-    const sig = signDigest(digest(this.domain, "PaymentAuthorization", { ...auth, nonce }), this.cfg.key);
-    return this.reply("payment.result", { outcome: "approved", signature: bytesToHex(sig), nonce: nonce.toString() });
+    const sig = signDigest(digest(this.domain, "PaymentAuthorization", { ...p.auth, nonce }), this.setup!.key);
+    return [this.reply("payment.result", { outcome: "approved", signature: bytesToHex(sig), nonce: nonce.toString() })];
+  }
+
+  /**
+   * setup.operator (payment-protocol.md 5, steps 1-2): the renter confirms the operator values,
+   * the device makes its key and nonce start, the renter sets the PIN, and only then is
+   * everything stored at once. A refusal, a PIN timeout or a dropped session stores nothing.
+   */
+  private *operatorStep(m: Message): Step {
+    const ack = (step: string, accepted: boolean, extra: Record<string, unknown> = {}) =>
+      this.reply("setup.ack", { step, accepted, ...extra });
+    if (!this.inSession(m, "setup")) return [this.error("NOT_PERMITTED", String(m.sessionId))];
+    if (this.state !== "UNPROVISIONED") return [ack("setup.operator", false, { reason: "NOT_PERMITTED" })]; // once only [N23]
+    const passkey = Number(m.passkey);
+    if (!Number.isSafeInteger(passkey) || passkey > 999_999) return [ack("setup.operator", false, { reason: "NOT_PERMITTED" })];
+    const values: SetupValues = { operator: String(m.operator), contract: String(m.contract), chainId: BigInt(String(m.chainId)), passkey };
+    const sid = this.session!.id;
+
+    const confirmed = yield { wait: this.cfg.confirmSetup(values) };
+    if (this.session?.id !== sid) return [];
+    if (!confirmed) return [ack("setup.operator", false, { reason: "USER_REJECTED" })];
+    yield { send: ack("setup.operator", true) };
+
+    // TRNG key (redrawn in the negligible case it is not a valid scalar), then the nonce start:
+    // 31 random bytes and a zero low byte, so a multiple of 256 (payment-protocol.md 2).
+    let key: Uint8Array;
+    do key = this.cfg.random(32);
+    while (BigInt(bytesToHex(key)) === 0n || BigInt(bytesToHex(key)) >= SECP256K1_N);
+    const start = new Uint8Array(32);
+    start.set(this.cfg.random(31), 0);
+
+    const pin = yield { wait: this.cfg.enterPin() };
+    if (this.session?.id !== sid) return [];
+    if (typeof pin !== "string") return [ack("keygen", false, { reason: "TIMEOUT" })];
+    const address = addressOfPrivateKey(key);
+    this.setup = { key, address, operator: values.operator, contract: values.contract, chainId: values.chainId, passkey, pin };
+    this.nextNonce = BigInt(bytesToHex(start));
+    this.state = "PROVISIONED_NO_ANCHOR";
+    return [ack("keygen", true, { device: address })];
+  }
+
+  /** device.reset (payment-protocol.md 5): an operator-signed DeviceReset for this device wipes it. */
+  private reset(m: Message): Message {
+    const ack = (accepted: boolean) =>
+      this.reply("setup.ack", { step: "device.reset", accepted, ...(accepted ? {} : { reason: "NOT_PERMITTED" }) });
+    if (!this.session || this.session.id !== m.sessionId) return this.error("NOT_PERMITTED", String(m.sessionId));
+    if (!this.setup) return ack(false);
+    let signer: string;
+    try {
+      signer = recoverSigner(
+        digest(this.domain, "DeviceReset", { device: String(m.device), nonce: BigInt(String(m.nonce)) }),
+        hexToBytes(String(m.operatorSignature)),
+      );
+    } catch {
+      return ack(false);
+    }
+    if (String(m.device).toLowerCase() !== this.setup.address || signer !== this.setup.operator.toLowerCase()) return ack(false);
+    const reply = ack(true);
+    this.setup = null;
+    this.anchor = null;
+    this.lastAnchor = 0;
+    this.nextNonce = 0n;
+    this.attestation = null;
+    this.session = null; // the wiped device keeps no session
+    this.state = "UNPROVISIONED";
+    return reply;
   }
 }
