@@ -905,22 +905,22 @@
       "rationale": "인터뷰에서 매일 재발급으로 확정했다."
     },
     "kioskMinGasBalance": {
-      "value": 20,
+      "value": 13,
       "unit": "WKRC",
       "bound": "value > 0",
-      "rationale": "busy 하한. settle 1건을 170,000 gas(2026-09-29 sandbox 실측 165,399 gas에 여유를 더한 값)로 보고, 결제 1건 약 8.1 WKRC(170,000 gas x 47,600 gwei)에 같은 서명 재전송 1건을 더한 2건분 16.2 WKRC를 20 WKRC로 올렸다. W12 시작 잔액은 이 값과 별개로 week12-log 1절에 적는다. W6 테스트넷 실측으로 다시 확인한다.",
+      "rationale": "busy 하한. settle 1건을 130,000 gas(W6 테스트넷 실측 최대 120,888 gas에 약 7% 여유를 더한 값)로 보고, 결제 1건 약 6.2 WKRC(130,000 gas x 47,600 gwei)에 같은 서명 재전송 1건을 더한 2건분 12.4 WKRC를 13 WKRC로 올렸다. W12 시작 잔액은 이 값과 별개로 week12-log 1절에 적는다.",
       "provenance": {
         "kind": "estimate",
-        "settleGasEstimate": 170000,
-        "settleGasMeasured": 165399,
-        "measuredOn": "sandbox anvil, 2026-09-29",
+        "settleGasEstimate": 130000,
+        "settleGasMeasured": 120888,
+        "measuredOn": "testnet 8283, 2026-10-01 (first device payment; later payments 103,473 gas)",
         "gasPriceGwei": 47600,
         "paymentMargin": 2,
         "marginBasis": "one settle plus one same-signature rebroadcast",
-        "computedWei": "16184000000000000000",
-        "rounding": "16.18 WKRC를 20 WKRC로 올림",
-        "remeasureAt": "W6 testnet deployment",
-        "basis": "sandbox measurement; confirmed on the testnet at W6"
+        "computedWei": "12376000000000000000",
+        "rounding": "12.38 WKRC를 13 WKRC로 올림",
+        "remeasureAt": "contract redeploy, if any",
+        "basis": "testnet measurement after the storage packing"
       }
     },
     "pinMaxRetries": {
@@ -1113,6 +1113,14 @@
       "reason": "sandbox에서 잰 첫 settle 트랜잭션이 165,399 gas로 이전 추정 150,000을 넘었다. 이전 값이면 키오스크가 결제 2건분 가스 없이 결제를 받을 수 있다.",
       "preserves": "busy 판정 방식(결제 2건분)과 W12 시작 잔액 규칙은 그대로다.",
       "cost": "키오스크 계정에 더 많은 WKRC를 채운다. W6 테스트넷 실측이 다르면 다시 고친다."
+    },
+    {
+      "date": "2026-10-02",
+      "decisions": [],
+      "change": "parameters.kioskMinGasBalance를 20에서 13 WKRC로 내리고 settleGasEstimate를 170,000에서 130,000 gas로 바꿨다.",
+      "reason": "W6 테스트넷 실측에서 첫 결제 settle이 120,888 gas, 이후 결제가 103,473 gas였다(storage packing 뒤). 이전 값은 결제 2건분보다 7 WKRC 넘게 많이 묶어 둔다.",
+      "preserves": "busy 판정 방식(결제 2건분), 가스 가격 기준 47,600 gwei, W12 시작 잔액 규칙은 그대로다.",
+      "cost": "settle 가스가 130,000을 넘는 컨트랙트 변경은 이 값을 다시 고쳐야 하고, 가스 시험 상한이 이를 잡는다. 컨트랙트를 다시 배포하면 다시 잰다."
     }
   ],
   "wbsRequiredTokens": [

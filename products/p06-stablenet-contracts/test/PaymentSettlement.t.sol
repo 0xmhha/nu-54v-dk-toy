@@ -206,9 +206,9 @@ contract PaymentSettlementTest is SettlementBase {
         assertEq(settlement.merchantBalance(merchant), 0);
     }
 
-    // P06-NFR-02: a whole settle transaction stays within settleGasEstimate (170,000),
+    // P06-NFR-02: a whole settle transaction stays within settleGasEstimate (130,000),
     // which kioskMinGasBalance is derived from. Sandbox first payment: 165,399 before the
-    // storage packing, 120,188 after it (2026-10-01).
+    // storage packing, 120,188 after it (2026-10-01); testnet first payment 120,888.
     function test_settle_txGasRecorded() public {
         PaymentTypes.PaymentAuthorization memory a = _auth(45e5, ORDER, 1);
         bytes memory sig = _sign(deviceKey, a);
@@ -224,7 +224,7 @@ contract PaymentSettlementTest is SettlementBase {
         uint256 txGas = 21_000 + calldataGas + execution;
         emit log_named_uint("settle execution gas", execution);
         emit log_named_uint("settle transaction gas (estimate)", txGas);
-        assertLe(txGas, 170_000, "settle exceeds settleGasEstimate");
+        assertLe(txGas, 130_000, "settle exceeds settleGasEstimate");
     }
 
     // P06-FR-01

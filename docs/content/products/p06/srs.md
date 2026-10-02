@@ -60,7 +60,7 @@ ATTESTATION_EXPIRED는 기기가 거절하므로 컨트랙트에는 해당 error
 | ID | 요구 | 판정 |
 |---|---|---|
 | P06-NFR-01 | 업그레이드 proxy와 pause를 두지 않는다. 결함이 나면 새 배포와 closeAccount 후 재예치로 옮긴다. 관리자 권한이 적을수록 운영자 키 유출 때 피해가 줄기 때문이다. 운영자가 옮길 수 있는 것은 장부 밖 잉여분뿐이다(P06-FR-19) | 소스 검토, `test_noAdminDrain`, `test_recoverSurplus_rejectedPayout` |
-| P06-NFR-02 | settle 한 번의 가스는 register가 kioskMinGasBalance 추정에 쓴 settleGasEstimate(170,000, 2026-09-29 sandbox 실측 165,399에 여유를 더한 값) 이하로 둔다. kioskMinGasBalance는 결제 2건분(정산 1건과 같은 서명 재전송 1건)의 busy 하한이므로, W6 실측이 이 가스를 넘으면 kioskMinGasBalance를 다시 정한다 [N10] | `forge snapshot` |
+| P06-NFR-02 | settle 한 번의 가스는 register가 kioskMinGasBalance 추정에 쓴 settleGasEstimate(130,000, W6 테스트넷 실측 최대 120,888에 여유를 더한 값) 이하로 둔다. kioskMinGasBalance는 결제 2건분(정산 1건과 같은 서명 재전송 1건)의 busy 하한이므로, W6 실측이 이 가스를 넘으면 kioskMinGasBalance를 다시 정한다 [N10] | `forge snapshot` |
 | P06-NFR-03 | paid 판정은 finalized 블록의 PaymentSettled 이벤트로 한다. 모든 상태 변경은 이벤트를 남긴다 [N08] | 이벤트 목록 검토 |
 | P06-NFR-04 | 상태를 바꾸는 외부 호출은 cashOut·출금의 토큰 전송뿐이며 상태 변경 뒤에 한다. settle은 배포 때 고정한 registry의 view 함수만 읽는다 | `test_reentrancy_cashOut` |
 | P06-NFR-05 | 개인정보를 저장하지 않는다. 가맹점 이름은 attestation에만 있고 체인에는 없다 [N14] | 저장소 레이아웃 검토 |
