@@ -80,7 +80,7 @@
 | `payoutChangeDelay` | 86400 | s | payoutChangeDelay >= attestationValidity | payout 변경이 이벤트로 공개된 뒤 효력이 생기기까지의 창이다. 가맹점은 이 기간에 자기 payout 변경을 확인해 이의를 제기하고, registry admin은 cancelPayoutChange로 되돌린다(admin 키 자체의 탈취는 막지 못하며 위험으로 기록한다). P05는 변경 요청 뒤 옛 payout attestation의 validUntil을 효력 시각으로 잘라 발급하므로, 효력 시각 뒤 옛 payout으로 나온 서명은 anchorClockSkew 이내뿐이고 컨트랙트가 MERCHANT_FORGED로 막는다 [N05]. |
 | `authorizationExpiry` | 120 | s | 30 <= authorizationExpiry <= 300 | 10 s 키오스크 timeout과 같은 서명 재전송 여유를 덮고 오래된 서명의 재사용 창을 2분으로 제한한다. |
 | `attestationValidity` | 86400 | s | fixed 86400 | 인터뷰에서 매일 재발급으로 확정했다. |
-| `kioskMinGasBalance` | 20 | WKRC | value > 0 | busy 하한. settle 1건을 170,000 gas(2026-09-29 sandbox 실측 165,399 gas에 여유를 더한 값)로 보고, 결제 1건 약 8.1 WKRC(170,000 gas x 47,600 gwei)에 같은 서명 재전송 1건을 더한 2건분 16.2 WKRC를 20 WKRC로 올렸다. W12 시작 잔액은 이 값과 별개로 week12-log 1절에 적는다. W6 테스트넷 실측으로 다시 확인한다. |
+| `kioskMinGasBalance` | 13 | WKRC | value > 0 | busy 하한. settle 1건을 130,000 gas(W6 테스트넷 실측 최대 120,888 gas에 약 7% 여유를 더한 값)로 보고, 결제 1건 약 6.2 WKRC(130,000 gas x 47,600 gwei)에 같은 서명 재전송 1건을 더한 2건분 12.4 WKRC를 13 WKRC로 올렸다. W12 시작 잔액은 이 값과 별개로 week12-log 1절에 적는다. |
 | `pinMaxRetries` | 5 | count | 3 <= pinMaxRetries <= 10 | 오입력 여유를 두면서 추측 공격을 막는다. 넘으면 서명을 잠그고 운영자 반납 절차(closeAccount 후 DeviceReset)로만 풀린다 [N11]. |
 | `anchorClockSkew` | 60 | s | 0 < anchorClockSkew <= 300 | RTC 오차(수십 ppm, 대여 기간 수일에 수십 초)와 블록 시각 차이를 덮는다. attestation 유효 기간 비교에만 쓴다 [N06]. |
 
@@ -139,5 +139,6 @@
 | 2026-09-29 | [N02] | 외부 SE에서 키를 만들고 SE 안에서 서명하기로 바꿨다. 이전에는 TRNG로 만든 키를 SE로 감쌌다. | 4주차 게이트에서 NXP SE050이 secp256k1 ECDSA를 지원한다는 것을 AN12436 표 1로 확인했다. SE 안에서 서명하면 개인 키가 MCU 메모리를 지나지 않는다. | W9 SE 게이트와 cut order, 버튼 토큰 경계(N24), SE가 컷될 때의 TF-M waiver는 바꾸지 않는다. | SE 명령 경로를 secure partition에 두어야 하고, SE 서명의 low-s 정규화와 recovery id 계산을 MCU에서 한다. 실물에서 secp256k1 키 생성이 실패하면 감싸기 방식으로 되돌린다. |
 | 2026-09-29 | [N02], [N03], [N14], [N30] | 외부 SE 통합(WBS2-P01-05)과 W9 SE 게이트를 없애고, 키 생성과 서명을 TrustZone 위 TF-M secure partition에서 한다. 같은 날 앞선 개정(SE 안에서 서명)은 이 개정으로 대체된다. | 외부 SE를 조달해 연결할 시간이 없다. nRF54L15의 TrustZone과 CRACEN(secp256k1 ECDSA)으로 non-secure 코드에 대한 키 격리와 버튼 토큰 경계는 유지된다. | 게이트 W4·W6·W7, 버튼 토큰 경계(N24), 결제 프로토콜, 컨트랙트 한도는 바꾸지 않는다. | 물리 공격 방어가 SE보다 약하고 이를 waiver로 남긴다. KMU는 secp256k1 키를 받지 않는 것으로 보여 키를 ITS에 두므로 ITS 암호화와 AP-Protect가 필수다. role A 부하는 6일 줄어 W8–W12 합계 22.5일이 된다. |
 | 2026-09-29 |  | parameters.kioskMinGasBalance를 15에서 20 WKRC로 올리고 settleGasEstimate를 150,000에서 170,000 gas로 바꿨다. | sandbox에서 잰 첫 settle 트랜잭션이 165,399 gas로 이전 추정 150,000을 넘었다. 이전 값이면 키오스크가 결제 2건분 가스 없이 결제를 받을 수 있다. | busy 판정 방식(결제 2건분)과 W12 시작 잔액 규칙은 그대로다. | 키오스크 계정에 더 많은 WKRC를 채운다. W6 테스트넷 실측이 다르면 다시 고친다. |
+| 2026-10-02 |  | parameters.kioskMinGasBalance를 20에서 13 WKRC로 내리고 settleGasEstimate를 170,000에서 130,000 gas로 바꿨다. | W6 테스트넷 실측에서 첫 결제 settle이 120,888 gas, 이후 결제가 103,473 gas였다(storage packing 뒤). 이전 값은 결제 2건분보다 7 WKRC 넘게 많이 묶어 둔다. | busy 판정 방식(결제 2건분), 가스 가격 기준 47,600 gwei, W12 시작 잔액 규칙은 그대로다. | settle 가스가 130,000을 넘는 컨트랙트 변경은 이 값을 다시 고쳐야 하고, 가스 시험 상한이 이를 잡는다. 컨트랙트를 다시 배포하면 다시 잰다. |
 
 검증: `python3 docs/content/planning/validate_design_freeze_02.py --check <group>` 와 `--self-test`.
