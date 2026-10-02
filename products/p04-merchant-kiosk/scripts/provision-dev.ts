@@ -29,6 +29,7 @@ const { values: a } = parseArgs({
     anchor: { type: "string" },
     app: { type: "string", default: "com.nu54kiosk" },
     rpc: { type: "string", default: "https://api.test.stablenet.network/" },
+    indexer: { type: "string" }, // P07 base URL reachable from the tablet, for the receipt screen
     deployment: { type: "string", default: join(ROOT, "products/p06-stablenet-contracts/deployments/8283.json") },
     keystores: { type: "string", default: join(homedir(), ".nu54", "keystores") },
   },
@@ -58,6 +59,7 @@ if (a.attestation) {
       fromBlock: String(dep.contracts.PaymentSettlement.block),
       minGasBalanceWei: (BigInt(minGas.value) * 10n ** 18n).toString(),
       attestation: JSON.parse(readFileSync(a.attestation, "utf8")),
+      ...(a.indexer ? { indexerUrl: a.indexer } : {}),
     },
     // One key pays gas and signs orders today (the kiosk role account); the app keeps them apart.
     keys: { gas: key, merchant: key },

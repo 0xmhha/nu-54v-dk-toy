@@ -23,6 +23,8 @@ export interface KioskConfig {
   /** kioskMinGasBalance in wei (register). */
   minGasBalanceWei: string;
   attestation: Attestation;
+  /** P07 indexer base URL for receipts; optional, never needed to decide a payment. */
+  indexerUrl?: string;
 }
 
 export interface Provision {

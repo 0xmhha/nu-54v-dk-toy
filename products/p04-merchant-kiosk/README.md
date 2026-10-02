@@ -8,7 +8,7 @@
 |---|---|
 | `src/` | React Native 0.87(New Architecture, TypeScript) 키오스크 앱 |
 | `src/App.tsx` | 결제 화면: 금액 입력 → 기기 승인 대기(10초) → approved, refused, failed, Checking, 시간 초과 취소, busy |
-| `src/kiosk/` | `pay.ts` 한 건의 결제(가스 확인, 기기 세션, 제출, 기기에 `payment.outcome`), `config.ts` 개발 셋업 가져오기와 키 보관 |
+| `src/kiosk/` | `pay.ts` 한 건의 결제(가스 확인, 기기 세션, 제출, 기기에 `payment.outcome`), `config.ts` 개발 셋업 가져오기와 키 보관, `receipt.ts` P07 indexer 영수증 조회(10초 동안 다시 묻는다. 결제 판정과 무관하다) |
 | `src/payment/session.ts` | 결제 세션(프로토콜 5, 6절): 7주차 TimeAnchor 셋업, open, confirm, identify, prepare, 기기 서명 확인, 10초 안에 결과가 없으면 `session.cancel` |
 | `src/ble/` | `framing.ts` CBOR·envelope·조각(요청의 세션 응답만 받는다), `central.ts` 기기 찾기와 연결, `base64.ts` |
 | `src/specs/` | Turbo Module 명세. `NativeNusBle.ts` BLE central(페어링 없음, N27), `NativeKioskVault.ts` Keystore AES 키로 감싼 키 보관과 SecureRandom(N32). Kotlin 구현은 `android/app/src/main/java/com/nu54kiosk/ble/` |
@@ -45,6 +45,8 @@ node --experimental-strip-types products/p04-merchant-kiosk/scripts/provision-de
 $O anchor sign --device <기기 주소> > anchor.json
 node --experimental-strip-types products/p04-merchant-kiosk/scripts/provision-dev.ts --anchor anchor.json
 ```
+
+영수증 화면을 쓰려면 2단계에 `--indexer http://<태블릿에서 닿는 주소>:8080`을 붙인다(P07 indexer, `products/p07-indexer`).
 
 앱에서 금액을 넣고 결제를 요청한 뒤, `serve-ble` 터미널에 `confirm.show`가 나오면 10초 안에 `y`를 입력한다. 보드로 할 때는 SW4를 길게 눌러 결제 모드에 넣고, anchor를 보드 주소로 서명하고, LED2가 켜지면 SW1을 짧게 누른다.
 
