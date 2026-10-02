@@ -552,7 +552,13 @@ void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint
 	} else if (strcmp(type, "payment.prepare") == 0) {
 		prepare(d, &m, now, out);
 	} else if (strcmp(type, "payment.outcome") == 0) {
-		/* The kiosk's final result: shown on the LEDs and passed to the phone app (later). */
+		/* The kiosk's final result: forwarded unchanged to the phone app for the payment session
+		 * it belongs to (schema payment.outcome, P02-FR-07); no reply to the kiosk. */
+		if (in_session(d, &m, 0) && len <= NU54_OUT_MAX) {
+			memcpy(out->phone, body, len);
+			out->phone_len = len;
+			out->phone_count = 1;
+		}
 	} else if (strcmp(type, "setup.operator") == 0) {
 		setup_operator(d, &m, out);
 	} else if (strcmp(type, "device.reset") == 0) {

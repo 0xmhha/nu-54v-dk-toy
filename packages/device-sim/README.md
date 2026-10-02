@@ -54,4 +54,6 @@ pnpm -s serve-ble --approve yes   # 누르지 않고 항상 승인
 
 anchor는 기기 주소 `nu54-device`(실행할 때 출력한다)로 서명한 것을 쓴다. 보드와 다른 점은 셋이다. macOS가 ATT MTU를 정하고 바꿀 수 없다. 링크는 페어링하지 않는다(7주차 결제 세션과 같다). 기기 키는 `nu54-device` 시험 키다. 같은 Mac의 BLE central(`pay_bridge.py`)은 자기 광고를 보지 못하므로 상대는 다른 기기여야 한다.
 
+폰 앱도 함께 연결할 수 있다. 쓰기를 한 번도 하지 않고 듣기만 하는 central을 폰 앱으로 보고 `confirm.show`와 전달받은 `payment.outcome`을 보낸다. 보드는 본딩 여부로 구별하지만 macOS peripheral은 본딩 상태를 알 수 없어 이렇게 구별한다.
+
 기기는 버튼을 기다리는 동안 `session.cancel`이나 연결 끊김이 오면 서명하지 않는다. 키오스크는 늦게 온 응답을 다음 요청의 답으로 받지 않는다(세션 id가 다르면 버리고, 보낼 때 이전에 쌓인 응답을 지운다).
