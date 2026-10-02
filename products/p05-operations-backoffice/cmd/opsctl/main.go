@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -19,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/ble"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/core"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/core/ops"
 )
@@ -30,7 +32,7 @@ var commands = map[string]string{
 	"attestation": "issue (done)                                              (WBS2-P05-01)",
 	"anchor":      "sign (done)   (TimeAnchor for the development setup)     (WBS2-P05-02)",
 	"order":       "sign (done)   (test merchant)                             (WBS2-P05-01)",
-	"rental":      "deposit (done) | provision | re-anchor | return          (WBS2-P05-02, P05-03)",
+	"rental":      "deposit (done) | provision (done) | re-anchor (done) | return   (WBS2-P05-02, P05-03)",
 	"token":       "mint (done)   (test token, token-owner key)                (development setup)",
 	"withdraw":    "request | cancel | execute                                (WBS2-P05-03)",
 	"refusal":     "host   (UNSUPPORTED_TYPE demo)                            (WBS2-P05-04)",
@@ -60,6 +62,8 @@ func main() {
 		"anchor sign":       anchorSign,
 		"order sign":        orderSign,
 		"rental deposit":    rentalDeposit,
+		"rental provision":  rentalProvision,
+		"rental re-anchor":  rentalReanchor,
 		"token mint":        tokenMint,
 	}[os.Args[1]+" "+os.Args[2]]
 	if run == nil {
@@ -375,6 +379,131 @@ func rentalDeposit(args []string) error {
 		return err
 	}
 	return emit(e, "rental-deposit", map[string]any{"device": d, "amount": amt.String(), "withdraw": w, "tx": tx})
+}
+
+// openSetup finds the nearest device in setup reach over BLE and opens a setup session.
+func openSetup(ctx context.Context, scan time.Duration) (*ble.Session, ble.Found, error) {
+	fmt.Fprintln(os.Stderr, "scanning for the device...")
+	found, err := ble.Scan(ctx, scan)
+	if err != nil {
+		return nil, found, err
+	}
+	fmt.Fprintf(os.Stderr, "connecting to %s (%s, RSSI %d)\n", found.Name, found.Address.String(), found.RSSI)
+	link, err := ble.Connect(found)
+	if err != nil {
+		return nil, found, err
+	}
+	s, err := ble.Open(ctx, link, ble.Options{})
+	if err != nil {
+		_ = link.Close()
+		return nil, found, err
+	}
+	return s, found, nil
+}
+
+// rentalProvision runs the rental setup over BLE (payment-protocol.md 5): the renter confirms the
+// operator values and sets the PIN on the device; opsctl anchors it and deposits for it.
+func rentalProvision(args []string) error {
+	fs := flag.NewFlagSet("rental provision", flag.ExitOnError)
+	e := commonFlags(fs)
+	withdraw := fs.String("withdraw", "", "renter's withdraw address (fixed on the first deposit)")
+	amount := amountFlag(fs)
+	passkey := fs.Int("passkey", -1, "pairing passkey 0-999999 for the label (default: random)")
+	scan := fs.Duration("scan", 10*time.Second, "how long to scan for the device")
+	_ = fs.Parse(args)
+	if err := e.load(); err != nil {
+		return err
+	}
+	w, err := address(*withdraw, "withdraw")
+	if err != nil {
+		return err
+	}
+	amt, err := parseAmount(*amount)
+	if err != nil {
+		return err
+	}
+	pk := *passkey
+	if pk < 0 {
+		n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
+		if err != nil {
+			return err
+		}
+		pk = int(n.Int64())
+	}
+	if pk > 999999 {
+		return errors.New("--passkey has at most six digits")
+	}
+	operator, err := e.roleKey("operator")
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	chain, err := e.dial(ctx)
+	if err != nil {
+		return err
+	}
+	s, found, err := openSetup(ctx, *scan)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	if s.State != "UNPROVISIONED" {
+		return fmt.Errorf("the device is %s, not UNPROVISIONED: use rental re-anchor, or return it first", s.State)
+	}
+	res, err := ops.Provision(ctx, s, ops.ProvisionParams{
+		Domain: e.dep.Domain(), Operator: operator, Passkey: uint32(pk), Amount: amt, Withdraw: w,
+		Progress: func(step string) { fmt.Fprintln(os.Stderr, "renter:", step) },
+	}, chain.FinalizedTime, func(ctx context.Context, d common.Address, a *big.Int, w common.Address) (common.Hash, error) {
+		return chain.Deposit(ctx, operator, d, a, w)
+	})
+	if err != nil {
+		return err
+	}
+	// The label QR carries the BLE address and the passkey for later bonding (payment-protocol.md 3).
+	return emit(e, "rental-provision", map[string]any{"result": res, "bleAddress": found.Address.String(),
+		"label": fmt.Sprintf("NU54:%s:%s", found.Address.String(), res.Passkey), "withdraw": w, "amount": amt.String()})
+}
+
+// rentalReanchor gives a PROVISIONED_NO_ANCHOR device a fresh TimeAnchor after a reset.
+func rentalReanchor(args []string) error {
+	fs := flag.NewFlagSet("rental re-anchor", flag.ExitOnError)
+	e := commonFlags(fs)
+	scan := fs.Duration("scan", 10*time.Second, "how long to scan for the device")
+	_ = fs.Parse(args)
+	if err := e.load(); err != nil {
+		return err
+	}
+	operator, err := e.roleKey("operator")
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	chain, err := e.dial(ctx)
+	if err != nil {
+		return err
+	}
+	s, _, err := openSetup(ctx, *scan)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	if s.State != "PROVISIONED_NO_ANCHOR" || !common.IsHexAddress(s.Device) {
+		return fmt.Errorf("the device is %s: re-anchor is for PROVISIONED_NO_ANCHOR", s.State)
+	}
+	ts, err := chain.FinalizedTime(ctx)
+	if err != nil {
+		return err
+	}
+	device := common.HexToAddress(s.Device)
+	a, err := ops.SignTimeAnchor(e.dep.Domain(), operator, device, ts, s.LastAnchor)
+	if err != nil {
+		return err
+	}
+	last, err := s.SendTimeAnchor(ctx, strings.ToLower(device.Hex()), ts, a.OperatorSignature)
+	if err != nil {
+		return err
+	}
+	return emit(e, "rental-re-anchor", map[string]any{"device": device, "anchor": ts, "lastAnchor": last})
 }
 
 func tokenMint(args []string) error {

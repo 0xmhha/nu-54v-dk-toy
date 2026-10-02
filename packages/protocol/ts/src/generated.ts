@@ -336,7 +336,8 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "sessionId": "sessionId",
       "operator": "hex20",
       "contract": "hex20",
-      "chainId": "uint"
+      "chainId": "uint",
+      "passkey": "uint"
     },
     "required": [
       "v",
@@ -344,7 +345,8 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "sessionId",
       "operator",
       "contract",
-      "chainId"
+      "chainId",
+      "passkey"
     ]
   },
   "setup.ack": {

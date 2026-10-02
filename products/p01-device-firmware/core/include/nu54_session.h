@@ -5,7 +5,8 @@
  * for confirm.show, for the phone app. The device key never appears here: the platform signs
  * a digest and returns a raw (r, s), which nu54_sig_finish turns into the protocol form. The
  * button is asynchronous: payment.prepare that passes every check sends confirm.show and waits;
- * nu54_session_button() then answers payment.result. The behavior must match the shared
+ * nu54_session_button() then answers payment.result. Setup works the same way: setup.operator
+ * waits for the button, then key generation waits for the PIN (nu54_session_pin()). The behavior must match the shared
  * session vectors byte for byte (docs/content/specifications/protocol/session-vectors.json).
  * Board-independent: builds and tests on the host.
  */
@@ -26,6 +27,17 @@ typedef enum {
 	NU54_STATE_PIN_LOCKED,
 } nu54_state_t;
 
+/* Everything setup stores at once when the PIN is set (payment-protocol.md 5, step 2). */
+typedef struct {
+	uint8_t operator_address[20];
+	uint8_t contract[20];
+	uint8_t chain_id[32];
+	uint32_t passkey;
+	uint8_t nonce_start[32];
+	const char *pin;
+	size_t pin_len;
+} nu54_setup_record_t;
+
 typedef struct {
 	/* Signs a 32-byte digest with the device key; writes raw r || s. Returns 0 on success. */
 	int (*sign)(void *ctx, const uint8_t digest[32], uint8_t rs[64]);
@@ -35,7 +47,21 @@ typedef struct {
 	 * never reuse one. Returns 0 on success; on failure nothing is signed. May be NULL in tests. */
 	int (*persist_nonce)(void *ctx, const uint8_t next_nonce[32]);
 	void *ctx;
+	/* Setup (may be NULL on a device that is only provisioned in tests). generate_key makes a
+	 * new key that is not kept until commit_setup stores it with the record; wipe deletes the
+	 * key and every setup value (device.reset, or a setup that did not finish). Return 0 on
+	 * success. */
+	int (*generate_key)(void *ctx, uint8_t address[20]);
+	int (*commit_setup)(void *ctx, const nu54_setup_record_t *record);
+	int (*wipe)(void *ctx);
 } nu54_platform_t;
+
+typedef enum {
+	NU54_PENDING_NONE,
+	NU54_PENDING_PAYMENT,       /* confirm.show sent; the button decides */
+	NU54_PENDING_SETUP_CONFIRM, /* setup.operator received; the button confirms the values */
+	NU54_PENDING_PIN,           /* key made; the renter enters the PIN */
+} nu54_pending_t;
 
 /* Replies of one call: up to two bodies for the central, one for the phone app. */
 typedef struct {
@@ -53,6 +79,7 @@ typedef struct {
 	uint8_t operator_address[20];
 	uint8_t contract[20];
 	uint8_t chain_id[32];
+	uint32_t passkey;
 	uint32_t anchor_clock_skew;
 	uint32_t authorization_expiry;
 	const char *firmware;
@@ -78,12 +105,18 @@ typedef struct {
 	char att_name[128];
 	size_t att_name_len;
 
-	int pending; /* waiting for the button */
+	nu54_pending_t pending;
 	nu54_payment_authorization_t pending_auth;
+	nu54_setup_record_t pending_setup; /* setup values in RAM until the PIN commits them */
+	uint8_t pending_address[20];
 } nu54_device_t;
 
-/* `nonce_start` is the 32-byte big-endian first nonce (a multiple of 256). */
+/* A provisioned device (address and setup values already set). `nonce_start` is the 32-byte
+ * big-endian first nonce (a multiple of 256). */
 void nu54_device_init(nu54_device_t *d, const uint8_t nonce_start[32]);
+
+/* A device without key or setup values (UNPROVISIONED), waiting for a setup session. */
+void nu54_device_init_unprovisioned(nu54_device_t *d);
 
 /* A RAM-clearing reset: the anchor and the session are lost; key and deposit stay. */
 void nu54_device_power_cycle(nu54_device_t *d);
@@ -91,7 +124,12 @@ void nu54_device_power_cycle(nu54_device_t *d);
 /* Handles one CBOR body from a central at local time `now` (seconds). */
 void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out);
 
-/* The renter's button after confirm.show: approve (1) signs, reject (0) refuses. */
+/* The renter's button: after confirm.show approve (1) signs and reject (0) refuses; after
+ * setup.operator it confirms or refuses the operator values. */
 void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out);
+
+/* The PIN the renter entered on the buttons at setup (digits), or NULL when it was not entered
+ * in time. Stores the setup and answers the keygen ack. */
+void nu54_session_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out);
 
 #endif /* NU54_SESSION_H */

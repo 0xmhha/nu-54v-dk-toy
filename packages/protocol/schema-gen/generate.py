@@ -112,7 +112,33 @@ def gen_go(m: dict) -> str:
         out.append(f'\tOutcome{pascal(o)} Outcome = "{o}"')
     out += [")", "", "// MessageTypes lists every BLE message type in the schema.", "var MessageTypes = []string{"]
     out += [f'\t"{t}",' for t in m["messages"]] + ["}", ""]
+    out += ["// FieldKind is the CBOR kind of a message field (payment-protocol.md 4.2): a scalar kind name,",
+            "// or a nested object.", "type FieldKind struct {", "\tName   string", "\tObject *ObjectKind", "}", "",
+            "// ObjectKind lists an object's fields and the required ones.", "type ObjectKind struct {",
+            "\tFields   map[string]FieldKind", "\tRequired []string", "}", "",
+            "// MessageFields gives the field kinds of every message, as in the schema.",
+            "var MessageFields = map[string]*ObjectKind{"]
+    for name, obj in m["messageFields"].items():
+        out.append(f'\t"{name}": {_go_object(obj, 1)},')
+    g = m["gatt"]
+    out += ["}", "", "// GATT service of the payment protocol (payment-protocol.md 3).", "const (",
+            f'\tGATTService = "{g["service"]}"', f'\tGATTRx      = "{g["characteristics"]["rx"]["uuid"]}"',
+            f'\tGATTTx      = "{g["characteristics"]["tx"]["uuid"]}"', ")", ""]
     return "\n".join(out)
+
+
+def _go_object(obj: dict, depth: int) -> str:
+    """A Go *ObjectKind literal for a messageFields entry."""
+    pad = "\t" * (depth + 1)
+    lines = ["&ObjectKind{Fields: map[string]FieldKind{"]
+    for k, kind in obj["fields"].items():
+        if isinstance(kind, dict):
+            lines.append(f'{pad}"{k}": {{Object: {_go_object(kind, depth + 1)}}},')
+        else:
+            lines.append(f'{pad}"{k}": {{Name: "{kind}"}},')
+    req = ", ".join(f'"{r}"' for r in obj["required"])
+    lines.append("\t" * depth + f"}}, Required: []string{{{req}}}}}")
+    return "\n".join(lines)
 
 
 def _domain_const(m: dict, field: str) -> str:

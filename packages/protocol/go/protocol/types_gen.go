@@ -129,3 +129,174 @@ var MessageTypes = []string{
 	"device.reset",
 	"confirm.show",
 }
+
+// FieldKind is the CBOR kind of a message field (payment-protocol.md 4.2): a scalar kind name,
+// or a nested object.
+type FieldKind struct {
+	Name   string
+	Object *ObjectKind
+}
+
+// ObjectKind lists an object's fields and the required ones.
+type ObjectKind struct {
+	Fields   map[string]FieldKind
+	Required []string
+}
+
+// MessageFields gives the field kinds of every message, as in the schema.
+var MessageFields = map[string]*ObjectKind{
+	"session.open": &ObjectKind{Fields: map[string]FieldKind{
+		"v":          {Name: "int"},
+		"type":       {Name: "text"},
+		"sessionId":  {Name: "sessionId"},
+		"kioskNonce": {Name: "hex32"},
+		"mode":       {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "kioskNonce", "mode"}},
+	"session.open.ok": &ObjectKind{Fields: map[string]FieldKind{
+		"v":           {Name: "int"},
+		"type":        {Name: "text"},
+		"sessionId":   {Name: "sessionId"},
+		"device":      {Name: "hex20"},
+		"deviceNonce": {Name: "hex32"},
+		"anchorValid": {Name: "bool"},
+		"firmware":    {Name: "text"},
+		"state":       {Name: "text"},
+		"lastAnchor":  {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "deviceNonce", "anchorValid", "firmware", "state"}},
+	"session.confirm": &ObjectKind{Fields: map[string]FieldKind{
+		"v":           {Name: "int"},
+		"type":        {Name: "text"},
+		"sessionId":   {Name: "sessionId"},
+		"deviceNonce": {Name: "hex32"},
+	}, Required: []string{"v", "type", "sessionId", "deviceNonce"}},
+	"payment.identify": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"attestation": {Object: &ObjectKind{Fields: map[string]FieldKind{
+			"merchant":          {Name: "hex20"},
+			"payout":            {Name: "hex20"},
+			"name":              {Name: "text"},
+			"validFrom":         {Name: "uint"},
+			"validUntil":        {Name: "uint"},
+			"operatorSignature": {Name: "signature"},
+		}, Required: []string{"merchant", "payout", "name", "validFrom", "validUntil", "operatorSignature"}}},
+	}, Required: []string{"v", "type", "sessionId", "attestation"}},
+	"payment.prepare": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"authorization": {Object: &ObjectKind{Fields: map[string]FieldKind{
+			"chainId":  {Name: "uint"},
+			"contract": {Name: "hex20"},
+			"merchant": {Name: "hex20"},
+			"payout":   {Name: "hex20"},
+			"token":    {Name: "hex20"},
+			"amount":   {Name: "uint"},
+			"orderId":  {Name: "hex32"},
+			"expiry":   {Name: "uint"},
+		}, Required: []string{"chainId", "contract", "merchant", "payout", "token", "amount", "orderId", "expiry"}}},
+		"merchantSignature": {Name: "signature"},
+	}, Required: []string{"v", "type", "sessionId", "authorization", "merchantSignature"}},
+	"payment.result": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"outcome":   {Name: "text"},
+		"signature": {Name: "signature"},
+		"reason":    {Name: "text"},
+		"nonce":     {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "outcome"}},
+	"limit.change": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"change": {Object: &ObjectKind{Fields: map[string]FieldKind{
+			"chainId":         {Name: "uint"},
+			"contract":        {Name: "hex20"},
+			"perPaymentLimit": {Name: "uint"},
+			"dailyLimit":      {Name: "uint"},
+			"expiry":          {Name: "uint"},
+		}, Required: []string{"chainId", "contract", "perPaymentLimit", "dailyLimit", "expiry"}}},
+	}, Required: []string{"v", "type", "sessionId", "change"}},
+	"setup.timeAnchor": &ObjectKind{Fields: map[string]FieldKind{
+		"v":                 {Name: "int"},
+		"type":              {Name: "text"},
+		"sessionId":         {Name: "sessionId"},
+		"timestamp":         {Name: "uint"},
+		"operatorSignature": {Name: "signature"},
+		"device":            {Name: "hex20"},
+	}, Required: []string{"v", "type", "sessionId", "device", "timestamp", "operatorSignature"}},
+	"error": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"reason":    {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "reason"}},
+	"session.cancel": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+	}, Required: []string{"v", "type", "sessionId"}},
+	"payment.outcome": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"orderId":   {Name: "hex32"},
+		"outcome":   {Name: "text"},
+		"reason":    {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "orderId", "outcome"}},
+	"limit.result": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"outcome":   {Name: "text"},
+		"signature": {Name: "signature"},
+		"nonce":     {Name: "uint"},
+		"reason":    {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "outcome"}},
+	"setup.operator": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"operator":  {Name: "hex20"},
+		"contract":  {Name: "hex20"},
+		"chainId":   {Name: "uint"},
+		"passkey":   {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "operator", "contract", "chainId", "passkey"}},
+	"setup.ack": &ObjectKind{Fields: map[string]FieldKind{
+		"v":          {Name: "int"},
+		"type":       {Name: "text"},
+		"sessionId":  {Name: "sessionId"},
+		"step":       {Name: "text"},
+		"accepted":   {Name: "bool"},
+		"reason":     {Name: "text"},
+		"device":     {Name: "hex20"},
+		"lastAnchor": {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "step", "accepted"}},
+	"device.reset": &ObjectKind{Fields: map[string]FieldKind{
+		"v":                 {Name: "int"},
+		"type":              {Name: "text"},
+		"sessionId":         {Name: "sessionId"},
+		"device":            {Name: "hex20"},
+		"nonce":             {Name: "uint"},
+		"operatorSignature": {Name: "signature"},
+	}, Required: []string{"v", "type", "sessionId", "device", "nonce", "operatorSignature"}},
+	"confirm.show": &ObjectKind{Fields: map[string]FieldKind{
+		"v":            {Name: "int"},
+		"type":         {Name: "text"},
+		"sessionId":    {Name: "sessionId"},
+		"merchantName": {Name: "text"},
+		"orderId":      {Name: "hex32"},
+		"token":        {Name: "hex20"},
+		"payout":       {Name: "hex20"},
+		"amount":       {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "merchantName", "orderId", "token", "payout", "amount"}},
+}
+
+// GATT service of the payment protocol (payment-protocol.md 3).
+const (
+	GATTService = "6e753534-7061-7900-8000-00805f9b0001"
+	GATTRx      = "6e753534-7061-7900-8000-00805f9b0002"
+	GATTTx      = "6e753534-7061-7900-8000-00805f9b0003"
+)

@@ -8,8 +8,10 @@ import "context"
 
 // SetupSession is one BLE setup session with a device.
 type SetupSession interface {
-	// SendOperator records operator, contract and chainId after the renter confirms on the device.
-	SendOperator(ctx context.Context, operator, contract string, chainID uint64) error
+	// SendOperator records operator, contract, chainId and the per-device pairing passkey
+	// (0-999999) after the renter confirms on the device; it returns once setup.ack{setup.operator}
+	// arrives (payment-protocol.md 5).
+	SendOperator(ctx context.Context, operator, contract string, chainID uint64, passkey uint32) error
 	// AwaitKeygen waits for setup.ack{step: keygen} and returns the new device address.
 	AwaitKeygen(ctx context.Context) (device string, err error)
 	// SendTimeAnchor sends the operator-signed TimeAnchor and returns lastAnchor from the ack.

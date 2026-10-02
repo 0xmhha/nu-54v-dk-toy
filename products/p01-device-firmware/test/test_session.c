@@ -6,18 +6,22 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "nu54_keccak.h"
 #include "nu54_session.h"
 #include "secp256k1.h"
 #include "vectors.h"
 
 static secp256k1_context *ctx;
 static int draws;
+static uint8_t key[32];     /* the device key: SV_KEY, or the one setup made */
+static uint8_t new_key[32]; /* made by generate_key, kept only when setup commits */
+static int commits, wipes;
 
 static int host_sign(void *c, const uint8_t digest[32], uint8_t rs[64])
 {
 	(void)c;
 	secp256k1_ecdsa_signature sig;
-	if (!secp256k1_ecdsa_sign(ctx, &sig, digest, SV_KEY, NULL, NULL)) {
+	if (!secp256k1_ecdsa_sign(ctx, &sig, digest, key, NULL, NULL)) {
 		return -1;
 	}
 	secp256k1_ecdsa_signature_serialize_compact(ctx, rs, &sig);
@@ -29,6 +33,40 @@ static void vector_random(void *c, uint8_t *out, size_t n)
 {
 	(void)c;
 	memset(out, 0x5a + draws++, n);
+}
+
+/* Key generation draws its 32 bytes from the vectors' random source, like a TRNG would. */
+static int host_generate_key(void *c, uint8_t address[20])
+{
+	vector_random(c, new_key, 32);
+	secp256k1_pubkey pub;
+	uint8_t ser[65], h[32];
+	size_t n = sizeof(ser);
+	if (!secp256k1_ec_pubkey_create(ctx, &pub, new_key)) {
+		return -1;
+	}
+	secp256k1_ec_pubkey_serialize(ctx, ser, &n, &pub, SECP256K1_EC_UNCOMPRESSED);
+	nu54_keccak256(ser + 1, 64, h);
+	memcpy(address, h + 12, 20);
+	return 0;
+}
+
+static int host_commit(void *c, const nu54_setup_record_t *rec)
+{
+	(void)c;
+	if (!rec->pin || rec->pin_len == 0) {
+		return -1;
+	}
+	memcpy(key, new_key, 32);
+	commits++;
+	return 0;
+}
+
+static int host_wipe(void *c)
+{
+	(void)c;
+	wipes++;
+	return 0;
 }
 
 static void dump(const char *what, const uint8_t *b, size_t n)
@@ -50,15 +88,20 @@ int main(void)
 	for (size_t s = 0; s < SESSION_SCENARIO_COUNT; s++) {
 		const session_scenario_t *sc = &SESSION_SCENARIOS[s];
 		memset(&d, 0, sizeof(d));
-		memcpy(d.address, SV_ADDRESS, 20);
-		memcpy(d.operator_address, SV_OPERATOR, 20);
-		memcpy(d.contract, SV_CONTRACT, 20);
-		memcpy(d.chain_id, SV_CHAIN_ID, 32);
 		d.anchor_clock_skew = SV_ANCHOR_SKEW;
 		d.authorization_expiry = SV_AUTH_EXPIRY;
 		d.firmware = SV_FIRMWARE;
-		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL};
-		nu54_device_init(&d, SV_NONCE_START);
+		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe};
+		if (sc->unprovisioned) {
+			nu54_device_init_unprovisioned(&d);
+		} else {
+			memcpy(d.address, SV_ADDRESS, 20);
+			memcpy(d.operator_address, SV_OPERATOR, 20);
+			memcpy(d.contract, SV_CONTRACT, 20);
+			memcpy(d.chain_id, SV_CHAIN_ID, 32);
+			nu54_device_init(&d, SV_NONCE_START);
+		}
+		memcpy(key, SV_KEY, 32);
 		draws = 0;
 
 		for (size_t t = 0; t < sc->count; t++) {
@@ -70,8 +113,12 @@ int main(void)
 			nu54_session_handle(&d, st->send, st->send_len, st->at, &out);
 			int phone_ok = out.phone_count == (st->phone ? 1 : 0) &&
 				       (!st->phone || (out.phone_len == st->phone_len && memcmp(out.phone, st->phone, st->phone_len) == 0));
-			if (out.phone_count) {
-				nu54_session_button(&d, sc->approve, &out); /* the renter's button after confirm.show */
+			/* The renter: the button after confirm.show or setup.operator, then the PIN at setup. */
+			if (d.pending == NU54_PENDING_PAYMENT || d.pending == NU54_PENDING_SETUP_CONFIRM) {
+				nu54_session_button(&d, sc->approve, &out);
+			}
+			if (d.pending == NU54_PENDING_PIN) {
+				nu54_session_pin(&d, sc->pin, sc->pin ? strlen(sc->pin) : 0, &out);
 			}
 			int ok = phone_ok && out.kiosk_count == st->expect_count;
 			for (int e = 0; ok && e < st->expect_count; e++) {
@@ -93,6 +140,11 @@ int main(void)
 		}
 	}
 	secp256k1_context_destroy(ctx);
+	/* Setup stores once per finished setup (SV-13) and wipes on the PIN timeout and the reset. */
+	if (commits != 1 || wipes != 2) {
+		failures++;
+		printf("FAIL setup storage: %d commits (want 1), %d wipes (want 2)\n", commits, wipes);
+	}
 	printf("%s: %zu session scenarios, %d failures\n", failures ? "FAIL" : "ok", (size_t)SESSION_SCENARIO_COUNT, failures);
 	return failures ? 1 : 0;
 }

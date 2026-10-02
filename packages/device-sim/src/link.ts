@@ -21,11 +21,15 @@ export class DeviceEndpoint {
     return this.frame(Array.isArray(m) ? m : this.device.handle(m));
   }
 
-  /** Like receive, for a device whose button is a real (asynchronous) press. */
-  async receiveAsync(fragment: Uint8Array): Promise<Uint8Array[]> {
+  /**
+   * Like receive, for a device whose buttons are real (asynchronous) presses. Fragments of
+   * messages sent before the step ends (the setup.operator ack, before the PIN) go to `emit`.
+   */
+  async receiveAsync(fragment: Uint8Array, emit?: (fragments: Uint8Array[]) => void): Promise<Uint8Array[]> {
     const m = this.decode(fragment);
     if (m === null) return [];
-    return this.frame(Array.isArray(m) ? m : await this.device.handleAsync(m));
+    if (Array.isArray(m)) return this.frame(m);
+    return this.frame(await this.device.handleAsync(m, emit && ((early) => emit(this.frame([early])))));
   }
 
   /** A complete message, null while fragments are missing, or the error replies of a bad frame. */

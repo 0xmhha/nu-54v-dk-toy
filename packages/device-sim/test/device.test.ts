@@ -150,9 +150,107 @@ test("session rules: confirm with the device nonce, setup only before READY, uns
   // A message the device never receives (a device-to-kiosk type) is UNSUPPORTED_TYPE.
   const unsupported = link.send({ v: 1, type: "payment.result", sessionId: SID, outcome: "approved" } as Message);
   assert.equal(unsupported[0].reason, "UNSUPPORTED_TYPE");
-  // Setup steps the simulator does not model yet are NOT_PERMITTED.
-  const operator = link.send({ v: 1, type: "setup.operator", sessionId: SID, operator: OPERATOR, contract: CONTRACT, chainId: "8283" } as Message);
+  // setup.operator outside a setup session is NOT_PERMITTED.
+  const operator = link.send({ v: 1, type: "setup.operator", sessionId: SID, operator: OPERATOR, contract: CONTRACT, chainId: "8283", passkey: "123456" } as Message);
   assert.equal(operator[0].reason, "NOT_PERMITTED");
+});
+
+// ------------------------------------------------------------------ rental setup (protocol 5)
+
+function blank(opts: { confirm?: boolean; pin?: string | null } = {}) {
+  let now = T0;
+  const device = new SoftwareDevice({
+    now: () => now, random: (n) => globalThis.crypto.getRandomValues(new Uint8Array(n)),
+    confirmSetup: () => opts.confirm ?? true, enterPin: () => (opts.pin === undefined ? "2580" : opts.pin),
+  });
+  return { device, link: connect(device, 23), advance: (s: number) => (now += s) };
+}
+const openSetup = (link: ReturnType<typeof connect>) =>
+  link.send({ v: 1, type: "session.open", sessionId: SID, mode: "setup", kioskNonce: "0x" + "11".repeat(32) } as Message)[0];
+const operatorMsg = (passkey = "042195") =>
+  ({ v: 1, type: "setup.operator", sessionId: SID, operator: OPERATOR, contract: CONTRACT, chainId: "8283", passkey } as Message);
+const resetMsg = (device: string, key = KEY.operator, nonce = 1n) =>
+  ({ v: 1, type: "device.reset", sessionId: SID, device, nonce: String(nonce), operatorSignature: sign(key, "DeviceReset", { device, nonce }) } as Message);
+
+test("rental setup: operator values, key and PIN, anchor, then a payment from the new key", () => {
+  const { device, link } = blank();
+  const opened = openSetup(link);
+  assert.equal(opened.state, "UNPROVISIONED");
+  assert.equal(opened.device, undefined, "no key yet");
+  const [opAck, keygen] = link.send(operatorMsg());
+  assert.deepEqual([opAck.step, opAck.accepted], ["setup.operator", true]);
+  assert.deepEqual([keygen.step, keygen.accepted], ["keygen", true]);
+  assert.equal(keygen.device, device.address);
+  assert.equal(device.state, "PROVISIONED_NO_ANCHOR");
+  const ack = link.send({
+    v: 1, type: "setup.timeAnchor", sessionId: SID, device: device.address, timestamp: String(T0),
+    operatorSignature: sign(KEY.operator, "TimeAnchor", { device: device.address, timestamp: BigInt(T0) }),
+  } as Message)[0];
+  assert.equal(ack.accepted, true);
+  const result = pay(link, attestation(), order());
+  assert.equal(result.outcome, "approved", JSON.stringify(result));
+  assert.equal(BigInt(String(result.nonce)) % 256n, 0n, "the first nonce is the start, a multiple of 256");
+});
+
+test("rental setup refusals store nothing", () => {
+  const rejected = blank({ confirm: false });
+  openSetup(rejected.link);
+  const r = rejected.link.send(operatorMsg());
+  assert.deepEqual([r.length, r[0].accepted, r[0].reason], [1, false, "USER_REJECTED"]);
+  assert.equal(rejected.device.state, "UNPROVISIONED");
+
+  const slow = blank({ pin: null });
+  openSetup(slow.link);
+  const [op, keygen] = slow.link.send(operatorMsg());
+  assert.equal(op.accepted, true);
+  assert.deepEqual([keygen.step, keygen.accepted, keygen.reason], ["keygen", false, "TIMEOUT"]);
+  assert.equal(slow.device.state, "UNPROVISIONED");
+  assert.equal(openSetup(slow.link).device, undefined);
+
+  const big = blank();
+  openSetup(big.link);
+  assert.equal(big.link.send(operatorMsg("1000000"))[0].reason, "NOT_PERMITTED", "passkey has six digits");
+
+  const twice = blank();
+  openSetup(twice.link);
+  twice.link.send(operatorMsg());
+  openSetup(twice.link); // PROVISIONED_NO_ANCHOR still opens a setup session
+  const again = twice.link.send(operatorMsg());
+  assert.deepEqual([again[0].step, again[0].accepted, again[0].reason], ["setup.operator", false, "NOT_PERMITTED"]);
+});
+
+test("device.reset: only the recorded operator, only for this device; it wipes everything", () => {
+  const { device, link } = setup();
+  anchor(link, device, T0);
+  link.send({ v: 1, type: "session.open", sessionId: SID, mode: "payment", kioskNonce: "0x" + "a5".repeat(32) } as Message);
+  const stranger = link.send(resetMsg(device.address, KEY.stranger))[0];
+  assert.deepEqual([stranger.step, stranger.accepted, stranger.reason], ["device.reset", false, "NOT_PERMITTED"]);
+  const other = link.send(resetMsg(OPERATOR))[0];
+  assert.equal(other.accepted, false, "signed for another device");
+  const ok = link.send(resetMsg(device.address))[0];
+  assert.deepEqual([ok.step, ok.accepted], ["device.reset", true]);
+  assert.equal(device.state, "UNPROVISIONED");
+  assert.throws(() => device.address, /UNPROVISIONED/);
+  const identify = link.send({ v: 1, type: "payment.identify", sessionId: SID, attestation: attestation() } as Message)[0];
+  assert.equal(identify.reason, "NOT_PERMITTED", "the session ended with the reset");
+  const opened = openSetup(link);
+  assert.deepEqual([opened.state, opened.device], ["UNPROVISIONED", undefined]);
+  assert.equal(link.send(resetMsg(OPERATOR))[0].accepted, false, "nothing to reset");
+});
+
+test("async setup: the operator ack goes out on the press, before the PIN", async () => {
+  let pinEntered: (pin: string) => void = () => {};
+  const device = new SoftwareDevice({
+    now: () => T0, confirmSetup: async () => true, enterPin: () => new Promise<string>((r) => (pinEntered = r)),
+  });
+  device.handle({ v: 1, type: "session.open", sessionId: SID, mode: "setup", kioskNonce: "0x" + "11".repeat(32) } as Message);
+  const early: Message[] = [];
+  const done = device.handleAsync(operatorMsg(), (m) => early.push(m));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(early.map((m) => m.step), ["setup.operator"], "acked before the PIN");
+  pinEntered("1357");
+  const [keygen] = await done;
+  assert.equal(keygen.step, "keygen");
 });
 
 test("a corrupted frame is answered with BAD_FRAME and closes the session", () => {
