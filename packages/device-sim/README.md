@@ -8,7 +8,8 @@
 | `src/link.ts` | 중앙 장치와 기기 사이의 선. 모든 메시지가 BLE와 같은 층(CBOR, envelope, 조각, 재조립)을 지난다 |
 | `src/keystore.ts` | `cast wallet new`가 만든 keystore를 Keychain 암호로 연다(Node 전용) |
 | `scripts/gen-session-vectors.ts` | 공용 세션 벡터(`session-vectors.json`)를 만든다. 시나리오 12개, 메시지마다 보낸 바이트와 기기가 돌려줄 바이트. 펌웨어는 이 바이트를 그대로 내야 한다 |
-| `scripts/rehearse.ts` | 테스트넷 결제 리허설. 트랜잭션 없이 정산 컨트랙트에 eth_call로 확인한다 |
+| `scripts/rehearse.ts` | 테스트넷 결제 리허설. 키오스크의 결제 세션 코드(`src/payment/session.ts`)를 그대로 쓰고, 트랜잭션 없이 정산 컨트랙트에 eth_call로 확인한다 |
+| `scripts/serve-ble.ts`, `peripheral/SimPeripheral.swift` | 이 Mac을 BLE 기기로 만든다. 보드 없이 폰의 키오스크 앱이 실제 BLE로 결제 세션을 연다 |
 
 아직 흉내 내지 않는 것: `setup.operator`, 키 생성, PIN, `limit.change`, `device.reset`(모두 `NOT_PERMITTED`), 보안 채널(4.1절). 기기는 셋업이 끝난 `PROVISIONED_NO_ANCHOR` 상태로 시작하고, 셋업 세션의 TimeAnchor로 `READY`가 된다.
 
@@ -40,3 +41,17 @@ node --experimental-strip-types scripts/rehearse.ts --attestation ../../att.json
 `--transport ble`이면 시뮬레이터 대신 보드와 BLE로 결제 세션을 연다(펌웨어 `tools/bringup/pay_bridge.py`). 이때 `--anchor`는 보드 주소로 서명한 것이어야 하고 실행 직전에 발급한다(오래된 anchor는 기기 시각을 늦춰 만료 검사에 걸린다). 승인은 보드의 SW1이며, `--press-sim`은 개발 실행에서 버튼 시뮬레이터로 누른다. 7주차 게이트는 사람이 누른다.
 
 `--submit`을 붙이면 시뮬레이션 뒤 키오스크의 `src/payment/submit.ts`가 키오스크 가스 키(`nu54-kiosk`)로 settle 트랜잭션을 보내고 finalized `PaymentSettled`까지 판정한 뒤, 기기에 `payment.outcome`을 보낸다. 실제 트랜잭션이므로 키오스크 계정의 WKRC와 기기 계정의 tUSDC가 쓰인다. 2026-10-01 실행: 1 tUSDC 결제가 approved(type-2 트랜잭션, 103,473 gas, 약 4.93 WKRC), 이벤트의 device·amount·nonce가 기기 서명과 같았다.
+
+## Mac을 BLE 기기로 쓰기
+
+보드가 없을 때 폰의 키오스크 앱을 시험하는 방법이다. `peripheral/SimPeripheral.swift`(CoreBluetooth)가 결제 GATT 서비스를 광고하고 조각을 그대로 넘기며, `scripts/serve-ble.ts`가 재조립·envelope·CBOR와 기기 자체를 맡는다. 서비스와 특성 UUID는 프로토콜 스키마에서 읽는다. 대여자의 버튼은 터미널이다. 폰 앱이 보여 줄 `confirm.show`를 출력하고, `y`는 승인, `n`은 거절이다.
+
+```bash
+cd packages/device-sim
+pnpm -s serve-ble                 # 처음 한 번 swiftc로 peripheral을 빌드한다
+pnpm -s serve-ble --approve yes   # 누르지 않고 항상 승인
+```
+
+anchor는 기기 주소 `nu54-device`(실행할 때 출력한다)로 서명한 것을 쓴다. 보드와 다른 점은 셋이다. macOS가 ATT MTU를 정하고 바꿀 수 없다. 링크는 페어링하지 않는다(7주차 결제 세션과 같다). 기기 키는 `nu54-device` 시험 키다. 같은 Mac의 BLE central(`pay_bridge.py`)은 자기 광고를 보지 못하므로 상대는 다른 기기여야 한다.
+
+기기는 버튼을 기다리는 동안 `session.cancel`이나 연결 끊김이 오면 서명하지 않는다. 키오스크는 늦게 온 응답을 다음 요청의 답으로 받지 않는다(세션 id가 다르면 버리고, 보낼 때 이전에 쌓인 응답을 지운다).

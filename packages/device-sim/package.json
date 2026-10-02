@@ -9,7 +9,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
-    "rehearse": "node --experimental-strip-types --no-warnings scripts/rehearse.ts"
+    "rehearse": "node --experimental-strip-types --no-warnings scripts/rehearse.ts",
+    "serve-ble": "node --experimental-strip-types --no-warnings scripts/serve-ble.ts"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",

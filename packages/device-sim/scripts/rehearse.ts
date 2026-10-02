@@ -26,7 +26,9 @@ import { parseArgs } from "node:util";
 import { addressOfPrivateKey, bytesToHex, decodeMessage, encodeMessage, hexToBytes, signDigest, type Message } from "@nu54/protocol";
 import { connect, SoftwareDevice } from "../src/index.ts";
 import { openKeystore } from "../src/keystore.ts";
-import { checkDeviceAuthorization, signMerchantOrder } from "../../../products/p04-merchant-kiosk/src/payment/signing.ts";
+import { signMerchantOrder } from "../../../products/p04-merchant-kiosk/src/payment/signing.ts";
+import type { MessageLink } from "../../../products/p04-merchant-kiosk/src/ble/framing.ts";
+import { runPayment } from "../../../products/p04-merchant-kiosk/src/payment/session.ts";
 import { submit } from "../../../products/p04-merchant-kiosk/src/payment/submit.ts";
 import { JsonRpcChain, type Hex } from "../../../products/p04-merchant-kiosk/src/chain/rpc.ts";
 
@@ -62,14 +64,7 @@ async function rpc(method: string, params: unknown[]) {
 }
 const chainNow = async () => Number(((await rpc("eth_getBlockByNumber", ["finalized", false])) as { timestamp: string }).timestamp);
 
-/** A device the kiosk side talks to: send one message, get the messages that come back. */
-interface DeviceLink {
-  /** `waitMs`: how long to wait for replies; `want`: stop once this many arrived. */
-  send(m: Message, want: number, waitMs: number): Promise<Message[]>;
-  close(): void;
-}
-
-function simLink(start: number): DeviceLink {
+function simLink(start: number): MessageLink {
   const started = Date.now();
   const device = new SoftwareDevice({
     key: openKeystore(join(a.keystores!, "nu54-device"), "keychain:nu54-device"),
@@ -80,10 +75,10 @@ function simLink(start: number): DeviceLink {
     now: () => start + Math.floor((Date.now() - started) / 1000),
   });
   const link = connect(device, 185);
-  return { send: async (m) => link.send(m), close: () => {} };
+  return { send: async (m) => link.send(m), close: async () => {} };
 }
 
-async function bleLink(): Promise<DeviceLink> {
+async function bleLink(): Promise<MessageLink> {
   const bridge = spawn("uv", ["run", "pay_bridge.py"], { cwd: BRINGUP, stdio: ["pipe", "pipe", "inherit"] });
   const queue: Message[] = [];
   let wake: (() => void) | null = null;
@@ -116,7 +111,7 @@ async function bleLink(): Promise<DeviceLink> {
       }
       return queue.splice(0);
     },
-    close() {
+    async close() {
       bridge.stdin.write(JSON.stringify({ close: true }) + "\n");
     },
   };
@@ -124,46 +119,37 @@ async function bleLink(): Promise<DeviceLink> {
 
 const start = await chainNow();
 const link = a.transport === "ble" ? await bleLink() : simLink(start);
-const rand = (n: number) => bytesToHex(globalThis.crypto.getRandomValues(new Uint8Array(n)), false);
-const SID = rand(8);
-const NONCE = () => "0x" + rand(32);
-
-// Setup session: the operator-signed TimeAnchor from opsctl (week-7 development fixed setup).
-const opened = await link.send({ v: 1, type: "session.open", sessionId: SID, mode: "setup", kioskNonce: NONCE() } as Message, 1, 5000);
-const deviceAddress = String(opened[0]?.device ?? "");
-let ack = (await link.send({ v: 1, type: "setup.timeAnchor", sessionId: SID, ...anc } as Message, 1, 5000))[0];
-if (opened[0]?.type === "error" && opened[0].reason === "NOT_PERMITTED") ack = { accepted: "already READY" } as unknown as Message;
-if (!ack?.accepted) throw new Error(`anchor refused: ${JSON.stringify(ack)}`);
-
-// Payment session, kiosk side.
-const ok = (await link.send({ v: 1, type: "session.open", sessionId: SID, mode: "payment", kioskNonce: NONCE() } as Message, 1, 5000))[0];
-const device = String(ok.device ?? deviceAddress);
-const confirmErr = await link.send({ v: 1, type: "session.confirm", sessionId: SID, deviceNonce: ok.deviceNonce } as Message, 1, 800);
-if (confirmErr.length) throw new Error(`confirm refused: ${JSON.stringify(confirmErr[0])}`);
-const refused = await link.send({ v: 1, type: "payment.identify", sessionId: SID, attestation: att } as Message, 1, 1500);
-if (refused.length) throw new Error(`identify refused: ${JSON.stringify(refused[0])}`);
-const auth = {
-  chainId: String(dep.chainId), contract: settlement, merchant: att.merchant, payout: att.payout, token,
-  amount: a.amount!, orderId: "0x" + rand(32), expiry: String((await chainNow()) + 60), // leaves 60 s for an anchor signed a little before
-};
 const merchantKey = openKeystore(join(a.keystores!, "nu54-kiosk"), "keychain:nu54-kiosk");
-const merchantSignature = signMerchantOrder(domain, { orderId: auth.orderId, token, amount: auth.amount, payout: auth.payout, expiry: auth.expiry }, merchantKey);
 if (a.transport === "ble") {
-  console.error(a["press-sim"] ? "device: pressing SW1 with the button simulator"
+  console.error(a["press-sim"] ? "device: pressing SW1 with the button simulator once LED2 lights"
     : "device: when LED2 lights, press SW1 briefly (under 1 s) to approve, SW2 to reject; waiting up to 120 s");
-  if (a["press-sim"]) {
-    setTimeout(() => execFile("uv", ["run", "button_sim.py", "--button", "BTN1", "--hold", "0.3"], { cwd: BRINGUP }), 2500);
-  }
 }
-const result = (await link.send({ v: 1, type: "payment.prepare", sessionId: SID, authorization: auth, merchantSignature } as Message, 1, a.transport === "ble" ? 120_000 : 5000))[0];
-const requestedAt = Date.now();
-if (!result) throw new Error("no payment.result from the device within the wait (was SW1 pressed briefly while LED2 was on?)");
-if (result.outcome !== "approved") throw new Error(`device refused: ${JSON.stringify(result)}`);
-const check = checkDeviceAuthorization(domain, auth, { signature: String(result.signature), nonce: String(result.nonce) }, device);
-if (!check.ok) throw new Error(`kiosk check failed: ${JSON.stringify(check)}`);
+// The kiosk's payment session (products/p04-merchant-kiosk/src/payment/session.ts), with the
+// operator-signed TimeAnchor from opsctl (week-7 development fixed setup).
+const session = await runPayment(link, {
+  domain,
+  attestation: att,
+  anchor: anc,
+  token,
+  amount: BigInt(a.amount!),
+  expiry: BigInt(await chainNow()) + 60n, // leaves 60 s for an anchor signed a little before
+  signOrder: (o) => signMerchantOrder(domain, o, merchantKey),
+  random: (n) => globalThis.crypto.getRandomValues(new Uint8Array(n)),
+  waitMs: a.transport === "ble" ? 120_000 : 5000, // a human press on the board; the app waits 10 s (N10)
+  onStep: (step) => {
+    if (step === "waitingDevice" && a["press-sim"]) {
+      setTimeout(() => execFile("uv", ["run", "button_sim.py", "--button", "BTN1", "--hold", "0.3"], { cwd: BRINGUP }), 2500);
+    }
+  },
+});
+if (session.status === "cancelled") throw new Error("no payment.result from the device within the wait (was SW1 pressed briefly while LED2 was on?)");
+if (session.status !== "approved") throw new Error(`device refused: ${JSON.stringify(session)}`);
+const { device, auth, signature, requestedAt } = session;
+const result = { signature, nonce: auth.nonce };
+const check = { ok: true, device }; // runPayment checked the signer
 
 // eth_call settle from the kiosk address.
-const tuple = `(${auth.chainId},${auth.contract},${auth.merchant},${auth.payout},${auth.token},${auth.amount},${auth.orderId},${result.nonce},${auth.expiry})`;
+const tuple = `(${auth.chainId},${auth.contract},${auth.merchant},${auth.payout},${auth.token},${auth.amount},${auth.orderId},${auth.nonce},${auth.expiry})`;
 let simulation = "success";
 try {
   execFileSync("cast", ["call", settlement, "settle((uint256,address,address,address,address,uint256,bytes32,uint256,uint64),bytes)", tuple, String(result.signature), "--from", att.merchant, "--rpc-url", a.rpc!], { stdio: "pipe" });
@@ -183,11 +169,11 @@ if (a.submit && simulation === "success") {
       minGasBalance: 0n,
       fromBlock: BigInt(dep.contracts.PaymentSettlement.block),
     },
-    { auth: { ...auth, nonce: String(result.nonce) }, signature: String(result.signature), device, requestedAt },
+    { auth, signature, device, requestedAt },
   );
   outcome = { ...out, event: "event" in out ? { ...out.event, amount: String(out.event.amount), nonce: String(out.event.nonce), block: String(out.event.block) } : undefined };
   // P04-FR-16: tell the device the final result.
-  await link.send({ v: 1, type: "payment.outcome", sessionId: SID, orderId: auth.orderId, outcome: out.status, ...("reason" in out ? { reason: out.reason } : {}) } as Message, 0, 500);
+  await link.send({ v: 1, type: "payment.outcome", sessionId: session.sessionId, orderId: auth.orderId, outcome: out.status, ...("reason" in out ? { reason: out.reason } : {}) } as Message, 0, 500);
 }
 link.close();
 console.log(JSON.stringify({ transport: a.transport, device, merchant: att.merchant, amount: auth.amount, nonce: result.nonce, orderId: auth.orderId, kioskCheck: check, settleSimulation: simulation, outcome }, null, 2));
