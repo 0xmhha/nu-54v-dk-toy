@@ -16,6 +16,7 @@ import (
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/registry"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/registryext"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlement"
+	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlementext"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/testusdc"
 )
 
@@ -183,4 +184,63 @@ func (c *Chain) Deposit(ctx context.Context, operator *ecdsa.PrivateKey, device 
 	}
 	tx, err := st.DepositFor(opts, device, amount, withdraw)
 	return c.send(ctx, "depositFor", tx, err)
+}
+
+// Account is a device account as the finalized (or sandbox latest) state shows it.
+type Account struct {
+	Exists        bool // a deposit created it (it has a withdraw address)
+	ClosedAt      uint64
+	Balance       *big.Int
+	WithdrawAfter uint64
+}
+
+// AccountOf reads a device account (accountOf in the settlement extensions).
+func (c *Chain) AccountOf(ctx context.Context, device common.Address) (Account, error) {
+	ext, err := settlementext.NewSettlementext(c.dep.Settlement, c.client)
+	if err != nil {
+		return Account{}, err
+	}
+	v, err := ext.AccountOf(&bind.CallOpts{Context: ctx, BlockNumber: c.read}, device)
+	if err != nil {
+		return Account{}, err
+	}
+	return Account{Exists: v.WithdrawAddress != (common.Address{}), ClosedAt: v.ClosedAt.Uint64(), Balance: v.Balance, WithdrawAfter: v.WithdrawAfter.Uint64()}, nil
+}
+
+// CloseAccount stops the device account at once with the operator key (closeAccount):
+// settle refuses it from then on and the balance goes to the withdraw address after the delay.
+func (c *Chain) CloseAccount(ctx context.Context, operator *ecdsa.PrivateKey, device common.Address) (common.Hash, error) {
+	ext, err := settlementext.NewSettlementext(c.dep.Settlement, c.client)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	opts, err := c.Transactor(ctx, operator)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	tx, err := ext.CloseAccount(opts, device)
+	return c.send(ctx, "closeAccount", tx, err)
+}
+
+// AccountClosedBlock finds the device's AccountClosed event up to the read block (finalized on
+// the testnet). ok is false while no such event is final yet.
+func (c *Chain) AccountClosedBlock(ctx context.Context, device common.Address) (block uint64, tx common.Hash, ok bool, err error) {
+	ext, err := settlementext.NewSettlementext(c.dep.Settlement, c.client)
+	if err != nil {
+		return 0, common.Hash{}, false, err
+	}
+	head, err := c.client.HeaderByNumber(ctx, c.read)
+	if err != nil {
+		return 0, common.Hash{}, false, err
+	}
+	end := head.Number.Uint64()
+	it, err := ext.FilterAccountClosed(&bind.FilterOpts{Context: ctx, Start: c.dep.SettlementBlock, End: &end}, []common.Address{device})
+	if err != nil {
+		return 0, common.Hash{}, false, err
+	}
+	defer it.Close()
+	for it.Next() {
+		return it.Event.Raw.BlockNumber, it.Event.Raw.TxHash, true, nil
+	}
+	return 0, common.Hash{}, false, it.Error()
 }

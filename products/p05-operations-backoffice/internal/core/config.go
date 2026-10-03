@@ -17,6 +17,8 @@ type Deployment struct {
 	Registry   common.Address
 	Settlement common.Address
 	Token      common.Address
+	// SettlementBlock is the settlement contract's deployment block (event searches start there).
+	SettlementBlock uint64
 }
 
 func LoadDeployment(path string) (Deployment, error) {
@@ -24,6 +26,7 @@ func LoadDeployment(path string) (Deployment, error) {
 		ChainID   uint64 `json:"chainId"`
 		Contracts map[string]struct {
 			Address string `json:"address"`
+			Block   uint64 `json:"block"`
 		} `json:"contracts"`
 	}
 	b, err := os.ReadFile(path)
@@ -34,10 +37,11 @@ func LoadDeployment(path string) (Deployment, error) {
 		return Deployment{}, err
 	}
 	d := Deployment{
-		ChainID:    raw.ChainID,
-		Registry:   common.HexToAddress(raw.Contracts["MerchantRegistry"].Address),
-		Settlement: common.HexToAddress(raw.Contracts["PaymentSettlement"].Address),
-		Token:      common.HexToAddress(raw.Contracts["TestUSDC"].Address),
+		ChainID:         raw.ChainID,
+		Registry:        common.HexToAddress(raw.Contracts["MerchantRegistry"].Address),
+		Settlement:      common.HexToAddress(raw.Contracts["PaymentSettlement"].Address),
+		Token:           common.HexToAddress(raw.Contracts["TestUSDC"].Address),
+		SettlementBlock: raw.Contracts["PaymentSettlement"].Block,
 	}
 	if d.ChainID == 0 || d.Registry == (common.Address{}) || d.Settlement == (common.Address{}) {
 		return Deployment{}, fmt.Errorf("%s: chainId or contract addresses missing", path)
