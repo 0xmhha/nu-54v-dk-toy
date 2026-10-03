@@ -28,7 +28,7 @@ P07은 W4·W6·W7·W9 게이트 조건이 아니다. 담당은 사용자(user)�
 
 `0xmhha/indexer-go`는 이벤트 하나를 읽는 데 필요한 부분만 싸게 가져올 수 있을 때만 쓴다. 판단 기준은 W10 첫날 하루 안에 8283 RPC 연결과 로그 decode가 되는가이다. 안 되면 직접 `eth_getLogs` 폴링으로 만든다. 폴링 구현은 반나절 정도 규모라 재사용이 일정을 줄이지 못하면 버린다.
 
-2026-10-03 판단: 수집·저장은 직접 폴링으로 두고, HTTP 미들웨어와 webhook 알림 같은 독립 부품만 가져온다. `indexer-go`의 수집과 이벤트 처리가 PebbleDB 저장소에 묶여 있어, 이벤트 하나를 읽는 부분만 싸게 떼어 낼 수 없기 때문이다. 근거는 [indexer-go 재사용 분석](indexer-go-reuse.md)에 있다.
+2026-10-03 판단: 수집·저장은 직접 폴링으로 두고, HTTP 미들웨어와 webhook 알림 같은 독립 부품만 가져온다. `indexer-go`의 수집과 이벤트 처리가 PebbleDB 저장소에 묶여 있어, 이벤트 하나를 읽는 부분만 싸게 떼어 낼 수 없기 때문이다. 근거(AST 그래프 분석)와 indexer-go 구조 검토는 `indexer-go` 저장소의 `docs/analysis/p07-reuse.md`, `docs/analysis/structure-review.md`로 옮겼다.
 
 ## 5. 위험과 컷
 

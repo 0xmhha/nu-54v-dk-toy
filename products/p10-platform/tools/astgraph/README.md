@@ -1,6 +1,6 @@
 # astgraph
 
-Go 모듈을 타입 정보까지 포함해 AST로 읽고, 패키지·선언·정적 호출의 그래프를 JSON으로 쓴다. 외부 코드를 가져올지 판단할 때 "이 기능을 가져오면 무엇이 함께 딸려 오는가"를 숫자로 보려고 만들었다([indexer-go 재사용 분석](../../../../docs/content/products/p07/indexer-go-reuse.md)).
+Go 모듈을 타입 정보까지 포함해 AST로 읽고, 패키지·선언·정적 호출의 그래프를 JSON으로 쓴다. 외부 코드를 가져올지 판단할 때 "이 기능을 가져오면 무엇이 함께 딸려 오는가"를 숫자로 보려고 만들었다. 이 도구로 한 indexer-go 분석은 `indexer-go` 저장소의 `docs/analysis/`에 있다.
 
 - 노드: package, func, method, type(인터페이스 표시). 각 노드에 줄 수, 파일, 첫 줄 doc.
 - 간선: `imports`(모듈 안 패키지), `imports-module`(외부 모듈), `calls`(정적으로 결정되는 함수·메서드 호출), `uses`(타입 참조), `implements`, `external`(외부 패키지 호출), `declares`.
