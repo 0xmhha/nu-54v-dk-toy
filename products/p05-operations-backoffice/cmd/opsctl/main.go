@@ -32,7 +32,7 @@ var commands = map[string]string{
 	"attestation": "issue (done)                                              (WBS2-P05-01)",
 	"anchor":      "sign (done)   (TimeAnchor for the development setup)     (WBS2-P05-02)",
 	"order":       "sign (done)   (test merchant)                             (WBS2-P05-01)",
-	"rental":      "deposit (done) | provision (done) | re-anchor (done) | return   (WBS2-P05-02, P05-03)",
+	"rental":      "deposit (done) | provision (done) | re-anchor (done) | return (done)   (WBS2-P05-02, P05-03)",
 	"token":       "mint (done)   (test token, token-owner key)                (development setup)",
 	"withdraw":    "request | cancel | execute                                (WBS2-P05-03)",
 	"refusal":     "host   (UNSUPPORTED_TYPE demo)                            (WBS2-P05-04)",
@@ -64,6 +64,7 @@ func main() {
 		"rental deposit":    rentalDeposit,
 		"rental provision":  rentalProvision,
 		"rental re-anchor":  rentalReanchor,
+		"rental return":     rentalReturn,
 		"token mint":        tokenMint,
 	}[os.Args[1]+" "+os.Args[2]]
 	if run == nil {
@@ -383,6 +384,11 @@ func rentalDeposit(args []string) error {
 
 // openSetup finds the nearest device in setup reach over BLE and opens a setup session.
 func openSetup(ctx context.Context, scan time.Duration) (*ble.Session, ble.Found, error) {
+	return openSession(ctx, scan, "setup")
+}
+
+// openSession opens a session of the given mode with the nearest device over BLE.
+func openSession(ctx context.Context, scan time.Duration, mode string) (*ble.Session, ble.Found, error) {
 	fmt.Fprintln(os.Stderr, "scanning for the device...")
 	found, err := ble.Scan(ctx, scan)
 	if err != nil {
@@ -393,12 +399,59 @@ func openSetup(ctx context.Context, scan time.Duration) (*ble.Session, ble.Found
 	if err != nil {
 		return nil, found, err
 	}
-	s, err := ble.Open(ctx, link, ble.Options{})
+	s, err := ble.Open(ctx, link, ble.Options{Mode: mode})
 	if err != nil {
 		_ = link.Close()
 		return nil, found, err
 	}
 	return s, found, nil
+}
+
+// returnChain binds the operator key to the chain calls the return makes.
+type returnChain struct {
+	*core.Chain
+	operator *ecdsa.PrivateKey
+}
+
+func (c returnChain) CloseAccount(ctx context.Context, device common.Address) (common.Hash, error) {
+	return c.Chain.CloseAccount(ctx, c.operator, device)
+}
+
+// rentalReturn closes the device account, waits until AccountClosed is final and only then
+// wipes the device with an operator-signed device.reset (P05-FR-07). Without the device at
+// hand it stops after the close; run it again with the device to finish.
+func rentalReturn(args []string) error {
+	fs := flag.NewFlagSet("rental return", flag.ExitOnError)
+	e := commonFlags(fs)
+	device := fs.String("device", "", "device address being returned")
+	scan := fs.Duration("scan", 10*time.Second, "how long to scan for the device")
+	_ = fs.Parse(args)
+	if err := e.load(); err != nil {
+		return err
+	}
+	d, err := address(*device, "device")
+	if err != nil {
+		return err
+	}
+	operator, err := e.roleKey("operator")
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	chain, err := e.dial(ctx)
+	if err != nil {
+		return err
+	}
+	res, err := ops.Return(ctx, returnChain{chain, operator}, func(ctx context.Context) (ops.ResetSession, error) {
+		// A READY device refuses setup sessions; device.reset is accepted in a payment session.
+		s, _, err := openSession(ctx, *scan, "payment")
+		return s, err
+	}, ops.ReturnParams{Domain: e.dep.Domain(), Operator: operator, Device: d,
+		Progress: func(step string) { fmt.Fprintln(os.Stderr, "return:", step) }})
+	if err != nil {
+		return err
+	}
+	return emit(e, "rental-return", res)
 }
 
 // rentalProvision runs the rental setup over BLE (payment-protocol.md 5): the renter confirms the

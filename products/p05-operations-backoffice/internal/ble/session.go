@@ -28,9 +28,13 @@ type Options struct {
 	KioskNonce [32]byte
 	// ButtonWait bounds the steps that wait for the renter (setup.operator, PIN). Default 3 min.
 	ButtonWait time.Duration
+	// Mode is the session mode: "setup" (default), or "payment" to reach a READY device, which
+	// refuses setup sessions; device.reset is accepted in either (payment-protocol.md 5).
+	Mode string
 }
 
-// Session is one setup session (payment-protocol.md 5). It implements SetupSession.
+// Session is one session with a device (payment-protocol.md 5): a setup session, or a payment
+// session used only to send device.reset. It implements SetupSession.
 type Session struct {
 	t          Transport
 	w          protocol.FrameWriter
@@ -66,8 +70,11 @@ func Open(ctx context.Context, t Transport, o Options) (*Session, error) {
 	if o.ButtonWait == 0 {
 		o.ButtonWait = 3 * time.Minute
 	}
+	if o.Mode == "" {
+		o.Mode = "setup"
+	}
 	s := &Session{t: t, w: protocol.FrameWriter{MTU: t.MTU()}, sid: hex.EncodeToString(o.SessionID[:]), buttonWait: o.ButtonWait}
-	ok, err := s.request(ctx, protocol.Message{"type": "session.open", "mode": "setup", "kioskNonce": "0x" + hex.EncodeToString(o.KioskNonce[:])}, replyWait)
+	ok, err := s.request(ctx, protocol.Message{"type": "session.open", "mode": o.Mode, "kioskNonce": "0x" + hex.EncodeToString(o.KioskNonce[:])}, replyWait)
 	if err != nil {
 		return nil, err
 	}
@@ -214,3 +221,6 @@ func (s *Session) Close() error {
 }
 
 var _ SetupSession = (*Session)(nil)
+
+// DeviceAddress is the device address from session.open.ok (empty while UNPROVISIONED).
+func (s *Session) DeviceAddress() string { return s.Device }

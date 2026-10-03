@@ -57,6 +57,16 @@ $O rental provision --withdraw <대여자 출금 주소> --amount 10000000 [--pa
 $O rental re-anchor
 ```
 
+### 반납 (`rental return`)
+
+계정을 닫고(`closeAccount`, 즉시 결제 정지, 잔액은 출금 지연 뒤 withdraw 주소로), AccountClosed가 finalized 된 뒤에만 운영자가 서명한 `device.reset`으로 기기를 지운다. 순서는 바뀌지 않는다(P05-FR-07). reset은 결제 세션으로 보낸다(READY 기기는 셋업 세션을 거절한다). nonce는 AccountClosed 블록 번호라 다시 실행해도 같은 명령이다. 연결된 기기의 주소가 `--device`와 다르면 보내지 않는다. 기기가 근처에 없으면 계정만 닫고 `resetPending`을 남기므로, 기기를 가져와 같은 명령을 다시 실행한다(닫기는 건너뛴다).
+
+```bash
+$O rental return --device <기기 주소>
+```
+
+2026-10-03 testnet: 일회용 기기 계정에 1 tUSDC를 입금한 뒤 반납을 실행했다. 닫기(블록 21320199)와 finalized 확인을 마쳤고, 기기가 없어 reset은 보류되었다. 다시 실행하자 닫기를 건너뛰었다. 잔액은 출금 지연 뒤 운영자 주소로 돌아간다.
+
 - BLE는 `tinygo.org/x/bluetooth`(macOS CoreBluetooth, Linux BlueZ)를 쓴다. 셋업 세션의 본딩은 기기가 요구할 때 운영체제가 처리한다.
 - 메시지와 바이트는 공용 세션 벡터 SV-13~15로 시험한다(`internal/core/ops/provision_test.go`: opsctl이 보내는 본문이 벡터와 바이트까지 같다). 실제 기기와의 BLE 연결은 아직 실행하지 않았다(보드에 셋업 명령을 올린 뒤 실행).
 

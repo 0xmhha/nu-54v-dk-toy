@@ -392,6 +392,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 **반납** (WBS2-P05-03, 10주차, 1.5일)
 - closeAccount → finalized AccountClosed 확인 → DeviceReset 서명 → `device.reset`. closeAccount가 실패하면 reset을 보내지 않는다.
 - 미정: DeviceReset nonce를 어디서 만드는지, READY 상태 기기에 어느 세션으로 보내는지가 명세에 없다.
+- 2026-10-03 완료: `opsctl rental return`. 세션은 결제 세션(READY 기기는 셋업 세션을 거절한다, 프로토콜 5절), nonce는 AccountClosed 블록 번호다(다시 실행해도 같은 명령). 기기가 근처에 없으면 계정만 닫고 reset을 보류하며, 다시 실행하면 닫기를 건너뛴다. 연결된 기기의 주소가 다르면 reset을 보내지 않는다. testnet의 일회용 계정으로 닫기와 finalized 확인을 실행했다. 기기 쪽은 세션 벡터 SV-17로 시험했다.
 
 **12주차 리허설** (WBS2-P04-04, 11~12주차, 6일)
 - 시간 계측(요청 전달 완료부터 approved까지), 20회 연속 결제, 거절 8종 시연, 드라이런 2회.
