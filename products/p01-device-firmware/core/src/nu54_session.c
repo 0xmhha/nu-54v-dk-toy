@@ -132,7 +132,7 @@ static void channel_begin(const nu54_device_t *d, channel_t *c, const nu54_out_t
 {
 	memset(c, 0, sizeof(*c));
 	c->first = out->kiosk_count;
-	c->on = d->session_open && d->secure;
+	c->on = d->session_open && d->secure && !d->foreign_link;
 	if (c->on) {
 		c->id = d->channel_id;
 		memcpy(c->key, d->channel_key, 16);
@@ -814,6 +814,20 @@ static void button_step(nu54_device_t *d, int approve, nu54_out_t *out)
 	emit(out, 0, e, 6);
 }
 
+/* device.paymentMode (payment-protocol.md 3): the bonded phone app turns payment advertising on
+ * or off. No session: the reply carries the zero id and an open session is left alone. */
+static void payment_mode(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
+{
+	const nu54_cbor_item_t *on = field(m, 0, "on"), *secs = field(m, 0, "seconds");
+	int want = on->value != 0;
+	uint64_t s = u64(secs);
+	int ok = d->link_bonded && d->state != NU54_STATE_UNPROVISIONED && d->platform.payment_mode && (!want || (s >= 1 && s <= 300)) &&
+		 d->platform.payment_mode(d->platform.ctx, want, want ? (uint32_t)s : 0) == 0;
+	nu54_cbor_entry_t e[] = {{"v", NU54_V_UINT, 0, 0, 1}, text("type", "device.paymentMode.ack"), bytes("sessionId", ZERO_SESSION, 8),
+				 {"accepted", NU54_V_BOOL, 0, 0, (uint64_t)ok}, {"on", NU54_V_BOOL, 0, 0, (uint64_t)want}, text("reason", "NOT_PERMITTED")};
+	emit(out, 0, e, ok ? 5 : 6);
+}
+
 static void dispatch(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out)
 {
 	static nu54_msg_t m; /* about 2 KB; the session handles one message at a time */
@@ -853,6 +867,8 @@ static void dispatch(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t
 		device_reset(d, &m, out);
 	} else if (strcmp(type, "limit.change") == 0) {
 		limit_change(d, &m, now, out);
+	} else if (strcmp(type, "device.paymentMode") == 0) {
+		payment_mode(d, &m, out);
 	} else {
 		error_reply(out, field(&m, 0, "sessionId")->ptr, "UNSUPPORTED_TYPE");
 	}

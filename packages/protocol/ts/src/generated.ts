@@ -86,7 +86,7 @@ export type Reason = (typeof REASONS)[number];
 export const OUTCOMES = ["approved", "refused", "failed", "Checking"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
-export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit"] as const;
+export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
 /** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */
@@ -453,6 +453,39 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "perPaymentLimit",
       "dailyLimit",
       "expiry"
+    ]
+  },
+  "device.paymentMode": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "on": "bool",
+      "seconds": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "on",
+      "seconds"
+    ]
+  },
+  "device.paymentMode.ack": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "accepted": "bool",
+      "on": "bool",
+      "reason": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "accepted",
+      "on"
     ]
   }
 };

@@ -70,6 +70,8 @@ export interface DeviceConfig {
   phoneConnected?: () => boolean;
   /** Whether the central of the current message is on a bonded link; setup sessions need one (3). Default yes. */
   linkBonded?: () => boolean;
+  /** Payment mode from the phone app (device.paymentMode): turn payment advertising on for `seconds`, or off. */
+  paymentMode?: (on: boolean, seconds: number) => void;
 }
 
 export interface SetupValues {
@@ -77,6 +79,12 @@ export interface SetupValues {
   contract: string;
   chainId: bigint;
   passkey: number;
+}
+
+/** foreign: the body comes from a central that does not hold the open session (the phone app's
+ * device.paymentMode), so the session's channel neither opens nor seals it. */
+export interface BodyOptions {
+  foreign?: boolean;
 }
 
 /** What a step waits for: a button or the PIN. A promise is a real press (handleAsync only). */
@@ -130,6 +138,7 @@ export class SoftwareDevice {
       requirePhone: false,
       phoneConnected: () => true,
       linkBonded: () => true,
+      paymentMode: () => {},
       ...rest,
     };
     if (nonceStart % 256n !== 0n) throw new Error("nonceStart must be a multiple of 256");
@@ -158,6 +167,11 @@ export class SoftwareDevice {
   /** Device time: last anchor plus the elapsed time since it was accepted. */
   private time(): number | null {
     return this.anchor ? this.anchor.timestamp + (this.cfg.now() - this.anchor.at) : null;
+  }
+
+  /** Id of the open session, or null (the BLE peripheral uses it to tell which central holds it). */
+  get sessionId(): string | null {
+    return this.session?.id ?? null;
   }
 
   /** The central's BLE link dropped: the session and its channel end with it (firmware nu54_session_link_closed). */
@@ -229,21 +243,21 @@ export class SoftwareDevice {
    * plaintext. A body that does not open or decode is dropped with error{BAD_FRAME} (or
    * UNSUPPORTED_TYPE) and the session closes (4, 4.1, 4.2).
    */
-  handleBody(body: Uint8Array): Uint8Array[] {
-    const r = this.bodyIn(body);
+  handleBody(body: Uint8Array, opts: BodyOptions = {}): Uint8Array[] {
+    const r = this.bodyIn(body, opts);
     return this.bodiesOut(r.channel, "error" in r ? [r.error] : this.handle(r.message));
   }
 
   /** handleBody with real (asynchronous) presses; early replies go to `emit` as in handleAsync. */
-  async handleBodyAsync(body: Uint8Array, emit?: (b: Uint8Array) => void): Promise<Uint8Array[]> {
-    const r = this.bodyIn(body);
+  async handleBodyAsync(body: Uint8Array, emit?: (b: Uint8Array) => void, opts: BodyOptions = {}): Promise<Uint8Array[]> {
+    const r = this.bodyIn(body, opts);
     if ("error" in r) return this.bodiesOut(r.channel, [r.error]);
     const early = emit && ((m: Message) => emit(this.bodiesOut(r.channel, [m])[0]));
     return this.bodiesOut(r.channel, await this.handleAsync(r.message, early));
   }
 
-  private bodyIn(body: Uint8Array): { channel: SecureChannel | null } & ({ message: Message } | { error: Message }) {
-    const channel = this.session?.channel ?? null;
+  private bodyIn(body: Uint8Array, opts: BodyOptions): { channel: SecureChannel | null } & ({ message: Message } | { error: Message }) {
+    const channel = opts.foreign ? null : (this.session?.channel ?? null);
     try {
       return { channel, message: decodeMessage(channel ? channel.open(body) : body) };
     } catch (e) {
@@ -286,6 +300,8 @@ export class SoftwareDevice {
         return [];
       case "device.reset":
         return [this.reset(m)];
+      case "device.paymentMode":
+        return [this.paymentMode(m)];
       default:
         return [this.error("UNSUPPORTED_TYPE", String(m.sessionId))];
     }
@@ -344,6 +360,20 @@ export class SoftwareDevice {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The bonded phone app turns payment mode on or off (payment-protocol.md 3, P02-FR-08). It
+   * belongs to no session and leaves any open one alone.
+   */
+  private paymentMode(m: Message): Message {
+    const on = m.on === true;
+    const seconds = Number(m.seconds);
+    const ok = this.cfg.linkBonded() && this.state !== "UNPROVISIONED" && (!on || (seconds >= 1 && seconds <= 300));
+    if (ok) this.cfg.paymentMode(on, on ? seconds : 0);
+    const ack: Record<string, unknown> = { v: 1, type: "device.paymentMode.ack", sessionId: "0000000000000000", accepted: ok, on };
+    if (!ok) ack.reason = "NOT_PERMITTED";
+    return ack as Message;
   }
 
   private confirm(m: Message): Message[] {

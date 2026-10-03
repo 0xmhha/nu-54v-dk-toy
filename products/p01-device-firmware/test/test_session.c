@@ -132,6 +132,16 @@ static int host_open(void *c, const uint8_t key[16], const uint8_t iv[12], const
 	return len < 16 ? -1 : host_gcm(0, key, iv, in, len, out);
 }
 
+static int mode_calls;
+static int host_payment_mode(void *c, int on, uint32_t seconds)
+{
+	(void)c;
+	(void)on;
+	(void)seconds;
+	mode_calls++;
+	return 0;
+}
+
 static void dump(const char *what, const uint8_t *b, size_t n)
 {
 	printf("  %s (%zu): ", what, n);
@@ -155,7 +165,7 @@ int main(void)
 		d.authorization_expiry = SV_AUTH_EXPIRY;
 		d.firmware = SV_FIRMWARE;
 		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
-					       host_hkdf, host_seal, host_open};
+					       host_hkdf, host_seal, host_open, host_payment_mode};
 		d.require_secure = sc->require_secure;
 		d.require_phone = sc->require_phone;
 		d.phone_present = sc->phone_present;
@@ -211,7 +221,59 @@ int main(void)
 			}
 		}
 	}
+	/* The phone app's device.paymentMode arrives on its own link in the middle of SV-24's secure
+	 * session: answered in plaintext, and the kiosk's sealed bodies that follow still open. */
+	{
+		const session_scenario_t *sec = NULL, *mode = NULL;
+		for (size_t s = 0; s < SESSION_SCENARIO_COUNT; s++) {
+			sec = strcmp(SESSION_SCENARIOS[s].id, "SV-24") == 0 ? &SESSION_SCENARIOS[s] : sec;
+			mode = strcmp(SESSION_SCENARIOS[s].id, "SV-32") == 0 ? &SESSION_SCENARIOS[s] : mode;
+		}
+		memset(&d, 0, sizeof(d));
+		d.anchor_clock_skew = SV_ANCHOR_SKEW;
+		d.authorization_expiry = SV_AUTH_EXPIRY;
+		d.firmware = SV_FIRMWARE;
+		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
+					       host_hkdf, host_seal, host_open, host_payment_mode};
+		d.link_bonded = 1;
+		d.phone_present = 1;
+		memcpy(d.address, SV_ADDRESS, 20);
+		memcpy(d.operator_address, SV_OPERATOR, 20);
+		memcpy(d.contract, SV_CONTRACT, 20);
+		memcpy(d.chain_id, SV_CHAIN_ID, 32);
+		nu54_device_init(&d, SV_NONCE_START);
+		memcpy(key, SV_KEY, 32);
+		draws = 0;
+		int ok = sec && mode;
+		for (size_t t = 0; ok && t < sec->count; t++) {
+			const session_step_t *st = &sec->steps[t];
+			if (t == 4) { /* after session.confirm, before payment.identify */
+				const session_step_t *ms = &mode->steps[3]; /* on for 120 s */
+				d.foreign_link = 1;
+				nu54_session_handle(&d, ms->send, ms->send_len, st->at, &out);
+				d.foreign_link = 0;
+				ok = out.kiosk_count == 1 && out.kiosk_len[0] == ms->expect_len[0] && memcmp(out.kiosk[0], ms->expect[0], ms->expect_len[0]) == 0;
+			}
+			nu54_session_handle(&d, st->send, st->send_len, st->at, &out);
+			for (int guard = 0; d.pending != NU54_PENDING_NONE && guard < 4; guard++) {
+				nu54_session_button(&d, 1, &out);
+			}
+			ok = ok && out.kiosk_count == st->expect_count;
+			for (int e = 0; ok && e < st->expect_count; e++) {
+				ok = out.kiosk_len[e] == st->expect_len[e] && memcmp(out.kiosk[e], st->expect[e], st->expect_len[e]) == 0;
+			}
+		}
+		if (!ok) {
+			failures++;
+			printf("FAIL payment mode from another link during a secure session\n");
+		}
+	}
 	secp256k1_context_destroy(ctx);
+	/* SV-32: on for 120 s and off reach the platform; refusals do not (plus the call above). */
+	if (mode_calls != 3) {
+		failures++;
+		printf("FAIL payment mode: %d platform calls (want 3)\n", mode_calls);
+	}
 	/* Setup stores once per finished setup (SV-13) and wipes on the PIN timeout and the reset. */
 	if (commits != 1 || wipes != 2) {
 		failures++;
@@ -220,7 +282,7 @@ int main(void)
 	/* A link that drops while setup waits for the PIN wipes the key setup made. */
 	memset(&d, 0, sizeof(d));
 	d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
-				       host_hkdf, host_seal, host_open};
+				       host_hkdf, host_seal, host_open, host_payment_mode};
 	nu54_device_init_unprovisioned(&d);
 	d.session_open = 1;
 	d.pending = NU54_PENDING_PIN;

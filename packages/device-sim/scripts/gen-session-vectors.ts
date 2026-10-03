@@ -94,6 +94,10 @@ function secureOpen(o: { mode?: "setup" | "payment"; att?: ReturnType<typeof att
   return { ...open(o.mode ?? "payment"), kioskEphemeral: x, attestation: att, kioskKeySignature } as Message;
 }
 
+// Payment mode from the phone app (3): no session, the zero session id.
+const modeMsg = (on: boolean, seconds: number): Message =>
+  ({ v: 1, type: "device.paymentMode", sessionId: "0000000000000000", on, seconds: String(seconds) } as Message);
+
 // The k-th deviceNonce the device hands out is 32 bytes of 0x5a + k.
 const deviceNonce = (k: number) => "0x" + (0x5a + k).toString(16).repeat(32);
 
@@ -242,6 +246,13 @@ const SCENARIOS: Scenario[] = [
   { id: "SV-31", description: "a setup session.open from a central that is not bonded: NOT_PERMITTED; payment sessions need no bond",
     button: "approve", initialState: "UNPROVISIONED", unbondedLink: true,
     steps: [{ at: T0, send: open("setup") }, { at: T0, send: open("payment") }] },
+  { id: "SV-32", description: "payment mode from the bonded phone app: on for 120 s and off are accepted, on for 0 s or over 300 s is NOT_PERMITTED; an open payment session is not touched",
+    button: "approve",
+    steps: [...anchored(), { at: T0, send: open("payment") }, { at: T0, send: modeMsg(true, 120) }, { at: T0, send: modeMsg(true, 0) },
+      { at: T0, send: modeMsg(true, 301) }, { at: T0, send: modeMsg(false, 0) }, { at: T0, send: confirm(deviceNonce(1)) }, { at: T0, send: identify() }] },
+  { id: "SV-33", description: "payment mode from a central that is not bonded, and on an UNPROVISIONED device: NOT_PERMITTED",
+    button: "approve", initialState: "UNPROVISIONED", unbondedLink: true,
+    steps: [{ at: T0, send: modeMsg(true, 120) }] },
 ];
 
 function run() {

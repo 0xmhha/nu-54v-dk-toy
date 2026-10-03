@@ -119,6 +119,10 @@ static const nu54_field_t nu54_msg_confirm_show_fields[] = {{"v", NU54_K_INT, 1,
 static const nu54_object_t nu54_msg_confirm_show = {nu54_msg_confirm_show_fields, 8};
 static const nu54_field_t nu54_msg_confirm_limit_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"perPaymentLimit", NU54_K_UINT, 1, 0}, {"dailyLimit", NU54_K_UINT, 1, 0}, {"expiry", NU54_K_UINT, 1, 0}};
 static const nu54_object_t nu54_msg_confirm_limit = {nu54_msg_confirm_limit_fields, 6};
+static const nu54_field_t nu54_msg_device_paymentMode_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"on", NU54_K_BOOL, 1, 0}, {"seconds", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_device_paymentMode = {nu54_msg_device_paymentMode_fields, 5};
+static const nu54_field_t nu54_msg_device_paymentMode_ack_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"accepted", NU54_K_BOOL, 1, 0}, {"on", NU54_K_BOOL, 1, 0}, {"reason", NU54_K_TEXT, 0, 0}};
+static const nu54_object_t nu54_msg_device_paymentMode_ack = {nu54_msg_device_paymentMode_ack_fields, 6};
 static const nu54_message_t nu54_messages[] = {
     {"session.open", &nu54_msg_session_open},
     {"session.open.ok", &nu54_msg_session_open_ok},
@@ -136,8 +140,10 @@ static const nu54_message_t nu54_messages[] = {
     {"setup.ack", &nu54_msg_setup_ack},
     {"device.reset", &nu54_msg_device_reset},
     {"confirm.show", &nu54_msg_confirm_show},
-    {"confirm.limit", &nu54_msg_confirm_limit}
+    {"confirm.limit", &nu54_msg_confirm_limit},
+    {"device.paymentMode", &nu54_msg_device_paymentMode},
+    {"device.paymentMode.ack", &nu54_msg_device_paymentMode_ack}
 };
-#define NU54_MESSAGE_COUNT 17
+#define NU54_MESSAGE_COUNT 19
 
 #endif /* NU54_PROTOCOL_H */

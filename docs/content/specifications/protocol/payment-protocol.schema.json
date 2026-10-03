@@ -1020,6 +1020,70 @@
         }
       },
       "description": "the limit change the renter is asked to approve with the PIN and the button; values only, no approve button on the phone"
+    },
+    "device.paymentMode": {
+      "direction": "phone app to device",
+      "description": "payment-protocol.md 3: the bonded phone app turns payment mode (payment advertising) on for `seconds` or off; sessionId is the zero id, it belongs to no session",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "on",
+        "seconds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "device.paymentMode"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "on": {
+          "type": "boolean"
+        },
+        "seconds": {
+          "$ref": "#/$defs/uint",
+          "description": "1..300 when on; ignored when off (send 0)"
+        }
+      }
+    },
+    "device.paymentMode.ack": {
+      "direction": "device to phone app",
+      "description": "answer to device.paymentMode; refused with NOT_PERMITTED from a link that is not bonded, on an UNPROVISIONED device, or for seconds outside 1..300",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "accepted",
+        "on"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "device.paymentMode.ack"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "on": {
+          "type": "boolean"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        }
+      }
     }
   },
   "w12AgreedCodes": [
