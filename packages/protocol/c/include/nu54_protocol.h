@@ -113,6 +113,8 @@ static const nu54_field_t nu54_msg_device_reset_fields[] = {{"v", NU54_K_INT, 1,
 static const nu54_object_t nu54_msg_device_reset = {nu54_msg_device_reset_fields, 6};
 static const nu54_field_t nu54_msg_confirm_show_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"merchantName", NU54_K_TEXT, 1, 0}, {"orderId", NU54_K_HEX32, 1, 0}, {"token", NU54_K_HEX20, 1, 0}, {"payout", NU54_K_HEX20, 1, 0}, {"amount", NU54_K_UINT, 1, 0}};
 static const nu54_object_t nu54_msg_confirm_show = {nu54_msg_confirm_show_fields, 8};
+static const nu54_field_t nu54_msg_confirm_limit_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"perPaymentLimit", NU54_K_UINT, 1, 0}, {"dailyLimit", NU54_K_UINT, 1, 0}, {"expiry", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_confirm_limit = {nu54_msg_confirm_limit_fields, 6};
 static const nu54_message_t nu54_messages[] = {
     {"session.open", &nu54_msg_session_open},
     {"session.open.ok", &nu54_msg_session_open_ok},
@@ -129,8 +131,9 @@ static const nu54_message_t nu54_messages[] = {
     {"setup.operator", &nu54_msg_setup_operator},
     {"setup.ack", &nu54_msg_setup_ack},
     {"device.reset", &nu54_msg_device_reset},
-    {"confirm.show", &nu54_msg_confirm_show}
+    {"confirm.show", &nu54_msg_confirm_show},
+    {"confirm.limit", &nu54_msg_confirm_limit}
 };
-#define NU54_MESSAGE_COUNT 16
+#define NU54_MESSAGE_COUNT 17
 
 #endif /* NU54_PROTOCOL_H */

@@ -94,7 +94,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 
 **reset.** `device.reset{device, nonce, operatorSignature}`는 운영자가 DeviceReset `{device, nonce}`에 서명한 명령이며 어떤 상태에서든, 열려 있는 세션이면 mode와 관계없이 받는다. 서명자가 기록된 운영자 주소이고 `device`가 자기 주소일 때만 키, PIN, 운영자 주소, 컨트랙트 값, passkey, TimeAnchor, nonce 기록을 지우고 `UNPROVISIONED`가 되며 `setup.ack{step: device.reset, accepted: true}`로 답한다. 그렇지 않거나 지울 키가 없는 `UNPROVISIONED`이면 `accepted: false, reason: NOT_PERMITTED`다. 다시 셋업한 기기는 새 주소를 가지므로 이전 주소에 서명한 DeviceReset은 다시 쓸 수 없다. `nonce`는 운영자 도구가 명령을 구별하는 값이며 기기는 비교하지 않는다. 반납 순서(closeAccount의 finalized 이벤트 확인 → device.reset)는 운영자 도구가 지킨다 [N11].
 
-**PIN 잠금.** PIN을 `pinMaxRetries`번 틀리면 `PIN_LOCKED`가 되어 모든 서명을 거절한다(`PIN_LOCKED`). 잠금 상태는 secure 저장소에 남아 reset 뒤에도 `PIN_LOCKED`이며, 풀 방법은 반납 절차(DeviceReset)뿐이다.
+**PIN 잠금.** PIN을 `pinMaxRetries`번 틀리면 `PIN_LOCKED`가 되어 모든 서명을 거절한다. 결제는 `payment.prepare`에서 `payment.result{refused, PIN_LOCKED}`로, 한도 변경은 `limit.result{refused, PIN_LOCKED}`로 답한다. 잠금 상태는 secure 저장소에 남아 reset 뒤에도 `PIN_LOCKED`이며, 풀 방법은 반납 절차(DeviceReset)뿐이다.
 
 ## 6. 결제 흐름
 
@@ -115,7 +115,15 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 - `expiry`가 현재 시각부터 `authorizationExpiry` 안이다. 아니면 `ATTESTATION_EXPIRED`.
 - anchor가 유효하다. 아니면 `TIME_ANCHOR_MISSING`.
 
-**한도 변경.** 키오스크가 `limit.change{change}`를 보내면 기기는 버튼으로 입력한 PIN과 승인 버튼을 확인하고 nonce를 골라 `limit.result{approved, signature, nonce}`를, 거절하면 `refused`와 reason을 보낸다. 키오스크는 `setLimits`로 제출하고, 컨트랙트는 expiry와 nonce를 결제와 같은 방식으로 확인한다 [N04].
+**한도 변경.** 키오스크가 확인을 마친 결제 세션에서 `limit.change{change}`를 보낸다. 기기는 다음 순서로 처리한다.
+
+1. 기기가 `READY`가 아니면 거절한다. anchor가 없으면 `TIME_ANCHOR_MISSING`, `PIN_LOCKED`이면 `PIN_LOCKED`다.
+2. `change`를 검사한다. chainId와 contract가 셋업 값과 다르면 `NOT_PERMITTED`, expiry가 기기 시각부터 `authorizationExpiry` 밖이면 `ATTESTATION_EXPIRED`다. 한도가 register 상한을 넘는지는 컨트랙트가 `OverCap`으로 확인한다.
+3. 요청 내용을 본딩한 폰 앱에 `confirm.limit{perPaymentLimit, dailyLimit, expiry}`로 보낸다.
+4. 대여자가 기기 버튼으로 PIN을 입력한다(N28). 시간 안에 입력하지 않으면 `TIMEOUT`이다. 틀리면 `NOT_PERMITTED`이고 실패 횟수가 늘어난다. 실패가 `pinMaxRetries`번이 되면 기기는 `PIN_LOCKED`가 되고 `PIN_LOCKED`로 답한다. 맞으면 실패 횟수를 0으로 되돌린다.
+5. 대여자가 승인 버튼을 누르면, 기기는 결제와 같은 순차 카운터에서 nonce를 받아 LimitChange에 서명하고 `limit.result{approved, signature, nonce}`로 답한다. 거절 버튼이면 `USER_REJECTED`다.
+
+거절은 모두 `limit.result{refused, reason}`으로 보낸다. 키오스크는 승인된 서명을 `setLimits`로 제출하고, 컨트랙트는 expiry와 nonce를 결제와 같은 방식으로 확인한다 [N04]. 같은 서명을 다시 제출하면 `NonceReplayed`다(8절의 `NONCE_REPLAYED` 시연).
 
 버튼 승인은 서명 권한 경계를 거친다. 기기는 서명할 digest와 purpose를 secure partition에 먼저 등록하고, secure 쪽 버튼 인터럽트는 그 digest 한 건에만 서명 토큰을 발급한다 [N24]. 폰 앱이 표시하는 값은 기기가 보낸 값이며, 표시 내용과 서명 내용이 같다는 보장은 기기의 non-secure 코드와 폰 앱이 무결하다는 가정 아래의 주장이다 [N26].
 

@@ -593,7 +593,8 @@
             }
           }
         }
-      }
+      },
+      "description": "accepted in a confirmed payment session on a READY device; the renter enters the PIN and presses approve"
     },
     "setup.timeAnchor": {
       "direction": "operator tool to device (BLE setup session)",
@@ -779,7 +780,8 @@
             ]
           }
         }
-      ]
+      ],
+      "description": "approved with signature and nonce from the sequential counter, or refused with reason (NOT_PERMITTED, ATTESTATION_EXPIRED, TIME_ANCHOR_MISSING, TIMEOUT, USER_REJECTED, PIN_LOCKED)"
     },
     "setup.operator": {
       "direction": "operator tool to device (setup session)",
@@ -940,6 +942,40 @@
         }
       },
       "description": "payment fields the device is about to sign, sent over the bonded phone-app link; the app shows only these values and has no approve button"
+    },
+    "confirm.limit": {
+      "direction": "device to phone app (bonded link)",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "perPaymentLimit",
+        "dailyLimit",
+        "expiry"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "confirm.limit"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "perPaymentLimit": {
+          "$ref": "#/$defs/uint"
+        },
+        "dailyLimit": {
+          "$ref": "#/$defs/uint"
+        },
+        "expiry": {
+          "$ref": "#/$defs/uint"
+        }
+      },
+      "description": "the limit change the renter is asked to approve with the PIN and the button; values only, no approve button on the phone"
     }
   },
   "w12AgreedCodes": [

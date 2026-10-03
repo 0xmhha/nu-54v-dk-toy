@@ -315,3 +315,45 @@ test("the device forwards the kiosk's payment.outcome to the phone app, for its 
   link.send({ ...outcome, sessionId: "0909090909090909" } as Message);
   assert.equal(seen.length, 2, "an outcome for another session is not forwarded");
 });
+
+// ------------------------------------------------------------------ limit change (protocol 5)
+
+test("limit change: the signature recovers to the device over LimitChange and shares the nonce counter", () => {
+  const { device, link } = setup();
+  anchor(link, device, T0);
+  const ok = link.send({ v: 1, type: "session.open", sessionId: SID, mode: "payment", kioskNonce: "0x" + "a5".repeat(32) } as Message)[0];
+  link.send({ v: 1, type: "session.confirm", sessionId: SID, deviceNonce: ok.deviceNonce } as Message);
+  const change = { chainId: "8283", contract: CONTRACT, perPaymentLimit: "20000000", dailyLimit: "0", expiry: String(T0 + 60) };
+  const [r] = link.send({ v: 1, type: "limit.change", sessionId: SID, change } as Message);
+  assert.equal(r.outcome, "approved", JSON.stringify(r));
+  const signer = recoverSigner(digest(domain, "LimitChange", { ...change, nonce: BigInt(String(r.nonce)) }), hexToBytes(String(r.signature)));
+  assert.equal(signer, device.address);
+  assert.equal(device.phone.at(-1)?.type, "confirm.limit");
+  assert.equal(String(r.nonce), (256n * 7n).toString());
+});
+
+test("limit change refusals and the PIN lock", () => {
+  let pin: string | null = "1111";
+  let now = T0;
+  const device = new SoftwareDevice({ key: KEY.device, operator: OPERATOR, contract: CONTRACT, chainId: 8283, now: () => now, enterPin: () => pin });
+  const link = connect(device, 23);
+  anchor(link, device, T0);
+  const ok = link.send({ v: 1, type: "session.open", sessionId: SID, mode: "payment", kioskNonce: "0x" + "a5".repeat(32) } as Message)[0];
+  link.send({ v: 1, type: "session.confirm", sessionId: SID, deviceNonce: ok.deviceNonce } as Message);
+  const change = (over: Record<string, string> = {}) =>
+    ({ v: 1, type: "limit.change", sessionId: SID, change: { chainId: "8283", contract: CONTRACT, perPaymentLimit: "1", dailyLimit: "1", expiry: String(T0 + 60), ...over } } as Message);
+  pin = null;
+  assert.equal(link.send(change())[0].reason, "TIMEOUT");
+  pin = "2580";
+  assert.equal(link.send(change({ chainId: "1" }))[0].reason, "NOT_PERMITTED");
+  assert.equal(link.send(change({ expiry: String(T0 + 500) }))[0].reason, "ATTESTATION_EXPIRED");
+  pin = "1111";
+  const reasons = [1, 2, 3, 4, 5].map(() => link.send(change())[0].reason);
+  assert.deepEqual(reasons, ["NOT_PERMITTED", "NOT_PERMITTED", "NOT_PERMITTED", "NOT_PERMITTED", "PIN_LOCKED"]);
+  assert.equal(device.state, "PIN_LOCKED");
+  pin = "2580";
+  assert.equal(link.send(change())[0].reason, "PIN_LOCKED", "the right PIN no longer helps");
+  device.powerCycle();
+  assert.equal(device.state, "PIN_LOCKED", "a RAM-clearing reset keeps the lock");
+  now += 1;
+});

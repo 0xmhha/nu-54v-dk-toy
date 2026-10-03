@@ -16,6 +16,9 @@ static int draws;
 static uint8_t key[32];     /* the device key: SV_KEY, or the one setup made */
 static uint8_t new_key[32]; /* made by generate_key, kept only when setup commits */
 static int commits, wipes;
+static char stored_pin[16];  /* what setup stored; a provisioned vector device has 2580 */
+static int pin_failures;     /* kept in secure storage on the board */
+#define PIN_MAX_RETRIES 5
 
 static int host_sign(void *c, const uint8_t digest[32], uint8_t rs[64])
 {
@@ -58,8 +61,23 @@ static int host_commit(void *c, const nu54_setup_record_t *rec)
 		return -1;
 	}
 	memcpy(key, new_key, 32);
+	snprintf(stored_pin, sizeof(stored_pin), "%.*s", (int)rec->pin_len, rec->pin);
+	pin_failures = 0;
 	commits++;
 	return 0;
+}
+
+static int host_check_pin(void *c, const char *pin, size_t len)
+{
+	(void)c;
+	if (pin_failures >= PIN_MAX_RETRIES) {
+		return NU54_PIN_LOCKED;
+	}
+	if (len == strlen(stored_pin) && memcmp(pin, stored_pin, len) == 0) {
+		pin_failures = 0;
+		return NU54_PIN_OK;
+	}
+	return ++pin_failures >= PIN_MAX_RETRIES ? NU54_PIN_LOCKED : NU54_PIN_WRONG;
 }
 
 static int host_wipe(void *c)
@@ -91,7 +109,9 @@ int main(void)
 		d.anchor_clock_skew = SV_ANCHOR_SKEW;
 		d.authorization_expiry = SV_AUTH_EXPIRY;
 		d.firmware = SV_FIRMWARE;
-		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe};
+		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin};
+		strcpy(stored_pin, "2580");
+		pin_failures = 0;
 		if (sc->unprovisioned) {
 			nu54_device_init_unprovisioned(&d);
 		} else {
@@ -113,12 +133,14 @@ int main(void)
 			nu54_session_handle(&d, st->send, st->send_len, st->at, &out);
 			int phone_ok = out.phone_count == (st->phone ? 1 : 0) &&
 				       (!st->phone || (out.phone_len == st->phone_len && memcmp(out.phone, st->phone, st->phone_len) == 0));
-			/* The renter: the button after confirm.show or setup.operator, then the PIN at setup. */
-			if (d.pending == NU54_PENDING_PAYMENT || d.pending == NU54_PENDING_SETUP_CONFIRM) {
-				nu54_session_button(&d, sc->approve, &out);
-			}
-			if (d.pending == NU54_PENDING_PIN) {
-				nu54_session_pin(&d, sc->pin, sc->pin ? strlen(sc->pin) : 0, &out);
+			/* The renter answers whatever the device waits for: the button (payment, setup values,
+			 * limit change after its PIN) or the PIN (setup, limit change). */
+			for (int guard = 0; d.pending != NU54_PENDING_NONE && guard < 4; guard++) {
+				if (d.pending == NU54_PENDING_PIN || d.pending == NU54_PENDING_LIMIT_PIN) {
+					nu54_session_pin(&d, sc->pin, sc->pin ? strlen(sc->pin) : 0, &out);
+				} else {
+					nu54_session_button(&d, sc->approve, &out);
+				}
 			}
 			int ok = phone_ok && out.kiosk_count == st->expect_count;
 			for (int e = 0; ok && e < st->expect_count; e++) {
