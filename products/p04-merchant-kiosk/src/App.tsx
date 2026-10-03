@@ -22,8 +22,9 @@ import { findDevice, openTransport } from './ble/central.ts';
 import { FramedLink } from './ble/framing.ts';
 import { JsonRpcChain } from './chain/rpc.ts';
 import { loadKiosk, takeAnchor, type Loaded } from './kiosk/config.ts';
-import { changeLimits, pay, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
-import { recheck } from './payment/submit.ts';
+import { changeLimits, pay, resumeOrders, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
+import { resume } from './payment/submit.ts';
+import { OrderStore } from './kiosk/orders.ts';
 import { blockTimeText, fetchReceipt, type ReceiptResult } from './kiosk/receipt.ts';
 import Vault from './specs/NativeKioskVault.ts';
 
@@ -62,9 +63,10 @@ async function blePermissions(): Promise<boolean> {
   return wanted.every(p => got[p] === PermissionsAndroid.RESULTS.GRANTED);
 }
 
-function deps(kiosk: Loaded): Omit<PayDeps, 'random'> {
+function deps(kiosk: Loaded, orders?: OrderStore): Omit<PayDeps, 'random'> {
   return {
     kiosk,
+    orders,
     chain: new JsonRpcChain(kiosk.config.rpc),
     connect: async () => {
       const found = await findDevice();
@@ -108,16 +110,31 @@ function Kiosk() {
   const [screen, setScreen] = useState<Screen>({ kind: 'loading' });
   const [amountText, setAmountText] = useState('1');
   const [receipt, setReceipt] = useState<ReceiptResult | 'loading' | null>(null);
+  const [orders, setOrders] = useState<OrderStore | undefined>();
+  const [openCount, setOpenCount] = useState(0);
+
+  /** Picks up orders left open by a restart (P04-NFR-05): same signature only, never a new one. */
+  const resumeOpen = useCallback(async (k: Loaded, store: OrderStore) => {
+    if (store.open().length === 0) return;
+    await resumeOrders({ kiosk: k, chain: new JsonRpcChain(k.config.rpc), orders: store }).catch(() => undefined);
+    setOpenCount(store.open().length);
+  }, []);
 
   const load = useCallback(async () => {
     try {
       const k = await loadKiosk(Vault);
       setKiosk(k);
       setScreen(k ? { kind: 'idle' } : { kind: 'unprovisioned' });
+      if (k) {
+        const store = await OrderStore.open(Vault);
+        setOrders(store);
+        setOpenCount(store.open().length);
+        resumeOpen(k, store);
+      }
     } catch (e) {
       setScreen({ kind: 'unprovisioned', error: String(e) });
     }
-  }, []);
+  }, [resumeOpen]);
   useEffect(() => {
     load();
   }, [load]);
@@ -158,16 +175,20 @@ function Kiosk() {
     }
     setScreen({ kind: 'paying', phase: 'checkingGas', amount });
     const result = await pay(
-      { ...deps(kiosk), random: await randomPool() },
+      { ...deps(kiosk, orders), random: await randomPool() },
       amount,
       phase => setScreen({ kind: 'paying', phase, amount }),
     ).catch((e): PayResult => ({ status: 'failed', reason: e instanceof Error ? e.message : String(e) }));
+    setOpenCount(orders?.open().length ?? 0);
     setScreen({ kind: 'result', result, amount });
   };
 
   const check = async (r: Extract<PayResult, { status: 'Checking' }>, amt: bigint) => {
     if (!kiosk) return;
-    const out = await recheck(submitContext({ ...deps(kiosk), random: () => new Uint8Array() }), r.signed);
+    // The same signature only: re-simulated and resent when it would still settle (P04-FR-14).
+    const out = await resume(submitContext({ ...deps(kiosk, orders), random: () => new Uint8Array() }), r.signed);
+    if (orders?.get(r.signed.auth.orderId)) await orders.apply(r.signed.auth.orderId, { type: 'outcome', outcome: out });
+    setOpenCount(orders?.open().length ?? 0);
     setScreen({ kind: 'result', amount: amt, result: out.status === 'Checking' ? { ...out, signed: r.signed } : out });
   };
 
@@ -192,6 +213,12 @@ function Kiosk() {
           <TextInput style={styles.input} value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" />
           <Button label={amount ? `${shown(amount, decimals)} ${symbol} 결제 요청` : '금액을 입력하세요'} onPress={start} disabled={!amount} />
           <Button label="한도 변경" onPress={() => setScreen({ kind: 'limits' })} />
+          {openCount > 0 && kiosk && orders && (
+            <View style={styles.receipt}>
+              <Text style={styles.body}>확인 중인 주문 {openCount}건. 같은 주문은 다시 결제하지 마세요.</Text>
+              <Button label="다시 확인" onPress={() => resumeOpen(kiosk, orders)} />
+            </View>
+          )}
         </View>
       )}
       {screen.kind === 'paying' && (

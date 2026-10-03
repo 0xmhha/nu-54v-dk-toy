@@ -3,7 +3,7 @@ import { addressOfPrivateKey, bytesToHex, hexToBytes, signDigest } from "@nu54/p
 import { encodeSettle, ERRORS, PAYMENT_SETTLED_TOPIC, SETTLE_SELECTOR, decodeError, topicOfAddress } from "../src/chain/settlement";
 import { signTransaction, transactionHash, rlp, type Signer } from "../src/chain/tx";
 import { RpcError, type Chain, type Hex, type Log, type Receipt } from "../src/chain/rpc";
-import { gasReady, recheck, submit, type Signed, type SubmitContext } from "../src/payment/submit";
+import { gasReady, recheck, resume, submit, type Signed, type SubmitContext } from "../src/payment/submit";
 
 // The week-6 gate settle on chain 8283 (deployments/8283.json): its calldata is the reference.
 const GATE_INPUT = "0x7e717651000000000000000000000000000000000000000000000000000000000000205b000000000000000000000000de7596556d35fa62f238f074a0f0e59cf730caa4000000000000000000000000f92a32ceb9d940057be7b76bf4e2eb76409f61a4000000000000000000000000246ae7e5b14f096342b96a65e375524da80c101b000000000000000000000000500ef69da230e42bff34487b578ea0cbefbda2ba000000000000000000000000000000000000000000000000000000000044aa20209f73ded70ab766b39a1505163019f2e1323e6abeb1824dee46a51c855740e8cb79d0c2d61f53305c896156598e534b8c2ba798250bc0c93b09a739f7cebd00000000000000000000000000000000000000000000000000000000006abd7820000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000411590e632218ef25afcace90a7eca8ad99ac9a8fd66c0f50ffb83fbe8d24fb9386967983ce5e665a69b4b0053968d260291b087a2d494fe083ea9763f24f8502c1b00000000000000000000000000000000000000000000000000000000000000";
@@ -182,5 +182,31 @@ describe("submission judgment", () => {
     const chain = new FakeChain();
     chain.sendError = new RpcError(-32000, "transaction underpriced");
     expect(await submit(ctx(chain), signed())).toEqual({ status: "failed", reason: "not sent: transaction underpriced" });
+  });
+});
+
+describe("resume after a restart (P04 design 6, P04-FR-14/15)", () => {
+  test("a final event of ours -> approved, without sending anything", async () => {
+    const chain = new FakeChain();
+    const s = signed();
+    chain.events = [settledLog(s)];
+    expect(await resume(ctx(chain), s)).toMatchObject({ status: "approved" });
+    expect(chain.sent).toHaveLength(0);
+  });
+  test("no event and the signature still settles -> the same signature is resent, Checking", async () => {
+    const chain = new FakeChain();
+    const r = await resume(ctx(chain), signed());
+    expect(r).toMatchObject({ status: "Checking" });
+    expect(chain.sent).toHaveLength(1);
+    expect(r.status === "Checking" && r.txHash).toBe(transactionHash(chain.sent[0]));
+  });
+  test("expired with no event -> failed; another refusal -> its code; nothing sent", async () => {
+    const expired = new FakeChain();
+    expired.simulate = () => "Expired";
+    expect(await resume(ctx(expired), signed())).toEqual({ status: "failed", reason: "EXPIRED" });
+    const revoked = new FakeChain();
+    revoked.simulate = () => "MerchantRevoked";
+    expect(await resume(ctx(revoked), signed())).toEqual({ status: "refused", reason: "MERCHANT_REVOKED" });
+    expect(expired.sent.length + revoked.sent.length).toBe(0);
   });
 });
