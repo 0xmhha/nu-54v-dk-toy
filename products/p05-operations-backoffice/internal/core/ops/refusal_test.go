@@ -70,7 +70,9 @@ func TestRefuseForgedSendsTheVectorBodies(t *testing.T) {
 
 type fixedRegistry struct{ payout common.Address }
 
-func (r fixedRegistry) MerchantStatus(common.Address) (bool, common.Address, error) { return true, r.payout, nil }
+func (r fixedRegistry) MerchantStatus(common.Address) (bool, common.Address, error) {
+	return true, r.payout, nil
+}
 func (r fixedRegistry) PendingPayoutOf(common.Address) (common.Address, uint64, error) {
 	return common.Address{}, 0, nil
 }
