@@ -28,6 +28,8 @@ products/p06-stablenet-contracts/broadcast/
 .gradle/
 local.properties
 *.keystore
+# Firmware signing keys live outside the repository (scripts/fw.py keygen)
+*.pem
 !debug.keystore
 Pods/
 DerivedData/

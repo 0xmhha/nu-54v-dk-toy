@@ -345,6 +345,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - 서명 안 된 이미지와 다른 키로 서명한 이미지가 거부되는지 확인한다.
 - 릴리스 overlay: USB CDC 제거, 키 관련 로그 끄기, AP-Protect.
 - AP-Protect를 켜면 보드가 잠긴다. 보드가 1대면 이 시험은 12주차 마지막에 한 번만 한다.
+- 2026-10-03 변경: 보드 없이 빌드까지 준비했다(`scripts/fw.py build --release`, [P01 README](../../../products/p01-device-firmware/README.md)). serial recovery를 넣은 MCUboot는 41,664 B로 62 KB에 들어간다. 갱신이 serial recovery뿐이라 단일 앱 슬롯으로 정했다. 서명 키는 ed25519이고 `NU54_SIGNING_KEY`로 저장소 밖 경로만 받는다. 보드에서 부팅, recovery, 거부를 확인하는 일은 남았다.
 
 **보안 점검과 안정화** (WBS2-P01-08, 11~12주차, 5일)
 - RRAM 전체 덤프에서 기기 키와 PIN 패턴 검색, AP-Protect 뒤 디버거 거부, recovery 거부 재실행, BLE·UART 명령 목록 추출.
@@ -479,6 +480,6 @@ WBS와 결정 register에서 바꿀 것:
 - TF-M 안에서 CRACEN secp256k1 ECDSA가 동작하는지, GPIO 포트 이벤트를 secure 쪽으로 분리할 수 있는지
 - tinygo-org/bluetooth의 macOS 동작(write, MTU, 페어링)
 - SE050 평가보드 품번과 납기, 실물의 secp256k1 키 생성
-- MCUboot serial recovery가 62 KB에 들어가는지, AP-Protect 잠금을 pyOCD로 풀 수 있는지
+- AP-Protect 잠금을 pyOCD로 풀 수 있는지(MCUboot serial recovery는 41,664 B로 62 KB에 들어감, 2026-10-03 빌드)
 - TF-M ITS 용량과 암호화 옵션
 - 테스트넷의 tx 형식(legacy 또는 EIP-1559)
