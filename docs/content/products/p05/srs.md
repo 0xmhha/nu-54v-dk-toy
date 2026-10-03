@@ -25,7 +25,7 @@
 | P05-FR-08 | registry 관리자 키로 가맹점을 철회한다. 철회 뒤 결제는 컨트랙트가 MERCHANT_REVOKED로 막는다 [N22] | 철회 후 eth_call revert 사유 |
 | P05-FR-09 | registry 관리자 키로 payout 변경을 요청하고(되돌릴 때는 cancelPayoutChange) payoutChangeDelay가 지나기 전에는 새 payout으로 attestation을 발급하지 않는다. 대기 중 발급하는 옛 payout attestation은 validUntil을 변경 효력 시각으로 자르고, 효력 시각에 새 payout attestation을 발급한다 [N05][N13] | 지연 전 발급 시도 거부 로그, 대기 중 attestation의 validUntil |
 | P05-FR-10 | RAM이 초기화되는 reset으로 anchor가 무효인 기기(`PROVISIONED_NO_ANCHOR`)에 셋업 세션을 열어 `setup.timeAnchor`만 다시 보낸다. 키와 예치금은 그대로이고, lastAnchor보다 엄격히 늦지 않은 timestamp는 보내지 않는다 [N06] | 재-anchor 로그의 timestamp 단조 증가 |
-| P05-FR-11 | 거절 시연 명령 `opsctl refusal-host`는 키오스크처럼 페어링 없이 결제 세션(`session.open`, `session.confirm`)을 연 뒤, 스키마에 없는 원시 트랜잭션 서명과 Permit 서명 요청을 보내고 기기의 `error{UNSUPPORTED_TYPE}` 응답을 기록한다. 이 명령은 P05에만 있고 키오스크 빌드에는 넣지 않는다 [N22] | 두 요청의 error 응답 로그 |
+| P05-FR-11 | 거절 시연 명령 `opsctl refusal host`는 키오스크처럼 페어링 없이 결제 세션(`session.open`, `session.confirm`)을 연 뒤, 스키마에 없는 원시 트랜잭션 서명과 Permit 서명 요청을 보내고 기기의 `error{UNSUPPORTED_TYPE}` 응답을 기록한다. 이 명령은 P05에만 있고 키오스크 빌드에는 넣지 않는다 [N22] | 두 요청의 error 응답 로그 |
 | P05-FR-12 | 만료된 attestation 시연 자료는 소급 발급 없이, 시연 시각보다 attestationValidity와 anchorClockSkew를 더한 시간 이상 먼저 발급해 둔다 [N05] | 발급 로그의 validUntil과 시연 시각 비교 |
 | P05-FR-13 | 시험 가맹점 서명 키를 만들어 키오스크 설정에 secretRef로 전달하고 키 원문은 저장소·로그에 남기지 않는다. 키오스크는 받은 키를 Android Keystore의 AES 키로 감싸 보관한다 [N05][N32] | 키오스크 설정 검사, 저장소 grep |
 

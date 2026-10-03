@@ -48,6 +48,9 @@ const { values: a } = parseArgs({
     rpc: { type: "string", default: "https://api.test.stablenet.network/" },
     deployment: { type: "string", default: resolve(import.meta.dirname, "../../../products/p06-stablenet-contracts/deployments/8283.json") },
     keystores: { type: "string", default: join(homedir(), ".nu54", "keystores") },
+    // Another merchant than the kiosk's (for example the refusal demo's revoked merchant).
+    "merchant-keystore": { type: "string" },
+    "merchant-password": { type: "string" },
   },
 });
 if (!a.attestation || !a.anchor) throw new Error("--attestation and --anchor are required (opsctl output)");
@@ -124,7 +127,9 @@ async function bleLink(): Promise<MessageLink> {
 
 const start = await chainNow();
 const link = a.transport === "ble" ? await bleLink() : simLink(start);
-const merchantKey = openKeystore(join(a.keystores!, "nu54-kiosk"), "keychain:nu54-kiosk");
+const merchantKey = a["merchant-keystore"]
+  ? openKeystore(a["merchant-keystore"], a["merchant-password"] ?? "")
+  : openKeystore(join(a.keystores!, "nu54-kiosk"), "keychain:nu54-kiosk");
 const random = (n: number) => globalThis.crypto.getRandomValues(new Uint8Array(n));
 
 if (a.limit) {

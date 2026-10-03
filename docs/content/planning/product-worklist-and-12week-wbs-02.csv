@@ -21,7 +21,7 @@ WBS2-P05-05,P05,opsctl BLE rental setup TimeAnchor and passkey label,role B,8,8,
 WBS2-P06-04,P06,Delayed withdrawal and closeAccount,user,8,9,3,-,WBS2-P06-03,N07 N11,Foundry test report
 WBS2-P01-13,P01,Phone link confirm.show and outcome forwarding,role A,9,9,2,-,WBS2-P01-03,N26,confirm.show capture
 WBS2-P01-14,P01,Payment session secure channel on the device,role A,9,9,2.5,-,WBS2-P01-04,N27,encrypted session log
-WBS2-P05-04,P05,opsctl merchant revoke payout change and refusal-host,role B,9,10,3,-,WBS2-P05-01 WBS2-P06-03,N05 N22,opsctl run log
+WBS2-P05-04,P05,opsctl merchant revoke payout change and refusal host,role B,9,10,3,-,WBS2-P05-01 WBS2-P06-03,N05 N22,opsctl run log
 WBS2-P06-05,P06,Contract hardening and finality observation,user,9,10,4,-,WBS2-P06-04,N08,review notes and 1-hour finality poll log
 WBS2-P01-07,P01,MCUboot signed image AP-Protect and release build without USB CDC,role A,10,10,3,-,WBS2-P01-01,N12,unsigned image rejection log
 WBS2-P02-01,P02,Android app skeleton BLE module QR scan and Passkey Entry bonding,role A,10,10,2.5,-,WBS2-P01-12,N26 N27,bonding log
