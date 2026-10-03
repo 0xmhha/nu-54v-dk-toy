@@ -18,6 +18,7 @@ target_sources(app PRIVATE
   src/board_io.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_frame.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_button.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_pin_entry.c
   src/device_key.c
   src/device_setup.c
   src/pay_link.c

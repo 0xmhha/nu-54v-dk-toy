@@ -9,8 +9,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Longest PIN the session accepts; the length itself is still open (N28 LED guidance). */
-#define PAY_LINK_PIN_MAX 12
 
 typedef enum {
 	PAY_LED_MODE = 0,     /* LED1: payment mode (advertising or connected) */
@@ -36,8 +34,11 @@ int pay_link_pairing_mode(uint32_t seconds);
 /* The renter's button while a payment waits: 1 approve, 0 reject. */
 void pay_link_button(int approve);
 
-/* The PIN the renter entered on the buttons (digits), or NULL when the entry timed out. Used at
- * setup and before a limit change; the button entry UI arrives with the N28 LED guidance. */
+/* 1 while the session waits for the PIN (setup key generation or a limit change). */
+int pay_link_pin_wanted(void);
+
+/* The PIN the renter entered on the buttons (NU54_PIN_LEN digits, core/nu54_pin_entry.h), or
+ * NULL when the entry timed out. */
 void pay_link_pin(const char *pin, size_t len);
 
 #endif /* PAY_LINK_H */
