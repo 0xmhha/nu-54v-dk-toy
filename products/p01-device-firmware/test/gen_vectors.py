@@ -144,11 +144,17 @@ def main() -> int:
         pin = sc.get("pin", "2580")
         pin_c = "NULL" if pin is None else json.dumps(pin)
         secure = 1 if sc.get("requireSecureSession") else 0
-        scen.append(f'{{"{sc["id"]}", {1 if sc["button"] == "approve" else 0}, SV_STEPS_{si}, {len(rows)}, {unprov}, {pin_c}, {secure}}}')
+        phone = 0 if sc.get("phoneConnected") is False else 1
+        need_phone = 1 if sc.get("requirePhone") else 0
+        bonded = 0 if sc.get("linkBonded") is False else 1
+        scen.append(f'{{"{sc["id"]}", {1 if sc["button"] == "approve" else 0}, SV_STEPS_{si}, {len(rows)}, {unprov}, {pin_c}, {secure}, '
+                    f'{need_phone}, {phone}, {bonded}}}')
     out.insert(0, "typedef struct { unsigned long long at; int power_cycle; const unsigned char *send; unsigned long send_len; const unsigned char *expect[2]; unsigned long expect_len[2]; int expect_count; const unsigned char *phone; unsigned long phone_len; } session_step_t;")
     out += ["/* unprovisioned: the scenario starts without key or setup values; pin: what the renter enters whenever asked (NULL: timeout);",
-            "   require_secure: a release device that refuses plaintext payment sessions. Secure steps carry the AES-GCM bodies. */",
-            "typedef struct { const char *id; int approve; const session_step_t *steps; unsigned long count; int unprovisioned; const char *pin; int require_secure; } session_scenario_t;",
+            "   require_secure: a release device that refuses plaintext payment sessions. Secure steps carry the AES-GCM bodies.",
+            "   require_phone, phone_present, link_bonded: payment-protocol.md 3. */",
+            "typedef struct { const char *id; int approve; const session_step_t *steps; unsigned long count; int unprovisioned; const char *pin; int require_secure;",
+            "                 int require_phone; int phone_present; int link_bonded; } session_scenario_t;",
             "static const session_scenario_t SESSION_SCENARIOS[] = {", ",\n".join(scen), "};",
             f"#define SESSION_SCENARIO_COUNT {len(scen)}", ""]
     Path(sys.argv[1]).write_text("\n".join(out))

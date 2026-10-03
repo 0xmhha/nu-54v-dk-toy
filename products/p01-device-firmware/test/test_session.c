@@ -157,6 +157,9 @@ int main(void)
 		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
 					       host_hkdf, host_seal, host_open};
 		d.require_secure = sc->require_secure;
+		d.require_phone = sc->require_phone;
+		d.phone_present = sc->phone_present;
+		d.link_bonded = sc->link_bonded;
 		strcpy(stored_pin, "2580");
 		pin_failures = 0;
 		if (sc->unprovisioned) {

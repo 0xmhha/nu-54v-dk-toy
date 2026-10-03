@@ -130,8 +130,8 @@ MERCHANT_REVOKED, OVER_CAP, NONCE_REPLAYED는 컨트랙트가 만든다. 기기�
 
 - **키:** PSA Crypto(CRACEN)가 secp256k1 키를 만들어 Zephyr Secure storage(ZMS)에 둔다. 서명은 결정론적 ECDSA(RFC 6979)로, 위 req 10의 결정론적 nonce 설계를 따른다. secure 쪽 버튼 토큰 경계는 아직 없다.
 - **셋업:** 운영자 주소, 정산 컨트랙트, chainId는 `setup.operator` 대신 빌드 때 `deployments/8283.json`에서 생성한다(`app/gen_dev_setup.py`). TimeAnchor는 페어링하지 않은 링크의 셋업 세션으로도 받는다.
-- **폰 확인 화면:** 본딩한 폰 앱이 없으므로 `confirm.show`는 로그로만 남기고 버튼을 기다린다(N30). 릴리스 빌드는 `refused{NOT_PERMITTED}`로 답한다.
-- **버튼과 LED(임시 배치):** SW4 길게 = 결제 모드(120초 광고), SW1 = 승인, SW2 = 거절. LED1 = 결제 모드, LED2 = 버튼 대기, LED3 = 승인, LED4 = 거절·실패. 최종 배치는 PIN LED 안내 설계(N28)와 함께 정한다.
+- **폰 확인 화면:** 2026-10-03부터 본딩한 폰 앱 링크로 `confirm.show`, `confirm.limit`, 전달하는 `payment.outcome`을 보낸다(`app/src/pay_link.c`, 연결 2개). 본딩하고 TX를 구독했으며 아무것도 쓰지 않은 central을 폰 앱으로 본다. 개발 빌드는 폰 앱이 없으면 로그만 남기고 버튼을 기다리고(N30), 릴리스 빌드(`CONFIG_NU54_REQUIRE_PHONE`)는 결제와 한도 변경을 `refused{NOT_PERMITTED}`로 답한다(세션 벡터 SV-30). 셋업 세션은 본딩한 링크에서만 열린다(SV-31).
+- **버튼과 LED(임시 배치):** SW4 길게 = 결제 모드(120초 광고), SW3 길게 = 페어링 모드(60초, 셋업 때 기록한 passkey로 Passkey Entry, UNPROVISIONED에서는 Just Works), SW1 = 승인, SW2 = 거절. LED1 = 결제 모드, LED2 = 버튼 대기, LED3 = 승인, LED4 = 거절·실패. 최종 배치는 PIN LED 안내 설계(N28)와 함께 정한다.
 - **nonce 카운터:** 첫 부팅 때 256 배수 시작값을 TRNG로 정하고 Zephyr settings에 둔다. 서명하기 전에 다음 값을 먼저 저장한다(결제 프로토콜 2절).
 
 ## 9. 시험 설계

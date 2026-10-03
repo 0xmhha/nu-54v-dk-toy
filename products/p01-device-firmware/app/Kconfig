@@ -15,4 +15,11 @@ config NU54_REQUIRE_SECURE_SESSION
 	  session.open in payment mode is answered with error NOT_PERMITTED. The release build turns
 	  it on once the kiosk has the channel; development builds keep plaintext for the week-7 path.
 
+config NU54_REQUIRE_PHONE
+	bool "Refuse payments and limit changes with no phone app listening"
+	help
+	  The renter checks what the device signs on the bonded phone app (payment-protocol.md 3).
+	  With this on, payment.prepare and limit.change are refused NOT_PERMITTED when no phone app
+	  is listening. Development builds go on without one (week-7 path, N30).
+
 source "Kconfig.zephyr"

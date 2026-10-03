@@ -122,6 +122,15 @@ typedef struct {
 	char att_name[128];
 	size_t att_name_len;
 
+	/* The links (payment-protocol.md 3), set by the platform before each call. link_bonded: the
+	 * central that sent this message is on a bonded LE Secure Connections link; setup sessions
+	 * open only there (P01-FR-13). phone_present: a bonded phone app is listening. With
+	 * require_phone (release build) a payment or limit change without it is refused NOT_PERMITTED
+	 * instead of waiting for a button the renter cannot check. */
+	int link_bonded;
+	int require_phone;
+	int phone_present;
+
 	/* Secure channel of the open session (4.1); dropped with the session. */
 	int require_secure; /* release build: plaintext payment sessions are refused */
 	int secure;
