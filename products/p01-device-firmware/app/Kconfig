@@ -1,0 +1,11 @@
+# P01 application options.
+
+config NU54_DEV_SETUP
+	bool "Week-7 fixed setup when no rental setup is stored"
+	default y
+	help
+	  Without a stored rental setup, create the device key at boot and use the operator,
+	  settlement contract and chain id from the deployment record (week-7 gate). Turn it off
+	  for the rental build: the device then boots UNPROVISIONED and waits for a setup session.
+
+source "Kconfig.zephyr"

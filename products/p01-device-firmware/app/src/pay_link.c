@@ -10,11 +10,9 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/settings/settings.h>
 
 #include "board_io.h"
-#include "dev_setup.h"
-#include "device_key.h"
+#include "device_setup.h"
 #include "nu54_cbor.h"
 #include "nu54_frame.h"
 #include "nu54_protocol.h"
@@ -25,41 +23,11 @@ LOG_MODULE_REGISTER(pay_link, LOG_LEVEL_INF);
 #define FIRMWARE_VERSION "0.2.0"
 #define FRAGMENT_MAX 247
 
-/* ---------------------------------------------------------------- session and platform */
+/* ---------------------------------------------------------------- session */
 
 static nu54_device_t device;
 static nu54_reassembler_t rx;
 static uint8_t tx_sequence;
-
-static int platform_sign(void *ctx, const uint8_t digest[32], uint8_t rs[64])
-{
-	(void)ctx;
-	return device_key_sign(digest, rs);
-}
-
-static void platform_random(void *ctx, uint8_t *out, size_t n)
-{
-	(void)ctx;
-	(void)psa_generate_random(out, n);
-}
-
-static int platform_persist_nonce(void *ctx, const uint8_t next[32])
-{
-	(void)ctx;
-	return settings_save_one("nu54/nonce", next, 32);
-}
-
-static int nonce_loaded;
-
-static int settings_set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg)
-{
-	if (strcmp(name, "nonce") == 0 && len == 32) {
-		nonce_loaded = read_cb(cb_arg, device.next_nonce, 32) == 32;
-	}
-	return 0;
-}
-
-SETTINGS_STATIC_HANDLER_DEFINE(nu54, "nu54", NULL, settings_set, NULL, NULL);
 
 /* ---------------------------------------------------------------- BLE */
 
@@ -85,6 +53,8 @@ static K_THREAD_STACK_DEFINE(work_stack, 12288);
 static struct k_work_q work_q;
 static void rx_work_handler(struct k_work *w);
 static K_WORK_DEFINE(rx_work, rx_work_handler);
+static void close_work_handler(struct k_work *w);
+static K_WORK_DEFINE(close_work, close_work_handler);
 
 static ssize_t rx_write(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len,
 			uint16_t offset, uint8_t flags)
@@ -163,9 +133,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	bt_conn_unref(central);
 	central = NULL;
 	notify_on = false;
-	device.session_open = 0; /* the session ends with the link */
-	device.pending = 0;
-	board_led_set(PAY_LED_WAITING, false);
+	k_work_submit_to_queue(&work_q, &close_work); /* the session ends with the link */
 	LOG_INF("central disconnected (0x%02x)", reason);
 	if (payment_mode) {
 		advertise();
@@ -287,6 +255,13 @@ static void rx_work_handler(struct k_work *w)
 	}
 }
 
+static void close_work_handler(struct k_work *w)
+{
+	(void)w;
+	nu54_session_link_closed(&device);
+	board_led_set(PAY_LED_WAITING, false);
+}
+
 static int button_choice;
 static void button_work_handler(struct k_work *w)
 {
@@ -309,6 +284,48 @@ void pay_link_button(int approve)
 	k_work_submit_to_queue(&work_q, &button_work);
 }
 
+/* The PIN waits in RAM only until the work queue hands it to the session. */
+static char pin_entry[PAY_LINK_PIN_MAX];
+static size_t pin_entry_len;
+static bool pin_given;
+
+static void pin_work_handler(struct k_work *w)
+{
+	static nu54_out_t out;
+	(void)w;
+	memset(&out, 0, sizeof(out));
+	nu54_session_pin(&device, pin_given ? pin_entry : NULL, pin_entry_len, &out);
+	memset(pin_entry, 0, sizeof(pin_entry));
+	pin_entry_len = 0;
+	deliver(&out);
+}
+static K_WORK_DEFINE(pin_work, pin_work_handler);
+
+void pay_link_pin(const char *pin, size_t len)
+{
+	if (device.pending != NU54_PENDING_PIN && device.pending != NU54_PENDING_LIMIT_PIN) {
+		LOG_INF("no PIN is asked for");
+		return;
+	}
+	if (pin && (len == 0 || len > sizeof(pin_entry))) {
+		LOG_WRN("PIN of %u digits ignored", (unsigned)len);
+		return;
+	}
+	pin_given = pin != NULL;
+	pin_entry_len = pin ? len : 0;
+	if (pin) {
+		memcpy(pin_entry, pin, len);
+	}
+	LOG_INF("%s", pin ? "PIN entered" : "PIN entry timed out");
+	k_work_submit_to_queue(&work_q, &pin_work);
+}
+
+int pay_link_address(uint8_t address[20])
+{
+	memcpy(address, device.address, 20);
+	return device.state != NU54_STATE_UNPROVISIONED;
+}
+
 int pay_link_payment_mode(uint32_t seconds)
 {
 	int err = advertise();
@@ -325,37 +342,16 @@ int pay_link_payment_mode(uint32_t seconds)
 
 /* ---------------------------------------------------------------- init */
 
-int pay_link_init(const uint8_t address[20])
+int pay_link_init(void)
 {
 	int err;
 
-	memcpy(device.address, address, 20);
-	memcpy(device.operator_address, DEV_OPERATOR, 20);
-	memcpy(device.contract, DEV_CONTRACT, 20);
-	memcpy(device.chain_id, DEV_CHAIN_ID, 32);
 	device.anchor_clock_skew = 60;
 	device.authorization_expiry = 120;
 	device.firmware = FIRMWARE_VERSION;
-	device.platform = (nu54_platform_t){platform_sign, platform_random, platform_persist_nonce, NULL};
-
-	uint8_t start[32] = {0};
-	nu54_device_init(&device, start);
-	err = settings_subsys_init();
-	if (!err) {
-		err = settings_load_subtree("nu54");
-	}
+	err = device_setup_load(&device);
 	if (err) {
 		return err;
-	}
-	if (!nonce_loaded) {
-		/* First boot: a random 256-aligned start (payment-protocol.md 2), stored at once. */
-		platform_random(NULL, device.next_nonce, 31);
-		device.next_nonce[31] = 0;
-		device.next_nonce[0] = 0; /* keep far below 2^256 so the counter never wraps */
-		err = platform_persist_nonce(NULL, device.next_nonce);
-		if (err) {
-			return err;
-		}
 	}
 	nu54_reassembler_reset(&rx);
 	k_work_queue_start(&work_q, work_stack, K_THREAD_STACK_SIZEOF(work_stack), K_PRIO_PREEMPT(7), NULL);
@@ -363,6 +359,6 @@ int pay_link_init(const uint8_t address[20])
 	if (err) {
 		return err;
 	}
-	LOG_INF("payment link ready: chain %d, %s nonce counter", DEV_CHAIN_ID_NUMBER, nonce_loaded ? "stored" : "new");
+	LOG_INF("payment link ready (state %d)", (int)device.state);
 	return 0;
 }

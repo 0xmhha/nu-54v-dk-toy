@@ -19,6 +19,7 @@ target_sources(app PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_frame.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_button.c
   src/device_key.c
+  src/device_setup.c
   src/pay_link.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_keccak.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_eip712.c

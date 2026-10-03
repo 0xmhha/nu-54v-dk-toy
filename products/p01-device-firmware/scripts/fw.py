@@ -6,9 +6,12 @@ global PATH setup is needed. The vendored board package is passed as BOARD_ROOT
 because sysbuild resolves the board before the application CMakeLists runs.
 
 Usage:
-    python3 scripts/fw.py build [--pristine]
+    python3 scripts/fw.py build [--pristine] [--rental]
     python3 scripts/fw.py flash
     python3 scripts/fw.py reset
+
+--rental adds app/rental.conf (no week-7 fixed setup). Switching between the two needs
+--pristine or a separate P01_BUILD_DIR.
 
 Environment:
     NCS_VERSION   default v3.4.1
@@ -49,11 +52,15 @@ def in_toolchain(*cmd: str) -> int:
     return subprocess.run(full, cwd=f"/opt/nordic/ncs/{NCS_VERSION}").returncode
 
 
-def build(pristine: bool) -> int:
+def build(pristine: bool, rental: bool) -> int:
     args = ["west", "build", "-b", BOARD, str(APP), "-d", str(BUILD_DIR)]
     if pristine:
         args += ["-p", "always"]
-    return in_toolchain(*args, "--", f"-DBOARD_ROOT={PRODUCT}")
+    cmake = [f"-DBOARD_ROOT={PRODUCT}"]
+    if rental:
+        # Sysbuild passes image options by image name; the application image is "app".
+        cmake.append(f"-Dapp_EXTRA_CONF_FILE={APP / 'rental.conf'}")
+    return in_toolchain(*args, "--", *cmake)
 
 
 def flash() -> int:
@@ -74,7 +81,7 @@ def main(argv: list[str]) -> int:
         print(__doc__)
         return 2
     if argv[0] == "build":
-        return build("--pristine" in argv)
+        return build("--pristine" in argv, "--rental" in argv)
     return flash() if argv[0] == "flash" else reset()
 
 
