@@ -1,7 +1,7 @@
 // The kiosk side of one payment session with a device (payment-protocol.md 5 and 6).
 //
 //   [setup session: TimeAnchor]  week-7 development fixed setup only (N30)
-//   session.open(payment) -> session.confirm -> payment.identify -> payment.prepare
+//   session.open(payment) [secure channel, 4.1] -> session.confirm -> payment.identify -> payment.prepare
 //   -> payment.result approved (signature, nonce) | refused (reason)
 //
 // The device answers payment.prepare only after the renter presses its button. If no result
@@ -12,16 +12,9 @@ import { bytesToHex, type Domain, type Message } from "@nu54/protocol";
 import type { MessageLink } from "../ble/framing.ts";
 import { checkDeviceAuthorization } from "./signing.ts";
 import type { Authorization } from "../chain/settlement.ts";
+import { openPaymentSession, type Attestation, type KioskKeySigner } from "./open.ts";
 
-/** MerchantAttestation as opsctl issues it, with the operator's signature. */
-export interface Attestation {
-  merchant: string;
-  payout: string;
-  name: string;
-  validFrom: string;
-  validUntil: string;
-  operatorSignature: string;
-}
+export type { Attestation, KioskKeySigner } from "./open.ts";
 
 /** TimeAnchor as opsctl signs it. */
 export interface TimeAnchor {
@@ -39,6 +32,8 @@ export interface PaymentRequest {
   expiry: bigint;
   /** Signs the MerchantOrder with the merchant key (signMerchantOrder in the app). */
   signOrder: (order: { orderId: string; token: string; amount: string; payout: string; expiry: string }) => string;
+  /** Signs the session's one-time key with the merchant key: the session runs over the secure channel (4.1). */
+  signKioskKey?: KioskKeySigner["sign"];
   /** Week-7 development setup: the anchor the kiosk hands over before the payment session. */
   anchor?: TimeAnchor;
   /** How long to wait for the press (N10: 10 s). */
@@ -72,6 +67,8 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
     detail: m ? `${step}: ${m.type}` : `${step}: no reply`,
   });
 
+  await link.endSession?.();
+  link.secure?.(null);
   if (req.anchor) {
     req.onStep?.("anchor");
     const opened = (await link.send(msg("session.open", { mode: "setup", kioskNonce: hex(32) }), 1, REPLY_MS))[0];
@@ -84,8 +81,10 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
   }
 
   req.onStep?.("opening");
-  const ok = (await link.send(msg("session.open", { mode: "payment", kioskNonce: hex(32) }), 1, REPLY_MS))[0];
-  if (ok?.type !== "session.open.ok") return refusedBy(ok, "payment session");
+  const secure = req.signKioskKey ? { attestation: req.attestation, sign: req.signKioskKey } : undefined;
+  const opened = await openPaymentSession(link, sessionId, random, secure);
+  if ("refused" in opened) return { status: "refused", reason: opened.refused, detail: opened.detail };
+  const ok = opened.ok;
   const device = String(ok.device);
   // The device answers session.confirm and an accepted payment.identify with nothing.
   const confirmErr = await link.send(msg("session.confirm", { deviceNonce: ok.deviceNonce }), 1, 300);

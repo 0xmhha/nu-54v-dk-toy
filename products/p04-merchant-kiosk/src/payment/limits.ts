@@ -1,6 +1,6 @@
 // The kiosk relays a renter's limit change (payment-protocol.md 5, WBS2-P04-03).
 //
-//   session.open(payment) -> session.confirm -> limit.change{change}
+//   session.open(payment) [secure channel, 4.1] -> session.confirm -> limit.change{change}
 //   device: confirm.limit to the phone, PIN, button -> limit.result approved (signature, nonce)
 //   kiosk: check the signer, simulate setLimits, send it, wait for LimitsChanged at finalized
 //
@@ -12,6 +12,7 @@ import type { MessageLink } from "../ble/framing.ts";
 import type { Hex } from "../chain/rpc.ts";
 import { encodeSetLimits, LIMITS_CHANGED_TOPIC, type LimitChange } from "../chain/settlement.ts";
 import { REASONS, sendToSettlement, simulate, type SubmitContext } from "./submit.ts";
+import { openPaymentSession, type KioskKeySigner } from "./open.ts";
 
 export interface LimitRequest {
   domain: Domain;
@@ -23,6 +24,8 @@ export interface LimitRequest {
   random: (n: number) => Uint8Array;
   /** How long to wait for the PIN and the button. Default 60 s. */
   waitMs?: number;
+  /** The merchant attestation and KioskKey signer: the session runs over the secure channel (4.1). */
+  secure?: KioskKeySigner;
 }
 
 export type LimitSession =
@@ -30,13 +33,12 @@ export type LimitSession =
   | { status: "refused"; reason: string }
   | { status: "cancelled" };
 
-const REPLY_MS = 3_000;
-
 export async function runLimitChange(link: MessageLink, req: LimitRequest): Promise<LimitSession> {
   const sessionId = bytesToHex(req.random(8), false);
   const msg = (type: string, fields: Record<string, unknown> = {}) => ({ v: 1, type, sessionId, ...fields }) as Message;
-  const ok = (await link.send(msg("session.open", { mode: "payment", kioskNonce: bytesToHex(req.random(32)) }), 1, REPLY_MS))[0];
-  if (ok?.type !== "session.open.ok") return { status: "refused", reason: String(ok?.reason ?? "NO_REPLY") };
+  const opened = await openPaymentSession(link, sessionId, req.random, req.secure);
+  if ("refused" in opened) return { status: "refused", reason: opened.refused };
+  const ok = opened.ok;
   const confirmErr = await link.send(msg("session.confirm", { deviceNonce: ok.deviceNonce }), 1, 300);
   if (confirmErr.length) return { status: "refused", reason: String(confirmErr[0].reason) };
 

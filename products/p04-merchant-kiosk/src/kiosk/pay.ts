@@ -9,7 +9,7 @@ import { addressOfPrivateKey, REASONS, signDigest, type Message } from "@nu54/pr
 import type { MessageLink } from "../ble/framing.ts";
 import type { Chain, Hex } from "../chain/rpc.ts";
 import { runPayment, type SessionStep, type TimeAnchor } from "../payment/session.ts";
-import { signMerchantOrder } from "../payment/signing.ts";
+import { signKioskKey, signMerchantOrder } from "../payment/signing.ts";
 import { gasReady, resume, submit, type Outcome, type Signed, type SubmitContext } from "../payment/submit.ts";
 import { runLimitChange, submitLimits, type LimitOutcome } from "../payment/limits.ts";
 import type { Loaded } from "./config.ts";
@@ -79,6 +79,7 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
       amount,
       expiry: finalized.timestamp + 60n, // inside authorizationExpiry with room for clock lag
       signOrder: (o) => signMerchantOrder(domain, o, merchantKey),
+      signKioskKey: (v) => signKioskKey(domain, v, merchantKey), // every kiosk session is secure (4.1)
       random: deps.random,
       onStep: onPhase,
       onOrder: async (id) => {
@@ -126,7 +127,7 @@ export async function changeLimits(
   dailyLimit: bigint,
   onPhase: (p: LimitPhase) => void = () => {},
 ): Promise<LimitResult> {
-  const { config } = deps.kiosk;
+  const { config, merchantKey } = deps.kiosk;
   onPhase("connecting");
   let link: MessageLink;
   try {
@@ -137,9 +138,10 @@ export async function changeLimits(
   try {
     const finalized = await deps.chain.block("finalized");
     onPhase("waitingDevice");
+    const domain = { chainId: config.chainId, verifyingContract: config.settlement };
     const s = await runLimitChange(link, {
-      domain: { chainId: config.chainId, verifyingContract: config.settlement },
-      perPaymentLimit, dailyLimit, expiry: finalized.timestamp + 60n, random: deps.random,
+      domain, perPaymentLimit, dailyLimit, expiry: finalized.timestamp + 60n, random: deps.random,
+      secure: { attestation: config.attestation, sign: (v) => signKioskKey(domain, v, merchantKey) },
     });
     if (s.status !== "approved") return s;
     onPhase("submitting");
