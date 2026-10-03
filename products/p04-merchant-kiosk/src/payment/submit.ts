@@ -170,6 +170,27 @@ export async function submit(ctx: SubmitContext, s: Signed): Promise<Outcome> {
 }
 
 /**
+ * Picks an open order up again after a restart (P04 design 6, P04-NFR-05): the event, or a
+ * re-simulation of the same signature and, when it would still settle, a resend of that same
+ * signature (P04-FR-14: never a new one). OrderAlreadyPaid is judged as P04-FR-11, Expired with
+ * no event is failed (P04-FR-15). Returns Checking while the resent transaction is unconfirmed.
+ */
+export async function resume(ctx: SubmitContext, s: Signed): Promise<Outcome> {
+  const e = await findSettled(ctx, s);
+  if (e) return ours(e, s) ? { status: "approved", txHash: e.txHash, event: e } : { status: "refused", reason: "ORDER_ALREADY_PAID" };
+  const data = encodeSettle(s.auth, s.signature);
+  const sim = await simulate(ctx, data);
+  if (!sim.ok) {
+    if (sim.error === "OrderAlreadyPaid") return alreadyPaid(ctx, s);
+    if (sim.error === "Expired") return { status: "failed", reason: "EXPIRED" };
+    if (sim.error && REASONS[sim.error]) return { status: "refused", reason: REASONS[sim.error] };
+    return { status: "Checking" }; // the node could not judge: keep the order blocked and look again
+  }
+  const sent = await sendToSettlement(ctx, data);
+  return "error" in sent ? { status: "Checking" } : { status: "Checking", txHash: sent.txHash };
+}
+
+/**
  * One round of Checking (P04-FR-14, 15): look for the event; when there is none, re-simulate
  * the same signature. Expired after the signature's expiry -> failed, and the order may be paid
  * again. Returns Checking while it is still open.

@@ -10,9 +10,10 @@ import type { MessageLink } from "../ble/framing.ts";
 import type { Chain, Hex } from "../chain/rpc.ts";
 import { runPayment, type SessionStep, type TimeAnchor } from "../payment/session.ts";
 import { signMerchantOrder } from "../payment/signing.ts";
-import { gasReady, submit, type Outcome, type Signed, type SubmitContext } from "../payment/submit.ts";
+import { gasReady, resume, submit, type Outcome, type Signed, type SubmitContext } from "../payment/submit.ts";
 import { runLimitChange, submitLimits, type LimitOutcome } from "../payment/limits.ts";
 import type { Loaded } from "./config.ts";
+import type { OrderRecord, OrderStore } from "./orders.ts";
 
 export type Phase = "checkingGas" | "connecting" | SessionStep | "submitting";
 
@@ -34,6 +35,8 @@ export interface PayDeps {
   random: (n: number) => Uint8Array;
   /** Submission; tests replace it. */
   submit?: typeof submit;
+  /** Where orders survive a restart (P04-NFR-05); optional in tests. */
+  orders?: OrderStore;
 }
 
 export function submitContext(deps: PayDeps): SubmitContext {
@@ -61,6 +64,10 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
   } catch (e) {
     return { status: "noDevice", reason: e instanceof Error ? e.message : String(e) };
   }
+  let orderId: string | undefined;
+  const record = async (e: Parameters<OrderStore["apply"]>[1]) => {
+    if (deps.orders && orderId) await deps.orders.apply(orderId, e);
+  };
   try {
     const domain = { chainId: config.chainId, verifyingContract: config.settlement };
     const finalized = await deps.chain.block("finalized");
@@ -74,14 +81,26 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
       signOrder: (o) => signMerchantOrder(domain, o, merchantKey),
       random: deps.random,
       onStep: onPhase,
+      onOrder: async (id) => {
+        orderId = id;
+        await deps.orders?.create(id, amount);
+      },
     });
-    if (session.status === "cancelled") return { status: "cancelled" };
-    if (session.status === "refused") return { status: "refused", reason: session.reason };
+    if (session.status === "cancelled") {
+      await record({ type: "cancelled" });
+      return { status: "cancelled" };
+    }
+    if (session.status === "refused") {
+      await record({ type: "refused", reason: session.reason });
+      return { status: "refused", reason: session.reason };
+    }
 
     onPhase("submitting");
     const { sessionId, auth, signature, device, requestedAt } = session;
     const signed: Signed = { auth, signature, device, requestedAt };
+    await record({ type: "signed", signed }); // before submitting: a crash keeps the signature
     const out = await (deps.submit ?? submit)(ctx, signed);
+    await record({ type: "outcome", outcome: out });
     if (out.status === "Checking") return { ...out, signed };
     // P04-FR-16: tell the device the final result; it does not answer. reason is a protocol
     // code; a failure described in words is sent without one.
@@ -128,4 +147,25 @@ export async function changeLimits(
   } finally {
     await link.close().catch(() => undefined);
   }
+}
+
+/**
+ * After a restart: every open order is picked up again (P04 design 6). A signed order is resumed
+ * with its own signature (re-simulated, resent if it would still settle); an order that never got
+ * a signature is cancelled, so it may be paid again.
+ */
+export async function resumeOrders(deps: Pick<PayDeps, "kiosk" | "chain" | "orders">, resumeOne: typeof resume = resume): Promise<OrderRecord[]> {
+  const store = deps.orders;
+  if (!store) return [];
+  const ctx = submitContext({ ...deps, connect: async () => { throw new Error("no device needed"); }, anchor: async () => undefined, random: () => new Uint8Array() });
+  const out: OrderRecord[] = [];
+  for (const o of store.open()) {
+    if (!o.signed) {
+      out.push(await store.apply(o.orderId, { type: "cancelled" }));
+      continue;
+    }
+    const r = await resumeOne(ctx, o.signed);
+    out.push(await store.apply(o.orderId, { type: "outcome", outcome: r }));
+  }
+  return out;
 }

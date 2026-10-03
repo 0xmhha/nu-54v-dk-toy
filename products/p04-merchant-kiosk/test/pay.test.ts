@@ -5,7 +5,8 @@ import { DeviceEndpoint, SoftwareDevice } from "@nu54/device-sim";
 import { FramedLink, type MessageLink } from "../src/ble/framing.ts";
 import type { Chain, Hex } from "../src/chain/rpc.ts";
 import { loadKiosk, takeAnchor, type Loaded, type Provision, type Vault } from "../src/kiosk/config.ts";
-import { changeLimits, pay, type Phase } from "../src/kiosk/pay.ts";
+import { changeLimits, pay, resumeOrders, type Phase } from "../src/kiosk/pay.ts";
+import { OrderStore } from "../src/kiosk/orders.ts";
 import type { Outcome } from "../src/payment/submit.ts";
 
 // Foundry public test mnemonic: 0 device, 1 operator, 2 merchant (test-only keys).
@@ -185,4 +186,37 @@ test("limit change from the kiosk: needs an anchored device, then submits the si
   expect(r).toEqual({ status: "approved", txHash: "0x01" });
   expect(submitted).toMatchObject({ perPaymentLimit: "20000000", dailyLimit: "0", contract: SETTLEMENT });
   expect(d.device.phone.at(-1)?.type).toBe("confirm.limit");
+});
+
+test("the signature is stored before submission, and a restart resumes the open order", async () => {
+  const kiosk = await provisioned();
+  const kv = new Map<string, string>();
+  const backing = { getSetting: async (n: string) => kv.get(n) ?? null, putSetting: async (n: string, v: string) => { kv.set(n, v); } };
+  const orders = await OrderStore.open(backing);
+  const d = deviceLink();
+  // The app dies while submitting: the record must already hold the signature.
+  await expect(pay({ kiosk, chain: chain(20n * 10n ** 18n), connect: d.connect, anchor: async () => anchor, random, orders,
+    submit: async () => { throw new Error("killed"); } }, 4_500_000n)).rejects.toThrow("killed");
+  const reopened = await OrderStore.open(backing);
+  const [open] = reopened.open();
+  expect(open).toMatchObject({ state: "signed", amount: "4500000", signed: { device: DEVICE } });
+  // After the restart the order is resumed with its own signature, never a new one.
+  const seen: string[] = [];
+  const done = await resumeOrders({ kiosk, chain: chain(0n), orders: reopened }, async (_c, s) => {
+    seen.push(s.signature);
+    return { status: "Checking", txHash: "0x02" as Hex };
+  });
+  expect(seen).toEqual([open.signed!.signature]);
+  expect(done[0]).toMatchObject({ state: "Checking", txHash: "0x02" });
+});
+
+test("a device refusal and a missed press are recorded; an unsigned order is cancelled on restart", async () => {
+  const kiosk = await provisioned();
+  const kv = new Map<string, string>();
+  const orders = await OrderStore.open({ getSetting: async (n) => kv.get(n) ?? null, putSetting: async (n, v) => { kv.set(n, v); } });
+  await pay({ kiosk, chain: chain(20n * 10n ** 18n), connect: deviceLink(false).connect, anchor: async () => anchor, random, orders }, 1n);
+  expect(orders.open()).toEqual([]);
+  await orders.create("0xstale", 1n); // crashed while waiting for the press
+  const done = await resumeOrders({ kiosk, chain: chain(0n), orders });
+  expect(done).toMatchObject([{ orderId: "0xstale", state: "cancelled" }]);
 });
