@@ -354,7 +354,7 @@ static void session_open(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
 	const nu54_cbor_item_t *eph = field(m, 0, "kioskEphemeral");
 	int secure = eph != NULL;
 	uint8_t merchant[20], device_x[32];
-	if (setup && d->state != NU54_STATE_UNPROVISIONED && d->state != NU54_STATE_PROVISIONED_NO_ANCHOR) {
+	if (setup && ((d->state != NU54_STATE_UNPROVISIONED && d->state != NU54_STATE_PROVISIONED_NO_ANCHOR) || !d->link_bonded)) {
 		error_reply(out, sid->ptr, "NOT_PERMITTED");
 		return;
 	}
@@ -544,7 +544,12 @@ static void prepare(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_ou
 		refused(d, out, "ATTESTATION_EXPIRED");
 		return;
 	}
-	/* confirm.show to the phone app, then wait for the button. */
+	/* confirm.show to the phone app, then wait for the button; a release device with no phone to
+	 * show it on refuses (payment-protocol.md 3). */
+	if (d->require_phone && !d->phone_present) {
+		refused(d, out, "NOT_PERMITTED");
+		return;
+	}
 	nu54_cbor_entry_t e[] = {
 		{"v", NU54_V_UINT, 0, 0, 1},
 		text("type", "confirm.show"),
@@ -598,6 +603,10 @@ static void limit_change(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu
 	}
 	if (expiry->type != NU54_CBOR_UINT || l->expiry < t || l->expiry > t + d->authorization_expiry) {
 		limit_refused(d, out, "ATTESTATION_EXPIRED");
+		return;
+	}
+	if (d->require_phone && !d->phone_present) {
+		limit_refused(d, out, "NOT_PERMITTED");
 		return;
 	}
 	nu54_cbor_entry_t e[] = {

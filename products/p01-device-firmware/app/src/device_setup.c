@@ -5,6 +5,8 @@
 
 #include <psa/crypto.h>
 #include <psa/internal_trusted_storage.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/conn.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
@@ -252,6 +254,10 @@ static int wipe(void *ctx)
 	ok &= gone(psa_its_remove(UID_PIN));
 	ok &= gone(psa_its_remove(UID_PIN_FAILURES));
 	ok &= settings_delete("nu54/nonce") == 0;
+	/* Bonds go with the rental: the next renter's phone pairs again with the new passkey. */
+	if (bt_is_ready()) {
+		ok &= bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY) == 0;
+	}
 	nonce_loaded = 0;
 	LOG_INF("wipe: %s", ok ? "done" : "incomplete");
 	return ok ? 0 : -EIO;

@@ -64,6 +64,12 @@ export interface DeviceConfig {
   random?: (n: number) => Uint8Array;
   /** Release build after both sides have the secure channel: plaintext payment sessions are refused (4.1). */
   requireSecureSession?: boolean;
+  /** Release build: a payment or limit change with no phone app listening is refused NOT_PERMITTED (3). */
+  requirePhone?: boolean;
+  /** Whether a bonded phone app is listening now (the BLE peripheral knows); default yes. */
+  phoneConnected?: () => boolean;
+  /** Whether the central of the current message is on a bonded link; setup sessions need one (3). Default yes. */
+  linkBonded?: () => boolean;
 }
 
 export interface SetupValues {
@@ -121,6 +127,9 @@ export class SoftwareDevice {
       firmware: FIRMWARE,
       random: (n: number) => webCrypto().getRandomValues(new Uint8Array(n)),
       requireSecureSession: false,
+      requirePhone: false,
+      phoneConnected: () => true,
+      linkBonded: () => true,
       ...rest,
     };
     if (nonceStart % 256n !== 0n) throw new Error("nonceStart must be a multiple of 256");
@@ -286,7 +295,7 @@ export class SoftwareDevice {
     const mode = String(m.mode);
     const sid = String(m.sessionId);
     const secure = m.kioskEphemeral !== undefined;
-    if (mode === "setup" && this.state !== "UNPROVISIONED" && this.state !== "PROVISIONED_NO_ANCHOR") {
+    if (mode === "setup" && ((this.state !== "UNPROVISIONED" && this.state !== "PROVISIONED_NO_ANCHOR") || !this.cfg.linkBonded())) {
       return this.error("NOT_PERMITTED", sid);
     }
     // The channel is for the unpaired kiosk link only; a release device refuses plaintext payments (4.1).
@@ -423,6 +432,8 @@ export class SoftwareDevice {
     }
     const expiry = Number(auth.expiry);
     if (expiry < t || expiry > t + this.cfg.authorizationExpiry) return [this.refused("ATTESTATION_EXPIRED")];
+    // A release device with no phone to show the fields on refuses rather than wait (3).
+    if (this.cfg.requirePhone && !this.cfg.phoneConnected()) return [this.refused("NOT_PERMITTED")];
 
     const show = this.reply("confirm.show", {
       merchantName: att.name,
@@ -502,6 +513,7 @@ export class SoftwareDevice {
     if (BigInt(c.chainId) !== s.chainId || c.contract.toLowerCase() !== s.contract.toLowerCase()) return refused("NOT_PERMITTED");
     const expiry = Number(c.expiry);
     if (expiry < t || expiry > t + this.cfg.authorizationExpiry) return refused("ATTESTATION_EXPIRED");
+    if (this.cfg.requirePhone && !this.cfg.phoneConnected()) return refused("NOT_PERMITTED");
     const show = this.reply("confirm.limit", { perPaymentLimit: c.perPaymentLimit, dailyLimit: c.dailyLimit, expiry: c.expiry });
     this.toPhone(show);
     const sid = this.session!.id;

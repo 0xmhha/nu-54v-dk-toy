@@ -3,8 +3,9 @@
  *
  * Boot: load the stored setup and start the payment link (device_setup.c), then run the key
  * self-test when the device holds a key.
- * Buttons: long-press SW4 enters payment mode (advertising), SW1 approves and SW2 rejects a
- * payment waiting on the device. LEDs: LED1 payment mode, LED2 waiting for the button, LED3
+ * Buttons: long-press SW4 enters payment mode (advertising), long-press SW3 pairing mode (a new
+ * bond for the phone app or operator tool), SW1 approves and SW2 rejects a payment waiting on
+ * the device. LEDs: LED1 payment mode, LED2 waiting for the button, LED3
  * approved, LED4 refused or failed. Every step is logged on the VCOM console.
  */
 #include <zephyr/kernel.h>
@@ -72,7 +73,7 @@ int main(void)
 	}
 	/* Week-7 development mapping (design 3): SW4 long press enters payment mode, SW1 approves,
 	 * SW2 rejects. The final layout comes with the PIN LED guidance design. */
-	LOG_INF("ready: long-press SW4 for payment mode; SW1 approves, SW2 rejects");
+	LOG_INF("ready: long-press SW4 for payment mode, SW3 for pairing; SW1 approves, SW2 rejects");
 
 	while (true) {
 		board_button_event_t ev;
@@ -86,6 +87,8 @@ int main(void)
 				board_led_set(i, false);
 			}
 			pay_link_payment_mode(120);
+		} else if (ev.button == 2 && ev.event == NU54_BTN_LONG) {
+			pay_link_pairing_mode(60);
 		} else if (ev.button == 0 && ev.event == NU54_BTN_CLICK) {
 			pay_link_button(1);
 		} else if (ev.button == 1 && ev.event == NU54_BTN_CLICK) {

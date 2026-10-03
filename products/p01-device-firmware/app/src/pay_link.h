@@ -29,6 +29,10 @@ int pay_link_address(uint8_t address[20]);
 /* Enters payment mode: advertise the payment service for `seconds`. */
 int pay_link_payment_mode(uint32_t seconds);
 
+/* Pairing mode (payment-protocol.md 3): accept a new bond for `seconds`, with the label passkey
+ * (LE Secure Connections Passkey Entry), or Just Works while the device is UNPROVISIONED. */
+int pay_link_pairing_mode(uint32_t seconds);
+
 /* The renter's button while a payment waits: 1 approve, 0 reject. */
 void pay_link_button(int approve);
 
