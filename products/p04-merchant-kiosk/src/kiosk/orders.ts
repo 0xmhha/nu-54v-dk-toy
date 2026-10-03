@@ -22,6 +22,8 @@ export interface OrderRecord {
   signed?: Signed;
   txHash?: string;
   reason?: string;
+  /** When the result became final (tablet clock, ms); with signed.requestedAt it times W12-04. */
+  finishedAt?: number;
 }
 
 export type OrderEvent =
@@ -53,9 +55,10 @@ export function transition(o: OrderRecord, e: OrderEvent, now: number): OrderRec
       if (!o.signed || isFinal(o.state)) throw bad();
       const out = e.outcome;
       const tx = "txHash" in out && out.txHash ? { txHash: out.txHash } : {};
-      if (out.status === "approved") return to("approved", tx);
       if (out.status === "Checking") return to("Checking", tx);
-      return to(out.status, { ...tx, reason: out.reason });
+      const done = { ...tx, finishedAt: now };
+      if (out.status === "approved") return to("approved", done);
+      return to(out.status, { ...done, reason: out.reason });
     }
   }
 }
