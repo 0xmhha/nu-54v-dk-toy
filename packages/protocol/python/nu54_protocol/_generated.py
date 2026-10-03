@@ -76,4 +76,4 @@ ENCODE_TYPE: dict[str, str] = {
 DEVICE_SIGNED_TYPES = ('PaymentAuthorization', 'LimitChange')
 REASONS = ('ATTESTATION_EXPIRED', 'MERCHANT_REVOKED', 'OVER_CAP', 'NONCE_REPLAYED', 'MERCHANT_FORGED', 'USER_REJECTED', 'TIME_ANCHOR_MISSING', 'UNSUPPORTED_TYPE', 'BAD_FRAME', 'TIMEOUT', 'CANCELLED', 'PIN_LOCKED', 'NOT_PERMITTED', 'EXPIRED', 'WRONG_DOMAIN', 'ACCOUNT_INACTIVE', 'INSUFFICIENT_BALANCE')
 OUTCOMES = ('approved', 'refused', 'failed', 'Checking')
-MESSAGE_TYPES = ('session.open', 'session.open.ok', 'session.confirm', 'payment.identify', 'payment.prepare', 'payment.result', 'limit.change', 'setup.timeAnchor', 'error', 'session.cancel', 'payment.outcome', 'limit.result', 'setup.operator', 'setup.ack', 'device.reset', 'confirm.show')
+MESSAGE_TYPES = ('session.open', 'session.open.ok', 'session.confirm', 'payment.identify', 'payment.prepare', 'payment.result', 'limit.change', 'setup.timeAnchor', 'error', 'session.cancel', 'payment.outcome', 'limit.result', 'setup.operator', 'setup.ack', 'device.reset', 'confirm.show', 'confirm.limit')

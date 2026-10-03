@@ -104,6 +104,16 @@ function Renter() {
           <Text style={styles.cta}>기기 버튼을 눌러 승인하세요</Text>
         </>
       )}
+      {screen.kind === 'limit' && (
+        <>
+          <Text style={styles.title}>한도 변경</Text>
+          <Text style={styles.label}>1회 한도</Text>
+          <Text style={styles.value}>{screen.view.perPayment}</Text>
+          <Text style={styles.label}>하루 한도</Text>
+          <Text style={styles.value}>{screen.view.daily}</Text>
+          <Text style={styles.cta}>기기 버튼으로 PIN을 입력한 뒤 승인 버튼을 누르세요</Text>
+        </>
+      )}
       {screen.kind === 'result' && (
         <>
           <Text style={styles.title}>{OUTCOME_TEXT[screen.outcome] ?? screen.outcome}</Text>

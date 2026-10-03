@@ -49,6 +49,23 @@ export interface ConfirmView {
   orderShort: string;
 }
 
+export interface LimitView {
+  /** "20.00 tUSDC", or "상한 그대로" for 0 (payment-protocol.md 2: 0 means the cap). */
+  perPayment: string;
+  daily: string;
+  /** Expiry as unix seconds; the device refuses it later than authorizationExpiry. */
+  expiry: number;
+}
+
+/** Builds the limit change screen from confirm.limit; limits are in the test token's units. */
+export function limitView(show: Record<string, unknown>, token: TokenInfo = Object.values(TOKENS)[0]): LimitView {
+  const text = (v: unknown) => {
+    const n = BigInt(String(v));
+    return n === 0n ? "상한 그대로" : `${truncatedAmount(n, token.decimals)} ${token.symbol}`;
+  };
+  return { perPayment: text(show.perPaymentLimit), daily: text(show.dailyLimit), expiry: Number(show.expiry) };
+}
+
 /** Builds the screen strings from confirm.show fields (the decoded JSON form). */
 export function confirmView(show: Record<string, unknown>, tokens: Record<string, TokenInfo> = TOKENS): ConfirmView {
   const token = String(show.token).toLowerCase();

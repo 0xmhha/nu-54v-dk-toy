@@ -128,6 +128,7 @@ var MessageTypes = []string{
 	"setup.ack",
 	"device.reset",
 	"confirm.show",
+	"confirm.limit",
 }
 
 // FieldKind is the CBOR kind of a message field (payment-protocol.md 4.2): a scalar kind name,
@@ -292,6 +293,14 @@ var MessageFields = map[string]*ObjectKind{
 		"payout":       {Name: "hex20"},
 		"amount":       {Name: "uint"},
 	}, Required: []string{"v", "type", "sessionId", "merchantName", "orderId", "token", "payout", "amount"}},
+	"confirm.limit": &ObjectKind{Fields: map[string]FieldKind{
+		"v":               {Name: "int"},
+		"type":            {Name: "text"},
+		"sessionId":       {Name: "sessionId"},
+		"perPaymentLimit": {Name: "uint"},
+		"dailyLimit":      {Name: "uint"},
+		"expiry":          {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "perPaymentLimit", "dailyLimit", "expiry"}},
 }
 
 // GATT service of the payment protocol (payment-protocol.md 3).

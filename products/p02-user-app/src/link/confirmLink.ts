@@ -5,7 +5,7 @@
 // dropped. The screen shows confirm.show values only; there is no approve button (N26).
 
 import { decodeMessage, Reassembler, type Message } from "@nu54/protocol";
-import { confirmView, TOKENS, type ConfirmView, type TokenInfo } from "../confirm/display.ts";
+import { confirmView, limitView, TOKENS, type ConfirmView, type LimitView, type TokenInfo } from "../confirm/display.ts";
 
 /** Fragments from the device's TX characteristic, with the link's bonding state. */
 export interface PhoneTransport {
@@ -17,6 +17,7 @@ export interface PhoneTransport {
 export type Screen =
   | { kind: "waiting" }
   | { kind: "confirming"; view: ConfirmView; orderId: string }
+  | { kind: "limit"; view: LimitView }
   | { kind: "result"; outcome: string; reason?: string; view?: ConfirmView };
 
 /** A confirm.show with no outcome after this long goes back to waiting (the device may have refused). */
@@ -50,7 +51,7 @@ export class ConfirmLink {
   private show(s: Screen): void {
     this.screen = s;
     if (this.timer) clearTimeout(this.timer);
-    this.timer = s.kind === "confirming" ? setTimeout(() => this.show({ kind: "waiting" }), CONFIRM_TIMEOUT_MS) : null;
+    this.timer = s.kind === "confirming" || s.kind === "limit" ? setTimeout(() => this.show({ kind: "waiting" }), CONFIRM_TIMEOUT_MS) : null;
     this.onScreen(s);
   }
 
@@ -76,6 +77,8 @@ export class ConfirmLink {
         return;
       }
       this.show({ kind: "confirming", view, orderId: String(m.orderId).toLowerCase() });
+    } else if (m.type === "confirm.limit") {
+      this.show({ kind: "limit", view: limitView(m as Record<string, unknown>) });
     } else if (m.type === "payment.outcome") {
       const s = this.screen;
       // The outcome of the order on screen; an outcome for another order is shown without details.

@@ -383,6 +383,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - custom error 디코딩과 설계 7절 매핑, 순수 reducer로 만든 상태 기계(시계 주입), 주문·서명·제출의 영속 저장과 재시작 복원, 가스 잔액 하한, session.cancel과 연결 끊김 처리, 한도 변경 중계.
 - sandbox 통합 시험: 코드별 revert, 재제출의 ORDER_ALREADY_PAID, 한도 변경 재제출의 NONCE_REPLAYED, 수동 채굴로 status=0 만들기.
 - 한도 변경은 9주차 재배포 전까지 sandbox에서만 검증한다.
+- 2026-10-03 진행: 한도 변경 전 구간(프로토콜 `confirm.limit`과 PIN 잠금 규칙, 소프트웨어 기기, 펌웨어 host, 공용 벡터 SV-18~22, 키오스크 중계와 화면, 폰 표시). testnet에서 소프트웨어 기기로 `setLimits`가 approved, 같은 서명 재제출이 `NONCE_REPLAYED`였다. 상태 기계와 영속 저장은 남았다.
 
 **가맹점 철회, payout 변경, 거절 시연 도구** (WBS2-P05-04, 9~10주차, 3일)
 - payout 변경 지연은 86400초이므로 테스트넷 시연은 10주차 초에 요청해 둔다.

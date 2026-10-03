@@ -140,11 +140,11 @@ def main() -> int:
                         f"{tag + '_P' if ph is not None else 'NULL'}, {len(ph) if ph is not None else 0}}}")
         out.append(f"static const session_step_t SV_STEPS_{si}[] = {{{', '.join(rows)}}};")
         unprov = 1 if sc.get("initialState") == "UNPROVISIONED" else 0
-        pin = sc.get("pin", "2580") if unprov else "2580"
+        pin = sc.get("pin", "2580")
         pin_c = "NULL" if pin is None else json.dumps(pin)
         scen.append(f'{{"{sc["id"]}", {1 if sc["button"] == "approve" else 0}, SV_STEPS_{si}, {len(rows)}, {unprov}, {pin_c}}}')
     out.insert(0, "typedef struct { unsigned long long at; int power_cycle; const unsigned char *send; unsigned long send_len; const unsigned char *expect[2]; unsigned long expect_len[2]; int expect_count; const unsigned char *phone; unsigned long phone_len; } session_step_t;")
-    out += ["/* unprovisioned: the scenario starts without key or setup values; pin: what the renter enters at setup (NULL: timeout). */",
+    out += ["/* unprovisioned: the scenario starts without key or setup values; pin: what the renter enters whenever asked (NULL: timeout). */",
             "typedef struct { const char *id; int approve; const session_step_t *steps; unsigned long count; int unprovisioned; const char *pin; } session_scenario_t;",
             "static const session_scenario_t SESSION_SCENARIOS[] = {", ",\n".join(scen), "};",
             f"#define SESSION_SCENARIO_COUNT {len(scen)}", ""]

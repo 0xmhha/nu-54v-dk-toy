@@ -32,9 +32,12 @@ export interface DeviceConfig {
   operator?: string;
   contract?: string;
   chainId?: bigint | number;
-  /** Register parameters (seconds). */
+  /** Register parameters (seconds; pinMaxRetries a count). */
   anchorClockSkew?: number;
   authorizationExpiry?: number;
+  pinMaxRetries?: number;
+  /** The PIN a provisioned device was set up with (setup records it otherwise). */
+  pin?: string;
   /** First nonce; a multiple of 256 chosen at setup (payment-protocol.md 2). */
   nonceStart?: bigint;
   /** Clock in seconds since the epoch; the device's time is the anchor plus the elapsed time. */
@@ -46,7 +49,7 @@ export interface DeviceConfig {
   approve?: (show: Message) => boolean | Promise<boolean>;
   /** The renter's button for setup.operator: confirm or refuse the operator values. */
   confirmSetup?: (values: SetupValues) => boolean | Promise<boolean>;
-  /** The PIN the renter enters on the buttons at setup; null when it was not finished in time. */
+  /** The PIN the renter enters on the buttons (at setup and for a limit change); null when it was not finished in time. */
   enterPin?: () => string | null | Promise<string | null>;
   firmware?: string;
   /** Random bytes (deviceNonce, new key, nonce start); injectable so session vectors are deterministic. */
@@ -83,20 +86,23 @@ export class SoftwareDevice {
     this.phone.push(m);
     this.onPhone?.(m);
   }
-  private readonly cfg: Required<Omit<DeviceConfig, "nonceStart" | "key" | "operator" | "contract" | "chainId">>;
+  private readonly cfg: Required<Omit<DeviceConfig, "nonceStart" | "key" | "operator" | "contract" | "chainId" | "pin">>;
   /** Values that setup records and device.reset wipes. */
   private setup: { key: Uint8Array; address: string; operator: string; contract: string; chainId: bigint; passkey?: number; pin?: string } | null;
   private anchor: { timestamp: number; at: number } | null = null;
   private lastAnchor = 0;
+  /** Wrong PIN entries in a row; kept in secure storage on the board, so a reset of RAM keeps it. */
+  private pinFailures = 0;
   private nextNonce: bigint;
   private session: { id: string; mode: string; deviceNonce: string; confirmed: boolean } | null = null;
   private attestation: { merchant: string; payout: string; name: string } | null = null;
 
   constructor(cfg: DeviceConfig) {
-    const { key, operator, contract, chainId, nonceStart = 0n, ...rest } = cfg;
+    const { key, operator, contract, chainId, nonceStart = 0n, pin = "2580", ...rest } = cfg;
     this.cfg = {
       anchorClockSkew: 60,
       authorizationExpiry: 120,
+      pinMaxRetries: 5,
       now: () => Math.floor(Date.now() / 1000),
       approve: () => true,
       confirmSetup: () => true,
@@ -109,7 +115,7 @@ export class SoftwareDevice {
     this.nextNonce = nonceStart;
     if (key) {
       if (!operator || !contract || chainId === undefined) throw new Error("a provisioned device needs operator, contract and chainId");
-      this.setup = { key, address: addressOfPrivateKey(key), operator, contract, chainId: BigInt(chainId) };
+      this.setup = { key, address: addressOfPrivateKey(key), operator, contract, chainId: BigInt(chainId), pin };
       this.state = "PROVISIONED_NO_ANCHOR";
     } else {
       this.setup = null;
@@ -195,6 +201,7 @@ export class SoftwareDevice {
   private *step(m: Message): Step {
     if (m.type === "payment.prepare") return yield* this.prepareStep(m);
     if (m.type === "setup.operator") return yield* this.operatorStep(m);
+    if (m.type === "limit.change") return yield* this.limitStep(m);
     return this.handleOther(m);
   }
 
@@ -218,8 +225,6 @@ export class SoftwareDevice {
         return [];
       case "device.reset":
         return [this.reset(m)];
-      case "limit.change":
-        return [this.error("NOT_PERMITTED", String(m.sessionId))]; // not simulated yet
       default:
         return [this.error("UNSUPPORTED_TYPE", String(m.sessionId))];
     }
@@ -302,6 +307,7 @@ export class SoftwareDevice {
   /** Step-4 checks; on success the confirm.show the renter decides on. */
   private prepare(m: Message): Message[] | { show: Message; auth: Record<string, string> } {
     if (!this.inSession(m, "payment")) return [this.error("NOT_PERMITTED", String(m.sessionId))];
+    if (this.state === "PIN_LOCKED") return [this.refused("PIN_LOCKED")]; // every signature is refused
     const t = this.time();
     if (t === null || this.state !== "READY") return [this.refused("TIME_ANCHOR_MISSING")];
     const att = this.attestation;
@@ -389,6 +395,48 @@ export class SoftwareDevice {
     return [ack("keygen", true, { device: address })];
   }
 
+  /**
+   * limit.change (payment-protocol.md 5): checks, confirm.limit to the phone, the PIN on the
+   * buttons, then the approve button; the signature takes the next sequential nonce.
+   */
+  private *limitStep(m: Message): Step {
+    const result = (fields: Record<string, unknown>) => this.reply("limit.result", fields);
+    const refused = (reason: string) => [result({ outcome: "refused", reason })];
+    if (!this.inSession(m, "payment")) return [this.error("NOT_PERMITTED", String(m.sessionId))];
+    if (this.state === "PIN_LOCKED") return refused("PIN_LOCKED");
+    const t = this.time();
+    if (t === null || this.state !== "READY") return refused("TIME_ANCHOR_MISSING");
+    const c = m.change as Record<string, string>;
+    const s = this.setup!;
+    if (BigInt(c.chainId) !== s.chainId || c.contract.toLowerCase() !== s.contract.toLowerCase()) return refused("NOT_PERMITTED");
+    const expiry = Number(c.expiry);
+    if (expiry < t || expiry > t + this.cfg.authorizationExpiry) return refused("ATTESTATION_EXPIRED");
+    const show = this.reply("confirm.limit", { perPaymentLimit: c.perPaymentLimit, dailyLimit: c.dailyLimit, expiry: c.expiry });
+    this.toPhone(show);
+    const sid = this.session!.id;
+
+    const pin = yield { wait: this.cfg.enterPin() };
+    if (this.session?.id !== sid) return [];
+    if (typeof pin !== "string") return refused("TIMEOUT");
+    if (pin !== s.pin) {
+      this.pinFailures++;
+      if (this.pinFailures >= this.cfg.pinMaxRetries) {
+        this.state = "PIN_LOCKED";
+        return refused("PIN_LOCKED");
+      }
+      return refused("NOT_PERMITTED");
+    }
+    this.pinFailures = 0;
+
+    const approved = yield { wait: this.cfg.approve(show) };
+    if (this.session?.id !== sid) return [];
+    if (!approved) return refused("USER_REJECTED");
+    const nonce = this.nextNonce++; // the same sequential counter as payments
+    const change = { chainId: c.chainId, contract: c.contract, perPaymentLimit: c.perPaymentLimit, dailyLimit: c.dailyLimit, nonce, expiry: c.expiry };
+    const sig = signDigest(digest(this.domain, "LimitChange", change), s.key);
+    return [result({ outcome: "approved", signature: bytesToHex(sig), nonce: nonce.toString() })];
+  }
+
   /** device.reset (payment-protocol.md 5): an operator-signed DeviceReset for this device wipes it. */
   private reset(m: Message): Message {
     const ack = (accepted: boolean) =>
@@ -410,6 +458,7 @@ export class SoftwareDevice {
     this.anchor = null;
     this.lastAnchor = 0;
     this.nextNonce = 0n;
+    this.pinFailures = 0;
     this.attestation = null;
     this.session = null; // the wiped device keeps no session
     this.state = "UNPROVISIONED";

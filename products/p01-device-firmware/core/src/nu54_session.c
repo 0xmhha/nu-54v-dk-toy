@@ -333,6 +333,10 @@ static void prepare(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_ou
 		error_reply(out, field(m, 0, "sessionId")->ptr, "NOT_PERMITTED");
 		return;
 	}
+	if (d->state == NU54_STATE_PIN_LOCKED) {
+		refused(d, out, "PIN_LOCKED"); /* every signature is refused */
+		return;
+	}
 	if (!device_time(d, now, &t) || d->state != NU54_STATE_READY) {
 		refused(d, out, "TIME_ANCHOR_MISSING");
 		return;
@@ -391,6 +395,109 @@ static void prepare(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_ou
 	d->pending = NU54_PENDING_PAYMENT;
 }
 
+static void limit_refused(const nu54_device_t *d, nu54_out_t *out, const char *reason)
+{
+	nu54_cbor_entry_t e[] = {{"v", NU54_V_UINT, 0, 0, 1}, text("type", "limit.result"), bytes("sessionId", reply_sid(d), 8),
+				 text("outcome", "refused"), text("reason", reason)};
+	emit(out, 0, e, 5);
+}
+
+/* limit.change (payment-protocol.md 5): checks, confirm.limit to the phone, then the PIN. */
+static void limit_change(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_out_t *out)
+{
+	uint64_t t;
+	if (!in_session(d, m, 0)) {
+		error_reply(out, field(m, 0, "sessionId")->ptr, "NOT_PERMITTED");
+		return;
+	}
+	if (d->state == NU54_STATE_PIN_LOCKED) {
+		limit_refused(d, out, "PIN_LOCKED");
+		return;
+	}
+	if (!device_time(d, now, &t) || d->state != NU54_STATE_READY) {
+		limit_refused(d, out, "TIME_ANCHOR_MISSING");
+		return;
+	}
+	int c = nu54_msg_find(m, 0, "change");
+	nu54_limit_change_t *l = &d->pending_limit;
+	memset(l, 0, sizeof(*l));
+	u256(field(m, c, "chainId"), l->chain_id);
+	memcpy(l->contract, field(m, c, "contract")->ptr, 20);
+	u256(field(m, c, "perPaymentLimit"), l->per_payment_limit);
+	u256(field(m, c, "dailyLimit"), l->daily_limit);
+	const nu54_cbor_item_t *expiry = field(m, c, "expiry");
+	l->expiry = u64(expiry);
+	if (memcmp(l->chain_id, d->chain_id, 32) != 0 || memcmp(l->contract, d->contract, 20) != 0 || !d->platform.check_pin) {
+		limit_refused(d, out, "NOT_PERMITTED");
+		return;
+	}
+	if (expiry->type != NU54_CBOR_UINT || l->expiry < t || l->expiry > t + d->authorization_expiry) {
+		limit_refused(d, out, "ATTESTATION_EXPIRED");
+		return;
+	}
+	nu54_cbor_entry_t e[] = {
+		{"v", NU54_V_UINT, 0, 0, 1},
+		text("type", "confirm.limit"),
+		bytes("sessionId", d->session_id, 8),
+		{"perPaymentLimit", NU54_V_UINT256, l->per_payment_limit, 32, 0},
+		{"dailyLimit", NU54_V_UINT256, l->daily_limit, 32, 0},
+		{"expiry", NU54_V_UINT, 0, 0, l->expiry},
+	};
+	emit(out, 1, e, 6);
+	d->pending = NU54_PENDING_LIMIT_PIN;
+}
+
+static void limit_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out)
+{
+	d->pending = NU54_PENDING_NONE;
+	if (!pin) {
+		limit_refused(d, out, "TIMEOUT");
+		return;
+	}
+	int r = d->platform.check_pin(d->platform.ctx, pin, len);
+	if (r == NU54_PIN_LOCKED) {
+		d->state = NU54_STATE_PIN_LOCKED;
+		limit_refused(d, out, "PIN_LOCKED");
+	} else if (r != NU54_PIN_OK) {
+		limit_refused(d, out, "NOT_PERMITTED");
+	} else {
+		d->pending = NU54_PENDING_LIMIT_CONFIRM;
+	}
+}
+
+static void limit_confirmed(nu54_device_t *d, int approve, nu54_out_t *out)
+{
+	d->pending = NU54_PENDING_NONE;
+	if (!approve) {
+		limit_refused(d, out, "USER_REJECTED");
+		return;
+	}
+	nu54_limit_change_t l = d->pending_limit;
+	memcpy(l.nonce, d->next_nonce, 32);
+	increment(d->next_nonce); /* the same sequential counter as payments */
+	if (d->platform.persist_nonce && d->platform.persist_nonce(d->platform.ctx, d->next_nonce) != 0) {
+		limit_refused(d, out, "NOT_PERMITTED");
+		return;
+	}
+	uint8_t domain[32], h[32], digest[32], rs[64], sig[65];
+	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
+	nu54_hash_limit_change(&l, h);
+	nu54_eip712_digest(domain, h, digest);
+	if (d->platform.sign(d->platform.ctx, digest, rs) != 0 || nu54_sig_finish(digest, rs, d->address, sig) != NU54_SIG_OK) {
+		limit_refused(d, out, "NOT_PERMITTED");
+		return;
+	}
+	nu54_cbor_entry_t e[] = {
+		{"v", NU54_V_UINT, 0, 0, 1},
+		text("type", "limit.result"),
+		bytes("sessionId", reply_sid(d), 8),
+		text("outcome", "approved"),
+		bytes("signature", sig, 65),
+		{"nonce", NU54_V_UINT256, l.nonce, 32, 0},
+	};
+	emit(out, 0, e, 6);
+}
+
 /* setup.operator (payment-protocol.md 5, step 1): keep the values in RAM and wait for the button. */
 static void setup_operator(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
 {
@@ -433,6 +540,10 @@ static void setup_confirmed(nu54_device_t *d, int approve, nu54_out_t *out)
 
 void nu54_session_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out)
 {
+	if (d->pending == NU54_PENDING_LIMIT_PIN) {
+		limit_pin(d, pin, len, out);
+		return;
+	}
 	if (d->pending != NU54_PENDING_PIN) {
 		return;
 	}
@@ -489,6 +600,10 @@ void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out)
 {
 	if (d->pending == NU54_PENDING_SETUP_CONFIRM) {
 		setup_confirmed(d, approve, out);
+		return;
+	}
+	if (d->pending == NU54_PENDING_LIMIT_CONFIRM) {
+		limit_confirmed(d, approve, out);
 		return;
 	}
 	if (d->pending != NU54_PENDING_PAYMENT) {
@@ -564,7 +679,7 @@ void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint
 	} else if (strcmp(type, "device.reset") == 0) {
 		device_reset(d, &m, out);
 	} else if (strcmp(type, "limit.change") == 0) {
-		error_reply(out, field(&m, 0, "sessionId")->ptr, "NOT_PERMITTED"); /* not implemented yet */
+		limit_change(d, &m, now, out);
 	} else {
 		error_reply(out, field(&m, 0, "sessionId")->ptr, "UNSUPPORTED_TYPE");
 	}

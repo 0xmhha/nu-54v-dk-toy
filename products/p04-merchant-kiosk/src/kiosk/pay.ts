@@ -11,6 +11,7 @@ import type { Chain, Hex } from "../chain/rpc.ts";
 import { runPayment, type SessionStep, type TimeAnchor } from "../payment/session.ts";
 import { signMerchantOrder } from "../payment/signing.ts";
 import { gasReady, submit, type Outcome, type Signed, type SubmitContext } from "../payment/submit.ts";
+import { runLimitChange, submitLimits, type LimitOutcome } from "../payment/limits.ts";
 import type { Loaded } from "./config.ts";
 
 export type Phase = "checkingGas" | "connecting" | SessionStep | "submitting";
@@ -88,6 +89,42 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
     const outcome = { v: 1, type: "payment.outcome", sessionId, orderId: auth.orderId, outcome: out.status, ...reason };
     await link.send(outcome as Message, 0, 0).catch(() => undefined);
     return out;
+  } finally {
+    await link.close().catch(() => undefined);
+  }
+}
+
+export type LimitPhase = "connecting" | "waitingDevice" | "submitting";
+export type LimitResult = LimitOutcome | { status: "cancelled" } | { status: "noDevice"; reason: string };
+
+/**
+ * A renter's limit change from the kiosk screen: the device asks for the PIN and the button,
+ * the kiosk submits setLimits (payment-protocol.md 5). Limits are base units; 0 = the cap.
+ */
+export async function changeLimits(
+  deps: PayDeps & { submitLimits?: typeof submitLimits },
+  perPaymentLimit: bigint,
+  dailyLimit: bigint,
+  onPhase: (p: LimitPhase) => void = () => {},
+): Promise<LimitResult> {
+  const { config } = deps.kiosk;
+  onPhase("connecting");
+  let link: MessageLink;
+  try {
+    link = await deps.connect();
+  } catch (e) {
+    return { status: "noDevice", reason: e instanceof Error ? e.message : String(e) };
+  }
+  try {
+    const finalized = await deps.chain.block("finalized");
+    onPhase("waitingDevice");
+    const s = await runLimitChange(link, {
+      domain: { chainId: config.chainId, verifyingContract: config.settlement },
+      perPaymentLimit, dailyLimit, expiry: finalized.timestamp + 60n, random: deps.random,
+    });
+    if (s.status !== "approved") return s;
+    onPhase("submitting");
+    return await (deps.submitLimits ?? submitLimits)(submitContext(deps), s.change, s.signature);
   } finally {
     await link.close().catch(() => undefined);
   }

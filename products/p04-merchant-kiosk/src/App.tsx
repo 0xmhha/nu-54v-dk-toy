@@ -22,7 +22,7 @@ import { findDevice, openTransport } from './ble/central.ts';
 import { FramedLink } from './ble/framing.ts';
 import { JsonRpcChain } from './chain/rpc.ts';
 import { loadKiosk, takeAnchor, type Loaded } from './kiosk/config.ts';
-import { pay, submitContext, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
+import { changeLimits, pay, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
 import { recheck } from './payment/submit.ts';
 import { blockTimeText, fetchReceipt, type ReceiptResult } from './kiosk/receipt.ts';
 import Vault from './specs/NativeKioskVault.ts';
@@ -78,6 +78,9 @@ type Screen =
   | { kind: 'loading' }
   | { kind: 'unprovisioned'; error?: string }
   | { kind: 'idle' }
+  | { kind: 'limits' }
+  | { kind: 'limitBusy'; text: string }
+  | { kind: 'limitResult'; result: LimitResult }
   | { kind: 'paying'; phase: Phase; amount: bigint }
   | { kind: 'result'; result: PayResult; amount: bigint };
 
@@ -122,6 +125,31 @@ function Kiosk() {
   const decimals = kiosk?.config.tokenDecimals ?? 6;
   const amount = parseAmount(amountText, decimals);
 
+  /** SecureRandom bytes fetched once per session; a session draws well under 4 KiB. */
+  const randomPool = async () => {
+    const pool = await Vault.randomBytes(4096).then(fromBase64);
+    let used = 0;
+    return (n: number) => {
+      if (used + n > pool.length) throw new Error('random pool exhausted');
+      used += n;
+      return pool.slice(used - n, used);
+    };
+  };
+
+  const [perText, setPerText] = useState('');
+  const [dailyText, setDailyText] = useState('');
+  const startLimits = async () => {
+    if (!kiosk) return;
+    // An empty field is 0, which keeps the register cap (payment-protocol.md 2).
+    const per = perText.trim() ? parseAmount(perText, decimals) : 0n;
+    const daily = dailyText.trim() ? parseAmount(dailyText, decimals) : 0n;
+    if (per === null || daily === null || !(await blePermissions())) return;
+    const result = await changeLimits({ ...deps(kiosk), random: await randomPool() }, per, daily, phase =>
+      setScreen({ kind: 'limitBusy', text: phase === 'waitingDevice' ? '기기 버튼으로 PIN을 입력하고 승인하세요' : phase === 'submitting' ? '한도 변경 제출 중' : '결제 기기를 찾는 중' }),
+    ).catch((e): LimitResult => ({ status: 'failed', reason: e instanceof Error ? e.message : String(e) }));
+    setScreen({ kind: 'limitResult', result });
+  };
+
   const start = async () => {
     if (!kiosk || amount === null) return;
     if (!(await blePermissions())) {
@@ -129,18 +157,8 @@ function Kiosk() {
       return;
     }
     setScreen({ kind: 'paying', phase: 'checkingGas', amount });
-    const random = await Vault.randomBytes(4096).then(fromBase64);
-    let used = 0;
     const result = await pay(
-      {
-        ...deps(kiosk),
-        // SecureRandom bytes fetched once per payment; the session draws well under 4 KiB.
-        random: n => {
-          if (used + n > random.length) throw new Error('random pool exhausted');
-          used += n;
-          return random.slice(used - n, used);
-        },
-      },
+      { ...deps(kiosk), random: await randomPool() },
       amount,
       phase => setScreen({ kind: 'paying', phase, amount }),
     ).catch((e): PayResult => ({ status: 'failed', reason: e instanceof Error ? e.message : String(e) }));
@@ -173,12 +191,33 @@ function Kiosk() {
           <Text style={styles.label}>결제 금액 ({symbol})</Text>
           <TextInput style={styles.input} value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" />
           <Button label={amount ? `${shown(amount, decimals)} ${symbol} 결제 요청` : '금액을 입력하세요'} onPress={start} disabled={!amount} />
+          <Button label="한도 변경" onPress={() => setScreen({ kind: 'limits' })} />
         </View>
       )}
       {screen.kind === 'paying' && (
         <View>
           <Text style={styles.amount}>{shown(screen.amount, decimals)} {symbol}</Text>
           <Text style={screen.phase === 'waitingDevice' ? styles.title : styles.body}>{PHASE_TEXT[screen.phase]}</Text>
+        </View>
+      )}
+      {screen.kind === 'limits' && (
+        <View>
+          <Text style={styles.label}>1회 한도 ({symbol}, 비우면 상한)</Text>
+          <TextInput style={styles.input} value={perText} onChangeText={setPerText} keyboardType="decimal-pad" />
+          <Text style={styles.label}>하루 한도 ({symbol}, 비우면 상한)</Text>
+          <TextInput style={styles.input} value={dailyText} onChangeText={setDailyText} keyboardType="decimal-pad" />
+          <Button label="기기에 요청" onPress={startLimits} />
+          <Button label="취소" onPress={() => setScreen({ kind: 'idle' })} />
+        </View>
+      )}
+      {screen.kind === 'limitBusy' && <Text style={styles.title}>{screen.text}</Text>}
+      {screen.kind === 'limitResult' && (
+        <View>
+          <Text style={[styles.title, screen.result.status === 'approved' ? styles.ok : styles.bad]}>
+            {screen.result.status === 'approved' ? '한도 변경 완료' : '한도 변경 안 됨'}
+          </Text>
+          {'reason' in screen.result && <Text style={styles.body}>{screen.result.reason}</Text>}
+          <Button label="처음으로" onPress={() => setScreen({ kind: 'idle' })} />
         </View>
       )}
       {screen.kind === 'result' && (() => {

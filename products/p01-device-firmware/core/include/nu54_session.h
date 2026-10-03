@@ -54,13 +54,21 @@ typedef struct {
 	int (*generate_key)(void *ctx, uint8_t address[20]);
 	int (*commit_setup)(void *ctx, const nu54_setup_record_t *record);
 	int (*wipe)(void *ctx);
+	/* Compares an entered PIN with the stored one and keeps the failure counter in secure
+	 * storage (pinMaxRetries, survives RAM-clearing resets). Returns NU54_PIN_OK, NU54_PIN_WRONG,
+	 * or NU54_PIN_LOCKED once the failures reach pinMaxRetries. May be NULL: limit changes refuse. */
+	int (*check_pin)(void *ctx, const char *pin, size_t len);
 } nu54_platform_t;
+
+enum { NU54_PIN_OK = 0, NU54_PIN_WRONG = 1, NU54_PIN_LOCKED = 2 };
 
 typedef enum {
 	NU54_PENDING_NONE,
 	NU54_PENDING_PAYMENT,       /* confirm.show sent; the button decides */
 	NU54_PENDING_SETUP_CONFIRM, /* setup.operator received; the button confirms the values */
 	NU54_PENDING_PIN,           /* key made; the renter enters the PIN */
+	NU54_PENDING_LIMIT_PIN,     /* limit.change checked, confirm.limit sent; the renter enters the PIN */
+	NU54_PENDING_LIMIT_CONFIRM, /* PIN right; the button approves or rejects the limit change */
 } nu54_pending_t;
 
 /* Replies of one call: up to two bodies for the central, one for the phone app. */
@@ -108,6 +116,7 @@ typedef struct {
 	nu54_pending_t pending;
 	nu54_payment_authorization_t pending_auth;
 	nu54_setup_record_t pending_setup; /* setup values in RAM until the PIN commits them */
+	nu54_limit_change_t pending_limit;
 	uint8_t pending_address[20];
 } nu54_device_t;
 
@@ -125,11 +134,13 @@ void nu54_device_power_cycle(nu54_device_t *d);
 void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out);
 
 /* The renter's button: after confirm.show approve (1) signs and reject (0) refuses; after
- * setup.operator it confirms or refuses the operator values. */
+ * setup.operator it confirms or refuses the operator values; after the PIN of a limit change it
+ * approves or rejects the change. */
 void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out);
 
-/* The PIN the renter entered on the buttons at setup (digits), or NULL when it was not entered
- * in time. Stores the setup and answers the keygen ack. */
+/* The PIN the renter entered on the buttons (digits), or NULL when it was not entered in time.
+ * At setup it stores the setup and answers the keygen ack; for a limit change it is checked
+ * against the stored PIN before the button. */
 void nu54_session_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out);
 
 #endif /* NU54_SESSION_H */
