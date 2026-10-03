@@ -288,6 +288,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - 응답을 요구사항에 맞춘다: `blockTime`, `txHashShort`, `duplicate`를 넣고 전체 tx hash는 뺀다. 404 본문은 `{"error":"NOT_INDEXED"}`.
 - sandbox 통합 시험: 중복 수집, 재시작, 다른 컨트랙트 로그 제외, RPC 단절 복구.
 - 완료 판정: 테스트넷의 실제 결제로 조회해 200이 오고, 값이 `cast receipt`와 같으며, finalized부터 조회 성공까지 10초 이내다.
+- 2026-10-02 완료: 최소 indexer와 키오스크 영수증 화면을 main에 넣었다. testnet 결제 1건이 블록 시각 0.12초 뒤 조회되었고 값은 `cast receipt`와 같았다([indexer README](../../../products/p07-indexer/README.md)).
 - 9주차 말에 착수 여부를 다시 정한다. 컷하면 12주차 영수증 항목은 키오스크가 PaymentSettled를 직접 읽은 기록으로 대신한다.
 
 **12주차 수용 기록** (WBS2-P10-03, 11~12주차, 4일)
