@@ -65,13 +65,22 @@ function deviceLink(approve = true) {
   };
   const endpoint = new DeviceEndpoint(device, 185);
   let closed = false;
+  // The device ends the session with the link, after the writes already in flight; a new
+  // connection means the old one is gone.
+  let dropping: ReturnType<typeof setTimeout> | null = null;
+  const drop = () => {
+    if (dropping) clearTimeout(dropping);
+    dropping = null;
+    device.linkClosed();
+  };
   const connect = async (): Promise<MessageLink> => {
+    if (dropping) drop();
     let h: ((f: Uint8Array) => void) | null = null;
     const link = new FramedLink({
       mtu: 185,
       async write(f) { const c = f.slice(); setTimeout(() => endpoint.receive(c).forEach((b) => h?.(b)), 1); },
       onFragment(fn) { h = fn; return () => (h = null); },
-      async close() { closed = true; },
+      async close() { closed = true; dropping = setTimeout(drop, 5); },
     });
     return link;
   };

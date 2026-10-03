@@ -21,6 +21,11 @@ export function signMerchantOrder(domain: Domain, order: Fields<MerchantOrder>, 
   return bytesToHex(signDigest(digest(domain, "MerchantOrder", order), merchantKey));
 }
 
+/** Signs the session's one-time key with the merchant key (EIP-712 KioskKey, payment-protocol.md 4.1). */
+export function signKioskKey(domain: Domain, value: { merchant: string; kioskEphemeral: string; kioskNonce: string }, merchantKey: Uint8Array): string {
+  return bytesToHex(signDigest(digest(domain, "KioskKey", value), merchantKey));
+}
+
 export type AuthorizationCheck = { ok: true; device: string } | { ok: false; reason: "MERCHANT_FORGED" | "BAD_SIGNATURE" };
 
 /**

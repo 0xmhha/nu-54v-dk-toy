@@ -151,6 +151,11 @@ export class SoftwareDevice {
     return this.anchor ? this.anchor.timestamp + (this.cfg.now() - this.anchor.at) : null;
   }
 
+  /** The central's BLE link dropped: the session and its channel end with it (firmware nu54_session_link_closed). */
+  linkClosed(): void {
+    this.session = null;
+  }
+
   /** A RAM-clearing reset: the anchor is lost, key and deposit stay (payment-protocol.md 5). */
   powerCycle(): void {
     this.anchor = null;

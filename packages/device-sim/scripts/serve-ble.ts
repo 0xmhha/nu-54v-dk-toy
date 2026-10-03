@@ -120,7 +120,7 @@ createInterface({ input: periph.stdout }).on("line", async (line) => {
       // The session peer left: a pending press ends without a signature.
       if (waiting) waiting(false);
       waiting = null;
-      device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
+      device.linkClosed();
     }
     console.error(`ble: central ${ev.central} disconnected`);
   } else if (ev.rx !== undefined) {
