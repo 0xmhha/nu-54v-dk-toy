@@ -9,6 +9,7 @@
 | `src/` | React Native 0.87(New Architecture, TypeScript) 키오스크 앱 |
 | `src/App.tsx` | 결제 화면: 금액 입력 → 기기 승인 대기(10초) → approved, refused, failed, Checking, 시간 초과 취소, busy |
 | `src/kiosk/` | `pay.ts` 한 건의 결제(가스 확인, 기기 세션, 제출, 기기에 `payment.outcome`), `config.ts` 개발 셋업 가져오기와 키 보관, `receipt.ts` P07 indexer 영수증 조회(10초 동안 다시 묻는다. 결제 판정과 무관하다) |
+| `src/payment/limits.ts` | 한도 변경 중계: `limit.change`(기기에서 PIN과 버튼), 서명자 확인, `setLimits` 시뮬레이션·제출·finalized `LimitsChanged`. 같은 서명을 다시 내면 `NONCE_REPLAYED` |
 | `src/payment/session.ts` | 결제 세션(프로토콜 5, 6절): 7주차 TimeAnchor 셋업, open, confirm, identify, prepare, 기기 서명 확인, 10초 안에 결과가 없으면 `session.cancel` |
 | `src/ble/` | `framing.ts` CBOR·envelope·조각(요청의 세션 응답만 받는다), `central.ts` 기기 찾기와 연결, `base64.ts` |
 | `src/specs/` | Turbo Module 명세. `NativeNusBle.ts` BLE central(페어링 없음, N27), `NativeKioskVault.ts` Keystore AES 키로 감싼 키 보관과 SecureRandom(N32). Kotlin 구현은 `android/app/src/main/java/com/nu54kiosk/ble/` |

@@ -13,10 +13,17 @@ const signature = (name: string, inputs: readonly AbiParam[]) => `${name}(${inpu
 const hash4 = (s: string) => bytesToHex(keccak_256(utf8Encode(s)).subarray(0, 4));
 
 const settleAbi = paymentSettlementAbi.find((x) => x.type === "function" && x.name === "settle")!;
+const setLimitsAbi = paymentSettlementExtensionsAbi.find((x) => x.type === "function" && x.name === "setLimits")!;
+const limitsChangedAbi = paymentSettlementExtensionsAbi.find((x) => x.type === "event" && x.name === "LimitsChanged")!;
 export const SETTLE_SELECTOR = hash4(signature("settle", settleAbi.inputs as readonly AbiParam[]));
 const settledAbi = paymentSettlementAbi.find((x) => x.type === "event" && x.name === "PaymentSettled")!;
 export const PAYMENT_SETTLED_TOPIC = bytesToHex(
   keccak_256(utf8Encode(signature("PaymentSettled", settledAbi.inputs as readonly AbiParam[]))),
+) as Hex;
+
+export const SET_LIMITS_SELECTOR = hash4(signature("setLimits", setLimitsAbi.inputs as readonly AbiParam[]));
+export const LIMITS_CHANGED_TOPIC = bytesToHex(
+  keccak_256(utf8Encode(signature("LimitsChanged", limitsChangedAbi.inputs as readonly AbiParam[]))),
 ) as Hex;
 
 /** custom error selector -> name, from both settlement interfaces. */
@@ -38,6 +45,16 @@ export interface Authorization {
   expiry: string;
 }
 
+/** A device-signed LimitChange (payment-protocol.md 2): limits in base units, 0 = the cap. */
+export interface LimitChange {
+  chainId: string;
+  contract: string;
+  perPaymentLimit: string;
+  dailyLimit: string;
+  nonce: string;
+  expiry: string;
+}
+
 const word = (v: bigint) => bigToBytes(v, 32);
 const addr = (a: string) => concat(new Uint8Array(12), hexToBytes(a));
 
@@ -51,6 +68,22 @@ export function encodeSettle(a: Authorization, signature: string): Hex {
       word(BigInt(a.chainId)), addr(a.contract), addr(a.merchant), addr(a.payout), addr(a.token),
       word(BigInt(a.amount)), hexToBytes(a.orderId), word(BigInt(a.nonce)), word(BigInt(a.expiry)),
       word(32n * 10n), // offset of the signature after the 9 tuple words and this offset word
+      word(BigInt(sig.length)),
+      padded,
+    ),
+  ) as Hex;
+}
+
+/** ABI-encoded setLimits(change, sig): a static 6-word tuple and a dynamic signature. */
+export function encodeSetLimits(c: LimitChange, sigHex: string): Hex {
+  const sig = hexToBytes(sigHex);
+  const padded = concat(sig, new Uint8Array((32 - (sig.length % 32)) % 32));
+  return bytesToHex(
+    concat(
+      hexToBytes(SET_LIMITS_SELECTOR),
+      word(BigInt(c.chainId)), addr(c.contract), word(BigInt(c.perPaymentLimit)), word(BigInt(c.dailyLimit)),
+      word(BigInt(c.nonce)), word(BigInt(c.expiry)),
+      word(32n * 7n), // offset of the signature after the 6 tuple words and this offset word
       word(BigInt(sig.length)),
       padded,
     ),

@@ -18,7 +18,7 @@ export type Outcome =
   | { status: "Checking"; txHash?: Hex };
 
 /** Contract custom errors -> refusal codes (payment-protocol.md 8). */
-const REASONS: Record<string, string> = {
+export const REASONS: Record<string, string> = {
   WrongDomain: "WRONG_DOMAIN",
   Expired: "EXPIRED",
   AccountInactive: "ACCOUNT_INACTIVE",
@@ -75,7 +75,8 @@ const ours = (e: Settled, s: Signed) =>
 
 type Simulation = { ok: true } | { ok: false; error?: string };
 
-async function simulate(ctx: SubmitContext, data: Hex): Promise<Simulation> {
+/** eth_call of `data` against the settlement contract from the kiosk address. */
+export async function simulate(ctx: SubmitContext, data: Hex): Promise<Simulation> {
   try {
     await ctx.chain.call({ from: ctx.signer.address, to: ctx.settlement, data }, "latest");
     return { ok: true };
@@ -101,15 +102,8 @@ async function judgeSimulation(ctx: SubmitContext, s: Signed, data: Hex): Promis
   return { status: "failed", reason: sim.error ?? "SIMULATION_FAILED" };
 }
 
-/** Submits one signed payment and judges it within the 10 s budget (P04-FR-06, 09-12, 14). */
-export async function submit(ctx: SubmitContext, s: Signed): Promise<Outcome> {
-  const now = ctx.now ?? Date.now;
-  const sleep = ctx.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const data = encodeSettle(s.auth, s.signature);
-
-  const verdict = await judgeSimulation(ctx, s, data);
-  if (verdict) return verdict;
-
+/** Signs and sends a type-2 transaction to the settlement contract with the kiosk's gas key. */
+export async function sendToSettlement(ctx: SubmitContext, data: Hex): Promise<{ txHash: Hex } | { error: string }> {
   const [nonce, tip, head, estimate] = await Promise.all([
     ctx.chain.pendingNonce(ctx.signer.address),
     ctx.chain.priorityFee(),
@@ -132,9 +126,24 @@ export async function submit(ctx: SubmitContext, s: Signed): Promise<Outcome> {
   try {
     await ctx.chain.sendRaw(raw);
   } catch (e) {
-    if (e instanceof RpcError) return { status: "failed", reason: `not sent: ${e.message}` };
+    if (e instanceof RpcError) return { error: `not sent: ${e.message}` };
     throw e;
   }
+  return { txHash };
+}
+
+/** Submits one signed payment and judges it within the 10 s budget (P04-FR-06, 09-12, 14). */
+export async function submit(ctx: SubmitContext, s: Signed): Promise<Outcome> {
+  const now = ctx.now ?? Date.now;
+  const sleep = ctx.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const data = encodeSettle(s.auth, s.signature);
+
+  const verdict = await judgeSimulation(ctx, s, data);
+  if (verdict) return verdict;
+
+  const sent = await sendToSettlement(ctx, data);
+  if ("error" in sent) return { status: "failed", reason: sent.error };
+  const { txHash } = sent;
 
   while (now() - s.requestedAt < BUDGET_MS) {
     const rc = await ctx.chain.receipt(txHash);

@@ -29,6 +29,7 @@ import { openKeystore } from "../src/keystore.ts";
 import { signMerchantOrder } from "../../../products/p04-merchant-kiosk/src/payment/signing.ts";
 import type { MessageLink } from "../../../products/p04-merchant-kiosk/src/ble/framing.ts";
 import { runPayment } from "../../../products/p04-merchant-kiosk/src/payment/session.ts";
+import { runLimitChange, submitLimits } from "../../../products/p04-merchant-kiosk/src/payment/limits.ts";
 import { submit } from "../../../products/p04-merchant-kiosk/src/payment/submit.ts";
 import { JsonRpcChain, type Hex } from "../../../products/p04-merchant-kiosk/src/chain/rpc.ts";
 
@@ -40,6 +41,10 @@ const { values: a } = parseArgs({
     submit: { type: "boolean", default: false },
     transport: { type: "string", default: "sim" },
     "press-sim": { type: "boolean", default: false },
+    // --limit: a limit change instead of a payment, submitted twice (the second is NONCE_REPLAYED).
+    limit: { type: "boolean", default: false },
+    "per-payment": { type: "string", default: "0" },
+    daily: { type: "string", default: "0" },
     rpc: { type: "string", default: "https://api.test.stablenet.network/" },
     deployment: { type: "string", default: resolve(import.meta.dirname, "../../../products/p06-stablenet-contracts/deployments/8283.json") },
     keystores: { type: "string", default: join(homedir(), ".nu54", "keystores") },
@@ -120,6 +125,27 @@ async function bleLink(): Promise<MessageLink> {
 const start = await chainNow();
 const link = a.transport === "ble" ? await bleLink() : simLink(start);
 const merchantKey = openKeystore(join(a.keystores!, "nu54-kiosk"), "keychain:nu54-kiosk");
+const random = (n: number) => globalThis.crypto.getRandomValues(new Uint8Array(n));
+
+if (a.limit) {
+  // The development setup's anchor first (the payment session code does this for payments).
+  const sid = bytesToHex(random(8), false);
+  const opened = (await link.send({ v: 1, type: "session.open", sessionId: sid, mode: "setup", kioskNonce: bytesToHex(random(32)) } as Message, 1, 5000))[0];
+  if (opened?.type === "session.open.ok") await link.send({ v: 1, type: "setup.timeAnchor", sessionId: sid, ...anc } as Message, 1, 5000);
+  const limit = await runLimitChange(link, {
+    domain, perPaymentLimit: BigInt(a["per-payment"]!), dailyLimit: BigInt(a.daily!), expiry: BigInt(await chainNow()) + 60n, random,
+    waitMs: a.transport === "ble" ? 120_000 : 5000,
+  });
+  if (limit.status !== "approved") throw new Error(`limit change not approved: ${JSON.stringify(limit)}`);
+  const gas = { address: addressOfPrivateKey(merchantKey) as Hex, sign: (d: Uint8Array) => signDigest(d, merchantKey) };
+  const ctx = { chain: new JsonRpcChain(a.rpc!), signer: gas, settlement: settlement as Hex, chainId: BigInt(dep.chainId), minGasBalance: 0n, fromBlock: BigInt(dep.contracts.PaymentSettlement.block) };
+  const first = await submitLimits(ctx, limit.change, limit.signature);
+  const again = await submitLimits(ctx, limit.change, limit.signature); // the NONCE_REPLAYED demo
+  await link.close();
+  console.log(JSON.stringify({ transport: a.transport, device: limit.device, change: limit.change, first, resubmitted: again }, null, 2));
+  process.exit(first.status === "approved" && again.status === "refused" ? 0 : 1);
+}
+
 if (a.transport === "ble") {
   console.error(a["press-sim"] ? "device: pressing SW1 with the button simulator once LED2 lights"
     : "device: when LED2 lights, press SW1 briefly (under 1 s) to approve, SW2 to reject; waiting up to 120 s");
@@ -134,7 +160,7 @@ const session = await runPayment(link, {
   amount: BigInt(a.amount!),
   expiry: BigInt(await chainNow()) + 60n, // leaves 60 s for an anchor signed a little before
   signOrder: (o) => signMerchantOrder(domain, o, merchantKey),
-  random: (n) => globalThis.crypto.getRandomValues(new Uint8Array(n)),
+  random,
   waitMs: a.transport === "ble" ? 120_000 : 5000, // a human press on the board; the app waits 10 s (N10)
   onStep: (step) => {
     if (step === "waitingDevice" && a["press-sim"]) {

@@ -5,7 +5,7 @@ import { DeviceEndpoint, SoftwareDevice } from "@nu54/device-sim";
 import { FramedLink, type MessageLink } from "../src/ble/framing.ts";
 import type { Chain, Hex } from "../src/chain/rpc.ts";
 import { loadKiosk, takeAnchor, type Loaded, type Provision, type Vault } from "../src/kiosk/config.ts";
-import { pay, type Phase } from "../src/kiosk/pay.ts";
+import { changeLimits, pay, type Phase } from "../src/kiosk/pay.ts";
 import type { Outcome } from "../src/payment/submit.ts";
 
 // Foundry public test mnemonic: 0 device, 1 operator, 2 merchant (test-only keys).
@@ -168,4 +168,21 @@ test("base64 round-trips every length and matches RFC 4648 vectors", () => {
   }
   const all = Uint8Array.from({ length: 256 }, (_, i) => i);
   for (let n = 0; n <= 256; n += 37) expect(Array.from(fromBase64(toBase64(all.slice(0, n))))).toEqual(Array.from(all.slice(0, n)));
+});
+
+test("limit change from the kiosk: needs an anchored device, then submits the signed change", async () => {
+  const kiosk = await provisioned();
+  const d = deviceLink();
+  const deps = { kiosk, chain: chain(20n * 10n ** 18n), connect: d.connect, anchor: async () => anchor, random };
+  expect(await changeLimits(deps, 1n, 2n)).toEqual({ status: "refused", reason: "TIME_ANCHOR_MISSING" });
+  // A payment session hands the device its anchor (week-7 development setup).
+  await pay({ ...deps, submit: async () => ({ status: "refused", reason: "x" }) }, 1n);
+  let submitted: unknown;
+  const r = await changeLimits({ ...deps, submitLimits: async (_c, change) => {
+    submitted = change;
+    return { status: "approved", txHash: "0x01" as Hex };
+  } }, 20_000_000n, 0n);
+  expect(r).toEqual({ status: "approved", txHash: "0x01" });
+  expect(submitted).toMatchObject({ perPaymentLimit: "20000000", dailyLimit: "0", contract: SETTLEMENT });
+  expect(d.device.phone.at(-1)?.type).toBe("confirm.limit");
 });

@@ -2,7 +2,7 @@
 import eip from "../../../docs/content/specifications/protocol/eip712-vectors.json";
 import sessionVectors from "../../../docs/content/specifications/protocol/session-vectors.json";
 import { encodeMessage, FrameWriter, hexToBytes, type Message } from "@nu54/protocol";
-import { checksumAddress, confirmView, truncatedAmount } from "../src/confirm/display.ts";
+import { checksumAddress, confirmView, limitView, truncatedAmount } from "../src/confirm/display.ts";
 import { parseLabel } from "../src/qr.ts";
 import { ConfirmLink, CONFIRM_TIMEOUT_MS, type Screen } from "../src/link/confirmLink.ts";
 
@@ -108,4 +108,15 @@ test("the device's phone messages from SV-01 end on the approved result for that
   const p = phone();
   for (const st of steps.slice(-2)) p.deliverBody(hexToBytes(st.phone[0]));
   expect(p.link.current()).toMatchObject({ kind: "result", outcome: "approved", view: { merchantName: "Cafe Test 01" } });
+});
+
+test("confirm.limit from SV-18 shows the limits; 0 reads as the cap", () => {
+  const step = sessionVectors.scenarios.find((sc) => sc.id === "SV-18")!.steps.find((st) => (st.phone?.length ?? 0) > 0) as { phone: string[] };
+  const p = phone();
+  p.deliverBody(hexToBytes(step.phone[0]));
+  expect(p.link.current()).toEqual({ kind: "limit", view: { perPayment: "20.00 tUSDC", daily: "100.00 tUSDC", expiry: 1790000060 } });
+});
+
+test("a zero limit means the cap", () => {
+  expect(limitView({ perPaymentLimit: "0", dailyLimit: "5009999", expiry: "1" })).toEqual({ perPayment: "상한 그대로", daily: "5.00 tUSDC", expiry: 1 });
 });
