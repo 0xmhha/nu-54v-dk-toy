@@ -13,6 +13,11 @@ target_include_directories(test_button PRIVATE ../core/include)
 target_compile_options(test_button PRIVATE -Wall -Wextra -Werror)
 add_test(NAME button COMMAND test_button)
 
+add_executable(test_pin_entry test_pin_entry.c ../core/src/nu54_pin_entry.c)
+target_include_directories(test_pin_entry PRIVATE ../core/include)
+target_compile_options(test_pin_entry PRIVATE -Wall -Wextra -Werror)
+add_test(NAME pin_entry COMMAND test_pin_entry)
+
 # --- Cryptography (third_party) and shared-vector tests -------------------------------------
 # libsecp256k1 v0.8.0 with the recovery module. ECMULT_WINDOW_SIZE 4 keeps the verification
 # table small enough for the device; the host tests use the same setting.

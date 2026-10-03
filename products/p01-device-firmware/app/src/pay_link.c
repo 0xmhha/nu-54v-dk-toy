@@ -17,6 +17,7 @@
 #include "device_setup.h"
 #include "nu54_cbor.h"
 #include "nu54_frame.h"
+#include "nu54_pin_entry.h"
 #include "nu54_protocol.h"
 #include "nu54_session.h"
 
@@ -506,7 +507,7 @@ void pay_link_button(int approve)
 }
 
 /* The PIN waits in RAM only until the work queue hands it to the session. */
-static char pin_entry[PAY_LINK_PIN_MAX];
+static char pin_entry[NU54_PIN_LEN];
 static size_t pin_entry_len;
 static bool pin_given;
 
@@ -529,7 +530,7 @@ void pay_link_pin(const char *pin, size_t len)
 		LOG_INF("no PIN is asked for");
 		return;
 	}
-	if (pin && (len == 0 || len > sizeof(pin_entry))) {
+	if (pin && len != NU54_PIN_LEN) {
 		LOG_WRN("PIN of %u digits ignored", (unsigned)len);
 		return;
 	}
@@ -540,6 +541,11 @@ void pay_link_pin(const char *pin, size_t len)
 	}
 	LOG_INF("%s", pin ? "PIN entered" : "PIN entry timed out");
 	k_work_submit_to_queue(&work_q, &pin_work);
+}
+
+int pay_link_pin_wanted(void)
+{
+	return device.pending == NU54_PENDING_PIN || device.pending == NU54_PENDING_LIMIT_PIN;
 }
 
 int pay_link_address(uint8_t address[20])
