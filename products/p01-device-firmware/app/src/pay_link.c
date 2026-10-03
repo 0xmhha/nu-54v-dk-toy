@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <app_version.h>
 #include <psa/crypto.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
@@ -20,7 +21,6 @@
 
 LOG_MODULE_REGISTER(pay_link, LOG_LEVEL_INF);
 
-#define FIRMWARE_VERSION "0.2.0"
 #define FRAGMENT_MAX 247
 
 /* ---------------------------------------------------------------- session */
@@ -348,7 +348,7 @@ int pay_link_init(void)
 
 	device.anchor_clock_skew = 60;
 	device.authorization_expiry = 120;
-	device.firmware = FIRMWARE_VERSION;
+	device.firmware = APP_VERSION_STRING; /* app/VERSION, also the signed image version */
 	err = device_setup_load(&device);
 	if (err) {
 		return err;
