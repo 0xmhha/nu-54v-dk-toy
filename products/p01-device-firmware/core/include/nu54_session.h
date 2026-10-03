@@ -130,6 +130,10 @@ void nu54_device_init_unprovisioned(nu54_device_t *d);
 /* A RAM-clearing reset: the anchor and the session are lost; key and deposit stay. */
 void nu54_device_power_cycle(nu54_device_t *d);
 
+/* The link to the central dropped: the session ends, and a setup waiting for the PIN stores
+ * nothing (payment-protocol.md 5, the generated key is wiped). */
+void nu54_session_link_closed(nu54_device_t *d);
+
 /* Handles one CBOR body from a central at local time `now` (seconds). */
 void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out);
 

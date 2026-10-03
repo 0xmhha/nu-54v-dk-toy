@@ -190,6 +190,12 @@ void nu54_device_power_cycle(nu54_device_t *d)
 	}
 }
 
+void nu54_session_link_closed(nu54_device_t *d)
+{
+	d->session_open = 0;
+	abort_pending(d);
+}
+
 /* ---------------------------------------------------------------- messages */
 
 static void session_open(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)

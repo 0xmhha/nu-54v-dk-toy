@@ -1,7 +1,8 @@
 /*
  * P01 payment signer firmware (week-7 development build).
  *
- * Boot: open or create the device key, run the key self-test, start the payment link.
+ * Boot: load the stored setup and start the payment link (device_setup.c), then run the key
+ * self-test when the device holds a key.
  * Buttons: long-press SW4 enters payment mode (advertising), SW1 approves and SW2 rejects a
  * payment waiting on the device. LEDs: LED1 payment mode, LED2 waiting for the button, LED3
  * approved, LED4 refused or failed. Every step is logged on the VCOM console.
@@ -55,24 +56,19 @@ static void key_self_test(const uint8_t address[20])
 int main(void)
 {
 	uint8_t address[20];
-	int created;
 
 	LOG_INF("nu54 signer, protocol v%d, %d reason codes", NU54_PROTOCOL_VERSION, NU54_REASON_COUNT);
 	if (board_io_init() != 0) {
 		return 0;
 	}
-	int st = device_key_init(address, &created);
-	if (st != 0) {
-		LOG_ERR("device key unavailable (%d)", st);
-		return 0;
-	}
-	LOG_INF("device key %s", created ? "created" : "opened");
-	log_hex("device address", address, 20);
-	key_self_test(address);
-	st = pay_link_init(address);
+	int st = pay_link_init();
 	if (st != 0) {
 		LOG_ERR("payment link unavailable (%d)", st);
 		return 0;
+	}
+	if (pay_link_address(address)) {
+		log_hex("device address", address, 20);
+		key_self_test(address);
 	}
 	/* Week-7 development mapping (design 3): SW4 long press enters payment mode, SW1 approves,
 	 * SW2 rejects. The final layout comes with the PIN LED guidance design. */

@@ -167,6 +167,17 @@ int main(void)
 		failures++;
 		printf("FAIL setup storage: %d commits (want 1), %d wipes (want 2)\n", commits, wipes);
 	}
+	/* A link that drops while setup waits for the PIN wipes the key setup made. */
+	memset(&d, 0, sizeof(d));
+	d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin};
+	nu54_device_init_unprovisioned(&d);
+	d.session_open = 1;
+	d.pending = NU54_PENDING_PIN;
+	nu54_session_link_closed(&d);
+	if (wipes != 3 || d.pending != NU54_PENDING_NONE || d.session_open) {
+		failures++;
+		printf("FAIL link closed during the setup PIN: %d wipes (want 3), pending %d\n", wipes, (int)d.pending);
+	}
 	printf("%s: %zu session scenarios, %d failures\n", failures ? "FAIL" : "ok", (size_t)SESSION_SCENARIO_COUNT, failures);
 	return failures ? 1 : 0;
 }
