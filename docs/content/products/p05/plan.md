@@ -23,7 +23,7 @@ P05는 백오피스 전체(HTTP API, React UI, PostgreSQL)를 전제로 설계�
   - `internal/core` — 체인 호출(go-ethereum ethclient), EIP-712 서명(packages/protocol/go 생성 타입), secretRef로 참조하는 암호화 keystore, 감사 기록
   - `internal/ble` — BLE 셋업 클라이언트(tinygo-org/bluetooth). `session.open`(setup), `setup.operator`, `setup.ack`, `setup.timeAnchor`, `device.reset`, 거절 시연 요청을 결제 프로토콜 4절 틀로 보낸다
   - `internal/store` — PostgreSQL 저장소(가맹점, 대여, attestation, 감사)와 migration
-  - `cmd/opsctl` — CLI. 명령 묶음은 다음 사이클 API 자원과 같게 나눈다: `merchant`(register, revoke, payout-change, payout-cancel), `attestation issue`, `order sign`(시험 가맹점), `rental provision`, `rental re-anchor`, `rental return`, `withdraw`(request, cancel, execute), `refusal-host`, `merchant-key handover`
+  - `cmd/opsctl` — CLI. 명령 묶음은 다음 사이클 API 자원과 같게 나눈다: `merchant`(register, revoke, payout-change, payout-cancel), `attestation issue`, `order sign`(시험 가맹점), `rental provision`, `rental re-anchor`, `rental return`, `withdraw`(request, cancel, execute), `refusal host`, `merchant-key handover`
 - 실행 로그 템플릿과 redaction 규칙 문서
 
 설계만 하고 다음 사이클에 만드는 것:
@@ -38,7 +38,7 @@ P05는 백오피스 전체(HTTP API, React UI, PostgreSQL)를 전제로 설계�
 | WBS2-P05-01 | Go 운영 코어와 `opsctl`의 가맹점 등록·attestation·주문 서명(P06-01의 최소 registry 사용) | W6 | W7 실결제 게이트의 가맹점 준비 |
 | WBS2-P05-02 | `opsctl rental provision`: BLE 셋업(`setup.operator`, TimeAnchor)과 depositFor | W7 | W7 실결제 게이트의 대여 셋업 |
 | WBS2-P05-03 | `opsctl rental return`과 `withdraw`: closeAccount, 서명된 DeviceReset, 출금 요청·취소·실행. P06의 closeAccount 구현(WBS2-P06-04) 뒤에 한다 | W10 | - |
-| WBS2-P05-04 | `opsctl merchant revoke/payout-change`와 거절 시연 `refusal-host` | W9–W10 | - |
+| WBS2-P05-04 | `opsctl merchant revoke/payout-change`와 거절 시연 `refusal host` | W9–W10 | - |
 
 게이트는 W4 증거, W6 컨트랙트, W7 실결제이며(W9 SE 게이트는 2026-09-29에 없앴다) 일정과 정의는 [12주 WBS](../../planning/product-worklist-and-12week-wbs-02.md)를 따른다 [N03].
 

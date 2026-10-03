@@ -42,10 +42,16 @@ type Session struct {
 	sid        string
 	buttonWait time.Duration
 	// From session.open.ok.
-	State      string
-	Device     string // empty while UNPROVISIONED
-	LastAnchor uint64
+	State       string
+	Device      string // empty while UNPROVISIONED
+	LastAnchor  uint64
+	DeviceNonce string
 }
+
+var errNoReply = errors.New("no reply from the device in time")
+
+// IsNoReply reports whether err is the device not answering in time.
+func IsNoReply(err error) bool { return errors.Is(err, errNoReply) }
 
 // RefusedError is a setup step the device answered with accepted: false, or an error reply.
 type RefusedError struct {
@@ -84,6 +90,7 @@ func Open(ctx context.Context, t Transport, o Options) (*Session, error) {
 	s.State, _ = ok["state"].(string)
 	s.Device, _ = ok["device"].(string)
 	s.LastAnchor, _ = strconv.ParseUint(fmt.Sprint(ok["lastAnchor"]), 10, 64)
+	s.DeviceNonce, _ = ok["deviceNonce"].(string)
 	return s, nil
 }
 
@@ -115,7 +122,7 @@ func (s *Session) next(ctx context.Context, wait time.Duration) (protocol.Messag
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timer.C:
-			return nil, errors.New("no reply from the device in time")
+			return nil, errNoReply
 		case f, open := <-s.t.Notifications():
 			if !open {
 				return nil, errors.New("the link closed")
@@ -224,3 +231,41 @@ var _ SetupSession = (*Session)(nil)
 
 // DeviceAddress is the device address from session.open.ok (empty while UNPROVISIONED).
 func (s *Session) DeviceAddress() string { return s.Device }
+
+// Confirm sends session.confirm with the device's nonce; the device answers only a refusal.
+func (s *Session) Confirm(ctx context.Context) error {
+	m, err := s.Request(ctx, protocol.Message{"type": "session.confirm", "deviceNonce": s.DeviceNonce}, 300*time.Millisecond)
+	if err == nil {
+		return &RefusedError{"session.confirm", fmt.Sprint(m["reason"])}
+	}
+	if errors.Is(err, errNoReply) {
+		return nil // silence is acceptance
+	}
+	return err
+}
+
+// Request sends one message of this session and returns the next reply (errNoReply when none
+// arrives within wait).
+func (s *Session) Request(ctx context.Context, m protocol.Message, wait time.Duration) (protocol.Message, error) {
+	if err := s.send(m); err != nil {
+		return nil, err
+	}
+	return s.next(ctx, wait)
+}
+
+// SendRaw sends a body as it is, outside the schema (refusal tests), and returns the next reply.
+func (s *Session) SendRaw(ctx context.Context, body []byte, wait time.Duration) (protocol.Message, error) {
+	frags, err := s.w.Write(body)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range frags {
+		if err := s.t.Write(f); err != nil {
+			return nil, err
+		}
+	}
+	return s.next(ctx, wait)
+}
+
+// SessionID is the session id in its hex wire form.
+func (s *Session) SessionID() string { return s.sid }

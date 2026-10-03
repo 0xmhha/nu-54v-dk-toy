@@ -12,7 +12,7 @@
 //   node --experimental-strip-types scripts/gen-session-vectors.ts --check   fail if it is stale
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { bytesToHex, digest, encodeMessage, hexToBytes, signDigest, addressOfPrivateKey, type Message } from "@nu54/protocol";
+import { bytesToHex, decodeMessage, digest, encodeMessage, hexToBytes, ProtocolError, signDigest, addressOfPrivateKey, type Message } from "@nu54/protocol";
 import { SoftwareDevice } from "../src/device.ts";
 
 const OUT = new URL("../../../docs/content/specifications/protocol/session-vectors.json", import.meta.url);
@@ -40,7 +40,22 @@ const MERCHANT = addressOfPrivateKey(k("merchant"));
 
 type Step =
   | { at: number; send: Message }
+  | { at: number; raw: Uint8Array } // a body outside the schema, as a refusal test sends it
   | { at: number; powerCycle: true };
+
+/** Deterministic CBOR for a flat map of text keys to uint, text or bytes (RFC 8949 4.2.1). */
+function rawMap(fields: Record<string, number | string | Uint8Array>): Uint8Array {
+  const head = (major: number, n: number) => (n < 24 ? [(major << 5) | n] : n < 256 ? [(major << 5) | 24, n] : [(major << 5) | 25, n >> 8, n & 0xff]);
+  const item = (v: number | string | Uint8Array): number[] =>
+    typeof v === "number" ? head(0, v) : typeof v === "string" ? [...head(3, utf8(v).length), ...utf8(v)] : [...head(2, v.length), ...v];
+  const utf8 = (t: string) => [...new TextEncoder().encode(t)];
+  const entries = Object.entries(fields).map(([k, v]) => [item(k), item(v)] as const)
+    .sort((a, b) => a[0].length - b[0].length || Buffer.compare(Buffer.from(a[0]), Buffer.from(b[0])));
+  return Uint8Array.from([...head(5, entries.length), ...entries.flatMap(([k, v]) => [...k, ...v])]);
+}
+// Requests the device never signs (payment-protocol.md 2): a raw transaction and an ERC-2612 Permit.
+const rawTx = () => rawMap({ v: 1, type: "sign.transaction", sessionId: hexToBytes(SID), tx: hexToBytes("0x02f86f82205b0180808094" + "dd".repeat(20) + "8080c0") });
+const rawPermit = () => rawMap({ v: 1, type: "sign.permit", sessionId: hexToBytes(SID), spender: hexToBytes("0x" + "ee".repeat(20)), value: 1000000 });
 
 const open = (mode: "setup" | "payment"): Message => ({ v: 1, type: "session.open", sessionId: SID, mode, kioskNonce: "0x" + "a5".repeat(32) } as Message);
 const confirm = (deviceNonce: string): Message => ({ v: 1, type: "session.confirm", sessionId: SID, deviceNonce } as Message);
@@ -161,6 +176,10 @@ const SCENARIOS: Scenario[] = [
   { id: "SV-22", description: "limit change for another contract: NOT_PERMITTED; expiry beyond authorizationExpiry: ATTESTATION_EXPIRED",
     button: "approve", pin: "2580",
     steps: [...anchored(), ...paySession(1, T0, limitMsg({ contract: "0x" + "c1".repeat(20) }), limitMsg({ expiry: String(T0 + 121) }))] },
+  { id: "SV-23", description: "requests outside the schema (a raw transaction, a Permit) in a payment session: UNSUPPORTED_TYPE with the zero session id, and the session is closed",
+    button: "approve",
+    steps: [...anchored(), { at: T0, send: open("payment") }, { at: T0, send: confirm(deviceNonce(1)) }, { at: T0, raw: rawTx() },
+      { at: T0, send: identify() }, { at: T0, send: open("payment") }, { at: T0, send: confirm(deviceNonce(2)) }, { at: T0, raw: rawPermit() }] },
 ];
 
 function run() {
@@ -182,11 +201,30 @@ function run() {
         return { at: st.at, powerCycle: true };
       }
       const phoneBefore = device.phone.length;
-      const replies = device.handle(st.send);
+      let replies: Message[];
+      let body: Uint8Array;
+      let sendType: string;
+      if ("raw" in st) {
+        // What the device endpoint does with a body it cannot accept (link.ts): report and close.
+        body = st.raw;
+        try {
+          decodeMessage(body);
+          throw new Error("a raw step must be outside the schema");
+        } catch (e) {
+          if (!(e instanceof ProtocolError)) throw e;
+          replies = [{ v: 1, type: "error", sessionId: "0000000000000000", reason: e.reason } as Message];
+          device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
+          sendType = "(outside the schema)";
+        }
+      } else {
+        body = encodeMessage(st.send);
+        replies = device.handle(st.send);
+        sendType = st.send.type;
+      }
       return {
         at: st.at,
-        sendType: st.send.type,
-        send: bytesToHex(encodeMessage(st.send), false),
+        sendType,
+        send: bytesToHex(body, false),
         expect: replies.map((r) => bytesToHex(encodeMessage(r), false)),
         phone: device.phone.slice(phoneBefore).map((p) => bytesToHex(encodeMessage(p), false)),
       };

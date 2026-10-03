@@ -151,9 +151,10 @@ func TestSessionVectorBodiesRoundTrip(t *testing.T) {
 		Scenarios []struct {
 			ID    string `json:"id"`
 			Steps []struct {
-				Send   string   `json:"send"`
-				Expect []string `json:"expect"`
-				Phone  []string `json:"phone"`
+				SendType string   `json:"sendType"`
+				Send     string   `json:"send"`
+				Expect   []string `json:"expect"`
+				Phone    []string `json:"phone"`
 			} `json:"steps"`
 		} `json:"scenarios"`
 	}
@@ -162,7 +163,14 @@ func TestSessionVectorBodiesRoundTrip(t *testing.T) {
 	for _, sc := range doc.Scenarios {
 		for _, st := range sc.Steps {
 			bodies := append(append([]string{}, st.Expect...), st.Phone...)
-			if st.Send != "" {
+			if st.SendType == "(outside the schema)" {
+				// A refusal test's body: decoding it must refuse it as UNSUPPORTED_TYPE.
+				_, err := DecodeMessage(mustHex(t, st.Send))
+				var pe *ProtocolError
+				if !errors.As(err, &pe) || pe.Reason != ReasonUnsupportedType {
+					t.Errorf("%s: outside-schema body decoded as %v", sc.ID, err)
+				}
+			} else if st.Send != "" {
 				bodies = append(bodies, st.Send)
 			}
 			for _, h := range bodies {

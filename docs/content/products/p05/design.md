@@ -30,7 +30,7 @@ products/p05-operations-backoffice/
 | `order sign` | 시험 가맹점 주문 서명 | 개발용, API로 열지 않음 |
 | `rental provision`, `rental re-anchor`, `rental return` | 대여 셋업, 재-anchor, 반납 | `/rentals` |
 | `withdraw request`, `cancel`, `execute` | 출금 | `/rentals/{id}/withdrawals` |
-| `refusal-host` | 거절 시연 | 시연용, API로 열지 않음 |
+| `refusal host` | 거절 시연 | 시연용, API로 열지 않음 |
 | `merchant-key handover` | 시험 가맹점 키 전달 | `/merchants/{id}/kiosk-key` |
 
 ## 2. 가맹점 신뢰 체인
@@ -60,7 +60,7 @@ products/p05-operations-backoffice/
 
 - **대여** (`opsctl rental provision`): `session.open`(setup) → `setup.operator{operator, contract, chainId}`(대여자 버튼 확인) [N23] → 기기 TRNG 키 생성 → 버튼으로 PIN 설정 → 기기별 passkey 기록과 라벨 QR 인쇄 [N27] → `setup.ack{keygen, device}` → TimeAnchor 서명 → `setup.timeAnchor` → `setup.ack` 수락 → depositFor [N07] [N11].
 - **반납** (`opsctl rental return`): closeAccount → finalized 이벤트 확인 → 운영자가 서명한 DeviceReset `{device, nonce}`를 `device.reset`으로 전송. 순서를 바꾸지 않는다. 계정을 먼저 비활성화해 키가 없는 활성 계정이 남지 않게 한다.
-- **거절 시연** (`opsctl refusal-host`): 키오스크처럼 페어링 없이 결제 세션(`session.open`, `session.confirm`)을 열고 스키마에 없는 원시 트랜잭션·Permit 서명 요청을 보내 `error{UNSUPPORTED_TYPE}`을 기록한다 [N22]. 키오스크 빌드에는 넣지 않는다.
+- **거절 시연** (`opsctl refusal host`): 키오스크처럼 페어링 없이 결제 세션(`session.open`, `session.confirm`)을 열고 스키마에 없는 원시 트랜잭션·Permit 서명 요청을 보내 `error{UNSUPPORTED_TYPE}`을 기록한다 [N22]. 키오스크 빌드에는 넣지 않는다.
 
 ## 5. EIP-712 서명
 

@@ -389,6 +389,7 @@ PIN도 기기에서 입력할 수 없으므로 폰 앱에서 입력해 기기로
 - payout 변경 지연은 86400초이므로 테스트넷 시연은 10주차 초에 요청해 둔다.
 - 철회를 되돌릴 수 있는지 설계에 없다. 철회 시연용 가맹점을 따로 둔다.
 - 거절 시연 도구가 보낼 "스키마 밖" 요청 형식을 펌웨어 담당과 합의한다. 합의 없이 보내면 CBOR 디코드 실패로 BAD_FRAME이 날 수 있다.
+- 2026-10-03 완료: `opsctl merchant revoke / payout-change / payout-cancel`, `opsctl refusal host`. 스키마 밖 요청은 올바른 CBOR map에 스키마에 없는 type(`sign.transaction`, `sign.permit`)으로 정했고 공용 세션 벡터 SV-23으로 두 기기 구현을 시험한다. testnet에서 가맹점 명령 전부와 MERCHANT_REVOKED 시뮬레이션 거절을 확인했다.
 
 **반납** (WBS2-P05-03, 10주차, 1.5일)
 - closeAccount → finalized AccountClosed 확인 → DeviceReset 서명 → `device.reset`. closeAccount가 실패하면 reset을 보내지 않는다.
@@ -459,7 +460,7 @@ WBS와 결정 register에서 바꿀 것:
 | WBS CSV 선행 관계 | 운영 도구 셋업에 펌웨어 GATT·셋업 명령이, 키오스크 제출에 운영 도구 셋업·펌웨어 서명이 선행으로 빠져 있다. 그래서 WBS 검사기가 실제 경로를 보지 못한다 | [중요] |
 | 운영 도구 설계 6절 | `evidence/p05/`가 git에서 무시된다고 적었지만 `.gitignore`에 없다 | [중요] |
 | 컨트랙트 구조체 | Solidity 필드 이름은 `contractAddress`, 스키마는 `contract`다. 해시는 같지만 ABI에서 바인딩을 만들 때 이름이 어긋난다. 10/7 ABI 고정 전에 정한다 | [권장] |
-| opsctl 명령 이름 | 설계는 `refusal-host`, `merchant-key handover`, 코드는 `refusal host`, `key handover`다 | [권장] |
+| opsctl 명령 이름 | 설계는 `refusal host`, `merchant-key handover`, 코드는 `refusal host`, `key handover`다 | [권장] |
 | 운영 도구 migration | 설계는 `audit_events`와 `withdrawals`, 코드는 `audit_log`만 있다 | [권장] |
 | indexer `test/README.md` | indexer 작업을 "가맹점 등록과 attestation 발급"으로 잘못 적었다 | [권장] |
 | 제품 README 하단 | 펌웨어, 키오스크, 컨트랙트 README 하단에 이전 동결 범위(패스키, 오디오, 환불, DID 등)가 남아 있다 | [권장] |

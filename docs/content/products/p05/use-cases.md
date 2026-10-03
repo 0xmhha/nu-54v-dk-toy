@@ -58,5 +58,5 @@
 
 ## 8. UC-P05-08 거절 시연 준비
 
-- **기본 흐름**: 1) 시연 시각보다 attestationValidity와 anchorClockSkew를 더한 시간 이상 먼저 attestation을 발급해 둔다(소급 발급 없음). 2) 시연 때 `opsctl refusal-host`가 페어링 없이 결제 세션을 열고 스키마 밖 요청을 보낸다 [N22].
+- **기본 흐름**: 1) 시연 시각보다 attestationValidity와 anchorClockSkew를 더한 시간 이상 먼저 attestation을 발급해 둔다(소급 발급 없음). 2) 시연 때 `opsctl refusal host`가 페어링 없이 결제 세션을 열고 스키마 밖 요청을 보낸다 [N22].
 - **요구**: P05-FR-11, P05-FR-12

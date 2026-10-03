@@ -57,6 +57,19 @@ $O rental provision --withdraw <대여자 출금 주소> --amount 10000000 [--pa
 $O rental re-anchor
 ```
 
+### 가맹점 관리와 거절 시연 (`merchant ...`, `refusal host`)
+
+```bash
+$O merchant revoke --merchant <주소>                          # 즉시 철회: 그 가맹점의 결제는 MERCHANT_REVOKED
+$O merchant payout-change --merchant <주소> --payout <새 주소>   # payoutChangeDelay(86400초) 뒤 효력
+$O merchant payout-cancel --merchant <주소>                   # 효력 전 취소(가맹점도 자기 키로 거부할 수 있다)
+$O refusal host --kind all --merchant <키오스크 가맹점> --payout <그 payout>
+```
+
+- 세 가맹점 명령은 registry admin 키를 쓰고, 같은 상태면 트랜잭션을 보내지 않는다. 결과에 활성 여부, payout, 대기 중인 변경과 효력 시각을 남긴다.
+- 철회는 되돌릴 수 없으므로 MERCHANT_REVOKED 시연에는 따로 만든 시연용 가맹점을 쓴다. 2026-10-03 testnet: 시연용 가맹점을 등록하고 attestation을 발급한 뒤 철회했다. 소프트웨어 기기는 결제에 서명했고(기기는 철회를 모른다), 정산 시뮬레이션은 `MerchantRevoked`(`0x6ceb7c4f`)로 거절되었다.
+- `refusal host`는 키오스크처럼 페어링 없이 결제 세션을 열고, 기기가 거절해야 하는 요청을 보낸다. 스키마 밖의 원시 트랜잭션·Permit 서명 요청은 `UNSUPPORTED_TYPE`이고, 운영자가 서명하지 않은 attestation과 attestation과 다른 payout의 주문은 `MERCHANT_FORGED`다. 키오스크 배포 빌드에는 이런 요청을 넣지 않는다. 보내는 바이트는 공용 세션 벡터 SV-23, SV-03, SV-05와 같음을 Go 시험으로 확인한다.
+
 ### 반납 (`rental return`)
 
 계정을 닫고(`closeAccount`, 즉시 결제 정지, 잔액은 출금 지연 뒤 withdraw 주소로), AccountClosed가 finalized 된 뒤에만 운영자가 서명한 `device.reset`으로 기기를 지운다. 순서는 바뀌지 않는다(P05-FR-07). reset은 결제 세션으로 보낸다(READY 기기는 셋업 세션을 거절한다). nonce는 AccountClosed 블록 번호라 다시 실행해도 같은 명령이다. 연결된 기기의 주소가 `--device`와 다르면 보내지 않는다. 기기가 근처에 없으면 계정만 닫고 `resetPending`을 남기므로, 기기를 가져와 같은 명령을 다시 실행한다(닫기는 건너뛴다).

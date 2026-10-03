@@ -19,6 +19,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/ble"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/core"
@@ -28,14 +29,14 @@ import (
 // commands lists the groups and the WBS task that implements them; "done" marks the
 // commands that run now.
 var commands = map[string]string{
-	"merchant":    "register (done) | revoke | payout-change | payout-cancel   (WBS2-P05-01, P05-04)",
+	"merchant":    "register (done) | revoke (done) | payout-change (done) | payout-cancel (done)   (WBS2-P05-01, P05-04)",
 	"attestation": "issue (done)                                              (WBS2-P05-01)",
 	"anchor":      "sign (done)   (TimeAnchor for the development setup)     (WBS2-P05-02)",
 	"order":       "sign (done)   (test merchant)                             (WBS2-P05-01)",
 	"rental":      "deposit (done) | provision (done) | re-anchor (done) | return (done)   (WBS2-P05-02, P05-03)",
 	"token":       "mint (done)   (test token, token-owner key)                (development setup)",
 	"withdraw":    "request | cancel | execute                                (WBS2-P05-03)",
-	"refusal":     "host   (UNSUPPORTED_TYPE demo)                            (WBS2-P05-04)",
+	"refusal":     "host (done)   (UNSUPPORTED_TYPE and MERCHANT_FORGED demos)   (WBS2-P05-04)",
 	"key":         "handover   (test merchant key to kiosk secretRef)         (WBS2-P05-01)",
 }
 
@@ -57,15 +58,19 @@ func main() {
 		os.Exit(2)
 	}
 	run := map[string]func([]string) error{
-		"merchant register": merchantRegister,
-		"attestation issue": attestationIssue,
-		"anchor sign":       anchorSign,
-		"order sign":        orderSign,
-		"rental deposit":    rentalDeposit,
-		"rental provision":  rentalProvision,
-		"rental re-anchor":  rentalReanchor,
-		"rental return":     rentalReturn,
-		"token mint":        tokenMint,
+		"merchant register":      merchantRegister,
+		"merchant revoke":        merchantRevoke,
+		"merchant payout-change": merchantPayoutChange,
+		"merchant payout-cancel": merchantPayoutCancel,
+		"attestation issue":      attestationIssue,
+		"anchor sign":            anchorSign,
+		"order sign":             orderSign,
+		"rental deposit":         rentalDeposit,
+		"rental provision":       rentalProvision,
+		"rental re-anchor":       rentalReanchor,
+		"rental return":          rentalReturn,
+		"refusal host":           refusalHost,
+		"token mint":             tokenMint,
 	}[os.Args[1]+" "+os.Args[2]]
 	if run == nil {
 		fmt.Fprintf(os.Stderr, "opsctl %s %s: not implemented yet (%s)\n", os.Args[1], os.Args[2], strings.TrimSpace(commands[os.Args[1]]))
@@ -217,6 +222,88 @@ func merchantRegister(args []string) error {
 		result["tx"] = tx
 	}
 	return emit(e, "merchant-register", result)
+}
+
+// merchantCommand runs one registry-admin call for a merchant and reports its state after.
+func merchantCommand(name string, args []string, extra func(fs *flag.FlagSet) *string,
+	call func(ctx context.Context, chain *core.Chain, admin *ecdsa.PrivateKey, merchant common.Address, value string) (common.Hash, error)) error {
+	fs := flag.NewFlagSet("merchant "+name, flag.ExitOnError)
+	e := commonFlags(fs)
+	merchant := fs.String("merchant", "", "merchant signing address")
+	var value *string
+	if extra != nil {
+		value = extra(fs)
+	}
+	_ = fs.Parse(args)
+	if err := e.load(); err != nil {
+		return err
+	}
+	m, err := address(*merchant, "merchant")
+	if err != nil {
+		return err
+	}
+	admin, err := e.roleKey("registry-admin")
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	chain, err := e.dial(ctx)
+	if err != nil {
+		return err
+	}
+	v := ""
+	if value != nil {
+		v = *value
+	}
+	tx, err := call(ctx, chain, admin, m, v)
+	if err != nil {
+		return err
+	}
+	active, payout, err := chain.MerchantStatus(m)
+	if err != nil {
+		return err
+	}
+	pending, effectiveAt, err := chain.PendingPayoutOf(m)
+	if err != nil {
+		return err
+	}
+	result := map[string]any{"merchant": m, "active": active, "payout": payout, "tx": nil}
+	if tx != (common.Hash{}) {
+		result["tx"] = tx
+	}
+	if effectiveAt != 0 {
+		result["pendingPayout"], result["effectiveAt"] = pending, effectiveAt
+	}
+	return emit(e, "merchant-"+name, result)
+}
+
+// merchantRevoke stops a merchant at once; its orders settle no more (MERCHANT_REVOKED). The
+// design has no way back, so the refusal demonstration uses a merchant of its own.
+func merchantRevoke(args []string) error {
+	return merchantCommand("revoke", args, nil, func(ctx context.Context, c *core.Chain, admin *ecdsa.PrivateKey, m common.Address, _ string) (common.Hash, error) {
+		return c.RevokeMerchant(ctx, admin, m)
+	})
+}
+
+// merchantPayoutChange queues a payout change; it takes effect after payoutChangeDelay (86400 s
+// on the testnet) unless the merchant or the admin cancels it first.
+func merchantPayoutChange(args []string) error {
+	payout := func(fs *flag.FlagSet) *string { return fs.String("payout", "", "new payout address") }
+	return merchantCommand("payout-change", args, payout, func(ctx context.Context, c *core.Chain, admin *ecdsa.PrivateKey, m common.Address, v string) (common.Hash, error) {
+		p, err := address(v, "payout")
+		if err != nil {
+			return common.Hash{}, err
+		}
+		return c.RequestPayoutChange(ctx, admin, m, p)
+	})
+}
+
+// merchantPayoutCancel drops a queued payout change with the registry admin key. The merchant
+// can do the same with its own key (cancelPayoutChange), which is its veto.
+func merchantPayoutCancel(args []string) error {
+	return merchantCommand("payout-cancel", args, nil, func(ctx context.Context, c *core.Chain, admin *ecdsa.PrivateKey, m common.Address, _ string) (common.Hash, error) {
+		return c.CancelPayoutChange(ctx, admin, m)
+	})
 }
 
 func attestationIssue(args []string) error {
@@ -557,6 +644,85 @@ func rentalReanchor(args []string) error {
 		return err
 	}
 	return emit(e, "rental-re-anchor", map[string]any{"device": device, "anchor": ts, "lastAnchor": last})
+}
+
+// refusalHost connects to the device like a kiosk (no pairing) and sends what it must refuse:
+// signing requests outside the schema (UNSUPPORTED_TYPE) and a forged merchant (MERCHANT_FORGED).
+// The kiosk's release build never carries these requests (W12-05, P05 design 4).
+func refusalHost(args []string) error {
+	fs := flag.NewFlagSet("refusal host", flag.ExitOnError)
+	e := commonFlags(fs)
+	kind := fs.String("kind", "all", "unsupported, forged, or all")
+	merchant := fs.String("merchant", "", "the kiosk's registered merchant (forged: its genuine attestation is used)")
+	payout := fs.String("payout", "", "that merchant's registry payout")
+	name := fs.String("name", "NU54 Test Cafe", "merchant name in the genuine attestation")
+	scan := fs.Duration("scan", 10*time.Second, "how long to scan for the device")
+	_ = fs.Parse(args)
+	if err := e.load(); err != nil {
+		return err
+	}
+	ctx := context.Background()
+	open := func(ctx context.Context) (ops.RefusalSession, error) {
+		s, _, err := openSession(ctx, *scan, "payment")
+		return s, err
+	}
+	var cases []ops.RefusalCase
+	if *kind == "unsupported" || *kind == "all" {
+		got, err := ops.RefuseUnsupported(ctx, open)
+		cases = append(cases, got...)
+		if err != nil {
+			return err
+		}
+	}
+	if *kind == "forged" || *kind == "all" {
+		m, err := address(*merchant, "merchant")
+		if err != nil {
+			return err
+		}
+		p, err := address(*payout, "payout")
+		if err != nil {
+			return err
+		}
+		operator, err := e.roleKey("operator")
+		if err != nil {
+			return err
+		}
+		chain, err := e.dial(ctx)
+		if err != nil {
+			return err
+		}
+		now, err := chain.FinalizedTime(ctx)
+		if err != nil {
+			return err
+		}
+		genuine, err := ops.IssueAttestation(chain, e.dep.Domain(), operator, m, p, *name, now, 86400)
+		if err != nil {
+			return err
+		}
+		forger, err := crypto.GenerateKey() // signs in place of the operator and the merchant
+		if err != nil {
+			return err
+		}
+		var order common.Hash
+		if _, err := rand.Read(order[:]); err != nil {
+			return err
+		}
+		got, err := ops.RefuseForged(ctx, open, ops.ForgedInputs{Domain: e.dep.Domain(), Genuine: genuine, Forger: forger,
+			OrderID: order, Token: e.dep.Token, Amount: big.NewInt(1), Expiry: now + 60, ForgedPayout: crypto.PubkeyToAddress(forger.PublicKey)})
+		cases = append(cases, got...)
+		if err != nil {
+			return err
+		}
+	}
+	if err := emit(e, "refusal-host", cases); err != nil {
+		return err
+	}
+	for _, c := range cases {
+		if !c.Pass {
+			return fmt.Errorf("%s: expected %s, got %s", c.Case, c.Expected, c.Got)
+		}
+	}
+	return nil
 }
 
 func tokenMint(args []string) error {

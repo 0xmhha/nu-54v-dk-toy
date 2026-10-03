@@ -244,3 +244,61 @@ func (c *Chain) AccountClosedBlock(ctx context.Context, device common.Address) (
 	}
 	return 0, common.Hash{}, false, it.Error()
 }
+
+// RevokeMerchant stops a merchant at once with the registry admin key (P05-FR-03). Settlement
+// refuses its orders as MerchantRevoked. Returns the zero hash when it was already inactive.
+func (c *Chain) RevokeMerchant(ctx context.Context, admin *ecdsa.PrivateKey, merchant common.Address) (common.Hash, error) {
+	active, _, err := c.MerchantStatus(merchant)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if !active {
+		return common.Hash{}, nil
+	}
+	reg, err := registry.NewRegistry(c.dep.Registry, c.client)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	opts, err := c.Transactor(ctx, admin)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	tx, err := reg.RevokeMerchant(opts, merchant)
+	return c.send(ctx, "revokeMerchant", tx, err)
+}
+
+// RequestPayoutChange queues a new payout that takes effect after payoutChangeDelay; the
+// merchant can refuse it until then. Returns the zero hash when the same change is already queued.
+func (c *Chain) RequestPayoutChange(ctx context.Context, admin *ecdsa.PrivateKey, merchant, payout common.Address) (common.Hash, error) {
+	pending, effectiveAt, err := c.PendingPayoutOf(merchant)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if pending == payout && effectiveAt != 0 {
+		return common.Hash{}, nil
+	}
+	opts, err := c.Transactor(ctx, admin)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	tx, err := c.reg.RequestPayoutChange(opts, merchant, payout)
+	return c.send(ctx, "requestPayoutChange", tx, err)
+}
+
+// CancelPayoutChange drops a queued payout change with the admin or the merchant key. Returns
+// the zero hash when nothing is pending.
+func (c *Chain) CancelPayoutChange(ctx context.Context, key *ecdsa.PrivateKey, merchant common.Address) (common.Hash, error) {
+	_, effectiveAt, err := c.PendingPayoutOf(merchant)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if effectiveAt == 0 {
+		return common.Hash{}, nil
+	}
+	opts, err := c.Transactor(ctx, key)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	tx, err := c.reg.CancelPayoutChange(opts, merchant)
+	return c.send(ctx, "cancelPayoutChange", tx, err)
+}
