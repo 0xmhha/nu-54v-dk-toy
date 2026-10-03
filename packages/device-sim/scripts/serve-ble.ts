@@ -74,6 +74,7 @@ const device = new SoftwareDevice({
   chainId: dep.chainId,
   // Sequential nonces from a fresh 256-block per start, so runs never reuse a nonce.
   nonceStart: BigInt(Math.floor(Date.now() / 1000)) << 8n,
+  paymentMode: (on, seconds) => console.error(`phone: payment mode ${on ? `on for ${seconds} s` : "off"}`),
   approve: (show: Message) => {
     console.error(`\nphone: pay ${shown(String(show.amount))} to "${show.merchantName}" (payout ${show.payout})`);
     if (a.approve !== "ask") {
@@ -92,18 +93,20 @@ const periph = spawn(peripheralBinary(), [a.name!, GATT.service, GATT.rx, GATT.t
 const send = (central: string, fragment: Uint8Array) =>
   periph.stdin.write(JSON.stringify({ tx: bytesToHex(fragment, false), central }) + "\n");
 
-// Each subscribed central has its own link (reassembler and sequence numbers). A central that
-// writes is a session peer (the kiosk); one that only listens is taken as the renter's phone app
-// and gets confirm.show and the forwarded payment.outcome. The board tells them apart by bonding;
-// macOS gives a peripheral no bonding state, so this simulator goes by behaviour.
-type Link = { endpoint: DeviceEndpoint; phone: FrameWriter; wrote: boolean };
+// Each subscribed central has its own link (reassembler and sequence numbers). The central that
+// opened the device's session is its peer (the kiosk or operator tool); every other subscribed
+// central is taken as the renter's phone app, gets confirm.show and the forwarded
+// payment.outcome, and may send device.paymentMode. The board tells them apart by bonding; macOS
+// gives a peripheral no bonding state, so this simulator goes by who holds the session.
+type Link = { endpoint: DeviceEndpoint; phone: FrameWriter };
 const links = new Map<string, Link>();
+let sessionCentral: string | null = null;
 device.onPhone = (m) => {
   const body = encodeMessage(m);
   for (const [id, link] of links) {
-    if (!link.wrote) link.phone.write(body).forEach((f) => send(id, f));
+    if (id !== sessionCentral) link.phone.write(body).forEach((f) => send(id, f));
   }
-  console.error(`phone: ${m.type} sent to ${[...links.values()].filter((l) => !l.wrote).length} listening central(s)`);
+  console.error(`phone: ${m.type} sent to ${[...links.keys()].filter((id) => id !== sessionCentral).length} listening central(s)`);
 };
 createInterface({ input: periph.stdout }).on("line", async (line) => {
   const ev = JSON.parse(line);
@@ -111,12 +114,14 @@ createInterface({ input: periph.stdout }).on("line", async (line) => {
     console.error(`ble: advertising as "${ev.name}"; connect from the kiosk app`);
   } else if (ev.event === "connected") {
     // A new link starts a new reassembler and sequence; the device keeps its anchor and nonces.
-    links.set(ev.central, { endpoint: new DeviceEndpoint(device, ev.mtu), phone: new FrameWriter(ev.mtu), wrote: false });
+    const id = ev.central;
+    links.set(id, { endpoint: new DeviceEndpoint(device, ev.mtu, () => device.sessionId !== null && sessionCentral !== id), phone: new FrameWriter(ev.mtu) });
     console.error(`ble: central ${ev.central} connected, ATT MTU ${ev.mtu}`);
   } else if (ev.event === "disconnected") {
     const link = links.get(ev.central);
     links.delete(ev.central);
-    if (link?.wrote) {
+    if (link && ev.central === sessionCentral) {
+      sessionCentral = null;
       // The session peer left: a pending press ends without a signature.
       if (waiting) waiting(false);
       waiting = null;
@@ -126,10 +131,13 @@ createInterface({ input: periph.stdout }).on("line", async (line) => {
   } else if (ev.rx !== undefined) {
     const link = links.get(ev.central);
     if (!link) return;
-    link.wrote = true;
     // receiveAsync reassembles synchronously, so fragment order holds while a press is pending.
     const early = (fs: Uint8Array[]) => fs.forEach((f) => send(ev.central, f));
-    for (const f of await link.endpoint.receiveAsync(hexToBytes(ev.rx), early)) {
+    const before = device.sessionId;
+    const replies = link.endpoint.receiveAsync(hexToBytes(ev.rx), early);
+    // A session.open from this central (handled synchronously) makes it the session's peer.
+    if (device.sessionId !== null && device.sessionId !== before) sessionCentral = ev.central;
+    for (const f of await replies) {
       if (links.get(ev.central) === link) send(ev.central, f);
     }
   } else if (ev.error) {

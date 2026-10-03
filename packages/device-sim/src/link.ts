@@ -10,15 +10,18 @@ export class DeviceEndpoint {
   private readonly rx = new Reassembler();
   private readonly tx: FrameWriter;
   readonly device: SoftwareDevice;
-  constructor(device: SoftwareDevice, attMtu: number) {
+  private readonly foreign: () => boolean;
+  /** `foreign`: this central does not hold the device's open session (see BodyOptions). */
+  constructor(device: SoftwareDevice, attMtu: number, foreign: () => boolean = () => false) {
     this.device = device;
     this.tx = new FrameWriter(attMtu);
+    this.foreign = foreign;
   }
 
   receive(fragment: Uint8Array): Uint8Array[] {
     const body = this.reassemble(fragment);
     if (body === null) return [];
-    return this.frame(Array.isArray(body) ? body : this.device.handleBody(body));
+    return this.frame(Array.isArray(body) ? body : this.device.handleBody(body, { foreign: this.foreign() }));
   }
 
   /**
@@ -29,7 +32,7 @@ export class DeviceEndpoint {
     const body = this.reassemble(fragment);
     if (body === null) return [];
     if (Array.isArray(body)) return this.frame(body);
-    return this.frame(await this.device.handleBodyAsync(body, emit && ((early) => emit(this.frame([early])))));
+    return this.frame(await this.device.handleBodyAsync(body, emit && ((early) => emit(this.frame([early]))), { foreign: this.foreign() }));
   }
 
   /** A complete body, null while fragments are missing, or the replies to a bad frame. */
@@ -41,7 +44,7 @@ export class DeviceEndpoint {
       if (!(e instanceof ProtocolError)) throw e;
       // An empty body is not a message: the device answers error{BAD_FRAME} and closes the
       // session, under the session's channel when it has one (4, 4.1).
-      return this.device.handleBody(new Uint8Array(0));
+      return this.device.handleBody(new Uint8Array(0), { foreign: this.foreign() });
     }
   }
 

@@ -67,6 +67,9 @@ typedef struct {
 	int (*hkdf)(void *ctx, const uint8_t ikm[32], const uint8_t salt[64], const char *info, uint8_t key[16]);
 	int (*aead_seal)(void *ctx, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out);
 	int (*aead_open)(void *ctx, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out);
+	/* Payment mode from the phone app (device.paymentMode): payment advertising on for `seconds`,
+	 * or off. Returns 0 on success; NULL refuses (NOT_PERMITTED). */
+	int (*payment_mode)(void *ctx, int on, uint32_t seconds);
 } nu54_platform_t;
 
 enum { NU54_PIN_OK = 0, NU54_PIN_WRONG = 1, NU54_PIN_LOCKED = 2 };
@@ -130,6 +133,10 @@ typedef struct {
 	int link_bonded;
 	int require_phone;
 	int phone_present;
+	/* The message comes from a link other than the one holding the open session (the phone app's
+	 * device.paymentMode during a kiosk session): it neither opens nor is sealed by the
+	 * session's channel. */
+	int foreign_link;
 
 	/* Secure channel of the open session (4.1); dropped with the session. */
 	int require_secure; /* release build: plaintext payment sessions are refused */

@@ -1,14 +1,14 @@
 /**
- * Renter phone app (P02 design 3): bond with the device from its label, then show what the
- * device is about to sign. There is no approve button: the renter approves on the device
- * (P02-FR-05), and enters the PIN on the device buttons (P02-FR-06).
+ * Renter phone app (P02 design 3): bond with the device from its label, turn payment mode on
+ * (P02-FR-08), then show what the device is about to sign. There is no approve button: the
+ * renter approves on the device (P02-FR-05), and enters the PIN on the device buttons (P02-FR-06).
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { PermissionsAndroid, Platform, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { fromBase64, GATT } from '@nu54/protocol';
-import { ConfirmLink, type Screen } from './link/confirmLink.ts';
+import { fromBase64, GATT, toBase64 } from '@nu54/protocol';
+import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
 import { parseLabel, type BondTarget } from './qr.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
 
@@ -32,7 +32,17 @@ function Renter() {
   const [label, setLabel] = useState('');
   const [link, setLink] = useState<Link>({ state: 'none' });
   const [screen, setScreen] = useState<Screen>({ kind: 'waiting' });
+  const [mode, setMode] = useState<PaymentMode | null>(null);
   const confirm = useRef<ConfirmLink | null>(null);
+
+  const togglePaymentMode = async () => {
+    const on = !(mode?.accepted && mode.on);
+    try {
+      await confirm.current?.setPaymentMode(on);
+    } catch (e) {
+      setMode({ on, accepted: false, reason: String(e instanceof Error ? e.message : e) });
+    }
+  };
 
   useEffect(() => () => confirm.current?.close(), []);
 
@@ -52,16 +62,22 @@ function Renter() {
       setLink({ state: 'bonding', target });
       if (!(await RenterBle.bond(target.address, target.passkey))) throw new Error('본딩하지 못했습니다. 기기를 페어링 모드로 두고 다시 시도하세요.');
       setLink({ state: 'connecting', target });
-      await RenterBle.connect(target.address, GATT.service, GATT.rx, GATT.tx);
+      const mtu = await RenterBle.connect(target.address, GATT.service, GATT.rx, GATT.tx);
       let bonded = true;
       RenterBle.onBondLost(() => {
         bonded = false;
       });
       confirm.current?.close();
       confirm.current = new ConfirmLink(
-        { bonded: () => bonded, onFragment: h => { const s = RenterBle.onFragment(b64 => h(fromBase64(b64))); return () => s.remove(); } },
+        {
+          bonded: () => bonded,
+          onFragment: h => { const s = RenterBle.onFragment(b64 => h(fromBase64(b64))); return () => s.remove(); },
+          write: f => RenterBle.writeFragment(toBase64(f)),
+          mtu,
+        },
         setScreen,
       );
+      confirm.current.onPaymentMode = setMode;
       setLink({ state: 'connected', target });
     } catch (e) {
       setLink({ state: 'error', message: String(e instanceof Error ? e.message : e) });
@@ -88,6 +104,12 @@ function Renter() {
           <Text style={styles.title}>결제 대기</Text>
           <Text style={styles.body}>키오스크에서 결제를 시작하면 기기가 보낸 결제 내용이 여기에 나옵니다.</Text>
           <Text style={styles.hint}>PIN이 필요할 때는 기기 버튼으로 입력하세요. LED가 자릿수와 누를 버튼을 안내합니다.</Text>
+          <Button
+            label={mode?.accepted && mode.on ? '결제 모드 끄기' : `결제 모드 켜기 (${PAYMENT_MODE_SECONDS / 60}분)`}
+            onPress={togglePaymentMode}
+          />
+          {mode?.accepted && mode.on && <Text style={styles.body}>결제 모드: 키오스크가 기기를 찾을 수 있습니다</Text>}
+          {mode && !mode.accepted && <Text style={styles.error}>결제 모드를 바꾸지 못했습니다{mode.reason ? ` (${mode.reason})` : ''}</Text>}
         </>
       )}
       {screen.kind === 'confirming' && (

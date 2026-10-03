@@ -32,15 +32,14 @@ static nu54_device_t device;
 
 /*
  * One connected central (payment-protocol.md 3). The kiosk writes without pairing; the phone app
- * and the operator tool are bonded. A bonded central that subscribed and never wrote is taken as
- * the renter's phone app and gets confirm.show, confirm.limit and the forwarded payment.outcome;
- * a central that writes is a session peer.
+ * and the operator tool are bonded. A bonded, subscribed central that does not hold the session
+ * is taken as the renter's phone app and gets confirm.show, confirm.limit and the forwarded
+ * payment.outcome. The phone app writes only device.paymentMode, which opens no session.
  */
 typedef struct {
 	struct bt_conn *conn;
 	nu54_reassembler_t rx;
 	uint8_t tx_sequence;
-	bool wrote;
 } link_t;
 
 static link_t links[LINK_MAX];
@@ -88,7 +87,7 @@ static bool listening(int i);
 
 static bool is_phone(int i, int except)
 {
-	return i != except && links[i].conn && !links[i].wrote && listening(i) && link_bonded(i);
+	return i != except && i != session_link && links[i].conn && listening(i) && link_bonded(i);
 }
 
 static bool phone_present(int except)
@@ -138,7 +137,6 @@ static ssize_t rx_write(struct bt_conn *conn, const struct bt_gatt_attr *attr, c
 	if (i < 0 || offset != 0 || len > FRAGMENT_MAX) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
 	}
-	links[i].wrote = true;
 	f.link = (uint8_t)i;
 	f.len = len;
 	memcpy(f.data, buf, len);
@@ -399,11 +397,11 @@ static void show_outcome(const uint8_t *body, size_t len)
 	LOG_INF("payment outcome: %.*s", (int)m.items[o].len, m.items[o].ptr);
 }
 
-/* Replies to the session's central; the phone body to every phone app link. */
-static void deliver(const nu54_out_t *out)
+/* Replies to the central they answer; the phone body to every phone app link. */
+static void deliver(const nu54_out_t *out, int reply_link)
 {
 	for (int i = 0; i < out->kiosk_count; i++) {
-		send_body(session_link, out->kiosk[i], out->kiosk_len[i]);
+		send_body(reply_link, out->kiosk[i], out->kiosk_len[i]);
 	}
 	if (out->phone_count) {
 		int sent = 0;
@@ -427,6 +425,23 @@ static void set_links(int i)
 {
 	device.link_bonded = link_bonded(i);
 	device.phone_present = phone_present(i);
+	device.foreign_link = device.session_open && session_link >= 0 && i != session_link;
+}
+
+/* Handles one body from link i; a session.open there makes it the session's link. */
+static void handle_from(int i, const uint8_t *body, size_t len, nu54_out_t *out)
+{
+	uint8_t sid[8];
+	int was_open = device.session_open;
+
+	memcpy(sid, device.session_id, 8);
+	set_links(i);
+	nu54_session_handle(&device, body, len, k_uptime_get() / 1000, out);
+	if (device.session_open && (!was_open || memcmp(sid, device.session_id, 8) != 0)) {
+		session_link = i;
+	}
+	device.foreign_link = 0;
+	deliver(out, i);
 }
 
 /* ---------------------------------------------------------------- work */
@@ -447,8 +462,6 @@ static void rx_work_handler(struct k_work *w)
 		if (r == NU54_FRAME_NEED_MORE) {
 			continue;
 		}
-		session_link = f.link;
-		set_links(f.link);
 		if (r == NU54_FRAME_BAD) {
 			LOG_WRN("BAD_FRAME: fragment order or length (%u bytes, seq %u idx %u)", f.len, f.data[0], f.data[1]);
 		}
@@ -458,17 +471,15 @@ static void rx_work_handler(struct k_work *w)
 			    memcmp(digest, nu54_reassembler_digest(&l->rx), 8) != 0) {
 				LOG_WRN("BAD_FRAME: envelope digest mismatch (%u-byte body)", (unsigned)blen);
 			} else {
-				nu54_session_handle(&device, body, blen, k_uptime_get() / 1000, &out);
+				handle_from(f.link, body, blen, &out);
 				LOG_INF("message on link %d: %u-byte body, %d replies", f.link, (unsigned)blen, out.kiosk_count);
-				deliver(&out);
 				continue;
 			}
 		}
 		/* Order, length or digest violation: an empty body is not a valid message, so the
 		 * session answers error{BAD_FRAME} and closes, as for any malformed message. */
 		nu54_reassembler_reset(&l->rx);
-		nu54_session_handle(&device, NULL, 0, k_uptime_get() / 1000, &out);
-		deliver(&out);
+		handle_from(f.link, NULL, 0, &out);
 	}
 }
 
@@ -491,7 +502,7 @@ static void button_work_handler(struct k_work *w)
 	memset(&out, 0, sizeof(out));
 	set_links(session_link);
 	nu54_session_button(&device, button_choice, &out);
-	deliver(&out);
+	deliver(&out, session_link);
 }
 static K_WORK_DEFINE(button_work, button_work_handler);
 
@@ -520,7 +531,7 @@ static void pin_work_handler(struct k_work *w)
 	nu54_session_pin(&device, pin_given ? pin_entry : NULL, pin_entry_len, &out);
 	memset(pin_entry, 0, sizeof(pin_entry));
 	pin_entry_len = 0;
-	deliver(&out);
+	deliver(&out, session_link);
 }
 static K_WORK_DEFINE(pin_work, pin_work_handler);
 
@@ -584,6 +595,18 @@ int pay_link_pairing_mode(uint32_t seconds)
 	return 0;
 }
 
+/* device.paymentMode from the phone app (payment-protocol.md 3, P02-FR-08); on the work queue. */
+static int platform_payment_mode(void *ctx, int on, uint32_t seconds)
+{
+	(void)ctx;
+	if (on) {
+		return pay_link_payment_mode(seconds);
+	}
+	k_work_cancel_delayable(&mode_timer);
+	mode_end(NULL);
+	return 0;
+}
+
 /* ---------------------------------------------------------------- init */
 
 int pay_link_init(void)
@@ -598,6 +621,7 @@ int pay_link_init(void)
 	if (err) {
 		return err;
 	}
+	device.platform.payment_mode = platform_payment_mode;
 	k_work_queue_start(&work_q, work_stack, K_THREAD_STACK_SIZEOF(work_stack), K_PRIO_PREEMPT(7), NULL);
 	err = bt_enable(NULL);
 	if (!err) {
