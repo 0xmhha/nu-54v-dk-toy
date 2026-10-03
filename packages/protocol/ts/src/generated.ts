@@ -52,6 +52,12 @@ export interface DeviceReset {
   nonce: bigint;
 }
 
+export interface KioskKey {
+  merchant: `0x${string}`;
+  kioskEphemeral: `0x${string}`;
+  kioskNonce: `0x${string}`;
+}
+
 export const EIP712_TYPES = {
   PaymentAuthorization: [{ name: "chainId", type: "uint256" }, { name: "contract", type: "address" }, { name: "merchant", type: "address" }, { name: "payout", type: "address" }, { name: "token", type: "address" }, { name: "amount", type: "uint256" }, { name: "orderId", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "expiry", type: "uint64" }],
   LimitChange: [{ name: "chainId", type: "uint256" }, { name: "contract", type: "address" }, { name: "perPaymentLimit", type: "uint256" }, { name: "dailyLimit", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "expiry", type: "uint64" }],
@@ -59,6 +65,7 @@ export const EIP712_TYPES = {
   MerchantOrder: [{ name: "orderId", type: "bytes32" }, { name: "token", type: "address" }, { name: "amount", type: "uint256" }, { name: "payout", type: "address" }, { name: "expiry", type: "uint64" }],
   TimeAnchor: [{ name: "device", type: "address" }, { name: "timestamp", type: "uint64" }],
   DeviceReset: [{ name: "device", type: "address" }, { name: "nonce", type: "uint256" }],
+  KioskKey: [{ name: "merchant", type: "address" }, { name: "kioskEphemeral", type: "bytes32" }, { name: "kioskNonce", type: "bytes32" }],
 } as const;
 
 export const ENCODE_TYPE: Record<keyof typeof EIP712_TYPES, string> = {
@@ -68,6 +75,7 @@ export const ENCODE_TYPE: Record<keyof typeof EIP712_TYPES, string> = {
   MerchantOrder: "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
   TimeAnchor: "TimeAnchor(address device,uint64 timestamp)",
   DeviceReset: "DeviceReset(address device,uint256 nonce)",
+  KioskKey: "KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)",
 };
 
 export const DEVICE_SIGNED_TYPES = ["PaymentAuthorization", "LimitChange"] as const;
@@ -91,7 +99,27 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "type": "text",
       "sessionId": "sessionId",
       "kioskNonce": "hex32",
-      "mode": "text"
+      "mode": "text",
+      "kioskEphemeral": "hex32",
+      "attestation": {
+        "fields": {
+          "merchant": "hex20",
+          "payout": "hex20",
+          "name": "text",
+          "validFrom": "uint",
+          "validUntil": "uint",
+          "operatorSignature": "signature"
+        },
+        "required": [
+          "merchant",
+          "payout",
+          "name",
+          "validFrom",
+          "validUntil",
+          "operatorSignature"
+        ]
+      },
+      "kioskKeySignature": "signature"
     },
     "required": [
       "v",
@@ -111,7 +139,8 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "anchorValid": "bool",
       "firmware": "text",
       "state": "text",
-      "lastAnchor": "uint"
+      "lastAnchor": "uint",
+      "deviceEphemeral": "hex32"
     },
     "required": [
       "v",

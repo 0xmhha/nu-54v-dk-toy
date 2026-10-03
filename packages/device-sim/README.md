@@ -5,11 +5,13 @@
 | 파일 | 내용 |
 |---|---|
 | `src/device.ts` | `SoftwareDevice`: 상태(`PROVISIONED_NO_ANCHOR`, `READY`), 셋업 세션의 TimeAnchor, 결제 세션(`session.open` → `session.confirm` → `payment.identify` → `payment.prepare` → `payment.result`), 6절 4단계 검사와 거절 사유, 순차 nonce, 폰 앱으로 보내는 `confirm.show` |
-| `src/link.ts` | 중앙 장치와 기기 사이의 선. 모든 메시지가 BLE와 같은 층(CBOR, envelope, 조각, 재조립)을 지난다 |
+| `src/link.ts` | 중앙 장치와 기기 사이의 선. 모든 메시지가 BLE와 같은 층(CBOR, envelope, 조각, 재조립)을 지난다. 기기 쪽은 본문 단위 `handleBody`를 써서 보안 세션(4.1절)이면 본문을 열고 응답을 봉인한다 |
 | `src/keystore.ts` | `cast wallet new`가 만든 keystore를 Keychain 암호로 연다(Node 전용) |
-| `scripts/gen-session-vectors.ts` | 공용 세션 벡터(`session-vectors.json`)를 만든다. 시나리오 22개(결제 12개, 대여 셋업과 reset 5개, 한도 변경과 PIN 잠금 5개), 메시지마다 보낸 바이트와 기기가 돌려줄 바이트. 펌웨어는 이 바이트를 그대로 내야 한다 |
+| `scripts/gen-session-vectors.ts` | 공용 세션 벡터(`session-vectors.json`)를 만든다. 시나리오 29개(결제 12개, 대여 셋업과 reset 5개, 한도 변경과 PIN 잠금 5개, 스키마 밖 요청 1개, 보안 채널 6개), 메시지마다 보낸 바이트와 기기가 돌려줄 바이트. 펌웨어는 이 바이트를 그대로 내야 한다 |
 | `scripts/rehearse.ts` | 테스트넷 결제 리허설. 키오스크의 결제 세션 코드(`src/payment/session.ts`)를 그대로 쓰고, 트랜잭션 없이 정산 컨트랙트에 eth_call로 확인한다 |
 | `scripts/serve-ble.ts`, `peripheral/SimPeripheral.swift` | 이 Mac을 BLE 기기로 만든다. 보드 없이 폰의 키오스크 앱이 실제 BLE로 결제 세션을 연다 |
+
+보안 채널(4.1절): 결제 모드 `session.open`에 `kioskEphemeral`, `attestation`, `kioskKeySignature`가 있으면 가맹점을 확인하고 1회용 키로 세션 키를 만든 뒤, 이후 본문을 AES-GCM으로 주고받는다(`@nu54/protocol`의 `SecureChannel`). `requireSecureSession`을 켜면 릴리스 기기처럼 평문 결제 세션을 거절한다.
 
 대여 셋업(5절)도 흉내 낸다. 키를 주지 않으면 기기는 `UNPROVISIONED`로 시작한다. `setup.operator`(대여자 확인 버튼 `confirmSetup`) 다음에 키를 만들고 nonce 시작값을 정한 뒤, PIN(`enterPin`)이 정해지면 모든 값을 한 번에 기록한다. `device.reset`은 기록된 운영자가 이 기기 주소에 서명한 것만 받는다. 키를 주면 셋업이 끝난 `PROVISIONED_NO_ANCHOR` 상태로 시작하고, 셋업 세션의 TimeAnchor로 `READY`가 된다. 한도 변경(`limit.change`)은 폰에 `confirm.limit`을 보내고 PIN(`enterPin`)과 버튼(`approve`)을 받은 뒤 결제와 같은 순차 카운터로 서명한다. PIN을 `pinMaxRetries`(기본 5)번 틀리면 `PIN_LOCKED`가 되어 모든 서명을 거절하고, RAM reset 뒤에도 유지된다. 아직 흉내 내지 않는 것은 보안 채널(4.1절)이다.
 

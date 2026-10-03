@@ -125,6 +125,7 @@ def build() -> dict:
             "orderId": b32("01"), "token": addr("d1"), "amount": 4500000, "payout": addr("b1"), "expiry": 1790000120}),
         ("TA-01", "TimeAnchor", "operator", {"device": device, "timestamp": 1790000000}),
         ("DR-01", "DeviceReset", "operator", {"device": device, "nonce": 1}),
+        ("KK-01", "KioskKey", "merchant", {"merchant": merchant, "kioskEphemeral": b32("e1"), "kioskNonce": b32("a5")}),
     ]
     vectors = []
     for vid, name, role, message in cases:

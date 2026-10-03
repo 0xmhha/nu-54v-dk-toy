@@ -20,14 +20,14 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(SECP ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/secp256k1)
 add_library(nu54_secp256k1 STATIC ${SECP}/src/secp256k1.c ${SECP}/src/precomputed_ecmult.c ${SECP}/src/precomputed_ecmult_gen.c)
 target_include_directories(nu54_secp256k1 PUBLIC ${SECP}/include PRIVATE ${SECP}/src)
-target_compile_definitions(nu54_secp256k1 PRIVATE ENABLE_MODULE_RECOVERY=1 ECMULT_WINDOW_SIZE=4)
+target_compile_definitions(nu54_secp256k1 PRIVATE ENABLE_MODULE_RECOVERY=1 ENABLE_MODULE_ECDH=1 ECMULT_WINDOW_SIZE=4)
 
 add_library(nu54_crypto STATIC
-  ../core/src/nu54_keccak.c ../core/src/nu54_eip712.c ../core/src/nu54_sig.c
+  ../core/src/nu54_keccak.c ../core/src/nu54_eip712.c ../core/src/nu54_sig.c ../core/src/nu54_secure.c
   ../third_party/keccak/Keccak-readable-and-compact.c)
 target_include_directories(nu54_crypto PUBLIC ../core/include ../../../packages/protocol/c/include)
 target_link_libraries(nu54_crypto PUBLIC nu54_secp256k1)
-set_source_files_properties(../core/src/nu54_keccak.c ../core/src/nu54_eip712.c ../core/src/nu54_sig.c
+set_source_files_properties(../core/src/nu54_keccak.c ../core/src/nu54_eip712.c ../core/src/nu54_sig.c ../core/src/nu54_secure.c
   PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Werror")
 
 # The shared vectors become a header in the build directory (never committed).
@@ -61,9 +61,14 @@ target_compile_options(test_cbor PRIVATE -Wall -Wextra -Werror)
 add_dependencies(test_cbor nu54_vectors)
 add_test(NAME cbor_vectors COMMAND test_cbor)
 
+# The session test plays the platform's HKDF and AES-GCM with OpenSSL (on the board PSA does it).
+if(APPLE AND NOT OPENSSL_ROOT_DIR)
+  execute_process(COMMAND brew --prefix openssl@3 OUTPUT_VARIABLE OPENSSL_ROOT_DIR OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 add_executable(test_session test_session.c ../core/src/nu54_session.c ../core/src/nu54_cbor.c)
 target_include_directories(test_session PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(test_session PRIVATE nu54_crypto)
+target_link_libraries(test_session PRIVATE nu54_crypto OpenSSL::Crypto)
 target_compile_options(test_session PRIVATE -Wall -Wextra -Werror)
 add_dependencies(test_session nu54_vectors)
 add_test(NAME session_vectors COMMAND test_session)

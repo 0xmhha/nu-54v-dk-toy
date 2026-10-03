@@ -6,7 +6,9 @@
  * a digest and returns a raw (r, s), which nu54_sig_finish turns into the protocol form. The
  * button is asynchronous: payment.prepare that passes every check sends confirm.show and waits;
  * nu54_session_button() then answers payment.result. Setup works the same way: setup.operator
- * waits for the button, then key generation waits for the PIN (nu54_session_pin()). The behavior must match the shared
+ * waits for the button, then key generation waits for the PIN (nu54_session_pin()). A payment
+ * session opened with a one-time key runs over the secure channel of section 4.1: every body
+ * after session.open.ok is AES-GCM in both directions. The behavior must match the shared
  * session vectors byte for byte (docs/content/specifications/protocol/session-vectors.json).
  * Board-independent: builds and tests on the host.
  */
@@ -58,6 +60,13 @@ typedef struct {
 	 * storage (pinMaxRetries, survives RAM-clearing resets). Returns NU54_PIN_OK, NU54_PIN_WRONG,
 	 * or NU54_PIN_LOCKED once the failures reach pinMaxRetries. May be NULL: limit changes refuse. */
 	int (*check_pin)(void *ctx, const char *pin, size_t len);
+	/* Secure channel (payment-protocol.md 4.1); NULL refuses secure sessions (NOT_PERMITTED).
+	 * hkdf: HKDF-SHA256 to 16 bytes. aead_seal: AES-128-GCM with a 12-byte IV and no AAD, writes
+	 * len + 16 bytes (ciphertext || tag). aead_open: checks the tag of len bytes and writes
+	 * len - 16. Return 0 on success. */
+	int (*hkdf)(void *ctx, const uint8_t ikm[32], const uint8_t salt[64], const char *info, uint8_t key[16]);
+	int (*aead_seal)(void *ctx, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out);
+	int (*aead_open)(void *ctx, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out);
 } nu54_platform_t;
 
 enum { NU54_PIN_OK = 0, NU54_PIN_WRONG = 1, NU54_PIN_LOCKED = 2 };
@@ -113,6 +122,14 @@ typedef struct {
 	char att_name[128];
 	size_t att_name_len;
 
+	/* Secure channel of the open session (4.1); dropped with the session. */
+	int require_secure; /* release build: plaintext payment sessions are refused */
+	int secure;
+	uint32_t channel_id;
+	uint8_t channel_key[16];
+	uint64_t channel_rx, channel_tx;
+	uint8_t secure_merchant[20]; /* the merchant session.open proved */
+
 	nu54_pending_t pending;
 	nu54_payment_authorization_t pending_auth;
 	nu54_setup_record_t pending_setup; /* setup values in RAM until the PIN commits them */
@@ -134,7 +151,9 @@ void nu54_device_power_cycle(nu54_device_t *d);
  * nothing (payment-protocol.md 5, the generated key is wiped). */
 void nu54_session_link_closed(nu54_device_t *d);
 
-/* Handles one CBOR body from a central at local time `now` (seconds). */
+/* Handles one body from a central at local time `now` (seconds): CBOR, or in a secure session
+ * AES-GCM over CBOR. Replies to the central are sealed the same way; bodies for the phone app
+ * are plain CBOR (the bonded link protects them). */
 void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out);
 
 /* The renter's button: after confirm.show approve (1) signs and reject (0) refuses; after

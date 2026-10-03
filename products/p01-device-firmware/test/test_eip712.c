@@ -43,6 +43,8 @@ static void struct_hash(const eip712_vector_t *v, uint8_t out[32])
 		nu54_hash_merchant_order(v->msg, out);
 	} else if (strcmp(v->type, "TimeAnchor") == 0) {
 		nu54_hash_time_anchor(v->msg, out);
+	} else if (strcmp(v->type, "KioskKey") == 0) {
+		nu54_hash_kiosk_key(v->msg, out);
 	} else {
 		nu54_hash_device_reset(v->msg, out);
 	}

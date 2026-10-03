@@ -180,6 +180,67 @@ static int check_pin(void *ctx, const char *pin, size_t len)
 	return failures >= PIN_MAX_RETRIES ? NU54_PIN_LOCKED : NU54_PIN_WRONG;
 }
 
+/* Secure channel (payment-protocol.md 4.1): HKDF-SHA256 and AES-128-GCM on CRACEN. */
+static int hkdf(void *ctx, const uint8_t ikm[32], const uint8_t salt[64], const char *info, uint8_t key[16])
+{
+	psa_key_derivation_operation_t op = PSA_KEY_DERIVATION_OPERATION_INIT;
+	psa_status_t st = psa_key_derivation_setup(&op, PSA_ALG_HKDF(PSA_ALG_SHA_256));
+
+	(void)ctx;
+	if (st == PSA_SUCCESS) {
+		st = psa_key_derivation_input_bytes(&op, PSA_KEY_DERIVATION_INPUT_SALT, salt, 64);
+	}
+	if (st == PSA_SUCCESS) {
+		st = psa_key_derivation_input_bytes(&op, PSA_KEY_DERIVATION_INPUT_SECRET, ikm, 32);
+	}
+	if (st == PSA_SUCCESS) {
+		st = psa_key_derivation_input_bytes(&op, PSA_KEY_DERIVATION_INPUT_INFO, (const uint8_t *)info, strlen(info));
+	}
+	if (st == PSA_SUCCESS) {
+		st = psa_key_derivation_output_bytes(&op, key, 16);
+	}
+	psa_key_derivation_abort(&op);
+	return st == PSA_SUCCESS ? 0 : -EIO;
+}
+
+/* One volatile key per call: the session key stays in the session's RAM, not in PSA slots. */
+static int gcm(int seal, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out)
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	psa_key_id_t id;
+	size_t n;
+	psa_status_t st;
+
+	psa_set_key_type(&attr, PSA_KEY_TYPE_AES);
+	psa_set_key_bits(&attr, 128);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_ENCRYPT | PSA_KEY_USAGE_DECRYPT);
+	psa_set_key_algorithm(&attr, PSA_ALG_GCM);
+	st = psa_import_key(&attr, key, 16, &id);
+	psa_reset_key_attributes(&attr);
+	if (st != PSA_SUCCESS) {
+		return -EIO;
+	}
+	if (seal) {
+		st = psa_aead_encrypt(id, PSA_ALG_GCM, iv, 12, NULL, 0, in, len, out, len + 16, &n);
+	} else {
+		st = len < 16 ? PSA_ERROR_INVALID_SIGNATURE : psa_aead_decrypt(id, PSA_ALG_GCM, iv, 12, NULL, 0, in, len, out, len - 16, &n);
+	}
+	psa_destroy_key(id);
+	return st == PSA_SUCCESS ? 0 : -EIO;
+}
+
+static int aead_seal(void *ctx, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out)
+{
+	(void)ctx;
+	return gcm(1, key, iv, in, len, out);
+}
+
+static int aead_open(void *ctx, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out)
+{
+	(void)ctx;
+	return gcm(0, key, iv, in, len, out);
+}
+
 static int wipe(void *ctx)
 {
 	int ok;
@@ -247,7 +308,9 @@ int device_setup_load(nu54_device_t *d)
 	struct stored_record r;
 	int err;
 
-	d->platform = (nu54_platform_t){sign, random_bytes, persist_nonce, NULL, generate_key, commit_setup, wipe, check_pin};
+	d->platform = (nu54_platform_t){sign, random_bytes, persist_nonce, NULL, generate_key, commit_setup, wipe, check_pin,
+					hkdf, aead_seal, aead_open};
+	d->require_secure = IS_ENABLED(CONFIG_NU54_REQUIRE_SECURE_SESSION);
 	if (psa_crypto_init() != PSA_SUCCESS) {
 		return -EIO;
 	}

@@ -12,7 +12,19 @@
 //   node --experimental-strip-types scripts/gen-session-vectors.ts --check   fail if it is stale
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { bytesToHex, decodeMessage, digest, encodeMessage, hexToBytes, ProtocolError, signDigest, addressOfPrivateKey, type Message } from "@nu54/protocol";
+import {
+  addressOfPrivateKey,
+  bytesToHex,
+  decodeMessage,
+  digest,
+  encodeMessage,
+  ephemeralKey,
+  hexToBytes,
+  SecureChannel,
+  sessionKey,
+  signDigest,
+  type Message,
+} from "@nu54/protocol";
 import { SoftwareDevice } from "../src/device.ts";
 
 const OUT = new URL("../../../docs/content/specifications/protocol/session-vectors.json", import.meta.url);
@@ -39,7 +51,7 @@ const DEVICE = addressOfPrivateKey(k("device"));
 const MERCHANT = addressOfPrivateKey(k("merchant"));
 
 type Step =
-  | { at: number; send: Message }
+  | { at: number; send: Message; tamper?: true } // tamper: one bit of the sent body flipped
   | { at: number; raw: Uint8Array } // a body outside the schema, as a refusal test sends it
   | { at: number; powerCycle: true };
 
@@ -71,6 +83,17 @@ function prepare(over: Record<string, string> = {}, key: keyof typeof KEY = "mer
   const { orderId, token, amount, payout, expiry } = auth;
   return { v: 1, type: "payment.prepare", sessionId: SID, authorization: auth, merchantSignature: sign(key, "MerchantOrder", { orderId, token, amount, payout, expiry }) } as Message;
 }
+// Secure channel (4.1): the kiosk's one-time key is 32 bytes of 0xe1.
+const KIOSK_EPHEMERAL = new Uint8Array(32).fill(0xe1);
+const KIOSK_NONCE = "0x" + "a5".repeat(32);
+const STRANGER = addressOfPrivateKey(k("stranger"));
+function secureOpen(o: { mode?: "setup" | "payment"; att?: ReturnType<typeof attestation>; signer?: keyof typeof KEY; x?: string } = {}): Message {
+  const x = o.x ?? bytesToHex(ephemeralKey(() => KIOSK_EPHEMERAL).x);
+  const att = o.att ?? attestation();
+  const kioskKeySignature = sign(o.signer ?? "merchant", "KioskKey", { merchant: att.merchant, kioskEphemeral: x, kioskNonce: KIOSK_NONCE });
+  return { ...open(o.mode ?? "payment"), kioskEphemeral: x, attestation: att, kioskKeySignature } as Message;
+}
+
 // The k-th deviceNonce the device hands out is 32 bytes of 0x5a + k.
 const deviceNonce = (k: number) => "0x" + (0x5a + k).toString(16).repeat(32);
 
@@ -83,6 +106,13 @@ const anchored = (): Step[] => [
 const paySession = (opens: number, at: number, ...rest: Message[]): Step[] => [
   { at, send: open("payment") },
   { at, send: confirm(deviceNonce(opens)) },
+  ...rest.map((send) => ({ at, send })),
+];
+
+/** A secure payment session whose deviceNonce is draw `draw` (the one-time key is the next draw). */
+const securePaySession = (draw: number, at: number, ...rest: Message[]): Step[] => [
+  { at, send: secureOpen() },
+  { at, send: confirm(deviceNonce(draw)) },
   ...rest.map((send) => ({ at, send })),
 ];
 
@@ -113,6 +143,8 @@ type Scenario = {
   initialState?: "UNPROVISIONED";
   /** What the renter enters whenever the device asks for the PIN (null: not in time). Default 2580. */
   pin?: string | null;
+  /** A release device that refuses plaintext payment sessions (4.1). */
+  requireSecureSession?: true;
 };
 
 const SCENARIOS: Scenario[] = [
@@ -180,6 +212,26 @@ const SCENARIOS: Scenario[] = [
     button: "approve",
     steps: [...anchored(), { at: T0, send: open("payment") }, { at: T0, send: confirm(deviceNonce(1)) }, { at: T0, raw: rawTx() },
       { at: T0, send: identify() }, { at: T0, send: open("payment") }, { at: T0, send: confirm(deviceNonce(2)) }, { at: T0, raw: rawPermit() }] },
+  { id: "SV-24", description: "secure session (4.1): the device proves the merchant's one-time key, answers with its own, and every later body both ways is AES-GCM; confirm.show to the phone stays plaintext",
+    button: "approve",
+    steps: [...anchored(), ...securePaySession(1, T0 + 5, identify(), prepare(),
+      { v: 1, type: "payment.outcome", sessionId: SID, orderId: "0x" + "01".repeat(32), outcome: "approved" } as Message)] },
+  { id: "SV-25", description: "secure session.open refused with MERCHANT_FORGED: attestation not the operator's, one-time key not signed by the attested merchant, key not a curve point; no random draw is spent on a refusal",
+    button: "approve",
+    steps: [...anchored(), { at: T0, send: secureOpen({ att: attestation({}, "stranger") }) }, { at: T0, send: secureOpen({ signer: "stranger" }) },
+      { at: T0, send: secureOpen({ x: "0x" + "00".repeat(32) }) }, ...securePaySession(1, T0)] },
+  { id: "SV-26", description: "a secure body that fails the tag check: error{BAD_FRAME} under the channel and the session closes; the next sealed body meets no channel and is BAD_FRAME in plaintext",
+    button: "approve",
+    steps: [...anchored(), ...securePaySession(1, T0), { at: T0, send: identify(), tamper: true }, { at: T0, send: prepare() }] },
+  { id: "SV-27", description: "in a secure session payment.identify must attest the merchant session.open proved: another operator-signed merchant is MERCHANT_FORGED",
+    button: "approve",
+    steps: [...anchored(), ...securePaySession(1, T0, identify(attestation({ merchant: STRANGER })))] },
+  { id: "SV-28", description: "release device: a plaintext payment session.open and a secure setup session.open are NOT_PERMITTED; setup stays plaintext and a secure payment session opens",
+    button: "approve", requireSecureSession: true,
+    steps: [...anchored(), { at: T0, send: open("payment") }, { at: T0, send: secureOpen({ mode: "setup" }) }, ...securePaySession(1, T0)] },
+  { id: "SV-29", description: "an UNPROVISIONED device has no operator to check a secure session.open against: NOT_PERMITTED",
+    button: "approve", initialState: "UNPROVISIONED",
+    steps: [{ at: T0, send: secureOpen() }] },
 ];
 
 function run() {
@@ -193,7 +245,10 @@ function run() {
       ...provisioned, now: () => now, approve: () => sc.button === "approve",
       confirmSetup: () => sc.button === "approve", enterPin: () => (sc.pin === undefined ? "2580" : sc.pin), pin: "2580",
       random: (n) => new Uint8Array(n).fill(0x5a + draws++),
+      requireSecureSession: sc.requireSecureSession === true,
     });
+    // The kiosk's end of the channel, made from the device's session.open.ok (4.1).
+    let kiosk: SecureChannel | null = null;
     const steps = sc.steps.map((st) => {
       now = st.at;
       if ("powerCycle" in st) {
@@ -201,41 +256,56 @@ function run() {
         return { at: st.at, powerCycle: true };
       }
       const phoneBefore = device.phone.length;
-      let replies: Message[];
+      let plain: Uint8Array;
       let body: Uint8Array;
       let sendType: string;
       if ("raw" in st) {
-        // What the device endpoint does with a body it cannot accept (link.ts): report and close.
-        body = st.raw;
-        try {
-          decodeMessage(body);
-          throw new Error("a raw step must be outside the schema");
-        } catch (e) {
-          if (!(e instanceof ProtocolError)) throw e;
-          replies = [{ v: 1, type: "error", sessionId: "0000000000000000", reason: e.reason } as Message];
-          device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
-          sendType = "(outside the schema)";
-        }
+        plain = body = st.raw;
+        sendType = "(outside the schema)";
       } else {
-        body = encodeMessage(st.send);
-        replies = device.handle(st.send);
-        sendType = st.send.type;
+        if (st.send.type === "session.open") kiosk = null; // session.open is always plaintext
+        plain = encodeMessage(st.send);
+        body = kiosk ? kiosk.seal(plain) : plain.slice();
+        if (st.tamper) body[body.length - 1] ^= 1;
+        sendType = st.send.type + (st.tamper ? " (one bit flipped)" : "");
       }
+      const replies = device.handleBody(body);
+      // What the kiosk reads: sealed replies open with its channel; a reply sent after the device
+      // dropped the channel is plaintext.
+      const opened = replies.map((r) => {
+        if (!kiosk) return r;
+        try {
+          return kiosk.open(r);
+        } catch {
+          return r;
+        }
+      });
+      if ("send" in st && st.send.type === "session.open") {
+        const ok = decodeMessage(opened[0]);
+        if (ok.type === "session.open.ok" && ok.deviceEphemeral) {
+          kiosk = new SecureChannel(sessionKey(KIOSK_EPHEMERAL, hexToBytes(String(ok.deviceEphemeral)), hexToBytes(KIOSK_NONCE), hexToBytes(String(ok.deviceNonce))), "kiosk");
+        }
+      }
+      const hex = (b: Uint8Array) => bytesToHex(b, false);
+      const sealed = hex(body) !== hex(plain) || replies.some((r, i) => hex(r) !== hex(opened[i]));
       return {
         at: st.at,
         sendType,
-        send: bytesToHex(body, false),
-        expect: replies.map((r) => bytesToHex(encodeMessage(r), false)),
-        phone: device.phone.slice(phoneBefore).map((p) => bytesToHex(encodeMessage(p), false)),
+        send: hex(body),
+        expect: replies.map(hex),
+        // Secure steps: the CBOR bodies inside the AES-GCM ones, for reading and debugging.
+        ...(sealed ? { plain: { send: hex(plain), expect: opened.map(hex) } } : {}),
+        phone: device.phone.slice(phoneBefore).map((p) => hex(encodeMessage(p))),
       };
     });
-    return { id: sc.id, description: sc.description, button: sc.button, pin: sc.pin === undefined ? "2580" : sc.pin, ...(sc.initialState ? { initialState: sc.initialState } : {}), steps };
+    return { id: sc.id, description: sc.description, button: sc.button, pin: sc.pin === undefined ? "2580" : sc.pin, ...(sc.initialState ? { initialState: sc.initialState } : {}),
+      ...(sc.requireSecureSession ? { requireSecureSession: true } : {}), steps };
   });
 }
 
 const doc = {
   description:
-    "Shared session vectors (payment-protocol.md 5, 6), generated by packages/device-sim. A device implementation set up with the values below must answer every step's `send` CBOR body with exactly the `expect` bodies (in order) and send the `phone` bodies to the phone app. `at` is the device clock (unix seconds) for that step. `powerCycle` is a RAM-clearing reset. `button` is the renter's answer to payment.prepare and setup.operator. A scenario with `initialState` UNPROVISIONED starts without key or setup values. A provisioned device was set up with PIN 2580; `pin` is what the renter enters whenever the device asks for the PIN, at setup or for a limit change (null: not entered in time). The device asks for the PIN before the approve button. The k-th random request (k = 0, 1, ...) returns bytes all equal to 0x5a + k: deviceNonce at each session.open, then at setup the new key (32 bytes) and the nonce start (31 bytes, followed by a zero byte). Device signatures are deterministic (RFC 6979).",
+    "Shared session vectors (payment-protocol.md 5, 6), generated by packages/device-sim. A device implementation set up with the values below must answer every step's `send` CBOR body with exactly the `expect` bodies (in order) and send the `phone` bodies to the phone app. `at` is the device clock (unix seconds) for that step. `powerCycle` is a RAM-clearing reset. `button` is the renter's answer to payment.prepare and setup.operator. A scenario with `initialState` UNPROVISIONED starts without key or setup values. A provisioned device was set up with PIN 2580; `pin` is what the renter enters whenever the device asks for the PIN, at setup or for a limit change (null: not entered in time). The device asks for the PIN before the approve button. The k-th random request (k = 0, 1, ...) returns bytes all equal to 0x5a + k: deviceNonce at each session.open (none for a refused one), then in a secure session the device's one-time key (32 bytes), and at setup the new key (32 bytes) and the nonce start (31 bytes, followed by a zero byte). Device signatures are deterministic (RFC 6979). Secure sessions (payment-protocol.md 4.1): the kiosk's one-time private key is 32 bytes of 0xe1 and its kioskNonce 32 bytes of 0xa5; `send` and `expect` are the bodies on the wire (AES-GCM after session.open.ok), and `plain` holds the CBOR bodies inside them. A scenario with `requireSecureSession` is a release device that refuses plaintext payment sessions.",
   generator: "packages/device-sim/scripts/gen-session-vectors.ts",
   device: {
     privateKey: KEY.device,

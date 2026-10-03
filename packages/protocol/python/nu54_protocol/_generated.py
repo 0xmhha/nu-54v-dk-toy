@@ -54,6 +54,12 @@ class DeviceReset:
     device: str
     nonce: int
 
+@dataclass(frozen=True)
+class KioskKey:
+    merchant: str
+    kioskEphemeral: str
+    kioskNonce: str
+
 
 EIP712_TYPES: dict[str, list[dict[str, str]]] = {
     'PaymentAuthorization': [{"name": "chainId", "type": "uint256"}, {"name": "contract", "type": "address"}, {"name": "merchant", "type": "address"}, {"name": "payout", "type": "address"}, {"name": "token", "type": "address"}, {"name": "amount", "type": "uint256"}, {"name": "orderId", "type": "bytes32"}, {"name": "nonce", "type": "uint256"}, {"name": "expiry", "type": "uint64"}],
@@ -62,6 +68,7 @@ EIP712_TYPES: dict[str, list[dict[str, str]]] = {
     'MerchantOrder': [{"name": "orderId", "type": "bytes32"}, {"name": "token", "type": "address"}, {"name": "amount", "type": "uint256"}, {"name": "payout", "type": "address"}, {"name": "expiry", "type": "uint64"}],
     'TimeAnchor': [{"name": "device", "type": "address"}, {"name": "timestamp", "type": "uint64"}],
     'DeviceReset': [{"name": "device", "type": "address"}, {"name": "nonce", "type": "uint256"}],
+    'KioskKey': [{"name": "merchant", "type": "address"}, {"name": "kioskEphemeral", "type": "bytes32"}, {"name": "kioskNonce", "type": "bytes32"}],
 }
 
 ENCODE_TYPE: dict[str, str] = {
@@ -71,6 +78,7 @@ ENCODE_TYPE: dict[str, str] = {
     'MerchantOrder': 'MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)',
     'TimeAnchor': 'TimeAnchor(address device,uint64 timestamp)',
     'DeviceReset': 'DeviceReset(address device,uint256 nonce)',
+    'KioskKey': 'KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)',
 }
 
 DEVICE_SIGNED_TYPES = ('PaymentAuthorization', 'LimitChange')

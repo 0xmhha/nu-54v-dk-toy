@@ -122,6 +122,20 @@
       "digest": "0x82c3e82ec6c746a57f81d93028e4c4bde9159f0cd16b3b654c80ab1a66fd62cf",
       "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
       "signature": "0xcdcf7cf747dbee6adf9a63c8364c663fcb222259cf007c1360dc5a375c842022614521e02ac4bf02889241a3004247b2f1d0feb830042ecd5d7ee0dae19f37791b"
+    },
+    {
+      "id": "KK-01",
+      "primaryType": "KioskKey",
+      "signerRole": "merchant",
+      "encodeType": "KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)",
+      "message": {
+        "merchant": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+        "kioskEphemeral": "0xe1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+        "kioskNonce": "0xa5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+      },
+      "digest": "0x057e541da5e5dd9586346f071e8edd5a61346691fc1f65ca7efe1e041505279d",
+      "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "signature": "0x3c12974f39ca0075c2ed290ad19d11c0e0931ddcd0e7532591b7a9011b3abe8573ed516a4af98276e7c00de36691869e5aecb99e17b516e7818a3f5758c439651b"
     }
   ]
 }

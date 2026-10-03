@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "nu54_cbor.h"
+#include "nu54_secure.h"
 #include "nu54_sig.h"
 
 static const char *const STATE_NAME[] = {"UNPROVISIONED", "PROVISIONED_NO_ANCHOR", "READY", "PIN_LOCKED"};
@@ -31,7 +32,8 @@ static void emit(nu54_out_t *out, int who, const nu54_cbor_entry_t *e, size_t n)
 		if (out->kiosk_count >= 2) {
 			return;
 		}
-		nu54_cbor_writer_init(&w, out->kiosk[out->kiosk_count], NU54_OUT_MAX);
+		/* Room for the GCM tag when the reply goes out under the secure channel. */
+		nu54_cbor_writer_init(&w, out->kiosk[out->kiosk_count], NU54_OUT_MAX - NU54_GCM_TAG_LEN);
 		if (nu54_cbor_write_map(&w, e, n) == 0) {
 			out->kiosk_len[out->kiosk_count++] = w.len;
 		}
@@ -98,6 +100,149 @@ static int in_session(const nu54_device_t *d, const nu54_msg_t *m, int setup)
 	return same_session(d, m) && d->session_setup == setup && (setup || d->confirmed);
 }
 
+/* ---------------------------------------------------------------- secure channel (4.1) */
+
+enum { DIR_KIOSK = 0x01, DIR_DEVICE = 0x02 };
+
+/* The channel a message came in on: its replies go out under it even if the session ends. */
+typedef struct {
+	int on;
+	int first; /* replies before this index were sealed by an earlier call */
+	uint32_t id;
+	uint8_t key[16];
+	uint64_t tx;
+} channel_t;
+
+static void make_iv(uint8_t iv[12], uint8_t dir, uint64_t n)
+{
+	memset(iv, 0, 12);
+	iv[0] = dir;
+	for (int k = 0; k < 8; k++) {
+		iv[11 - k] = (uint8_t)(n >> (8 * k));
+	}
+}
+
+static void drop_channel(nu54_device_t *d)
+{
+	memset(d->channel_key, 0, sizeof(d->channel_key));
+	d->secure = 0;
+}
+
+static void channel_begin(const nu54_device_t *d, channel_t *c, const nu54_out_t *out)
+{
+	memset(c, 0, sizeof(*c));
+	c->first = out->kiosk_count;
+	c->on = d->session_open && d->secure;
+	if (c->on) {
+		c->id = d->channel_id;
+		memcpy(c->key, d->channel_key, 16);
+		c->tx = d->channel_tx;
+	}
+}
+
+/* Seals the replies for the central; a reply that cannot be sealed is dropped with the rest and
+ * the session closes. A channel whose session ended is wiped. */
+static void channel_end(nu54_device_t *d, channel_t *c, nu54_out_t *out)
+{
+	if (c->on) {
+		for (int i = c->first; i < out->kiosk_count; i++) {
+			uint8_t iv[12], sealed[NU54_OUT_MAX];
+			size_t len = out->kiosk_len[i];
+			make_iv(iv, DIR_DEVICE, c->tx++);
+			if (len + NU54_GCM_TAG_LEN > NU54_OUT_MAX || d->platform.aead_seal(d->platform.ctx, c->key, iv, out->kiosk[i], len, sealed) != 0) {
+				out->kiosk_count = i;
+				d->session_open = 0;
+				break;
+			}
+			memcpy(out->kiosk[i], sealed, len + NU54_GCM_TAG_LEN);
+			out->kiosk_len[i] = len + NU54_GCM_TAG_LEN;
+		}
+		if (d->session_open && d->secure && d->channel_id == c->id) {
+			d->channel_tx = c->tx;
+		}
+		memset(c->key, 0, sizeof(c->key));
+	}
+	if (d->secure && !d->session_open) {
+		drop_channel(d);
+	}
+}
+
+/* A MerchantAttestation (map `a` of `m`) signed by the recorded operator. */
+static int operator_attestation(const nu54_device_t *d, const nu54_msg_t *m, int a, nu54_merchant_attestation_t *att)
+{
+	const nu54_cbor_item_t *merchant = field(m, a, "merchant"), *payout = field(m, a, "payout"), *name = field(m, a, "name"),
+			       *from = field(m, a, "validFrom"), *until = field(m, a, "validUntil"), *sig = field(m, a, "operatorSignature");
+	memcpy(att->merchant, merchant->ptr, 20);
+	memcpy(att->payout, payout->ptr, 20);
+	att->name = name->ptr;
+	att->name_len = name->len;
+	att->valid_from = u64(from);
+	att->valid_until = u64(until);
+	uint8_t domain[32], h[32], digest[32], signer[20];
+	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
+	nu54_hash_merchant_attestation(att, h);
+	nu54_eip712_digest(domain, h, digest);
+	return from->type == NU54_CBOR_UINT && until->type == NU54_CBOR_UINT && nu54_sig_recover(digest, sig->ptr, sig->len, signer) == NU54_SIG_OK &&
+	       memcmp(signer, d->operator_address, 20) == 0;
+}
+
+/* The merchant a secure session.open proves (4.1, step 2): the attestation is the operator's, the
+ * one-time key is signed by that merchant and is a curve point. Validity times wait for
+ * payment.identify, once the device has an anchor. */
+static int kiosk_merchant(const nu54_device_t *d, const nu54_msg_t *m, uint8_t merchant[20])
+{
+	int a = nu54_msg_find(m, 0, "attestation");
+	const nu54_cbor_item_t *eph = field(m, 0, "kioskEphemeral"), *kn = field(m, 0, "kioskNonce"), *ks = field(m, 0, "kioskKeySignature");
+	nu54_merchant_attestation_t att;
+	nu54_kiosk_key_t k;
+	uint8_t domain[32], h[32], digest[32], signer[20];
+
+	if (a < 0 || !ks || !operator_attestation(d, m, a, &att)) {
+		return 0;
+	}
+	memcpy(k.merchant, att.merchant, 20);
+	memcpy(k.kiosk_ephemeral, eph->ptr, 32);
+	memcpy(k.kiosk_nonce, kn->ptr, 32);
+	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
+	nu54_hash_kiosk_key(&k, h);
+	nu54_eip712_digest(domain, h, digest);
+	if (nu54_sig_recover(digest, ks->ptr, ks->len, signer) != NU54_SIG_OK || memcmp(signer, att.merchant, 20) != 0 ||
+	    !nu54_secure_is_point(eph->ptr)) {
+		return 0;
+	}
+	memcpy(merchant, att.merchant, 20);
+	return 1;
+}
+
+/* The device's one-time key and the session key (4.1, steps 2-3); the private key and the shared
+ * value never outlive this call. Needs device_nonce already drawn. */
+static int start_channel(nu54_device_t *d, const uint8_t kiosk_x[32], const uint8_t kiosk_nonce[32], uint8_t device_x[32])
+{
+	uint8_t priv[32], shared[32], salt[64];
+	int err = -1;
+
+	for (int tries = 0; tries < 8 && err; tries++) {
+		d->platform.random(d->platform.ctx, priv, 32); /* a draw that is not a scalar is drawn again */
+		err = nu54_secure_public_x(priv, device_x);
+	}
+	if (!err) {
+		err = nu54_secure_shared_x(priv, kiosk_x, shared);
+	}
+	memcpy(salt, kiosk_nonce, 32);
+	memcpy(&salt[32], d->device_nonce, 32);
+	if (!err) {
+		err = d->platform.hkdf(d->platform.ctx, shared, salt, NU54_SESSION_KEY_INFO, d->channel_key);
+	}
+	memset(priv, 0, sizeof(priv));
+	memset(shared, 0, sizeof(shared));
+	if (!err) {
+		d->channel_rx = 0;
+		d->channel_tx = 0;
+		d->channel_id++;
+	}
+	return err;
+}
+
 static int device_time(const nu54_device_t *d, uint64_t now, uint64_t *t)
 {
 	if (!d->anchored) {
@@ -156,6 +301,7 @@ void nu54_device_init(nu54_device_t *d, const uint8_t nonce_start[32])
 	d->session_open = 0;
 	d->attested = 0;
 	d->pending = NU54_PENDING_NONE;
+	drop_channel(d);
 }
 
 /* Clears the key, setup values and anchor in RAM (the platform clears its storage). */
@@ -185,6 +331,7 @@ void nu54_device_power_cycle(nu54_device_t *d)
 	d->anchored = 0;
 	d->session_open = 0;
 	abort_pending(d);
+	drop_channel(d);
 	if (d->state == NU54_STATE_READY) {
 		d->state = NU54_STATE_PROVISIONED_NO_ANCHOR;
 	}
@@ -194,6 +341,7 @@ void nu54_session_link_closed(nu54_device_t *d)
 {
 	d->session_open = 0;
 	abort_pending(d);
+	drop_channel(d);
 }
 
 /* ---------------------------------------------------------------- messages */
@@ -203,17 +351,40 @@ static void session_open(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
 	const nu54_cbor_item_t *sid = field(m, 0, "sessionId");
 	const nu54_cbor_item_t *mode = field(m, 0, "mode");
 	int setup = mode->len == 5 && memcmp(mode->ptr, "setup", 5) == 0;
+	const nu54_cbor_item_t *eph = field(m, 0, "kioskEphemeral");
+	int secure = eph != NULL;
+	uint8_t merchant[20], device_x[32];
 	if (setup && d->state != NU54_STATE_UNPROVISIONED && d->state != NU54_STATE_PROVISIONED_NO_ANCHOR) {
 		error_reply(out, sid->ptr, "NOT_PERMITTED");
 		return;
 	}
+	/* The channel is for the unpaired kiosk link only; a release device refuses plaintext payments. */
+	if ((secure && (setup || d->state == NU54_STATE_UNPROVISIONED || !d->platform.hkdf || !d->platform.aead_seal || !d->platform.aead_open)) ||
+	    (!secure && !setup && d->require_secure)) {
+		error_reply(out, sid->ptr, "NOT_PERMITTED");
+		return;
+	}
+	if (secure && !kiosk_merchant(d, m, merchant)) {
+		error_reply(out, sid->ptr, "MERCHANT_FORGED");
+		return;
+	}
 	abort_pending(d);
 	d->platform.random(d->platform.ctx, d->device_nonce, 32);
+	if (secure && start_channel(d, eph->ptr, field(m, 0, "kioskNonce")->ptr, device_x) != 0) {
+		drop_channel(d);
+		d->session_open = 0;
+		error_reply(out, sid->ptr, "NOT_PERMITTED");
+		return;
+	}
 	memcpy(d->session_id, sid->ptr, 8);
 	d->session_open = 1;
 	d->session_setup = setup;
 	d->confirmed = 0;
 	d->attested = 0;
+	d->secure = secure;
+	if (secure) {
+		memcpy(d->secure_merchant, merchant, 20);
+	}
 	uint8_t last[32];
 	last_anchor_u256(d, last);
 	nu54_cbor_entry_t e[] = {
@@ -226,8 +397,9 @@ static void session_open(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
 		text("state", STATE_NAME[d->state]),
 		{"lastAnchor", NU54_V_UINT256, last, 32, 0},
 		bytes("device", d->address, 20), /* an UNPROVISIONED device has no key yet */
+		bytes("deviceEphemeral", device_x, 32), /* secure sessions only */
 	};
-	emit(out, 0, e, d->state == NU54_STATE_UNPROVISIONED ? 8 : 9);
+	emit(out, 0, e, d->state == NU54_STATE_UNPROVISIONED ? 8 : secure ? 10 : 9); /* UNPROVISIONED is never secure */
 }
 
 static void session_confirm(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
@@ -300,35 +472,22 @@ static void identify(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_o
 		refused(d, out, "TIME_ANCHOR_MISSING");
 		return;
 	}
-	int a = nu54_msg_find(m, 0, "attestation");
-	const nu54_cbor_item_t *merchant = field(m, a, "merchant"), *payout = field(m, a, "payout"), *name = field(m, a, "name"),
-			       *from = field(m, a, "validFrom"), *until = field(m, a, "validUntil"), *sig = field(m, a, "operatorSignature");
 	nu54_merchant_attestation_t att;
-	memcpy(att.merchant, merchant->ptr, 20);
-	memcpy(att.payout, payout->ptr, 20);
-	att.name = name->ptr;
-	att.name_len = name->len;
-	att.valid_from = u64(from);
-	att.valid_until = u64(until);
-	uint8_t domain[32], h[32], digest[32], signer[20];
-	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
-	nu54_hash_merchant_attestation(&att, h);
-	nu54_eip712_digest(domain, h, digest);
-	if (from->type != NU54_CBOR_UINT || until->type != NU54_CBOR_UINT ||
-	    nu54_sig_recover(digest, sig->ptr, sig->len, signer) != NU54_SIG_OK || memcmp(signer, d->operator_address, 20) != 0) {
+	/* A secure session serves only the merchant its session.open proved. */
+	if (!operator_attestation(d, m, nu54_msg_find(m, 0, "attestation"), &att) || (d->secure && memcmp(att.merchant, d->secure_merchant, 20) != 0)) {
 		refused(d, out, "MERCHANT_FORGED");
 		return;
 	}
 	uint64_t skew = d->anchor_clock_skew;
-	if (t + skew < att.valid_from || (t > skew && t - skew > att.valid_until) || name->len >= sizeof(d->att_name)) {
+	if (t + skew < att.valid_from || (t > skew && t - skew > att.valid_until) || att.name_len >= sizeof(d->att_name)) {
 		refused(d, out, "ATTESTATION_EXPIRED");
 		return;
 	}
-	memcpy(d->att_merchant, merchant->ptr, 20);
-	memcpy(d->att_payout, payout->ptr, 20);
-	memcpy(d->att_name, name->ptr, name->len);
-	d->att_name_len = name->len;
-	d->att_name[name->len] = 0;
+	memcpy(d->att_merchant, att.merchant, 20);
+	memcpy(d->att_payout, att.payout, 20);
+	memcpy(d->att_name, att.name, att.name_len);
+	d->att_name_len = att.name_len;
+	d->att_name[att.name_len] = 0;
 	d->attested = 1; /* accepted: no reply, the device answers payment.prepare */
 }
 
@@ -544,7 +703,7 @@ static void setup_confirmed(nu54_device_t *d, int approve, nu54_out_t *out)
 	d->pending = NU54_PENDING_PIN;
 }
 
-void nu54_session_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out)
+static void pin_step(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out)
 {
 	if (d->pending == NU54_PENDING_LIMIT_PIN) {
 		limit_pin(d, pin, len, out);
@@ -602,7 +761,7 @@ static void device_reset(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
 	forget_setup(d);                                    /* which ends with the wipe */
 }
 
-void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out)
+static void button_step(nu54_device_t *d, int approve, nu54_out_t *out)
 {
 	if (d->pending == NU54_PENDING_SETUP_CONFIRM) {
 		setup_confirmed(d, approve, out);
@@ -646,10 +805,9 @@ void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out)
 	emit(out, 0, e, 6);
 }
 
-void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out)
+static void dispatch(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out)
 {
 	static nu54_msg_t m; /* about 2 KB; the session handles one message at a time */
-	memset(out, 0, sizeof(*out));
 	nu54_msg_result_t r = nu54_msg_decode(body, len, &m);
 	if (r != NU54_MSG_OK) {
 		/* Drop the message, report and close the session (payment-protocol.md 4, 4.2). */
@@ -689,4 +847,47 @@ void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint
 	} else {
 		error_reply(out, field(&m, 0, "sessionId")->ptr, "UNSUPPORTED_TYPE");
 	}
+}
+
+void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out)
+{
+	static uint8_t plain[2048]; /* the largest body (payment-protocol.md 4) */
+	channel_t c;
+
+	memset(out, 0, sizeof(*out));
+	channel_begin(d, &c, out);
+	if (c.on) {
+		uint8_t iv[12];
+		make_iv(iv, DIR_KIOSK, d->channel_rx);
+		if (len < NU54_GCM_TAG_LEN || len - NU54_GCM_TAG_LEN > sizeof(plain) ||
+		    d->platform.aead_open(d->platform.ctx, c.key, iv, body, len, plain) != 0) {
+			/* A failed tag closes the session like any bad frame (4.1, step 4). */
+			error_reply(out, ZERO_SESSION, "BAD_FRAME");
+			d->session_open = 0;
+			abort_pending(d);
+			channel_end(d, &c, out);
+			return;
+		}
+		d->channel_rx++;
+		body = plain;
+		len -= NU54_GCM_TAG_LEN;
+	}
+	dispatch(d, body, len, now, out);
+	channel_end(d, &c, out);
+}
+
+void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out)
+{
+	channel_t c;
+	channel_begin(d, &c, out);
+	button_step(d, approve, out);
+	channel_end(d, &c, out);
+}
+
+void nu54_session_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out)
+{
+	channel_t c;
+	channel_begin(d, &c, out);
+	pin_step(d, pin, len, out);
+	channel_end(d, &c, out);
 }

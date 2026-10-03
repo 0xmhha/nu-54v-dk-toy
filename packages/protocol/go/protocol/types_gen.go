@@ -64,6 +64,13 @@ type DeviceReset struct {
 	Nonce  *big.Int       `json:"nonce"`
 }
 
+// KioskKey is an EIP-712 struct signed by the operator or merchant.
+type KioskKey struct {
+	Merchant       common.Address `json:"merchant"`
+	KioskEphemeral [32]byte       `json:"kioskEphemeral"`
+	KioskNonce     [32]byte       `json:"kioskNonce"`
+}
+
 // EncodeType holds the EIP-712 encodeType string of every struct.
 var EncodeType = map[string]string{
 	"PaymentAuthorization": "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
@@ -72,6 +79,7 @@ var EncodeType = map[string]string{
 	"MerchantOrder":        "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
 	"TimeAnchor":           "TimeAnchor(address device,uint64 timestamp)",
 	"DeviceReset":          "DeviceReset(address device,uint256 nonce)",
+	"KioskKey":             "KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)",
 }
 
 // DeviceSignedTypes are the only structs the device signs ([N04]).
@@ -147,22 +155,33 @@ type ObjectKind struct {
 // MessageFields gives the field kinds of every message, as in the schema.
 var MessageFields = map[string]*ObjectKind{
 	"session.open": &ObjectKind{Fields: map[string]FieldKind{
-		"v":          {Name: "int"},
-		"type":       {Name: "text"},
-		"sessionId":  {Name: "sessionId"},
-		"kioskNonce": {Name: "hex32"},
-		"mode":       {Name: "text"},
+		"v":              {Name: "int"},
+		"type":           {Name: "text"},
+		"sessionId":      {Name: "sessionId"},
+		"kioskNonce":     {Name: "hex32"},
+		"mode":           {Name: "text"},
+		"kioskEphemeral": {Name: "hex32"},
+		"attestation": {Object: &ObjectKind{Fields: map[string]FieldKind{
+			"merchant":          {Name: "hex20"},
+			"payout":            {Name: "hex20"},
+			"name":              {Name: "text"},
+			"validFrom":         {Name: "uint"},
+			"validUntil":        {Name: "uint"},
+			"operatorSignature": {Name: "signature"},
+		}, Required: []string{"merchant", "payout", "name", "validFrom", "validUntil", "operatorSignature"}}},
+		"kioskKeySignature": {Name: "signature"},
 	}, Required: []string{"v", "type", "sessionId", "kioskNonce", "mode"}},
 	"session.open.ok": &ObjectKind{Fields: map[string]FieldKind{
-		"v":           {Name: "int"},
-		"type":        {Name: "text"},
-		"sessionId":   {Name: "sessionId"},
-		"device":      {Name: "hex20"},
-		"deviceNonce": {Name: "hex32"},
-		"anchorValid": {Name: "bool"},
-		"firmware":    {Name: "text"},
-		"state":       {Name: "text"},
-		"lastAnchor":  {Name: "uint"},
+		"v":               {Name: "int"},
+		"type":            {Name: "text"},
+		"sessionId":       {Name: "sessionId"},
+		"device":          {Name: "hex20"},
+		"deviceNonce":     {Name: "hex32"},
+		"anchorValid":     {Name: "bool"},
+		"firmware":        {Name: "text"},
+		"state":           {Name: "text"},
+		"lastAnchor":      {Name: "uint"},
+		"deviceEphemeral": {Name: "hex32"},
 	}, Required: []string{"v", "type", "sessionId", "deviceNonce", "anchorValid", "firmware", "state"}},
 	"session.confirm": &ObjectKind{Fields: map[string]FieldKind{
 		"v":           {Name: "int"},

@@ -155,6 +155,20 @@
         "name": "nonce",
         "type": "uint256"
       }
+    ],
+    "KioskKey": [
+      {
+        "name": "merchant",
+        "type": "address"
+      },
+      {
+        "name": "kioskEphemeral",
+        "type": "bytes32"
+      },
+      {
+        "name": "kioskNonce",
+        "type": "bytes32"
+      }
     ]
   },
   "outcomes": [
@@ -305,7 +319,33 @@
             "payment",
             "setup"
           ]
+        },
+        "kioskEphemeral": {
+          "$ref": "#/$defs/hex32",
+          "description": "secure channel (payment-protocol.md 4.1): x coordinate of the kiosk's one-time secp256k1 public key (even y); sent together with attestation and kioskKeySignature, payment mode only"
+        },
+        "attestation": {
+          "$ref": "#/$defs/signedAttestation",
+          "description": "secure channel: the merchant's operator-signed attestation"
+        },
+        "kioskKeySignature": {
+          "$ref": "#/$defs/signature",
+          "description": "secure channel: the merchant key's EIP-712 KioskKey signature over {merchant, kioskEphemeral, kioskNonce}"
         }
+      },
+      "dependentRequired": {
+        "kioskEphemeral": [
+          "attestation",
+          "kioskKeySignature"
+        ],
+        "attestation": [
+          "kioskEphemeral",
+          "kioskKeySignature"
+        ],
+        "kioskKeySignature": [
+          "kioskEphemeral",
+          "attestation"
+        ]
       }
     },
     "session.open.ok": {
@@ -356,6 +396,10 @@
         "lastAnchor": {
           "$ref": "#/$defs/uint",
           "description": "timestamp of the last accepted TimeAnchor, 0 if none"
+        },
+        "deviceEphemeral": {
+          "$ref": "#/$defs/hex32",
+          "description": "secure channel: x coordinate of the device's one-time public key (even y); present only when session.open carried kioskEphemeral"
         }
       }
     },

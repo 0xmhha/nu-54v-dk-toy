@@ -60,6 +60,13 @@ typedef struct {
 	uint8_t nonce[32];
 } nu54_device_reset_t;
 
+/* The merchant's signature over a kiosk's one-time key (payment-protocol.md 4.1). */
+typedef struct {
+	uint8_t merchant[20];
+	uint8_t kiosk_ephemeral[32];
+	uint8_t kiosk_nonce[32];
+} nu54_kiosk_key_t;
+
 /* keccak256(EIP712Domain typehash, name, version, chainId, verifyingContract). */
 void nu54_eip712_domain_separator(const uint8_t chain_id[32], const uint8_t verifying_contract[20], uint8_t out[32]);
 
@@ -69,6 +76,7 @@ void nu54_hash_merchant_attestation(const nu54_merchant_attestation_t *v, uint8_
 void nu54_hash_merchant_order(const nu54_merchant_order_t *v, uint8_t out[32]);
 void nu54_hash_time_anchor(const nu54_time_anchor_t *v, uint8_t out[32]);
 void nu54_hash_device_reset(const nu54_device_reset_t *v, uint8_t out[32]);
+void nu54_hash_kiosk_key(const nu54_kiosk_key_t *v, uint8_t out[32]);
 
 /* keccak256(0x19 0x01 || domain separator || struct hash): the value that is signed. */
 void nu54_eip712_digest(const uint8_t domain_separator[32], const uint8_t struct_hash[32], uint8_t out[32]);

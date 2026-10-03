@@ -155,6 +155,11 @@ func TestSessionVectorBodiesRoundTrip(t *testing.T) {
 				Send     string   `json:"send"`
 				Expect   []string `json:"expect"`
 				Phone    []string `json:"phone"`
+				// Secure steps (payment-protocol.md 4.1): the CBOR bodies inside the AES-GCM ones.
+				Plain *struct {
+					Send   string   `json:"send"`
+					Expect []string `json:"expect"`
+				} `json:"plain"`
 			} `json:"steps"`
 		} `json:"scenarios"`
 	}
@@ -162,6 +167,9 @@ func TestSessionVectorBodiesRoundTrip(t *testing.T) {
 	n := 0
 	for _, sc := range doc.Scenarios {
 		for _, st := range sc.Steps {
+			if st.Plain != nil {
+				st.Send, st.Expect = st.Plain.Send, st.Plain.Expect
+			}
 			bodies := append(append([]string{}, st.Expect...), st.Phone...)
 			if st.SendType == "(outside the schema)" {
 				// A refusal test's body: decoding it must refuse it as UNSUPPORTED_TYPE.

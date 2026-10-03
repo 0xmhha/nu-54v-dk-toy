@@ -45,6 +45,7 @@ STRUCT = {
                              ("payout", "addr", "payout"), ("expiry", "u64", "expiry")]),
     "TimeAnchor": ("ta", [("device", "addr", "device"), ("timestamp", "u64", "timestamp")]),
     "DeviceReset": ("dr", [("device", "addr", "device"), ("nonce", "u256", "nonce")]),
+    "KioskKey": ("kk", [("merchant", "addr", "merchant"), ("kiosk_ephemeral", "b32", "kioskEphemeral"), ("kiosk_nonce", "b32", "kioskNonce")]),
 }
 
 
@@ -75,7 +76,7 @@ def main() -> int:
                 inits += [f".name = VEC_NAME_{n}", f".name_len = {len(name)}"]
             else:
                 inits.append(f".{cname} = {field(kind, m[jname])}")
-        out.append(f"static const nu54_{dict(pa='payment_authorization', lc='limit_change', ma='merchant_attestation', mo='merchant_order', ta='time_anchor', dr='device_reset')[tag]}_t VEC_MSG_{n} = {{{', '.join(inits)}}};")
+        out.append(f"static const nu54_{dict(pa='payment_authorization', lc='limit_change', ma='merchant_attestation', mo='merchant_order', ta='time_anchor', dr='device_reset', kk='kiosk_key')[tag]}_t VEC_MSG_{n} = {{{', '.join(inits)}}};")
         entries.append(f'{{"{v["id"]}", "{v["primaryType"]}", "{v["signerRole"]}", &VEC_MSG_{n}, {arr(hx(v["digest"]))}, {arr(hx(v["signature"]))}, {arr(hx(v["signer"]))}}}')
     out += ["", "typedef struct { const char *id; const char *type; const char *role; const void *msg; uint8_t digest[32]; uint8_t signature[65]; uint8_t signer[20]; } eip712_vector_t;",
             "static const eip712_vector_t EIP712_VECTORS[] = {", ",\n".join(entries), "};",
@@ -142,10 +143,12 @@ def main() -> int:
         unprov = 1 if sc.get("initialState") == "UNPROVISIONED" else 0
         pin = sc.get("pin", "2580")
         pin_c = "NULL" if pin is None else json.dumps(pin)
-        scen.append(f'{{"{sc["id"]}", {1 if sc["button"] == "approve" else 0}, SV_STEPS_{si}, {len(rows)}, {unprov}, {pin_c}}}')
+        secure = 1 if sc.get("requireSecureSession") else 0
+        scen.append(f'{{"{sc["id"]}", {1 if sc["button"] == "approve" else 0}, SV_STEPS_{si}, {len(rows)}, {unprov}, {pin_c}, {secure}}}')
     out.insert(0, "typedef struct { unsigned long long at; int power_cycle; const unsigned char *send; unsigned long send_len; const unsigned char *expect[2]; unsigned long expect_len[2]; int expect_count; const unsigned char *phone; unsigned long phone_len; } session_step_t;")
-    out += ["/* unprovisioned: the scenario starts without key or setup values; pin: what the renter enters whenever asked (NULL: timeout). */",
-            "typedef struct { const char *id; int approve; const session_step_t *steps; unsigned long count; int unprovisioned; const char *pin; } session_scenario_t;",
+    out += ["/* unprovisioned: the scenario starts without key or setup values; pin: what the renter enters whenever asked (NULL: timeout);",
+            "   require_secure: a release device that refuses plaintext payment sessions. Secure steps carry the AES-GCM bodies. */",
+            "typedef struct { const char *id; int approve; const session_step_t *steps; unsigned long count; int unprovisioned; const char *pin; int require_secure; } session_scenario_t;",
             "static const session_scenario_t SESSION_SCENARIOS[] = {", ",\n".join(scen), "};",
             f"#define SESSION_SCENARIO_COUNT {len(scen)}", ""]
     Path(sys.argv[1]).write_text("\n".join(out))
