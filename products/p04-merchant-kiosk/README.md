@@ -14,6 +14,7 @@
 | `src/payment/session.ts` | 결제 세션(프로토콜 5, 6절): 7주차 TimeAnchor 셋업, open, confirm, identify, prepare, 기기 서명 확인, 10초 안에 결과가 없으면 `session.cancel` |
 | `src/ble/` | `framing.ts` CBOR·envelope·조각(요청의 세션 응답만 받는다), `central.ts` 기기 찾기와 연결, `base64.ts` |
 | `src/specs/` | Turbo Module 명세. `NativeNusBle.ts` BLE central(페어링 없음, N27), `NativeKioskVault.ts` Keystore AES 키로 감싼 키 보관과 SecureRandom(N32). Kotlin 구현은 `android/app/src/main/java/com/nu54kiosk/ble/` |
+| `src/kiosk/timings.ts`, `scripts/pull-timings.ts` | W12-04 시간 기록: 서명받은 마지막 20건의 요청 전달→최종 결과 ms를 태블릿에서 CSV로 꺼낸다(`adb run-as`). `products/p10-platform/acceptance/w12.py timings W12-04 runs.csv`로 판정한다 |
 | `scripts/provision-dev.ts` | 개발 셋업: 설정·attestation·키(`provision.json`)와 실행 직전 TimeAnchor(`anchor.json`)를 USB로 앱 전용 저장소에 넣는다 |
 | `src/payment/signing.ts` | 가맹점 주문 서명, 기기가 돌려준 결제 서명 확인 |
 | `src/payment/submit.ts` | 결제 프로토콜 7절의 제출과 판정: 가스 잔액(busy), eth_call 시뮬레이션, custom error → 거절 코드, OrderAlreadyPaid 대조, EIP-1559 전송, finalized PaymentSettled, status 0 재시뮬레이션, 10초 뒤 Checking, expiry 경과 failed |
