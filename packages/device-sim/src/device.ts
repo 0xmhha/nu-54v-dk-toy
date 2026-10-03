@@ -1,7 +1,8 @@
 // A software stand-in for the payment device (payment-protocol.md 5 and 6).
 //
 // Setup (5): setup.operator with the renter's confirmation, key generation, PIN, TimeAnchor and
-// device.reset. Payments (6): the payment session with its step-4 checks.
+// device.reset. Payments (6): the payment session with its step-4 checks, in plaintext or over
+// the secure channel of 4.1 (handleBody opens and seals the kiosk link's bodies).
 //
 // It answers the same messages the firmware does, with the same checks and refusal reasons,
 // and signs with a software key instead of the TF-M secure partition. The kiosk uses it to
@@ -12,9 +13,16 @@
 import {
   addressOfPrivateKey,
   bytesToHex,
+  decodeMessage,
   digest,
+  encodeMessage,
+  ephemeralKey,
   hexToBytes,
+  isPointX,
+  ProtocolError,
   recoverSigner,
+  SecureChannel,
+  sessionKey,
   signDigest,
   type Domain,
   type Message,
@@ -52,8 +60,10 @@ export interface DeviceConfig {
   /** The PIN the renter enters on the buttons (at setup and for a limit change); null when it was not finished in time. */
   enterPin?: () => string | null | Promise<string | null>;
   firmware?: string;
-  /** Random bytes (deviceNonce, new key, nonce start); injectable so session vectors are deterministic. */
+  /** Random bytes (deviceNonce, one-time key, new key, nonce start); injectable so session vectors are deterministic. */
   random?: (n: number) => Uint8Array;
+  /** Release build after both sides have the secure channel: plaintext payment sessions are refused (4.1). */
+  requireSecureSession?: boolean;
 }
 
 export interface SetupValues {
@@ -94,7 +104,8 @@ export class SoftwareDevice {
   /** Wrong PIN entries in a row; kept in secure storage on the board, so a reset of RAM keeps it. */
   private pinFailures = 0;
   private nextNonce: bigint;
-  private session: { id: string; mode: string; deviceNonce: string; confirmed: boolean } | null = null;
+  /** The open session; a secure one has its channel and the merchant session.open proved (4.1). */
+  private session: { id: string; mode: string; deviceNonce: string; confirmed: boolean; channel?: SecureChannel; merchant?: string } | null = null;
   private attestation: { merchant: string; payout: string; name: string } | null = null;
 
   constructor(cfg: DeviceConfig) {
@@ -109,6 +120,7 @@ export class SoftwareDevice {
       enterPin: () => "2580",
       firmware: FIRMWARE,
       random: (n: number) => webCrypto().getRandomValues(new Uint8Array(n)),
+      requireSecureSession: false,
       ...rest,
     };
     if (nonceStart % 256n !== 0n) throw new Error("nonceStart must be a multiple of 256");
@@ -197,6 +209,41 @@ export class SoftwareDevice {
     return [...out, ...r.value];
   }
 
+  /**
+   * One body from the kiosk link as it arrives over BLE. In a secure session the body is opened
+   * with the session's channel and every reply is sealed with it; session.open and its reply are
+   * plaintext. A body that does not open or decode is dropped with error{BAD_FRAME} (or
+   * UNSUPPORTED_TYPE) and the session closes (4, 4.1, 4.2).
+   */
+  handleBody(body: Uint8Array): Uint8Array[] {
+    const r = this.bodyIn(body);
+    return this.bodiesOut(r.channel, "error" in r ? [r.error] : this.handle(r.message));
+  }
+
+  /** handleBody with real (asynchronous) presses; early replies go to `emit` as in handleAsync. */
+  async handleBodyAsync(body: Uint8Array, emit?: (b: Uint8Array) => void): Promise<Uint8Array[]> {
+    const r = this.bodyIn(body);
+    if ("error" in r) return this.bodiesOut(r.channel, [r.error]);
+    const early = emit && ((m: Message) => emit(this.bodiesOut(r.channel, [m])[0]));
+    return this.bodiesOut(r.channel, await this.handleAsync(r.message, early));
+  }
+
+  private bodyIn(body: Uint8Array): { channel: SecureChannel | null } & ({ message: Message } | { error: Message }) {
+    const channel = this.session?.channel ?? null;
+    try {
+      return { channel, message: decodeMessage(channel ? channel.open(body) : body) };
+    } catch (e) {
+      if (!(e instanceof ProtocolError)) throw e;
+      this.session = null;
+      return { channel, error: { v: 1, type: "error", sessionId: "0000000000000000", reason: e.reason } as Message };
+    }
+  }
+
+  /** Replies go out under the channel of the session the message came in (none for session.open). */
+  private bodiesOut(channel: SecureChannel | null, replies: Message[]): Uint8Array[] {
+    return replies.map((m) => (channel ? channel.seal(encodeMessage(m)) : encodeMessage(m)));
+  }
+
   /** The steps that wait for the renter run as generators; every other message answers at once. */
   private *step(m: Message): Step {
     if (m.type === "payment.prepare") return yield* this.prepareStep(m);
@@ -232,13 +279,32 @@ export class SoftwareDevice {
 
   private open(m: Message): Message {
     const mode = String(m.mode);
+    const sid = String(m.sessionId);
+    const secure = m.kioskEphemeral !== undefined;
     if (mode === "setup" && this.state !== "UNPROVISIONED" && this.state !== "PROVISIONED_NO_ANCHOR") {
-      return this.error("NOT_PERMITTED", String(m.sessionId));
+      return this.error("NOT_PERMITTED", sid);
     }
+    // The channel is for the unpaired kiosk link only; a release device refuses plaintext payments (4.1).
+    if ((secure && (mode !== "payment" || !this.setup)) || (!secure && mode === "payment" && this.cfg.requireSecureSession)) {
+      return this.error("NOT_PERMITTED", sid);
+    }
+    const merchant = secure ? this.kioskMerchant(m) : undefined;
+    if (merchant === null) return this.error("MERCHANT_FORGED", sid);
     const deviceNonce = bytesToHex(this.cfg.random(32));
-    this.session = { id: String(m.sessionId), mode, deviceNonce, confirmed: false };
+    this.session = { id: sid, mode, deviceNonce, confirmed: false };
     this.attestation = null;
+    let deviceEphemeral: string | undefined;
+    if (secure) {
+      // One-time key: used for this session's key and dropped at once (4.1, step 5).
+      const eph = ephemeralKey(this.cfg.random);
+      const key = sessionKey(eph.privateKey, hexToBytes(String(m.kioskEphemeral)), hexToBytes(String(m.kioskNonce)), hexToBytes(deviceNonce));
+      eph.privateKey.fill(0);
+      this.session.channel = new SecureChannel(key, "device");
+      this.session.merchant = merchant;
+      deviceEphemeral = bytesToHex(eph.x);
+    }
     return this.reply("session.open.ok", {
+      ...(deviceEphemeral ? { deviceEphemeral } : {}),
       ...(this.setup ? { device: this.setup.address } : {}), // an UNPROVISIONED device has no key yet
       deviceNonce,
       anchorValid: this.anchor !== null,
@@ -246,6 +312,24 @@ export class SoftwareDevice {
       state: this.state,
       lastAnchor: String(this.lastAnchor),
     });
+  }
+
+  /**
+   * The merchant a secure session.open proves (4.1, step 2): the attestation is the operator's,
+   * the one-time key is signed by that merchant and is a curve point. Null: MERCHANT_FORGED.
+   * Validity times are checked at payment.identify, once the device has an anchor.
+   */
+  private kioskMerchant(m: Message): string | null {
+    try {
+      const { operatorSignature, ...fields } = m.attestation as Record<string, string>;
+      if (recoverSigner(digest(this.domain, "MerchantAttestation", fields), hexToBytes(operatorSignature)) !== this.setup!.operator.toLowerCase()) return null;
+      const merchant = fields.merchant.toLowerCase();
+      const kioskKey = { merchant: fields.merchant, kioskEphemeral: String(m.kioskEphemeral), kioskNonce: String(m.kioskNonce) };
+      if (recoverSigner(digest(this.domain, "KioskKey", kioskKey), hexToBytes(String(m.kioskKeySignature))) !== merchant) return null;
+      return isPointX(hexToBytes(String(m.kioskEphemeral))) ? merchant : null;
+    } catch {
+      return null;
+    }
   }
 
   private confirm(m: Message): Message[] {
@@ -298,6 +382,8 @@ export class SoftwareDevice {
       return this.refused("MERCHANT_FORGED");
     }
     if (signer !== this.setup!.operator.toLowerCase()) return this.refused("MERCHANT_FORGED");
+    // A secure session serves only the merchant its session.open proved.
+    if (this.session!.merchant && a.merchant.toLowerCase() !== this.session!.merchant) return this.refused("MERCHANT_FORGED");
     const skew = this.cfg.anchorClockSkew;
     if (t + skew < Number(a.validFrom) || t - skew > Number(a.validUntil)) return this.refused("ATTESTATION_EXPIRED");
     this.attestation = { merchant: a.merchant.toLowerCase(), payout: a.payout.toLowerCase(), name: a.name };

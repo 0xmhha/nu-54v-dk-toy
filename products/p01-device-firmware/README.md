@@ -6,7 +6,7 @@
 
 | 경로 | 내용 |
 |---|---|
-| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. BLE 메시지 조각 재조립(프로토콜 4절), EIP-712 digest(`nu54_eip712`), 서명자 복원과 low-s·v 계산(`nu54_sig`), keccak-256(`nu54_keccak`), 결정적 CBOR 디코딩·스키마 검사·인코딩(`nu54_cbor`), 결제·셋업 세션(`nu54_session`, 서명과 난수는 플랫폼 콜백, 버튼은 비동기) |
+| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. BLE 메시지 조각 재조립(프로토콜 4절), EIP-712 digest(`nu54_eip712`), 서명자 복원과 low-s·v 계산(`nu54_sig`), keccak-256(`nu54_keccak`), 결정적 CBOR 디코딩·스키마 검사·인코딩(`nu54_cbor`), 결제·셋업 세션(`nu54_session`, 서명과 난수는 플랫폼 콜백, 버튼은 비동기), 결제 세션 보안 채널(4.1절: `nu54_secure`의 ECDH, HKDF와 AES-GCM은 플랫폼 콜백으로 보드는 PSA, host 시험은 OpenSSL) |
 | `third_party/` | libsecp256k1 v0.8.0(MIT), Keccak compact(CC0). 출처 커밋과 빌드 설정은 [`third_party/README.md`](third_party/README.md) |
 | `app/` | Zephyr 앱(C). 부팅 때 저장된 셋업(`src/device_setup.c`: 셋업 기록·PIN HMAC·실패 횟수는 PSA ITS, nonce는 settings)을 읽고 결제 링크(`src/pay_link.c`)를 시작한 뒤, 키가 있으면 자체 검증한다. 셋업이 없으면 기본 빌드는 7주차 고정 셋업으로 키를 만들고, `fw.py build --rental`(`app/rental.conf`)은 UNPROVISIONED로 셋업 세션을 기다린다. 결제 링크가 하는 일은 BLE 광고와 GATT 서비스, 조각 재조립과 envelope digest, `nu54_session`, 응답 조각 notify. 7주차 개발 빌드의 버튼·LED·셋업은 [설계](../../docs/content/products/p01/design.md) 8절 |
 | `boards/nucode/nu54v_dk/` | 제조사 보드 패키지(MIT, 출처 커밋은 `VENDORED.md`) |

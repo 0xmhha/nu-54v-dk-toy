@@ -20,6 +20,8 @@
 #define NU54_FIELDS_TIME_ANCHOR 2
 #define NU54_ENCODE_TYPE_DEVICE_RESET "DeviceReset(address device,uint256 nonce)"
 #define NU54_FIELDS_DEVICE_RESET 2
+#define NU54_ENCODE_TYPE_KIOSK_KEY "KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)"
+#define NU54_FIELDS_KIOSK_KEY 3
 
 typedef enum {
     NU54_REASON_ATTESTATION_EXPIRED = 0,
@@ -75,10 +77,12 @@ typedef struct { const char *name; nu54_field_kind_t kind; unsigned char require
 typedef struct nu54_object { const nu54_field_t *fields; unsigned char count; } nu54_object_t;
 typedef struct { const char *type; const nu54_object_t *object; } nu54_message_t;
 
-static const nu54_field_t nu54_msg_session_open_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"kioskNonce", NU54_K_HEX32, 1, 0}, {"mode", NU54_K_TEXT, 1, 0}};
-static const nu54_object_t nu54_msg_session_open = {nu54_msg_session_open_fields, 5};
-static const nu54_field_t nu54_msg_session_open_ok_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"device", NU54_K_HEX20, 0, 0}, {"deviceNonce", NU54_K_HEX32, 1, 0}, {"anchorValid", NU54_K_BOOL, 1, 0}, {"firmware", NU54_K_TEXT, 1, 0}, {"state", NU54_K_TEXT, 1, 0}, {"lastAnchor", NU54_K_UINT, 0, 0}};
-static const nu54_object_t nu54_msg_session_open_ok = {nu54_msg_session_open_ok_fields, 9};
+static const nu54_field_t nu54_msg_session_open_attestation_fields[] = {{"merchant", NU54_K_HEX20, 1, 0}, {"payout", NU54_K_HEX20, 1, 0}, {"name", NU54_K_TEXT, 1, 0}, {"validFrom", NU54_K_UINT, 1, 0}, {"validUntil", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}};
+static const nu54_object_t nu54_msg_session_open_attestation = {nu54_msg_session_open_attestation_fields, 6};
+static const nu54_field_t nu54_msg_session_open_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"kioskNonce", NU54_K_HEX32, 1, 0}, {"mode", NU54_K_TEXT, 1, 0}, {"kioskEphemeral", NU54_K_HEX32, 0, 0}, {"attestation", NU54_K_OBJECT, 0, &nu54_msg_session_open_attestation}, {"kioskKeySignature", NU54_K_SIGNATURE, 0, 0}};
+static const nu54_object_t nu54_msg_session_open = {nu54_msg_session_open_fields, 8};
+static const nu54_field_t nu54_msg_session_open_ok_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"device", NU54_K_HEX20, 0, 0}, {"deviceNonce", NU54_K_HEX32, 1, 0}, {"anchorValid", NU54_K_BOOL, 1, 0}, {"firmware", NU54_K_TEXT, 1, 0}, {"state", NU54_K_TEXT, 1, 0}, {"lastAnchor", NU54_K_UINT, 0, 0}, {"deviceEphemeral", NU54_K_HEX32, 0, 0}};
+static const nu54_object_t nu54_msg_session_open_ok = {nu54_msg_session_open_ok_fields, 10};
 static const nu54_field_t nu54_msg_session_confirm_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"deviceNonce", NU54_K_HEX32, 1, 0}};
 static const nu54_object_t nu54_msg_session_confirm = {nu54_msg_session_confirm_fields, 4};
 static const nu54_field_t nu54_msg_payment_identify_attestation_fields[] = {{"merchant", NU54_K_HEX20, 1, 0}, {"payout", NU54_K_HEX20, 1, 0}, {"name", NU54_K_TEXT, 1, 0}, {"validFrom", NU54_K_UINT, 1, 0}, {"validUntil", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}};

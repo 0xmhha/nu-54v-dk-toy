@@ -16,9 +16,9 @@ export class DeviceEndpoint {
   }
 
   receive(fragment: Uint8Array): Uint8Array[] {
-    const m = this.decode(fragment);
-    if (m === null) return [];
-    return this.frame(Array.isArray(m) ? m : this.device.handle(m));
+    const body = this.reassemble(fragment);
+    if (body === null) return [];
+    return this.frame(Array.isArray(body) ? body : this.device.handleBody(body));
   }
 
   /**
@@ -26,27 +26,27 @@ export class DeviceEndpoint {
    * messages sent before the step ends (the setup.operator ack, before the PIN) go to `emit`.
    */
   async receiveAsync(fragment: Uint8Array, emit?: (fragments: Uint8Array[]) => void): Promise<Uint8Array[]> {
-    const m = this.decode(fragment);
-    if (m === null) return [];
-    if (Array.isArray(m)) return this.frame(m);
-    return this.frame(await this.device.handleAsync(m, emit && ((early) => emit(this.frame([early])))));
+    const body = this.reassemble(fragment);
+    if (body === null) return [];
+    if (Array.isArray(body)) return this.frame(body);
+    return this.frame(await this.device.handleBodyAsync(body, emit && ((early) => emit(this.frame([early])))));
   }
 
-  /** A complete message, null while fragments are missing, or the error replies of a bad frame. */
-  private decode(fragment: Uint8Array): Message | Message[] | null {
+  /** A complete body, null while fragments are missing, or the replies to a bad frame. */
+  private reassemble(fragment: Uint8Array): Uint8Array | Uint8Array[] | null {
     try {
       const r = this.rx.feed(fragment);
-      return r.status === "more" ? null : decodeMessage(r.body);
+      return r.status === "more" ? null : r.body;
     } catch (e) {
       if (!(e instanceof ProtocolError)) throw e;
-      // The receiver drops the message, reports the reason and closes the session (4, 4.2).
-      this.device.handle({ v: 1, type: "session.cancel", sessionId: "0000000000000000" } as Message);
-      return [{ v: 1, type: "error", sessionId: "0000000000000000", reason: e.reason } as Message];
+      // An empty body is not a message: the device answers error{BAD_FRAME} and closes the
+      // session, under the session's channel when it has one (4, 4.1).
+      return this.device.handleBody(new Uint8Array(0));
     }
   }
 
-  private frame(replies: Message[]): Uint8Array[] {
-    return replies.flatMap((m) => this.tx.write(encodeMessage(m)));
+  private frame(bodies: Uint8Array[]): Uint8Array[] {
+    return bodies.flatMap((b) => this.tx.write(b));
   }
 }
 

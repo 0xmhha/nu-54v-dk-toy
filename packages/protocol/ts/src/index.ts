@@ -7,3 +7,4 @@ export * from "./frame.ts";
 export * from "./eip712.ts";
 export * from "./signature.ts";
 export * from "./base64.ts";
+export * from "./secure.ts";

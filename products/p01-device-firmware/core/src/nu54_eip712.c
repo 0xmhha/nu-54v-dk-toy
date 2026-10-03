@@ -136,6 +136,16 @@ void nu54_hash_device_reset(const nu54_device_reset_t *v, uint8_t out[32])
 	finish(&w, out);
 }
 
+void nu54_hash_kiosk_key(const nu54_kiosk_key_t *v, uint8_t out[32])
+{
+	words_t w;
+	begin(&w, NU54_ENCODE_TYPE_KIOSK_KEY);
+	put_address(&w, v->merchant);
+	put_bytes32(&w, v->kiosk_ephemeral);
+	put_bytes32(&w, v->kiosk_nonce);
+	finish(&w, out);
+}
+
 void nu54_eip712_digest(const uint8_t domain_separator[32], const uint8_t struct_hash[32], uint8_t out[32])
 {
 	uint8_t buf[66];

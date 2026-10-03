@@ -69,11 +69,13 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 
 키오스크 링크는 페어링하지 않으므로 결제 세션을 응용 계층에서 보호한다 [N27]. 7주차 실결제 게이트는 이 채널 없이 평문으로 통과한다. 기기는 9주차, 키오스크는 10~11주차에 적용하고, 양쪽이 적용된 뒤 릴리스 빌드의 기기는 평문 결제 세션을 거절한다 [N30].
 
-1. 키오스크는 세션마다 secp256k1 1회용 키 쌍을 만든다. `session.open`에 1회용 공개키(`kioskEphemeral`), `kioskNonce`, 가맹점 attestation, 그리고 가맹점 키로 `{merchant, kioskEphemeral, kioskNonce}`에 한 서명(`kioskKeySignature`)을 담는다. 이 서명 형식(EIP-712 타입)과 시험 벡터는 적용 작업에서 스키마에 추가한다.
-2. 기기는 attestation 서명자가 운영자인지, `kioskKeySignature` 서명자가 attestation의 `merchant`인지 확인한다. 아니면 `MERCHANT_FORGED`로 세션을 닫는다. 통과하면 자기 1회용 공개키(`deviceEphemeral`)를 `session.open.ok`에 담는다.
-3. 두 쪽은 ECDH 공유값에서 HKDF-SHA256(salt = `kioskNonce ‖ deviceNonce`, info = `nu54 session v1`)으로 128비트 세션 키(`session.key`)를 만든다.
-4. 이후 모든 메시지 본문은 AES-GCM으로 암호화한다. IV는 방향 1바이트와 방향별 메시지 번호 11바이트이고, 태그 검증이 실패하면 `BAD_FRAME`으로 세션을 닫는다. envelope의 digest는 암호문 기준이다.
-5. 1회용 키는 세션이 끝나면 지운다. 이전 세션의 `session.open`을 다시 보내도 1회용 개인키가 없으면 세션 키를 만들 수 없다.
+1. 키오스크는 세션마다 secp256k1 1회용 키 쌍을 만든다. 공개키는 x 좌표 32바이트로만 보내고(`hex32`), 받는 쪽은 y가 짝수인 점으로 복원한다. ECDH 결과의 x 좌표는 y의 부호와 무관하므로 양쪽이 같은 값을 얻는다. 결제 모드 `session.open`에 1회용 공개키(`kioskEphemeral`), 가맹점 attestation(`attestation`, payment.identify와 같은 형식), 그리고 가맹점 키로 EIP-712 `KioskKey{merchant, kioskEphemeral, kioskNonce}`에 한 서명(`kioskKeySignature`)을 함께 담는다. 셋 중 하나만 있으면 안 된다. 서명 형식은 스키마의 `operatorSignedTypes.KioskKey`, 벡터는 [eip712-vectors.json](eip712-vectors.json)의 KK-01이다.
+2. 기기는 attestation 서명자가 기록된 운영자인지, `kioskKeySignature` 서명자가 attestation의 `merchant`인지, `kioskEphemeral`이 곡선 위의 점인지 확인한다. 하나라도 아니면 `error{MERCHANT_FORGED}`로 답하고 세션을 열지 않는다. attestation의 유효 기간은 시각 anchor가 있어야 판단할 수 있으므로 여기서 보지 않고 `payment.identify`에서 본다. 셋업 모드에 이 필드를 담거나 `UNPROVISIONED` 기기(대조할 운영자가 없다)에 보내면 `error{NOT_PERMITTED}`다. 통과하면 deviceNonce를 뽑은 다음 자기 1회용 키를 뽑고(유효한 스칼라가 아니면 다시 뽑는다), x 좌표를 `session.open.ok`의 `deviceEphemeral`에 담는다. `session.open`과 `session.open.ok`는 평문이다.
+3. 두 쪽은 ECDH 공유값의 x 좌표(32바이트)에서 HKDF-SHA256(salt = `kioskNonce ‖ deviceNonce`, info = `nu54 session v1`)으로 128비트 세션 키(`session.key`)를 만든다.
+4. `session.open.ok` 다음부터 세션이 끝날 때까지 이 링크의 모든 본문은 양방향 모두 AES-GCM(128비트 키) 암호문과 16바이트 태그를 이어 붙인 것이다(AAD 없음). IV 12바이트는 보내는 쪽 방향 1바이트(키오스크→기기 `0x01`, 기기→키오스크 `0x02`)와 방향별 메시지 번호 11바이트(big-endian, 0부터)다. envelope의 길이와 digest는 암호문 기준이고, 암호문은 태그를 포함해 2048바이트 이하다. 태그 검증이 실패하거나 암호문이 아닌 본문이 오면 기기는 `error{BAD_FRAME}`을 같은 채널로 암호화해 보내고 세션을 닫는다. 기기 오류 응답도 세션 안에서는 모두 암호화한다. 세션이 닫힌 뒤 도착한 암호문은 채널이 없으므로 평문 `BAD_FRAME`이다. 대여자 폰 앱으로 가는 `confirm.show`, `confirm.limit`, 전달하는 `payment.outcome`은 본딩한 링크로 가므로 평문 CBOR이다.
+5. 기기는 세션 키를 만든 즉시 1회용 개인키와 공유값을 지우고, 세션이 끝나면(`session.cancel`, 오류, 링크 끊김, RAM 초기화) 세션 키를 지운다. 이전 세션의 `session.open`을 다시 보내도 1회용 개인키가 없으면 세션 키를 만들 수 없다. 보안 세션 중에 새 `session.open`을 평문으로 보내면 태그 검증에 실패해 세션이 닫히므로, 키오스크는 `session.cancel`로 세션을 끝낸 뒤 새로 연다.
+6. 보안 세션의 `payment.identify`는 `session.open`에서 확인한 가맹점의 attestation이어야 한다. 다른 가맹점이면 운영자 서명이 맞아도 `MERCHANT_FORGED`다.
+7. 평문 결제 세션은 개발 빌드만 받는다. 릴리스 빌드는 평문 결제 모드 `session.open`을 `error{NOT_PERMITTED}`로 거절한다(펌웨어 `CONFIG_NU54_REQUIRE_SECURE_SESSION`). 셋업 세션은 본딩한 링크에서 열리므로 평문 그대로다. 기대 바이트는 [session-vectors.json](session-vectors.json)의 SV-24~SV-29에 있고, `plain` 항목에 암호문 안의 CBOR 본문이 함께 있다.
 
 
 

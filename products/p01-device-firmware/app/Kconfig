@@ -8,4 +8,11 @@ config NU54_DEV_SETUP
 	  settlement contract and chain id from the deployment record (week-7 gate). Turn it off
 	  for the rental build: the device then boots UNPROVISIONED and waits for a setup session.
 
+config NU54_REQUIRE_SECURE_SESSION
+	bool "Refuse plaintext payment sessions"
+	help
+	  Payment sessions must open the secure channel (payment-protocol.md 4.1); a plaintext
+	  session.open in payment mode is answered with error NOT_PERMITTED. The release build turns
+	  it on once the kiosk has the channel; development builds keep plaintext for the week-7 path.
+
 source "Kconfig.zephyr"

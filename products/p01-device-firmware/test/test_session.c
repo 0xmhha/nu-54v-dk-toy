@@ -1,10 +1,14 @@
 /*
  * The firmware session against the shared session vectors: every scenario is replayed and each
  * reply must equal the vector byte for byte (signatures included: the host signs with RFC 6979
- * like the simulator, then nu54_sig_finish makes the protocol form as on the device).
+ * like the simulator, then nu54_sig_finish makes the protocol form as on the device). Secure
+ * scenarios (payment-protocol.md 4.1) use OpenSSL for the platform's HKDF and AES-GCM.
  */
 #include <stdio.h>
 #include <string.h>
+
+#include <openssl/evp.h>
+#include <openssl/kdf.h>
 
 #include "nu54_keccak.h"
 #include "nu54_session.h"
@@ -87,6 +91,47 @@ static int host_wipe(void *c)
 	return 0;
 }
 
+static int host_hkdf(void *c, const uint8_t ikm[32], const uint8_t salt[64], const char *info, uint8_t key[16])
+{
+	(void)c;
+	EVP_PKEY_CTX *k = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+	size_t n = 16;
+	int ok = k && EVP_PKEY_derive_init(k) > 0 && EVP_PKEY_CTX_set_hkdf_md(k, EVP_sha256()) > 0 &&
+		 EVP_PKEY_CTX_set1_hkdf_salt(k, salt, 64) > 0 && EVP_PKEY_CTX_set1_hkdf_key(k, ikm, 32) > 0 &&
+		 EVP_PKEY_CTX_add1_hkdf_info(k, (const unsigned char *)info, (int)strlen(info)) > 0 && EVP_PKEY_derive(k, key, &n) > 0 && n == 16;
+	EVP_PKEY_CTX_free(k);
+	return ok ? 0 : -1;
+}
+
+static int host_gcm(int seal, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out)
+{
+	EVP_CIPHER_CTX *x = EVP_CIPHER_CTX_new();
+	size_t body = seal ? len : len - 16;
+	int n = 0, m = 0;
+	int ok = x && (seal ? EVP_EncryptInit_ex(x, EVP_aes_128_gcm(), NULL, key, iv) : EVP_DecryptInit_ex(x, EVP_aes_128_gcm(), NULL, key, iv)) > 0;
+	if (ok && seal) {
+		ok = EVP_EncryptUpdate(x, out, &n, in, (int)body) > 0 && EVP_EncryptFinal_ex(x, out + n, &m) > 0 &&
+		     EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_GET_TAG, 16, out + body) > 0;
+	} else if (ok) {
+		ok = EVP_DecryptUpdate(x, out, &n, in, (int)body) > 0 &&
+		     EVP_CIPHER_CTX_ctrl(x, EVP_CTRL_GCM_SET_TAG, 16, (void *)(in + body)) > 0 && EVP_DecryptFinal_ex(x, out + n, &m) > 0;
+	}
+	EVP_CIPHER_CTX_free(x);
+	return ok ? 0 : -1;
+}
+
+static int host_seal(void *c, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out)
+{
+	(void)c;
+	return host_gcm(1, key, iv, in, len, out);
+}
+
+static int host_open(void *c, const uint8_t key[16], const uint8_t iv[12], const uint8_t *in, size_t len, uint8_t *out)
+{
+	(void)c;
+	return len < 16 ? -1 : host_gcm(0, key, iv, in, len, out);
+}
+
 static void dump(const char *what, const uint8_t *b, size_t n)
 {
 	printf("  %s (%zu): ", what, n);
@@ -109,7 +154,9 @@ int main(void)
 		d.anchor_clock_skew = SV_ANCHOR_SKEW;
 		d.authorization_expiry = SV_AUTH_EXPIRY;
 		d.firmware = SV_FIRMWARE;
-		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin};
+		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
+					       host_hkdf, host_seal, host_open};
+		d.require_secure = sc->require_secure;
 		strcpy(stored_pin, "2580");
 		pin_failures = 0;
 		if (sc->unprovisioned) {
@@ -169,7 +216,8 @@ int main(void)
 	}
 	/* A link that drops while setup waits for the PIN wipes the key setup made. */
 	memset(&d, 0, sizeof(d));
-	d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin};
+	d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
+				       host_hkdf, host_seal, host_open};
 	nu54_device_init_unprovisioned(&d);
 	d.session_open = 1;
 	d.pending = NU54_PENDING_PIN;
