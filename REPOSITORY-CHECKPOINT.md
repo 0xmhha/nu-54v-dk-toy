@@ -10,7 +10,7 @@
 2. [제품별 monorepo 진입점](products/README.md)
 3. [설계 동결 DF-20260925-02](docs/content/planning/design-freeze-checkpoint-02.md)
 4. [12주 WBS (DF-20260925-02)](docs/content/planning/product-worklist-and-12week-wbs-02.md)
-5. [결제 프로토콜](docs/content/specifications/protocol/payment-protocol.md) · [12주 수용 로그](docs/content/acceptance/week12-log.md)
+5. [결제 프로토콜](docs/content/specifications/protocol/payment-protocol.md) · [12주 수용 로그](docs/content/acceptance/week12-log.md) · [실기 시험 절차](docs/content/acceptance/hardware-session.md)
 6. [이전 설계 동결 DF-20260920-01](docs/content/planning/design-freeze-checkpoint.md) — DF-20260925-02와 충돌하지 않는 부분만 유효
 7. [채택된 구현 진입 기준 계약](docs/content/specifications/design-baseline-contract.md)
 8. [외부 환경 준비](docs/content/environment/README.md)
