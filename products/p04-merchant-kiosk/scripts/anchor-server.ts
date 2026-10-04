@@ -8,6 +8,8 @@
 //   node --experimental-strip-types products/p04-merchant-kiosk/scripts/provision-dev.ts --attestation att.json --anchor-url http://127.0.0.1:8095/anchor
 //
 // Listens on 127.0.0.1 only; GET /anchor?device=0x<20 bytes> answers the TimeAnchor JSON.
+// It also keeps `adb reverse` in place for itself and for Metro: a phone that drops off USB and
+// comes back loses both, and the debug app then shows a blank screen until they are set again.
 
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -20,6 +22,7 @@ const { values: a } = parseArgs({
     port: { type: "string", default: "8095" },
     opsctl: { type: "string", default: resolve(ROOT, "products/p05-operations-backoffice/bin/opsctl") },
     app: { type: "string", default: "com.nu54kiosk" },
+    metro: { type: "string", default: "8081" }, // the debug app's JS bundler
   },
 });
 const port = Number(a.port);
@@ -42,12 +45,22 @@ const server = createServer((req, res) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  // The phone reaches the Mac's port through USB.
+/** The phone reaches the Mac's ports through USB; returns whether both forwards are in place. */
+function reverse(): boolean {
   try {
-    execFileSync("adb", ["reverse", `tcp:${port}`, `tcp:${port}`], { stdio: "ignore" });
-    console.error(`anchor server on 127.0.0.1:${port}, adb reverse set for the phone`);
+    for (const p of [String(port), a.metro!]) execFileSync("adb", ["reverse", `tcp:${p}`, `tcp:${p}`], { stdio: "ignore" });
+    return true;
   } catch {
-    console.error(`anchor server on 127.0.0.1:${port}; run: adb reverse tcp:${port} tcp:${port}`);
+    return false;
   }
+}
+
+server.listen(port, "127.0.0.1", () => {
+  console.error(`anchor server on 127.0.0.1:${port}; keeping adb reverse for ${port} and Metro ${a.metro}`);
+  let up = reverse();
+  setInterval(() => {
+    const now = reverse();
+    if (now !== up) console.error(now ? "phone back on USB: adb reverse set again" : "phone not on USB: waiting");
+    up = now;
+  }, 3000);
 });
