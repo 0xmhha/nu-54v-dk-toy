@@ -145,10 +145,17 @@ static void handle_body(int link, const uint8_t *body, size_t len)
 	uint8_t sid[8];
 	int was_open = device.session_open;
 
+	nu54_pending_t asked = device.pending;
+
 	memcpy(sid, device.session_id, 8);
 	refresh_links();
 	const nu54_link_t call = nu54_links_call(&router, link, device.session_open);
 	nu54_session_handle(&device, &call, body, len, k_uptime_get() / 1000, &out);
+	/* The kiosk gave up on the renter's step (session.cancel after its wait, or a new session):
+	 * the step ends without a reply, but the lamp shows it as cancelled. */
+	if (asked != NU54_PENDING_NONE && device.pending == NU54_PENDING_NONE && out.event == NU54_EVENT_NONE) {
+		out.event = NU54_EVENT_REFUSED;
+	}
 	int opened = device.session_open && (!was_open || memcmp(sid, device.session_id, 8) != 0);
 	nu54_links_after(&router, link, opened);
 	if (opened) {
