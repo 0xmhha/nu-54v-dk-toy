@@ -18,6 +18,11 @@ target_include_directories(test_pin_entry PRIVATE ../core/include)
 target_compile_options(test_pin_entry PRIVATE -Wall -Wextra -Werror)
 add_test(NAME pin_entry COMMAND test_pin_entry)
 
+add_executable(test_links test_links.c ../core/src/nu54_links.c)
+target_include_directories(test_links PRIVATE ../core/include ../../../packages/protocol/c/include)
+target_compile_options(test_links PRIVATE -Wall -Wextra -Werror)
+add_test(NAME links COMMAND test_links)
+
 # --- Cryptography (third_party) and shared-vector tests -------------------------------------
 # libsecp256k1 v0.8.0 with the recovery module. ECMULT_WINDOW_SIZE 4 keeps the verification
 # table small enough for the device; the host tests use the same setting.
@@ -71,7 +76,9 @@ if(APPLE AND NOT OPENSSL_ROOT_DIR)
   execute_process(COMMAND brew --prefix openssl@3 OUTPUT_VARIABLE OPENSSL_ROOT_DIR OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 endif()
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
-add_executable(test_session test_session.c ../core/src/nu54_session.c ../core/src/nu54_cbor.c)
+add_executable(test_session test_session.c ../core/src/nu54_session.c ../core/src/nu54_session_util.c
+  ../core/src/nu54_session_channel.c ../core/src/nu54_session_setup.c ../core/src/nu54_session_pay.c
+  ../core/src/nu54_session_limit.c ../core/src/nu54_cbor.c)
 target_include_directories(test_session PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(test_session PRIVATE nu54_crypto OpenSSL::Crypto)
 target_compile_options(test_session PRIVATE -Wall -Wextra -Werror)

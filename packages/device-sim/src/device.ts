@@ -70,6 +70,11 @@ export interface DeviceConfig {
   phoneConnected?: () => boolean;
   /** Whether the central of the current message is on a bonded link; setup sessions need one (3). Default yes. */
   linkBonded?: () => boolean;
+  /**
+   * Week-7 fixed setup (P01 design 8): a provisioned device takes a setup session from an unpaired
+   * central, so the kiosk can hand over a TimeAnchor. setup.operator still needs a bonded session.
+   */
+  devUnpairedAnchor?: boolean;
   /** Payment mode from the phone app (device.paymentMode): turn payment advertising on for `seconds`, or off. */
   paymentMode?: (on: boolean, seconds: number) => void;
 }
@@ -119,7 +124,7 @@ export class SoftwareDevice {
   private pinFailures = 0;
   private nextNonce: bigint;
   /** The open session; a secure one has its channel and the merchant session.open proved (4.1). */
-  private session: { id: string; mode: string; deviceNonce: string; confirmed: boolean; channel?: SecureChannel; merchant?: string } | null = null;
+  private session: { id: string; mode: string; deviceNonce: string; confirmed: boolean; bonded: boolean; channel?: SecureChannel; merchant?: string } | null = null;
   private attestation: { merchant: string; payout: string; name: string } | null = null;
 
   constructor(cfg: DeviceConfig) {
@@ -138,6 +143,7 @@ export class SoftwareDevice {
       requirePhone: false,
       phoneConnected: () => true,
       linkBonded: () => true,
+      devUnpairedAnchor: false,
       paymentMode: () => {},
       ...rest,
     };
@@ -311,7 +317,11 @@ export class SoftwareDevice {
     const mode = String(m.mode);
     const sid = String(m.sessionId);
     const secure = m.kioskEphemeral !== undefined;
-    if (mode === "setup" && ((this.state !== "UNPROVISIONED" && this.state !== "PROVISIONED_NO_ANCHOR") || !this.cfg.linkBonded())) {
+    // Setup sessions open from a bonded central only; the week-7 fixed setup also takes one from
+    // the unpaired kiosk on a provisioned device, for its TimeAnchor.
+    const bonded = this.cfg.linkBonded();
+    const unpairedOk = this.cfg.devUnpairedAnchor && this.state !== "UNPROVISIONED";
+    if (mode === "setup" && ((this.state !== "UNPROVISIONED" && this.state !== "PROVISIONED_NO_ANCHOR") || !(bonded || unpairedOk))) {
       return this.error("NOT_PERMITTED", sid);
     }
     // The channel is for the unpaired kiosk link only; a release device refuses plaintext payments (4.1).
@@ -321,7 +331,7 @@ export class SoftwareDevice {
     const merchant = secure ? this.kioskMerchant(m) : undefined;
     if (merchant === null) return this.error("MERCHANT_FORGED", sid);
     const deviceNonce = bytesToHex(this.cfg.random(32));
-    this.session = { id: sid, mode, deviceNonce, confirmed: false };
+    this.session = { id: sid, mode, deviceNonce, confirmed: false, bonded };
     this.attestation = null;
     let deviceEphemeral: string | undefined;
     if (secure) {
@@ -497,7 +507,8 @@ export class SoftwareDevice {
   private *operatorStep(m: Message): Step {
     const ack = (step: string, accepted: boolean, extra: Record<string, unknown> = {}) =>
       this.reply("setup.ack", { step, accepted, ...extra });
-    if (!this.inSession(m, "setup")) return [this.error("NOT_PERMITTED", String(m.sessionId))];
+    // Recording an operator needs a bonded session, whatever let the session open.
+    if (!this.inSession(m, "setup") || !this.session!.bonded) return [this.error("NOT_PERMITTED", String(m.sessionId))];
     if (this.state !== "UNPROVISIONED") return [ack("setup.operator", false, { reason: "NOT_PERMITTED" })]; // once only [N23]
     const passkey = Number(m.passkey);
     if (!Number.isSafeInteger(passkey) || passkey > 999_999) return [ack("setup.operator", false, { reason: "NOT_PERMITTED" })];
