@@ -6,9 +6,9 @@
 
 | 경로 | 내용 |
 |---|---|
-| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. BLE 메시지 조각 재조립(프로토콜 4절), EIP-712 digest(`nu54_eip712`), 서명자 복원과 low-s·v 계산(`nu54_sig`), keccak-256(`nu54_keccak`), 결정적 CBOR 디코딩·스키마 검사·인코딩(`nu54_cbor`), 결제·셋업 세션(`nu54_session`, 서명과 난수는 플랫폼 콜백, 버튼은 비동기), 버튼 PIN 입력(`nu54_pin_entry`, 4자리), 결제 세션 보안 채널(4.1절: `nu54_secure`의 ECDH, HKDF와 AES-GCM은 플랫폼 콜백으로 보드는 PSA, host 시험은 OpenSSL) |
+| `core/` | 보드와 무관한 C 코드. Zephyr 헤더를 쓰지 않아 host에서 빌드·시험한다. BLE 메시지 조각 재조립(프로토콜 4절), EIP-712 digest(`nu54_eip712`), 서명자 복원과 low-s·v 계산(`nu54_sig`), keccak-256(`nu54_keccak`), 결정적 CBOR 디코딩·스키마 검사·인코딩(`nu54_cbor`), 결제·셋업 세션(`nu54_session*.c`: 공통·결제·셋업·한도·보안 채널로 나뉘고 내부 헤더 `nu54_session_int.h`, 고정 설정 `nu54_config_t`와 메시지별 링크 `nu54_link_t`를 받는다, 서명과 난수는 플랫폼 콜백, 버튼은 비동기), 버튼 PIN 입력(`nu54_pin_entry`, 4자리), central 판정(`nu54_links`: 세션을 가진 링크, 폰 앱, 다른 링크), 결제 세션 보안 채널(4.1절: `nu54_secure`의 ECDH, HKDF와 AES-GCM은 플랫폼 콜백으로 보드는 PSA, host 시험은 OpenSSL) |
 | `third_party/` | libsecp256k1 v0.8.0(MIT), Keccak compact(CC0). 출처 커밋과 빌드 설정은 [`third_party/README.md`](third_party/README.md) |
-| `app/` | Zephyr 앱(C). 부팅 때 저장된 셋업(`src/device_setup.c`: 셋업 기록·PIN HMAC·실패 횟수는 PSA ITS, nonce는 settings)을 읽고 결제 링크(`src/pay_link.c`)를 시작한 뒤, 키가 있으면 자체 검증한다. 셋업이 없으면 기본 빌드는 7주차 고정 셋업으로 키를 만들고, `fw.py build --rental`(`app/rental.conf`)은 UNPROVISIONED로 셋업 세션을 기다린다. 결제 링크가 하는 일은 BLE 광고와 GATT 서비스, 조각 재조립과 envelope digest, `nu54_session`, 응답 조각 notify. 7주차 개발 빌드의 버튼·LED·셋업은 [설계](../../docs/content/products/p01/design.md) 8절 |
+| `app/` | Zephyr 앱(C). `src/ble_links.c`는 BLE(결제 GATT 서비스, central 2개, 페어링, 결제·페어링 모드 광고, 조각 송신)만 맡고, `src/pay_link.c`는 work queue 하나에서 세션(`nu54_session`), 링크 판정(`nu54_links`), 재조립을 돌린다. Bluetooth 스레드와 main 루프는 이벤트를 큐에 넣기만 한다. `src/device_setup.c`는 저장(셋업 기록·PIN HMAC·실패 횟수는 PSA ITS, nonce는 settings)과 플랫폼 콜백, `src/status_led.c`는 LED, `src/main.c`는 버튼과 PIN 입력이다. 셋업이 없으면 기본 빌드는 7주차 고정 셋업으로 키를 만들고, `fw.py build --rental`(`app/rental.conf`)은 UNPROVISIONED로 셋업 세션을 기다린다. 7주차 개발 빌드의 버튼·LED·셋업은 [설계](../../docs/content/products/p01/design.md) 8절 |
 | `boards/nucode/nu54v_dk/` | 제조사 보드 패키지(MIT, 출처 커밋은 `VENDORED.md`) |
 | `test/` | `core/`의 host 단위 시험(CMake + CTest). `eip712_vectors`, `frame_vectors`, `cbor_vectors`, `session_vectors`는 공용 벡터로 시험하며 적합성 harness가 실행한다 |
 | `scripts/fw.py` | NCS 툴체인 안에서 west 빌드와 pyOCD 플래시를 실행한다. 릴리스 빌드, 서명 키 생성, 거부 시험 이미지(아래) |
