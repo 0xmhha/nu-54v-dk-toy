@@ -4,107 +4,177 @@
 
 #include "board_io.h"
 
-#define BLINK_MS 250
-#define RESULT_MS 5000
+/* A pattern is pairs of on and off times in milliseconds. */
+typedef struct {
+	const uint16_t *steps;
+	uint8_t count; /* number of on/off pairs */
+	bool repeat;
+} pattern_t;
+
+#define PATTERN(name, rep, ...)                                                                                        \
+	static const uint16_t name##_steps[] = {__VA_ARGS__};                                                          \
+	static const pattern_t name = {name##_steps, ARRAY_SIZE(name##_steps) / 2, rep}
+
+PATTERN(P_MODE, true, 100, 1900);
+PATTERN(P_WAITING, true, 200, 200);
+PATTERN(P_SIGNED, true, 500, 500);
+PATTERN(P_APPROVED, false, 2000, 0);
+PATTERN(P_FAILED, false, 100, 150, 100, 150, 100, 0);
+PATTERN(P_PIN_START, false, 300, 200, 300, 0);
+PATTERN(P_PIN_TAP, false, 80, 0);
+PATTERN(P_PIN_KEEP, false, 500, 0);
+
 #define SIGNED_MS 30000
 
-typedef enum { RESULT_NONE, RESULT_SIGNED, RESULT_OK, RESULT_FAIL } result_t;
-
-static bool mode, waiting, blink_on;
-static bool pin_shown;
-static uint8_t pin_mask;
-static result_t result;
-static int64_t result_until;
+static bool mode, waiting, signed_wait, pin_active;
+static int64_t signed_until;
+static const pattern_t *oneshot; /* plays over the ongoing pattern, then ends */
+static const pattern_t *playing;
+static uint8_t step; /* index of the half-step (on, off, on, off, ...) */
 
 static void tick(struct k_work *w);
 static K_WORK_DELAYABLE_DEFINE(tick_work, tick);
+static struct k_spinlock lock; /* callers are the session work queue and the main loop */
 
-static void redraw(void)
+static void lamp(bool on)
 {
-	if (pin_shown) {
-		for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
-			board_led_set(i, pin_mask & (1u << i));
-		}
-		return;
+	for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
+		board_led_set(i, on);
 	}
-	board_led_set(0, mode);
-	board_led_set(1, waiting);
-	board_led_set(2, result == RESULT_OK || (result == RESULT_SIGNED && blink_on));
-	board_led_set(3, result == RESULT_FAIL);
 }
 
-/* Blinks LED3 while signed and ends a result when its time is up. */
+/* The ongoing indication, by priority; NULL is dark. */
+static const pattern_t *ongoing(void)
+{
+	if (pin_active) {
+		return NULL;
+	}
+	if (waiting) {
+		return &P_WAITING;
+	}
+	if (signed_wait && k_uptime_get() < signed_until) {
+		return &P_SIGNED;
+	}
+	signed_wait = false;
+	return mode ? &P_MODE : NULL;
+}
+
+/* Starts the pattern that should show now, from its first step. */
+static void restart(void)
+{
+	playing = oneshot ? oneshot : ongoing();
+	step = 0;
+	k_work_reschedule(&tick_work, K_NO_WAIT);
+}
+
 static void tick(struct k_work *w)
 {
 	(void)w;
-	if (result != RESULT_NONE && k_uptime_get() >= result_until) {
-		result = RESULT_NONE;
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (playing && step >= 2 * playing->count) {
+		if (playing->repeat) {
+			step = 0;
+		} else {
+			oneshot = NULL; /* a one-off ends: hand back to the ongoing pattern */
+			playing = ongoing();
+			step = 0;
+		}
 	}
-	blink_on = !blink_on;
-	redraw();
-	if (result != RESULT_NONE) {
-		k_work_reschedule(&tick_work, K_MSEC(result == RESULT_SIGNED ? BLINK_MS : result_until - k_uptime_get()));
+	if (!playing) {
+		lamp(false);
+		k_spin_unlock(&lock, key);
+		return;
 	}
+	bool on = (step % 2) == 0;
+	uint16_t ms = playing->steps[step];
+	step++;
+	lamp(on && ms > 0);
+	k_spin_unlock(&lock, key);
+	k_work_reschedule(&tick_work, K_MSEC(ms > 0 ? ms : 1));
 }
 
-static void show(result_t r, int64_t ms)
+static void set(bool *flag, bool value)
 {
-	result = r;
-	result_until = k_uptime_get() + ms;
-	blink_on = true;
-	redraw();
-	k_work_reschedule(&tick_work, K_MSEC(r == RESULT_SIGNED ? BLINK_MS : ms));
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (*flag != value) {
+		*flag = value;
+		if (!oneshot) {
+			restart();
+		}
+	}
+	k_spin_unlock(&lock, key);
+}
+
+static void play(const pattern_t *p)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	oneshot = p;
+	restart();
+	k_spin_unlock(&lock, key);
 }
 
 void status_led_mode(bool on)
 {
-	mode = on;
-	redraw();
+	set(&mode, on);
 }
 
 void status_led_waiting(bool on)
 {
-	waiting = on;
-	redraw();
+	set(&waiting, on);
 }
 
 void status_led_event(nu54_event_t event)
 {
 	if (event == NU54_EVENT_SIGNED) {
-		show(RESULT_SIGNED, SIGNED_MS);
+		k_spinlock_key_t key = k_spin_lock(&lock);
+		signed_wait = true;
+		signed_until = k_uptime_get() + SIGNED_MS;
+		k_spin_unlock(&lock, key);
+		set(&waiting, false);
+		play(NULL); /* show the slow blinking now */
 	} else if (event == NU54_EVENT_REFUSED) {
-		show(RESULT_FAIL, RESULT_MS);
+		k_spinlock_key_t key = k_spin_lock(&lock);
+		signed_wait = false;
+		k_spin_unlock(&lock, key);
+		play(&P_FAILED);
 	}
 }
 
 void status_led_outcome(bool approved)
 {
-	show(approved ? RESULT_OK : RESULT_FAIL, RESULT_MS);
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	signed_wait = false;
+	k_spin_unlock(&lock, key);
+	play(approved ? &P_APPROVED : &P_FAILED);
 }
 
 void status_led_new_session(void)
 {
-	result = RESULT_NONE;
-	k_work_cancel_delayable(&tick_work);
-	redraw();
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	signed_wait = false;
+	oneshot = NULL;
+	restart();
+	k_spin_unlock(&lock, key);
 }
 
 void status_led_clear(void)
 {
-	mode = false;
-	waiting = false;
-	status_led_new_session();
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	mode = waiting = signed_wait = pin_active = false;
+	oneshot = NULL;
+	restart();
+	k_spin_unlock(&lock, key);
 }
 
-void status_led_pin(uint8_t mask)
+void status_led_pin(status_pin_t what)
 {
-	pin_shown = true;
-	pin_mask = mask;
-	redraw();
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	pin_active = true;
+	k_spin_unlock(&lock, key);
+	play(what == STATUS_PIN_START ? &P_PIN_START : what == STATUS_PIN_TAP ? &P_PIN_TAP : &P_PIN_KEEP);
 }
 
 void status_led_pin_end(void)
 {
-	pin_shown = false;
-	redraw();
+	set(&pin_active, false);
 }

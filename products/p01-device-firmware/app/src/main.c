@@ -6,8 +6,8 @@
  * Buttons: long-press SW4 enters payment mode (advertising), long-press SW3 pairing mode (a new
  * bond for the phone app or operator tool), SW1 approves and SW2 rejects a payment waiting on
  * the device. While the session asks for the PIN the buttons enter it instead
- * (core/nu54_pin_entry.h: SW1 taps a digit, SW3 keeps it, SW2 starts again; LEDs show the kept
- * digits). LEDs: LED1 payment mode, LED2 waiting for the button, LED3
+ * (core/nu54_pin_entry.h: SW1 taps a digit, SW3 keeps it, SW2 starts again; the lamp flashes for
+ * each, app/src/status_led.h). LEDs: LED1 payment mode, LED2 waiting for the button, LED3
  * approved, LED4 refused or failed. Every step is logged on the VCOM console.
  */
 #include <zephyr/kernel.h>
@@ -58,15 +58,10 @@ static void key_self_test(const uint8_t address[20])
 	log_hex("key self-test signature", sig, 65);
 }
 
-/* The digit being entered flashes on each tap; the kept ones stay lit. */
-static void pin_feedback(const nu54_pin_entry_t *e, bool tap)
+/* The lamp acknowledges each button: a tap flashes short, keeping a digit flashes long. */
+static void pin_feedback(bool tap)
 {
-	uint8_t mask = nu54_pin_entry_leds(e);
-	if (tap && e->kept < BOARD_IO_COUNT) {
-		status_led_pin(mask | (1u << e->kept));
-		k_msleep(80);
-	}
-	status_led_pin(mask);
+	status_led_pin(tap ? STATUS_PIN_TAP : STATUS_PIN_KEEP);
 }
 
 /* Set when an entry was handed to the session, until the session stops asking: the session works
@@ -99,7 +94,11 @@ static void pin_button(nu54_pin_entry_t *e, const board_button_event_t *ev)
 		hand_over(NULL);
 		break;
 	default:
-		pin_feedback(e, pe == NU54_PIN_TAP);
+		if (pe != NU54_PIN_CLEAR) {
+			pin_feedback(pe == NU54_PIN_TAP);
+		} else {
+			status_led_pin(STATUS_PIN_START); /* starting again looks like starting */
+		}
 	}
 }
 
@@ -136,7 +135,7 @@ int main(void)
 		if (wanted && !pin_entry.active && !handed_over) {
 			nu54_pin_entry_start(&pin_entry, k_uptime_get_32());
 			LOG_INF("enter the PIN: SW1 taps a digit, SW3 keeps it, SW2 starts again");
-			pin_feedback(&pin_entry, false);
+			status_led_pin(STATUS_PIN_START);
 		} else if (!wanted && pin_entry.active) {
 			nu54_pin_entry_stop(&pin_entry);
 			status_led_pin_end();

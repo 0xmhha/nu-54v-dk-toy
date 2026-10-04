@@ -1,17 +1,17 @@
 /*
- * The four LEDs as the renter reads them (P01 design 8):
+ * The four LEDs sit next to each other, so the renter cannot tell them apart: they work as one
+ * lamp, and each step has its own blink pattern. Every indication ends dark; idle is dark.
  *
- *   LED1 on        payment mode: advertising, or a kiosk connected
- *   LED2 on        waiting for the renter's button
- *   LED3 blinking  signed; waiting for the kiosk's result (30 s at most)
- *   LED3 on 5 s    payment approved (the kiosk saw it settled)
- *   LED4 on 5 s    refused, failed or cancelled: a device refusal, the kiosk's refused or failed
- *                  outcome, or the link lost while waiting
- *   all off        idle
+ *   idle                                  dark
+ *   payment mode (waiting for a kiosk)    a short blip every 2 s
+ *   waiting for the renter's button       fast blinking (0.2 s)
+ *   signed, waiting for the kiosk         slow blinking (0.5 s), 30 s at most
+ *   approved                              on for 2 s, then dark
+ *   refused, failed or cancelled          three short flashes, then dark
+ *   PIN entry: start / tap / keep digit   two long flashes / one short / one 0.5 s
  *
- * A new session clears the result LEDs. While the PIN is entered, status_led_pin() shows the kept
- * digits instead (LED k for digit k) until status_led_pin_end(). This module is the only one that
- * drives the LEDs.
+ * One-off indications (results, PIN feedback) play over the ongoing one and then hand back.
+ * This module is the only one that drives the LEDs.
  */
 #ifndef STATUS_LED_H
 #define STATUS_LED_H
@@ -20,18 +20,22 @@
 
 #include "nu54_session.h"
 
+/* Payment mode or a central connected. */
 void status_led_mode(bool on);
+/* The renter's button is awaited. */
 void status_led_waiting(bool on);
-/* What a session call meant: SIGNED starts the LED3 blink, REFUSED shows LED4. */
+/* What a session call meant: SIGNED starts the slow blinking, REFUSED plays the failure. */
 void status_led_event(nu54_event_t event);
 /* The kiosk's payment.outcome, forwarded through the device. */
 void status_led_outcome(bool approved);
 /* A new session: forget the last result. */
 void status_led_new_session(void);
-/* Everything off (payment mode about to start again). */
+/* Back to idle (payment mode about to start again). */
 void status_led_clear(void);
-/* PIN entry (main.c): show `mask` (bit k-1 = digit k kept); end goes back to the status. */
-void status_led_pin(uint8_t mask);
+
+typedef enum { STATUS_PIN_START, STATUS_PIN_TAP, STATUS_PIN_KEEP } status_pin_t;
+/* PIN entry feedback; while PIN entry runs the ongoing patterns pause. */
+void status_led_pin(status_pin_t what);
 void status_led_pin_end(void);
 
 #endif /* STATUS_LED_H */
