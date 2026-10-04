@@ -187,18 +187,25 @@ static void on_fragment_event(const event_t *ev)
 	handle_body(ev->link, NULL, 0);
 }
 
+/*
+ * The central that held the session left: the payment (or setup) is over however it ended -
+ * approved, refused, timed out and cancelled by the kiosk, or an error. The device goes back to
+ * the start: the session ends, payment mode ends (the next payment starts with SW4 or the phone
+ * app), and the lamp goes dark once the result it is showing has played.
+ */
 static void on_disconnected_event(int link)
 {
 	bool waited = device.pending != NU54_PENDING_NONE;
 	if (!nu54_links_disconnected(&router, link)) {
 		return;
 	}
-	/* The link held the session: it ends with it, and a step the renter was on is cancelled. */
 	nu54_session_link_closed(&device);
-	status_led_waiting(false);
 	if (waited) {
-		status_led_event(NU54_EVENT_REFUSED);
+		status_led_event(NU54_EVENT_REFUSED); /* the renter's step was cancelled */
 	}
+	ble_links_payment_mode(0);
+	status_led_idle();
+	LOG_INF("session over: back to idle");
 }
 
 /* The renter's button or PIN: replies go to the central that holds the session. */

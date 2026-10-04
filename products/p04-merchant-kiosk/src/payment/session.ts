@@ -60,7 +60,8 @@ export type SessionResult =
   | { status: "refused"; reason: string; detail?: string }
   | { status: "cancelled"; orderId: string };
 
-const WAIT_MS = 10_000;
+/** How long the kiosk waits for the renter's press after payment.prepare (N10). */
+export const WAIT_MS = 10_000;
 const REPLY_MS = 3_000;
 
 /*

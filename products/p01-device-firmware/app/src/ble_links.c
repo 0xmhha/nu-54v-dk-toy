@@ -54,18 +54,6 @@ static struct bt_conn *link_conn(int i)
 	return c;
 }
 
-static bool any_link(void)
-{
-	for (int i = 0; i < LINK_MAX; i++) {
-		struct bt_conn *c = link_conn(i);
-		if (c) {
-			bt_conn_unref(c);
-			return true;
-		}
-	}
-	return false;
-}
-
 /* ---------------------------------------------------------------- GATT */
 
 /* One more expansion step, so the generated UUID parts become five macro arguments. */
@@ -177,7 +165,7 @@ static void mode_end(struct k_work *w)
 	(void)w;
 	payment_mode = false;
 	stop_advertising_if_idle();
-	status_led_mode(any_link());
+	status_led_mode(false);
 	LOG_INF("payment mode ended");
 }
 
@@ -239,7 +227,6 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	LOG_INF("central disconnected (link %d, 0x%02x)", i, reason);
 	handlers->disconnected(i);
 	advertise();
-	status_led_mode(payment_mode || any_link());
 }
 
 static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)

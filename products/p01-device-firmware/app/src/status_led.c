@@ -166,6 +166,16 @@ void status_led_clear(void)
 	k_spin_unlock(&lock, key);
 }
 
+void status_led_idle(void)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	mode = waiting = signed_wait = false;
+	if (!oneshot) {
+		restart();
+	}
+	k_spin_unlock(&lock, key);
+}
+
 void status_led_pin(status_pin_t what)
 {
 	k_spinlock_key_t key = k_spin_lock(&lock);
