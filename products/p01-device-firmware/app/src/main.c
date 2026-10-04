@@ -18,6 +18,7 @@
 #include "board_io.h"
 #include "device_key.h"
 #include "pay_link.h"
+#include "status_led.h"
 #include "nu54_keccak.h"
 #include "nu54_pin_entry.h"
 #include "nu54_protocol.h"
@@ -57,22 +58,15 @@ static void key_self_test(const uint8_t address[20])
 	log_hex("key self-test signature", sig, 65);
 }
 
-static void leds(uint8_t mask)
-{
-	for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
-		board_led_set(i, mask & (1u << i));
-	}
-}
-
 /* The digit being entered flashes on each tap; the kept ones stay lit. */
 static void pin_feedback(const nu54_pin_entry_t *e, bool tap)
 {
 	uint8_t mask = nu54_pin_entry_leds(e);
 	if (tap && e->kept < BOARD_IO_COUNT) {
-		leds(mask | (1u << e->kept));
+		status_led_pin(mask | (1u << e->kept));
 		k_msleep(80);
 	}
-	leds(mask);
+	status_led_pin(mask);
 }
 
 /* Set when an entry was handed to the session, until the session stops asking: the session works
@@ -81,7 +75,7 @@ static bool handed_over;
 
 static void hand_over(const char *pin)
 {
-	leds(0);
+	status_led_pin_end();
 	pay_link_pin(pin, pin ? NU54_PIN_LEN : 0);
 	handed_over = true;
 }
@@ -145,7 +139,7 @@ int main(void)
 			pin_feedback(&pin_entry, false);
 		} else if (!wanted && pin_entry.active) {
 			nu54_pin_entry_stop(&pin_entry);
-			leds(0);
+			status_led_pin_end();
 		}
 		if (pin_entry.active && nu54_pin_entry_poll(&pin_entry, k_uptime_get_32()) == NU54_PIN_TIMEOUT) {
 			hand_over(NULL);
@@ -161,9 +155,7 @@ int main(void)
 		}
 		LOG_INF("SW%u %s", ev.button + 1, ev.event == NU54_BTN_CLICK ? "click" : "long press");
 		if (ev.button == 3 && ev.event == NU54_BTN_LONG) {
-			for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
-				board_led_set(i, false);
-			}
+			status_led_clear();
 			pay_link_payment_mode(120);
 		} else if (ev.button == 2 && ev.event == NU54_BTN_LONG) {
 			pay_link_pairing_mode(60);

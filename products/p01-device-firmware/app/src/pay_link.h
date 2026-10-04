@@ -10,13 +10,6 @@
 #include <stdint.h>
 
 
-typedef enum {
-	PAY_LED_MODE = 0,     /* LED1: payment mode (advertising or connected) */
-	PAY_LED_WAITING = 1,  /* LED2: waiting for the button */
-	PAY_LED_APPROVED = 2, /* LED3: payment approved */
-	PAY_LED_REFUSED = 3,  /* LED4: refused or failed */
-} pay_led_t;
-
 /* Loads the stored setup (device_setup.h), then starts the session and BLE. Returns 0 or a
  * negative errno. */
 int pay_link_init(void);

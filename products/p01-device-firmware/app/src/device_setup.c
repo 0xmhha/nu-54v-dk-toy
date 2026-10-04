@@ -5,11 +5,10 @@
 
 #include <psa/crypto.h>
 #include <psa/internal_trusted_storage.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
+#include "ble_links.h"
 #include "dev_setup.h"
 #include "device_key.h"
 
@@ -255,9 +254,7 @@ static int wipe(void *ctx)
 	ok &= gone(psa_its_remove(UID_PIN_FAILURES));
 	ok &= settings_delete("nu54/nonce") == 0;
 	/* Bonds go with the rental: the next renter's phone pairs again with the new passkey. */
-	if (bt_is_ready()) {
-		ok &= bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY) == 0;
-	}
+	ok &= ble_links_unpair_all() == 0;
 	nonce_loaded = 0;
 	LOG_INF("wipe: %s", ok ? "done" : "incomplete");
 	return ok ? 0 : -EIO;
@@ -314,9 +311,18 @@ int device_setup_load(nu54_device_t *d)
 	struct stored_record r;
 	int err;
 
-	d->platform = (nu54_platform_t){sign, random_bytes, persist_nonce, NULL, generate_key, commit_setup, wipe, check_pin,
-					hkdf, aead_seal, aead_open};
-	d->require_secure = IS_ENABLED(CONFIG_NU54_REQUIRE_SECURE_SESSION);
+	d->cfg.platform = (nu54_platform_t){
+		.sign = sign,
+		.random = random_bytes,
+		.persist_nonce = persist_nonce,
+		.generate_key = generate_key,
+		.commit_setup = commit_setup,
+		.wipe = wipe,
+		.check_pin = check_pin,
+		.hkdf = hkdf,
+		.aead_seal = aead_seal,
+		.aead_open = aead_open,
+	};
 	if (psa_crypto_init() != PSA_SUCCESS) {
 		return -EIO;
 	}
