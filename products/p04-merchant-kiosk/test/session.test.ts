@@ -81,6 +81,26 @@ test("a device already READY keeps its anchor and the next payment uses the next
   expect(r.status === "approved" && r.auth.nonce).toBe(String(256 * 9 + 1));
 });
 
+test("an anchor older than ANCHOR_MAX_AGE_S is not sent: TIME_ANCHOR_STALE, and it is dropped", async () => {
+  const { link } = wire(() => true);
+  let used = 0;
+  const r = await runPayment(link, request({ chainTime: BigInt(T0 + 91), onAnchorUsed: () => { used++; } }));
+  expect(r).toMatchObject({ status: "refused", reason: "TIME_ANCHOR_STALE" });
+  expect(used).toBe(1);
+});
+
+test("a late anchor still pays: the expiry is capped to the device clock it set", async () => {
+  // The anchor waited 80 s: the device clock runs 80 s behind the chain. The kiosk's usual
+  // expiry (chain + 60) would be past the device's window (its clock + 120) and refused.
+  const { link } = wire(() => true);
+  const r = await runPayment(link, request({ chainTime: BigInt(T0 + 80), expiry: BigInt(T0 + 140) }));
+  expect(r.status).toBe("approved");
+  // Device clock + authorizationExpiry - 5 s margin, plus the second or two the test itself takes.
+  const expiry = r.status === "approved" ? Number(r.auth.expiry) : 0;
+  expect(expiry).toBeGreaterThanOrEqual(T0 + 115);
+  expect(expiry).toBeLessThanOrEqual(T0 + 117);
+});
+
 test("the renter rejects: refused USER_REJECTED", async () => {
   const { link } = wire(() => false);
   const r = await runPayment(link, request());

@@ -21,7 +21,7 @@ import { fromBase64 } from '@nu54/protocol';
 import { findDevice, openTransport } from './ble/central.ts';
 import { FramedLink } from './ble/framing.ts';
 import { JsonRpcChain } from './chain/rpc.ts';
-import { loadKiosk, takeAnchor, type Loaded } from './kiosk/config.ts';
+import { anchorUsed, loadKiosk, pendingAnchor, type Loaded } from './kiosk/config.ts';
 import { changeLimits, pay, resumeOrders, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
 import { resume } from './payment/submit.ts';
 import { OrderStore } from './kiosk/orders.ts';
@@ -72,7 +72,8 @@ function deps(kiosk: Loaded, orders?: OrderStore): Omit<PayDeps, 'random'> {
       const found = await findDevice();
       return new FramedLink(await openTransport(found.address, () => {}));
     },
-    anchor: () => takeAnchor(Vault),
+    anchor: () => pendingAnchor(Vault),
+    anchorUsed: () => anchorUsed(Vault),
   };
 }
 

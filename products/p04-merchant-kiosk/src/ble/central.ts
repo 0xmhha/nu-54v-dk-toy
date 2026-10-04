@@ -11,9 +11,26 @@ export async function findDevice(timeoutMs = 4000): Promise<FoundDevice> {
   return NusBle.scan(GATT.service, timeoutMs);
 }
 
+/**
+ * A first BLE connection sometimes fails to establish (HCI 0x3e, GATT status 133) and works when
+ * tried again; the kiosk tries up to `attempts` times before it reports the device unreachable.
+ */
+export async function connectWithRetry<T>(connect: () => Promise<T>, attempts = 3, pauseMs = 300): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await connect();
+    } catch (e) {
+      last = e;
+      if (i + 1 < attempts) await new Promise<void>((r) => setTimeout(() => r(), pauseMs));
+    }
+  }
+  throw last;
+}
+
 /** Connects (no pairing, N27) and returns a transport; onDrop runs if the link drops. */
 export async function openTransport(address: string, onDrop: (reason: string) => void): Promise<FragmentTransport> {
-  const mtu = await NusBle.connect(address, GATT.service, GATT.rx, GATT.tx);
+  const mtu = await connectWithRetry(() => NusBle.connect(address, GATT.service, GATT.rx, GATT.tx));
   const dropped = NusBle.onDisconnect(onDrop);
   return {
     mtu,
