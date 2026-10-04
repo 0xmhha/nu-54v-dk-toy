@@ -25,6 +25,8 @@ export interface KioskConfig {
   attestation: Attestation;
   /** P07 indexer base URL for receipts; optional, never needed to decide a payment. */
   indexerUrl?: string;
+  /** Week-7 development setup: scripts/anchor-server.ts, asked for a fresh TimeAnchor per payment. */
+  anchorUrl?: string;
 }
 
 export interface Provision {

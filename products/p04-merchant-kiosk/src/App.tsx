@@ -22,7 +22,7 @@ import { findDevice, openTransport } from './ble/central.ts';
 import { FramedLink } from './ble/framing.ts';
 import { JsonRpcChain } from './chain/rpc.ts';
 import { anchorUsed, loadKiosk, pendingAnchor, type Loaded } from './kiosk/config.ts';
-import { ANCHOR_MAX_AGE_S, WAIT_MS } from './payment/session.ts';
+import { ANCHOR_MAX_AGE_S, WAIT_MS, type TimeAnchor } from './payment/session.ts';
 import { changeLimits, pay, resumeOrders, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
 import { resume } from './payment/submit.ts';
 import { OrderStore } from './kiosk/orders.ts';
@@ -86,6 +86,16 @@ function deps(kiosk: Loaded, orders?: OrderStore): Omit<PayDeps, 'random'> {
     },
     anchor: () => pendingAnchor(Vault),
     anchorUsed: () => anchorUsed(Vault),
+    // With the development anchor server, every payment asks for a fresh anchor instead.
+    ...(kiosk.config.anchorUrl
+      ? {
+          anchor: async () => undefined,
+          anchorFor: async (device: string) => {
+            const r = await fetch(`${kiosk.config.anchorUrl}?device=${device}`);
+            return r.ok ? ((await r.json()) as TimeAnchor) : undefined;
+          },
+        }
+      : {}),
   };
 }
 
@@ -99,12 +109,20 @@ type Screen =
   | { kind: 'paying'; phase: Phase; amount: bigint; deadline?: number }
   | { kind: 'result'; result: PayResult; amount: bigint };
 
+/** What to do about a refusal the person at the kiosk can fix. */
+const REFUSAL_HINT: Record<string, string> = {
+  TIME_ANCHOR_MISSING: '기기에 시각 기준이 없습니다. Mac에서 TimeAnchor를 새로 발급해 넣고 바로 다시 요청하세요.',
+  TIME_ANCHOR_STALE: 'TimeAnchor가 90초 넘게 지났습니다. 새로 발급해 넣고 바로 다시 요청하세요.',
+  ATTESTATION_EXPIRED: '기기 시각이나 가맹점 인증 기간이 맞지 않습니다. TimeAnchor를 새로 발급해 넣으세요.',
+  USER_REJECTED: '기기에서 거절했습니다.',
+};
+
 function resultText(r: PayResult): { title: string; detail?: string; tone: 'ok' | 'bad' | 'wait' } {
   switch (r.status) {
     case 'approved':
       return { title: '결제 완료', detail: r.txHash ? `tx ${r.txHash.slice(0, 10)}…${r.txHash.slice(-4)}` : '이미 정산된 주문', tone: 'ok' };
     case 'refused':
-      return { title: '결제 거절', detail: r.reason, tone: 'bad' };
+      return { title: '결제 거절', detail: REFUSAL_HINT[r.reason] ? `${r.reason}: ${REFUSAL_HINT[r.reason]}` : r.reason, tone: 'bad' };
     case 'failed':
       return { title: '결제 실패', detail: r.reason, tone: 'bad' };
     case 'Checking':
@@ -114,7 +132,7 @@ function resultText(r: PayResult): { title: string; detail?: string; tone: 'ok' 
     case 'busy':
       return { title: '주문을 받을 수 없음', detail: '키오스크 가스 잔액이 부족합니다.', tone: 'bad' };
     case 'noDevice':
-      return { title: '결제 기기를 찾지 못함', detail: r.reason, tone: 'bad' };
+      return { title: '결제 기기를 찾지 못함', detail: `${r.reason}. 기기 SW4를 길게 눌러 결제 모드를 켠 뒤(2분 동안 유지) 다시 요청하세요.`, tone: 'bad' };
   }
 }
 

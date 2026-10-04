@@ -48,13 +48,13 @@ cd products/p02-user-app/android && ./gradlew :app:installDebug && cd -         
    node --experimental-strip-types products/p04-merchant-kiosk/scripts/provision-dev.ts --attestation att.json
    ```
    `wrote provision.json into com.nu54kiosk`가 나오고, 앱을 다시 열면 파일이 사라져야 한다(키는 Android Keystore로 감싸 저장).
-3. 결제 직전에 TimeAnchor를 새로 만들어 넣는다. 이전 실행에서 anchor를 일찍 만든 것이 결함이었다([7주차 게이트 기록](gate-w7.md)).
+3. TimeAnchor는 결제할 때 앱이 Mac의 개발용 anchor 서버에서 새로 받는다(2026-10-05). anchor를 미리 넣고 90초 안에 결제해야 하던 제약이 없어진다([7주차 게이트 기록](gate-w7.md)).
    ```bash
-   $O anchor sign --device <device> > anchor.json
-   node --experimental-strip-types products/p04-merchant-kiosk/scripts/provision-dev.ts --anchor anchor.json
+   node --experimental-strip-types products/p04-merchant-kiosk/scripts/anchor-server.ts &   # adb reverse도 설정한다
+   node --experimental-strip-types products/p04-merchant-kiosk/scripts/provision-dev.ts --attestation att.json --anchor-url http://127.0.0.1:8095/anchor
    ```
-4. SW4를 1초 넘게 눌러 결제 모드를 켜고(`payment mode for 120 s`, LED1), 태블릿에서 금액을 넣는다. LED2가 켜지고 VCOM에 `no phone app listening; SW1 approves, SW2 rejects`가 나오면 SW1을 짧게 한 번 누른다. 길게 누르면 `SW1 was held`로 무시된다.
-5. 태블릿이 approved를 보이고 VCOM에 `payment outcome: approved`, LED3이 켜지면 통과다. tx hash로 증거를 남긴다.
+4. SW4를 1초 넘게 눌러 결제 모드를 켜고(`payment mode for 120 s`, 표시등이 2초마다 짧게 깜빡임), 태블릿에서 금액을 넣는다. 표시등이 빠르게 깜빡이고 앱에 10초 카운트다운이 나오면 SW1을 짧게 한 번 누른다. 길게 누르면 `SW1 was held`로 무시된다.
+5. 표시등이 느리게 깜빡이다가 2초 켜진 뒤 꺼지고, 태블릿이 approved를, VCOM이 `payment outcome: approved`와 `session over: back to idle`을 보이면 통과다. 결제가 끝나면 결제 모드도 꺼지므로 다음 결제는 SW4부터 다시 한다. tx hash로 증거를 남긴다.
    ```bash
    python3 products/p10-platform/acceptance/w12.py tx W12-03 <txhash>
    ```

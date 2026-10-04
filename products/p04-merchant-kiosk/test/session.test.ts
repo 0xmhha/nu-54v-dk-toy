@@ -101,6 +101,28 @@ test("a late anchor still pays: the expiry is capped to the device clock it set"
   expect(expiry).toBeLessThanOrEqual(T0 + 117);
 });
 
+test("a fresh anchor is fetched for the device the setup session reached", async () => {
+  const { link } = wire(() => true);
+  const asked: string[] = [];
+  const r = await runPayment(link, request({ anchor: undefined, anchorFor: async (device) => { asked.push(device); return anchor; } }));
+  expect(r.status).toBe("approved");
+  expect(asked).toEqual([DEVICE]);
+});
+
+test("a device that already has its time is not sent an anchor", async () => {
+  const { link } = wire(() => true);
+  await runPayment(link, request()); // anchored now (READY)
+  let asked = 0;
+  const r = await runPayment(link, request({ anchor: undefined, anchorFor: async () => { asked++; return anchor; } }));
+  expect([r.status, asked]).toEqual(["approved", 0]);
+});
+
+test("no answer from the anchor server: TIME_ANCHOR_MISSING before any payment", async () => {
+  const { link } = wire(() => true);
+  const r = await runPayment(link, request({ anchor: undefined, anchorFor: async () => { throw new Error("offline"); } }));
+  expect(r).toMatchObject({ status: "refused", reason: "TIME_ANCHOR_MISSING" });
+});
+
 test("the renter rejects: refused USER_REJECTED", async () => {
   const { link } = wire(() => false);
   const r = await runPayment(link, request());

@@ -41,6 +41,12 @@ export interface PaymentRequest {
    * refuse an anchor too old to use and keep the expiry inside the device's clock (see below).
    */
   chainTime?: bigint;
+  /**
+   * Week-7 development setup: a fresh anchor for the device the setup session reached, signed on
+   * request (scripts/anchor-server.ts). Used when `anchor` is not given; the device's clock then
+   * starts within seconds of the chain's.
+   */
+  anchorFor?: (device: string) => Promise<TimeAnchor | undefined>;
   /** The anchor reached the device (accepted, or the device already had its time): stop offering it. */
   onAnchorUsed?: () => void | Promise<void>;
   /** How long to wait for the press (N10: 10 s). */
@@ -95,7 +101,27 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
 
   await link.endSession?.();
   link.secure?.(null);
-  if (req.anchor) {
+  if (!req.anchor && req.anchorFor) {
+    req.onStep?.("anchor");
+    const opened = (await link.send(msg("session.open", { mode: "setup", kioskNonce: hex(32) }), 1, REPLY_MS))[0];
+    // NOT_PERMITTED on a setup session means the device is already READY: it keeps its time.
+    if (opened?.type === "session.open.ok" && opened.device) {
+      let anchor: TimeAnchor | undefined;
+      try {
+        anchor = await req.anchorFor(String(opened.device));
+      } catch {
+        anchor = undefined;
+      }
+      if (!anchor) return { status: "refused", reason: "TIME_ANCHOR_MISSING", detail: "the anchor server did not answer" };
+      const ack = (await link.send(msg("setup.timeAnchor", { ...anchor }), 1, REPLY_MS))[0];
+      if (!ack?.accepted) return refusedBy(ack, "time anchor");
+      const anchorTime = BigInt(anchor.timestamp);
+      const acceptedAt = Date.now();
+      deviceClock = () => anchorTime + BigInt(Math.floor((Date.now() - acceptedAt) / 1000));
+    } else if (!(opened?.type === "error" && opened.reason === "NOT_PERMITTED")) {
+      return refusedBy(opened, "setup session");
+    }
+  } else if (req.anchor) {
     const anchorTime = BigInt(req.anchor.timestamp);
     if (req.chainTime !== undefined && req.chainTime - anchorTime > BigInt(ANCHOR_MAX_AGE_S)) {
       await req.onAnchorUsed?.(); // useless now: a new one has to be issued

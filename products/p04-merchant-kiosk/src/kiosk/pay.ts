@@ -34,6 +34,8 @@ export interface PayDeps {
   anchor: () => Promise<TimeAnchor | undefined>;
   /** The device took the anchor (or it is too old): it is not offered again. */
   anchorUsed?: () => Promise<void>;
+  /** Week-7 development setup: a fresh anchor for the device, signed on request. */
+  anchorFor?: (device: string) => Promise<TimeAnchor | undefined>;
   random: (n: number) => Uint8Array;
   /** Submission; tests replace it. */
   submit?: typeof submit;
@@ -79,6 +81,7 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
       anchor: await deps.anchor(),
       chainTime: finalized.timestamp,
       onAnchorUsed: deps.anchorUsed,
+      anchorFor: deps.anchorFor,
       token: config.token,
       amount,
       expiry: finalized.timestamp + 60n, // capped to the device clock when this session sets it
