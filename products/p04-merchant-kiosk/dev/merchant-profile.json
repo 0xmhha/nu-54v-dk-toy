@@ -1,0 +1,14 @@
+{
+  "merchantProfile": {
+    "representative": "Test Representative",
+    "businessNumber": "000-00-00000",
+    "address": "Test address (not a real store)",
+    "phone": "000-0000-0000"
+  },
+  "menu": [
+    { "name": "Americano", "price": "1500000" },
+    { "name": "Cafe Latte", "price": "2000000" },
+    { "name": "Cookie", "price": "1000000" },
+    { "name": "Water", "price": "500000" }
+  ]
+}

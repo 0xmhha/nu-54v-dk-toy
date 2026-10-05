@@ -27,6 +27,10 @@ export interface KioskConfig {
   indexerUrl?: string;
   /** Week-7 development setup: scripts/anchor-server.ts, asked for a fresh TimeAnchor per payment. */
   anchorUrl?: string;
+  /** What the merchant puts on its receipts besides the attested name (not checked by the operator). */
+  merchantProfile?: { representative?: string; businessNumber?: string; address?: string; phone?: string };
+  /** The menu on the order screen; without it the kiosk takes an amount. */
+  menu?: { name: string; price: string }[];
 }
 
 export interface Provision {

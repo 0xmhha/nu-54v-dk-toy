@@ -5,9 +5,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { PermissionsAndroid, Platform, Pressable, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { fromBase64, GATT, toBase64 } from '@nu54/protocol';
+import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
 import { parseLabel, type BondTarget } from './qr.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
@@ -139,12 +139,53 @@ function Renter() {
       {screen.kind === 'result' && (
         <>
           <Text style={styles.title}>{OUTCOME_TEXT[screen.outcome] ?? screen.outcome}</Text>
-          {screen.view && <Text style={styles.amount}>{screen.view.amount}</Text>}
-          {screen.view && <Text style={styles.body}>{screen.view.merchantName}</Text>}
+          {screen.receipt ? (
+            <Receipt receipt={screen.receipt} txHash={screen.txHash} />
+          ) : (
+            <>
+              {screen.view && <Text style={styles.amount}>{screen.view.amount}</Text>}
+              {screen.view && <Text style={styles.body}>{screen.view.merchantName}</Text>}
+            </>
+          )}
           {screen.reason && <Text style={styles.body}>{screen.reason}</Text>}
         </>
       )}
     </View>
+  );
+}
+
+/** The merchant's digital receipt (payment-protocol.md 6); the explorer link is built here from the transaction hash. */
+function Receipt({ receipt: r, txHash }: { receipt: DigitalReceipt; txHash?: string }) {
+  const amount = (v: string | bigint) => `${receiptAmount(v, r.token.decimals)} ${r.token.symbol}`;
+  const url = txHash ? explorerTxUrl(r.chainId, txHash) : null;
+  const d = new Date(r.time * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    <ScrollView style={styles.paper}>
+      <Text style={styles.store}>{r.store}</Text>
+      {r.representative && <Text style={styles.small}>대표 {r.representative}</Text>}
+      {r.businessNumber && <Text style={styles.small}>사업자등록번호 {r.businessNumber}</Text>}
+      {r.address && <Text style={styles.small}>{r.address}</Text>}
+      {r.phone && <Text style={styles.small}>전화 {r.phone}</Text>}
+      <View style={styles.rule} />
+      <Text style={styles.label}>주문번호 {r.orderNumber}</Text>
+      <Text style={styles.small}>{`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}</Text>
+      <View style={styles.rule} />
+      {r.items.map((i, k) => (
+        <View key={k} style={styles.line}>
+          <Text style={styles.value}>{i.name} × {i.qty}</Text>
+          <Text style={styles.value}>{amount(BigInt(i.unitPrice) * BigInt(i.qty))}</Text>
+        </View>
+      ))}
+      <View style={styles.rule} />
+      <View style={styles.line}>
+        <Text style={styles.total}>합계</Text>
+        <Text style={styles.total}>{amount(r.total)}</Text>
+      </View>
+      <Text style={styles.small}>결제수단 {r.token.symbol} (StableNet, chain {r.chainId})</Text>
+      {txHash && <Text style={styles.mono}>거래 {txHash.slice(0, 10)}…{txHash.slice(-4)}</Text>}
+      {url && <Button label="탐색기에서 거래 보기" onPress={() => Linking.openURL(url)} />}
+    </ScrollView>
   );
 }
 
@@ -181,5 +222,11 @@ const styles = StyleSheet.create({
   input: { fontSize: 15, borderBottomWidth: 1, borderColor: '#333', paddingVertical: 8, marginBottom: 16, color: '#111' },
   button: { backgroundColor: '#111', paddingVertical: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   disabled: { backgroundColor: '#999' },
+  paper: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginTop: 8 },
+  store: { fontSize: 22, fontWeight: '700', color: '#111' },
+  small: { fontSize: 13, color: '#555', marginTop: 2 },
+  rule: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#999', marginVertical: 8 },
+  line: { flexDirection: 'row', justifyContent: 'space-between' },
+  total: { fontSize: 20, fontWeight: '700', color: '#111', marginVertical: 4 },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
 });

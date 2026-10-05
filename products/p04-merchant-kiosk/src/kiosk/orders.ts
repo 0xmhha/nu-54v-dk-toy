@@ -16,6 +16,9 @@ export interface OrderRecord {
   orderId: string;
   amount: string;
   state: OrderState;
+  /** The number the customer sees and what was ordered (receipt). */
+  orderNumber?: string;
+  items?: { name: string; qty: number; unitPrice: string }[];
   createdAt: number;
   updatedAt: number;
   /** The device's signature and the authorization it signed (with its nonce). */
@@ -98,9 +101,9 @@ export class OrderStore {
     return [...this.orders.values()].filter((o) => !isFinal(o.state)).sort((a, b) => a.createdAt - b.createdAt);
   }
 
-  async create(orderId: string, amount: bigint): Promise<OrderRecord> {
+  async create(orderId: string, amount: bigint, detail: Pick<OrderRecord, "orderNumber" | "items"> = {}): Promise<OrderRecord> {
     const now = this.clock();
-    const o: OrderRecord = { orderId, amount: amount.toString(), state: "waitingDevice", createdAt: now, updatedAt: now };
+    const o: OrderRecord = { orderId, amount: amount.toString(), state: "waitingDevice", createdAt: now, updatedAt: now, ...detail };
     this.orders.set(orderId, o);
     await this.save();
     return o;
