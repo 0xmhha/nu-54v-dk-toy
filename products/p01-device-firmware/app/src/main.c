@@ -157,7 +157,7 @@ int main(void)
 			status_led_clear();
 			pay_link_payment_mode(120);
 		} else if (ev.button == 2 && ev.event == NU54_BTN_LONG) {
-			pay_link_pairing_mode(60);
+			pay_link_pairing_mode(120); /* LE limited discovery stays under the 180 s the GAP allows */
 		} else if (ev.button == 0 && ev.event == NU54_BTN_CLICK) {
 			pay_link_button(1);
 		} else if (ev.button == 1 && ev.event == NU54_BTN_CLICK) {

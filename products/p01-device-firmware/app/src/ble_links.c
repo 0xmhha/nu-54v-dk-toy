@@ -101,12 +101,35 @@ bool ble_links_listening(int i)
 	return on;
 }
 
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+/*
+ * Two advertising sets (payment-protocol.md 3). Both a passive scanner (the advertising packet
+ * only) and an active one (also the scan response) must find the device and learn what it is,
+ * so whatever a central filters on sits in the advertising packet itself.
+ *
+ * Payment mode is for the one kiosk paying now: no discoverable flag, no name, no appearance,
+ * only the payment service UUID the kiosk filters on, so generic scanners and OS settings have
+ * nothing to show.
+ *
+ * Pairing mode is for the renter finding the device: LE Limited Discoverable (a short,
+ * button-opened window), the service UUID and the name. The 31-byte packet holds the flags (3),
+ * the 128-bit UUID (18) and the first 8 characters of the name as the Shortened Local Name (10);
+ * the scan response adds the complete name and the appearance.
+ */
+#define SHORT_NAME_LEN 8
+BUILD_ASSERT(sizeof(CONFIG_BT_DEVICE_NAME) - 1 >= SHORT_NAME_LEN, "the shortened name is a prefix of the name");
+
+static const struct bt_data ad_payment[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_NO_BREDR),
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, UUID128(NU54_GATT_SERVICE_UUID_PARTS)),
 };
-static const struct bt_data sd[] = {
+static const struct bt_data ad_pairing[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_LIMITED | BT_LE_AD_NO_BREDR)),
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, UUID128(NU54_GATT_SERVICE_UUID_PARTS)),
+	BT_DATA(BT_DATA_NAME_SHORTENED, CONFIG_BT_DEVICE_NAME, SHORT_NAME_LEN),
+};
+static const struct bt_data sd_pairing[] = {
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+	BT_DATA_BYTES(BT_DATA_GAP_APPEARANCE, (CONFIG_BT_DEVICE_APPEARANCE & 0xff), (CONFIG_BT_DEVICE_APPEARANCE >> 8)),
 };
 
 bool ble_links_bonded(int i, bool need_passkey)
@@ -135,7 +158,11 @@ static K_WORK_DELAYABLE_DEFINE(mode_timer, mode_end);
 static void pairing_end(struct k_work *w);
 static K_WORK_DELAYABLE_DEFINE(pairing_timer, pairing_end);
 
-/* Advertises while payment or pairing mode is on and a connection slot is free. */
+typedef enum { ADV_NONE, ADV_PAYMENT, ADV_PAIRING } adv_set_t;
+static adv_set_t advertising; /* the set on air */
+
+/* Advertises the set the modes call for while a connection slot is free; pairing wins when both
+ * are on (it carries the service UUID too). A change of set restarts advertising. */
 static int advertise(void)
 {
 	bool free_slot = false;
@@ -146,18 +173,30 @@ static int advertise(void)
 			bt_conn_unref(c);
 		}
 	}
-	if (!(payment_mode || pairing_mode) || !free_slot) {
+	adv_set_t want = !free_slot ? ADV_NONE : pairing_mode ? ADV_PAIRING : payment_mode ? ADV_PAYMENT : ADV_NONE;
+	if (want == advertising) {
 		return 0;
 	}
-	int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	return err == -EALREADY ? 0 : err;
+	bt_le_adv_stop();
+	advertising = ADV_NONE;
+	if (want == ADV_NONE) {
+		return 0;
+	}
+	int err = want == ADV_PAIRING
+			  ? bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pairing, ARRAY_SIZE(ad_pairing), sd_pairing, ARRAY_SIZE(sd_pairing))
+			  : bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_payment, ARRAY_SIZE(ad_payment), NULL, 0);
+	if (err && err != -EALREADY) {
+		return err;
+	}
+	advertising = want;
+	LOG_INF("advertising for %s", want == ADV_PAIRING ? "pairing" : "payment");
+	return 0;
 }
 
+/* A mode ended: advertise what is left, or stop. */
 static void stop_advertising_if_idle(void)
 {
-	if (!payment_mode && !pairing_mode) {
-		bt_le_adv_stop();
-	}
+	advertise();
 }
 
 static void mode_end(struct k_work *w)
@@ -211,7 +250,8 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	k_spin_unlock(&links_lock, key);
 	LOG_INF("central connected (link %d)", i);
 	handlers->connected(i);
-	advertise(); /* room for the other central */
+	advertising = ADV_NONE; /* a connection stops connectable advertising */
+	advertise();            /* room for the other central */
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
