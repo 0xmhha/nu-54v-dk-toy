@@ -202,6 +202,18 @@ test("a device set up before bonds on a new phone with its code, then only the w
   expect(newPhone.sent.some((m) => m.type === "setup.operator")).toBe(false);
 });
 
+test("a stale bond the phone still holds is removed before bonding a device picked from the scan", async () => {
+  const { flow, phone } = setup();
+  phone.bond_ = "passkey"; // left from before the device was wiped
+  let removed = 0;
+  const remove = phone.removeBond.bind(phone);
+  phone.removeBond = async () => { removed++; return remove(); };
+  await flow.start();
+  await flow.choose(FOUND);
+  expect(removed).toBe(1);
+  expect(flow.current().kind).toBe("passkey");
+});
+
 test("forgetting the device removes the bond and the record and goes back to the scan", async () => {
   const { flow, phone } = setup();
   await flow.start();

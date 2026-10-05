@@ -387,7 +387,7 @@ int pay_link_init(void)
 	device.cfg.authorization_expiry = 120;
 	device.cfg.require_secure = IS_ENABLED(CONFIG_NU54_REQUIRE_SECURE_SESSION);
 	device.cfg.require_phone = IS_ENABLED(CONFIG_NU54_REQUIRE_PHONE);
-	device.cfg.dev_unpaired_anchor = IS_ENABLED(CONFIG_NU54_DEV_SETUP);
+	device.cfg.dev_unpaired_anchor = IS_ENABLED(CONFIG_NU54_DEV_UNPAIRED_ANCHOR);
 	device.cfg.platform.payment_mode = platform_payment_mode;
 	k_work_queue_start(&work_q, work_stack, K_THREAD_STACK_SIZEOF(work_stack), K_PRIO_PREEMPT(7), NULL);
 	err = ble_links_init(&handlers, device.passkey, device.state == NU54_STATE_UNPROVISIONED);

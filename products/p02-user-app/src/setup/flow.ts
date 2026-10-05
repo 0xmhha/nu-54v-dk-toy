@@ -152,6 +152,9 @@ export class SetupFlow {
     await this.p.stopScan();
     this.set({ kind: "bonding", device });
     try {
+      // A device picked from the scan is in pairing mode for a new bond; an old bond the phone
+      // still holds (the device was wiped or bonded elsewhere since) would only fail encryption.
+      if (await this.p.isBonded(device.address)) await this.unbond(device.address);
       if (!(await this.p.bond(device.address, ""))) throw new Error("본딩하지 못했습니다. 기기를 페어링 모드로 두고 다시 시도하세요");
       this.set({ kind: "connecting", device });
       const ch = await this.open(device.address);

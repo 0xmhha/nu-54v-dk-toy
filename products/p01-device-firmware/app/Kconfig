@@ -8,6 +8,15 @@ config NU54_DEV_SETUP
 	  settlement contract and chain id from the deployment record (week-7 gate). Turn it off
 	  for the rental build: the device then boots UNPROVISIONED and waits for a setup session.
 
+config NU54_DEV_UNPAIRED_ANCHOR
+	bool "Take a TimeAnchor from the unpaired kiosk (development)"
+	default y
+	help
+	  A provisioned device opens a setup session from a central that is not bonded, so the kiosk
+	  can hand over a TimeAnchor its development anchor server signed (session vector SV-34).
+	  setup.operator still needs a bonded session. The release build turns it off: anchors then
+	  come from the operator tool on a bonded link.
+
 config NU54_REQUIRE_SECURE_SESSION
 	bool "Refuse plaintext payment sessions"
 	help
