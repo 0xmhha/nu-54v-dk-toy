@@ -91,6 +91,18 @@
       }
     ]
   },
+  "deviceCheckTypes": {
+    "WalletCheck": [
+      {
+        "name": "device",
+        "type": "address"
+      },
+      {
+        "name": "challenge",
+        "type": "bytes32"
+      }
+    ]
+  },
   "operatorSignedTypes": {
     "MerchantAttestation": [
       {
@@ -1088,6 +1100,131 @@
         },
         "on": {
           "type": "boolean"
+        },
+        "reason": {
+          "$ref": "#/$defs/reason"
+        }
+      }
+    },
+    "device.info": {
+      "direction": "phone app to device",
+      "description": "payment-protocol.md 3: the bonded phone app asks for the device state; sessionId is the zero id, it belongs to no session. A link that is not bonded gets error{NOT_PERMITTED}",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "device.info"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        }
+      }
+    },
+    "device.info.ack": {
+      "direction": "device to phone app",
+      "description": "answer to device.info",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "state",
+        "firmware",
+        "anchorValid"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "device.info.ack"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "state": {
+          "enum": [
+            "UNPROVISIONED",
+            "PROVISIONED_NO_ANCHOR",
+            "READY",
+            "PIN_LOCKED"
+          ]
+        },
+        "firmware": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "anchorValid": {
+          "type": "boolean"
+        },
+        "device": {
+          "$ref": "#/$defs/hex20",
+          "description": "absent in UNPROVISIONED (no key yet)"
+        }
+      }
+    },
+    "wallet.check": {
+      "direction": "phone app to device",
+      "description": "payment-protocol.md 5: the bonded phone app asks the device to sign WalletCheck{device, challenge} after the renter presses the approve button; sessionId is the zero id",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "challenge"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "wallet.check"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "challenge": {
+          "$ref": "#/$defs/hex32",
+          "description": "random value the phone app chose for this check"
+        }
+      }
+    },
+    "wallet.check.result": {
+      "direction": "device to phone app",
+      "description": "answer to wallet.check: the signature after the approve button, or a refusal (NOT_PERMITTED from a link that is not bonded, without a key or while the device waits for another button; PIN_LOCKED; USER_REJECTED)",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "accepted"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "wallet.check.result"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "signature": {
+          "$ref": "#/$defs/signature"
         },
         "reason": {
           "$ref": "#/$defs/reason"

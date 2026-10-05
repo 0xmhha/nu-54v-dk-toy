@@ -8,23 +8,33 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Base64
 import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
+import org.json.JSONObject
+import java.security.SecureRandom
 import java.util.ArrayDeque
 import java.util.UUID
 
 /**
- * The renter app's link to the device (P02 design 1): LE Secure Connections Passkey Entry bonding
- * with the label passkey, and a GATT connection to bonded devices only (P02-FR-02). The device
- * sends confirm.show and the forwarded payment.outcome over TX notifications; envelope,
- * reassembly and CBOR are in TypeScript. The passkey is used for this bonding and not kept.
+ * The renter app's link to the device (P02 design 1): a scan for devices in pairing mode, LE Secure
+ * Connections bonding (Just Works for a device without a key, Passkey Entry after setup), and a
+ * GATT connection to bonded devices only (P02-FR-02). The device sends confirm.show and the
+ * forwarded payment.outcome over TX notifications; envelope, reassembly and CBOR are in
+ * TypeScript. The passkey is used for one bonding and not kept.
  */
 @SuppressLint("MissingPermission")
 class RenterBleModule(private val context: ReactApplicationContext) : NativeRenterBleSpec(context) {
@@ -51,9 +61,9 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
       if (!device.address.equals(target, ignoreCase = true)) return
       when (intent.action) {
         BluetoothDevice.ACTION_PAIRING_REQUEST -> {
-          // Passkey Entry: answer with the label passkey. If the stack refuses, the system
-          // dialog stays up and the renter types the passkey shown on the screen instead.
-          passkey?.let { device.setPin(it.toByteArray()) }
+          // Passkey Entry: answer with the passkey the app holds. Without one (or if the stack
+          // refuses) the system dialog stays up and the renter confirms or types the code.
+          passkey?.takeIf { it.isNotEmpty() }?.let { device.setPin(it.toByteArray()) }
         }
         BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
           val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
@@ -99,12 +109,101 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
     if (!device.createBond()) finishBond(false)
   }
 
+  override fun removeBond(address: String, promise: Promise) {
+    val device = try {
+      manager.adapter.getRemoteDevice(address)
+    } catch (e: IllegalArgumentException) {
+      return promise.reject("BAD_ADDRESS", e.message)
+    }
+    if (device.bondState == BluetoothDevice.BOND_NONE) return promise.resolve(true)
+    // No public API removes a bond; the hidden one is what the system settings call. When it is
+    // not reachable the app sends the renter to the Bluetooth settings instead.
+    val ok = try {
+      device.javaClass.getMethod("removeBond").invoke(device) as Boolean
+    } catch (e: Exception) {
+      false
+    }
+    promise.resolve(ok)
+  }
+
   override fun isBonded(address: String, promise: Promise) {
     promise.resolve(try {
       manager.adapter.getRemoteDevice(address).bondState == BluetoothDevice.BOND_BONDED
     } catch (e: IllegalArgumentException) {
       false
     })
+  }
+
+  // ------------------------------------------------------------------ scan
+
+  private var scanning: Promise? = null
+  private val main = Handler(Looper.getMainLooper())
+  private val stopLater = Runnable { stopScanning() }
+
+  private val scanCallback = object : ScanCallback() {
+    override fun onScanResult(type: Int, result: ScanResult) {
+      val record = result.scanRecord ?: return
+      // Pairing mode only: the device sets LE Limited Discoverable there and not in payment mode.
+      if (record.advertiseFlags < 0 || record.advertiseFlags and 0x01 == 0) return
+      val json = JSONObject()
+        .put("address", result.device.address)
+        .put("name", record.deviceName ?: result.device.name ?: "")
+        .put("rssi", result.rssi)
+      emitOnScan(json.toString())
+    }
+
+    override fun onScanFailed(errorCode: Int) {
+      val p = synchronized(this@RenterBleModule) { scanning.also { scanning = null } }
+      p?.reject("SCAN_FAILED", "scan failed ($errorCode)")
+    }
+  }
+
+  override fun scan(service: String, seconds: Double, promise: Promise) {
+    val scanner = manager.adapter?.bluetoothLeScanner ?: return promise.reject("NO_BLUETOOTH", "Bluetooth is off")
+    stopScanning()
+    synchronized(this) { scanning = promise }
+    val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(service))).build()
+    val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+    scanner.startScan(listOf(filter), settings, scanCallback)
+    main.postDelayed(stopLater, (seconds * 1000).toLong())
+  }
+
+  override fun stopScan(promise: Promise) {
+    stopScanning()
+    promise.resolve(null)
+  }
+
+  private fun stopScanning() {
+    main.removeCallbacks(stopLater)
+    val p = synchronized(this) { scanning.also { scanning = null } } ?: return
+    try {
+      manager.adapter?.bluetoothLeScanner?.stopScan(scanCallback)
+    } catch (e: IllegalStateException) {
+      // Bluetooth went off: the scan is over anyway
+    }
+    p.resolve(null)
+  }
+
+  // ------------------------------------------------------------------ randomness and storage
+
+  private val random = SecureRandom()
+
+  override fun randomBytes(n: Double, promise: Promise) {
+    val b = ByteArray(n.toInt())
+    random.nextBytes(b)
+    promise.resolve(Base64.encodeToString(b, Base64.NO_WRAP))
+  }
+
+  // The registered devices: BLE address, name and wallet address. Nothing secret.
+  private val prefs get() = context.getSharedPreferences("nu54-renter", Context.MODE_PRIVATE)
+
+  override fun loadDevices(promise: Promise) {
+    promise.resolve(prefs.getString("devices", "") ?: "")
+  }
+
+  override fun saveDevices(json: String, promise: Promise) {
+    prefs.edit().putString("devices", json).apply()
+    promise.resolve(null)
   }
 
   // ------------------------------------------------------------------ link
@@ -237,6 +336,7 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
   }
 
   override fun invalidate() {
+    stopScanning()
     close()
     try {
       context.unregisterReceiver(pairing)

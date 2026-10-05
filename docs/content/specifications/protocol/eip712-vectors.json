@@ -66,6 +66,19 @@
       "signature": "0x4753c4ded24e9d71a7692c3bdb9965c28442842c924a06eb04c579540bf9d4b21c29250fe2014dc81298729d5c36a8a3d9265730bd042c4109ae366c6011c6241b"
     },
     {
+      "id": "WC-01",
+      "primaryType": "WalletCheck",
+      "signerRole": "device",
+      "encodeType": "WalletCheck(address device,bytes32 challenge)",
+      "message": {
+        "device": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "challenge": "0xc4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4"
+      },
+      "digest": "0x4c26ab3a4f005251e0edd6310751ac75ee8fc828f5524b3ccf0a15c8825bfa03",
+      "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "signature": "0x160ebfca86c94485777de7a7e48cfdb7969cbf67cef41d6987330cd97c23fc4649022d2ebf6543615af3d4364bc445cb13a75e4b475ac97b33f33eb66a4c6ea31c"
+    },
+    {
       "id": "MA-01",
       "primaryType": "MerchantAttestation",
       "signerRole": "operator",

@@ -3,7 +3,8 @@
  * nu54_session.c        lifecycle, session.open/confirm/cancel, dispatch, the public calls
  * nu54_session_util.c   CBOR reply helpers, field access, time, nonce, setup.ack
  * nu54_session_channel.c the secure channel (payment-protocol.md 4.1) and the merchant proofs
- * nu54_session_setup.c  TimeAnchor, setup.operator, key generation and PIN, device.reset
+ * nu54_session_setup.c  TimeAnchor, setup.operator, key generation and PIN, device.reset,
+ *                       the phone app's device.info and wallet.check
  * nu54_session_pay.c    payment.identify/prepare, the payment button, device.paymentMode
  * nu54_session_limit.c  limit.change, its PIN and button
  */
@@ -19,6 +20,7 @@
 #include "nu54_sig.h"
 
 extern const uint8_t ss_zero_session[8];
+extern const char *const ss_state_name[]; /* nu54_state_t names as the schema spells them */
 
 /* ---- replies and fields (nu54_session_util.c) */
 nu54_cbor_entry_t ss_text(const char *key, const char *s);
@@ -68,6 +70,9 @@ void ss_setup_operator(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out);
 void ss_setup_confirmed(nu54_device_t *d, int approve, nu54_out_t *out);
 void ss_setup_pin(nu54_device_t *d, const char *pin, size_t len, nu54_out_t *out);
 void ss_device_reset(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out);
+void ss_device_info(nu54_device_t *d, nu54_out_t *out);
+void ss_wallet_check(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out);
+void ss_wallet_check_button(nu54_device_t *d, int approve, nu54_out_t *out);
 void ss_identify(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_out_t *out);
 void ss_prepare(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_out_t *out);
 void ss_payment_button(nu54_device_t *d, int approve, nu54_out_t *out);

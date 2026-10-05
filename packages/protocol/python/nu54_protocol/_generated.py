@@ -29,6 +29,11 @@ class LimitChange:
     expiry: int
 
 @dataclass(frozen=True)
+class WalletCheck:
+    device: str
+    challenge: str
+
+@dataclass(frozen=True)
 class MerchantAttestation:
     merchant: str
     payout: str
@@ -64,6 +69,7 @@ class KioskKey:
 EIP712_TYPES: dict[str, list[dict[str, str]]] = {
     'PaymentAuthorization': [{"name": "chainId", "type": "uint256"}, {"name": "contract", "type": "address"}, {"name": "merchant", "type": "address"}, {"name": "payout", "type": "address"}, {"name": "token", "type": "address"}, {"name": "amount", "type": "uint256"}, {"name": "orderId", "type": "bytes32"}, {"name": "nonce", "type": "uint256"}, {"name": "expiry", "type": "uint64"}],
     'LimitChange': [{"name": "chainId", "type": "uint256"}, {"name": "contract", "type": "address"}, {"name": "perPaymentLimit", "type": "uint256"}, {"name": "dailyLimit", "type": "uint256"}, {"name": "nonce", "type": "uint256"}, {"name": "expiry", "type": "uint64"}],
+    'WalletCheck': [{"name": "device", "type": "address"}, {"name": "challenge", "type": "bytes32"}],
     'MerchantAttestation': [{"name": "merchant", "type": "address"}, {"name": "payout", "type": "address"}, {"name": "name", "type": "string"}, {"name": "validFrom", "type": "uint64"}, {"name": "validUntil", "type": "uint64"}],
     'MerchantOrder': [{"name": "orderId", "type": "bytes32"}, {"name": "token", "type": "address"}, {"name": "amount", "type": "uint256"}, {"name": "payout", "type": "address"}, {"name": "expiry", "type": "uint64"}],
     'TimeAnchor': [{"name": "device", "type": "address"}, {"name": "timestamp", "type": "uint64"}],
@@ -74,6 +80,7 @@ EIP712_TYPES: dict[str, list[dict[str, str]]] = {
 ENCODE_TYPE: dict[str, str] = {
     'PaymentAuthorization': 'PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)',
     'LimitChange': 'LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)',
+    'WalletCheck': 'WalletCheck(address device,bytes32 challenge)',
     'MerchantAttestation': 'MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)',
     'MerchantOrder': 'MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)',
     'TimeAnchor': 'TimeAnchor(address device,uint64 timestamp)',
@@ -84,4 +91,4 @@ ENCODE_TYPE: dict[str, str] = {
 DEVICE_SIGNED_TYPES = ('PaymentAuthorization', 'LimitChange')
 REASONS = ('ATTESTATION_EXPIRED', 'MERCHANT_REVOKED', 'OVER_CAP', 'NONCE_REPLAYED', 'MERCHANT_FORGED', 'USER_REJECTED', 'TIME_ANCHOR_MISSING', 'UNSUPPORTED_TYPE', 'BAD_FRAME', 'TIMEOUT', 'CANCELLED', 'PIN_LOCKED', 'NOT_PERMITTED', 'EXPIRED', 'WRONG_DOMAIN', 'ACCOUNT_INACTIVE', 'INSUFFICIENT_BALANCE')
 OUTCOMES = ('approved', 'refused', 'failed', 'Checking')
-MESSAGE_TYPES = ('session.open', 'session.open.ok', 'session.confirm', 'payment.identify', 'payment.prepare', 'payment.result', 'limit.change', 'setup.timeAnchor', 'error', 'session.cancel', 'payment.outcome', 'limit.result', 'setup.operator', 'setup.ack', 'device.reset', 'confirm.show', 'confirm.limit', 'device.paymentMode', 'device.paymentMode.ack')
+MESSAGE_TYPES = ('session.open', 'session.open.ok', 'session.confirm', 'payment.identify', 'payment.prepare', 'payment.result', 'limit.change', 'setup.timeAnchor', 'error', 'session.cancel', 'payment.outcome', 'limit.result', 'setup.operator', 'setup.ack', 'device.reset', 'confirm.show', 'confirm.limit', 'device.paymentMode', 'device.paymentMode.ack', 'device.info', 'device.info.ack', 'wallet.check', 'wallet.check.result')

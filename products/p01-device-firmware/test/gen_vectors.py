@@ -45,6 +45,7 @@ STRUCT = {
                              ("payout", "addr", "payout"), ("expiry", "u64", "expiry")]),
     "TimeAnchor": ("ta", [("device", "addr", "device"), ("timestamp", "u64", "timestamp")]),
     "DeviceReset": ("dr", [("device", "addr", "device"), ("nonce", "u256", "nonce")]),
+    "WalletCheck": ("wc", [("device", "addr", "device"), ("challenge", "b32", "challenge")]),
     "KioskKey": ("kk", [("merchant", "addr", "merchant"), ("kiosk_ephemeral", "b32", "kioskEphemeral"), ("kiosk_nonce", "b32", "kioskNonce")]),
 }
 
@@ -87,7 +88,7 @@ def main() -> int:
                 inits += [f".name = VEC_NAME_{n}", f".name_len = {len(name)}"]
             else:
                 inits.append(f".{cname} = {field(kind, m[jname])}")
-        out.append(f"static const nu54_{dict(pa='payment_authorization', lc='limit_change', ma='merchant_attestation', mo='merchant_order', ta='time_anchor', dr='device_reset', kk='kiosk_key')[tag]}_t VEC_MSG_{n} = {{{', '.join(inits)}}};")
+        out.append(f"static const nu54_{dict(pa='payment_authorization', lc='limit_change', ma='merchant_attestation', mo='merchant_order', ta='time_anchor', dr='device_reset', kk='kiosk_key', wc='wallet_check')[tag]}_t VEC_MSG_{n} = {{{', '.join(inits)}}};")
         entries.append(f'{{"{v["id"]}", "{v["primaryType"]}", "{v["signerRole"]}", &VEC_MSG_{n}, {arr(hx(v["digest"]))}, {arr(hx(v["signature"]))}, {arr(hx(v["signer"]))}}}')
     out += ["", "typedef struct { const char *id; const char *type; const char *role; const void *msg; uint8_t digest[32]; uint8_t signature[65]; uint8_t signer[20]; } eip712_vector_t;",
             "static const eip712_vector_t EIP712_VECTORS[] = {", ",\n".join(entries), "};",
@@ -149,7 +150,9 @@ def main() -> int:
             eptr = ", ".join([f"{tag}_E{i}" for i in range(len(ex))] + ["NULL"] * (2 - len(ex)))
             elen = ", ".join([str(len(e)) for e in ex] + ["0"] * (2 - len(ex)))
             # Sealed steps carry the CBOR inside them under `plain`; the event is read from those.
-            plain = [hx(e) for e in st["plain"]["expect"]] if "plain" in st else ex
+            plain = [hx(e) for e in st["plain"]["expect"]] if "plain" in st else list(ex)
+            # wallet.check answers the phone app after the button; its refusal is a REFUSED event too.
+            plain += [hx(p) for p in st["phone"] if b"wallet.check.result" in hx(p)]
             rows.append(f"{{{st['at']}ULL, 0, {tag}_SEND, {len(send)}, {{{eptr}}}, {{{elen}}}, {len(ex)}, "
                         f"{tag + '_P' if ph is not None else 'NULL'}, {len(ph) if ph is not None else 0}, {led_event(plain)}}}")
         out.append(f"static const session_step_t SV_STEPS_{si}[] = {{{', '.join(rows)}}};")

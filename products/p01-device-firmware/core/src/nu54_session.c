@@ -1,6 +1,6 @@
 #include "nu54_session_int.h"
 
-static const char *const STATE_NAME[] = {"UNPROVISIONED", "PROVISIONED_NO_ANCHOR", "READY", "PIN_LOCKED"};
+const char *const ss_state_name[] = {"UNPROVISIONED", "PROVISIONED_NO_ANCHOR", "READY", "PIN_LOCKED"};
 
 void nu54_device_init(nu54_device_t *d, const uint8_t nonce_start[32])
 {
@@ -90,7 +90,7 @@ static void session_open(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
 		ss_bytes("deviceNonce", d->device_nonce, 32),
 		{"anchorValid", NU54_V_BOOL, 0, 0, (uint64_t)d->anchored},
 		ss_text("firmware", d->cfg.firmware),
-		ss_text("state", STATE_NAME[d->state]),
+		ss_text("state", ss_state_name[d->state]),
 		{"lastAnchor", NU54_V_UINT256, last, 32, 0},
 		ss_bytes("device", d->address, 20), /* an UNPROVISIONED device has no key yet */
 		ss_bytes("deviceEphemeral", device_x, 32), /* secure sessions only */
@@ -150,6 +150,10 @@ static void dispatch(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t
 		ss_limit_change(d, &m, now, out);
 	} else if (strcmp(type, "device.paymentMode") == 0) {
 		ss_payment_mode(d, &m, out);
+	} else if (strcmp(type, "device.info") == 0) {
+		ss_device_info(d, out);
+	} else if (strcmp(type, "wallet.check") == 0) {
+		ss_wallet_check(d, &m, out);
 	} else {
 		ss_error(out, ss_field(&m, 0, "sessionId")->ptr, "UNSUPPORTED_TYPE");
 	}
@@ -190,6 +194,8 @@ static void button_step(nu54_device_t *d, int approve, nu54_out_t *out)
 		ss_limit_confirmed(d, approve, out);
 	} else if (d->pending == NU54_PENDING_PAYMENT) {
 		ss_payment_button(d, approve, out);
+	} else if (d->pending == NU54_PENDING_WALLET_CHECK) {
+		ss_wallet_check_button(d, approve, out);
 	}
 }
 

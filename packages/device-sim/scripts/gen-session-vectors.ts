@@ -106,6 +106,8 @@ const RECEIPT = receiptText({
 // Payment mode from the phone app (3): no session, the zero session id.
 const modeMsg = (on: boolean, seconds: number): Message =>
   ({ v: 1, type: "device.paymentMode", sessionId: "0000000000000000", on, seconds: String(seconds) } as Message);
+const infoMsg = (): Message => ({ v: 1, type: "device.info", sessionId: "0000000000000000" } as Message);
+const checkMsg = (tag = "c4"): Message => ({ v: 1, type: "wallet.check", sessionId: "0000000000000000", challenge: "0x" + tag.repeat(32) } as Message);
 
 // The k-th deviceNonce the device hands out is 32 bytes of 0x5a + k.
 const deviceNonce = (k: number) => "0x" + (0x5a + k).toString(16).repeat(32);
@@ -272,6 +274,16 @@ const SCENARIOS: Scenario[] = [
     button: "approve",
     steps: [...anchored(), ...paySession(1, T0 + 5, identify(), prepare(),
       { v: 1, type: "payment.outcome", sessionId: SID, orderId: "0x" + "01".repeat(32), outcome: "approved", txHash: "0x" + "7e".repeat(32), receipt: RECEIPT } as Message)] },
+  { id: "SV-36", description: "phone app wallet setup: device.info and wallet.check on an UNPROVISIONED device, setup, device.info with the new address, then wallet.check signs WalletCheck after the approve button and the result goes to the phone app",
+    button: "approve", initialState: "UNPROVISIONED", pin: "2580",
+    steps: [{ at: T0, send: infoMsg() }, { at: T0, send: checkMsg() }, { at: T0, send: open("setup") }, { at: T0, send: operatorMsg() },
+      { at: T0, send: infoMsg() }, { at: T0, send: checkMsg() }] },
+  { id: "SV-37", description: "the renter rejects wallet.check: USER_REJECTED to the phone app, nothing signed; device.info still answers",
+    button: "reject",
+    steps: [{ at: T0, send: checkMsg("c5") }, { at: T0, send: infoMsg() }] },
+  { id: "SV-38", description: "device.info and wallet.check from a central that is not bonded: NOT_PERMITTED",
+    button: "approve", unbondedLink: true,
+    steps: [{ at: T0, send: infoMsg() }, { at: T0, send: checkMsg() }] },
 ];
 
 function run() {

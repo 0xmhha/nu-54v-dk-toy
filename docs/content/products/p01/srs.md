@@ -4,7 +4,7 @@
 
 ## 1. 목적과 범위
 
-P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않고, 두 EIP-712 타입에 대한 서명만 만든다 [N04]. 가스와 제출은 키오스크(P04)가, 최종 판정은 정산 컨트랙트(P06)가 맡는다.
+P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않고, 결제용 EIP-712 두 타입과 지갑 확인용 WalletCheck에 대한 서명만 만든다 [N04]. 가스와 제출은 키오스크(P04)가, 최종 판정은 정산 컨트랙트(P06)가 맡는다.
 
 ## 2. 용어
 
@@ -21,7 +21,7 @@ P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않
 
 | ID | 요구 | 검증 방법 | W12 |
 |---|---|---|---|
-| P01-FR-01 | 기기는 PaymentAuthorization과 LimitChange 두 EIP-712 타입에만 서명하고, 다른 타입·원시 트랜잭션·approve·Permit·스키마에 없는 요청은 `error{UNSUPPORTED_TYPE}`으로 거절한다 [N04] | 타입별 요청 주입 시험 | W12-05, W12-12 |
+| P01-FR-01 | 기기는 PaymentAuthorization과 LimitChange 두 EIP-712 타입, 그리고 승인 버튼을 누른 `wallet.check`의 WalletCheck에만 서명하고, 다른 타입·원시 트랜잭션·approve·Permit·스키마에 없는 요청은 `error{UNSUPPORTED_TYPE}`으로 거절한다 [N04] | 타입별 요청 주입 시험 | W12-05, W12-12 |
 | P01-FR-02 | 서명 digest는 eip712-vectors.json의 모든 벡터와 바이트 단위로 같다 [N21] | P10 적합성 harness | W12-03 |
 | P01-FR-03 | 키는 대여 셋업에서 TRNG로만 만들며 import, 니모닉, 백업 경로가 없다 [N11] | 코드 경로 검토, 셋업 로그 | W12-08 |
 | P01-FR-04 | 키는 TrustZone 위 TF-M secure partition에서 만들고 서명하며, secp256k1 키는 암호화한 TF-M 보호 저장소(ITS)에 둔다. 외부 secure element는 이번 사이클에 쓰지 않고 TF-M 봉인을 waiver로 기록한다 [N02][N14]. 키 원문은 어느 경우에도 non-secure 영역에 쓰지 않는다 | NVM 덤프 검색, SE 서명 로그 | W12-09 |
@@ -41,6 +41,8 @@ P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않
 | P01-FR-18 | `sign_digest(digest, purpose)`는 버튼 대기 직전에 등록한 digest·purpose 한 건에만 secure 쪽 버튼 인터럽트가 발급한 토큰으로 서명한다. 등록되지 않은 purpose나 다른 digest는 거절한다 [N24] | secure 쪽 purpose 시험 | W12-12 |
 | P01-FR-19 | `session.cancel`을 받으면 버튼 대기를 멈추고 아무것도 서명하지 않는다 [N10] | 대기 중 cancel 주입 | W12-04 |
 | P01-FR-20 | PIN을 pinMaxRetries번 틀리면 PIN_LOCKED가 되어 모든 서명을 거절하고, 잠금은 secure 저장소에 남아 전원 손실·watchdog 같은 RAM 초기화 reset 뒤에도 유지되며, 반납 절차의 운영자 서명 DeviceReset으로만 풀린다 [N11] | 오입력 반복 시험 | W12-12 |
+| P01-FR-21 | 본딩한 폰 앱의 `device.info`에 상태, 펌웨어, anchor 유무와 (키가 있으면) 기기 주소로 답하고, `wallet.check{challenge}`는 승인 버튼을 누른 뒤에만 WalletCheck에 서명해 폰 앱에 보낸다. 거절 버튼은 `USER_REJECTED`, 60초 경과나 폰 앱 링크 끊김은 `TIMEOUT`, 본딩하지 않은 링크·키 없는 기기·다른 버튼 대기 중은 `NOT_PERMITTED`다 [N04][N27] | 세션 벡터 SV-36~SV-38 | W12-01 |
+| P01-FR-22 | 새 본딩이 끝나면 이전 본딩을 모두 지우고 페어링 모드를 닫는다. 대여 셋업이 끝나면 새 passkey로 페어링 모드를 120초 동안 연다 [N27] | 실기: 두 번째 폰 본딩 뒤 첫 폰 연결 거절, 셋업 직후 passkey 본딩 | W12-01 |
 
 ## 4. 비기능 요구
 
@@ -81,4 +83,5 @@ P01은 결제 서명기다. 기기는 트랜잭션을 만들거나 보내지 않
 | P01-FR-13, FR-14 | [N09] | W12-01 |
 | P01-FR-15 | [N12] | W12-11 |
 | P01-FR-17 | [N23] | W12-12 |
+| P01-FR-21, FR-22 | [N04][N27] | W12-01 |
 | P01-NFR-01 | [N10] | W12-04 |

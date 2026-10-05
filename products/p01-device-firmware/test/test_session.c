@@ -207,8 +207,6 @@ int main(void)
 				continue;
 			}
 			nu54_session_handle(&d, &link, st->send, st->send_len, st->at, &out);
-			int phone_ok = out.phone_count == (st->phone ? 1 : 0) &&
-				       (!st->phone || (out.phone_len == st->phone_len && memcmp(out.phone, st->phone, st->phone_len) == 0));
 			/* The renter answers whatever the device waits for: the button (payment, setup values,
 			 * limit change after its PIN) or the PIN (setup, limit change). */
 			for (int guard = 0; d.pending != NU54_PENDING_NONE && guard < 4; guard++) {
@@ -218,6 +216,9 @@ int main(void)
 					nu54_session_button(&d, sc->approve, &out);
 				}
 			}
+			/* After the button: wallet.check answers the phone app then. */
+			int phone_ok = out.phone_count == (st->phone ? 1 : 0) &&
+				       (!st->phone || (out.phone_len == st->phone_len && memcmp(out.phone, st->phone, st->phone_len) == 0));
 			int ok = phone_ok && out.kiosk_count == st->expect_count && (int)out.event == st->event; /* the LED event the replies mean */
 			for (int e = 0; ok && e < st->expect_count; e++) {
 				ok = out.kiosk_len[e] == st->expect_len[e] && memcmp(out.kiosk[e], st->expect[e], st->expect_len[e]) == 0;
@@ -284,11 +285,11 @@ int main(void)
 		failures++;
 		printf("FAIL payment mode: %d platform calls (want 3)\n", mode_calls);
 	}
-	/* Setup stores once per finished setup (SV-13) and wipes on the PIN timeout (SV-15) and the
+	/* Setup stores once per finished setup (SV-13, SV-36) and wipes on the PIN timeout (SV-15) and the
 	 * resets (SV-17, SV-34). */
-	if (commits != 1 || wipes != 3) {
+	if (commits != 2 || wipes != 3) {
 		failures++;
-		printf("FAIL setup storage: %d commits (want 1), %d wipes (want 3)\n", commits, wipes);
+		printf("FAIL setup storage: %d commits (want 2), %d wipes (want 3)\n", commits, wipes);
 	}
 	/* A link that drops while setup waits for the PIN wipes the key setup made. */
 	memset(&d, 0, sizeof(d));

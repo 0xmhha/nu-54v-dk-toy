@@ -12,6 +12,8 @@
 #define NU54_FIELDS_PAYMENT_AUTHORIZATION 9
 #define NU54_ENCODE_TYPE_LIMIT_CHANGE "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)"
 #define NU54_FIELDS_LIMIT_CHANGE 6
+#define NU54_ENCODE_TYPE_WALLET_CHECK "WalletCheck(address device,bytes32 challenge)"
+#define NU54_FIELDS_WALLET_CHECK 2
 #define NU54_ENCODE_TYPE_MERCHANT_ATTESTATION "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)"
 #define NU54_FIELDS_MERCHANT_ATTESTATION 5
 #define NU54_ENCODE_TYPE_MERCHANT_ORDER "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)"
@@ -123,6 +125,14 @@ static const nu54_field_t nu54_msg_device_paymentMode_fields[] = {{"v", NU54_K_I
 static const nu54_object_t nu54_msg_device_paymentMode = {nu54_msg_device_paymentMode_fields, 5};
 static const nu54_field_t nu54_msg_device_paymentMode_ack_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"accepted", NU54_K_BOOL, 1, 0}, {"on", NU54_K_BOOL, 1, 0}, {"reason", NU54_K_TEXT, 0, 0}};
 static const nu54_object_t nu54_msg_device_paymentMode_ack = {nu54_msg_device_paymentMode_ack_fields, 6};
+static const nu54_field_t nu54_msg_device_info_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}};
+static const nu54_object_t nu54_msg_device_info = {nu54_msg_device_info_fields, 3};
+static const nu54_field_t nu54_msg_device_info_ack_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"state", NU54_K_TEXT, 1, 0}, {"firmware", NU54_K_TEXT, 1, 0}, {"anchorValid", NU54_K_BOOL, 1, 0}, {"device", NU54_K_HEX20, 0, 0}};
+static const nu54_object_t nu54_msg_device_info_ack = {nu54_msg_device_info_ack_fields, 7};
+static const nu54_field_t nu54_msg_wallet_check_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"challenge", NU54_K_HEX32, 1, 0}};
+static const nu54_object_t nu54_msg_wallet_check = {nu54_msg_wallet_check_fields, 4};
+static const nu54_field_t nu54_msg_wallet_check_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"accepted", NU54_K_BOOL, 1, 0}, {"signature", NU54_K_SIGNATURE, 0, 0}, {"reason", NU54_K_TEXT, 0, 0}};
+static const nu54_object_t nu54_msg_wallet_check_result = {nu54_msg_wallet_check_result_fields, 6};
 static const nu54_message_t nu54_messages[] = {
     {"session.open", &nu54_msg_session_open},
     {"session.open.ok", &nu54_msg_session_open_ok},
@@ -142,8 +152,12 @@ static const nu54_message_t nu54_messages[] = {
     {"confirm.show", &nu54_msg_confirm_show},
     {"confirm.limit", &nu54_msg_confirm_limit},
     {"device.paymentMode", &nu54_msg_device_paymentMode},
-    {"device.paymentMode.ack", &nu54_msg_device_paymentMode_ack}
+    {"device.paymentMode.ack", &nu54_msg_device_paymentMode_ack},
+    {"device.info", &nu54_msg_device_info},
+    {"device.info.ack", &nu54_msg_device_info_ack},
+    {"wallet.check", &nu54_msg_wallet_check},
+    {"wallet.check.result", &nu54_msg_wallet_check_result}
 };
-#define NU54_MESSAGE_COUNT 19
+#define NU54_MESSAGE_COUNT 23
 
 #endif /* NU54_PROTOCOL_H */

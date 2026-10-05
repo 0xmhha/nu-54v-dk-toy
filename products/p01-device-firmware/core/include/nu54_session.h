@@ -84,6 +84,7 @@ typedef enum {
 	NU54_PENDING_PIN,           /* key made; the renter enters the PIN */
 	NU54_PENDING_LIMIT_PIN,     /* limit.change checked, confirm.limit sent; the renter enters the PIN */
 	NU54_PENDING_LIMIT_CONFIRM, /* PIN right; the button approves or rejects the limit change */
+	NU54_PENDING_WALLET_CHECK,  /* wallet.check from the phone app; the button approves or rejects */
 } nu54_pending_t;
 
 /* What a call meant for the renter, for the board's LEDs: the replies may be sealed by the
@@ -176,6 +177,7 @@ typedef struct {
 	nu54_payment_authorization_t pending_auth;
 	nu54_setup_record_t pending_setup; /* setup values in RAM until the PIN commits them */
 	nu54_limit_change_t pending_limit;
+	uint8_t pending_challenge[32]; /* wallet.check */
 	uint8_t pending_address[20];
 
 	/* The link of the message being handled; set by nu54_session_handle only. */
@@ -203,8 +205,14 @@ void nu54_session_handle(nu54_device_t *d, const nu54_link_t *link, const uint8_
 
 /* The renter's button: after confirm.show approve (1) signs and reject (0) refuses; after
  * setup.operator it confirms or refuses the operator values; after the PIN of a limit change it
- * approves or rejects the change. */
+ * approves or rejects the change; after wallet.check it signs WalletCheck or refuses, and the
+ * result goes to the phone app. */
 void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out);
+
+/* A wallet.check that waits for the button ends without a signature: it timed out, or the phone
+ * app's link dropped. The phone app gets wallet.check.result{refused TIMEOUT} if it still listens.
+ * Does nothing when no wallet.check waits. */
+void nu54_session_wallet_check_end(nu54_device_t *d, nu54_out_t *out);
 
 /* The PIN the renter entered on the buttons (digits), or NULL when it was not entered in time.
  * At setup it stores the setup and answers the keygen ack; for a limit change it is checked

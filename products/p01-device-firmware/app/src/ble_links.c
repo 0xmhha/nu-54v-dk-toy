@@ -322,10 +322,47 @@ static struct bt_conn_auth_cb auth_just_works = {
 	.cancel = auth_cancel,
 };
 
+/* One owner (payment-protocol.md 3): a new bond replaces every older one, so a phone the device
+ * was bonded with before (or the operator tool) no longer gets confirm.show. bt_unpair also drops
+ * a connected central; it runs off the Bluetooth thread. */
+static bt_addr_le_t new_owner;
+
+struct bond_list {
+	bt_addr_le_t addr[CONFIG_BT_MAX_PAIRED];
+	int n;
+};
+
+static void collect_bond(const struct bt_bond_info *info, void *data)
+{
+	struct bond_list *l = data;
+	if (l->n < CONFIG_BT_MAX_PAIRED && !bt_addr_le_eq(&info->addr, &new_owner)) {
+		l->addr[l->n++] = info->addr;
+	}
+}
+
+static void drop_old_bonds(struct k_work *w)
+{
+	struct bond_list l = {.n = 0};
+	(void)w;
+	bt_foreach_bond(BT_ID_DEFAULT, collect_bond, &l);
+	for (int i = 0; i < l.n; i++) {
+		(void)bt_unpair(BT_ID_DEFAULT, &l.addr[i]);
+	}
+	if (l.n) {
+		LOG_INF("%d older bond(s) removed: one owner", l.n);
+	}
+}
+static K_WORK_DEFINE(drop_bonds_work, drop_old_bonds);
+
 static void pairing_complete(struct bt_conn *conn, bool bonded)
 {
 	LOG_INF("pairing link %d complete (%s)", link_of(conn), bonded ? "bonded" : "not bonded");
 	status_led_paired(bonded);
+	if (bonded) {
+		bt_addr_le_copy(&new_owner, bt_conn_get_dst(conn));
+		k_work_submit(&drop_bonds_work);
+		k_work_reschedule(&pairing_timer, K_NO_WAIT); /* one bond per pairing mode */
+	}
 }
 
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)

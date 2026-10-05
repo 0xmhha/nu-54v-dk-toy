@@ -26,6 +26,11 @@ export interface LimitChange {
   expiry: bigint;
 }
 
+export interface WalletCheck {
+  device: `0x${string}`;
+  challenge: `0x${string}`;
+}
+
 export interface MerchantAttestation {
   merchant: `0x${string}`;
   payout: `0x${string}`;
@@ -61,6 +66,7 @@ export interface KioskKey {
 export const EIP712_TYPES = {
   PaymentAuthorization: [{ name: "chainId", type: "uint256" }, { name: "contract", type: "address" }, { name: "merchant", type: "address" }, { name: "payout", type: "address" }, { name: "token", type: "address" }, { name: "amount", type: "uint256" }, { name: "orderId", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "expiry", type: "uint64" }],
   LimitChange: [{ name: "chainId", type: "uint256" }, { name: "contract", type: "address" }, { name: "perPaymentLimit", type: "uint256" }, { name: "dailyLimit", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "expiry", type: "uint64" }],
+  WalletCheck: [{ name: "device", type: "address" }, { name: "challenge", type: "bytes32" }],
   MerchantAttestation: [{ name: "merchant", type: "address" }, { name: "payout", type: "address" }, { name: "name", type: "string" }, { name: "validFrom", type: "uint64" }, { name: "validUntil", type: "uint64" }],
   MerchantOrder: [{ name: "orderId", type: "bytes32" }, { name: "token", type: "address" }, { name: "amount", type: "uint256" }, { name: "payout", type: "address" }, { name: "expiry", type: "uint64" }],
   TimeAnchor: [{ name: "device", type: "address" }, { name: "timestamp", type: "uint64" }],
@@ -71,6 +77,7 @@ export const EIP712_TYPES = {
 export const ENCODE_TYPE: Record<keyof typeof EIP712_TYPES, string> = {
   PaymentAuthorization: "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
   LimitChange: "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)",
+  WalletCheck: "WalletCheck(address device,bytes32 challenge)",
   MerchantAttestation: "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
   MerchantOrder: "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
   TimeAnchor: "TimeAnchor(address device,uint64 timestamp)",
@@ -86,7 +93,7 @@ export type Reason = (typeof REASONS)[number];
 export const OUTCOMES = ["approved", "refused", "failed", "Checking"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
-export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack"] as const;
+export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack", "device.info", "device.info.ack", "wallet.check", "wallet.check.result"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
 /** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */
@@ -488,6 +495,67 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "sessionId",
       "accepted",
       "on"
+    ]
+  },
+  "device.info": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId"
+    ]
+  },
+  "device.info.ack": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "state": "text",
+      "firmware": "text",
+      "anchorValid": "bool",
+      "device": "hex20"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "state",
+      "firmware",
+      "anchorValid"
+    ]
+  },
+  "wallet.check": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "challenge": "hex32"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "challenge"
+    ]
+  },
+  "wallet.check.result": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "accepted": "bool",
+      "signature": "signature",
+      "reason": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "accepted"
     ]
   }
 };

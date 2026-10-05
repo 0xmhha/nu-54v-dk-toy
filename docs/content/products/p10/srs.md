@@ -6,7 +6,7 @@ P10이 제공하는 타입, 벡터, 적합성 harness, 수용 기록지의 요�
 
 ## 2. 서명 타입
 
-기기가 서명하는 EIP-712 타입은 PaymentAuthorization과 LimitChange 두 개뿐이다 [N04]. 운영자·가맹점이 서명하는 MerchantAttestation, MerchantOrder, TimeAnchor, DeviceReset은 스키마의 `operatorSignedTypes`에 따로 둔다. 스키마의 `eip712Types`에 다른 타입을 넣으면 validator가 실패한다.
+기기가 서명하는 결제용 EIP-712 타입은 PaymentAuthorization과 LimitChange 두 개뿐이다 [N04]. 폰 앱의 지갑 확인용 WalletCheck는 컨트랙트가 받지 않는 타입이라 스키마의 `deviceCheckTypes`에, 운영자·가맹점이 서명하는 MerchantAttestation, MerchantOrder, TimeAnchor, DeviceReset, KioskKey는 `operatorSignedTypes`에 따로 둔다. 스키마의 `eip712Types`에 다른 타입을 넣으면 validator가 실패한다.
 
 ## 3. 기능 요구
 
