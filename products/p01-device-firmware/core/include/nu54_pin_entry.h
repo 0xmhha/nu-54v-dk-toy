@@ -49,6 +49,10 @@ nu54_pin_result_t nu54_pin_entry_event(nu54_pin_entry_t *e, nu54_pin_event_t ev,
 /* TIMEOUT once the entry has run longer than NU54_PIN_ENTRY_MS (the entry ends), else ENTERING. */
 nu54_pin_result_t nu54_pin_entry_poll(nu54_pin_entry_t *e, uint32_t now_ms);
 
+/* The entry as the phone app shows it (pin.entry, N28): the kept digits, the digit being entered,
+ * and 0 for the digits not reached yet, NUL-terminated. Returns the position (0..3). */
+int nu54_pin_entry_view(const nu54_pin_entry_t *e, char digits[NU54_PIN_LEN + 1]);
+
 /* LEDs to light: bit k-1 for each kept digit k. */
 uint8_t nu54_pin_entry_leds(const nu54_pin_entry_t *e);
 

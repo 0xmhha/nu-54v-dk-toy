@@ -53,6 +53,16 @@ nu54_pin_result_t nu54_pin_entry_event(nu54_pin_entry_t *e, nu54_pin_event_t ev,
 	return NU54_PIN_ENTERING;
 }
 
+int nu54_pin_entry_view(const nu54_pin_entry_t *e, char digits[NU54_PIN_LEN + 1])
+{
+	for (int i = 0; i < NU54_PIN_LEN; i++) {
+		int d = i < e->kept ? e->digits[i] : i == e->kept ? e->current : 0;
+		digits[i] = (char)('0' + d);
+	}
+	digits[NU54_PIN_LEN] = 0;
+	return e->kept;
+}
+
 uint8_t nu54_pin_entry_leds(const nu54_pin_entry_t *e)
 {
 	return (uint8_t)((1u << e->kept) - 1u);

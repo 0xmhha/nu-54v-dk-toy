@@ -13,7 +13,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
 import { bodyLink } from './setup/channel.ts';
-import { SetupFlow, type DeviceRecord, type FoundDevice, type SetupPlatform, type SetupState } from './setup/flow.ts';
+import { SetupFlow, type DeviceRecord, type FoundDevice, type PinEntry, type SetupPlatform, type SetupState } from './setup/flow.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
 
 const OUTCOME_TEXT: Record<string, string> = {
@@ -89,6 +89,42 @@ function useSecondsLeft(until: number | null): number {
 
 const short = (a: string) => `${a.slice(0, 8)}…${a.slice(-6)}`;
 
+/** The PIN as the device reports it: kept digits, the digit being entered (framed), zeros after. */
+function PinBoxes({ entry }: { entry: PinEntry }) {
+  return (
+    <View style={styles.pinRow}>
+      {entry.digits.split('').map((d, i) => (
+        <View key={i} style={[styles.pinBox, i === entry.position && styles.pinCurrent, i < entry.position && styles.pinKept]}>
+          <Text style={[styles.pinDigit, i > entry.position && styles.pinLater]}>{d}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** The 6-digit pairing code (the BLE passkey), not the 4-digit device PIN. */
+const PAIRING_CODE_NOTE = '폰의 블루투스 창에 "PIN"이라고 나와도, 기기 PIN 4자리가 아니라 이 6자리 페어링 코드를 입력하세요.';
+
+/** The pairing code, shown once; the renter types it into the system pairing dialog next. */
+function CodeShow({ passkey, wallet, retry, onDone }: { passkey: string; wallet: string; retry?: boolean; onDone: () => void }) {
+  return (
+    <View>
+      <Text style={styles.title}>지갑 설정 3/3: 페어링 코드</Text>
+      <Text style={styles.label}>지갑 주소</Text>
+      <Text style={styles.mono}>{wallet}</Text>
+      <Text style={styles.label}>페어링 코드 (6자리)</Text>
+      <Text style={styles.code}>{passkey}</Text>
+      <Text style={styles.body}>
+        이 폰과 기기를 다시 연결하거나 다른 폰에 연결할 때 쓰는 코드입니다. 방금 정한 기기 PIN(4자리)과는 다릅니다. 앱은 이 코드를 저장하지 않으니 지금 적어 두세요.
+      </Text>
+      <Text style={styles.body}>다음을 누르면 폰의 블루투스 페어링 창이 뜹니다. 그 창에 이 6자리 코드를 입력하세요.</Text>
+      <Text style={styles.hint}>{PAIRING_CODE_NOTE}</Text>
+      {retry && <Text style={styles.error}>본딩하지 못했습니다. 6자리 페어링 코드를 확인하고 다시 입력하세요. 기기 페어링 모드가 끝났으면 SW3을 길게 누르세요.</Text>}
+      <Button label="코드를 적어 두었습니다. 다음" onPress={onDone} />
+    </View>
+  );
+}
+
 function Renter() {
   const [state, setState] = useState<SetupState>({ kind: 'loading' });
   const flow = useRef<SetupFlow | null>(null);
@@ -106,7 +142,7 @@ function Renter() {
   }, []);
 
   const f = flow.current;
-  const until = state.kind === 'verify' ? state.until : null;
+  const until = state.kind === 'verify' || state.kind === 'setupPin' ? state.until : null;
   const left = useSecondsLeft(until);
 
   switch (state.kind) {
@@ -132,7 +168,7 @@ function Renter() {
     case 'bonding':
       return (
         <Step title="본딩 중" device={state.device.name}>
-          시스템 창이 뜨면 페어링을 허용하세요. 이미 설정한 기기라면 설정 때 받은 재연결 코드 6자리를 입력하세요.
+          시스템 창이 뜨면 페어링을 허용하세요. 이미 설정한 기기라면 설정 때 받은 6자리 페어링 코드를 입력하세요(기기 PIN 4자리가 아닙니다).
         </Step>
       );
     case 'connecting':
@@ -147,26 +183,43 @@ function Renter() {
       );
     case 'setupPin':
       return (
-        <Step title="지갑 설정 2/3" device={state.device.name}>
-          기기 버튼으로 PIN 4자리를 정하세요. LED가 자릿수와 누를 버튼을 안내합니다. PIN은 폰으로 전달되지 않습니다.
-        </Step>
-      );
-    case 'passkey':
-      return (
         <View>
-          <Text style={styles.title}>지갑 설정 3/3</Text>
-          <Text style={styles.label}>지갑 주소</Text>
-          <Text style={styles.mono}>{state.wallet}</Text>
-          <Text style={styles.label}>재연결 코드</Text>
-          <Text style={styles.code}>{state.passkey}</Text>
-          <Text style={styles.body}>
-            다른 폰에 이 기기를 연결할 때 이 코드가 필요합니다. 앱은 이 코드를 저장하지 않으니 지금 적어 두세요.
-          </Text>
-          <Button label="코드를 적어 두었습니다" onPress={() => f?.passkeyNoted()} />
+          <Text style={styles.title}>지갑 설정 2/3: PIN</Text>
+          <Text style={styles.small}>{state.device.name}</Text>
+          <Text style={styles.cta}>{state.entry.position < 4 ? `기기 버튼으로 PIN 4자리를 정하세요 (${left}초)` : 'PIN을 저장하고 있습니다'}</Text>
+          <PinBoxes entry={state.entry} />
+          <Text style={styles.body}>{state.entry.position < 4 ? `${state.entry.position + 1}번째 자리를 입력하는 중입니다.` : '네 자리를 모두 확정했습니다.'}</Text>
+          <Text style={styles.body}>SW1: 숫자를 1씩 올립니다 (9 다음은 0). LED가 짧게 깜빡입니다.</Text>
+          <Text style={styles.body}>SW3: 이 자리를 확정하고 다음 자리로 갑니다. LED가 길게 깜빡입니다.</Text>
+          <Text style={styles.body}>SW2: 0000부터 다시 입력합니다.</Text>
+          <Text style={styles.hint}>PIN은 기기 안에만 저장됩니다. 입력 중인 숫자는 이 화면에 보이도록 폰으로 전달되지만 앱은 저장하지 않습니다. 결제 한도를 바꿀 때 다시 입력합니다.</Text>
         </View>
       );
+    case 'passkey':
+      return <CodeShow passkey={state.passkey} wallet={state.wallet} retry={state.retry} onDone={() => f?.passkeyNoted()} />;
     case 'rebonding':
-      return <Step title="재연결 코드로 본딩 중" device={state.device.name}>기기가 페어링 모드로 기다리고 있습니다.</Step>;
+      return (
+        <View>
+          <Text style={styles.title}>페어링 코드 입력</Text>
+          <Text style={styles.small}>{state.device.name}</Text>
+          <Text style={styles.cta}>폰에 블루투스 페어링 창이 뜨면 아래 6자리 페어링 코드를 입력하고 확인을 누르세요.</Text>
+          <Text style={styles.code}>{state.passkey}</Text>
+          <Text style={styles.hint}>{PAIRING_CODE_NOTE}</Text>
+        </View>
+      );
+    case 'verifyReady':
+      return (
+        <View>
+          <Text style={styles.title}>지갑 확인</Text>
+          <Text style={styles.small}>{state.device.name}</Text>
+          <Text style={styles.label}>지갑 주소</Text>
+          <Text style={styles.mono}>{state.wallet}</Text>
+          <Text style={styles.body}>
+            기기가 이 지갑 주소의 키로 서명하는지 확인합니다. 시작하면 60초 안에 기기의 SW1을 누르세요 (거절은 SW2).
+          </Text>
+          <Button label="지갑 확인 시작" onPress={() => f?.startVerify()} />
+        </View>
+      );
     case 'verify':
       return (
         <Step title="지갑 확인" device={state.device.name}>
@@ -290,6 +343,7 @@ function Home({ record, flow }: { record: DeviceRecord; flow: SetupFlow }) {
           <Text style={styles.value}>{screen.view.perPayment}</Text>
           <Text style={styles.label}>하루 한도</Text>
           <Text style={styles.value}>{screen.view.daily}</Text>
+          {screen.pin && <PinBoxes entry={screen.pin} />}
           <Text style={styles.cta}>기기 버튼으로 PIN을 입력한 뒤 승인 버튼을 누르세요</Text>
         </>
       )}
@@ -389,5 +443,11 @@ const styles = StyleSheet.create({
   device: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#bbb' },
   connect: { fontSize: 16, fontWeight: '600', color: '#1b4fa0', marginTop: 6 },
   remove: { fontSize: 15, color: '#b00020', marginTop: 6 },
+  pinRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 16 },
+  pinBox: { width: 56, height: 68, marginHorizontal: 6, borderRadius: 8, borderWidth: 1, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  pinCurrent: { borderWidth: 3, borderColor: '#1b4fa0' },
+  pinKept: { backgroundColor: '#e8eef8', borderColor: '#1b4fa0' },
+  pinDigit: { fontSize: 34, fontWeight: '700', color: '#111', fontFamily: 'monospace' },
+  pinLater: { color: '#bbb' },
   code: { fontSize: 44, fontWeight: '700', letterSpacing: 6, color: '#111', fontFamily: 'monospace', marginVertical: 8 },
 });

@@ -150,6 +150,7 @@ var MessageTypes = []string{
 	"device.info.ack",
 	"wallet.check",
 	"wallet.check.result",
+	"pin.entry",
 }
 
 // FieldKind is the CBOR kind of a message field (payment-protocol.md 4.2): a scalar kind name,
@@ -378,6 +379,13 @@ var MessageFields = map[string]*ObjectKind{
 		"signature": {Name: "signature"},
 		"reason":    {Name: "text"},
 	}, Required: []string{"v", "type", "sessionId", "accepted"}},
+	"pin.entry": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"digits":    {Name: "text"},
+		"position":  {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "digits", "position"}},
 }
 
 // GATT service of the payment protocol (payment-protocol.md 3).

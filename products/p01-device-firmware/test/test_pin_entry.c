@@ -57,6 +57,25 @@ int main(void)
 	nu54_pin_entry_start(&e, 0xfffff000u); /* the millisecond clock wraps during entry */
 	check(enter(&e, "0000", 0x00000100u, out) == NU54_PIN_DONE && strcmp(out, "0000") == 0, "entry across the clock wrap");
 
+	/* The view the phone app shows: kept digits, the digit being entered, zeros after it. */
+	{
+		char v[5];
+		nu54_pin_entry_start(&e, 0);
+		check(nu54_pin_entry_view(&e, v) == 0 && strcmp(v, "0000") == 0, "view starts at 0000");
+		for (int k = 0; k < 3; k++) {
+			nu54_pin_entry_event(&e, NU54_PIN_TAP, 1, out);
+		}
+		check(nu54_pin_entry_view(&e, v) == 0 && strcmp(v, "3000") == 0, "taps count up the first digit");
+		nu54_pin_entry_event(&e, NU54_PIN_NEXT, 1, out);
+		for (int k = 0; k < 12; k++) {
+			nu54_pin_entry_event(&e, NU54_PIN_TAP, 1, out);
+		}
+		check(nu54_pin_entry_view(&e, v) == 1 && strcmp(v, "3200") == 0, "the second digit wraps after 9");
+		nu54_pin_entry_event(&e, NU54_PIN_CLEAR, 1, out);
+		check(nu54_pin_entry_view(&e, v) == 0 && strcmp(v, "0000") == 0, "clear shows 0000 again");
+		nu54_pin_entry_stop(&e);
+	}
+
 	printf("%s: PIN entry, %d failures\n", failures ? "FAIL" : "ok", failures);
 	return failures ? 1 : 0;
 }

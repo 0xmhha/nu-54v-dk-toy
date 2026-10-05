@@ -11,6 +11,7 @@
 #include <openssl/kdf.h>
 
 #include "nu54_keccak.h"
+#include "nu54_cbor.h"
 #include "nu54_session.h"
 #include "secp256k1.h"
 #include "vectors.h"
@@ -301,6 +302,19 @@ int main(void)
 	if (wipes != 4 || d.pending != NU54_PENDING_NONE || d.session_open) {
 		failures++;
 		printf("FAIL link closed during the setup PIN: %d wipes (want 4), pending %d\n", wipes, (int)d.pending);
+	}
+	/* pin.entry is a schema message the phone app can decode. */
+	{
+		static nu54_msg_t m;
+		uint8_t body[NU54_PIN_ENTRY_BODY_MAX]; /* the size the board uses */
+		size_t n = nu54_pin_entry_body("3200", 1, body, sizeof(body));
+		printf("pin.entry body: %zu bytes\n", n);
+		int ok = n > 0 && nu54_msg_decode(body, n, &m) == NU54_MSG_OK && strcmp(m.message->type, "pin.entry") == 0;
+		int d = ok ? nu54_msg_find(&m, 0, "digits") : -1;
+		if (!ok || d < 0 || m.items[d].len != 4 || memcmp(m.items[d].ptr, "3200", 4) != 0) {
+			failures++;
+			printf("FAIL pin.entry body\n");
+		}
 	}
 	printf("%s: %zu session scenarios, %d failures\n", failures ? "FAIL" : "ok", (size_t)SESSION_SCENARIO_COUNT, failures);
 	return failures ? 1 : 0;

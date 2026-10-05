@@ -1230,6 +1230,39 @@
           "$ref": "#/$defs/reason"
         }
       }
+    },
+    "pin.entry": {
+      "direction": "device to phone app",
+      "description": "payment-protocol.md 5: while the renter enters the PIN on the buttons (setup or a limit change) the device sends the entry after each button to the bonded phone apps, so the app shows it; sessionId is the zero id. The PIN crosses the bonded link and is shown on the phone (risk accepted, N28)",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "digits",
+        "position"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "pin.entry"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "digits": {
+          "type": "string",
+          "pattern": "^[0-9]{4}$",
+          "description": "the four digits as entered so far; digits not reached yet are 0"
+        },
+        "position": {
+          "$ref": "#/$defs/uint",
+          "description": "the digit being entered, 0 to 3; 4 once all four are kept"
+        }
+      }
     }
   },
   "w12AgreedCodes": [

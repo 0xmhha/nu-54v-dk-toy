@@ -68,6 +68,15 @@ static void pin_feedback(bool tap)
  * on its own queue, so the next loop may still see the PIN asked for. */
 static bool handed_over;
 
+/* The entry as it stands, for the phone app (pin.entry, N28). */
+static void show_entry(const nu54_pin_entry_t *e)
+{
+	char digits[NU54_PIN_LEN + 1];
+	int position = nu54_pin_entry_view(e, digits);
+	pay_link_pin_progress(digits, position);
+	memset(digits, 0, sizeof(digits));
+}
+
 static void hand_over(const char *pin)
 {
 	status_led_pin_end();
@@ -87,6 +96,7 @@ static void pin_button(nu54_pin_entry_t *e, const board_button_event_t *ev)
 	pe = ev->button == 0 ? NU54_PIN_TAP : ev->button == 2 ? NU54_PIN_NEXT : NU54_PIN_CLEAR;
 	switch (nu54_pin_entry_event(e, pe, k_uptime_get_32(), pin)) {
 	case NU54_PIN_DONE:
+		pay_link_pin_progress(pin, NU54_PIN_LEN); /* all four kept */
 		hand_over(pin);
 		memset(pin, 0, sizeof(pin));
 		break;
@@ -99,6 +109,7 @@ static void pin_button(nu54_pin_entry_t *e, const board_button_event_t *ev)
 		} else {
 			status_led_pin(STATUS_PIN_START); /* starting again looks like starting */
 		}
+		show_entry(e);
 	}
 }
 
@@ -136,6 +147,7 @@ int main(void)
 			nu54_pin_entry_start(&pin_entry, k_uptime_get_32());
 			LOG_INF("enter the PIN: SW1 taps a digit, SW3 keeps it, SW2 starts again");
 			status_led_pin(STATUS_PIN_START);
+			show_entry(&pin_entry);
 		} else if (!wanted && pin_entry.active) {
 			nu54_pin_entry_stop(&pin_entry);
 			status_led_pin_end();
@@ -144,8 +156,10 @@ int main(void)
 			hand_over(NULL);
 			continue;
 		}
-		/* Poll while the PIN is asked for, so a timeout or a closed session is noticed. */
-		if (board_button_wait(&ev, wanted || pin_entry.active ? 250 : -1) != 0) {
+		/* Poll while the session waits for the renter, so the PIN entry starts as soon as the
+		 * session asks for it (right after the approve button) and a timeout or a closed
+		 * session is noticed. */
+		if (board_button_wait(&ev, wanted || pin_entry.active || pay_link_waiting() ? 250 : -1) != 0) {
 			continue;
 		}
 		if (pin_entry.active) {

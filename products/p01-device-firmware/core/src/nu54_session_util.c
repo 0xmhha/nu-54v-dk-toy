@@ -2,6 +2,15 @@
 
 const uint8_t ss_zero_session[8] = {0};
 
+size_t nu54_pin_entry_body(const char digits[5], int position, uint8_t *out, size_t cap)
+{
+	nu54_cbor_writer_t w;
+	nu54_cbor_entry_t e[] = {{"v", NU54_V_UINT, 0, 0, 1}, ss_text("type", "pin.entry"), ss_bytes("sessionId", ss_zero_session, 8),
+				 ss_text("digits", digits), {"position", NU54_V_UINT, 0, 0, (uint64_t)position}};
+	nu54_cbor_writer_init(&w, out, cap);
+	return nu54_cbor_write_map(&w, e, 5) == 0 ? w.len : 0;
+}
+
 nu54_cbor_entry_t ss_text(const char *key, const char *s)
 {
 	return (nu54_cbor_entry_t){key, NU54_V_TEXT, (const uint8_t *)s, strlen(s), 0};

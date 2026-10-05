@@ -35,7 +35,7 @@ static nu54_reassembler_t rx[NU54_LINK_MAX];
 
 /* ---------------------------------------------------------------- events from other threads */
 
-typedef enum { EV_CONNECTED, EV_DISCONNECTED, EV_FRAGMENT, EV_BUTTON, EV_PIN, EV_WALLET_CHECK_TIMEOUT } event_type_t;
+typedef enum { EV_CONNECTED, EV_DISCONNECTED, EV_FRAGMENT, EV_BUTTON, EV_PIN, EV_WALLET_CHECK_TIMEOUT, EV_PIN_PROGRESS } event_type_t;
 
 typedef struct {
 	uint8_t type;
@@ -159,6 +159,31 @@ static void deliver(const nu54_out_t *out, int reply_link)
 	if (device.pending != NU54_PENDING_WALLET_CHECK) {
 		k_work_cancel_delayable(&wallet_check_timer);
 	}
+}
+
+/* pin.entry to every bonded, listening link: the phone app, whether or not it holds the session
+ * (it does during setup). Never to the unpaired kiosk. */
+static void send_pin_progress(const event_t *ev)
+{
+	char digits[5];
+	uint8_t body[NU54_PIN_ENTRY_BODY_MAX];
+	size_t n;
+
+	memcpy(digits, ev->data, 4);
+	digits[4] = 0;
+	n = nu54_pin_entry_body(digits, ev->len, body, sizeof(body));
+	memset(digits, 0, sizeof(digits));
+	refresh_links();
+	int sent = 0, links = 0;
+	for (int i = 0; n && i < NU54_LINK_MAX; i++) {
+		if (router.link[i].connected && router.link[i].bonded && router.link[i].listening) {
+			links++;
+			sent += ble_links_send(i, body, n) == 0;
+		}
+	}
+	memset(body, 0, sizeof(body));
+	/* Never the digits: only whether a phone app got the entry. */
+	LOG_INF("pin.entry %u bytes: sent to %d of %d phone link(s)", (unsigned)n, sent, links);
 }
 
 /* ---------------------------------------------------------------- the work queue */
@@ -298,6 +323,9 @@ static void event_work_handler(struct k_work *w)
 		case EV_PIN:
 			on_renter_event(&ev);
 			break;
+		case EV_PIN_PROGRESS:
+			send_pin_progress(&ev);
+			break;
 		case EV_WALLET_CHECK_TIMEOUT: {
 			static nu54_out_t out;
 			memset(&out, 0, sizeof(out));
@@ -340,6 +368,19 @@ void pay_link_pin(const char *pin, size_t len)
 	LOG_INF("%s", pin ? "PIN entered" : "PIN entry timed out");
 	post(&ev);
 	memset(&ev, 0, sizeof(ev));
+}
+
+void pay_link_pin_progress(const char digits[5], int position)
+{
+	event_t ev = {.type = EV_PIN_PROGRESS, .len = (uint16_t)position};
+	memcpy(ev.data, digits, 4);
+	post(&ev);
+	memset(&ev, 0, sizeof(ev));
+}
+
+int pay_link_waiting(void)
+{
+	return device.pending != NU54_PENDING_NONE;
 }
 
 int pay_link_pin_wanted(void)

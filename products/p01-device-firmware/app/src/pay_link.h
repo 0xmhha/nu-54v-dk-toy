@@ -28,6 +28,14 @@ int pay_link_pairing_mode(uint32_t seconds);
 void pay_link_button(int approve);
 
 /* 1 while the session waits for the PIN (setup key generation or a limit change). */
+/* The session waits for the renter (a button or the PIN): the main loop polls so it notices
+ * when the PIN is asked for next. */
+int pay_link_waiting(void);
+
+/* The PIN entry as it stands after a button (digits as entered, position 0..4) for the bonded
+ * phone apps (pin.entry, N28). Called from the main loop; sent from the session work queue. */
+void pay_link_pin_progress(const char digits[5], int position);
+
 int pay_link_pin_wanted(void);
 
 /* The PIN the renter entered on the buttons (NU54_PIN_LEN digits, core/nu54_pin_entry.h), or

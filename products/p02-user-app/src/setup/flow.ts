@@ -2,7 +2,7 @@
 //
 //   start ─ no device registered ─▶ scan ─ choose ─▶ bonding ─▶ connecting ─▶ device.info
 //         └ a device registered ──▶ reconnecting ─▶ device.info
-//   device.info: UNPROVISIONED ─▶ setupConfirm ─▶ setupPin ─▶ passkey ─▶ rebonding ─▶ verify ─▶ home
+//   device.info: UNPROVISIONED ─▶ setupConfirm ─▶ setupPin ─▶ passkey ─▶ rebonding ─▶ verifyReady ─▶ verify ─▶ home
 //                with a key    ─▶ verify (a bond on a new phone) or home (the registered wallet)
 //
 // The device makes its key with its TRNG and never lets it out (N11); the app keeps only the BLE
@@ -39,12 +39,34 @@ export type SetupState =
   | { kind: "connecting"; device: FoundDevice }
   | { kind: "reconnecting"; record: DeviceRecord }
   | { kind: "setupConfirm"; device: FoundDevice }
-  | { kind: "setupPin"; device: FoundDevice }
-  | { kind: "passkey"; device: FoundDevice; wallet: string; passkey: string }
-  | { kind: "rebonding"; device: FoundDevice; wallet: string }
+  /**
+   * `until`: when the device's PIN entry times out (it starts at the approve button). `entry`:
+   * the digits as entered on the buttons and the digit being entered (pin.entry, N28).
+   */
+  | { kind: "setupPin"; device: FoundDevice; until: number; entry: PinEntry }
+  /** `retry`: the bond with the code failed (a mistyped code in the system pairing dialog). */
+  | { kind: "passkey"; device: FoundDevice; wallet: string; passkey: string; retry?: boolean }
+  /** The system pairing dialog asks the renter for the code; the app does not fill it in. */
+  | { kind: "rebonding"; device: FoundDevice; wallet: string; passkey: string }
+  /** Bonded with the code; the wallet check starts when the renter is ready to press the button. */
+  | { kind: "verifyReady"; device: FoundDevice; wallet: string; passkey?: string }
   | { kind: "verify"; device: FoundDevice; wallet: string; until: number }
   | { kind: "home"; record: DeviceRecord }
   | { kind: "failed"; message: string; record?: DeviceRecord };
+
+/** The PIN entry the device reports while the renter enters it on the buttons. */
+export interface PinEntry {
+  digits: string;
+  /** 0..3: the digit being entered; 4: all four kept. */
+  position: number;
+}
+
+/** pin.entry as the device sends it; null for anything malformed. */
+export function pinEntryOf(m: Message): PinEntry | null {
+  const digits = String(m.digits ?? "");
+  const position = Number(m.position);
+  return /^[0-9]{4}$/.test(digits) && Number.isInteger(position) && position >= 0 && position <= 4 ? { digits, position } : null;
+}
 
 /** What the flow needs from the platform (the Turbo Module in the app, the software device in tests). */
 export interface SetupPlatform {
@@ -70,7 +92,9 @@ export const WAIT = {
   infoMs: 5_000,
   /** setup.operator until the approve button (the device has no limit of its own). */
   setupConfirmMs: 60_000,
-  /** keygen ack: the device's PIN entry ends after 45 s with TIMEOUT. */
+  /** The device's PIN entry ends this long after the approve button (NU54_PIN_ENTRY_MS). */
+  pinEntryMs: 45_000,
+  /** keygen ack: after the device's PIN entry has ended with TIMEOUT at the latest. */
   setupPinMs: 60_000,
   /** wallet.check: the device gives up after 60 s with TIMEOUT. */
   walletCheckMs: 65_000,
@@ -161,25 +185,45 @@ export class SetupFlow {
       const info = await this.info(ch);
       if (run !== this.run) return;
       if (info.state === "UNPROVISIONED") await this.walletSetup(ch, device, run);
-      else await this.verify(ch, device, String(info.device), run); // a device set up before: this phone checks it
+      else this.set({ kind: "verifyReady", device, wallet: String(info.device) }); // set up before: this phone checks it
     } catch (e) {
       if (run === this.run) this.fail(errText(e));
     }
   }
 
-  /** The renter wrote the reconnect code down: bond again with it and check the wallet. */
+  /**
+   * The renter wrote the reconnect code down: bond again with it. The renter types the code into
+   * the system pairing dialog (the app does not fill it in), which shows it was written down; a
+   * wrong code fails the bond and the code screen comes back. The wallet check waits for
+   * startVerify, so it never runs while the renter is still on an earlier step.
+   */
   async passkeyNoted(): Promise<void> {
     const s = this.state;
     if (s.kind !== "passkey") return;
     const run = ++this.run;
-    this.set({ kind: "rebonding", device: s.device, wallet: s.wallet });
+    this.set({ kind: "rebonding", device: s.device, wallet: s.wallet, passkey: s.passkey });
     try {
       await this.closeLink();
-      await this.unbond(s.device.address);
+      if (await this.p.isBonded(s.device.address)) await this.unbond(s.device.address);
       // The device opened pairing mode with the new passkey when setup finished.
-      if (!(await this.p.bond(s.device.address, s.passkey))) throw new Error("재연결 코드로 본딩하지 못했습니다. 기기를 길게 눌러 페어링 모드로 두고 처음부터 다시 연결하세요");
-      const ch = await this.open(s.device.address);
-      await this.verify(ch, s.device, s.wallet, run);
+      if (!(await this.p.bond(s.device.address, ""))) {
+        if (run === this.run) this.set({ ...s, retry: true });
+        return;
+      }
+      await this.open(s.device.address);
+      if (run === this.run) this.set({ kind: "verifyReady", device: s.device, wallet: s.wallet, passkey: s.passkey });
+    } catch (e) {
+      if (run === this.run) this.fail(errText(e));
+    }
+  }
+
+  /** The renter is ready to press the approve button: the wallet check starts its 60 seconds. */
+  async startVerify(): Promise<void> {
+    const s = this.state;
+    if (s.kind !== "verifyReady" || !this.channel) return;
+    const run = ++this.run;
+    try {
+      await this.verify(this.channel, s.device, s.wallet, run);
     } catch (e) {
       if (run === this.run) this.fail(errText(e));
     }
@@ -248,16 +292,25 @@ export class SetupFlow {
     const ok = await ch.next((m) => m.type === "session.open.ok" || m.type === "error", WAIT.infoMs, "session.open");
     if (ok.type !== "session.open.ok") throw new Error(`설정을 시작하지 못했습니다 (${reasonText(ok)})`);
     const passkey = await drawPasskey((n) => this.p.random(n));
-    this.set({ kind: "setupConfirm", device });
-    await ch.send({
-      v: 1, type: "setup.operator", sessionId, operator: NETWORK.operator, contract: NETWORK.contract,
-      chainId: String(NETWORK.chainId), passkey: String(Number(passkey)),
-    } as Message);
+    // The device sends pin.entry from the approve button on; listen before
+    // sending setup.operator, since it can come before the ack is read.
+    let entry: PinEntry = { digits: "0000", position: 0 };
+    let until = 0;
+    const stop = ch.listen(isType("pin.entry"), (m) => {
+      entry = pinEntryOf(m) ?? entry;
+      if (run === this.run && this.state.kind === "setupPin") this.set({ kind: "setupPin", device, until, entry });
+    });
     const cancel = () => ch.send({ v: 1, type: "session.cancel", sessionId } as Message).catch(() => {});
     try {
+      this.set({ kind: "setupConfirm", device });
+      await ch.send({
+        v: 1, type: "setup.operator", sessionId, operator: NETWORK.operator, contract: NETWORK.contract,
+        chainId: String(NETWORK.chainId), passkey: String(Number(passkey)),
+      } as Message);
       const values = await ch.next(isType("setup.ack", "setup.operator"), WAIT.setupConfirmMs, "기기 버튼 승인");
       if (values.accepted !== true) throw new Error(reasonText(values));
-      if (run === this.run) this.set({ kind: "setupPin", device });
+      until = this.p.now() + WAIT.pinEntryMs;
+      if (run === this.run) this.set({ kind: "setupPin", device, until, entry });
       const keygen = await ch.next(isType("setup.ack", "keygen"), WAIT.setupPinMs, "PIN 설정");
       if (keygen.accepted !== true) throw new Error(reasonText(keygen));
       await cancel(); // setup is stored; the session has nothing more to do
@@ -265,6 +318,8 @@ export class SetupFlow {
     } catch (e) {
       await cancel(); // a setup that did not finish stores nothing
       throw e;
+    } finally {
+      stop();
     }
   }
 
