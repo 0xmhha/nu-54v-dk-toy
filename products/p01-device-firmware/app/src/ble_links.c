@@ -174,6 +174,7 @@ static void pairing_end(struct k_work *w)
 	(void)w;
 	pairing_mode = false;
 	stop_advertising_if_idle();
+	status_led_pairing(false);
 	LOG_INF("pairing mode ended");
 }
 
@@ -284,11 +285,13 @@ static struct bt_conn_auth_cb auth_just_works = {
 static void pairing_complete(struct bt_conn *conn, bool bonded)
 {
 	LOG_INF("pairing link %d complete (%s)", link_of(conn), bonded ? "bonded" : "not bonded");
+	status_led_paired(bonded);
 }
 
 static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
 {
 	LOG_WRN("pairing link %d failed (%d)", link_of(conn), (int)reason);
+	status_led_paired(false);
 }
 
 static struct bt_conn_auth_info_cb auth_info = {
@@ -313,6 +316,7 @@ int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works)
 		LOG_ERR("advertising failed (%d)", err);
 		return err;
 	}
+	status_led_pairing(true);
 	k_work_reschedule(&pairing_timer, K_SECONDS(seconds));
 	LOG_INF("pairing mode for %u s (%s)", seconds, just_works ? "Just Works" : "label passkey");
 	return 0;
