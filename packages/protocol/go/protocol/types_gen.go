@@ -267,6 +267,8 @@ var MessageFields = map[string]*ObjectKind{
 		"orderId":   {Name: "hex32"},
 		"outcome":   {Name: "text"},
 		"reason":    {Name: "text"},
+		"txHash":    {Name: "hex32"},
+		"receipt":   {Name: "text"},
 	}, Required: []string{"v", "type", "sessionId", "orderId", "outcome"}},
 	"limit.result": &ObjectKind{Fields: map[string]FieldKind{
 		"v":         {Name: "int"},

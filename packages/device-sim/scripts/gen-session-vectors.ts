@@ -20,6 +20,7 @@ import {
   encodeMessage,
   ephemeralKey,
   hexToBytes,
+  receiptText,
   SecureChannel,
   sessionKey,
   signDigest,
@@ -93,6 +94,14 @@ function secureOpen(o: { mode?: "setup" | "payment"; att?: ReturnType<typeof att
   const kioskKeySignature = sign(o.signer ?? "merchant", "KioskKey", { merchant: att.merchant, kioskEphemeral: x, kioskNonce: KIOSK_NONCE });
   return { ...open(o.mode ?? "payment"), kioskEphemeral: x, attestation: att, kioskKeySignature } as Message;
 }
+
+// A digital receipt (6): what the kiosk hands the phone app inside payment.outcome.
+const RECEIPT = receiptText({
+  v: 1, store: "Cafe Test 01", representative: "Test Owner", businessNumber: "000-00-00000", address: "Test address 1", phone: "000-0000-0000",
+  orderNumber: "A-0001", orderId: "0x" + "01".repeat(32), time: T0 + 5,
+  items: [{ name: "Americano", qty: 2, unitPrice: "1500000" }, { name: "Cookie", qty: 1, unitPrice: "1500000" }],
+  total: "4500000", token: { symbol: "tUSDC", decimals: 6 }, chainId: CHAIN_ID, payer: DEVICE,
+});
 
 // Payment mode from the phone app (3): no session, the zero session id.
 const modeMsg = (on: boolean, seconds: number): Message =>
@@ -259,6 +268,10 @@ const SCENARIOS: Scenario[] = [
     button: "approve", unbondedLink: true, devUnpairedAnchor: true,
     steps: [...anchored(), { at: T0, send: operatorMsg() }, { at: T0, send: open("payment") }, { at: T0, send: resetMsg(DEVICE) },
       { at: T0, send: open("setup") }] },
+  { id: "SV-35", description: "an approved payment's payment.outcome with the settle transaction and a digital receipt reaches the phone app unchanged",
+    button: "approve",
+    steps: [...anchored(), ...paySession(1, T0 + 5, identify(), prepare(),
+      { v: 1, type: "payment.outcome", sessionId: SID, orderId: "0x" + "01".repeat(32), outcome: "approved", txHash: "0x" + "7e".repeat(32), receipt: RECEIPT } as Message)] },
 ];
 
 function run() {

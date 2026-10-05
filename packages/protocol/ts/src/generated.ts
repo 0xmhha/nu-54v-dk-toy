@@ -331,7 +331,9 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "sessionId": "sessionId",
       "orderId": "hex32",
       "outcome": "text",
-      "reason": "text"
+      "reason": "text",
+      "txHash": "hex32",
+      "receipt": "text"
     },
     "required": [
       "v",

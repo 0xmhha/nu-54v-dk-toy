@@ -163,3 +163,16 @@ test("payment mode needs a link that can write and is bonded", async () => {
   const unbonded = new ConfirmLink({ bonded: () => false, onFragment: () => () => {}, write: async () => {}, mtu: 23 }, () => {});
   await expect(unbonded.setPaymentMode(true)).rejects.toThrow("bonded");
 });
+
+// ---------------------------------------------------------------- digital receipt (6)
+
+test("an approved outcome with a receipt shows it; a broken receipt is left out", () => {
+  const sv35 = (sessionVectors.scenarios as { id: string; steps: { phone: string[] }[] }[]).find((s) => s.id === "SV-35")!;
+  const forwarded = sv35.steps.flatMap((st) => st.phone).at(-1)!; // the outcome the device forwarded
+  const p = phone();
+  p.deliverBody(hexToBytes(forwarded));
+  expect(p.link.current()).toMatchObject({ kind: "result", outcome: "approved", txHash: "0x" + "7e".repeat(32), receipt: { orderNumber: "A-0001", total: "4500000" } });
+  p.deliver({ v: 1, type: "payment.outcome", sessionId: "0102030405060708", orderId: "0x" + "02".repeat(32), outcome: "approved", receipt: "{broken" } as Message);
+  const s = p.link.current();
+  expect(s.kind === "result" && s.receipt).toBeFalsy();
+});

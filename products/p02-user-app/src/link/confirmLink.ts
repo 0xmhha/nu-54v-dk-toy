@@ -5,7 +5,7 @@
 // dropped. The screen shows confirm.show values only; there is no approve button (N26). The one
 // message the phone app sends is device.paymentMode (P02-FR-08): payment advertising on or off.
 
-import { decodeMessage, encodeMessage, FrameWriter, Reassembler, type Message } from "@nu54/protocol";
+import { decodeMessage, encodeMessage, FrameWriter, parseReceipt, Reassembler, type DigitalReceipt, type Message } from "@nu54/protocol";
 import { confirmView, limitView, TOKENS, type ConfirmView, type LimitView, type TokenInfo } from "../confirm/display.ts";
 
 /** Fragments from the device's TX characteristic, with the link's bonding state. */
@@ -32,7 +32,7 @@ export type Screen =
   | { kind: "waiting" }
   | { kind: "confirming"; view: ConfirmView; orderId: string }
   | { kind: "limit"; view: LimitView }
-  | { kind: "result"; outcome: string; reason?: string; view?: ConfirmView };
+  | { kind: "result"; outcome: string; reason?: string; view?: ConfirmView; receipt?: DigitalReceipt; txHash?: string };
 
 /** A confirm.show with no outcome after this long goes back to waiting (the device may have refused). */
 export const CONFIRM_TIMEOUT_MS = 120_000;
@@ -115,7 +115,18 @@ export class ConfirmLink {
       const s = this.screen;
       // The outcome of the order on screen; an outcome for another order is shown without details.
       const view = s.kind === "confirming" && s.orderId === String(m.orderId).toLowerCase() ? s.view : undefined;
-      this.show({ kind: "result", outcome: String(m.outcome), ...(m.reason ? { reason: String(m.reason) } : {}), view });
+      // An approved payment may carry the merchant's digital receipt and its transaction (6). A
+      // receipt that does not read is left out; the outcome still shows.
+      let receipt: DigitalReceipt | undefined;
+      try {
+        receipt = m.receipt ? parseReceipt(String(m.receipt)) : undefined;
+      } catch {
+        receipt = undefined;
+      }
+      this.show({
+        kind: "result", outcome: String(m.outcome), ...(m.reason ? { reason: String(m.reason) } : {}), view,
+        ...(receipt ? { receipt } : {}), ...(m.txHash ? { txHash: String(m.txHash) } : {}),
+      });
     } else {
       this.dropped++;
     }

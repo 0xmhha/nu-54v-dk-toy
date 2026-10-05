@@ -25,6 +25,7 @@ React Native 0.87(TypeScript)과 Kotlin Turbo Module로 만든 Android 앱이다
 | `src/App.tsx` | 라벨로 본딩·연결, 결제 대기, 확인 화면(승인 버튼 없음, "기기 버튼을 눌러 승인하세요"), 결과 화면 |
 | `src/confirm/display.ts` | 확인 화면 문자열: EIP-55 주소, 소수점 둘째 자리까지 버린 금액(N31), 토큰 표에 없는 토큰은 base unit과 주소 |
 | `src/link/confirmLink.ts` | 본딩한 링크에서만 `confirm.show`와 전달받은 `payment.outcome`을 받아 화면 상태를 바꾼다(P02-FR-02). 결제 모드 켜기·끄기(`device.paymentMode`, 기본 120초, P02-FR-08)를 보내고 기기의 답을 받는다 |
+| `src/App.tsx`의 `Receipt` | 승인된 `payment.outcome`에 실린 디지털 영수증(가맹점, 대표자, 주문 번호, 메뉴·수량·가격, 합계)과 탐색기 링크. 링크는 받은 URL이 아니라 `chainId`와 `txHash`로 앱이 만든다. 형식이 틀린 영수증은 버리고 결과만 보인다 |
 | `src/qr.ts` | 라벨 QR `nu54://bond?addr=<BLE 주소>&passkey=<6자리>` 파싱 |
 | `src/specs/NativeRenterBle.ts` | Turbo Module 명세. Kotlin 구현 `android/app/src/main/java/com/nu54renter/ble/RenterBleModule.kt`: 라벨 passkey로 Passkey Entry 본딩, 본딩한 기기에만 연결 |
 

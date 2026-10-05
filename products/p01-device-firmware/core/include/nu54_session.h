@@ -21,6 +21,9 @@
 #include "nu54_eip712.h"
 
 #define NU54_OUT_MAX 512
+/* The phone app's body: the forwarded payment.outcome may carry a digital receipt, up to the
+ * largest body (payment-protocol.md 4). */
+#define NU54_PHONE_MAX 2048
 
 typedef enum {
 	NU54_STATE_UNPROVISIONED,
@@ -96,7 +99,7 @@ typedef struct {
 	uint8_t kiosk[2][NU54_OUT_MAX];
 	size_t kiosk_len[2];
 	int kiosk_count;
-	uint8_t phone[NU54_OUT_MAX];
+	uint8_t phone[NU54_PHONE_MAX];
 	size_t phone_len;
 	int phone_count;
 	nu54_event_t event;

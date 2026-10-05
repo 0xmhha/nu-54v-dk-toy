@@ -107,7 +107,7 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 | 3 | `payment.identify{attestation}` | 키오스크→기기 | MerchantAttestation 서명자가 운영자인지, 현재 시각이 `validFrom..validUntil`(± `anchorClockSkew`) 안인지 확인하고 폰 앱에 보낼 가맹점 이름을 정한다 |
 | 4 | `payment.prepare{authorization, merchantSignature}` | 키오스크→기기 | 아래 검사를 모두 통과하면 가맹점 이름·orderId·token·payout·amount를 `confirm.show`로 폰 앱에 보내고 버튼을 기다린다 |
 | 5 | `payment.result{outcome, signature, nonce \| reason}` | 기기→키오스크 | 버튼을 누르면 nonce를 골라 서명하고 `approved`를, 거절 버튼이나 검사 실패면 `refused`와 reason을 보낸다 |
-| 6 | `payment.outcome{orderId, outcome, reason}` | 키오스크→기기 | 키오스크의 최종 결과를 LED로 알리고, 같은 결제 세션의 것이면 받은 본문을 바꾸지 않고 폰 앱에 전달한다. 키오스크에는 답하지 않는다 |
+| 6 | `payment.outcome{orderId, outcome, reason, txHash, receipt}` | 키오스크→기기 | 키오스크의 최종 결과를 LED로 알리고, 같은 결제 세션의 것이면 받은 본문을 바꾸지 않고 폰 앱에 전달한다. 키오스크에는 답하지 않는다. 승인된 결제에는 정산 트랜잭션 `txHash`와 디지털 영수증 `receipt`가 붙는다 |
 
 4단계 검사는 다음과 같다. 하나라도 틀리면 `refused`다.
 
@@ -130,6 +130,24 @@ BLE GATT가 유일한 규범 전송이다 [N09]. 기기가 peripheral이고, cen
 버튼 승인은 서명 권한 경계를 거친다. 기기는 서명할 digest와 purpose를 secure partition에 먼저 등록하고, secure 쪽 버튼 인터럽트는 그 digest 한 건에만 서명 토큰을 발급한다 [N24]. 폰 앱이 표시하는 값은 기기가 보낸 값이며, 표시 내용과 서명 내용이 같다는 보장은 기기의 non-secure 코드와 폰 앱이 무결하다는 가정 아래의 주장이다 [N26].
 
 키오스크는 `payment.prepare` 전송이 끝난 뒤 10 s 안에 `payment.result`가 없으면 `session.cancel`을 보낸다. 기기는 버튼 대기를 멈추고 아무것도 서명하지 않는다. 키오스크는 주문을 취소하고, 서명이 없었으므로 다시 결제를 받아도 된다 [N10].
+
+**디지털 영수증.** 결제가 승인되면 키오스크는 디지털 영수증을 만들어 화면에 보이고, 같은 내용을 `payment.outcome`의 `receipt`에 JSON 문자열로 실어 폰 앱에 보낸다. 기기는 이 본문을 해석하지 않고 그대로 전달하며, 전달할 수 있는 본문은 2048 바이트까지다(SV-35). 영수증 JSON은 다음 필드를 갖는다.
+
+| 필드 | 뜻 |
+|---|---|
+| `v` | 형식 버전, 1 |
+| `store` | 가맹점 이름(attestation의 `name`) |
+| `representative`, `businessNumber`, `address`, `phone` | 키오스크 설정 `merchantProfile`에서 온 대표자, 사업자 번호, 주소, 전화. 없으면 생략 |
+| `orderNumber` | 손님에게 보이는 주문 번호(예: `A-0001`, 날마다 다시 시작) |
+| `orderId` | MerchantOrder의 orderId |
+| `time` | 승인 시각(Unix 초) |
+| `items` | `{name, qty, unitPrice}` 목록. `unitPrice`는 토큰 최소 단위의 10진 문자열 |
+| `total` | 합계. `items`의 `qty × unitPrice` 합과 같아야 한다 |
+| `token` | `{symbol, decimals}` |
+| `chainId` | 정산 체인 |
+| `payer` | 결제한 기기의 주소 |
+
+영수증 문자열은 1600자를 넘지 않는다. 넘으면 키오스크는 영수증 없이 `payment.outcome`을 보내고 키오스크 화면에만 영수증을 보인다. 폰 앱은 형식이 틀린 영수증을 버리고 결과만 보인다. 탐색기 링크는 영수증에 넣지 않는다. 폰 앱과 키오스크는 `chainId`와 `txHash`로 링크를 직접 만든다(체인 8283이면 `https://explorer.stablenet.network/tx/<txHash>`). 받은 본문의 URL을 열지 않으므로, 본문을 바꿀 수 있는 쪽이 사용자를 다른 사이트로 보낼 수 없다. 형식과 링크 규칙은 `@nu54/protocol`의 `receiptText`, `parseReceipt`, `explorerTxUrl`이 구현한다.
 
 ## 7. 제출과 판정
 

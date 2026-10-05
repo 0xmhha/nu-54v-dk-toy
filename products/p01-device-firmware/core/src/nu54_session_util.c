@@ -26,7 +26,7 @@ void ss_emit(nu54_out_t *out, int who, const nu54_cbor_entry_t *e, size_t n)
 			out->kiosk_len[out->kiosk_count++] = w.len;
 		}
 	} else {
-		nu54_cbor_writer_init(&w, out->phone, NU54_OUT_MAX);
+		nu54_cbor_writer_init(&w, out->phone, sizeof(out->phone));
 		if (nu54_cbor_write_map(&w, e, n) == 0) {
 			out->phone_len = w.len;
 			out->phone_count = 1;

@@ -754,6 +754,15 @@
         },
         "reason": {
           "$ref": "#/$defs/reason"
+        },
+        "txHash": {
+          "$ref": "#/$defs/hex32",
+          "description": "settle transaction of an approved payment; the phone app builds the explorer link from it (never from a URL the kiosk sends)"
+        },
+        "receipt": {
+          "type": "string",
+          "maxLength": 1600,
+          "description": "digital receipt, a JSON text in the format of payment-protocol.md 6 (receipt); shown on the phone app as the merchant's statement"
         }
       },
       "description": "final kiosk outcome; the device shows it with LEDs and forwards it to the phone app"

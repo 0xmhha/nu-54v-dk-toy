@@ -5,7 +5,8 @@
 //   find and connect the device -> payment session (session.ts) -> approved signature
 //   -> submit and judge (submit.ts) -> payment.outcome to the device (P04-FR-16) -> disconnect
 
-import { addressOfPrivateKey, REASONS, signDigest, type Message } from "@nu54/protocol";
+import { addressOfPrivateKey, REASONS, signDigest, type DigitalReceipt, type Message, type ReceiptItem } from "@nu54/protocol";
+import { buildReceipt, receiptForPhone } from "./menu.ts";
 import type { MessageLink } from "../ble/framing.ts";
 import type { Chain, Hex } from "../chain/rpc.ts";
 import { runPayment, type SessionStep, type TimeAnchor } from "../payment/session.ts";
@@ -18,7 +19,9 @@ import type { OrderRecord, OrderStore } from "./orders.ts";
 export type Phase = "checkingGas" | "connecting" | SessionStep | "submitting";
 
 export type PayResult =
-  | Exclude<Outcome, { status: "Checking" }>
+  /** Approved, with the digital receipt the screen shows and the phone app got. */
+  | (Extract<Outcome, { status: "approved" }> & { receipt?: DigitalReceipt })
+  | Exclude<Outcome, { status: "Checking" | "approved" }>
   /** Submitted but not judged within 10 s: no new signature, re-check with recheck(signed). */
   | (Extract<Outcome, { status: "Checking" }> & { signed: Signed })
   | { status: "busy" }
@@ -55,7 +58,13 @@ export function submitContext(deps: PayDeps): SubmitContext {
   };
 }
 
-export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => void = () => {}): Promise<PayResult> {
+/** What was ordered: the receipt's lines and the number the customer sees. */
+export interface OrderDetail {
+  orderNumber: string;
+  items: ReceiptItem[];
+}
+
+export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => void = () => {}, order?: OrderDetail): Promise<PayResult> {
   const { config, merchantKey } = deps.kiosk;
   const ctx = submitContext(deps);
   onPhase("checkingGas");
@@ -91,7 +100,7 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
       onStep: onPhase,
       onOrder: async (id) => {
         orderId = id;
-        await deps.orders?.create(id, amount);
+        await deps.orders?.create(id, amount, order ?? {});
       },
     });
     if (session.status === "cancelled") {
@@ -113,9 +122,23 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
     // P04-FR-16: tell the device the final result; it does not answer. reason is a protocol
     // code; a failure described in words is sent without one.
     const reason = "reason" in out && (REASONS as readonly string[]).includes(out.reason) ? { reason: out.reason } : {};
-    const outcome = { v: 1, type: "payment.outcome", sessionId, orderId: auth.orderId, outcome: out.status, ...reason };
+    // An approved payment carries its transaction and the digital receipt to the phone app (6).
+    let receipt: DigitalReceipt | undefined;
+    let extra: Record<string, string> = {};
+    if (out.status === "approved") {
+      receipt = buildReceipt(config, {
+        orderNumber: order?.orderNumber ?? auth.orderId.slice(0, 10),
+        orderId: auth.orderId,
+        items: order?.items ?? [{ name: "Payment", qty: 1, unitPrice: amount.toString() }],
+        total: amount,
+        payer: device,
+      });
+      const text = receiptForPhone(receipt);
+      extra = { ...(out.txHash ? { txHash: out.txHash } : {}), ...(text ? { receipt: text } : {}) };
+    }
+    const outcome = { v: 1, type: "payment.outcome", sessionId, orderId: auth.orderId, outcome: out.status, ...reason, ...extra };
     await link.send(outcome as Message, 0, 0).catch(() => undefined);
-    return out;
+    return receipt && out.status === "approved" ? { ...out, receipt } : out;
   } finally {
     await link.close().catch(() => undefined);
   }

@@ -10,6 +10,7 @@ import {
   PermissionsAndroid,
   Platform,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -28,6 +29,8 @@ import { resume } from './payment/submit.ts';
 import { OrderStore } from './kiosk/orders.ts';
 import { blockTimeText, fetchReceipt, type ReceiptResult } from './kiosk/receipt.ts';
 import Vault from './specs/NativeKioskVault.ts';
+import { cartItems, cartTotal, nextOrderNumber, type Cart } from './kiosk/menu.ts';
+import { DigitalReceiptView } from './DigitalReceiptView.tsx';
 
 const PHASE_TEXT: Record<Phase, string> = {
   checkingGas: '가스 잔액 확인 중',
@@ -171,7 +174,12 @@ function Kiosk() {
   }, [load]);
 
   const decimals = kiosk?.config.tokenDecimals ?? 6;
-  const amount = parseAmount(amountText, decimals);
+  // With a menu the order is the cart; without one the kiosk takes an amount.
+  const menu = kiosk?.config.menu ?? [];
+  const [cart, setCart] = useState<Cart>({});
+  const items = cartItems(menu, cart);
+  const amount = menu.length ? (items.length ? cartTotal(items) : null) : parseAmount(amountText, decimals);
+  const bump = (i: number, d: number) => setCart(c => ({ ...c, [i]: Math.max(0, Math.min(99, (c[i] ?? 0) + d)) }));
 
   /** SecureRandom bytes fetched once per session; a session draws well under 4 KiB. */
   const randomPool = async () => {
@@ -205,11 +213,13 @@ function Kiosk() {
       return;
     }
     setScreen({ kind: 'paying', phase: 'checkingGas', amount });
+    const order = { orderNumber: await nextOrderNumber(Vault), items: menu.length ? items : [{ name: '결제', qty: 1, unitPrice: amount.toString() }] };
     const result = await pay(
       { ...deps(kiosk, orders), random: await randomPool() },
       amount,
       // The press must come within WAIT_MS of the request: count it down on the screen.
       phase => setScreen({ kind: 'paying', phase, amount, deadline: phase === 'waitingDevice' ? Date.now() + WAIT_MS : undefined }),
+      order,
     ).catch((e): PayResult => ({ status: 'failed', reason: e instanceof Error ? e.message : String(e) }));
     setOpenCount(orders?.open().length ?? 0);
     setScreen({ kind: 'result', result, amount });
@@ -247,6 +257,7 @@ function Kiosk() {
   const symbol = kiosk?.config.tokenSymbol ?? '';
   return (
     <SafeAreaView style={styles.root}>
+      <ScrollView keyboardShouldPersistTaps="handled">
       <Text style={styles.merchant}>{kiosk?.config.attestation.name ?? 'NU54 키오스크'}</Text>
       {screen.kind === 'loading' && <Text style={styles.body}>불러오는 중</Text>}
       {screen.kind === 'unprovisioned' && (
@@ -261,9 +272,25 @@ function Kiosk() {
       )}
       {screen.kind === 'idle' && (
         <View>
-          <Text style={styles.label}>결제 금액 ({symbol})</Text>
-          <TextInput style={styles.input} value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" />
-          <Button label={amount ? `${shown(amount, decimals)} ${symbol} 결제 요청` : '금액을 입력하세요'} onPress={start} disabled={!amount} />
+          {menu.length > 0 ? (
+            menu.map((m, i) => (
+              <View key={i} style={styles.menuRow}>
+                <View style={styles.menuName}>
+                  <Text style={styles.value}>{m.name}</Text>
+                  <Text style={styles.label}>{shown(BigInt(m.price), decimals)} {symbol}</Text>
+                </View>
+                <Pressable style={styles.step} onPress={() => bump(i, -1)}><Text style={styles.stepText}>−</Text></Pressable>
+                <Text style={styles.qty}>{cart[i] ?? 0}</Text>
+                <Pressable style={styles.step} onPress={() => bump(i, 1)}><Text style={styles.stepText}>+</Text></Pressable>
+              </View>
+            ))
+          ) : (
+            <>
+              <Text style={styles.label}>결제 금액 ({symbol})</Text>
+              <TextInput style={styles.input} value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" />
+            </>
+          )}
+          <Button label={amount ? `${shown(amount, decimals)} ${symbol} 결제 요청` : menu.length ? '메뉴를 고르세요' : '금액을 입력하세요'} onPress={start} disabled={!amount} />
           <Button label="한도 변경" onPress={() => setScreen({ kind: 'limits' })} />
           {anchorLeft !== null && (
             <Text style={anchorLeft > 0 ? styles.body : styles.error}>
@@ -310,6 +337,15 @@ function Kiosk() {
       {screen.kind === 'result' && (() => {
         const t = resultText(screen.result);
         const r = screen.result;
+        const newOrder = () => { setReceipt(null); setCart({}); setScreen({ kind: 'idle' }); };
+        if (r.status === 'approved' && r.receipt) {
+          return (
+            <View>
+              <Text style={[styles.title, styles.ok]}>결제 완료</Text>
+              <DigitalReceiptView receipt={r.receipt} txHash={r.txHash} onNew={newOrder} />
+            </View>
+          );
+        }
         return (
           <View>
             <Text style={styles.amount}>{shown(screen.amount, decimals)} {symbol}</Text>
@@ -328,11 +364,12 @@ function Kiosk() {
             {r.status === 'Checking' ? (
               <Button label="다시 확인" onPress={() => check(r, screen.amount)} />
             ) : (
-              <Button label="새 주문" onPress={() => { setReceipt(null); setScreen({ kind: 'idle' }); }} />
+              <Button label="새 주문" onPress={newOrder} />
             )}
           </View>
         );
       })()}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -381,6 +418,12 @@ const styles = StyleSheet.create({
   input: { fontSize: 32, borderBottomWidth: 2, borderColor: '#333', paddingVertical: 8, marginBottom: 24, color: '#111' },
   amount: { fontSize: 40, fontWeight: '600', color: '#111', marginBottom: 16 },
   title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#ccc' },
+  menuName: { flex: 1 },
+  value: { fontSize: 18, color: '#111' },
+  step: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eee', alignItems: 'center', justifyContent: 'center' },
+  stepText: { fontSize: 24, color: '#111' },
+  qty: { width: 40, textAlign: 'center', fontSize: 20, color: '#111' },
   countdown: { fontSize: 56, fontWeight: '700', color: '#1b4fa0', marginTop: 8 },
   body: { fontSize: 18, color: '#333', marginBottom: 16 },
   error: { fontSize: 14, color: '#b00020', marginBottom: 16 },

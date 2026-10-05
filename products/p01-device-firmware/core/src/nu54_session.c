@@ -137,7 +137,7 @@ static void dispatch(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t
 	} else if (strcmp(type, "payment.outcome") == 0) {
 		/* The kiosk's final result: forwarded unchanged to the phone app for the payment session
 		 * it belongs to (schema payment.outcome, P02-FR-07); no reply to the kiosk. */
-		if (ss_in_session(d, &m, 0) && len <= NU54_OUT_MAX) {
+		if (ss_in_session(d, &m, 0) && len <= NU54_PHONE_MAX) {
 			memcpy(out->phone, body, len);
 			out->phone_len = len;
 			out->phone_count = 1;

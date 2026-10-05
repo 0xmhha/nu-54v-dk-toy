@@ -1,6 +1,6 @@
 // The kiosk payment from the screen's point of view (P04 design 3, 4): gas check, device
 // session against the software device, submission, payment.outcome to the device, provisioning.
-import { addressOfPrivateKey, bytesToHex, digest, hexToBytes, signDigest, type Message } from "@nu54/protocol";
+import { addressOfPrivateKey, bytesToHex, digest, hexToBytes, parseReceipt, signDigest, type Message } from "@nu54/protocol";
 import { DeviceEndpoint, SoftwareDevice } from "@nu54/device-sim";
 import { FramedLink, type MessageLink } from "../src/ble/framing.ts";
 import type { Chain, Hex } from "../src/chain/rpc.ts";
@@ -153,6 +153,21 @@ test("approved: submits the device signature and tells the device the outcome", 
   await new Promise<void>((done) => setTimeout(done, 20));
   expect(d.received.at(-1)).toMatchObject({ type: "payment.outcome", outcome: "approved" });
   expect(d.closed()).toBe(true);
+});
+
+test("an approved order carries its transaction and digital receipt to the device for the phone", async () => {
+  const kiosk = await provisioned();
+  const d = deviceLink();
+  const tx = ("0x" + "7e".repeat(32)) as Hex;
+  const approved: Outcome = { status: "approved", txHash: tx, event: { device: DEVICE, amount: 3_000_000n, nonce: 256n } as never };
+  const order = { orderNumber: "A-0007", items: [{ name: "Americano", qty: 2, unitPrice: "1500000" }] };
+  const r = await pay({ kiosk, chain: chain(20n * 10n ** 18n), connect: d.connect, anchor: async () => anchor, random, submit: async () => approved },
+    3_000_000n, () => {}, order);
+  expect(r).toMatchObject({ status: "approved", receipt: { orderNumber: "A-0007", total: "3000000", items: order.items, payer: DEVICE } });
+  await new Promise<void>((done) => setTimeout(done, 20));
+  const outcome = d.received.at(-1)!;
+  expect(outcome).toMatchObject({ type: "payment.outcome", outcome: "approved", txHash: tx });
+  expect(parseReceipt(String(outcome.receipt))).toMatchObject({ store: kiosk.config.attestation.name, orderNumber: "A-0007", total: "3000000" });
 });
 
 test("gas below kioskMinGasBalance: busy, no device session", async () => {
