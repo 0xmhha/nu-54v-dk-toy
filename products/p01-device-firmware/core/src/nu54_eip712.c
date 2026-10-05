@@ -146,6 +146,15 @@ void nu54_hash_kiosk_key(const nu54_kiosk_key_t *v, uint8_t out[32])
 	finish(&w, out);
 }
 
+void nu54_hash_wallet_check(const nu54_wallet_check_t *v, uint8_t out[32])
+{
+	words_t w;
+	begin(&w, NU54_ENCODE_TYPE_WALLET_CHECK);
+	put_address(&w, v->device);
+	put_bytes32(&w, v->challenge);
+	finish(&w, out);
+}
+
 void nu54_eip712_digest(const uint8_t domain_separator[32], const uint8_t struct_hash[32], uint8_t out[32])
 {
 	uint8_t buf[66];

@@ -49,7 +49,7 @@ def const_name(value: str) -> str:
 
 def load() -> dict:
     schema = json.loads(SCHEMA.read_text())
-    types = {**schema["eip712Types"], **schema["operatorSignedTypes"]}
+    types = {**schema["eip712Types"], **schema["deviceCheckTypes"], **schema["operatorSignedTypes"]}
     return {
         "domain": schema["eip712Domain"],
         "device": list(schema["eip712Types"]),

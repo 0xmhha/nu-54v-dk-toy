@@ -34,6 +34,12 @@ type LimitChange struct {
 	Expiry          uint64         `json:"expiry"`
 }
 
+// WalletCheck is an EIP-712 struct signed by the operator or merchant.
+type WalletCheck struct {
+	Device    common.Address `json:"device"`
+	Challenge [32]byte       `json:"challenge"`
+}
+
 // MerchantAttestation is an EIP-712 struct signed by the operator or merchant.
 type MerchantAttestation struct {
 	Merchant   common.Address `json:"merchant"`
@@ -75,6 +81,7 @@ type KioskKey struct {
 var EncodeType = map[string]string{
 	"PaymentAuthorization": "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
 	"LimitChange":          "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)",
+	"WalletCheck":          "WalletCheck(address device,bytes32 challenge)",
 	"MerchantAttestation":  "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
 	"MerchantOrder":        "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
 	"TimeAnchor":           "TimeAnchor(address device,uint64 timestamp)",
@@ -139,6 +146,10 @@ var MessageTypes = []string{
 	"confirm.limit",
 	"device.paymentMode",
 	"device.paymentMode.ack",
+	"device.info",
+	"device.info.ack",
+	"wallet.check",
+	"wallet.check.result",
 }
 
 // FieldKind is the CBOR kind of a message field (payment-protocol.md 4.2): a scalar kind name,
@@ -339,6 +350,34 @@ var MessageFields = map[string]*ObjectKind{
 		"on":        {Name: "bool"},
 		"reason":    {Name: "text"},
 	}, Required: []string{"v", "type", "sessionId", "accepted", "on"}},
+	"device.info": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+	}, Required: []string{"v", "type", "sessionId"}},
+	"device.info.ack": &ObjectKind{Fields: map[string]FieldKind{
+		"v":           {Name: "int"},
+		"type":        {Name: "text"},
+		"sessionId":   {Name: "sessionId"},
+		"state":       {Name: "text"},
+		"firmware":    {Name: "text"},
+		"anchorValid": {Name: "bool"},
+		"device":      {Name: "hex20"},
+	}, Required: []string{"v", "type", "sessionId", "state", "firmware", "anchorValid"}},
+	"wallet.check": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"challenge": {Name: "hex32"},
+	}, Required: []string{"v", "type", "sessionId", "challenge"}},
+	"wallet.check.result": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"accepted":  {Name: "bool"},
+		"signature": {Name: "signature"},
+		"reason":    {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "accepted"}},
 }
 
 // GATT service of the payment protocol (payment-protocol.md 3).

@@ -104,7 +104,7 @@ def sign_typed(domain_fields: list, domain: dict, name: str, types: dict, messag
 def build() -> dict:
     schema = json.loads(SCHEMA.read_text())
     domain_fields = schema["eip712Domain"]
-    types = {**schema["eip712Types"], **schema["operatorSignedTypes"]}
+    types = {**schema["eip712Types"], **schema["deviceCheckTypes"], **schema["operatorSignedTypes"]}
     device, operator, merchant = role_address("device"), role_address("operator"), role_address("merchant")
     contract = addr("c0")
     domain = {"name": "NU54 Payment Settlement", "version": "1", "chainId": 8283, "verifyingContract": contract}
@@ -118,6 +118,7 @@ def build() -> dict:
         ("LC-01", "LimitChange", "device", {
             "chainId": 8283, "contract": contract, "perPaymentLimit": 20000000, "dailyLimit": 100000000,
             "nonce": 3, "expiry": 1790000120}),
+        ("WC-01", "WalletCheck", "device", {"device": device, "challenge": b32("c4")}),
         ("MA-01", "MerchantAttestation", "operator", {
             "merchant": merchant, "payout": addr("b1"), "name": "Cafe Test 01",
             "validFrom": 1790000000, "validUntil": 1790086400}),

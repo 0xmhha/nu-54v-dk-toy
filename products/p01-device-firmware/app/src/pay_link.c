@@ -35,7 +35,7 @@ static nu54_reassembler_t rx[NU54_LINK_MAX];
 
 /* ---------------------------------------------------------------- events from other threads */
 
-typedef enum { EV_CONNECTED, EV_DISCONNECTED, EV_FRAGMENT, EV_BUTTON, EV_PIN } event_type_t;
+typedef enum { EV_CONNECTED, EV_DISCONNECTED, EV_FRAGMENT, EV_BUTTON, EV_PIN, EV_WALLET_CHECK_TIMEOUT } event_type_t;
 
 typedef struct {
 	uint8_t type;
@@ -87,6 +87,16 @@ static const ble_links_handlers_t handlers = {
 	.fragment = on_fragment,
 };
 
+/* A wallet.check waits this long for the button (the phone app shows the same countdown). */
+#define WALLET_CHECK_MS 60000
+
+static void wallet_check_timeout(struct k_work *w)
+{
+	(void)w;
+	post(&(event_t){.type = EV_WALLET_CHECK_TIMEOUT});
+}
+static K_WORK_DELAYABLE_DEFINE(wallet_check_timer, wallet_check_timeout);
+
 /* ---------------------------------------------------------------- delivery */
 
 /* The board's facts about every link, as the router needs them now. */
@@ -98,11 +108,22 @@ static void refresh_links(void)
 	}
 }
 
-/* Shows the kiosk's payment.outcome (as forwarded to the phone app) on the LEDs. */
+/* Shows the kiosk's payment.outcome (as forwarded to the phone app) on the LEDs, and a signed
+ * wallet.check as approved (a refused one is a REFUSED event already). */
 static void show_outcome(const uint8_t *body, size_t len)
 {
 	static nu54_msg_t m;
-	if (nu54_msg_decode(body, len, &m) != NU54_MSG_OK || strcmp(m.message->type, "payment.outcome") != 0) {
+	if (nu54_msg_decode(body, len, &m) != NU54_MSG_OK) {
+		return;
+	}
+	if (strcmp(m.message->type, "wallet.check.result") == 0) {
+		if (m.items[nu54_msg_find(&m, 0, "accepted")].value) {
+			status_led_outcome(true);
+		}
+		LOG_INF("wallet check answered");
+		return;
+	}
+	if (strcmp(m.message->type, "payment.outcome") != 0) {
 		return;
 	}
 	int o = nu54_msg_find(&m, 0, "outcome");
@@ -134,7 +155,10 @@ static void deliver(const nu54_out_t *out, int reply_link)
 	status_led_event(out->event);
 	/* The buttons decide; while the PIN is asked for, main.c's PIN entry shows the digits. */
 	status_led_waiting(device.pending == NU54_PENDING_PAYMENT || device.pending == NU54_PENDING_SETUP_CONFIRM ||
-			   device.pending == NU54_PENDING_LIMIT_CONFIRM);
+			   device.pending == NU54_PENDING_LIMIT_CONFIRM || device.pending == NU54_PENDING_WALLET_CHECK);
+	if (device.pending != NU54_PENDING_WALLET_CHECK) {
+		k_work_cancel_delayable(&wallet_check_timer);
+	}
 }
 
 /* ---------------------------------------------------------------- the work queue */
@@ -162,6 +186,10 @@ static void handle_body(int link, const uint8_t *body, size_t len)
 		status_led_new_session();
 	}
 	LOG_INF("message on link %d: %u-byte body, %d replies", link, (unsigned)len, out.kiosk_count);
+	if (device.pending == NU54_PENDING_WALLET_CHECK && asked != NU54_PENDING_WALLET_CHECK) {
+		LOG_INF("wallet check: SW1 signs, SW2 refuses");
+		k_work_reschedule_for_queue(&work_q, &wallet_check_timer, K_MSEC(WALLET_CHECK_MS));
+	}
 	deliver(&out, link);
 }
 
@@ -204,6 +232,21 @@ static void on_disconnected_event(int link)
 {
 	bool waited = device.pending != NU54_PENDING_NONE;
 	if (!nu54_links_disconnected(&router, link)) {
+		/* The phone app that asked for a wallet check left: nobody can read the answer. */
+		refresh_links();
+		bool phone_left = true;
+		for (int i = 0; i < NU54_LINK_MAX; i++) {
+			phone_left &= !nu54_links_is_phone(&router, i);
+		}
+		if (device.pending == NU54_PENDING_WALLET_CHECK && phone_left) {
+			static nu54_out_t out;
+			memset(&out, 0, sizeof(out));
+			nu54_session_wallet_check_end(&device, &out);
+			status_led_event(NU54_EVENT_REFUSED);
+			status_led_waiting(false);
+			k_work_cancel_delayable(&wallet_check_timer);
+			LOG_INF("wallet check ended: the phone app left");
+		}
 		return;
 	}
 	nu54_session_link_closed(&device);
@@ -219,6 +262,7 @@ static void on_disconnected_event(int link)
 static void on_renter_event(const event_t *ev)
 {
 	static nu54_out_t out;
+	bool unprovisioned = device.state == NU54_STATE_UNPROVISIONED;
 	memset(&out, 0, sizeof(out));
 	if (ev->type == EV_BUTTON) {
 		nu54_session_button(&device, ev->len, &out);
@@ -226,6 +270,12 @@ static void on_renter_event(const event_t *ev)
 		nu54_session_pin(&device, ev->len ? (const char *)ev->data : NULL, ev->len, &out);
 	}
 	deliver(&out, nu54_links_session(&router));
+	/* Setup just stored the key and passkey: the phone app's Just Works bond is not enough any
+	 * more (passkey bonds only, payment-protocol.md 3), so pairing mode opens with the new passkey
+	 * for the app to bond again without another long press. */
+	if (unprovisioned && device.state != NU54_STATE_UNPROVISIONED) {
+		(void)ble_links_pairing_mode(120, device.passkey, false);
+	}
 }
 
 static void event_work_handler(struct k_work *w)
@@ -248,6 +298,16 @@ static void event_work_handler(struct k_work *w)
 		case EV_PIN:
 			on_renter_event(&ev);
 			break;
+		case EV_WALLET_CHECK_TIMEOUT: {
+			static nu54_out_t out;
+			memset(&out, 0, sizeof(out));
+			if (device.pending == NU54_PENDING_WALLET_CHECK) {
+				LOG_INF("wallet check timed out");
+				nu54_session_wallet_check_end(&device, &out);
+				deliver(&out, -1);
+			}
+			break;
+		}
 		}
 		memset(ev.data, 0, sizeof(ev.data)); /* a PIN never outlives its event */
 	}

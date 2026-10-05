@@ -1,6 +1,6 @@
 /*
  * Firmware entry of the conformance harness (products/p10-platform/harness/README.md):
- * all seven EIP-712 digests, operator and merchant signer recovery, and the device's
+ * all eight EIP-712 digests, operator and merchant signer recovery, and the device's
  * signature finishing (low-s, v) against the shared vectors.
  */
 #include <stdio.h>
@@ -43,6 +43,8 @@ static void struct_hash(const eip712_vector_t *v, uint8_t out[32])
 		nu54_hash_merchant_order(v->msg, out);
 	} else if (strcmp(v->type, "TimeAnchor") == 0) {
 		nu54_hash_time_anchor(v->msg, out);
+	} else if (strcmp(v->type, "WalletCheck") == 0) {
+		nu54_hash_wallet_check(v->msg, out);
 	} else if (strcmp(v->type, "KioskKey") == 0) {
 		nu54_hash_kiosk_key(v->msg, out);
 	} else {

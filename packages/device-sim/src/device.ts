@@ -1,7 +1,7 @@
 // A software stand-in for the payment device (payment-protocol.md 5 and 6).
 //
 // Setup (5): setup.operator with the renter's confirmation, key generation, PIN, TimeAnchor and
-// device.reset. Payments (6): the payment session with its step-4 checks, in plaintext or over
+// device.reset; the phone app's device.info and its wallet.check of the new key. Payments (6): the payment session with its step-4 checks, in plaintext or over
 // the secure channel of 4.1 (handleBody opens and seals the kiosk link's bodies).
 //
 // It answers the same messages the firmware does, with the same checks and refusal reasons,
@@ -283,6 +283,7 @@ export class SoftwareDevice {
     if (m.type === "payment.prepare") return yield* this.prepareStep(m);
     if (m.type === "setup.operator") return yield* this.operatorStep(m);
     if (m.type === "limit.change") return yield* this.limitStep(m);
+    if (m.type === "wallet.check") return yield* this.walletCheckStep(m);
     return this.handleOther(m);
   }
 
@@ -308,6 +309,8 @@ export class SoftwareDevice {
         return [this.reset(m)];
       case "device.paymentMode":
         return [this.paymentMode(m)];
+      case "device.info":
+        return [this.info()];
       default:
         return [this.error("UNSUPPORTED_TYPE", String(m.sessionId))];
     }
@@ -384,6 +387,40 @@ export class SoftwareDevice {
     const ack: Record<string, unknown> = { v: 1, type: "device.paymentMode.ack", sessionId: "0000000000000000", accepted: ok, on };
     if (!ok) ack.reason = "NOT_PERMITTED";
     return ack as Message;
+  }
+
+  /**
+   * The bonded phone app asks what state the device is in (payment-protocol.md 3), to choose
+   * between wallet setup and its home screen. It belongs to no session.
+   */
+  private info(): Message {
+    if (!this.cfg.linkBonded()) return this.error("NOT_PERMITTED", "0000000000000000");
+    return {
+      v: 1, type: "device.info.ack", sessionId: "0000000000000000", state: this.state, firmware: this.cfg.firmware,
+      anchorValid: this.anchor !== null, ...(this.setup ? { device: this.setup.address } : {}),
+    } as Message;
+  }
+
+  /**
+   * wallet.check (payment-protocol.md 5): after the renter's approve button the device signs
+   * WalletCheck{device, challenge}, so the phone app sees the new key answer for the address it
+   * was given. The result goes to the bonded phone app. No session; the settlement contract has
+   * no WalletCheck, so the signature moves no funds.
+   */
+  private *walletCheckStep(m: Message): Step {
+    const result = (fields: Record<string, unknown>) => ({ v: 1, type: "wallet.check.result", sessionId: "0000000000000000", ...fields }) as Message;
+    const refused = (reason: string) => [result({ accepted: false, reason })];
+    if (!this.cfg.linkBonded() || !this.setup) return refused("NOT_PERMITTED");
+    if (this.state === "PIN_LOCKED") return refused("PIN_LOCKED"); // every signature is refused
+    const challenge = String(m.challenge);
+    const approved = yield { wait: this.cfg.approve(m) };
+    if (!approved) {
+      this.toPhone(result({ accepted: false, reason: "USER_REJECTED" }));
+      return [];
+    }
+    const sig = signDigest(digest(this.domain, "WalletCheck", { device: this.setup.address, challenge }), this.setup.key);
+    this.toPhone(result({ accepted: true, signature: bytesToHex(sig) }));
+    return [];
   }
 
   private confirm(m: Message): Message[] {

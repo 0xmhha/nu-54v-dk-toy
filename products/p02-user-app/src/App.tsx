@@ -1,15 +1,19 @@
 /**
- * Renter phone app (P02 design 3): bond with the device from its label, turn payment mode on
- * (P02-FR-08), then show what the device is about to sign. There is no approve button: the
- * renter approves on the device (P02-FR-05), and enters the PIN on the device buttons (P02-FR-06).
+ * Renter phone app (P02 design 3). A state machine (src/setup/flow.ts) takes the renter from a
+ * device in pairing mode to a checked wallet: scan, bond, setup on the device buttons, the
+ * reconnect code, the passkey bond, the wallet check. A registered device reconnects on start.
+ * The home screen turns payment mode on (P02-FR-08) and shows what the device is about to sign.
+ * There is no approve button: the renter approves on the device (P02-FR-05) and enters the PIN on
+ * the device buttons (P02-FR-06).
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
-import { parseLabel, type BondTarget } from './qr.ts';
+import { bodyLink } from './setup/channel.ts';
+import { SetupFlow, type DeviceRecord, type FoundDevice, type SetupPlatform, type SetupState } from './setup/flow.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
 
 const OUTCOME_TEXT: Record<string, string> = {
@@ -19,21 +23,215 @@ const OUTCOME_TEXT: Record<string, string> = {
   Checking: '확인 중',
 };
 
-async function connectPermission(): Promise<boolean> {
+async function bluetoothPermission(): Promise<boolean> {
   if (Platform.OS !== 'android' || Number(Platform.Version) < 31) return true;
   const wanted = [PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT, PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN];
   const got = await PermissionsAndroid.requestMultiple(wanted);
   return wanted.every(p => got[p] === PermissionsAndroid.RESULTS.GRANTED);
 }
 
-type Link = { state: 'none' } | { state: 'bonding' | 'connecting' | 'connected'; target: BondTarget } | { state: 'error'; message: string };
+/** The Turbo Module as the setup flow's platform. */
+const nativePlatform: SetupPlatform = {
+  async scan(onFound, seconds) {
+    const sub = RenterBle.onScan(json => {
+      try {
+        onFound(JSON.parse(json) as FoundDevice);
+      } catch {
+        // not a scan result
+      }
+    });
+    try {
+      await RenterBle.scan(GATT.service, seconds);
+    } finally {
+      sub.remove();
+    }
+  },
+  stopScan: () => RenterBle.stopScan(),
+  bond: (address, passkey) => RenterBle.bond(address, passkey),
+  isBonded: address => RenterBle.isBonded(address),
+  removeBond: address => RenterBle.removeBond(address),
+  async connect(address) {
+    const mtu = await RenterBle.connect(address, GATT.service, GATT.rx, GATT.tx);
+    return bodyLink({
+      mtu,
+      write: f => RenterBle.writeFragment(toBase64(f)),
+      onFragment: h => {
+        const sub = RenterBle.onFragment(b64 => h(fromBase64(b64)));
+        return () => sub.remove();
+      },
+    });
+  },
+  disconnect: () => RenterBle.disconnect(),
+  random: async n => fromBase64(await RenterBle.randomBytes(n)),
+  async loadDevices() {
+    const text = await RenterBle.loadDevices();
+    try {
+      return text ? (JSON.parse(text) as DeviceRecord[]) : [];
+    } catch {
+      return [];
+    }
+  },
+  saveDevices: list => RenterBle.saveDevices(JSON.stringify(list)),
+  now: () => Date.now(),
+  sleep: ms => new Promise(r => setTimeout(r, ms)),
+};
+
+/** Seconds left until `until` (ms), ticking once a second. */
+function useSecondsLeft(until: number | null): number {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (until === null) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [until]);
+  return until === null ? 0 : Math.max(0, Math.ceil((until - now) / 1000));
+}
+
+const short = (a: string) => `${a.slice(0, 8)}…${a.slice(-6)}`;
 
 function Renter() {
-  const [label, setLabel] = useState('');
-  const [link, setLink] = useState<Link>({ state: 'none' });
+  const [state, setState] = useState<SetupState>({ kind: 'loading' });
+  const flow = useRef<SetupFlow | null>(null);
+
+  useEffect(() => {
+    const f = new SetupFlow(nativePlatform, setState);
+    flow.current = f;
+    bluetoothPermission().then(ok => {
+      if (ok) f.start();
+      else setState({ kind: 'failed', message: '블루투스 권한이 필요합니다' });
+    });
+    return () => {
+      f.closeLink();
+    };
+  }, []);
+
+  const f = flow.current;
+  const until = state.kind === 'verify' ? state.until : null;
+  const left = useSecondsLeft(until);
+
+  switch (state.kind) {
+    case 'loading':
+      return <Text style={styles.body}>불러오는 중</Text>;
+    case 'scan':
+      return (
+        <View>
+          <Text style={styles.title}>기기 찾기</Text>
+          <Text style={styles.body}>기기를 켜고 SW3을 길게 눌러 페어링 모드로 두세요. LED가 2초마다 두 번 깜빡이면 페어링 모드입니다.</Text>
+          {state.found.map(d => (
+            <Pressable key={d.address} style={styles.device} onPress={() => f?.choose(d)}>
+              <Text style={styles.value}>{d.name || '이름 없는 기기'}</Text>
+              <Text style={styles.small}>{d.address}  신호 {d.rssi} dBm</Text>
+              <Text style={styles.connect}>연결</Text>
+            </Pressable>
+          ))}
+          {state.scanning && <Text style={styles.hint}>찾는 중…</Text>}
+          {!state.scanning && state.found.length === 0 && <Text style={styles.hint}>찾은 기기가 없습니다.</Text>}
+          {!state.scanning && <Button label="다시 찾기" onPress={() => f?.scan()} />}
+        </View>
+      );
+    case 'bonding':
+      return (
+        <Step title="본딩 중" device={state.device.name}>
+          시스템 창이 뜨면 페어링을 허용하세요. 이미 설정한 기기라면 설정 때 받은 재연결 코드 6자리를 입력하세요.
+        </Step>
+      );
+    case 'connecting':
+      return <Step title="연결 중" device={state.device.name}>기기에 연결하고 상태를 확인합니다.</Step>;
+    case 'reconnecting':
+      return <Step title="기기에 다시 연결 중" device={state.record.name}>등록된 기기에 연결하고 지갑 주소를 확인합니다.</Step>;
+    case 'setupConfirm':
+      return (
+        <Step title="지갑 설정 1/3" device={state.device.name}>
+          새 지갑을 만듭니다. 기기의 SW1을 눌러 승인하세요 (거절은 SW2). 키는 기기 안에서만 만들어지고 밖으로 나오지 않습니다.
+        </Step>
+      );
+    case 'setupPin':
+      return (
+        <Step title="지갑 설정 2/3" device={state.device.name}>
+          기기 버튼으로 PIN 4자리를 정하세요. LED가 자릿수와 누를 버튼을 안내합니다. PIN은 폰으로 전달되지 않습니다.
+        </Step>
+      );
+    case 'passkey':
+      return (
+        <View>
+          <Text style={styles.title}>지갑 설정 3/3</Text>
+          <Text style={styles.label}>지갑 주소</Text>
+          <Text style={styles.mono}>{state.wallet}</Text>
+          <Text style={styles.label}>재연결 코드</Text>
+          <Text style={styles.code}>{state.passkey}</Text>
+          <Text style={styles.body}>
+            다른 폰에 이 기기를 연결할 때 이 코드가 필요합니다. 앱은 이 코드를 저장하지 않으니 지금 적어 두세요.
+          </Text>
+          <Button label="코드를 적어 두었습니다" onPress={() => f?.passkeyNoted()} />
+        </View>
+      );
+    case 'rebonding':
+      return <Step title="재연결 코드로 본딩 중" device={state.device.name}>기기가 페어링 모드로 기다리고 있습니다.</Step>;
+    case 'verify':
+      return (
+        <Step title="지갑 확인" device={state.device.name}>
+          {`기기의 SW1을 눌러 지갑을 확인하세요 (${left}초). 기기가 서명한 값을 앱이 지갑 주소 ${short(state.wallet)}와 대조합니다.`}
+        </Step>
+      );
+    case 'failed':
+      return (
+        <View>
+          <Text style={styles.title}>진행하지 못했습니다</Text>
+          <Text style={styles.error}>{state.message}</Text>
+          <Button label="처음부터 다시" onPress={() => f?.start()} />
+          {state.record && <Button label="기기 지우기" onPress={() => f?.forget(state.record!)} />}
+        </View>
+      );
+    case 'home':
+      return <Home record={state.record} flow={f!} />;
+  }
+}
+
+function Step({ title, device, children }: { title: string; device: string; children: React.ReactNode }) {
+  return (
+    <View>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.small}>{device}</Text>
+      <Text style={styles.cta}>{children}</Text>
+    </View>
+  );
+}
+
+/** The wallet's home: payment mode, the payment screens, and the registered devices. */
+function Home({ record, flow }: { record: DeviceRecord; flow: SetupFlow }) {
   const [screen, setScreen] = useState<Screen>({ kind: 'waiting' });
   const [mode, setMode] = useState<PaymentMode | null>(null);
   const confirm = useRef<ConfirmLink | null>(null);
+
+  useEffect(() => {
+    flow.releaseLink(); // the setup flow stops reading; the payment screens read the link from here
+    let bonded = true;
+    const lost = RenterBle.onBondLost(() => {
+      bonded = false;
+    });
+    RenterBle.connect(record.address, GATT.service, GATT.rx, GATT.tx)
+      .then(mtu => {
+        const link = new ConfirmLink(
+          {
+            bonded: () => bonded,
+            onFragment: h => {
+              const sub = RenterBle.onFragment(b64 => h(fromBase64(b64)));
+              return () => sub.remove();
+            },
+            write: f => RenterBle.writeFragment(toBase64(f)),
+            mtu,
+          },
+          setScreen,
+        );
+        link.onPaymentMode = setMode;
+        confirm.current = link;
+      })
+      .catch(() => setMode({ on: false, accepted: false, reason: '기기에 연결하지 못했습니다' }));
+    return () => {
+      lost.remove();
+      confirm.current?.close();
+    };
+  }, [flow, record.address]);
 
   const togglePaymentMode = async () => {
     const on = !(mode?.accepted && mode.on);
@@ -44,64 +242,13 @@ function Renter() {
     }
   };
 
-  useEffect(() => () => confirm.current?.close(), []);
-
-  const start = async () => {
-    let target: BondTarget;
-    try {
-      target = parseLabel(label);
-    } catch (e) {
-      setLink({ state: 'error', message: String(e instanceof Error ? e.message : e) });
-      return;
-    }
-    if (!(await connectPermission())) {
-      setLink({ state: 'error', message: '블루투스 권한이 필요합니다' });
-      return;
-    }
-    try {
-      setLink({ state: 'bonding', target });
-      if (!(await RenterBle.bond(target.address, target.passkey))) throw new Error('본딩하지 못했습니다. 기기를 페어링 모드로 두고 다시 시도하세요.');
-      setLink({ state: 'connecting', target });
-      const mtu = await RenterBle.connect(target.address, GATT.service, GATT.rx, GATT.tx);
-      let bonded = true;
-      RenterBle.onBondLost(() => {
-        bonded = false;
-      });
-      confirm.current?.close();
-      confirm.current = new ConfirmLink(
-        {
-          bonded: () => bonded,
-          onFragment: h => { const s = RenterBle.onFragment(b64 => h(fromBase64(b64))); return () => s.remove(); },
-          write: f => RenterBle.writeFragment(toBase64(f)),
-          mtu,
-        },
-        setScreen,
-      );
-      confirm.current.onPaymentMode = setMode;
-      setLink({ state: 'connected', target });
-    } catch (e) {
-      setLink({ state: 'error', message: String(e instanceof Error ? e.message : e) });
-    }
-  };
-
-  if (link.state !== 'connected') {
-    return (
-      <View>
-        <Text style={styles.title}>기기 연결</Text>
-        <Text style={styles.body}>기기 라벨의 QR 내용(nu54://bond?...)을 넣고, 기기를 길게 눌러 페어링 모드로 둔 뒤 연결하세요.</Text>
-        <TextInput style={styles.input} value={label} onChangeText={setLabel} autoCapitalize="none" placeholder="nu54://bond?addr=...&passkey=..." />
-        {link.state === 'bonding' && <Text style={styles.body}>본딩 중. 시스템 창이 뜨면 passkey {link.target.passkey}를 입력하세요.</Text>}
-        {link.state === 'connecting' && <Text style={styles.body}>연결 중</Text>}
-        {link.state === 'error' && <Text style={styles.error}>{link.message}</Text>}
-        <Button label="연결" onPress={start} disabled={link.state === 'bonding' || link.state === 'connecting'} />
-      </View>
-    );
-  }
   return (
-    <View>
+    <ScrollView>
       {screen.kind === 'waiting' && (
         <>
-          <Text style={styles.title}>결제 대기</Text>
+          <Text style={styles.title}>내 지갑</Text>
+          <Text style={styles.label}>지갑 주소</Text>
+          <Text style={styles.mono}>{record.wallet}</Text>
           <Text style={styles.body}>키오스크에서 결제를 시작하면 기기가 보낸 결제 내용이 여기에 나옵니다.</Text>
           <Text style={styles.hint}>PIN이 필요할 때는 기기 버튼으로 입력하세요. LED가 자릿수와 누를 버튼을 안내합니다.</Text>
           <Button
@@ -110,6 +257,16 @@ function Renter() {
           />
           {mode?.accepted && mode.on && <Text style={styles.body}>결제 모드: 키오스크가 기기를 찾을 수 있습니다</Text>}
           {mode && !mode.accepted && <Text style={styles.error}>결제 모드를 바꾸지 못했습니다{mode.reason ? ` (${mode.reason})` : ''}</Text>}
+          <Text style={styles.label}>등록된 기기</Text>
+          {flow.devices().map(d => (
+            <View key={d.address} style={styles.device}>
+              <Text style={styles.value}>{d.name}</Text>
+              <Text style={styles.small}>{d.address}  지갑 {short(d.wallet)}</Text>
+              <Pressable onPress={() => flow.forget(d)}>
+                <Text style={styles.remove}>기기 지우기</Text>
+              </Pressable>
+            </View>
+          ))}
         </>
       )}
       {screen.kind === 'confirming' && (
@@ -150,7 +307,7 @@ function Renter() {
           {screen.reason && <Text style={styles.body}>{screen.reason}</Text>}
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -229,4 +386,8 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', justifyContent: 'space-between' },
   total: { fontSize: 20, fontWeight: '700', color: '#111', marginVertical: 4 },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  device: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#bbb' },
+  connect: { fontSize: 16, fontWeight: '600', color: '#1b4fa0', marginTop: 6 },
+  remove: { fontSize: 15, color: '#b00020', marginTop: 6 },
+  code: { fontSize: 44, fontWeight: '700', letterSpacing: 6, color: '#111', fontFamily: 'monospace', marginVertical: 8 },
 });
