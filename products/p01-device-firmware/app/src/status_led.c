@@ -16,6 +16,8 @@ typedef struct {
 	static const pattern_t name = {name##_steps, ARRAY_SIZE(name##_steps) / 2, rep}
 
 PATTERN(P_MODE, true, 100, 1900);
+PATTERN(P_PAIRING, true, 100, 150, 100, 1650);
+PATTERN(P_BONDED, false, 1000, 0);
 PATTERN(P_WAITING, true, 200, 200);
 PATTERN(P_SIGNED, true, 500, 500);
 PATTERN(P_APPROVED, false, 2000, 0);
@@ -26,7 +28,7 @@ PATTERN(P_PIN_KEEP, false, 500, 0);
 
 #define SIGNED_MS 30000
 
-static bool mode, waiting, signed_wait, pin_active;
+static bool mode, pairing, waiting, signed_wait, pin_active;
 static int64_t signed_until;
 static const pattern_t *oneshot; /* plays over the ongoing pattern, then ends */
 static const pattern_t *playing;
@@ -56,6 +58,9 @@ static const pattern_t *ongoing(void)
 		return &P_SIGNED;
 	}
 	signed_wait = false;
+	if (pairing) {
+		return &P_PAIRING;
+	}
 	return mode ? &P_MODE : NULL;
 }
 
@@ -118,6 +123,16 @@ void status_led_mode(bool on)
 	set(&mode, on);
 }
 
+void status_led_pairing(bool on)
+{
+	set(&pairing, on);
+}
+
+void status_led_paired(bool ok)
+{
+	play(ok ? &P_BONDED : &P_FAILED);
+}
+
 void status_led_waiting(bool on)
 {
 	set(&waiting, on);
@@ -160,7 +175,7 @@ void status_led_new_session(void)
 void status_led_clear(void)
 {
 	k_spinlock_key_t key = k_spin_lock(&lock);
-	mode = waiting = signed_wait = pin_active = false;
+	mode = pairing = waiting = signed_wait = pin_active = false;
 	oneshot = NULL;
 	restart();
 	k_spin_unlock(&lock, key);

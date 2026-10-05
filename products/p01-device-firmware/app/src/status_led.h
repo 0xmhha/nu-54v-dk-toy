@@ -4,6 +4,8 @@
  *
  *   idle                                  dark
  *   payment mode (waiting for a kiosk)    a short blip every 2 s; ends with the session
+ *   pairing mode (a new bond, 60 s)       two short blips every 2 s
+ *   bonded / pairing failed               on for 1 s / three short flashes
  *   waiting for the renter's button       fast blinking (0.2 s)
  *   signed, waiting for the kiosk         slow blinking (0.5 s), 30 s at most
  *   approved                              on for 2 s, then dark
@@ -22,6 +24,10 @@
 
 /* Payment mode (advertising for a kiosk). */
 void status_led_mode(bool on);
+/* Pairing mode: a new bond is accepted (shown over payment mode). */
+void status_led_pairing(bool on);
+/* A pairing ended: bonded, or failed. */
+void status_led_paired(bool ok);
 /* The renter's button is awaited. */
 void status_led_waiting(bool on);
 /* What a session call meant: SIGNED starts the slow blinking, REFUSED plays the failure. */
