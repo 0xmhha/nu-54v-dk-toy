@@ -142,6 +142,26 @@ static int host_payment_mode(void *c, int on, uint32_t seconds)
 	return 0;
 }
 
+/* The host platform and the vectors' parameters; scenarios add their build options. */
+static nu54_config_t host_config(void)
+{
+	return (nu54_config_t){
+		.firmware = SV_FIRMWARE,
+		.anchor_clock_skew = SV_ANCHOR_SKEW,
+		.authorization_expiry = SV_AUTH_EXPIRY,
+		.platform = {.sign = host_sign,
+			     .random = vector_random,
+			     .generate_key = host_generate_key,
+			     .commit_setup = host_commit,
+			     .wipe = host_wipe,
+			     .check_pin = host_check_pin,
+			     .hkdf = host_hkdf,
+			     .aead_seal = host_seal,
+			     .aead_open = host_open,
+			     .payment_mode = host_payment_mode},
+	};
+}
+
 static void dump(const char *what, const uint8_t *b, size_t n)
 {
 	printf("  %s (%zu): ", what, n);
@@ -161,15 +181,11 @@ int main(void)
 	for (size_t s = 0; s < SESSION_SCENARIO_COUNT; s++) {
 		const session_scenario_t *sc = &SESSION_SCENARIOS[s];
 		memset(&d, 0, sizeof(d));
-		d.anchor_clock_skew = SV_ANCHOR_SKEW;
-		d.authorization_expiry = SV_AUTH_EXPIRY;
-		d.firmware = SV_FIRMWARE;
-		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
-					       host_hkdf, host_seal, host_open, host_payment_mode};
-		d.require_secure = sc->require_secure;
-		d.require_phone = sc->require_phone;
-		d.phone_present = sc->phone_present;
-		d.link_bonded = sc->link_bonded;
+		d.cfg = host_config();
+		d.cfg.require_secure = sc->require_secure;
+		d.cfg.require_phone = sc->require_phone;
+		d.cfg.dev_unpaired_anchor = sc->dev_unpaired_anchor;
+		const nu54_link_t link = {.bonded = sc->link_bonded, .phone_present = sc->phone_present};
 		strcpy(stored_pin, "2580");
 		pin_failures = 0;
 		if (sc->unprovisioned) {
@@ -190,7 +206,7 @@ int main(void)
 				nu54_device_power_cycle(&d);
 				continue;
 			}
-			nu54_session_handle(&d, st->send, st->send_len, st->at, &out);
+			nu54_session_handle(&d, &link, st->send, st->send_len, st->at, &out);
 			int phone_ok = out.phone_count == (st->phone ? 1 : 0) &&
 				       (!st->phone || (out.phone_len == st->phone_len && memcmp(out.phone, st->phone, st->phone_len) == 0));
 			/* The renter answers whatever the device waits for: the button (payment, setup values,
@@ -202,7 +218,7 @@ int main(void)
 					nu54_session_button(&d, sc->approve, &out);
 				}
 			}
-			int ok = phone_ok && out.kiosk_count == st->expect_count;
+			int ok = phone_ok && out.kiosk_count == st->expect_count && (int)out.event == st->event; /* the LED event the replies mean */
 			for (int e = 0; ok && e < st->expect_count; e++) {
 				ok = out.kiosk_len[e] == st->expect_len[e] && memcmp(out.kiosk[e], st->expect[e], st->expect_len[e]) == 0;
 			}
@@ -230,13 +246,9 @@ int main(void)
 			mode = strcmp(SESSION_SCENARIOS[s].id, "SV-32") == 0 ? &SESSION_SCENARIOS[s] : mode;
 		}
 		memset(&d, 0, sizeof(d));
-		d.anchor_clock_skew = SV_ANCHOR_SKEW;
-		d.authorization_expiry = SV_AUTH_EXPIRY;
-		d.firmware = SV_FIRMWARE;
-		d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
-					       host_hkdf, host_seal, host_open, host_payment_mode};
-		d.link_bonded = 1;
-		d.phone_present = 1;
+		d.cfg = host_config();
+		const nu54_link_t kiosk = {.bonded = 1, .phone_present = 1}; /* as the vectors assume */
+		const nu54_link_t phone = {.bonded = 1, .foreign = 1};
 		memcpy(d.address, SV_ADDRESS, 20);
 		memcpy(d.operator_address, SV_OPERATOR, 20);
 		memcpy(d.contract, SV_CONTRACT, 20);
@@ -249,12 +261,10 @@ int main(void)
 			const session_step_t *st = &sec->steps[t];
 			if (t == 4) { /* after session.confirm, before payment.identify */
 				const session_step_t *ms = &mode->steps[3]; /* on for 120 s */
-				d.foreign_link = 1;
-				nu54_session_handle(&d, ms->send, ms->send_len, st->at, &out);
-				d.foreign_link = 0;
+				nu54_session_handle(&d, &phone, ms->send, ms->send_len, st->at, &out);
 				ok = out.kiosk_count == 1 && out.kiosk_len[0] == ms->expect_len[0] && memcmp(out.kiosk[0], ms->expect[0], ms->expect_len[0]) == 0;
 			}
-			nu54_session_handle(&d, st->send, st->send_len, st->at, &out);
+			nu54_session_handle(&d, &kiosk, st->send, st->send_len, st->at, &out);
 			for (int guard = 0; d.pending != NU54_PENDING_NONE && guard < 4; guard++) {
 				nu54_session_button(&d, 1, &out);
 			}
@@ -274,22 +284,22 @@ int main(void)
 		failures++;
 		printf("FAIL payment mode: %d platform calls (want 3)\n", mode_calls);
 	}
-	/* Setup stores once per finished setup (SV-13) and wipes on the PIN timeout and the reset. */
-	if (commits != 1 || wipes != 2) {
+	/* Setup stores once per finished setup (SV-13) and wipes on the PIN timeout (SV-15) and the
+	 * resets (SV-17, SV-34). */
+	if (commits != 1 || wipes != 3) {
 		failures++;
-		printf("FAIL setup storage: %d commits (want 1), %d wipes (want 2)\n", commits, wipes);
+		printf("FAIL setup storage: %d commits (want 1), %d wipes (want 3)\n", commits, wipes);
 	}
 	/* A link that drops while setup waits for the PIN wipes the key setup made. */
 	memset(&d, 0, sizeof(d));
-	d.platform = (nu54_platform_t){host_sign, vector_random, NULL, NULL, host_generate_key, host_commit, host_wipe, host_check_pin,
-				       host_hkdf, host_seal, host_open, host_payment_mode};
+	d.cfg = host_config();
 	nu54_device_init_unprovisioned(&d);
 	d.session_open = 1;
 	d.pending = NU54_PENDING_PIN;
 	nu54_session_link_closed(&d);
-	if (wipes != 3 || d.pending != NU54_PENDING_NONE || d.session_open) {
+	if (wipes != 4 || d.pending != NU54_PENDING_NONE || d.session_open) {
 		failures++;
-		printf("FAIL link closed during the setup PIN: %d wipes (want 3), pending %d\n", wipes, (int)d.pending);
+		printf("FAIL link closed during the setup PIN: %d wipes (want 4), pending %d\n", wipes, (int)d.pending);
 	}
 	printf("%s: %zu session scenarios, %d failures\n", failures ? "FAIL" : "ok", (size_t)SESSION_SCENARIO_COUNT, failures);
 	return failures ? 1 : 0;

@@ -83,6 +83,14 @@ typedef enum {
 	NU54_PENDING_LIMIT_CONFIRM, /* PIN right; the button approves or rejects the limit change */
 } nu54_pending_t;
 
+/* What a call meant for the renter, for the board's LEDs: the replies may be sealed by the
+ * secure channel, so the board cannot read them. REFUSED covers every refusal and error reply. */
+typedef enum {
+	NU54_EVENT_NONE,
+	NU54_EVENT_SIGNED,  /* payment.result or limit.result approved: a signature left the device */
+	NU54_EVENT_REFUSED, /* payment.result/limit.result refused, a refused setup.ack, or error{...} */
+} nu54_event_t;
+
 /* Replies of one call: up to two bodies for the central, one for the phone app. */
 typedef struct {
 	uint8_t kiosk[2][NU54_OUT_MAX];
@@ -91,21 +99,47 @@ typedef struct {
 	uint8_t phone[NU54_OUT_MAX];
 	size_t phone_len;
 	int phone_count;
+	nu54_event_t event;
 } nu54_out_t;
 
+/* Fixed for the device's life: the board's build options and platform. Host tests set them per
+ * scenario. */
 typedef struct {
-	/* Setup values (setup.operator and key generation). */
+	const char *firmware;
+	uint32_t anchor_clock_skew;    /* anchorClockSkew, seconds */
+	uint32_t authorization_expiry; /* authorizationExpiry, seconds */
+	/* Release build: plaintext payment sessions are refused (payment-protocol.md 4.1). */
+	int require_secure;
+	/* Release build: a payment or limit change with no phone app listening is refused
+	 * NOT_PERMITTED instead of waiting for a button the renter cannot check (3). */
+	int require_phone;
+	/* Week-7 fixed setup only (P01 design 8): a provisioned device opens a setup session from an
+	 * unpaired central, so the kiosk can hand over a TimeAnchor. setup.operator still needs a
+	 * bonded session, and an UNPROVISIONED device still refuses it. */
+	int dev_unpaired_anchor;
+	nu54_platform_t platform;
+} nu54_config_t;
+
+/* The link one message came on (payment-protocol.md 3), decided by the board per message. */
+typedef struct {
+	int bonded;        /* a bonded LE Secure Connections link (phone app, operator tool) */
+	int phone_present; /* a bonded phone app listens on another link */
+	/* Not the link that holds the open session (the phone app's device.paymentMode during a
+	 * kiosk session): the message neither opens nor is sealed by the session's channel. */
+	int foreign;
+} nu54_link_t;
+
+typedef struct {
+	nu54_config_t cfg;
+
+	/* Rental setup values (setup.operator and key generation). */
 	uint8_t address[20];
 	uint8_t operator_address[20];
 	uint8_t contract[20];
 	uint8_t chain_id[32];
 	uint32_t passkey;
-	uint32_t anchor_clock_skew;
-	uint32_t authorization_expiry;
-	const char *firmware;
-	nu54_platform_t platform;
 
-	/* State. */
+	/* Device state. */
 	nu54_state_t state;
 	int anchored;
 	uint64_t anchor_timestamp; /* accepted TimeAnchor */
@@ -113,9 +147,11 @@ typedef struct {
 	uint64_t last_anchor;
 	uint8_t next_nonce[32]; /* sequential nonce, 256-bit big-endian */
 
+	/* The open session. */
 	int session_open;
 	uint8_t session_id[8];
-	int session_setup; /* 1 setup, 0 payment */
+	int session_setup;  /* 1 setup, 0 payment */
+	int session_bonded; /* opened on a bonded link */
 	int confirmed;
 	uint8_t device_nonce[32];
 
@@ -125,32 +161,22 @@ typedef struct {
 	char att_name[128];
 	size_t att_name_len;
 
-	/* The links (payment-protocol.md 3), set by the platform before each call. link_bonded: the
-	 * central that sent this message is on a bonded LE Secure Connections link; setup sessions
-	 * open only there (P01-FR-13). phone_present: a bonded phone app is listening. With
-	 * require_phone (release build) a payment or limit change without it is refused NOT_PERMITTED
-	 * instead of waiting for a button the renter cannot check. */
-	int link_bonded;
-	int require_phone;
-	int phone_present;
-	/* The message comes from a link other than the one holding the open session (the phone app's
-	 * device.paymentMode during a kiosk session): it neither opens nor is sealed by the
-	 * session's channel. */
-	int foreign_link;
-
 	/* Secure channel of the open session (4.1); dropped with the session. */
-	int require_secure; /* release build: plaintext payment sessions are refused */
 	int secure;
 	uint32_t channel_id;
 	uint8_t channel_key[16];
 	uint64_t channel_rx, channel_tx;
 	uint8_t secure_merchant[20]; /* the merchant session.open proved */
 
+	/* What the renter is asked for. */
 	nu54_pending_t pending;
 	nu54_payment_authorization_t pending_auth;
 	nu54_setup_record_t pending_setup; /* setup values in RAM until the PIN commits them */
 	nu54_limit_change_t pending_limit;
 	uint8_t pending_address[20];
+
+	/* The link of the message being handled; set by nu54_session_handle only. */
+	nu54_link_t call;
 } nu54_device_t;
 
 /* A provisioned device (address and setup values already set). `nonce_start` is the 32-byte
@@ -167,10 +193,10 @@ void nu54_device_power_cycle(nu54_device_t *d);
  * nothing (payment-protocol.md 5, the generated key is wiped). */
 void nu54_session_link_closed(nu54_device_t *d);
 
-/* Handles one body from a central at local time `now` (seconds): CBOR, or in a secure session
- * AES-GCM over CBOR. Replies to the central are sealed the same way; bodies for the phone app
- * are plain CBOR (the bonded link protects them). */
-void nu54_session_handle(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out);
+/* Handles one body from a central on `link` at local time `now` (seconds): CBOR, or in a secure
+ * session AES-GCM over CBOR. Replies to the central are sealed the same way; bodies for the
+ * phone app are plain CBOR (the bonded link protects them). Not reentrant: one message at a time. */
+void nu54_session_handle(nu54_device_t *d, const nu54_link_t *link, const uint8_t *body, size_t len, uint64_t now, nu54_out_t *out);
 
 /* The renter's button: after confirm.show approve (1) signs and reject (0) refuses; after
  * setup.operator it confirms or refuses the operator values; after the PIN of a limit change it

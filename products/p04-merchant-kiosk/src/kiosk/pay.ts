@@ -30,8 +30,12 @@ export interface PayDeps {
   chain: Chain;
   /** Finds the device and opens a message link to it. */
   connect: () => Promise<MessageLink>;
-  /** A fresh TimeAnchor for this run, if one was pushed (week-7 development setup). */
+  /** The TimeAnchor waiting for the device, if one was pushed (week-7 development setup). */
   anchor: () => Promise<TimeAnchor | undefined>;
+  /** The device took the anchor (or it is too old): it is not offered again. */
+  anchorUsed?: () => Promise<void>;
+  /** Week-7 development setup: a fresh anchor for the device, signed on request. */
+  anchorFor?: (device: string) => Promise<TimeAnchor | undefined>;
   random: (n: number) => Uint8Array;
   /** Submission; tests replace it. */
   submit?: typeof submit;
@@ -75,9 +79,12 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
       domain,
       attestation: config.attestation,
       anchor: await deps.anchor(),
+      chainTime: finalized.timestamp,
+      onAnchorUsed: deps.anchorUsed,
+      anchorFor: deps.anchorFor,
       token: config.token,
       amount,
-      expiry: finalized.timestamp + 60n, // inside authorizationExpiry with room for clock lag
+      expiry: finalized.timestamp + 60n, // capped to the device clock when this session sets it
       signOrder: (o) => signMerchantOrder(domain, o, merchantKey),
       signKioskKey: (v) => signKioskKey(domain, v, merchantKey), // every kiosk session is secure (4.1)
       random: deps.random,

@@ -21,7 +21,8 @@ import { fromBase64 } from '@nu54/protocol';
 import { findDevice, openTransport } from './ble/central.ts';
 import { FramedLink } from './ble/framing.ts';
 import { JsonRpcChain } from './chain/rpc.ts';
-import { loadKiosk, takeAnchor, type Loaded } from './kiosk/config.ts';
+import { anchorUsed, loadKiosk, pendingAnchor, type Loaded } from './kiosk/config.ts';
+import { ANCHOR_MAX_AGE_S, WAIT_MS, type TimeAnchor } from './payment/session.ts';
 import { changeLimits, pay, resumeOrders, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
 import { resume } from './payment/submit.ts';
 import { OrderStore } from './kiosk/orders.ts';
@@ -34,9 +35,20 @@ const PHASE_TEXT: Record<Phase, string> = {
   anchor: '기기 시각 설정 중',
   opening: '결제 세션 여는 중',
   identifying: '가맹점 확인 중',
-  waitingDevice: '기기에서 결제를 승인해 주세요 (10초)',
+  waitingDevice: '기기에서 결제를 승인해 주세요',
   submitting: '결제 처리 중',
 };
+
+/** Whole seconds left until `until` (ms), refreshed while shown; never below 0. */
+function useSecondsLeft(until: number | undefined): number | null {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (until === undefined) return;
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [until]);
+  return until === undefined ? null : Math.max(0, Math.ceil((until - now) / 1000));
+}
 
 /** Token amount as the screens show it: truncated to two decimals (N31). */
 function shown(amount: bigint, decimals: number): string {
@@ -72,7 +84,18 @@ function deps(kiosk: Loaded, orders?: OrderStore): Omit<PayDeps, 'random'> {
       const found = await findDevice();
       return new FramedLink(await openTransport(found.address, () => {}));
     },
-    anchor: () => takeAnchor(Vault),
+    anchor: () => pendingAnchor(Vault),
+    anchorUsed: () => anchorUsed(Vault),
+    // With the development anchor server, every payment asks for a fresh anchor instead.
+    ...(kiosk.config.anchorUrl
+      ? {
+          anchor: async () => undefined,
+          anchorFor: async (device: string) => {
+            const r = await fetch(`${kiosk.config.anchorUrl}?device=${device}`);
+            return r.ok ? ((await r.json()) as TimeAnchor) : undefined;
+          },
+        }
+      : {}),
   };
 }
 
@@ -83,15 +106,23 @@ type Screen =
   | { kind: 'limits' }
   | { kind: 'limitBusy'; text: string }
   | { kind: 'limitResult'; result: LimitResult }
-  | { kind: 'paying'; phase: Phase; amount: bigint }
+  | { kind: 'paying'; phase: Phase; amount: bigint; deadline?: number }
   | { kind: 'result'; result: PayResult; amount: bigint };
+
+/** What to do about a refusal the person at the kiosk can fix. */
+const REFUSAL_HINT: Record<string, string> = {
+  TIME_ANCHOR_MISSING: '기기에 시각 기준이 없습니다. Mac에서 TimeAnchor를 새로 발급해 넣고 바로 다시 요청하세요.',
+  TIME_ANCHOR_STALE: 'TimeAnchor가 90초 넘게 지났습니다. 새로 발급해 넣고 바로 다시 요청하세요.',
+  ATTESTATION_EXPIRED: '기기 시각이나 가맹점 인증 기간이 맞지 않습니다. TimeAnchor를 새로 발급해 넣으세요.',
+  USER_REJECTED: '기기에서 거절했습니다.',
+};
 
 function resultText(r: PayResult): { title: string; detail?: string; tone: 'ok' | 'bad' | 'wait' } {
   switch (r.status) {
     case 'approved':
       return { title: '결제 완료', detail: r.txHash ? `tx ${r.txHash.slice(0, 10)}…${r.txHash.slice(-4)}` : '이미 정산된 주문', tone: 'ok' };
     case 'refused':
-      return { title: '결제 거절', detail: r.reason, tone: 'bad' };
+      return { title: '결제 거절', detail: REFUSAL_HINT[r.reason] ? `${r.reason}: ${REFUSAL_HINT[r.reason]}` : r.reason, tone: 'bad' };
     case 'failed':
       return { title: '결제 실패', detail: r.reason, tone: 'bad' };
     case 'Checking':
@@ -101,7 +132,7 @@ function resultText(r: PayResult): { title: string; detail?: string; tone: 'ok' 
     case 'busy':
       return { title: '주문을 받을 수 없음', detail: '키오스크 가스 잔액이 부족합니다.', tone: 'bad' };
     case 'noDevice':
-      return { title: '결제 기기를 찾지 못함', detail: r.reason, tone: 'bad' };
+      return { title: '결제 기기를 찾지 못함', detail: `${r.reason}. 기기 SW4를 길게 눌러 결제 모드를 켠 뒤(2분 동안 유지) 다시 요청하세요.`, tone: 'bad' };
   }
 }
 
@@ -177,7 +208,8 @@ function Kiosk() {
     const result = await pay(
       { ...deps(kiosk, orders), random: await randomPool() },
       amount,
-      phase => setScreen({ kind: 'paying', phase, amount }),
+      // The press must come within WAIT_MS of the request: count it down on the screen.
+      phase => setScreen({ kind: 'paying', phase, amount, deadline: phase === 'waitingDevice' ? Date.now() + WAIT_MS : undefined }),
     ).catch((e): PayResult => ({ status: 'failed', reason: e instanceof Error ? e.message : String(e) }));
     setOpenCount(orders?.open().length ?? 0);
     setScreen({ kind: 'result', result, amount });
@@ -191,6 +223,26 @@ function Kiosk() {
     setOpenCount(orders?.open().length ?? 0);
     setScreen({ kind: 'result', amount: amt, result: out.status === 'Checking' ? { ...out, signed: r.signed } : out });
   };
+
+  // The pushed TimeAnchor can be used for ANCHOR_MAX_AGE_S after it was signed (the phone's
+  // clock stands in for the chain's; they agree within seconds on a synced phone).
+  const [anchorUntil, setAnchorUntil] = useState<number | undefined>();
+  useEffect(() => {
+    if (screen.kind !== 'idle') return;
+    let live = true;
+    const read = () =>
+      pendingAnchor(Vault)
+        .then(a => live && setAnchorUntil(a ? (Number(a.timestamp) + ANCHOR_MAX_AGE_S) * 1000 : undefined))
+        .catch(() => undefined);
+    read();
+    const t = setInterval(read, 5000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [screen.kind]);
+  const anchorLeft = useSecondsLeft(anchorUntil);
+  const waitLeft = useSecondsLeft(screen.kind === 'paying' ? screen.deadline : undefined);
 
   const symbol = kiosk?.config.tokenSymbol ?? '';
   return (
@@ -213,6 +265,13 @@ function Kiosk() {
           <TextInput style={styles.input} value={amountText} onChangeText={setAmountText} keyboardType="decimal-pad" />
           <Button label={amount ? `${shown(amount, decimals)} ${symbol} 결제 요청` : '금액을 입력하세요'} onPress={start} disabled={!amount} />
           <Button label="한도 변경" onPress={() => setScreen({ kind: 'limits' })} />
+          {anchorLeft !== null && (
+            <Text style={anchorLeft > 0 ? styles.body : styles.error}>
+              {anchorLeft > 0
+                ? `기기 시각 기준(TimeAnchor) 사용 가능: ${anchorLeft}초 남음`
+                : 'TimeAnchor가 오래됐습니다. Mac에서 새로 발급해 넣으세요.'}
+            </Text>
+          )}
           {openCount > 0 && kiosk && orders && (
             <View style={styles.receipt}>
               <Text style={styles.body}>확인 중인 주문 {openCount}건. 같은 주문은 다시 결제하지 마세요.</Text>
@@ -225,6 +284,7 @@ function Kiosk() {
         <View>
           <Text style={styles.amount}>{shown(screen.amount, decimals)} {symbol}</Text>
           <Text style={screen.phase === 'waitingDevice' ? styles.title : styles.body}>{PHASE_TEXT[screen.phase]}</Text>
+          {waitLeft !== null && <Text style={styles.countdown}>{waitLeft}초</Text>}
         </View>
       )}
       {screen.kind === 'limits' && (
@@ -321,6 +381,7 @@ const styles = StyleSheet.create({
   input: { fontSize: 32, borderBottomWidth: 2, borderColor: '#333', paddingVertical: 8, marginBottom: 24, color: '#111' },
   amount: { fontSize: 40, fontWeight: '600', color: '#111', marginBottom: 16 },
   title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
+  countdown: { fontSize: 56, fontWeight: '700', color: '#1b4fa0', marginTop: 8 },
   body: { fontSize: 18, color: '#333', marginBottom: 16 },
   error: { fontSize: 14, color: '#b00020', marginBottom: 16 },
   small: { fontSize: 14, color: '#333', marginBottom: 4 },

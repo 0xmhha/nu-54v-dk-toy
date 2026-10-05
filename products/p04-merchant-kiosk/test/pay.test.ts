@@ -4,7 +4,7 @@ import { addressOfPrivateKey, bytesToHex, digest, hexToBytes, signDigest, type M
 import { DeviceEndpoint, SoftwareDevice } from "@nu54/device-sim";
 import { FramedLink, type MessageLink } from "../src/ble/framing.ts";
 import type { Chain, Hex } from "../src/chain/rpc.ts";
-import { loadKiosk, takeAnchor, type Loaded, type Provision, type Vault } from "../src/kiosk/config.ts";
+import { anchorUsed, loadKiosk, pendingAnchor, type Loaded, type Provision, type Vault } from "../src/kiosk/config.ts";
 import { changeLimits, pay, resumeOrders, type Phase } from "../src/kiosk/pay.ts";
 import { OrderStore } from "../src/kiosk/orders.ts";
 import type { Outcome } from "../src/payment/submit.ts";
@@ -108,9 +108,22 @@ test("provisioning: provision.json is taken once, keys are wrapped, the file is 
   expect(bytesToHex(k!.merchantKey)).toBe(KEY.merchant);
   expect(vault.files.has("provision.json")).toBe(false);
   expect((await loadKiosk(vault))?.config.settlement).toBe(SETTLEMENT); // from storage now
+  // A pushed anchor stays until the device took it: a failed payment does not lose it.
   vault.files.set("anchor.json", JSON.stringify(anchor));
-  expect(await takeAnchor(vault)).toEqual(anchor);
-  expect(await takeAnchor(vault)).toBeUndefined();
+  expect(await pendingAnchor(vault)).toEqual(anchor);
+  expect(await pendingAnchor(vault)).toEqual(anchor);
+  await anchorUsed(vault);
+  expect(await pendingAnchor(vault)).toBeUndefined();
+});
+
+test("the anchor is kept when no device was reached, and used up once the device took it", async () => {
+  const kiosk = await provisioned();
+  let used = 0;
+  const base = { kiosk, chain: chain(20n * 10n ** 18n), anchor: async () => anchor, anchorUsed: async () => { used++; }, random };
+  await pay({ ...base, connect: async () => { throw new Error("no device in payment mode nearby"); } }, 1n);
+  expect(used).toBe(0);
+  await pay({ ...base, connect: deviceLink().connect, submit: async () => ({ status: "refused", reason: "x" }) }, 1n);
+  expect(used).toBe(1);
 });
 
 test("a provision with a short key is refused", async () => {

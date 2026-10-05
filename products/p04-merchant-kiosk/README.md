@@ -12,6 +12,8 @@
 | `src/kiosk/orders.ts` | 재시작해도 남는 주문 기록(P04-NFR-05): 설계 3절의 전이만 허용하는 순수 함수, 서명은 제출 전에 저장, 열린 주문은 지우지 않는다. 앱이 다시 켜지면 서명된 주문은 같은 서명으로 재시뮬레이션·재전송하고(`resume`, P04-FR-14), 서명을 못 받은 주문은 취소한다 |
 | `src/payment/limits.ts` | 한도 변경 중계: `limit.change`(기기에서 PIN과 버튼), 서명자 확인, `setLimits` 시뮬레이션·제출·finalized `LimitsChanged`. 같은 서명을 다시 내면 `NONCE_REPLAYED` |
 | `src/payment/session.ts` | 결제 세션(프로토콜 5, 6절): 7주차 TimeAnchor 셋업, open, confirm, identify, prepare, 기기 서명 확인, 10초 안에 결과가 없으면 `session.cancel` |
+| `src/payment/session.ts`의 TimeAnchor 처리 | 7주차 개발 셋업에서 넣은 anchor는 앱 설정에 남아 있다가 기기가 받아들일 때만 지운다. 체인 시각보다 90초 넘게 지난 anchor는 보내지 않고 `TIME_ANCHOR_STALE`로 멈추며, 보낸 세션에서는 결제 만료를 기기 시계 한도 안으로 줄인다. BLE 연결은 세 번까지 시도한다(`src/ble/central.ts`) |
+| `scripts/anchor-server.ts` | 7주차 개발 셋업: 결제마다 그 기기용 TimeAnchor를 Mac에서 새로 서명해 준다(`opsctl anchor sign`, adb reverse). `provision-dev.ts --anchor-url http://127.0.0.1:8095/anchor`로 켜면 앱이 셋업 세션에서 기기 주소를 받은 뒤 anchor를 요청하고, 기기에 이미 시각 기준이 있으면 요청하지 않는다. 사람이 anchor를 미리 넣고 시간에 맞출 필요가 없다 |
 | `src/payment/open.ts` | 결제 모드 세션 열기. 보안 채널(4.1절): 1회용 키를 가맹점 키로 서명(`KioskKey`)해 보내고, `session.open.ok`의 기기 1회용 키로 세션 키를 만든다. 기기가 1회용 키 없이 답하면 평문으로 내려가지 않고 `NOT_PERMITTED`로 멈춘다. 앱의 결제와 한도 변경은 모두 보안 세션이다 |
 | `src/ble/` | `framing.ts` CBOR·envelope·조각(요청의 세션 응답만 받는다, 보안 세션이면 본문을 AES-GCM으로 봉인·복호화하고 새 세션 전에 `session.cancel`로 닫는다), `central.ts` 기기 찾기와 연결, `base64.ts` |
 | `src/specs/` | Turbo Module 명세. `NativeNusBle.ts` BLE central(페어링 없음, N27), `NativeKioskVault.ts` Keystore AES 키로 감싼 키 보관과 SecureRandom(N32). Kotlin 구현은 `android/app/src/main/java/com/nu54kiosk/ble/` |

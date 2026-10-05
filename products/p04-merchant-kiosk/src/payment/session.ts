@@ -36,6 +36,19 @@ export interface PaymentRequest {
   signKioskKey?: KioskKeySigner["sign"];
   /** Week-7 development setup: the anchor the kiosk hands over before the payment session. */
   anchor?: TimeAnchor;
+  /**
+   * Chain time (s, the finalized block) when the payment started. With an anchor it lets the kiosk
+   * refuse an anchor too old to use and keep the expiry inside the device's clock (see below).
+   */
+  chainTime?: bigint;
+  /**
+   * Week-7 development setup: a fresh anchor for the device the setup session reached, signed on
+   * request (scripts/anchor-server.ts). Used when `anchor` is not given; the device's clock then
+   * starts within seconds of the chain's.
+   */
+  anchorFor?: (device: string) => Promise<TimeAnchor | undefined>;
+  /** The anchor reached the device (accepted, or the device already had its time): stop offering it. */
+  onAnchorUsed?: () => void | Promise<void>;
   /** How long to wait for the press (N10: 10 s). */
   waitMs?: number;
   /** Cryptographic random bytes (session id, kiosk nonce, order id); the app's comes from SecureRandom. */
@@ -53,8 +66,22 @@ export type SessionResult =
   | { status: "refused"; reason: string; detail?: string }
   | { status: "cancelled"; orderId: string };
 
-const WAIT_MS = 10_000;
+/** How long the kiosk waits for the renter's press after payment.prepare (N10). */
+export const WAIT_MS = 10_000;
 const REPLY_MS = 3_000;
+
+/*
+ * The device's clock is the anchor's timestamp plus the time since it accepted the anchor, so it
+ * runs behind the chain by however long the anchor waited before delivery. The device signs only
+ * expiries within authorizationExpiry of its own clock (payment-protocol.md 2), and the contract
+ * only those not yet past on the chain. An anchor older than ANCHOR_MAX_AGE_S leaves no room
+ * between the two, so the kiosk does not send it (TIME_ANCHOR_STALE: issue a new one); a younger
+ * one is sent and the expiry is capped to the device's clock.
+ */
+export const AUTHORIZATION_EXPIRY_S = 120; // register parameter authorizationExpiry
+export const ANCHOR_MAX_AGE_S = 90;
+const CLOCK_MARGIN_S = 5;
+const MIN_SETTLE_S = 20; // the expiry must leave this long to submit and settle
 
 export async function runPayment(link: MessageLink, req: PaymentRequest): Promise<SessionResult> {
   const random = req.random;
@@ -67,16 +94,51 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
     detail: m ? `${step}: ${m.type}` : `${step}: no reply`,
   });
 
+  const started = Date.now();
+  const chainNow = () => (req.chainTime ?? 0n) + BigInt(Math.floor((Date.now() - started) / 1000));
+  /** Device clock as of now, when this session handed it the anchor. */
+  let deviceClock: (() => bigint) | null = null;
+
   await link.endSession?.();
   link.secure?.(null);
-  if (req.anchor) {
+  if (!req.anchor && req.anchorFor) {
+    req.onStep?.("anchor");
+    const opened = (await link.send(msg("session.open", { mode: "setup", kioskNonce: hex(32) }), 1, REPLY_MS))[0];
+    // NOT_PERMITTED on a setup session means the device is already READY: it keeps its time.
+    if (opened?.type === "session.open.ok" && opened.device) {
+      let anchor: TimeAnchor | undefined;
+      try {
+        anchor = await req.anchorFor(String(opened.device));
+      } catch {
+        anchor = undefined;
+      }
+      if (!anchor) return { status: "refused", reason: "TIME_ANCHOR_MISSING", detail: "the anchor server did not answer" };
+      const ack = (await link.send(msg("setup.timeAnchor", { ...anchor }), 1, REPLY_MS))[0];
+      if (!ack?.accepted) return refusedBy(ack, "time anchor");
+      const anchorTime = BigInt(anchor.timestamp);
+      const acceptedAt = Date.now();
+      deviceClock = () => anchorTime + BigInt(Math.floor((Date.now() - acceptedAt) / 1000));
+    } else if (!(opened?.type === "error" && opened.reason === "NOT_PERMITTED")) {
+      return refusedBy(opened, "setup session");
+    }
+  } else if (req.anchor) {
+    const anchorTime = BigInt(req.anchor.timestamp);
+    if (req.chainTime !== undefined && req.chainTime - anchorTime > BigInt(ANCHOR_MAX_AGE_S)) {
+      await req.onAnchorUsed?.(); // useless now: a new one has to be issued
+      return { status: "refused", reason: "TIME_ANCHOR_STALE", detail: `the TimeAnchor is ${req.chainTime - anchorTime} s old; issue a new one` };
+    }
     req.onStep?.("anchor");
     const opened = (await link.send(msg("session.open", { mode: "setup", kioskNonce: hex(32) }), 1, REPLY_MS))[0];
     // NOT_PERMITTED on a setup session means the device is already READY: keep its anchor.
-    if (!(opened?.type === "error" && opened.reason === "NOT_PERMITTED")) {
+    if (opened?.type === "error" && opened.reason === "NOT_PERMITTED") {
+      await req.onAnchorUsed?.();
+    } else {
       if (opened?.type !== "session.open.ok") return refusedBy(opened, "setup session");
       const ack = (await link.send(msg("setup.timeAnchor", { ...req.anchor }), 1, REPLY_MS))[0];
       if (!ack?.accepted) return refusedBy(ack, "time anchor");
+      await req.onAnchorUsed?.();
+      const acceptedAt = Date.now();
+      deviceClock = () => anchorTime + BigInt(Math.floor((Date.now() - acceptedAt) / 1000));
     }
   }
 
@@ -93,6 +155,16 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
   const identifyErr = await link.send(msg("payment.identify", { attestation: req.attestation }), 1, 800);
   if (identifyErr.length) return refusedBy(identifyErr[0], "identify");
 
+  // Inside the device's window when this session set its clock, and still ahead of the chain.
+  let until = req.expiry;
+  if (deviceClock) {
+    const cap = deviceClock() + BigInt(AUTHORIZATION_EXPIRY_S - CLOCK_MARGIN_S);
+    if (cap < until) until = cap;
+    if (req.chainTime !== undefined && until < chainNow() + BigInt(MIN_SETTLE_S)) {
+      return { status: "refused", reason: "TIME_ANCHOR_STALE", detail: "the device clock is too far behind the chain; issue a new TimeAnchor" };
+    }
+  }
+
   const auth: Authorization = {
     chainId: String(req.domain.chainId),
     contract: req.domain.verifyingContract,
@@ -102,7 +174,7 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
     amount: req.amount.toString(),
     orderId: hex(32),
     nonce: "",
-    expiry: req.expiry.toString(),
+    expiry: until.toString(),
   };
   const { orderId, token, amount, payout, expiry } = auth;
   const merchantSignature = req.signOrder({ orderId, token, amount, payout, expiry });

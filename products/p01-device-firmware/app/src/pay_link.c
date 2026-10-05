@@ -1,3 +1,9 @@
+/*
+ * The payment link's session runner: one work queue owns the session (core/nu54_session), the
+ * link router (core/nu54_links) and the reassemblers. Bluetooth threads only queue events
+ * (ble_links.c handlers), the main loop only queues the button and the PIN, so nothing here is
+ * shared between threads except the event queue.
+ */
 #include "pay_link.h"
 
 #include <errno.h>
@@ -5,382 +11,90 @@
 
 #include <app_version.h>
 #include <psa/crypto.h>
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/gatt.h>
-#include <zephyr/bluetooth/uuid.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/settings/settings.h>
 
-#include "board_io.h"
+#include "ble_links.h"
 #include "device_setup.h"
 #include "nu54_cbor.h"
 #include "nu54_frame.h"
+#include "nu54_links.h"
 #include "nu54_pin_entry.h"
-#include "nu54_protocol.h"
 #include "nu54_session.h"
+#include "status_led.h"
 
 LOG_MODULE_REGISTER(pay_link, LOG_LEVEL_INF);
 
-#define FRAGMENT_MAX 247
-#define LINK_MAX CONFIG_BT_MAX_CONN
+BUILD_ASSERT(CONFIG_BT_MAX_CONN <= NU54_LINK_MAX, "the link router tracks NU54_LINK_MAX centrals");
 
-/* ---------------------------------------------------------------- session */
+/* ---------------------------------------------------------------- state (work queue only) */
 
 static nu54_device_t device;
+static nu54_links_t router;
+static nu54_reassembler_t rx[NU54_LINK_MAX];
 
-/*
- * One connected central (payment-protocol.md 3). The kiosk writes without pairing; the phone app
- * and the operator tool are bonded. A bonded, subscribed central that does not hold the session
- * is taken as the renter's phone app and gets confirm.show, confirm.limit and the forwarded
- * payment.outcome. The phone app writes only device.paymentMode, which opens no session.
- */
-typedef struct {
-	struct bt_conn *conn;
-	nu54_reassembler_t rx;
-	uint8_t tx_sequence;
-} link_t;
+/* ---------------------------------------------------------------- events from other threads */
 
-static link_t links[LINK_MAX];
-static struct k_spinlock links_lock;
-static int session_link = -1; /* the link whose messages the session answers (work queue only) */
-
-static int link_of(const struct bt_conn *conn)
-{
-	for (int i = 0; i < LINK_MAX; i++) {
-		if (links[i].conn == conn) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-/* A reference to link i's connection, or NULL; the caller unrefs it. */
-static struct bt_conn *link_conn(int i)
-{
-	k_spinlock_key_t key = k_spin_lock(&links_lock);
-	struct bt_conn *c = i >= 0 && links[i].conn ? bt_conn_ref(links[i].conn) : NULL;
-	k_spin_unlock(&links_lock, key);
-	return c;
-}
-
-/* Bonded with LE Secure Connections: passkey-authenticated once the device has its label passkey;
- * the first setup of an UNPROVISIONED device bonds with Just Works (payment-protocol.md 3). */
-static bool link_bonded(int i)
-{
-	struct bt_conn *c = link_conn(i);
-	struct bt_conn_info info;
-	bool ok = false;
-
-	if (c && bt_conn_get_info(c, &info) == 0) {
-		bt_security_t need = device.state == NU54_STATE_UNPROVISIONED ? BT_SECURITY_L2 : BT_SECURITY_L4;
-		ok = info.security.level >= need && (info.security.flags & BT_SECURITY_FLAG_SC);
-	}
-	if (c) {
-		bt_conn_unref(c);
-	}
-	return ok;
-}
-
-static bool listening(int i);
-
-static bool is_phone(int i, int except)
-{
-	return i != except && i != session_link && links[i].conn && listening(i) && link_bonded(i);
-}
-
-static bool phone_present(int except)
-{
-	for (int i = 0; i < LINK_MAX; i++) {
-		if (is_phone(i, except)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-/* ---------------------------------------------------------------- BLE */
-
-/* One more expansion step, so the generated UUID parts become five macro arguments. */
-#define UUID128(...) BT_UUID_128_ENCODE(__VA_ARGS__)
-
-static const struct bt_uuid_128 svc_uuid = BT_UUID_INIT_128(UUID128(NU54_GATT_SERVICE_UUID_PARTS));
-static const struct bt_uuid_128 rx_uuid = BT_UUID_INIT_128(UUID128(NU54_GATT_RX_UUID_PARTS));
-static const struct bt_uuid_128 tx_uuid = BT_UUID_INIT_128(UUID128(NU54_GATT_TX_UUID_PARTS));
-
-static bool payment_mode;
-static bool pairing_mode;
+typedef enum { EV_CONNECTED, EV_DISCONNECTED, EV_FRAGMENT, EV_BUTTON, EV_PIN } event_type_t;
 
 typedef struct {
-	uint8_t link;
-	uint16_t len;
-	uint8_t data[FRAGMENT_MAX];
-} fragment_t;
+	uint8_t type;
+	int8_t link;
+	uint16_t len; /* fragment length; PIN: digits, 0 for a timeout */
+	uint8_t data[BLE_LINKS_FRAGMENT_MAX];
+} event_t;
 
-K_MSGQ_DEFINE(rx_queue, sizeof(fragment_t), 16, 4);
+/* Connection events must not be lost, so the queue leaves room beyond a burst of fragments. */
+K_MSGQ_DEFINE(events, sizeof(event_t), 24, 4);
 
 static K_THREAD_STACK_DEFINE(work_stack, 12288);
 static struct k_work_q work_q;
-static void rx_work_handler(struct k_work *w);
-static K_WORK_DEFINE(rx_work, rx_work_handler);
-static void close_work_handler(struct k_work *w);
-static K_WORK_DEFINE(close_work, close_work_handler);
+static void event_work_handler(struct k_work *w);
+static K_WORK_DEFINE(event_work, event_work_handler);
 
-static ssize_t rx_write(struct bt_conn *conn, const struct bt_gatt_attr *attr, const void *buf, uint16_t len, uint16_t offset,
-			uint8_t flags)
+static int post(const event_t *ev)
 {
-	fragment_t f;
-	int i = link_of(conn);
-	(void)attr;
-	(void)flags;
-	if (i < 0 || offset != 0 || len > FRAGMENT_MAX) {
-		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+	int err = k_msgq_put(&events, ev, K_NO_WAIT);
+	if (err) {
+		LOG_ERR("event %d for link %d dropped: queue full", ev->type, ev->link);
+		return err;
 	}
-	f.link = (uint8_t)i;
-	f.len = len;
-	memcpy(f.data, buf, len);
-	if (k_msgq_put(&rx_queue, &f, K_NO_WAIT) != 0) {
-		return BT_GATT_ERR(BT_ATT_ERR_INSUFFICIENT_RESOURCES);
-	}
-	k_work_submit_to_queue(&work_q, &rx_work);
-	return len;
+	k_work_submit_to_queue(&work_q, &event_work);
+	return 0;
 }
 
-/* The CCC callback does not say which central; listening() asks per connection when it matters. */
-static void ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
+static void on_connected(int link)
 {
-	(void)attr;
-	LOG_DBG("notifications %s", value == BT_GATT_CCC_NOTIFY ? "on" : "off");
+	post(&(event_t){.type = EV_CONNECTED, .link = (int8_t)link});
 }
 
-BT_GATT_SERVICE_DEFINE(pay_svc, BT_GATT_PRIMARY_SERVICE(&svc_uuid),
-		       BT_GATT_CHARACTERISTIC(&rx_uuid.uuid, BT_GATT_CHRC_WRITE | BT_GATT_CHRC_WRITE_WITHOUT_RESP, BT_GATT_PERM_WRITE,
-					      NULL, rx_write, NULL),
-		       BT_GATT_CHARACTERISTIC(&tx_uuid.uuid, BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_NONE, NULL, NULL, NULL),
-		       BT_GATT_CCC(ccc_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
-
-/* Link i subscribed to TX notifications. */
-static bool listening(int i)
+static void on_disconnected(int link)
 {
-	struct bt_conn *c = link_conn(i);
-	bool on = c && bt_gatt_is_subscribed(c, &pay_svc.attrs[4], BT_GATT_CCC_NOTIFY);
-	if (c) {
-		bt_conn_unref(c);
-	}
-	return on;
+	post(&(event_t){.type = EV_DISCONNECTED, .link = (int8_t)link});
 }
 
-static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL, UUID128(NU54_GATT_SERVICE_UUID_PARTS)),
-};
-static const struct bt_data sd[] = {
-	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
+static int on_fragment(int link, const uint8_t *data, uint16_t len)
+{
+	static event_t ev; /* Bluetooth RX thread only */
+	ev = (event_t){.type = EV_FRAGMENT, .link = (int8_t)link, .len = len};
+	memcpy(ev.data, data, len);
+	return post(&ev);
+}
+
+static const ble_links_handlers_t handlers = {
+	.connected = on_connected,
+	.disconnected = on_disconnected,
+	.fragment = on_fragment,
 };
 
-static void mode_end(struct k_work *w);
-static K_WORK_DELAYABLE_DEFINE(mode_timer, mode_end);
-static void pairing_end(struct k_work *w);
-static K_WORK_DELAYABLE_DEFINE(pairing_timer, pairing_end);
+/* ---------------------------------------------------------------- delivery */
 
-static bool link_free(void)
+/* The board's facts about every link, as the router needs them now. */
+static void refresh_links(void)
 {
-	return link_of(NULL) >= 0;
-}
-
-/* Advertises while payment or pairing mode is on and a connection slot is free. */
-static int advertise(void)
-{
-	if (!(payment_mode || pairing_mode) || !link_free()) {
-		return 0;
-	}
-	int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	return err == -EALREADY ? 0 : err;
-}
-
-static bool any_link(void)
-{
-	for (int i = 0; i < LINK_MAX; i++) {
-		if (links[i].conn) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static void mode_end(struct k_work *w)
-{
-	(void)w;
-	payment_mode = false;
-	if (!pairing_mode) {
-		bt_le_adv_stop();
-	}
-	if (!any_link()) {
-		board_led_set(PAY_LED_MODE, false);
-	}
-	LOG_INF("payment mode ended");
-}
-
-static void pairing_end(struct k_work *w)
-{
-	(void)w;
-	pairing_mode = false;
-	if (!payment_mode) {
-		bt_le_adv_stop();
-	}
-	LOG_INF("pairing mode ended");
-}
-
-static void connected(struct bt_conn *conn, uint8_t err)
-{
-	int i = link_of(NULL);
-	if (err || i < 0) {
-		return;
-	}
-	k_spinlock_key_t key = k_spin_lock(&links_lock);
-	links[i] = (link_t){.conn = bt_conn_ref(conn)};
-	nu54_reassembler_reset(&links[i].rx);
-	k_spin_unlock(&links_lock, key);
-	LOG_INF("central connected (link %d)", i);
-	advertise(); /* room for the other central */
-}
-
-static void disconnected(struct bt_conn *conn, uint8_t reason)
-{
-	int i = link_of(conn);
-	if (i < 0) {
-		return;
-	}
-	k_spinlock_key_t key = k_spin_lock(&links_lock);
-	struct bt_conn *c = links[i].conn;
-	links[i] = (link_t){0};
-	k_spin_unlock(&links_lock, key);
-	bt_conn_unref(c);
-	LOG_INF("central disconnected (link %d, 0x%02x)", i, reason);
-	k_work_submit_to_queue(&work_q, &close_work); /* the session may end with the link */
-	advertise();
-	if (!payment_mode && !any_link()) {
-		board_led_set(PAY_LED_MODE, false);
-	}
-}
-
-static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
-{
-	LOG_INF("link %d security level %d (%d)", link_of(conn), (int)level, (int)err);
-}
-
-BT_CONN_CB_DEFINE(conn_cb) = {
-	.connected = connected,
-	.disconnected = disconnected,
-	.security_changed = security_changed,
-};
-
-/* ---------------------------------------------------------------- pairing (payment-protocol.md 3) */
-
-/* New bonds only in pairing mode; the renter opens it on the device. */
-static enum bt_security_err pairing_accept(struct bt_conn *conn, const struct bt_conn_pairing_feat *const feat)
-{
-	(void)conn;
-	(void)feat;
-	return pairing_mode ? BT_SECURITY_ERR_SUCCESS : BT_SECURITY_ERR_PAIR_NOT_ALLOWED;
-}
-
-/* The label passkey recorded at setup; the device has no screen, so it "displays" it on the label. */
-static uint32_t app_passkey(struct bt_conn *conn)
-{
-	(void)conn;
-	return device.passkey;
-}
-
-static void passkey_display(struct bt_conn *conn, unsigned int passkey)
-{
-	(void)passkey; /* never logged: it is the label secret */
-	LOG_INF("pairing link %d: the central enters the label passkey", link_of(conn));
-}
-
-static void auth_cancel(struct bt_conn *conn)
-{
-	LOG_INF("pairing link %d cancelled", link_of(conn));
-}
-
-static struct bt_conn_auth_cb auth_passkey = {
-	.pairing_accept = pairing_accept,
-	.passkey_display = passkey_display,
-	.app_passkey = app_passkey,
-	.cancel = auth_cancel,
-};
-
-/* UNPROVISIONED: no passkey yet; the first setup bonds with Just Works and the button confirms. */
-static struct bt_conn_auth_cb auth_just_works = {
-	.pairing_accept = pairing_accept,
-	.cancel = auth_cancel,
-};
-
-static void pairing_complete(struct bt_conn *conn, bool bonded)
-{
-	LOG_INF("pairing link %d complete (%s)", link_of(conn), bonded ? "bonded" : "not bonded");
-}
-
-static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
-{
-	LOG_WRN("pairing link %d failed (%d)", link_of(conn), (int)reason);
-}
-
-static struct bt_conn_auth_info_cb auth_info = {
-	.pairing_complete = pairing_complete,
-	.pairing_failed = pairing_failed,
-};
-
-/* Passkey Entry once the device has its passkey, Just Works before. */
-static void auth_select(void)
-{
-	bt_conn_auth_cb_register(NULL);
-	bt_conn_auth_cb_register(device.state == NU54_STATE_UNPROVISIONED ? &auth_just_works : &auth_passkey);
-}
-
-/* ---------------------------------------------------------------- framing out */
-
-static void send_body(int i, const uint8_t *body, size_t len)
-{
-	static uint8_t env[NU54_MAX_ENVELOPE_LEN];
-	uint8_t digest[32], frag[FRAGMENT_MAX];
-	size_t dlen;
-	struct bt_conn *c = link_conn(i);
-
-	if (!c || !bt_gatt_is_subscribed(c, &pay_svc.attrs[4], BT_GATT_CCC_NOTIFY)) {
-		LOG_WRN("reply dropped: link %d is not listening", i);
-		goto out;
-	}
-	if (psa_hash_compute(PSA_ALG_SHA_256, body, len, digest, sizeof(digest), &dlen) != PSA_SUCCESS ||
-	    nu54_envelope_header(env, len, digest) != 0) {
-		goto out;
-	}
-	memcpy(&env[NU54_ENVELOPE_HEADER_LEN], body, len);
-	size_t total = NU54_ENVELOPE_HEADER_LEN + len;
-	size_t chunk = nu54_fragment_payload(bt_gatt_get_mtu(c));
-	if (chunk > FRAGMENT_MAX - NU54_FRAGMENT_HEADER_LEN) {
-		chunk = FRAGMENT_MAX - NU54_FRAGMENT_HEADER_LEN;
-	}
-	uint8_t index = 0;
-	for (size_t off = 0; off < total; off += chunk, index++) {
-		size_t n = total - off < chunk ? total - off : chunk;
-		frag[0] = links[i].tx_sequence;
-		frag[1] = index;
-		memcpy(&frag[2], &env[off], n);
-		int err;
-		while ((err = bt_gatt_notify(c, &pay_svc.attrs[4], frag, n + 2)) == -ENOMEM) {
-			k_sleep(K_MSEC(5)); /* wait for a TX buffer */
-		}
-		if (err) {
-			LOG_WRN("notify failed (%d)", err);
-			goto out;
-		}
-	}
-	links[i].tx_sequence++;
-out:
-	if (c) {
-		bt_conn_unref(c);
+	bool need_passkey = device.state != NU54_STATE_UNPROVISIONED;
+	for (int i = 0; i < NU54_LINK_MAX; i++) {
+		nu54_links_facts(&router, i, ble_links_bonded(i, need_passkey), ble_links_listening(i));
 	}
 }
 
@@ -393,23 +107,23 @@ static void show_outcome(const uint8_t *body, size_t len)
 	}
 	int o = nu54_msg_find(&m, 0, "outcome");
 	bool approved = m.items[o].len == 8 && memcmp(m.items[o].ptr, "approved", 8) == 0;
-	board_led_set(approved ? PAY_LED_APPROVED : PAY_LED_REFUSED, true);
+	status_led_outcome(approved);
 	LOG_INF("payment outcome: %.*s", (int)m.items[o].len, m.items[o].ptr);
 }
 
-/* Replies to the central they answer; the phone body to every phone app link. */
+/* Replies to the central they answer; the phone body to every phone app link; then the LEDs. */
 static void deliver(const nu54_out_t *out, int reply_link)
 {
 	for (int i = 0; i < out->kiosk_count; i++) {
-		send_body(reply_link, out->kiosk[i], out->kiosk_len[i]);
+		ble_links_send(reply_link, out->kiosk[i], out->kiosk_len[i]);
 	}
 	if (out->phone_count) {
 		int sent = 0;
 		show_outcome(out->phone, out->phone_len);
-		for (int i = 0; i < LINK_MAX; i++) {
-			if (is_phone(i, session_link)) {
-				send_body(i, out->phone, out->phone_len);
-				sent++;
+		refresh_links();
+		for (int i = 0; i < NU54_LINK_MAX; i++) {
+			if (nu54_links_is_phone(&router, i)) {
+				sent += ble_links_send(i, out->phone, out->phone_len) == 0;
 			}
 		}
 		if (!sent) {
@@ -417,141 +131,155 @@ static void deliver(const nu54_out_t *out, int reply_link)
 			LOG_INF("no phone app listening; SW1 approves, SW2 rejects");
 		}
 	}
-	board_led_set(PAY_LED_WAITING, device.pending);
+	status_led_event(out->event);
+	/* The buttons decide; while the PIN is asked for, main.c's PIN entry shows the digits. */
+	status_led_waiting(device.pending == NU54_PENDING_PAYMENT || device.pending == NU54_PENDING_SETUP_CONFIRM ||
+			   device.pending == NU54_PENDING_LIMIT_CONFIRM);
 }
 
-/* The links as the session sees them for a message from link i. */
-static void set_links(int i)
-{
-	device.link_bonded = link_bonded(i);
-	device.phone_present = phone_present(i);
-	device.foreign_link = device.session_open && session_link >= 0 && i != session_link;
-}
+/* ---------------------------------------------------------------- the work queue */
 
-/* Handles one body from link i; a session.open there makes it the session's link. */
-static void handle_from(int i, const uint8_t *body, size_t len, nu54_out_t *out)
+static void handle_body(int link, const uint8_t *body, size_t len)
 {
+	static nu54_out_t out;
 	uint8_t sid[8];
 	int was_open = device.session_open;
 
+	nu54_pending_t asked = device.pending;
+
 	memcpy(sid, device.session_id, 8);
-	set_links(i);
-	nu54_session_handle(&device, body, len, k_uptime_get() / 1000, out);
-	if (device.session_open && (!was_open || memcmp(sid, device.session_id, 8) != 0)) {
-		session_link = i;
+	refresh_links();
+	const nu54_link_t call = nu54_links_call(&router, link, device.session_open);
+	nu54_session_handle(&device, &call, body, len, k_uptime_get() / 1000, &out);
+	/* The kiosk gave up on the renter's step (session.cancel after its wait, or a new session):
+	 * the step ends without a reply, but the lamp shows it as cancelled. */
+	if (asked != NU54_PENDING_NONE && device.pending == NU54_PENDING_NONE && out.event == NU54_EVENT_NONE) {
+		out.event = NU54_EVENT_REFUSED;
 	}
-	device.foreign_link = 0;
-	deliver(out, i);
+	int opened = device.session_open && (!was_open || memcmp(sid, device.session_id, 8) != 0);
+	nu54_links_after(&router, link, opened);
+	if (opened) {
+		status_led_new_session();
+	}
+	LOG_INF("message on link %d: %u-byte body, %d replies", link, (unsigned)len, out.kiosk_count);
+	deliver(&out, link);
 }
 
-/* ---------------------------------------------------------------- work */
+static void on_fragment_event(const event_t *ev)
+{
+	nu54_reassembler_t *r = &rx[ev->link];
+	nu54_frame_result_t res = nu54_reassembler_feed(r, ev->data, ev->len);
+	const uint8_t *body;
+	size_t blen;
+	uint8_t digest[32];
+	size_t dlen;
 
-static void rx_work_handler(struct k_work *w)
+	if (res == NU54_FRAME_NEED_MORE) {
+		return;
+	}
+	if (res == NU54_FRAME_DONE) {
+		body = nu54_reassembler_body(r, &blen);
+		if (psa_hash_compute(PSA_ALG_SHA_256, body, blen, digest, sizeof(digest), &dlen) == PSA_SUCCESS &&
+		    memcmp(digest, nu54_reassembler_digest(r), 8) == 0) {
+			handle_body(ev->link, body, blen);
+			return;
+		}
+		LOG_WRN("BAD_FRAME: envelope digest mismatch (%u-byte body)", (unsigned)blen);
+	} else {
+		LOG_WRN("BAD_FRAME: fragment order or length (%u bytes, seq %u idx %u)", ev->len, ev->data[0], ev->data[1]);
+	}
+	/* Order, length or digest violation: an empty body is not a valid message, so the session
+	 * answers error{BAD_FRAME} and closes, as for any malformed message. */
+	nu54_reassembler_reset(r);
+	handle_body(ev->link, NULL, 0);
+}
+
+/*
+ * The central that held the session left: the payment (or setup) is over however it ended -
+ * approved, refused, timed out and cancelled by the kiosk, or an error. The device goes back to
+ * the start: the session ends, payment mode ends (the next payment starts with SW4 or the phone
+ * app), and the lamp goes dark once the result it is showing has played.
+ */
+static void on_disconnected_event(int link)
+{
+	bool waited = device.pending != NU54_PENDING_NONE;
+	if (!nu54_links_disconnected(&router, link)) {
+		return;
+	}
+	nu54_session_link_closed(&device);
+	if (waited) {
+		status_led_event(NU54_EVENT_REFUSED); /* the renter's step was cancelled */
+	}
+	ble_links_payment_mode(0);
+	status_led_idle();
+	LOG_INF("session over: back to idle");
+}
+
+/* The renter's button or PIN: replies go to the central that holds the session. */
+static void on_renter_event(const event_t *ev)
 {
 	static nu54_out_t out;
-	fragment_t f;
-	(void)w;
-	while (k_msgq_get(&rx_queue, &f, K_NO_WAIT) == 0) {
-		link_t *l = &links[f.link];
-		nu54_frame_result_t r = nu54_reassembler_feed(&l->rx, f.data, f.len);
-		size_t blen;
-		const uint8_t *body;
-		uint8_t digest[32];
-		size_t dlen;
-
-		if (r == NU54_FRAME_NEED_MORE) {
-			continue;
-		}
-		if (r == NU54_FRAME_BAD) {
-			LOG_WRN("BAD_FRAME: fragment order or length (%u bytes, seq %u idx %u)", f.len, f.data[0], f.data[1]);
-		}
-		if (r == NU54_FRAME_DONE) {
-			body = nu54_reassembler_body(&l->rx, &blen);
-			if (psa_hash_compute(PSA_ALG_SHA_256, body, blen, digest, sizeof(digest), &dlen) != PSA_SUCCESS ||
-			    memcmp(digest, nu54_reassembler_digest(&l->rx), 8) != 0) {
-				LOG_WRN("BAD_FRAME: envelope digest mismatch (%u-byte body)", (unsigned)blen);
-			} else {
-				handle_from(f.link, body, blen, &out);
-				LOG_INF("message on link %d: %u-byte body, %d replies", f.link, (unsigned)blen, out.kiosk_count);
-				continue;
-			}
-		}
-		/* Order, length or digest violation: an empty body is not a valid message, so the
-		 * session answers error{BAD_FRAME} and closes, as for any malformed message. */
-		nu54_reassembler_reset(&l->rx);
-		handle_from(f.link, NULL, 0, &out);
-	}
-}
-
-/* A link went away: if it carried the session, the session ends with it. */
-static void close_work_handler(struct k_work *w)
-{
-	(void)w;
-	if (session_link >= 0 && !links[session_link].conn) {
-		nu54_session_link_closed(&device);
-		session_link = -1;
-		board_led_set(PAY_LED_WAITING, false);
-	}
-}
-
-static int button_choice;
-static void button_work_handler(struct k_work *w)
-{
-	static nu54_out_t out;
-	(void)w;
 	memset(&out, 0, sizeof(out));
-	set_links(session_link);
-	nu54_session_button(&device, button_choice, &out);
-	deliver(&out, session_link);
+	if (ev->type == EV_BUTTON) {
+		nu54_session_button(&device, ev->len, &out);
+	} else {
+		nu54_session_pin(&device, ev->len ? (const char *)ev->data : NULL, ev->len, &out);
+	}
+	deliver(&out, nu54_links_session(&router));
 }
-static K_WORK_DEFINE(button_work, button_work_handler);
+
+static void event_work_handler(struct k_work *w)
+{
+	static event_t ev;
+	(void)w;
+	while (k_msgq_get(&events, &ev, K_NO_WAIT) == 0) {
+		switch (ev.type) {
+		case EV_CONNECTED:
+			nu54_links_connected(&router, ev.link);
+			nu54_reassembler_reset(&rx[ev.link]);
+			break;
+		case EV_DISCONNECTED:
+			on_disconnected_event(ev.link);
+			break;
+		case EV_FRAGMENT:
+			on_fragment_event(&ev);
+			break;
+		case EV_BUTTON:
+		case EV_PIN:
+			on_renter_event(&ev);
+			break;
+		}
+		memset(ev.data, 0, sizeof(ev.data)); /* a PIN never outlives its event */
+	}
+}
+
+/* ---------------------------------------------------------------- the main loop's calls */
 
 void pay_link_button(int approve)
 {
-	if (!device.pending) {
+	/* Read on another thread: a stale value only decides whether to log, the session re-checks. */
+	if (device.pending == NU54_PENDING_NONE) {
 		LOG_INF("no payment is waiting for the button");
 		return;
 	}
 	LOG_INF("%s", approve ? "approved by the button" : "rejected by the button");
-	button_choice = approve;
-	k_work_submit_to_queue(&work_q, &button_work);
+	post(&(event_t){.type = EV_BUTTON, .len = (uint16_t)(approve ? 1 : 0)});
 }
-
-/* The PIN waits in RAM only until the work queue hands it to the session. */
-static char pin_entry[NU54_PIN_LEN];
-static size_t pin_entry_len;
-static bool pin_given;
-
-static void pin_work_handler(struct k_work *w)
-{
-	static nu54_out_t out;
-	(void)w;
-	memset(&out, 0, sizeof(out));
-	set_links(session_link);
-	nu54_session_pin(&device, pin_given ? pin_entry : NULL, pin_entry_len, &out);
-	memset(pin_entry, 0, sizeof(pin_entry));
-	pin_entry_len = 0;
-	deliver(&out, session_link);
-}
-static K_WORK_DEFINE(pin_work, pin_work_handler);
 
 void pay_link_pin(const char *pin, size_t len)
 {
-	if (device.pending != NU54_PENDING_PIN && device.pending != NU54_PENDING_LIMIT_PIN) {
-		LOG_INF("no PIN is asked for");
-		return;
-	}
+	event_t ev = {.type = EV_PIN};
 	if (pin && len != NU54_PIN_LEN) {
 		LOG_WRN("PIN of %u digits ignored", (unsigned)len);
 		return;
 	}
-	pin_given = pin != NULL;
-	pin_entry_len = pin ? len : 0;
 	if (pin) {
-		memcpy(pin_entry, pin, len);
+		memcpy(ev.data, pin, len);
+		ev.len = (uint16_t)len;
 	}
 	LOG_INF("%s", pin ? "PIN entered" : "PIN entry timed out");
-	k_work_submit_to_queue(&work_q, &pin_work);
+	post(&ev);
+	memset(&ev, 0, sizeof(ev));
 }
 
 int pay_link_pin_wanted(void)
@@ -567,73 +295,45 @@ int pay_link_address(uint8_t address[20])
 
 int pay_link_payment_mode(uint32_t seconds)
 {
-	payment_mode = true;
-	int err = advertise();
-	if (err) {
-		payment_mode = false;
-		LOG_ERR("advertising failed (%d)", err);
-		return err;
-	}
-	board_led_set(PAY_LED_MODE, true);
-	k_work_reschedule(&mode_timer, K_SECONDS(seconds));
-	LOG_INF("payment mode for %u s", seconds);
-	return 0;
+	return ble_links_payment_mode(seconds);
 }
 
 int pay_link_pairing_mode(uint32_t seconds)
 {
-	auth_select();
-	pairing_mode = true;
-	int err = advertise();
-	if (err) {
-		pairing_mode = false;
-		LOG_ERR("advertising failed (%d)", err);
-		return err;
-	}
-	k_work_reschedule(&pairing_timer, K_SECONDS(seconds));
-	LOG_INF("pairing mode for %u s (%s)", seconds, device.state == NU54_STATE_UNPROVISIONED ? "Just Works" : "label passkey");
-	return 0;
+	bool unprovisioned = device.state == NU54_STATE_UNPROVISIONED;
+	return ble_links_pairing_mode(seconds, device.passkey, unprovisioned);
 }
+
+/* ---------------------------------------------------------------- init */
 
 /* device.paymentMode from the phone app (payment-protocol.md 3, P02-FR-08); on the work queue. */
 static int platform_payment_mode(void *ctx, int on, uint32_t seconds)
 {
 	(void)ctx;
-	if (on) {
-		return pay_link_payment_mode(seconds);
-	}
-	k_work_cancel_delayable(&mode_timer);
-	mode_end(NULL);
-	return 0;
+	return ble_links_payment_mode(on ? seconds : 0);
 }
-
-/* ---------------------------------------------------------------- init */
 
 int pay_link_init(void)
 {
 	int err;
 
-	device.anchor_clock_skew = 60;
-	device.authorization_expiry = 120;
-	device.firmware = APP_VERSION_STRING; /* app/VERSION, also the signed image version */
-	device.require_phone = IS_ENABLED(CONFIG_NU54_REQUIRE_PHONE);
+	nu54_links_init(&router);
 	err = device_setup_load(&device);
 	if (err) {
 		return err;
 	}
-	device.platform.payment_mode = platform_payment_mode;
+	device.cfg.firmware = APP_VERSION_STRING; /* app/VERSION, also the signed image version */
+	device.cfg.anchor_clock_skew = 60;
+	device.cfg.authorization_expiry = 120;
+	device.cfg.require_secure = IS_ENABLED(CONFIG_NU54_REQUIRE_SECURE_SESSION);
+	device.cfg.require_phone = IS_ENABLED(CONFIG_NU54_REQUIRE_PHONE);
+	device.cfg.dev_unpaired_anchor = IS_ENABLED(CONFIG_NU54_DEV_SETUP);
+	device.cfg.platform.payment_mode = platform_payment_mode;
 	k_work_queue_start(&work_q, work_stack, K_THREAD_STACK_SIZEOF(work_stack), K_PRIO_PREEMPT(7), NULL);
-	err = bt_enable(NULL);
-	if (!err) {
-		err = settings_load_subtree("bt"); /* bonds (CONFIG_BT_SETTINGS) */
-	}
-	if (!err) {
-		err = bt_conn_auth_info_cb_register(&auth_info);
-	}
+	err = ble_links_init(&handlers, device.passkey, device.state == NU54_STATE_UNPROVISIONED);
 	if (err) {
 		return err;
 	}
-	auth_select();
 	LOG_INF("payment link ready (state %d)", (int)device.state);
 	return 0;
 }

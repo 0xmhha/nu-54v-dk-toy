@@ -22,12 +22,20 @@ target_sources(app PRIVATE
   src/device_key.c
   src/device_setup.c
   src/pay_link.c
+  src/ble_links.c
+  src/status_led.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_keccak.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_eip712.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_sig.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_secure.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_cbor.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_session.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_session_util.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_session_channel.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_session_setup.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_session_pay.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_session_limit.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_links.c
   ${CMAKE_CURRENT_LIST_DIR}/../third_party/keccak/Keccak-readable-and-compact.c
 )
 

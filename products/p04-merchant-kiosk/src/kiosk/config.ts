@@ -25,6 +25,8 @@ export interface KioskConfig {
   attestation: Attestation;
   /** P07 indexer base URL for receipts; optional, never needed to decide a payment. */
   indexerUrl?: string;
+  /** Week-7 development setup: scripts/anchor-server.ts, asked for a fresh TimeAnchor per payment. */
+  anchorUrl?: string;
 }
 
 export interface Provision {
@@ -77,7 +79,19 @@ export async function loadKiosk(vault: Vault): Promise<Loaded | null> {
 }
 
 /** A fresh anchor pushed for the next run (week-7 development setup), taken once. */
-export async function takeAnchor(vault: Vault): Promise<TimeAnchor | undefined> {
-  const text = await vault.takeFile("anchor.json");
-  return text ? (JSON.parse(text) as TimeAnchor) : undefined;
+/**
+ * The TimeAnchor waiting for the device (week-7 development setup). A pushed anchor.json moves
+ * into the settings and stays there until a payment hands it to the device, so a payment that
+ * fails before that (no device, a dropped link) does not lose it.
+ */
+export async function pendingAnchor(vault: Vault): Promise<TimeAnchor | undefined> {
+  const pushed = await vault.takeFile("anchor.json");
+  if (pushed) await vault.putSetting("anchor", pushed);
+  const kept = await vault.getSetting("anchor");
+  return kept ? (JSON.parse(kept) as TimeAnchor) : undefined;
+}
+
+/** The device has its time from the pending anchor (or the anchor is too old): forget it. */
+export async function anchorUsed(vault: Vault): Promise<void> {
+  await vault.putSetting("anchor", "");
 }
