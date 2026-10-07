@@ -784,7 +784,7 @@
     {
       "id": "N27",
       "title": "페어링과 결제 세션 보안",
-      "value": "폰 앱과 운영자 도구는 기기별 6자리 passkey(대여 셋업 때 셋업하는 쪽이 정해 기기에 기록한다. 대여자 폰 앱은 재연결 코드로 한 번 보여 주고, 운영자 도구는 라벨 QR로 인쇄한다)로 LE Secure Connections Passkey Entry 본딩을 하며, 기기는 버튼을 길게 눌렀을 때와 셋업 직후에만 페어링 모드를 열고 새 본딩이 생기면 이전 본딩을 지운다. 키오스크는 카드 리더기처럼 페어링 없이 결제 세션만 연다. 결제 세션은 응용 계층 보안 채널로 보호한다: 키오스크 1회용 secp256k1 키를 가맹점 키로 서명(kioskKeySignature)하고, 기기가 attestation과 함께 확인한 뒤 ECDH와 HKDF-SHA256으로 session.key를 만들어 본문을 AES-GCM으로 암호화한다. 키오스크는 RSSI 기준값 이상인 기기에만 연결하며 기준값은 W8에 실측한다. 셋업 세션과 confirm.show는 본딩한 링크에서만 주고받는다.",
+      "value": "폰 앱과 운영자 도구는 기기별 6자리 passkey(대여 셋업 때 셋업하는 쪽이 정해 기기에 기록한다. 대여자 폰 앱은 페어링 코드로 한 번 보여 주고, 운영자 도구는 라벨 QR로 인쇄한다)로 LE Secure Connections Passkey Entry 본딩을 하며, 기기는 버튼을 길게 눌렀을 때와 셋업 직후에만 페어링 모드를 열고 새 본딩이 생기면 이전 본딩을 지운다. 키오스크는 카드 리더기처럼 페어링 없이 결제 세션만 연다. 결제 세션은 응용 계층 보안 채널로 보호한다: 키오스크 1회용 secp256k1 키를 가맹점 키로 서명(kioskKeySignature)하고, 기기가 attestation과 함께 확인한 뒤 ECDH와 HKDF-SHA256으로 session.key를 만들어 본문을 AES-GCM으로 암호화한다. 키오스크는 RSSI 기준값 이상인 기기에만 연결하며 기준값은 W8에 실측한다. 셋업 세션과 confirm.show는 본딩한 링크에서만 주고받는다.",
       "requiredIn": [
         "docs/content/specifications/protocol/payment-protocol.md",
         "docs/content/products/p01/design.md",
@@ -800,7 +800,7 @@
     {
       "id": "N28",
       "title": "PIN 입력",
-      "value": "이번 단계의 PIN은 기기 버튼으로 입력하고 LED가 자릿수와 누를 버튼을 안내하므로 PIN이 BLE로 나가지 않는다. 폰 앱에서 PIN을 설정하는 기능은 다음 단계에 추가하며, 그때 PIN이 BLE를 거치는 위험을 위험 수용으로 기록한다.",
+      "value": "PIN은 기기 버튼으로 입력하고 LED가 자릿수와 누를 버튼을 안내한다. 기기는 버튼을 누를 때마다 입력 중인 PIN(네 자리와 현재 자리)을 본딩한 폰 앱에 pin.entry로 보내 화면에 보이게 하며, PIN이 BLE와 폰 화면을 거치는 위험은 위험 수용으로 기록한다. 폰 앱은 PIN을 저장하지 않는다.",
       "requiredIn": [
         "docs/content/products/p01/srs.md",
         "docs/content/products/p02/srs.md"
@@ -1128,10 +1128,20 @@
         "N04",
         "N27"
       ],
-      "change": "대여자 폰 앱(P02)이 키 없는 기기의 대여 셋업 1, 2단계(setup.operator, 키 생성, PIN)를 하고, 기기 서명 WalletCheck {device, challenge}로 새 지갑을 확인한다(N04). passkey는 셋업하는 쪽이 정하고 폰 앱은 재연결 코드로 한 번 보여 준다. 기기는 셋업 직후 passkey 페어링 모드를 스스로 열고, 새 본딩이 생기면 이전 본딩을 지운다(N27). 폰 앱은 라벨 QR 대신 페어링 모드의 기기를 스캔해 찾고, device.info로 상태를 묻는다.",
+      "change": "대여자 폰 앱(P02)이 키 없는 기기의 대여 셋업 1, 2단계(setup.operator, 키 생성, PIN)를 하고, 기기 서명 WalletCheck {device, challenge}로 새 지갑을 확인한다(N04). passkey는 셋업하는 쪽이 정하고 폰 앱은 페어링 코드로 한 번 보여 준다. 기기는 셋업 직후 passkey 페어링 모드를 스스로 열고, 새 본딩이 생기면 이전 본딩을 지운다(N27). 폰 앱은 라벨 QR 대신 페어링 모드의 기기를 스캔해 찾고, device.info로 상태를 묻는다.",
       "reason": "대여자가 폰 앱만으로 기기를 찾아 연결하고 지갑을 설정·확인하는 흐름이 필요하다. keygen ack의 주소만 믿으면 기기 키가 그 주소에 서명하는지 확인할 방법이 없고, 이전 본딩이 남으면 예전 폰이 계속 confirm.show를 받는다.",
       "preserves": "키는 기기 TRNG로만 만들고 내보내지 않으며 니모닉과 백업은 없다(N11). setup.operator는 UNPROVISIONED에서 버튼 확인으로 한 번만 받는다(N23). 결제용 서명 타입(eip712Types)은 두 개 그대로이고 컨트랙트는 바꾸지 않는다. TimeAnchor와 예치는 운영자 도구가 한다.",
-      "cost": "펌웨어 메시지 둘(device.info, wallet.check)과 세션 벡터 SV-36~SV-38, 폰 앱 상태 머신과 스캔·본딩 해제 네이티브 코드가 늘었다. 분실과 해킹 시나리오(재연결 코드 분실, 오염된 폰의 셋업 값)는 다음에 따로 검토한다. 운영자 도구는 기기가 다른 폰과 본딩하면 다시 본딩해야 한다."
+      "cost": "펌웨어 메시지 둘(device.info, wallet.check)과 세션 벡터 SV-36~SV-38, 폰 앱 상태 머신과 스캔·본딩 해제 네이티브 코드가 늘었다. 분실과 해킹 시나리오(페어링 코드 분실, 오염된 폰의 셋업 값)는 다음에 따로 검토한다. 운영자 도구는 기기가 다른 폰과 본딩하면 다시 본딩해야 한다."
+    },
+    {
+      "date": "2026-10-05",
+      "decisions": [
+        "N28"
+      ],
+      "change": "기기 버튼으로 PIN을 입력하는 동안 기기가 버튼마다 pin.entry{digits, position}를 본딩한 폰 앱에 보내고, 폰 앱은 0000에서 시작해 자리별로 올라가는 숫자를 보인다. 셋업 중 폰 앱이 페어링 코드를 다시 입력해 확인하고, 지갑 확인은 대여자가 시작 버튼을 눌러야 시작한다.",
+      "reason": "LED만으로는 지금 몇이 선택되었는지 알 수 없어 PIN을 정하기 어렵다는 실기 시험 결과다. 지갑 확인이 페어링 코드를 적기 전에 시작되어 버튼 시간을 놓쳤다.",
+      "preserves": "PIN은 기기 버튼으로만 입력하고 기기 안에만 저장한다(폰 앱은 저장하지 않는다). PIN 잠금(pinMaxRetries)과 LimitChange의 PIN 확인은 그대로다.",
+      "cost": "위험 수용: PIN이 BLE와 폰 화면을 거친다. 셋업 때 링크는 MITM 보호가 없는 Just Works 본딩이라 근처의 공격자가 페어링을 가로채면 PIN을 볼 수 있고, 오염된 폰 앱도 PIN을 볼 수 있다. PIN만으로는 서명할 수 없고 기기 버튼이 필요하다. 해킹 시나리오 검토 때 다시 본다."
     }
   ],
   "wbsRequiredTokens": [

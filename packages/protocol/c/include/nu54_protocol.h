@@ -133,6 +133,8 @@ static const nu54_field_t nu54_msg_wallet_check_fields[] = {{"v", NU54_K_INT, 1,
 static const nu54_object_t nu54_msg_wallet_check = {nu54_msg_wallet_check_fields, 4};
 static const nu54_field_t nu54_msg_wallet_check_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"accepted", NU54_K_BOOL, 1, 0}, {"signature", NU54_K_SIGNATURE, 0, 0}, {"reason", NU54_K_TEXT, 0, 0}};
 static const nu54_object_t nu54_msg_wallet_check_result = {nu54_msg_wallet_check_result_fields, 6};
+static const nu54_field_t nu54_msg_pin_entry_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"digits", NU54_K_TEXT, 1, 0}, {"position", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_pin_entry = {nu54_msg_pin_entry_fields, 5};
 static const nu54_message_t nu54_messages[] = {
     {"session.open", &nu54_msg_session_open},
     {"session.open.ok", &nu54_msg_session_open_ok},
@@ -156,8 +158,9 @@ static const nu54_message_t nu54_messages[] = {
     {"device.info", &nu54_msg_device_info},
     {"device.info.ack", &nu54_msg_device_info_ack},
     {"wallet.check", &nu54_msg_wallet_check},
-    {"wallet.check.result", &nu54_msg_wallet_check_result}
+    {"wallet.check.result", &nu54_msg_wallet_check_result},
+    {"pin.entry", &nu54_msg_pin_entry}
 };
-#define NU54_MESSAGE_COUNT 23
+#define NU54_MESSAGE_COUNT 24
 
 #endif /* NU54_PROTOCOL_H */

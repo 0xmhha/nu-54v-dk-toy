@@ -51,6 +51,7 @@ type Waiter = { match: (m: Message) => boolean; resolve: (m: Message) => void; r
 export class DeviceChannel {
   private readonly queue: Message[] = [];
   private readonly waiters: Waiter[] = [];
+  private readonly listeners: { match: (m: Message) => boolean; handler: (m: Message) => void }[] = [];
   private readonly detach: () => void;
 
   constructor(private readonly link: BodyLink) {
@@ -59,6 +60,11 @@ export class DeviceChannel {
       try {
         m = decodeMessage(b);
       } catch {
+        return;
+      }
+      const l = this.listeners.find((x) => x.match(m));
+      if (l) {
+        l.handler(m); // a running indication (pin.entry): not queued for waiters
         return;
       }
       const w = this.waiters.find((x) => x.match(m));
@@ -90,6 +96,16 @@ export class DeviceChannel {
       };
       this.waiters.push(w);
     });
+  }
+
+  /** Every message `match` accepts goes to `handler` instead of the queue, until the returned call. */
+  listen(match: (m: Message) => boolean, handler: (m: Message) => void): () => void {
+    const l = { match, handler };
+    this.listeners.push(l);
+    return () => {
+      const i = this.listeners.indexOf(l);
+      if (i >= 0) this.listeners.splice(i, 1);
+    };
   }
 
   close(): void {

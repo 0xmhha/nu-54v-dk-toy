@@ -6,6 +6,7 @@
 // message the phone app sends is device.paymentMode (P02-FR-08): payment advertising on or off.
 
 import { decodeMessage, encodeMessage, FrameWriter, parseReceipt, Reassembler, type DigitalReceipt, type Message } from "@nu54/protocol";
+import { pinEntryOf, type PinEntry } from "../setup/flow.ts";
 import { confirmView, limitView, TOKENS, type ConfirmView, type LimitView, type TokenInfo } from "../confirm/display.ts";
 
 /** Fragments from the device's TX characteristic, with the link's bonding state. */
@@ -31,7 +32,8 @@ export const PAYMENT_MODE_SECONDS = 120;
 export type Screen =
   | { kind: "waiting" }
   | { kind: "confirming"; view: ConfirmView; orderId: string }
-  | { kind: "limit"; view: LimitView }
+  /** `pin`: the PIN as the renter enters it on the device buttons (pin.entry, N28). */
+  | { kind: "limit"; view: LimitView; pin?: PinEntry }
   | { kind: "result"; outcome: string; reason?: string; view?: ConfirmView; receipt?: DigitalReceipt; txHash?: string };
 
 /** A confirm.show with no outcome after this long goes back to waiting (the device may have refused). */
@@ -109,6 +111,9 @@ export class ConfirmLink {
       this.show({ kind: "confirming", view, orderId: String(m.orderId).toLowerCase() });
     } else if (m.type === "confirm.limit") {
       this.show({ kind: "limit", view: limitView(m as Record<string, unknown>) });
+    } else if (m.type === "pin.entry") {
+      const pin = pinEntryOf(m);
+      if (pin && this.screen.kind === "limit") this.show({ ...this.screen, pin });
     } else if (m.type === "device.paymentMode.ack") {
       this.onPaymentMode?.({ on: m.on === true, accepted: m.accepted === true, ...(m.reason ? { reason: String(m.reason) } : {}) });
     } else if (m.type === "payment.outcome") {

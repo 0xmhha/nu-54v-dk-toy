@@ -93,7 +93,7 @@ export type Reason = (typeof REASONS)[number];
 export const OUTCOMES = ["approved", "refused", "failed", "Checking"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
-export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack", "device.info", "device.info.ack", "wallet.check", "wallet.check.result"] as const;
+export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack", "device.info", "device.info.ack", "wallet.check", "wallet.check.result", "pin.entry"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
 /** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */
@@ -556,6 +556,22 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "type",
       "sessionId",
       "accepted"
+    ]
+  },
+  "pin.entry": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "digits": "text",
+      "position": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "digits",
+      "position"
     ]
   }
 };

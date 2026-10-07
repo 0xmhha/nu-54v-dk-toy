@@ -214,6 +214,12 @@ void nu54_session_button(nu54_device_t *d, int approve, nu54_out_t *out);
  * Does nothing when no wallet.check waits. */
 void nu54_session_wallet_check_end(nu54_device_t *d, nu54_out_t *out);
 
+/* pin.entry for the bonded phone apps (payment-protocol.md 5, N28): the digits as entered so far
+ * and the position (0..3, 4 once all are kept). Returns the body length, 0 if it does not fit. */
+size_t nu54_pin_entry_body(const char digits[5], int position, uint8_t *out, size_t cap);
+/* Room for that body (60 bytes today). */
+#define NU54_PIN_ENTRY_BODY_MAX 80
+
 /* The PIN the renter entered on the buttons (digits), or NULL when it was not entered in time.
  * At setup it stores the setup and answers the keygen ack; for a limit change it is checked
  * against the stored PIN before the button. */

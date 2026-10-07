@@ -254,6 +254,21 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	advertise();            /* room for the other central */
 }
 
+/* An UNPROVISIONED device keeps a (Just Works) bond only while that central sets it up. When the
+ * central leaves before setup stored a key (refused, timed out, app closed), its bond goes too:
+ * the stack would refuse the next Just Works pairing over the old unauthenticated keys. */
+static bool unprovisioned_auth;
+static bt_addr_le_t setup_leaver;
+
+static void drop_setup_bond(struct k_work *w)
+{
+	(void)w;
+	if (unprovisioned_auth && bt_unpair(BT_ID_DEFAULT, &setup_leaver) == 0) {
+		LOG_INF("unprovisioned: bond of the central that left removed");
+	}
+}
+static K_WORK_DEFINE(drop_setup_bond_work, drop_setup_bond);
+
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
 	int i = link_of(conn);
@@ -266,6 +281,10 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	k_spin_unlock(&links_lock, key);
 	bt_conn_unref(c);
 	LOG_INF("central disconnected (link %d, 0x%02x)", i, reason);
+	if (unprovisioned_auth) {
+		bt_addr_le_copy(&setup_leaver, bt_conn_get_dst(conn));
+		k_work_submit(&drop_setup_bond_work);
+	}
 	handlers->disconnected(i);
 	advertise();
 }
@@ -378,6 +397,7 @@ static struct bt_conn_auth_info_cb auth_info = {
 
 static void auth_select(bool just_works)
 {
+	unprovisioned_auth = just_works;
 	bt_conn_auth_cb_register(NULL);
 	bt_conn_auth_cb_register(just_works ? &auth_just_works : &auth_passkey);
 }
@@ -461,6 +481,13 @@ int ble_links_init(const ble_links_handlers_t *h, uint32_t passkey, bool just_wo
 	err = bt_enable(NULL);
 	if (!err) {
 		err = settings_load_subtree("bt"); /* bonds (CONFIG_BT_SETTINGS) */
+	}
+	if (!err && just_works) {
+		/* No key: any bond left is from a previous rental or a setup that did not finish (a wipe
+		 * at boot runs before Bluetooth is up and cannot remove it). An old passkey bond would
+		 * refuse the new Just Works one, so the device starts with none. */
+		err = bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY);
+		LOG_INF("unprovisioned: bonds cleared (%d)", err);
 	}
 	if (!err) {
 		err = bt_conn_auth_info_cb_register(&auth_info);

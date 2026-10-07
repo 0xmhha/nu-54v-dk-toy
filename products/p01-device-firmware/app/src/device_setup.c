@@ -246,6 +246,10 @@ static int wipe(void *ctx)
 {
 	int ok;
 
+	struct stored_record r;
+	/* A stored rental, not a setup that stopped before storing (refused, PIN timeout, link lost). */
+	bool rental = its_read(UID_RECORD, &r, sizeof(r)) == 0;
+
 	(void)ctx;
 	ok = gone(psa_its_remove(UID_RECORD)); /* first: without it the rest is a leftover */
 	ok &= device_key_destroy() == 0;
@@ -253,8 +257,12 @@ static int wipe(void *ctx)
 	ok &= gone(psa_its_remove(UID_PIN));
 	ok &= gone(psa_its_remove(UID_PIN_FAILURES));
 	ok &= settings_delete("nu54/nonce") == 0;
-	/* Bonds go with the rental: the next renter's phone pairs again with the new passkey. */
-	ok &= ble_links_unpair_all() == 0;
+	/* Bonds go with the rental: the next renter's phone pairs again with the new passkey. A setup
+	 * that stopped keeps the phone's link so the phone app gets the answer (its bond goes when it
+	 * leaves, ble_links.c). */
+	if (rental) {
+		ok &= ble_links_unpair_all() == 0;
+	}
 	nonce_loaded = 0;
 	LOG_INF("wipe: %s", ok ? "done" : "incomplete");
 	return ok ? 0 : -EIO;
