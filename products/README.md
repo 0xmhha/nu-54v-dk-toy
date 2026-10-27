@@ -30,7 +30,7 @@ PostgreSQL)에서 한 뒤 컨테이너 이미지로 AWS 또는 Google Cloud에 �
 | 제품 | 스택 | 폴더 |
 |---|---|---|
 | P01 | C (Zephyr, NCS v3.4.1), 제조사 보드 패키지, Python 빌드 스크립트 | `p01-device-firmware/core`, `app`, `boards`, `test` |
-| P02 | React Native(TypeScript), Kotlin Turbo Module (Android만) | `p02-user-app` (골격 예정) |
+| P02 | React Native(TypeScript), Kotlin Turbo Module (Android만) | `p02-user-app/src`, `android` |
 | P04 | React Native(TypeScript), Kotlin·Swift Turbo Module | `p04-merchant-kiosk/src`, `android`, `ios` |
 | P05 | Go 운영 코어와 `opsctl`, 다음 사이클에 `opsd` API와 React 웹, PostgreSQL | `p05-operations-backoffice` |
 | P06 | Solidity, Foundry | `p06-stablenet-contracts` |
