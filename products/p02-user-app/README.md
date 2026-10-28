@@ -1,6 +1,6 @@
 # P02 · User app
 
-> **DF-20260925-02 기준 (2026-09-28 개정):** 이번 사이클에 대여자 폰 앱으로 만든다. 기기 설정(본딩)과 결제 확인 화면을 맡는다. 범위와 설계는 [기획](../../docs/content/products/p02/plan.md) · [SRS](../../docs/content/products/p02/srs.md) · [유즈케이스](../../docs/content/products/p02/use-cases.md) · [설계](../../docs/content/products/p02/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다.
+> **DF-20260925-02 기준 (2026-09-28 개정):** 이번 사이클에 대여자 폰 앱으로 만든다. 기기 설정(본딩)과 결제 확인 화면을 맡는다. 범위와 설계는 [기획](../../docs/content/products/p02/plan.md) · [SRS](../../docs/content/products/p02/srs.md) · [유즈케이스](../../docs/content/products/p02/use-cases.md) · [설계](../../docs/content/products/p02/design.md)가 정한다. 아래 원문은 DF-20260920-01 기준이며 충돌하면 위 문서를 따른다. 원문의 소셜 로그인, 두 지갑, 송금, FOTA는 이번 사이클 범위가 아니다.
 
 여행자와 점주가 기기와 지갑 기능을 사용하는 React Native 모바일 앱이다.
 
@@ -36,7 +36,6 @@ cd android && ./gradlew :app:installDebug   # 폰을 USB로 연결
 ```
 
 아직 없는 것과 시험하지 못한 것은 다음과 같다.
-- 지갑 설정 흐름(스캔부터 지갑 확인까지)은 software device로만 시험했다. 실기는 키 없이 부팅하는 펌웨어 rental 빌드(`python3 scripts/fw.py build --rental`)가 필요하다.
+- 지갑 설정 흐름(스캔, 본딩, 버튼 승인, 버튼 PIN, 페어링 코드, 지갑 확인, 홈, 결제 모드 켜기)은 2026-10-07에 rental 빌드(`python3 scripts/fw.py build --rental`) 보드와 Android 폰으로 끝까지 실행했다. 이전 폰이 거절되는지는 두 번째 폰이 없어 확인하지 못했다.
 - 페어링 코드 분실과 오염된 폰 앱의 셋업 값은 아직 다루지 않는다(P02 설계 5절).
 - 기기가 폰으로 보내는 `confirm.show`, `confirm.limit`, `payment.outcome`과 결제 모드 메시지는 펌웨어·소프트웨어 기기에 들어갔지만, 이 앱과 실기를 함께 돌려 보지는 않았다.
-- 본딩과 연결은 실기에서 아직 실행하지 않았다.
