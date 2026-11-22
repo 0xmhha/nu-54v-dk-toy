@@ -71,5 +71,9 @@ func (e RentalEscrow) Check(ctx context.Context, branch string, payer common.Add
 	if err != nil || canonical == nil || canonical.Hash() != hash {
 		return nil, time.Time{}, false
 	}
-	return manifest, time.Now().Add(15 * time.Second), true
+	return manifest, time.Now().Add(RentalEscrowProofLifetime), true
 }
+
+// RentalEscrowProofLifetime stays below the 15-second maximum that wallets accept
+// (verifyPresentedRentalEscrow), leaving two seconds for a phone clock behind this server.
+const RentalEscrowProofLifetime = 13 * time.Second

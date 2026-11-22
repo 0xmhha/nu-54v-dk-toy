@@ -149,11 +149,16 @@ func (h HTTP) present(ctx context.Context, bound service.Bound, ready Ready, pro
 	return &result, nil
 }
 
+// GasSponsorProofLifetime stays below the 30-second maximum that wallets accept
+// (verifyPresentedGasSponsor), so a phone clock running up to two seconds behind this server
+// still accepts a fresh proof instead of rejecting it as too long-lived.
+const GasSponsorProofLifetime = 28 * time.Second
+
 func (h HTTP) presentGasSponsor(ctx context.Context, bound service.Bound, profile Profile, ready Ready,
 	quote [32]byte, scope, signed []byte, present *Presentation) func(time.Time) bool {
 	now := time.Now()
 	witness, ok := h.GasSponsors(ctx, bound.Request.Domain, profile, ready.Payer, now)
-	witness.ExpiresAt = min(witness.ExpiresAt, ready.Expires.Unix(), now.Add(30*time.Second).Unix())
+	witness.ExpiresAt = min(witness.ExpiresAt, ready.Expires.Unix(), now.Add(GasSponsorProofLifetime).Unix())
 	if !ok || witness.Account == (common.Address{}) || witness.Account == ready.Payer ||
 		witness.Grant == ([32]byte{}) || time.Now().Unix() >= witness.ExpiresAt {
 		return nil

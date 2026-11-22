@@ -32,7 +32,7 @@ func (f fixtureRentalReviewEscrow) Deployment(context.Context, string) ([]byte, 
 }
 
 func (f fixtureRentalReviewEscrow) Check(context.Context, string, common.Address, uint64, *big.Int) ([]byte, time.Time, bool) {
-	return f.manifest, time.Now().Add(15 * time.Second), true
+	return f.manifest, time.Now().Add(RentalEscrowProofLifetime), true
 }
 
 func TestPostgresCustomerRentalReviewProof(t *testing.T) {
@@ -47,9 +47,11 @@ func testPostgresCustomerRentalReview(t *testing.T, exerciseForward bool) {
 	t.Helper()
 	db, dsn := scratchDB(t)
 	ctx := t.Context()
-	buyer := fixtureSigner(102)
+	// Accounts reserved for this test: rental enrollment accounts are unique across the shared
+	// settlement database, and report_test enrolls signers 102 and 103.
+	buyer := fixtureSigner(120)
 	if exerciseForward {
-		buyer = fixtureSigner(105)
+		buyer = fixtureSigner(121)
 	}
 	target := Target{Stream: fixtureUUID(t, db), Asset: common.HexToAddress("0x1111"), Contract: common.HexToAddress("0x2222")}
 	now := time.Now().UTC().Truncate(time.Second)
@@ -73,7 +75,7 @@ func testPostgresCustomerRentalReview(t *testing.T, exerciseForward bool) {
 	fixtureExec(t, db, "INSERT INTO ledger.finance_grant VALUES($1,$2,'rental_manage',now()+interval '5 minutes')", cafe.Branch, manager)
 	fixtureExec(t, db, `INSERT INTO ledger.rental_enrollment(branch_id,device_ref,generation,account_ref,withdraw_ref,revision,
 		enrollment_digest,attested_until,attested_at) VALUES($1,$2,1,$3,$4,'review-fixture',sha256(convert_to($3,'UTF8')),
-		now()+interval '5 minutes',now()-interval '1 minute')`, cafe.Branch, device, lower(buyer.Address()), lower(fixtureSigner(103).Address()))
+		now()+interval '5 minutes',now()-interval '1 minute')`, cafe.Branch, device, lower(buyer.Address()), lower(fixtureSigner(122).Address()))
 	manifest := bytes.Repeat([]byte{42}, 32)
 	var handover string
 	if err := db.QueryRow(ctx, `SELECT ledger.offer_renter_handover($1,$2,$3,$4,1,$5,$6,

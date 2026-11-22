@@ -93,6 +93,11 @@ func TestLoopbackInstalledW10Fixture(t *testing.T) {
 	}
 	mineSetup(contract.RegisterPayer(operator, payerAddress, 1, role, payerAddress))
 	funding := big.NewInt(20_000_000)
+	if role == 2 {
+		// The renter run reviews two 15.00 sales: the QR sale is paid from escrow, and the W09 sale
+		// is reviewed afterwards, so the escrow must still cover its full amount.
+		funding = big.NewInt(30_000_000)
+	}
 	mineSetup(token.Mint(operator, operator.From, funding))
 	mineSetup(token.Approve(operator, target.Contract, funding))
 	mineSetup(contract.DepositEscrow(operator, payerAddress, 1, funding))
