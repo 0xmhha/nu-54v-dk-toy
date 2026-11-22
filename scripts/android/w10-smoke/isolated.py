@@ -223,7 +223,8 @@ PlayStore.enabled=true
                             "NU54_W10_RENTER_BOARD_BIN":str(renter_peer),
                             "NU54_P01_INSTALL_TEST":str(board/"test_install"),
                             "NU54_W10_ANDROID_SERIAL":serial,"NU54_W10_ANDROID_PACKAGE":package,"NU54_W10_ADB":str(adb),
-                        })
+                        } | ({"NU54_W10_DIAGNOSTICS":os.environ["NU54_W10_DIAGNOSTICS"]}
+                             if os.environ.get("NU54_W10_DIAGNOSTICS") else {}))
                     log = (work/"installed review.log").read_text()
                     expected = ("PASS Android W10 renter QR SW1", "PASS Android W10 renter W09 SW2",
                                 "installed W10 renter decisions: one SW1 admission")

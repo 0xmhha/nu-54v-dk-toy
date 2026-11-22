@@ -17,3 +17,7 @@ The installed renter scenario uses native customer registration and the existing
 The integration runner must observe the native app's verified W10R display before supplying either switch. It must assert that W10R and SW2 cause zero submissions, payments and relay attempts. For SW1, before tapping submit, it must assert zero submissions and arm loss of a successful originating C3 response. It then waits for the original relay hash, reopens the same sale after restarting the app, mines and finalizes on the isolated chain and checks the same hash and receipt. Exactly one admission, one relay attempt and one settlement are required. The merchant sponsor pays the gas and only the registered renter's generation escrow funds the principal.
 
 Run `isolated.py --renter /tmp/new-installed-receipt.json` for the combined installation. The preparation mode and the host C2-to-P05 regression can run independently. An installed renter receipt requires the combined native app, C board host and chain run.
+
+## Diagnosing a failed installed run
+
+The run workspace is removed on exit. Set `NU54_W10_DIAGNOSTICS=/absolute/dir` to keep, on failure, a screenshot, the full accessibility hierarchy and the emulator logcat in that directory. The runner also prints the visible screen nodes (`SCREEN`), app errors (`SYSLOG`, `RNLOG`) and the fixture relay failures to the installed review log.

@@ -33,8 +33,19 @@ def main():
 def dump_screen(device):
     """Print the visible accessibility nodes so a failed installed run can be diagnosed after cleanup."""
     seen = set()
+    keep = os.environ.get("NU54_W10_DIAGNOSTICS")
+    if keep:  # optional directory outside the run workspace, which is removed on exit
+        with contextlib.suppress(Exception):
+            target = Path(keep)
+            target.mkdir(parents=True, exist_ok=True)
+            stamp = time.strftime("%H%M%S")
+            (target/f"{stamp}-screen.png").write_bytes(
+                subprocess.check_output([*device.command, "exec-out", "screencap", "-p"], timeout=30))
+            (target/f"{stamp}-hierarchy.xml").write_text(device.call("exec-out", "uiautomator", "dump", "/dev/tty"))
+            (target/f"{stamp}-logcat.txt").write_text(device.call("logcat", "-d", "-v", "threadtime"))
+            print(f"W10 diagnostics saved under {target}/{stamp}-*", file=sys.stderr, flush=True)
     with contextlib.suppress(Exception):
-        crash = device.call("logcat", "-d", "-b", "main,crash", "-s", "AndroidRuntime:E", "ReactNativeJS:E",
+        crash =device.call("logcat", "-d", "-b", "main,crash", "-s", "AndroidRuntime:E", "ReactNativeJS:E",
                             "ReactNative:E", "unknown:ReactNative:E")
         manager = device.call("logcat", "-d", "-s", "ActivityManager:I", "ActivityTaskManager:I")
         for row in (crash.splitlines()[-60:] + [r for r in manager.splitlines() if device.package in r][-15:]):

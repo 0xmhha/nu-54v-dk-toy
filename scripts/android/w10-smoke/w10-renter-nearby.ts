@@ -41,12 +41,13 @@ export default {
     if (input.payment?.chain !== 8283) throw Error('W10_RENTER_FIXTURE_POLICY');
     config = input;
   },
-  async scan() { return JSON.stringify([{handle: 'k10-lab'}]); },
+  async scan() { console.warn('W10 renter scan'); return JSON.stringify([{handle: 'k10-lab'}]); },
   onNearby(receive: (value: string) => void) {
     listeners.add(receive);
     return {remove() { listeners.delete(receive); }};
   },
   async connect() {
+    console.warn('W10 renter connect', config ? 'configured' : 'not configured');
     if (!config) throw Error('LAB_ENROLLMENT');
     const fixture = config;
     const bytes = entropy();
@@ -106,13 +107,20 @@ export default {
       async write(_, clear) { dispatch({kind: 'data', link, clear}); },
       async close() {},
     }, journal, async (request, peer) => {
-      const reply = await active.handle(request, peer);
-      if (reply.status !== 'ok') console.warn('W10 renter nearby', request.op, reply.status);
+      const reply = await active.handle(request, peer).catch(error => {
+        console.warn('W10 renter nearby threw', request.op, String(error));
+        throw error;
+      });
+      console.warn('W10 renter nearby', request.op, reply.status,
+        request.op === 'catalog' ? JSON.stringify(reply.value).slice(0, 900) :
+          request.op === 'rental-review' ? JSON.stringify(reply.value).slice(0, 700) + ' request ' +
+            JSON.stringify(request).slice(0, 900) : '',
+        'device now', Date.now());
       return reply;
     });
     dispatch({...fields, principal: fixture.terminal, peer: 'b'.repeat(64)});
     return link;
   },
   async write(_: string, clear: string) { terminal?.receive(clear); },
-  async close() { terminal?.close(); terminal = undefined; relay?.close(); relay = undefined; },
+  async close() { console.warn('W10 renter close'); terminal?.close(); terminal = undefined; relay?.close(); relay = undefined; },
 };

@@ -92,6 +92,8 @@ class Android:
     def enroll(self, profile, tls_pin, presentation_pin):
         self.launch()
         self.tap("내 결제")
+        # Let the registration check settle before the clipboard helper backgrounds the app.
+        self.find("주문 등록 공개키 보기")
         for label, value in zip(REGISTRATION, (json.dumps(profile, separators=(",", ":")), tls_pin, presentation_pin)):
             subprocess.run([*self.command, "shell", "-T",
                             f"run-as {CLIP} sh -c 'mkdir -p files && cat > files/fixture.txt'"],
