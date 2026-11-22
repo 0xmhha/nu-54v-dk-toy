@@ -35,7 +35,7 @@ import {persistWalletSignature, WalletProfileStore} from './walletStorage.ts';
 import {importRecoveryTrust} from './recoveryProof.ts';
 import {BoardStepPanel} from './BoardStepPanel.tsx';
 import {DemoWalletHome} from './DemoWalletHome.tsx';
-import {Brand, Chip, KitButton, Section, TabBar, type ButtonVariant} from '../ui/kit.tsx';
+import {Brand, Card, Chip, KitButton, Section, TabBar, type ButtonVariant} from '../ui/kit.tsx';
 import {color, font} from '../ui/theme.ts';
 import type {BoardWait} from './boardSteps.ts';
 import {importEnrollment, OWNER_GATT, type CommissioningPins, type Enrollment, type OwnerStatus} from './ownerWire.ts';
@@ -66,7 +66,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   /** The app shell draws the bottom tabs; the wallet then leaves out its own settings and service entries. */
   tabbed?: boolean;
   /** Tab requests from the shell: the wallet home, settings or the DApp browser. A new nonce repeats a request. */
-  requestScreen?: {screen:'owner'|'settings'|'dapp'; nonce:number};
+  requestScreen?: {screen:'owner'|'settings'|'dapp'|'allowance'|'walletconnect'; nonce:number};
   /** Reports the wallet's current screen so the shell can mark the active tab and hide tabs in secure flows. */
   onScreenChange?: (screen:string)=>void;
 }) {
@@ -246,10 +246,12 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     if (!requestScreen || !stored || appliedRequest.current === requestScreen.nonce) return;
     appliedRequest.current = requestScreen.nonce;
     const verified = !!stored.verified;
-    if (requestScreen.screen === 'dapp') {
-      if (!verified) { setScreen('owner'); setMessage('보드를 연결하고 백업을 확인한 뒤 DApp을 둘러볼 수 있습니다.'); return; }
-      dappSigned.current = undefined;
+    if (requestScreen.screen !== 'owner' && requestScreen.screen !== 'settings' && !verified) {
+      setScreen('owner'); setMessage('보드를 연결하고 백업을 확인한 뒤 앱 연결을 사용할 수 있습니다.'); return;
     }
+    if (requestScreen.screen === 'allowance') { openAllowance(); return; }
+    if (requestScreen.screen === 'walletconnect') { openExternalConnection(connections[0]); return; }
+    if (requestScreen.screen === 'dapp') dappSigned.current = undefined;
     setScreen(requestScreen.screen);
     // Only a new nonce, or the profile arriving, can apply a request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1752,8 +1754,16 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         </View>}
         {isPersonal && !tabbed && !homeTabs && <Action title={language === 'ko' ? '설정' : 'Settings'} disabled={busy} run={openSettings} variant="secondary" />}
         {demoAllowed && !stored.verified && <Action title={t('시연용 지갑 화면 보기')} variant="row" disabled={busy} run={() => setScreen('demo')} />}
+        {!stored.verified && (tabbed ? <Card>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>{t('보드 연결하기')}</Text>
+          {['이 휴대전화의 등록 공개키를 발급 담당자에게 보여 주고 등록서를 받으세요.',
+            '등록서와 설치 기록의 기기 식별값·서버 공개키 지문을 입력하세요.',
+            '보드의 SW4를 1초 이상 길게 누른 뒤 개인 기기를 찾아 등록하세요.'].map((step, index) =>
+            <Text key={step} style={styles.body}>{`${index + 1}. ${t(step)}`}</Text>)}
+        </Card> : <>
         {!stored.verified && <Text style={styles.body}>{language === 'ko' ? '독립 설치 기록에서 보드 지문을 확인한 뒤 Bluetooth 권한을 허용하세요. 이 보드에는 화면이 없습니다. 검증된 별도 표시에서 요청을 확인하고 보드에서 PIN을 입력합니다.' : 'Check the board fingerprint against independent installation records before allowing Bluetooth. The board has no screen. Review the request on a verified independent display and enter the PIN on the board.'}</Text>}
         {!stored.verified && <Text style={styles.body}>{t('발급 담당자에게 휴대전화 공개키를 건네세요. 독립 확인이 가능한 공급·설치 기록에서 기기 식별값과 서버 공개키 지문을 대조하세요.')}</Text>}
+        </>)}
         <Action title={t('휴대전화의 등록 공개키 보기')} variant="row" disabled={!native || busy} run={() => work(async () => {
           if (!native) throw new Error('SECURE_IDENTITY_REQUIRED');
           setPublicKey(await native.publicIdentity());
@@ -1827,6 +1837,15 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
               await save({...stored, signing:undefined});
             }, language === 'ko' ? '원래 보드가 승인 요청 만료를 확인하지 못했습니다.' : 'The original board could not verify expiry.')} />)}
         </>}
+        {tabbed ? <>
+        <Section title={t('자산과 계정')}>
+          <Action variant="row" title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
+          run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
+          <Action variant="row" title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
+          <Action variant="row" title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
+          <Action variant="row" title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
+        </Section>
+        </> : <>
         <Section title={t('자산과 네트워크')}>
           <Action variant="row" title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
           run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
@@ -1850,6 +1869,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Section title={t('연습')}>
           <Action variant="row" title={t('결제 연습')} disabled={busy} run={() => {setPracticeWarning(false); setScreen('practice');}} />
         </Section>
+        </>}
         {(!isPersonal || fromInstall) && <Action title={t('이전')} disabled={busy} run={() => {setFromInstall(false); setScreen('profiles');}} />}
       </>}
       {stored && settingsScreen && <WalletSettings tabbed={tabbed} language={language}
@@ -1857,6 +1877,10 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         section={screen==='settings'?'home':screen==='settings-access'?'access':screen==='settings-diagnostics'?'diagnostics':undefined}
         accessibility={()=>setScreen('settings-access')} diagnostics={()=>setScreen('settings-diagnostics')}
         recover={screen==='settings'?()=>openRecoveryOptions('settings'):undefined}
+        backup={tabbed&&screen==='settings'&&profile?()=>setScreen('backup'):undefined}
+        replacePhone={tabbed&&screen==='settings'?()=>setScreen('replace-phone'):undefined}
+        firmwareEvidence={tabbed&&screen==='settings'&&profile?()=>setScreen('firmware'):undefined}
+        assetNetworks={tabbed&&screen==='settings'&&stored.verified?()=>setScreen('evm-registry'):undefined}
         credentials={screen==='settings'?()=>setScreen('credentials'):undefined}
         networks={screen==='settings'&&stored.verified?()=>setScreen('read-profiles'):undefined}
         privacy={screen==='settings'?()=>setScreen('travel-privacy'):undefined}

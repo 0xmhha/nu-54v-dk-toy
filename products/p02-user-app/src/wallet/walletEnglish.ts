@@ -487,4 +487,11 @@ export const english: Record<string,string> = {
   "시연용 지갑 화면 보기": "Show the demo wallet screen",
   "시연 화면 닫기": "Close the demo",
   "실제 보드 확인 없이 만든 예시입니다. 잔액과 주소는 가짜이며 승인·서명·전송은 모두 꺼져 있습니다.": "An example made without checking a real board. The balance and address are fake, and approval, signing and sending are all off.",
+  // Wallet tab after the tab restructure
+  "보드 연결하기": "Connect your board",
+  "자산과 계정": "Assets and accounts",
+  "이 휴대전화의 등록 공개키를 발급 담당자에게 보여 주고 등록서를 받으세요.": "Show this phone's enrollment public key to the issuer and receive the enrollment document.",
+  "등록서와 설치 기록의 기기 식별값·서버 공개키 지문을 입력하세요.": "Enter the enrollment document and the device ID and server key fingerprint from the installation record.",
+  "보드의 SW4를 1초 이상 길게 누른 뒤 개인 기기를 찾아 등록하세요.": "Hold SW4 on the board for at least 1 second, then find your device and enroll it.",
+  "보드를 연결하고 백업을 확인한 뒤 앱 연결을 사용할 수 있습니다.": "Connect your board and verify the backup before using app connections.",
 };

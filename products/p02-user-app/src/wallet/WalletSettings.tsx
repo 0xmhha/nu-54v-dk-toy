@@ -8,9 +8,11 @@ import {KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
 import {color, font} from '../ui/theme.ts';
 import {stableTestUsdc} from './walletEducationRate.ts';
 
-export function WalletSettings({tabbed=false, language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll}: {
+export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvidence, assetNetworks, language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll}: {
   /** Inside the app tabs the 설정 tab replaces the back-to-wallet button. */
   tabbed?:boolean;
+  /** Entries that live in the 설정 tab once the app has tabs: backup, phone replacement, network registry and developer evidence. */
+  backup?:()=>void; replacePhone?:()=>void; firmwareEvidence?:()=>void; assetNetworks?:()=>void;
   language:'ko'|'en'; section?:'home'|'access'|'diagnostics'; accessibility?:()=>void; diagnostics?:()=>void; policyRoute?:boolean; applied?:boolean; idleLock?:OwnerIdleLock; checkIdleLock?:()=>void; setLanguage:(language:'ko'|'en')=>void; back:()=>void; practice:()=>void;
   rejectPractice?:()=>void; resetAccessibilityScroll?:()=>void; pendingOrders:()=>void; pendingEvm:()=>void; pendingChain:()=>void; device:()=>void;
   pending?:{evm:boolean;chain:boolean;signing:boolean;evmExpires?:number}; boardStatus?:'active'|'unavailable'; boardSuffix?:string; recover?:()=>void; credentials?:()=>void; networks?:()=>void; privacy?:()=>void; policy?:OwnerLimits|null; policyDecimals?:number; policyReadAt?:number; policyFresh?:boolean; policyFinalityFresh?:boolean; policyFinalityPending?:boolean; finalityEnroll?:()=>void; finalityReconcile?:()=>void; finalityResume?:()=>void; freshAsset?:{chain:string;address:string;decimals:number}; chooseAsset?:()=>void; initialize?:(destination:string,per:string,daily:string)=>void; change?:(destination:string,per:string,daily:string)=>void; activate?:()=>void; readPolicy?:()=>void;
@@ -134,12 +136,15 @@ export function WalletSettings({tabbed=false, language, setLanguage, back, polic
       {readPolicy && button(ko?'한도와 잠금':'Limits and auto-lock',readPolicy)}
       {checkIdleLock && button(ko?'기기 잠금 규칙 확인':'Verify device auto-lock',checkIdleLock)}
     </Section>
-    {(recover || credentials) && <Section title={ko?'보안과 복구':'Security and recovery'}>
+    {(recover || credentials || backup || replacePhone) && <Section title={ko?'보안과 복구':'Security and recovery'}>
+      {backup && button(ko?'독립 백업 시작':'Start independent backup',backup)}
+      {replacePhone && button(ko?'원래 보드에서 분실한 휴대전화 교체':'Replace a lost phone on the original board',replacePhone)}
       {recover && button(ko?'분실 복구':'Wallet recovery',recover)}
       {credentials && button(ko?'인증수단':'Sign-in methods',credentials)}
     </Section>}
-    {(networks || privacy) && <Section title={ko?'네트워크와 개인정보':'Networks and privacy'}>
+    {(networks || privacy || assetNetworks) && <Section title={ko?'네트워크와 개인정보':'Networks and privacy'}>
       {networks && button(ko?'네트워크':'Networks',networks)}
+      {assetNetworks && button(ko?'네트워크 및 자산 설정':'Network and asset settings',assetNetworks)}
       {privacy && button(ko?'개인정보와 여행 동의':'Privacy and travel consent',privacy)}
     </Section>}
     <Section title={ko?'앱':'App'}>
@@ -147,6 +152,9 @@ export function WalletSettings({tabbed=false, language, setLanguage, back, polic
       {diagnostics && button(ko?'도움말·진단':'Help and diagnostics',diagnostics)}
       {button(ko?'연습 다시 보기':'Replay practice',practice)}
     </Section>
+    {firmwareEvidence && <Section title={ko?'개발자 정보':'Developer information'}>
+      {button(ko?'펌웨어 적용 증거 확인':'Check firmware evidence',firmwareEvidence)}
+    </Section>}
     <Section title={ko?'미결 요청':'Pending requests'}>
       {button(ko?'미결 결제':'Pending payments',pendingOrders)}
       {pending?.evm && button(ko?'EVM 전송 확인':'Review EVM transfer',pendingEvm)}

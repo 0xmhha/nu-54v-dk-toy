@@ -33,6 +33,7 @@ jest.mock('../src/wallet/ownerSession.ts',()=>({OwnerSession:class {
 }}));
 const profile=()=>({version:2,exercised:true,mode:'personal',verified:{boardFingerprint:mockDevice,address:mockAddress,generation:1,network:'8283'},
  enrollment:{version:2,device:mockDevice,boardSPKI:'24'.repeat(32),ca:'MA==',certificateChain:['MA==']}});
+async function openTab(tree:Renderer.ReactTestRenderer,label:string){await Renderer.act(async()=>{tree.root.find(node=>node.props.accessibilityRole==='tab'&&node.props.accessibilityLabel===label).props.onPress();});}
 async function tap(tree:Renderer.ReactTestRenderer,label:string,index=0){await Renderer.act(async()=>{const items=tree.root.findAll(node=>node.props.accessibilityLabel===label&&typeof node.props.onPress==='function');expect(items[index]).toBeDefined();items[index].props.onPress();});}
 
 test('W04 shows the board step and buttons while registration waits on the screenless board',async()=>{
@@ -144,9 +145,10 @@ test('normal app shows the bottom tabs on home and hides them during sensitive r
  const tabs=()=>tree!.root.findAll(node=>node.props.accessibilityRole==='tab'&&typeof node.props.onPress==='function').map(node=>node.props.accessibilityLabel);
  try{await Renderer.act(async()=>{tree=Renderer.create(<App/>);});
   expect([...new Set(tabs())]).toEqual(['지갑','결제','둘러보기','설정']);
-  await tap(tree!,'독립 백업 시작');expect(tabs()).toHaveLength(0);
+  // Backup and phone replacement live in the 설정 tab.
+  await openTab(tree!,'설정');await tap(tree!,'독립 백업 시작');expect(tabs()).toHaveLength(0);
   await tap(tree!,'등록 상태로 돌아가기');expect(tabs()).not.toHaveLength(0);
-  await tap(tree!,'원래 보드에서 분실한 휴대전화 교체');expect(tabs()).toHaveLength(0);
+  await openTab(tree!,'설정');await tap(tree!,'원래 보드에서 분실한 휴대전화 교체');expect(tabs()).toHaveLength(0);
   await tap(tree!,'등록 상태로 돌아가기');expect(tabs()).not.toHaveLength(0);
  }finally{await Renderer.act(async()=>tree?.unmount());}
 });
@@ -158,7 +160,7 @@ test('W13 returns to the entered site after W15, travel, and the installed learn
  let tree:Renderer.ReactTestRenderer;
  try {
   await Renderer.act(async()=>{tree=Renderer.create(<App/>);});
-  await tap(tree!,'DApp 둘러보기');
+  await openTab(tree!,'둘러보기');await tap(tree!,'DApp 둘러보기');
   const site=()=>tree!.root.findAllByType(TextInput).find(input=>input.props.accessibilityLabel==='HTTPS 사이트 주소');
   const address='https://example.com/docs';
   await Renderer.act(async()=>site()!.props.onChangeText(address));

@@ -432,8 +432,8 @@ export default function App() {
   // App-level bottom tabs (지갑 · 결제 · 둘러보기 · 설정) from the P02 IA.
   const [exploring, setExploring] = useState(false);
   const [walletScreen, setWalletScreen] = useState('');
-  const [walletRequest, setWalletRequest] = useState<{screen:'owner'|'settings'|'dapp'; nonce:number}>();
-  const requestWallet = (screen:'owner'|'settings'|'dapp') => setWalletRequest(previous => ({screen, nonce: (previous?.nonce ?? 0) + 1}));
+  const [walletRequest, setWalletRequest] = useState<{screen:'owner'|'settings'|'dapp'|'allowance'|'walletconnect'; nonce:number}>();
+  const requestWallet = (screen:'owner'|'settings'|'dapp'|'allowance'|'walletconnect') => setWalletRequest(previous => ({screen, nonce: (previous?.nonce ?? 0) + 1}));
   const rentalActive = useRef(false);
   rentalActive.current = renting;
   const marketReturnAllowed = useRef(true);
@@ -553,7 +553,7 @@ export default function App() {
   const closeOverlays = () => { setShopping(false); setTravel(false); setMarketLab(false); setMarketTravel(false); setExploring(false); };
   const settingsScreens = ['settings', 'settings-access', 'settings-diagnostics', 'settings-device', 'policy-picker', 'lock-picker',
     'credentials', 'travel-privacy', 'policy', 'policy-applied', 'policy-device'];
-  const currentTab = shopping ? 'pay' : travel || marketLab || exploring || walletScreen === 'dapp' ? 'explore'
+  const currentTab = shopping ? 'pay' : travel || marketLab || exploring || ['dapp', 'walletconnect', 'allowance'].includes(walletScreen) ? 'explore'
     : settingsScreens.includes(walletScreen) ? 'settings' : 'wallet';
   // Tabs stay out of rental mode, practice and the secure wallet subflows that hide navigation.
   const showTabs = !renting && !practicing;
@@ -580,6 +580,8 @@ export default function App() {
           ]}
           apps={[
             {label: 'DApp 둘러보기', detail: '연결한 사이트에서 로그인과 결제를 요청받습니다', run: () => { setExploring(false); requestWallet('dapp'); }},
+            {label: '외부 DApp 연결', detail: '다른 앱의 사이트와 WalletConnect로 연결합니다', run: () => { setExploring(false); requestWallet('walletconnect'); }},
+            {label: '온체인 토큰 권한', detail: '사이트에 준 토큰 사용 권한을 확인하고 철회합니다', run: () => { setExploring(false); requestWallet('allowance'); }},
             {label: '테스트 시장 학습', detail: '테스트넷에서 교환과 유동성을 연습합니다', run: () => { setExploring(false); setMarketLab(true); }},
           ]} /> : <View style={styles.home}>
           {/* Services open from the 둘러보기 tab; the wallet keeps only wallet pages. */}
