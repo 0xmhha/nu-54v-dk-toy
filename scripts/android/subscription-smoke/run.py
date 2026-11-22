@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import time
 from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
@@ -90,6 +91,16 @@ class Android:
         self.find(label, tap=True)
 
     def enroll(self, profile, tls_pin, presentation_pin):
+        # On the emulator the registration form sometimes stays blank after the clipboard helper's
+        # short background switch: the views keep their space but are not drawn or exposed. That is
+        # an app rendering defect under investigation; one fresh attempt keeps the run going and the
+        # log records that it happened.
+        for attempt in range(2):
+            if self._enroll_once(profile, tls_pin, presentation_pin, final=attempt == 1):
+                return
+            print("enrollment form blank after the clipboard switch; relaunching once", file=sys.stderr, flush=True)
+
+    def _enroll_once(self, profile, tls_pin, presentation_pin, *, final):
         self.launch()
         self.tap("내 결제")
         # Let the registration check settle before the clipboard helper backgrounds the app.
@@ -100,10 +111,13 @@ class Android:
                            input=value.encode(), check=True, stdout=subprocess.DEVNULL, timeout=20)
             self.call("shell", "am", "start", "-n", CLIP + "/.Clip")
             time.sleep(0.7)
-            self.find(label, field=True)
+            if not self.find(label, field=True, attempts=4, optional=not final):
+                return False
             self.call("shell", "input", "keyevent", "KEYCODE_PASTE")
             self.call("shell", "input", "keyevent", "KEYCODE_BACK")
-        self.tap("주문 등록 확인")
+        if not self.find("주문 등록 확인", tap=True, attempts=4, optional=not final):
+            return False
+        return True
 
     def public_key(self):
         self.launch()

@@ -1,7 +1,24 @@
 // Test bundle only. P04 NearbyRelay uses the private C2 board host for the renter scenario.
-import {NearbyCommerceLink, V2Journal, CommerceClient, commerceRequestId, toBase64, bytesToHex, type CommercePaymentProfile} from '@nu54/protocol';
+import {NearbyCommerceLink, V2Journal, CommerceClient, commerceRequestId, toBase64, fromBase64, bytesToHex, type CommercePaymentProfile} from '@nu54/protocol';
 import {NearbyRelay} from '../../../products/p04-merchant-kiosk/src/kiosk/nearbyRelay.ts';
 import {MerchantInbox} from '../../../products/p04-merchant-kiosk/src/kiosk/merchantInbox.ts';
+import {AppState} from 'react-native';
+
+// Diagnostics for the installed runner only. The app maps most failures to a generic message, so
+// log every error constructed with a code-like message (for example NEARBY_CATALOG) and every
+// app-state change. Error stays the same prototype, so instanceof checks are unchanged.
+const NativeError = globalThis.Error;
+function TracedError(this: unknown, message?: string, options?: ErrorOptions) {
+  // Codes (NEARBY_CATALOG) and the protocol's own lower-case link failures ("invalid frame sequence").
+  if (typeof message === 'string' && (/^[A-Z][A-Z0-9_]{2,}$/.test(message) ||
+      /^(invalid|fragment|request ID|v2 |unexpected|link )/.test(message)))
+    console.warn('W10 error', message, String(new NativeError().stack ?? '').split('\n').slice(2, 6).join(' | '));
+  return new.target ? Reflect.construct(NativeError, [message, options], new.target) : NativeError(message, options);
+}
+TracedError.prototype = NativeError.prototype;
+Object.setPrototypeOf(TracedError, NativeError);
+globalThis.Error = TracedError as unknown as ErrorConstructor;
+AppState.addEventListener('change', state => console.warn('W10 app state', state, Date.now()));
 
 type Settings = {
   control: string; token: string; branch: string; tenant: string; terminal: string; customer: string; expiresAt: number; payment: CommercePaymentProfile;
@@ -12,11 +29,33 @@ let relay: NearbyRelay | undefined;
 let counter = 0;
 const listeners = new Set<(value: string) => void>();
 const journal = new V2Journal(48);
+// Stream frame: 2-byte length, epoch (16), sequence (4), fragment index, fragment count.
+function frameInfo(clear: string) {
+  const bytes = fromBase64(clear);
+  if (bytes.length < 24) return 'short ' + bytes.length;
+  const sequence = ((bytes[18] << 24) | (bytes[19] << 16) | (bytes[20] << 8) | bytes[21]) >>> 0;
+  return `seq ${sequence} part ${bytes[22]}/${bytes[23]} len ${bytes.length} epoch ${bytesToHex(bytes.subarray(2, 6), false)}`;
+}
 function dispatch(data: object) {
-  setTimeout(() => {
-    const event = JSON.stringify(data);
-    for (const receive of listeners) receive(event);
-  }, 0);
+  const frame = data as {kind?: string; link?: string; clear?: string};
+  if (frame.kind === 'data' && frame.clear) console.warn('W10 frame to customer', frame.link, frameInfo(frame.clear), 'listeners', listeners.size);
+  // One FIFO drained by a single timer: separate zero-delay timers are not guaranteed to run in
+  // scheduling order, and reordered fragments fail the V2 link ("invalid fragment order").
+  outbox.push(JSON.stringify(data));
+  if (outbox.length === 1) setTimeout(drain, 0); // later pushes join the pending drain
+}
+const outbox: string[] = [];
+function drain() {
+  while (outbox.length) {
+    const event = outbox.shift()!;
+    for (const receive of listeners) {
+      try {
+        receive(event);
+      } catch (error) {
+        console.warn('W10 listener failed', String(error));
+      }
+    }
+  }
 }
 function entropy() {
   const data = new Uint8Array(16);
@@ -121,6 +160,9 @@ export default {
     dispatch({...fields, principal: fixture.terminal, peer: 'b'.repeat(64)});
     return link;
   },
-  async write(_: string, clear: string) { terminal?.receive(clear); },
+  async write(handle: string, clear: string) {
+    console.warn('W10 frame to terminal', handle, frameInfo(clear), terminal ? 'open' : 'none');
+    terminal?.receive(clear);
+  },
   async close() { console.warn('W10 renter close'); terminal?.close(); terminal = undefined; relay?.close(); relay = undefined; },
 };

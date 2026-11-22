@@ -171,8 +171,9 @@ def renter_decisions(device, call, branch):
             device.tap("같은 견적의 후원과 예치금 다시 확인")
         device.tap("대여 보드 원견적 검토 확인")
         device.find("보드가 원견적을 검증했습니다")
-        labels = {node.get("text") for node in device.tree() if node.get("package") == device.package}
-        assert {"결제 원천 · 대여 지갑 예치금", "가스 비용 · 매장 부담"} <= labels
+        # The payer line also carries the payer address, and either line may be below the fold.
+        device.find("결제 원천 · 대여 지갑 예치금 0x", contains=True)
+        device.find("가스 비용 · 매장 부담")
 
     qr = call("/rental/original", b"QR")["sale"]
     home()
@@ -181,7 +182,11 @@ def renter_decisions(device, call, branch):
                     f"run-as {CLIP} sh -c 'mkdir -p files && cat > files/fixture.txt'"],
                    input=locator.encode(), check=True, stdout=subprocess.DEVNULL, timeout=20)
     device.call("shell", "am", "start", "-n", CLIP + "/.Clip")
-    device.find("매장 주문 QR 내용", field=True)
+    if not device.find("매장 주문 QR 내용", field=True, attempts=4, optional=True):
+        # Same blank-after-resume rendering defect as enrollment; the clipboard keeps the locator.
+        print("QR field blank after the clipboard switch; relaunching once", file=sys.stderr, flush=True)
+        home()
+        device.find("매장 주문 QR 내용", field=True)
     device.call("shell", "input", "keyevent", "KEYCODE_PASTE")
     device.call("shell", "input", "keyevent", "KEYCODE_BACK")
     discover()

@@ -1018,3 +1018,42 @@ test('K01 mobile filters both catalog pages, retains its cart and browses offlin
     await Renderer.act(async () => tree.unmount());
   }
 }, 20000);
+
+// An unregistered phone that briefly leaves the app (for example to copy a registration from
+// another app) must come back to the registration form, whatever order the profile reads finish in.
+test.each(['settled', 'initial-read-pending', 'reads-reversed'] as const)(
+  'registration form survives a short background switch (%s)',
+  async order => {
+    const reads: ((value: string) => void)[] = [];
+    jest.spyOn(Http!, 'loadProfile').mockImplementation(() => new Promise<string>(resolve => { reads.push(resolve); }));
+    let notify: ((state: AppStateStatus) => void) | undefined;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_, handler) => {
+      notify = handler;
+      return {remove: () => {}};
+    });
+    let tree!: Renderer.ReactTestRenderer;
+    try {
+      await Renderer.act(async () => {
+        tree = Renderer.create(<CustomerOrders initialLocator="" back={() => {}} permission={async () => true} />);
+      });
+      if (order === 'settled') await Renderer.act(async () => { reads[0](''); });
+      await Renderer.act(async () => { notify?.('background'); });
+      await Renderer.act(async () => { notify?.('active'); });
+      if (order === 'initial-read-pending') {
+        await Renderer.act(async () => { reads[0](''); });
+        await Renderer.act(async () => { reads.slice(1).forEach(resolve => resolve('')); });
+      } else if (order === 'reads-reversed') {
+        await Renderer.act(async () => { reads.slice(1).forEach(resolve => resolve('')); });
+        await Renderer.act(async () => { reads[0](''); });
+      } else {
+        await Renderer.act(async () => { reads.slice(1).forEach(resolve => resolve('')); });
+      }
+      for (let i = 0; i < 3; i++) await Renderer.act(async () => { reads.slice(1).forEach(resolve => resolve('')); });
+      const screen = JSON.stringify(tree.toJSON());
+      expect({order, reads: reads.length, form: screen.includes('고객 주문 등록서')}).toMatchObject({form: true});
+    } finally {
+      await Renderer.act(async () => { tree?.unmount(); });
+      jest.restoreAllMocks();
+    }
+  },
+);

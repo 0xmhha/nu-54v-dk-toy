@@ -20,4 +20,4 @@ Run `isolated.py --renter /tmp/new-installed-receipt.json` for the combined inst
 
 ## Diagnosing a failed installed run
 
-The run workspace is removed on exit. Set `NU54_W10_DIAGNOSTICS=/absolute/dir` to keep, on failure, a screenshot, the full accessibility hierarchy and the emulator logcat in that directory. The runner also prints the visible screen nodes (`SCREEN`), app errors (`SYSLOG`, `RNLOG`) and the fixture relay failures to the installed review log.
+The run workspace is removed on exit. Set `NU54_W10_DIAGNOSTICS=/absolute/dir` to keep, on failure, a screenshot, the full accessibility hierarchy and the emulator logcat in that directory. The runner also prints the visible screen nodes (`SCREEN`), app errors (`SYSLOG`, `RNLOG`) and the fixture relay failures to the installed review log. Set `NU54_W10_EMULATOR_GPU` (for example `host`) to compare the emulator's software renderer with the host GPU when a screen stays blank after the app returns from the clipboard helper.

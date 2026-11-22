@@ -123,6 +123,9 @@ module.exports=config;
         tools = sdk/"build-tools/36.0.0"
         capture("signature",[tools/"apksigner","verify","--verbose",apk])
         if mode == "prepare-renter":
+            # Optional copy for a physical-device check; the run workspace itself is removed.
+            if keep := os.environ.get("NU54_W10_KEEP_APK"):
+                shutil.copyfile(apk, keep)
             return app_hash
         if release := os.environ.get("NU54_W10_DATABASE_RELEASE"):
             gate = Path(release)
@@ -192,7 +195,7 @@ PlayStore.enabled=true
                 else:
                     raise RuntimeError("private ADB did not listen")
                 emulator = subprocess.Popen([sdk/"emulator/emulator","-avd","w10","-port","5580","-no-window",
-                    "-gpu","swiftshader_indirect","-no-snapshot","-no-audio","-no-boot-anim"],env=emulated,
+                    "-gpu",os.environ.get("NU54_W10_EMULATOR_GPU","swiftshader_indirect"),"-no-snapshot","-no-audio","-no-boot-anim"],env=emulated,
                     stdout=output,stderr=output,start_new_session=True)
                 deadline = time.monotonic()+180
                 while time.monotonic()<deadline:
