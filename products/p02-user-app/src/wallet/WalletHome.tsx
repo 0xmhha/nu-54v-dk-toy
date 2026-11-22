@@ -44,9 +44,9 @@ type RecoveryOrigin = 'profiles' | 'settings';
 type RecoveryEnrollmentDraft = {document: string; device: string; fingerprint: string};
 const emptyRecoveryEnrollment: RecoveryEnrollmentDraft = {document:'',device:'',fingerprint:''};
 
-function Action({title, run, disabled = false, testID, variant = 'primary'}: {title: string; run: () => void; disabled?: boolean;
-  testID?: string; variant?: ButtonVariant}) {
-  return <KitButton testID={testID} label={title} run={run} disabled={disabled} variant={variant} />;
+function Action({title, run, disabled = false, testID, variant = 'primary', detail}: {title: string; run: () => void; disabled?: boolean;
+  testID?: string; variant?: ButtonVariant; detail?: string}) {
+  return <KitButton testID={testID} label={title} run={run} disabled={disabled} variant={variant} detail={detail} />;
 }
 
 function savedEnrollment(store: WalletStorage): Enrollment | undefined {
@@ -1598,7 +1598,8 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       {isOwner && <Brand chip={stored?.verified ? {label:t('보드 연결'),tone:status?.state==='active'?'ok':'off'}
         : status?.state==='active' ? {label:t('백업 확인 필요'),tone:'wait'}
         : profile ? {label:t('보드 상태 미확인'),tone:'off'} : {label:t('보드 미등록'),tone:'wait'}} />}
-      <Text ref={sectionHeading} accessibilityRole="header" style={styles.title}>{t(isOwner ? '개인 지갑' : screen === 'practice' ? '결제 연습' : settingsScreen ? (language === 'ko' ? '설정' : 'Settings') : screen === 'install' ? '새 보드 설치' : screen === 'evm-registry' ? '네트워크 및 자산 설정' : screen === 'read-profiles' ? '6개 체인 · 읽기 전용' : screen === 'receive-chain' ? '다른 체인 받기' : screen === 'send-chain' ? '다른 체인 보내기' : screen === 'receive-evm' ? 'EVM 수신' : screen === 'transfer' ? '개인 전송' : screen === 'allowance' ? '온체인 토큰 권한' : screen === 'receipts' ? '지급 기록 관리' : screen === 'recovery-options' ? (language==='ko'?'어떤 기기를 교체하나요?':'Which device are you replacing?') : screen.startsWith('recovery-cloud') ? (language==='ko'?'클라우드 휴대전화 복구':'Cloud phone recovery') : screen === 'replace-phone' ? '분실한 휴대전화 교체' : screen === 'recovery' ? '지갑 복구' : screen === 'backup' ? '독립 백업' : '지갑 시작하기')}</Text>
+      <Text ref={sectionHeading} accessibilityRole="header" style={styles.title}>{t(isOwner ? '개인 지갑' : screen === 'practice' ? '결제 연습' : settingsScreen ? (language === 'ko' ? ({'settings-access':'접근성','settings-diagnostics':'도움말·진단','settings-device':'기기·업데이트','credentials':'인증수단','travel-privacy':'개인정보와 여행 동의'} as Record<string,string>)[screen] ?? '설정'
+        : ({'settings-access':'Accessibility','settings-diagnostics':'Help and diagnostics','settings-device':'Device and updates','credentials':'Sign-in methods','travel-privacy':'Privacy and travel consent'} as Record<string,string>)[screen] ?? 'Settings') : screen === 'install' ? '새 보드 설치' : screen === 'evm-registry' ? '네트워크 및 자산 설정' : screen === 'read-profiles' ? '6개 체인 · 읽기 전용' : screen === 'receive-chain' ? '다른 체인 받기' : screen === 'send-chain' ? '다른 체인 보내기' : screen === 'receive-evm' ? 'EVM 수신' : screen === 'transfer' ? '개인 전송' : screen === 'allowance' ? '온체인 토큰 권한' : screen === 'receipts' ? '지급 기록 관리' : screen === 'recovery-options' ? (language==='ko'?'어떤 기기를 교체하나요?':'Which device are you replacing?') : screen.startsWith('recovery-cloud') ? (language==='ko'?'클라우드 휴대전화 복구':'Cloud phone recovery') : screen === 'replace-phone' ? '분실한 휴대전화 교체' : screen === 'recovery' ? '지갑 복구' : screen === 'backup' ? '독립 백업' : '지갑 시작하기')}</Text>
       <View style={styles.languageRow}><Chip label={language === 'ko' ? 'English' : '한국어'} onPress={busy || !stored || !native ? undefined : () => {
         const next = language === 'ko' ? 'en' : 'ko';
         if (stored) work(async () => { await save({...stored, language: next}); setLanguage(next); }, '언어 설정을 저장할 수 없습니다.');
@@ -1849,20 +1850,20 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         </>}
         {tabbed ? stored.verified && <>
         <Section title={t('자산과 계정')}>
-          <Action variant="row" title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
+          <Action variant="row" detail={t('비트코인·이더리움 등 여러 네트워크의 잔액을 봅니다')} title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
           run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
-          <Action variant="row" title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
-          <Action variant="row" title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
-          <Action variant="row" title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
+          <Action variant="row" detail={t('이더리움 계열 네트워크의 주소로 받습니다')} title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
+          <Action variant="row" detail={t('등록한 주소로 테스트 자산을 보냅니다')} title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
+          <Action variant="row" detail={t('결제 영수증과 지급 기록을 봅니다')} title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
         </Section>
         </> : <>
         <Section title={t('자산과 네트워크')}>
-          <Action variant="row" title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
+          <Action variant="row" detail={t('비트코인·이더리움 등 여러 네트워크의 잔액을 봅니다')} title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
           run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
-          <Action variant="row" title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
+          <Action variant="row" detail={t('이더리움 계열 네트워크의 주소로 받습니다')} title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
           <Action variant="row" title={t('네트워크 및 자산 설정')} disabled={busy || !stored.verified} run={() => setScreen('evm-registry')} />
-          <Action variant="row" title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
-          <Action variant="row" title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
+          <Action variant="row" detail={t('등록한 주소로 테스트 자산을 보냅니다')} title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
+          <Action variant="row" detail={t('결제 영수증과 지급 기록을 봅니다')} title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
         </Section>
         <Section title={t('앱 연결과 권한')}>
           <Action variant="row" title={t('외부 DApp 연결')} disabled={busy || !stored.verified || !registry?.walletConnect || !registryCurrent}

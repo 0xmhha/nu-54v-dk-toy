@@ -45,7 +45,7 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
       <Text accessibilityRole="header" style={styles.heading}>{ko ? '내 자산' : 'My assets'}</Text>
       {button(selected.hidden ? (ko ? '잔액 표시' : 'Show balance') : (ko ? '잔액 숨기기' : 'Hide balance'), onHide, styles.hide)}
     </View>
-    <Text style={styles.text}>{ko ? '개인 소유 프로필 · 세대 ' : 'Personal owner profile · generation '}{owner.generation}</Text>
+    <Text style={styles.text}>{ko ? `내 하드월렛 · 휴대전화 ${owner.generation}번째 등록` : `My hardware wallet · phone enrollment #${owner.generation}`}</Text>
     <Text style={styles.text}>{readProfiles[selected.id].label} · {account?.name ?? ((ko ? '계정 ' : 'Account ') + (selected.account + 1))}</Text>
     {!available ? <Text style={styles.text}>{ko ? '선택한 계정 또는 자산을 사용할 수 없습니다.' : 'The selected account or asset is unavailable.'}</Text> :
       hidden ? <Text style={styles.text}>{ko ? '잔액 숨김' : 'Balance hidden'}</Text> :

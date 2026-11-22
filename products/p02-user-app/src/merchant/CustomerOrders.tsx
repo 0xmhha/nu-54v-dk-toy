@@ -2002,9 +2002,11 @@ export function CustomerOrders({
               '등록을 확인하면 이 휴대전화의 주문과 결제가 여기에 모입니다.'].map((step, index) =>
               <Text key={step} style={s.text}>{`${index + 1}. ${step}`}</Text>)}
           </Card>
+          <Text accessibilityRole="header" style={s.cardTitle}>이 휴대전화의 공개키</Text>
           <Button
             label="주문 등록 공개키 보기"
-            variant="secondary"
+            variant="row"
+            detail="매장 담당자에게 보여 줄 주문용 키"
             disabled={busy}
             run={() =>
               work(
@@ -2016,7 +2018,8 @@ export function CustomerOrders({
           {Nearby && (
             <Button
               label="근거리 등록 공개키 보기"
-              variant="secondary"
+              variant="row"
+              detail="매장 단말과 가까이서 주문할 때 쓰는 키"
               disabled={busy}
               run={() =>
                 work(

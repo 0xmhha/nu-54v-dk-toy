@@ -73,7 +73,7 @@ export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvid
   const amount=(n:bigint)=>quantity(n)+' '+amountUnit;
   const activation=(n:bigint)=>n<=8640000000000n ? new Date(Number(n)*1000).toLocaleString(ko?'ko-KR':'en-US') : (ko?'확인 불가':'Unavailable');
   const diagnostic = 'NU54 · ' + Platform.OS + ' ' + String(Platform.Version);
-  const button=(label:string,action:()=>void,variant:ButtonVariant='row')=><KitButton label={label} run={action} variant={variant} />;
+  const button=(label:string,action:()=>void,variant:ButtonVariant='row',detail?:string)=><KitButton label={label} run={action} variant={variant} detail={detail} />;
   const recipientList=(label:string,entries:string[])=><>
     <Text style={styles.text}>{label}</Text>
     {entries.length ? entries.map(entry=><Text key={entry} selectable style={styles.text}>{entry}</Text>) :
@@ -137,9 +137,9 @@ export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvid
       {checkIdleLock && button(ko?'기기 잠금 규칙 확인':'Verify device auto-lock',checkIdleLock)}
     </Section>
     {(recover || credentials || backup || replacePhone) && <Section title={ko?'보안과 복구':'Security and recovery'}>
-      {backup && button(ko?'독립 백업 시작':'Start independent backup',backup)}
-      {replacePhone && button(ko?'원래 보드에서 분실한 휴대전화 교체':'Replace a lost phone on the original board',replacePhone)}
-      {recover && button(ko?'분실 복구':'Wallet recovery',recover)}
+      {backup && button(ko?'독립 백업 시작':'Start independent backup',backup,'row',ko?'독립 복구 장치에 복구 자료를 보관합니다':'Store recovery material on the independent recovery device')}
+      {replacePhone && button(ko?'원래 보드에서 분실한 휴대전화 교체':'Replace a lost phone on the original board',replacePhone,'row',ko?'보드는 있고 휴대전화만 바꿀 때':'When you still have the board and only the phone changes')}
+      {recover && button(ko?'분실 복구':'Wallet recovery',recover,'row',ko?'보드나 휴대전화를 잃었을 때 복구 방법을 고릅니다':'Choose a recovery path after losing the board or phone')}
       {credentials && button(ko?'인증수단':'Sign-in methods',credentials)}
     </Section>}
     {(networks || privacy || assetNetworks) && <Section title={ko?'네트워크와 개인정보':'Networks and privacy'}>
@@ -153,7 +153,7 @@ export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvid
       {button(ko?'연습 다시 보기':'Replay practice',practice)}
     </Section>
     {firmwareEvidence && <Section title={ko?'개발자 정보':'Developer information'}>
-      {button(ko?'펌웨어 적용 증거 확인':'Check firmware evidence',firmwareEvidence)}
+      {button(ko?'펌웨어 적용 증거 확인':'Check firmware evidence',firmwareEvidence,'row',ko?'운영자와 개발자용 기기 기록':'Device records for operators and developers')}
     </Section>}
     <Section title={ko?'미결 요청':'Pending requests'}>
       {button(ko?'미결 결제':'Pending payments',pendingOrders)}

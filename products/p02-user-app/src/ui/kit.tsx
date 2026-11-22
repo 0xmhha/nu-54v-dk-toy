@@ -60,6 +60,18 @@ export function Row({label, value}: {label: string; value: string}) {
 
 export type Tab = {key: string; label: string; run: () => void};
 
+/** Drawn tab icons in one stroke weight (no glyphs): wallet, payment card, compass, sliders. */
+function TabIcon({name, active}: {name: string; active: boolean}) {
+  const tint = active ? color.green : color.mute;
+  const line = {borderColor: tint, borderWidth: 2};
+  if (name === 'wallet') return <View style={[iconStyles.box, line, {borderRadius: 5}]}><View style={[iconStyles.clasp, {borderColor: tint}]} /></View>;
+  if (name === 'pay') return <View style={[iconStyles.box, line, {borderRadius: 3}]}><View style={[iconStyles.stripe, {backgroundColor: tint}]} /></View>;
+  if (name === 'explore') return <View style={[iconStyles.circle, line]}><View style={[iconStyles.needle, {backgroundColor: tint}]} /></View>;
+  return <View style={iconStyles.sliders}>{[6, 14, 9].map((x, i) =>
+    <View key={i} style={iconStyles.slider}><View style={[iconStyles.rail, {backgroundColor: tint}]} />
+      <View style={[iconStyles.knob, {left: x, borderColor: tint, backgroundColor: active ? color.mint : color.sheet}]} /></View>)}</View>;
+}
+
 /** Bottom navigation of the mobile app: 지갑 · 결제 · 둘러보기 · 설정, as in the design book. */
 export function TabBar({tabs, current, disabled}: {tabs: Tab[]; current: string; disabled?: boolean}) {
   return <View style={[styles.tabs, disabled && styles.tabsOff]} accessibilityRole="tablist">
@@ -68,6 +80,7 @@ export function TabBar({tabs, current, disabled}: {tabs: Tab[]; current: string;
       return <Pressable key={tab.key} accessibilityRole="tab" accessibilityLabel={tab.label}
         accessibilityState={{selected: here, disabled}} disabled={disabled} onPress={tab.run} style={styles.tab}>
         <View style={[styles.tabMark, here && styles.tabMarkHere]} />
+        <TabIcon name={tab.key} active={here} />
         <Text style={[styles.tabText, here && styles.tabTextHere]}>{tab.label}</Text>
       </Pressable>;
     })}
@@ -110,9 +123,21 @@ const styles = StyleSheet.create({
   rowKey: {fontFamily: font, fontSize: 15, color: color.mute}, rowValue: {fontFamily: font, fontSize: 15, fontWeight: '700', color: color.ink, flexShrink: 1, textAlign: 'right'},
   tabsOff: {opacity: 0.5},
   tabs: {flexDirection: 'row', borderTopWidth: 1, borderTopColor: color.line, backgroundColor: color.sheet, paddingBottom: 6},
-  tab: {flex: 1, alignItems: 'center', paddingTop: 10, paddingBottom: 6, gap: 5, minHeight: 56},
+  tab: {flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 6, gap: 4, minHeight: 60},
   tabMark: {width: 22, height: 4, borderRadius: 2, backgroundColor: 'transparent'},
   tabMarkHere: {backgroundColor: color.green},
   tabText: {fontFamily: font, fontSize: 13, color: color.mute, fontWeight: '600'},
   tabTextHere: {color: color.green, fontWeight: '800'},
+});
+
+const iconStyles = StyleSheet.create({
+  box: {width: 22, height: 17, justifyContent: 'center'},
+  clasp: {position: 'absolute', right: 2, width: 7, height: 6, borderWidth: 2, borderRadius: 2},
+  stripe: {height: 3, marginHorizontal: 0, marginTop: -3},
+  circle: {width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center'},
+  needle: {width: 4, height: 10, borderRadius: 2, transform: [{rotate: '40deg'}]},
+  sliders: {width: 22, height: 18, justifyContent: 'space-between'},
+  slider: {height: 4, justifyContent: 'center'},
+  rail: {height: 2, borderRadius: 1},
+  knob: {position: 'absolute', top: -2, width: 7, height: 7, borderRadius: 4, borderWidth: 2},
 });

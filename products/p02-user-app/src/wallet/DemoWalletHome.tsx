@@ -40,9 +40,8 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
         <View style={styles.pairItem}><KitButton label={t('다른 체인 받기')} run={off} disabled variant="secondary" /></View>
         <View style={styles.pairItem}><KitButton label={t('다른 체인 보내기')} run={off} disabled variant="secondary" /></View>
       </View>
-      {group('자산과 네트워크', ['6개 체인 · 읽기 전용', 'EVM 수신', '네트워크 및 자산 설정', '개인 전송', '지급 기록 관리'])}
-      {group('앱 연결과 권한', ['외부 DApp 연결', 'DApp 둘러보기', '온체인 토큰 권한'])}
-      {group('보안과 복구', ['독립 백업 시작', '원래 보드에서 분실한 휴대전화 교체', '휴대전화 분실 및 지갑 복구', '펌웨어 적용 증거 확인'])}
+      {/* Mirrors the verified wallet tab: app connections live in 둘러보기, security in 설정. */}
+      {group('자산과 계정', ['6개 체인 · 읽기 전용', 'EVM 수신', '개인 전송', '지급 기록 관리'])}
       <KitButton label={t('시연 화면 닫기')} run={close} variant="primary" />
     </ScrollView>
   </View>;
