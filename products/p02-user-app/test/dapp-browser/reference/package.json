@@ -1,0 +1,1 @@
+{"name":"nu54-disposable-interop-check","private":true,"type":"module","dependencies":{"@walletconnect/sign-client":"2.21.8"},"overrides":{"decode-uri-component":"0.5.1","viem":{"ws":"8.21.0"}}}

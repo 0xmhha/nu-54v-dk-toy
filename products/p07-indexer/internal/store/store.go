@@ -29,13 +29,19 @@ type Row struct {
 // Store is the PostgreSQL store.
 type Store struct{ db *pgxpool.Pool }
 
-// Open connects and applies the schema.
+// Open connects to the migrated v1 tables and supports bootstrapping a fresh legacy database.
 func Open(ctx context.Context, url string) (*Store, error) {
 	db, err := pgxpool.New(ctx, url)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(ctx, migrations.Receipts); err != nil {
+	var initialized bool
+	err = db.QueryRow(ctx, `SELECT to_regclass('public.receipts') IS NOT NULL
+		AND to_regclass('public.cursor') IS NOT NULL`).Scan(&initialized)
+	if err == nil && !initialized {
+		_, err = db.Exec(ctx, "SET LOCAL search_path TO public, pg_catalog; "+migrations.Receipts)
+	}
+	if err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -47,7 +53,7 @@ func (s *Store) Close() { s.db.Close() }
 // Cursor is the last block whose logs are stored, or `start` before the first ingest.
 func (s *Store) Cursor(ctx context.Context, start uint64) (uint64, error) {
 	var n int64
-	err := s.db.QueryRow(ctx, `SELECT block_number FROM cursor WHERE id = 1`).Scan(&n)
+	err := s.db.QueryRow(ctx, `SELECT block_number FROM public.cursor WHERE id = 1`).Scan(&n)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return start, nil
 	}
@@ -59,7 +65,7 @@ func (s *Store) Cursor(ctx context.Context, start uint64) (uint64, error) {
 func (s *Store) Commit(ctx context.Context, rows []Row, to uint64) error {
 	return pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		for _, r := range rows {
-			_, err := tx.Exec(ctx, `INSERT INTO receipts (tx_hash, log_index, merchant, order_id, device, amount, nonce, block_number, block_time)
+			_, err := tx.Exec(ctx, `INSERT INTO public.receipts (tx_hash, log_index, merchant, order_id, device, amount, nonce, block_number, block_time)
 				VALUES ($1, $2, $3, $4, $5, $6::numeric, $7::numeric, $8, $9) ON CONFLICT (tx_hash, log_index) DO NOTHING`,
 				strings.ToLower(r.TxHash), r.LogIndex, strings.ToLower(r.Merchant), strings.ToLower(r.OrderID), strings.ToLower(r.Device),
 				r.Amount, r.Nonce, int64(r.BlockNumber), int64(r.BlockTime))
@@ -67,7 +73,7 @@ func (s *Store) Commit(ctx context.Context, rows []Row, to uint64) error {
 				return err
 			}
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO cursor (id, block_number) VALUES (1, $1)
+		_, err := tx.Exec(ctx, `INSERT INTO public.cursor (id, block_number) VALUES (1, $1)
 			ON CONFLICT (id) DO UPDATE SET block_number = EXCLUDED.block_number`, int64(to))
 		return err
 	})
@@ -76,7 +82,7 @@ func (s *Store) Commit(ctx context.Context, rows []Row, to uint64) error {
 // Get returns the earliest receipt of (merchant, orderId); a second log marks it duplicate (P07-FR-04, FR-05).
 func (s *Store) Get(ctx context.Context, merchant, orderID string) (receipt.Receipt, error) {
 	rows, err := s.db.Query(ctx, `SELECT merchant, order_id, device, amount::text, nonce::text, tx_hash, block_number, block_time
-		FROM receipts WHERE merchant = $1 AND order_id = $2 ORDER BY block_number, log_index LIMIT 2`,
+		FROM public.receipts WHERE merchant = $1 AND order_id = $2 ORDER BY block_number, log_index LIMIT 2`,
 		strings.ToLower(merchant), strings.ToLower(orderID))
 	if err != nil {
 		return receipt.Receipt{}, err
@@ -111,6 +117,6 @@ func (s *Store) Exec(ctx context.Context, sql string) error {
 // Count is the number of stored logs (tests and health).
 func (s *Store) Count(ctx context.Context) (int, error) {
 	var n int
-	err := s.db.QueryRow(ctx, `SELECT count(*) FROM receipts`).Scan(&n)
+	err := s.db.QueryRow(ctx, `SELECT count(*) FROM public.receipts`).Scan(&n)
 	return n, err
 }

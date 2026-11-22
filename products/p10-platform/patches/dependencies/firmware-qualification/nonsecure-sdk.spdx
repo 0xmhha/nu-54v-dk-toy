@@ -1,0 +1,2395 @@
+# Document Information
+
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: west-ncs-sbom-report
+DocumentNamespace: http://spdx.org/spdxdocs/west-ncs-sbom-051c1aee-c424-440b-a6e1-58e26a62e08b
+
+# Creation Info
+
+Creator: Tool: west-ncs-sbom
+Created: 2026-11-21T02:35:11Z
+CreatorComment:<text>Generated with west-ncs-sbom. For details, see https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/introduction.html#licenses.</text>
+
+# Package Information
+
+PackageName: unknown-package
+SPDXID: SPDXRef-package-1
+PackageVersion: NoneVersion
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: NONE
+FilesAnalyzed: false
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# Package Information
+
+PackageName: Dependency information unavailable
+SPDXID: SPDXRef-package-2
+PackageVersion: N/A
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: NOASSERTION
+FilesAnalyzed: false
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# Package Information
+
+PackageName: nrfconnect/sdk-hal_nordic
+SPDXID: SPDXRef-package-3
+PackageVersion: 69865c20dc4afbdd27060ad1e81af1b62d31f7af
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-hal_nordic
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-hal_nordic@69865c20dc4afbdd27060ad1e81af1b62d31f7af
+FilesAnalyzed: true
+PackageVerificationCode: f8aadd14ce8aefd5c1f65d5015877eeff1bf7ace
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/bsp/stable/mdk/system_nrf54l.c
+SPDXID: SPDXRef-file-1
+FileChecksum: SHA1: 09d4aa63517e5301d48054189bb0a3d71b5720b2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_grtc.c
+SPDXID: SPDXRef-file-3
+FileChecksum: SHA1: 4ccbf838d1a8dd572e082260f39a39770fdd7cd0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_gpiote.c
+SPDXID: SPDXRef-file-2
+FileChecksum: SHA1: 61670ae9b6cd2bd134208509fcaa8788fdfd6490
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/helpers/nrfx_ram_ctrl.c
+SPDXID: SPDXRef-file-5
+FileChecksum: SHA1: 68e985c8755e8e55e73aaf1c841355d26df64b44
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/helpers/nrfx_flag32_allocator.c
+SPDXID: SPDXRef-file-4
+FileChecksum: SHA1: b1e8a650011f4fc9ce38784751e414bd2f060efe
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-nrf
+SPDXID: SPDXRef-package-4
+PackageVersion: b20f8619ba9a5530f8c34b0a130d829947cfe55d
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-nrf
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-nrf@b20f8619ba9a5530f8c34b0a130d829947cfe55d
+FilesAnalyzed: true
+PackageVerificationCode: a91a1e644cd11b84da613c1dabba2cbb622ecb3b
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/nrf/subsys/bluetooth/hci_vs_sdc.c
+SPDXID: SPDXRef-file-16
+FileChecksum: SHA1: 02326fbe6e79c641b3d74a265ea5bbad0a916d95
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/bluetooth/controller/crypto.c
+SPDXID: SPDXRef-file-12
+FileChecksum: SHA1: 028f33deca861f7d6d7f02c2164d2142efff87a5
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/drivers/mpsl/flash_sync/flash_sync_mpsl.c
+SPDXID: SPDXRef-file-7
+FileChecksum: SHA1: 05adb2132ed7b1092f294fc874df8ddca02e754a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/bluetooth/controller/hci_internal.c
+SPDXID: SPDXRef-file-14
+FileChecksum: SHA1: 0dcb2b1b6ed6ab13d5c9e62eaa714407f00acaf3
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/lib/multithreading_lock/multithreading_lock.c
+SPDXID: SPDXRef-file-9
+FileChecksum: SHA1: 18e527fa03171258701b95a90b182677de013148
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/bluetooth/host_extensions/host_extensions.c
+SPDXID: SPDXRef-file-17
+FileChecksum: SHA1: 1fc9e54ef69678fc92b58274d947c94da89c542f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/drivers/mpsl/clock_control/nrfx_clock_mpsl.c
+SPDXID: SPDXRef-file-6
+FileChecksum: SHA1: 24e543d2640c63081330570783fce5d1400c789e
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/mpsl/fem/api_init/mpsl_fem_api_init.c
+SPDXID: SPDXRef-file-18
+FileChecksum: SHA1: 4465b735fd00d45ead5814748916dbb7280ffd92
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/zephyr/psa_crypto_init.c
+SPDXID: SPDXRef-file-26
+FileChecksum: SHA1: 5da6b79f1bbdfa8e5dbc4d7d4f1af63899d6a9a9
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/mpsl/hwres/mpsl_hwres.c
+SPDXID: SPDXRef-file-19
+FileChecksum: SHA1: 5f918d796b6ac6b8014b678eac7b7c1b8c51a7be
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/fault.c
+SPDXID: SPDXRef-file-10
+FileChecksum: SHA1: 62f44d0332be826a013f359f3e3c03b272e0e4aa
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_core.c
+SPDXID: SPDXRef-file-21
+FileChecksum: SHA1: 75b817f267336f5100eeca732e7388c112483f14
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/zephyr/mbedtls_heap.c
+SPDXID: SPDXRef-file-25
+FileChecksum: SHA1: 795e05271faf6c54b3833c0c2c9ee8e70c7cc133
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_events.c
+SPDXID: SPDXRef-file-22
+FileChecksum: SHA1: 7ad628b9531c0f769742b88338fe8ace5391ef91
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/lib/boot_banner/banner.c
+SPDXID: SPDXRef-file-8
+FileChecksum: SHA1: a5a1ae1585cb784bbbea0319a3541179774380cd
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/src/tfm_ioctl_ns_api.c
+SPDXID: SPDXRef-file-11
+FileChecksum: SHA1: bf745781c0c21b30818924019db754ed87c31990
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/bluetooth/controller/hci_internal_wrappers.c
+SPDXID: SPDXRef-file-15
+FileChecksum: SHA1: db3d404f5bc0e28fae6fbe3ca6dad44cc95ac088
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_mutexes.c
+SPDXID: SPDXRef-file-24
+FileChecksum: SHA1: e338a645b787f198383f0498e6c6b53193999414
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_mem_helpers.c
+SPDXID: SPDXRef-file-23
+FileChecksum: SHA1: e7ee6d0eecb10e0864d5a2bbca420f6308db8837
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/mpsl/init/mpsl_init.c
+SPDXID: SPDXRef-file-20
+FileChecksum: SHA1: e804220b62b1c7d03156a9062e1d3f4addb96210
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/bluetooth/controller/hci_driver.c
+SPDXID: SPDXRef-file-13
+FileChecksum: SHA1: e99fe43f03cc3a0b837c8f240380fff093f98cdf
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-oberon-psa-crypto
+SPDXID: SPDXRef-package-5
+PackageVersion: e8db62ed0fba5028e7ae0eba7b1fb63436ae6416
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-oberon-psa-crypto
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-oberon-psa-crypto@e8db62ed0fba5028e7ae0eba7b1fb63436ae6416
+FilesAnalyzed: true
+PackageVerificationCode: b4bbabdc4f002cabe4c0a8914dae45ae22f03e7d
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk_ecc.c
+SPDXID: SPDXRef-file-31
+FileChecksum: SHA1: 19d799c9456e1be2ca1e406e871b22762fa7f740
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/base64.c
+SPDXID: SPDXRef-file-46
+FileChecksum: SHA1: 2e5a470135e74c95c90f5c17768ea6358f6ed378
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/platform.c
+SPDXID: SPDXRef-file-42
+FileChecksum: SHA1: 305557976a65d3d72bca909a0bc89170d5c960b9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pkparse.c
+SPDXID: SPDXRef-file-34
+FileChecksum: SHA1: 396d75ce515ec28ca72c652e5485d951c59b7fcf
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/pkcs5.c
+SPDXID: SPDXRef-file-50
+FileChecksum: SHA1: 415819848188a501746243f706efe4c5e8b7b935
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/bignum_core.c
+SPDXID: SPDXRef-file-37
+FileChecksum: SHA1: 48bcfd2790c11e89f0cebbc3d697f81e9a0e5cd4
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/bignum.c
+SPDXID: SPDXRef-file-36
+FileChecksum: SHA1: 493a78f28ad44cb9190f8bb4f71b478dfa996622
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/md.c
+SPDXID: SPDXRef-file-28
+FileChecksum: SHA1: 4e0143b16399f5d207901afe16c0463b8e909ec1
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/memory_buffer_alloc.c
+SPDXID: SPDXRef-file-41
+FileChecksum: SHA1: 5a0882c19ee3f6019de078f6474c897e64aa00ec
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/psa_util_internal.c
+SPDXID: SPDXRef-file-40
+FileChecksum: SHA1: 5c4250bfe642fd8efb7f281150c452c523276969
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk_rsa.c
+SPDXID: SPDXRef-file-32
+FileChecksum: SHA1: 6411e60075f985288ef8d4ec58e327d3ee316fb9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk.c
+SPDXID: SPDXRef-file-30
+FileChecksum: SHA1: 648b7dd4271eb6bfd384e05cae8b60c1db7318e9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pkwrite.c
+SPDXID: SPDXRef-file-35
+FileChecksum: SHA1: 6cff3e4f0c9c9fa7a5099c126abc6a0d648bad67
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/asn1write.c
+SPDXID: SPDXRef-file-45
+FileChecksum: SHA1: 880333c5a3d386c795266653aea89de9498cd42e
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/nist_kw.c
+SPDXID: SPDXRef-file-29
+FileChecksum: SHA1: 8fe211aa582de0b8007dd5de9d62ef56a26dec3a
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk_wrap.c
+SPDXID: SPDXRef-file-33
+FileChecksum: SHA1: 91209378776d90988ec075a4705569bedab605ea
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/ecp.c
+SPDXID: SPDXRef-file-38
+FileChecksum: SHA1: 949a6dd7fc65dfac3d9ba6ca2bde1a0fda3cf596
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/platform_util.c
+SPDXID: SPDXRef-file-43
+FileChecksum: SHA1: ae09a5ff8ed3edd2b089127f48ad48d57f4acb8b
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/pem.c
+SPDXID: SPDXRef-file-49
+FileChecksum: SHA1: ae70c699553a755ad44eb8b04dff570a668003b8
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/ecp_curves.c
+SPDXID: SPDXRef-file-39
+FileChecksum: SHA1: b4f05f915b551651eba63d7e649a2a314be00a07
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/constant_time.c
+SPDXID: SPDXRef-file-47
+FileChecksum: SHA1: b951f1e00bb1eebb24fe32d1b6ad467c0878f386
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/oid.c
+SPDXID: SPDXRef-file-48
+FileChecksum: SHA1: e6be3a3128dd9f890323f08644cac8d5d97a8797
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_util.c
+SPDXID: SPDXRef-file-27
+FileChecksum: SHA1: e9457feebcb6e6258bd89e24ac7c2d135871986f
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/asn1parse.c
+SPDXID: SPDXRef-file-44
+FileChecksum: SHA1: fae71b39fbbf15b321214720dd6a8c0ace56d35a
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-zephyr
+SPDXID: SPDXRef-package-6
+PackageVersion: 33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-zephyr
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-zephyr@33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6
+FilesAnalyzed: true
+PackageVerificationCode: 64c72996e575c500daa23db02ad4d68eaf83b1ea
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/zephyr/arch/common/xip.c
+SPDXID: SPDXRef-file-80
+FileChecksum: SHA1: 06f1e7a0584bf0965c0f8854ed32221941495f65
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/att.c
+SPDXID: SPDXRef-file-182
+FileChecksum: SHA1: 07edb24611950b54c8b35231230c8b50f72d18e7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/modules/trusted-firmware-m/interface/interface.c
+SPDXID: SPDXRef-file-165
+FileChecksum: SHA1: 0a6b7726c82130235d30a640e42f8b53e3e850d3
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/settings/src/settings_line.c
+SPDXID: SPDXRef-file-218
+FileChecksum: SHA1: 0c2a5f8eb2d44cb671e3383792b4ccb8d1bab582
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/thread.c
+SPDXID: SPDXRef-file-117
+FileChecksum: SHA1: 0c52cb35de040ff736892e6a7df4a3debac7ef84
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/nrf54l/soc.c
+SPDXID: SPDXRef-file-169
+FileChecksum: SHA1: 0e7dae0a0dd26981fd71cd330a5cba95e5d832e8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/hci_common.c
+SPDXID: SPDXRef-file-189
+FileChecksum: SHA1: 0f0eeb73eb8e516df2ba507be690424ecb6eae83
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/fault_s.S
+SPDXID: SPDXRef-file-56
+FileChecksum: SHA1: 10542014dd4112a7d910b4d311213118b473cbdb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/ring_buffer.c
+SPDXID: SPDXRef-file-159
+FileChecksum: SHA1: 1092990eb11e378011c6ebf461e501639d04ccb3
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/clock_control/clock_control_nrf.c
+SPDXID: SPDXRef-file-81
+FileChecksum: SHA1: 157cf242b1629d5d00272f6283ca9f0f9d8a5875
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/posix/c_lib_ext/getentropy.c
+SPDXID: SPDXRef-file-147
+FileChecksum: SHA1: 15852315e734e55e220d1742d846f75f3bee53d7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/offsets/offsets.c
+SPDXID: SPDXRef-file-75
+FileChecksum: SHA1: 177f696ca0e4a0ea3493d513a04f4980ebfc00fe
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/work.c
+SPDXID: SPDXRef-file-122
+FileChecksum: SHA1: 178a569b9be68a391036a6cb9a2a9407a9b1e987
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/common/dummy.c
+SPDXID: SPDXRef-file-176
+FileChecksum: SHA1: 183f7768e7571f6fddd6babc8c887c0dc14ee2d3
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/hash/hash_func32_murmur3.c
+SPDXID: SPDXRef-file-123
+FileChecksum: SHA1: 18d0f209c1259bf88c0b9e1f4c63ef5de463a902
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc4_sw.c
+SPDXID: SPDXRef-file-204
+FileChecksum: SHA1: 1c8c1e322e102d4c16f66e160d1a7c629b791c6b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc32_sw.c
+SPDXID: SPDXRef-file-201
+FileChecksum: SHA1: 1da99e11b3f7640a66716bc7d0cde5da889e0b7a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/reset.S
+SPDXID: SPDXRef-file-62
+FileChecksum: SHA1: 1f4ff92118f34e081e3cc8fb97131fa95ab35ad5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/common/bt_str.c
+SPDXID: SPDXRef-file-175
+FileChecksum: SHA1: 21cba61cc75c8cfe2a270d02c92fd9d704fe203a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/cbprintf_packaged.c
+SPDXID: SPDXRef-file-141
+FileChecksum: SHA1: 22d397b28a89d1d26357c6b9d00a9e7d99dca006
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/mpu/arm_core_mpu.c
+SPDXID: SPDXRef-file-70
+FileChecksum: SHA1: 232db6e34316636858cc5d3e91d8efd2128e01fd
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/init.c
+SPDXID: SPDXRef-file-103
+FileChecksum: SHA1: 243767b2ff84c22d607e327144643fb151b0ea12
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/getopt/getopt.c
+SPDXID: SPDXRef-file-152
+FileChecksum: SHA1: 25747564c0cf959baa49a34eb2c3e3ad9ed2e854
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/stdio.c
+SPDXID: SPDXRef-file-135
+FileChecksum: SHA1: 2a76934620512fede49531326bf9e6734fe5c197
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/common/rpa.c
+SPDXID: SPDXRef-file-177
+FileChecksum: SHA1: 2d18d10659c7381f8a92a4bb057aa4dbfc8bd1ea
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/common/soc_secure.c
+SPDXID: SPDXRef-file-168
+FileChecksum: SHA1: 2da543b8cbd4999bea8646213b512f136516f4de
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/__aeabi_read_tp.S
+SPDXID: SPDXRef-file-51
+FileChecksum: SHA1: 30a27a1250f071006e4a9252eca37de2d47d6854
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc32c_sw.c
+SPDXID: SPDXRef-file-202
+FileChecksum: SHA1: 35fb4214c756eff7ee88417dfabab3e1c6328ac1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/conn.c
+SPDXID: SPDXRef-file-184
+FileChecksum: SHA1: 38f1e380aaca6302553211ba1925d087604cfd1a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/random/random_entropy_device.c
+SPDXID: SPDXRef-file-215
+FileChecksum: SHA1: 3a8c567b84c36a99b2f5d8a07d04ac026a773bce
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/serial/uart_nrfx_uarte.c
+SPDXID: SPDXRef-file-90
+FileChecksum: SHA1: 3b2d1e8084cf23eafc6ef100f753ce3482c75ab6
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc24_sw.c
+SPDXID: SPDXRef-file-200
+FileChecksum: SHA1: 3b525642a305fe6aad076926dc9ebd421f5c2425
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/vector_table.S
+SPDXID: SPDXRef-file-68
+FileChecksum: SHA1: 40df4a4922539e29db8e6ce969e8597b1c2c10be
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/logging/log_cache.c
+SPDXID: SPDXRef-file-209
+FileChecksum: SHA1: 4125ec287989c407adcea6d589e11f0593f5f2c0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/chk_fail.c
+SPDXID: SPDXRef-file-131
+FileChecksum: SHA1: 41535f3b76dcf1cbaf4b3390e9480a6fec5ded94
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/settings/src/settings.c
+SPDXID: SPDXRef-file-216
+FileChecksum: SHA1: 42ff50386adb8d8aea02e6ae0673f5426efbf885
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/errno.c
+SPDXID: SPDXRef-file-98
+FileChecksum: SHA1: 43f96f87071d1be282defc98ce67f2ac28bbc607
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/net_buf/buf_simple.c
+SPDXID: SPDXRef-file-138
+FileChecksum: SHA1: 4597ccc24193a797929db8c4b107654197449d6e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/notify.c
+SPDXID: SPDXRef-file-156
+FileChecksum: SHA1: 463bdc856288a3789fc5fa0314cb84c1362c620f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/version.c
+SPDXID: SPDXRef-file-121
+FileChecksum: SHA1: 480e7aba3070de62c5681192a2a31e385074d12c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/prep_c.c
+SPDXID: SPDXRef-file-61
+FileChecksum: SHA1: 4952a2df506c55f2e6fb5f1e0594c73515a09877
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/fatal.c
+SPDXID: SPDXRef-file-100
+FileChecksum: SHA1: 4980cf15bc7a13c72c1b36a37df6e267f8ae4436
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/common/source/time/time.c
+SPDXID: SPDXRef-file-128
+FileChecksum: SHA1: 4a6c1370cce7804479f69d0230f9572c1ff9e0a1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/hci_core.c
+SPDXID: SPDXRef-file-190
+FileChecksum: SHA1: 4ab30dc67e4d940d97a89b7cf42576055cbb3102
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/smp.c
+SPDXID: SPDXRef-file-196
+FileChecksum: SHA1: 4b3529fe5ee5d0298472d4a8ac558e5f509b6320
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/posix/c_lib_ext/getopt_shim.c
+SPDXID: SPDXRef-file-148
+FileChecksum: SHA1: 4bc3c62675858e1005a218065d4bf261611d4217
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/addr.c
+SPDXID: SPDXRef-file-180
+FileChecksum: SHA1: 4c2e28999041274d38a0adf01697f5ab43735a6f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/mempool.c
+SPDXID: SPDXRef-file-108
+FileChecksum: SHA1: 4cb5df06515028ad592bd3d4dd60141f349fa806
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/hex.c
+SPDXID: SPDXRef-file-154
+FileChecksum: SHA1: 4e0446c2b4530dd44be488fb5df24feb2caa17e9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/modules/trusted-firmware-m/src/zephyr_tfm_log.c
+SPDXID: SPDXRef-file-166
+FileChecksum: SHA1: 4e2fa3a59af49066ea804faa6eefb6f9502e2150
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/assert.c
+SPDXID: SPDXRef-file-129
+FileChecksum: SHA1: 4fb31eb36704b072f6d1b9dfb2008a291d932d8d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/bitarray.c
+SPDXID: SPDXRef-file-149
+FileChecksum: SHA1: 544276c379bc144b0d1bb832c7b19be8670f8030
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/flash/flash_page_layout.c
+SPDXID: SPDXRef-file-84
+FileChecksum: SHA1: 55df2f1c4afb82074e8e7021c420ff766f56f271
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/mailbox.c
+SPDXID: SPDXRef-file-105
+FileChecksum: SHA1: 5aeb927a9a57db87539232d72148686c7c694735
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/crypto/bt_crypto_psa.c
+SPDXID: SPDXRef-file-179
+FileChecksum: SHA1: 5b23d825b657cdb4f84cb80d71fe2a08d11fff83
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_binding_headers.c
+SPDXID: SPDXRef-file-171
+FileChecksum: SHA1: 5d9279a8ddfa9cb7d6ace1b0494def1c87be7b0b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/sem.c
+SPDXID: SPDXRef-file-114
+FileChecksum: SHA1: 64d76e03a9ba57068b4fa8b7dd0d30583da1feb7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/busy_wait.c
+SPDXID: SPDXRef-file-94
+FileChecksum: SHA1: 65753d08e09d1c75ac30e05a4f3517d4cbc74380
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/cbprintf.c
+SPDXID: SPDXRef-file-130
+FileChecksum: SHA1: 67ee235120a4e7c675ac29c9a04e245701c86ea0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/timeout.c
+SPDXID: SPDXRef-file-118
+FileChecksum: SHA1: 69e7fedebb29612547a881fa45c8d418d0860bf1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/locks.c
+SPDXID: SPDXRef-file-134
+FileChecksum: SHA1: 6a00b4b9ff6e01abb041fd4122d47561efcc39e7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/thread_abort.c
+SPDXID: SPDXRef-file-67
+FileChecksum: SHA1: 6a80d08cb1618a9dfb8fd5268b0cba307b38f163
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/exc_exit.c
+SPDXID: SPDXRef-file-54
+FileChecksum: SHA1: 6aad2636e9f8606877f59f8fed4a73be3d8b8a59
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/timer.c
+SPDXID: SPDXRef-file-119
+FileChecksum: SHA1: 6c4c23f69930580fd6114fd0c5f1add7562c8507
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/thread_entry.c
+SPDXID: SPDXRef-file-145
+FileChecksum: SHA1: 6d133fcdb4ec94b9018f874d2f676970b2111ef0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/nmi_on_reset.S
+SPDXID: SPDXRef-file-74
+FileChecksum: SHA1: 6dd289a9b98faf2d49ba22feac3245543ad2dc69
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/flash/soc_flash_nrf_rram.c
+SPDXID: SPDXRef-file-86
+FileChecksum: SHA1: 6f9b668ca4a5e5c67938caf0f7a60efbc3d0ac36
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/irq_manage.c
+SPDXID: SPDXRef-file-59
+FileChecksum: SHA1: 7016f2afc86d2db1e9827929831449681c576bfb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/last_section_id.c
+SPDXID: SPDXRef-file-155
+FileChecksum: SHA1: 70325b8820b4b82239394b85ff52e9c29ddbb393
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/kheap.c
+SPDXID: SPDXRef-file-104
+FileChecksum: SHA1: 711760968b2e53f06d34753b06c888159f8ee0fe
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/assert.c
+SPDXID: SPDXRef-file-139
+FileChecksum: SHA1: 724d7bd67a61612845e360d316c8c3f3119df2f2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/cbprintf_complete.c
+SPDXID: SPDXRef-file-140
+FileChecksum: SHA1: 7431255c9ea156c65931faaa91b2895f8f2bbaa0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/uuid/uuid.c
+SPDXID: SPDXRef-file-162
+FileChecksum: SHA1: 7631cb16e5446dd687c49c6b3b9e7710e1d497d4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/posix/c_lib_ext/fnmatch.c
+SPDXID: SPDXRef-file-146
+FileChecksum: SHA1: 7674b0099211dc170c40d56afc9eb07c36ea02c0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/isr_wrapper.c
+SPDXID: SPDXRef-file-60
+FileChecksum: SHA1: 787c5c8c7c86cd74b37ffbe00567745d664b16b2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/stack.c
+SPDXID: SPDXRef-file-115
+FileChecksum: SHA1: 7a1340c76a8748822a40d73c0ab22e9fd0358c36
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/settings/src/settings_runtime.c
+SPDXID: SPDXRef-file-219
+FileChecksum: SHA1: 7b2e4be57ec7851d834d8efbeddda9a80ef882c7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/heap/heap.c
+SPDXID: SPDXRef-file-124
+FileChecksum: SHA1: 7c16241982180c307262bbdad96bf271de5444d5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/cmse/arm_core_cmse.c
+SPDXID: SPDXRef-file-52
+FileChecksum: SHA1: 7c1f4ba5d1b5ec2d106bf24e404b2f8850e06989
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/getopt/getopt_common.c
+SPDXID: SPDXRef-file-153
+FileChecksum: SHA1: 80c0a83f5e42876cd2ae3cf29b56b4eca82cfbc9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/heap/heap_constants.c
+SPDXID: SPDXRef-file-125
+FileChecksum: SHA1: 81ad35b3ff8546a47e3dfc2e41dd816839cee132
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/exit.c
+SPDXID: SPDXRef-file-133
+FileChecksum: SHA1: 8292d0478f30bc09cdd1afb24f4b87eb62bbbfbb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/uuid.c
+SPDXID: SPDXRef-file-197
+FileChecksum: SHA1: 845e74f6d5d660d4eab5f37fef1c194630232c0e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/l2cap.c
+SPDXID: SPDXRef-file-193
+FileChecksum: SHA1: 850ac1b7d3adf15402857febece9026e839de255
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/timer/sys_clock_init.c
+SPDXID: SPDXRef-file-92
+FileChecksum: SHA1: 8555c132c4b3041445b86be053184cbb5cade22a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/mem_mgmt/mem_attr.c
+SPDXID: SPDXRef-file-214
+FileChecksum: SHA1: 857e0589ae4ab88c67f100c2d3786fd08cba6bb8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/settings.c
+SPDXID: SPDXRef-file-195
+FileChecksum: SHA1: 8843aef955baace38fb0eaa3eb2b842bb0a0e19a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/gatt.c
+SPDXID: SPDXRef-file-187
+FileChecksum: SHA1: 8873f3e9f19b85dc82575727449eb0270449064a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc7_sw.c
+SPDXID: SPDXRef-file-205
+FileChecksum: SHA1: 8aba85bac0851d06731c347fe7eb3bf51182630a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/buf.c
+SPDXID: SPDXRef-file-183
+FileChecksum: SHA1: 8d14725a629dcb2b82bba22d81c4ca6317272ac0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/storage/flash_map/flash_map_default.c
+SPDXID: SPDXRef-file-223
+FileChecksum: SHA1: 8f1c6115b0f0d9c9a4b0b9bb9a4c4dae637b8ee5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/logging/log_mgmt.c
+SPDXID: SPDXRef-file-211
+FileChecksum: SHA1: 91749cbb0a28e2328d585314f00342c0b5ae7bfc
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/system_work_q.c
+SPDXID: SPDXRef-file-116
+FileChecksum: SHA1: 9177a7003ebdc362fd133e66c509efce3123b7c1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/storage/flash_map/flash_map.c
+SPDXID: SPDXRef-file-222
+FileChecksum: SHA1: 91bc46d8dc69ad911d03e548e4335c86dbd1cee5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/common/sw_isr_common.c
+SPDXID: SPDXRef-file-79
+FileChecksum: SHA1: 9239293083d32f4c5ded3a453d0512872c355f6a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/net_buf/buf.c
+SPDXID: SPDXRef-file-137
+FileChecksum: SHA1: 9269804326bf1cbafc4b879574f9495e8429df5e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/fatal.c
+SPDXID: SPDXRef-file-69
+FileChecksum: SHA1: 9584d9f8aec57a7035a828216d077249c3915f6b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/svc.S
+SPDXID: SPDXRef-file-64
+FileChecksum: SHA1: 96003ba69ad4e5d2ecdfe5b3ebb4a2b3bf6aba59
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/timeutil.c
+SPDXID: SPDXRef-file-161
+FileChecksum: SHA1: 96599d83db0fe67d8b5720f6ede9e90dab8c0611
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/timer/nrf_grtc_timer.c
+SPDXID: SPDXRef-file-91
+FileChecksum: SHA1: 97c082c6a0331e7c821e79de262c05913ddc9eb7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/msg_q.c
+SPDXID: SPDXRef-file-109
+FileChecksum: SHA1: 9a26e58bb8d38de562b7e70ebe2702fb299c549d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/nmi.c
+SPDXID: SPDXRef-file-73
+FileChecksum: SHA1: 9a7a6069ad8b670b5ffaf2b8ad78fcff3c0cb154
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/errno_wrap.c
+SPDXID: SPDXRef-file-132
+FileChecksum: SHA1: 9af2660b105b2b9ca01c64d00b78add5791e6bf1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/gpio/gpio_nrfx.c
+SPDXID: SPDXRef-file-87
+FileChecksum: SHA1: 9b1bfd175549d5657876f08d65544cb331b21ae5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/timeslicing.c
+SPDXID: SPDXRef-file-120
+FileChecksum: SHA1: 9bf9001ed289fc08c9769f7effc808e62a957b49
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/common/addr.c
+SPDXID: SPDXRef-file-174
+FileChecksum: SHA1: 9e32e34b3aa674f28615b43b6467a28a183d0697
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/thread.c
+SPDXID: SPDXRef-file-66
+FileChecksum: SHA1: a0847f02c819828156e4fa2e2d500a99f6d47b67
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/banner.c
+SPDXID: SPDXRef-file-93
+FileChecksum: SHA1: a112e978eb3b897b7b730311c54b0eb009e331ff
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/condvar.c
+SPDXID: SPDXRef-file-95
+FileChecksum: SHA1: a2ffde73706709037c3e36cd8e5e840b8c269d92
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/settings/src/settings_store.c
+SPDXID: SPDXRef-file-220
+FileChecksum: SHA1: a5e39fe50d7a296fe31df096d3a5ef1e44426241
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc16_sw.c
+SPDXID: SPDXRef-file-199
+FileChecksum: SHA1: a73abe1fe9a9236aef7d9313a411016f5c268bba
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/keys.c
+SPDXID: SPDXRef-file-192
+FileChecksum: SHA1: ac56b44102330aa6c9ff435f166370760b8dd33b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/mem_slab.c
+SPDXID: SPDXRef-file-107
+FileChecksum: SHA1: ad9d465ce4e9ed79b1ec09ea307e19c3d88ed7f4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/common/isr_tables.c
+SPDXID: SPDXRef-file-78
+FileChecksum: SHA1: b09deeb52fbe540c645ddba07859003e054e22e2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/logging/backends/log_backend_uart.c
+SPDXID: SPDXRef-file-208
+FileChecksum: SHA1: b35411ed8cebe384ebc861a2ca3fa1f3019395b6
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/mpu/arm_mpu.c
+SPDXID: SPDXRef-file-71
+FileChecksum: SHA1: b54fdc112093079b62d1c254b07502cecaae004e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/events.c
+SPDXID: SPDXRef-file-99
+FileChecksum: SHA1: b6321b153af3c8393f54c40fd646eaf7b88b3aea
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/cpu_idle.c
+SPDXID: SPDXRef-file-53
+FileChecksum: SHA1: b8ca96e10ea16898043863354064b864297d915a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/tracing/tracing_none.c
+SPDXID: SPDXRef-file-225
+FileChecksum: SHA1: bbff5c838a8591db381fb3fdd3dd27a7dc3137f5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/pinctrl/common.c
+SPDXID: SPDXRef-file-88
+FileChecksum: SHA1: bc62c004ab58655c910483a84b3f8c1b0650334a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/main_weak.c
+SPDXID: SPDXRef-file-106
+FileChecksum: SHA1: be7604e0fd0a8168af9a8e89b7e29a666d00e9f7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc8_sw.c
+SPDXID: SPDXRef-file-206
+FileChecksum: SHA1: bf59fb57d37dd67731bb756357cc21f2eddd1ef8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/settings/src/settings_init.c
+SPDXID: SPDXRef-file-217
+FileChecksum: SHA1: c0ea8ecc9753196f33673518d80b5978c090aa48
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/adv.c
+SPDXID: SPDXRef-file-181
+FileChecksum: SHA1: c1cd2cee52c133f33a0023ca5d9d669b121ca543
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/common/source/stdlib/malloc.c
+SPDXID: SPDXRef-file-127
+FileChecksum: SHA1: c3cc376e6e42b40ac21fb8095065d45c7b93042e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/flash/flash_util.c
+SPDXID: SPDXRef-file-85
+FileChecksum: SHA1: c4030ec45bcc3bee8a5ba423105d9eddde08fc5c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/gatt_gap_svc_validate.c
+SPDXID: SPDXRef-file-188
+FileChecksum: SHA1: c5eebb47117fef0fc799827d4b2b870092950343
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/data.c
+SPDXID: SPDXRef-file-185
+FileChecksum: SHA1: c9876e3865b8064e261a7c6bd418d209d743c4dd
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/queue.c
+SPDXID: SPDXRef-file-112
+FileChecksum: SHA1: c9ff6280e3680f5277bff68a9122c07d83db96a5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/logging/log_output.c
+SPDXID: SPDXRef-file-213
+FileChecksum: SHA1: cbb0160713271191f8734ab8eb846d4d105a15da
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/validate_libc.c
+SPDXID: SPDXRef-file-136
+FileChecksum: SHA1: ccb2103191ed5ae8dfea21ab107936c48a4534a2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/mpu/arm_mpu_regions.c
+SPDXID: SPDXRef-file-72
+FileChecksum: SHA1: cd19220c0af027f3b986d13cc88404c11d3f6437
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/long_wq.c
+SPDXID: SPDXRef-file-194
+FileChecksum: SHA1: cd6257aa3c57dd34f3bcbbd1aedc73fbfc80b29c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/entropy/entropy_psa_crypto.c
+SPDXID: SPDXRef-file-83
+FileChecksum: SHA1: ce6cc57da554fc1fbca78cc5d7b5adbaed7b27ac
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/onoff.c
+SPDXID: SPDXRef-file-157
+FileChecksum: SHA1: cf10fdd790a4c2f736c3b6a2b82927f13c74b1f6
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_rram_partitions.c
+SPDXID: SPDXRef-file-173
+FileChecksum: SHA1: cf7c3e3b31a1e877e86865b49572c3f4ed8e2499
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/dec.c
+SPDXID: SPDXRef-file-151
+FileChecksum: SHA1: d319043c3e3063ddf8a7d731c76f3371708c7977
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/console/uart_console.c
+SPDXID: SPDXRef-file-82
+FileChecksum: SHA1: d5b99093c6257af0f142d8689773f246df51a27c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/swap_helper.S
+SPDXID: SPDXRef-file-65
+FileChecksum: SHA1: d7048533794bfd7b5fa876449d41c1948e22cfd9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/fault.c
+SPDXID: SPDXRef-file-55
+FileChecksum: SHA1: d746f463833e4b0770810d521d104c5907caff4b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/misc/empty_file.c
+SPDXID: SPDXRef-file-163
+FileChecksum: SHA1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/idle.c
+SPDXID: SPDXRef-file-102
+FileChecksum: SHA1: db84335fb541756113c198b6a0c3ec88c6090adf
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/bitmask.c
+SPDXID: SPDXRef-file-150
+FileChecksum: SHA1: dd82760a283009478b34bec21f851c946cc027b4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/set.c
+SPDXID: SPDXRef-file-160
+FileChecksum: SHA1: de2f67039ad11e122f9f0d6cd0f81f2e199d42bb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/pinctrl/pinctrl_nrf.c
+SPDXID: SPDXRef-file-89
+FileChecksum: SHA1: de379ee3f2a609b9dd5e65c0b247d8295986b857
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/common/init.c
+SPDXID: SPDXRef-file-77
+FileChecksum: SHA1: dfe55eea35d1e94bde9861ea11550e872b1edc0d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/ecc.c
+SPDXID: SPDXRef-file-186
+FileChecksum: SHA1: e144380a83bd4f7898d08366a60cb2a507ce1b28
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/settings/src/settings_zms.c
+SPDXID: SPDXRef-file-221
+FileChecksum: SHA1: e1c75499ee4a16dbd268a1eb95abaa9c13b3440b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/printk.c
+SPDXID: SPDXRef-file-143
+FileChecksum: SHA1: e2aedc03961b10a7b93defcc816f430022a22e28
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/rb.c
+SPDXID: SPDXRef-file-158
+FileChecksum: SHA1: e3e2adb9ab8c66113dfdbc8ece457ed19e2f9ef1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/sem.c
+SPDXID: SPDXRef-file-144
+FileChecksum: SHA1: e456d36a24bade411536ee49936a579998c38999
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/services/gap_svc.c
+SPDXID: SPDXRef-file-198
+FileChecksum: SHA1: e49c7c532007055e9029d5b914062d01282cfa76
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/clock.c
+SPDXID: SPDXRef-file-142
+FileChecksum: SHA1: e4f2933144ddcc74563938d468188cecff813ffb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/mutex.c
+SPDXID: SPDXRef-file-110
+FileChecksum: SHA1: e5fe7854e4d7fa21d983e2b5a9b561f040aa197e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/device.c
+SPDXID: SPDXRef-file-96
+FileChecksum: SHA1: e74a2226f5371a26a616639a267dcd9986bec541
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/logging/log_core.c
+SPDXID: SPDXRef-file-210
+FileChecksum: SHA1: e782dd51d3748a2c6140658f4c80aec8783c9636
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/float.c
+SPDXID: SPDXRef-file-101
+FileChecksum: SHA1: e879f53dbe0b5bc9e1412e5d0078c85110e1e8d9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/logging/log_msg.c
+SPDXID: SPDXRef-file-212
+FileChecksum: SHA1: e883f53bc30fe115f1fbb33fb2a2d10bbf377f65
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/sched.c
+SPDXID: SPDXRef-file-113
+FileChecksum: SHA1: eb671411fb958d8017a14cb78094f5534d0afd69
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/irq_init.c
+SPDXID: SPDXRef-file-58
+FileChecksum: SHA1: ec277f6e7f8ee433bc5f312334f9c70c7706f7e4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_enabled_instances.c
+SPDXID: SPDXRef-file-172
+FileChecksum: SHA1: ed86a3679036bcadb89151062e4671a8510e3e15
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/pipe.c
+SPDXID: SPDXRef-file-111
+FileChecksum: SHA1: edfcf2d2f17fc7b119c5c98cca1c8ce2594b748d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/host/id.c
+SPDXID: SPDXRef-file-191
+FileChecksum: SHA1: ee4dec27e178fbf9b6ce4d894fa7504f58070f83
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/tls.c
+SPDXID: SPDXRef-file-76
+FileChecksum: SHA1: ee8bf1b36f0cabdc96499f9bbd5a8ada1efe067f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/dynamic_disabled.c
+SPDXID: SPDXRef-file-97
+FileChecksum: SHA1: ef497839cbed688b1a281b81ef439aaa6c20480b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/common/gpiote_nrfx.c
+SPDXID: SPDXRef-file-167
+FileChecksum: SHA1: f08b079d946f385941400d4c79d7b443c8720a66
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/common/source/stdlib/abort.c
+SPDXID: SPDXRef-file-126
+FileChecksum: SHA1: f0f1e835a9bef08b3093115887951d49ae154083
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/storage/flash_map/flash_map_layout.c
+SPDXID: SPDXRef-file-224
+FileChecksum: SHA1: f153035e9afb2b7eb81e9a35be5c1c5e47036d0a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc32k_4_2_sw.c
+SPDXID: SPDXRef-file-203
+FileChecksum: SHA1: f21c21a2498dc1f882d541f730ab1af80f705de3
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/modules/hal_nordic/nrfx/nrfx_glue.c
+SPDXID: SPDXRef-file-164
+FileChecksum: SHA1: f224ab1e82d04de6d1b4ce1e83745c79df418523
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/kvss/zms/zms.c
+SPDXID: SPDXRef-file-207
+FileChecksum: SHA1: faeeec7a3ddbb301b7ab3a38495efb227024e04e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/bluetooth/crypto/bt_crypto.c
+SPDXID: SPDXRef-file-178
+FileChecksum: SHA1: fb7bbfe9b77d71355e9d75fc38f20a119f02a2ce
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/scb.c
+SPDXID: SPDXRef-file-63
+FileChecksum: SHA1: fc1cd5769d2d8fdf71e1c63b9ec695bb2f4c9767
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_base_addresses.c
+SPDXID: SPDXRef-file-170
+FileChecksum: SHA1: fc79bd5988223fb3f10e7659abb386834fe2c879
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/fpu.c
+SPDXID: SPDXRef-file-57
+FileChecksum: SHA1: fc7b355cc92922919c3202ca1e53e4dbd37867cd
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Relationships
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-1
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-2
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-3
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-4
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-5
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-6
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-1
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-3
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-2
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-5
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-4
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-16
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-12
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-7
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-14
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-9
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-17
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-6
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-18
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-26
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-19
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-10
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-21
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-25
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-22
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-8
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-11
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-15
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-24
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-23
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-20
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-13
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-31
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-46
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-42
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-34
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-50
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-37
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-36
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-28
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-41
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-40
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-32
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-30
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-35
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-45
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-29
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-33
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-38
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-43
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-49
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-39
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-47
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-48
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-27
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-44
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-80
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-182
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-165
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-218
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-117
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-169
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-189
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-56
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-159
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-81
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-147
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-75
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-122
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-176
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-123
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-204
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-201
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-62
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-175
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-141
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-70
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-103
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-152
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-135
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-177
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-168
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-51
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-202
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-184
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-215
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-90
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-200
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-68
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-209
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-131
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-216
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-98
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-138
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-156
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-121
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-61
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-100
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-128
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-190
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-196
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-148
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-180
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-108
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-154
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-166
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-129
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-149
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-84
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-105
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-179
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-171
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-114
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-94
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-130
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-118
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-134
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-67
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-54
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-119
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-145
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-74
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-86
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-59
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-155
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-104
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-139
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-140
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-162
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-146
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-60
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-115
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-219
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-124
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-52
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-153
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-125
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-133
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-197
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-193
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-92
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-214
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-195
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-187
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-205
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-183
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-223
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-211
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-116
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-222
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-79
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-137
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-69
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-64
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-161
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-91
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-109
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-73
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-132
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-87
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-120
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-174
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-66
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-93
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-95
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-220
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-199
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-192
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-107
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-78
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-208
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-71
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-99
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-53
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-225
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-88
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-106
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-206
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-217
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-181
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-127
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-85
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-188
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-185
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-112
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-213
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-136
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-72
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-194
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-83
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-157
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-173
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-151
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-82
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-65
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-55
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-163
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-102
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-150
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-160
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-89
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-77
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-186
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-221
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-143
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-158
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-144
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-198
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-142
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-110
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-96
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-210
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-101
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-212
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-113
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-58
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-172
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-111
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-191
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-76
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-97
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-167
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-126
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-224
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-203
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-164
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-207
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-178
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-63
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-170
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-57
+Relationship: SPDXRef-package-1 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-3 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-4 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-5 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-6 DEPENDS_ON SPDXRef-package-2
+# Extracted Licenses
+
+LicenseID: LicenseRef-Nordic-5-Clause
+LicenseName: Nordic 5-Clause License
+ExtractedText: <text>Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form, except as embedded into a Nordic
+   Semiconductor ASA integrated circuit in a product or a software update for
+   such product, must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other
+   materials provided with the distribution.
+
+3. Neither the name of Nordic Semiconductor ASA nor the names of its
+   contributors may be used to endorse or promote products derived from this
+   software without specific prior written permission.
+
+4. This software, with or without modification, must only be used with a
+   Nordic Semiconductor ASA integrated circuit.
+
+5. Any software provided in binary form under this license must not be reverse
+   engineered, decompiled, modified and/or disassembled.
+
+THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+</text>

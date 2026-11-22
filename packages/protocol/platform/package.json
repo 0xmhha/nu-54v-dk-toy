@@ -1,0 +1,9 @@
+{
+  "name": "@nu54/protocol-mobile",
+  "version": "0.3.0",
+  "description": "NU54 mobile transport adapters for React Native",
+  "license": "MIT",
+  "files": ["android", "ios", "Nu54ProtocolMobile.podspec", "README.md", "LICENSE"],
+  "peerDependencies": {"react": "19.2.3", "react-native": "0.87.1"},
+  "exports": {"./package.json": "./package.json"}
+}

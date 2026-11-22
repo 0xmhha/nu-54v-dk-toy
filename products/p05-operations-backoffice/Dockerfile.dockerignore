@@ -1,0 +1,26 @@
+# Keep the builder context limited to Go workspace inputs.
+**
+!go.work
+!go.work.sum
+!products/p03-cloud-mpc-wallet/go.mod
+!products/p03-cloud-mpc-wallet/go.sum
+!products/p08-market-services/go.mod
+!products/p08-market-services/go.sum
+!products/p09-travel-ai/go.mod
+!products/p09-travel-ai/go.sum
+!packages/contracts-abi/go/go.mod
+!packages/contracts-abi/go/go.sum
+!packages/protocol/go/go.mod
+!packages/protocol/go/go.sum
+!products/p05-operations-backoffice/go.mod
+!products/p05-operations-backoffice/go.sum
+!products/p07-indexer/go.mod
+!products/p07-indexer/go.sum
+!products/p05-operations-backoffice/cmd/**/*.go
+products/p05-operations-backoffice/cmd/**/*_test.go
+!products/p05-operations-backoffice/internal/**/*.go
+products/p05-operations-backoffice/internal/**/*_test.go
+!packages/contracts-abi/go/**/*.go
+packages/contracts-abi/go/**/*_test.go
+!packages/protocol/go/**/*.go
+packages/protocol/go/**/*_test.go

@@ -1,0 +1,119 @@
+import {
+  preparePresentedPayment,
+  type PresentationScope,
+  verifyCommerceApproval,
+  hexToBytes,
+  type CommerceOrder,
+  type CommercePaymentProfile,
+  type CommerceQuote,
+} from '@nu54/protocol';
+
+const stops = ['cancelled', 'expired', 'interrupted', 'changed', 'refused'] as const;
+export type PaymentReviewStop = typeof stops[number];
+
+export type PaymentCheckpoint = {
+  version: 2;
+  branch: string;
+  customer: string;
+  order: CommerceOrder;
+  quote: CommerceQuote;
+  scope: PresentationScope;
+  request: string;
+  submitKey: string;
+  route: 'direct' | 'nearby';
+  authorization?: string;
+  boardStarted?: true;
+  reviewStop?: PaymentReviewStop;
+  forwardAttempted?: true;
+  forwardAccepted?: true;
+  relayKey?: string;
+  quoteKey?: string;
+  authoritative?: true;
+};
+
+export function paymentCheckpoint(
+  raw: string,
+  branch: string,
+  customer: string,
+): PaymentCheckpoint | undefined {
+  if (!raw) return undefined;
+  const item = JSON.parse(raw) as PaymentCheckpoint;
+  const id =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  if (
+    !item ||
+    item.version !== 2 ||
+    item.branch !== branch ||
+    item.customer !== customer ||
+    !id.test(item.order?.id) ||
+    item.scope?.sale !== item.order.id ||
+    item.scope?.branch !== branch ||
+    item.scope?.customer !== customer ||
+    !id.test(item.submitKey) ||
+    !/^[0-9a-f]{32}$/.test(item.request) ||
+    !Number.isSafeInteger(item.quote?.expiresAt) ||
+    !['direct', 'nearby'].includes(item.route) ||
+    (item.route === 'nearby' && !id.test(item.relayKey ?? '')) ||
+    (item.quoteKey !== undefined && (item.route !== 'direct' || !id.test(item.quoteKey))) ||
+    (item.authoritative !== undefined && (item.authoritative !== true || item.route !== 'nearby')) ||
+    (item.boardStarted !== undefined && item.boardStarted !== true) ||
+    (item.forwardAttempted !== undefined && (item.forwardAttempted !== true || item.authorization === undefined)) ||
+    (item.forwardAccepted !== undefined && (item.forwardAccepted !== true || !item.forwardAttempted)) ||
+    (item.reviewStop !== undefined && (!stops.includes(item.reviewStop) || item.authorization !== undefined)) ||
+    (item.authorization !== undefined &&
+      !/^[0-9a-f]{128}(1b|1c)$/.test(item.authorization))
+  )
+    throw new Error('PAYMENT_JOURNAL');
+  return item;
+}
+
+export function paymentReviewStop(
+  item: PaymentCheckpoint,
+  now: number,
+  waiting = false,
+): PaymentReviewStop | undefined {
+  if (item.authorization) return undefined;
+  if (item.reviewStop) return item.reviewStop;
+  if (item.quote.expiresAt <= now) return 'expired';
+  if (item.boardStarted && !waiting) return 'interrupted';
+}
+
+export function needsMerchantSponsorship(item: PaymentCheckpoint) {
+  return item.route === 'nearby' || item.order.cafeReview !== undefined;
+}
+
+export function matchesReviewedOrder(item: PaymentCheckpoint, live: CommerceOrder) {
+  const reviewed = item.order;
+  return live.state === 'issued' && live.id === reviewed.id &&
+    live.revision === reviewed.revision && live.asset === reviewed.asset &&
+    live.amount === reviewed.amount && live.quoteDigest === reviewed.quoteDigest &&
+    live.orderKey === reviewed.orderKey &&
+    (item.route === 'nearby' || ((live.cafeReview !== undefined) === (reviewed.cafeReview !== undefined) &&
+      live.cafeReview?.payerBound === reviewed.cafeReview?.payerBound)) &&
+    live.subscription?.invoiceRef === reviewed.subscription?.invoiceRef &&
+    live.subscription?.cycle === reviewed.subscription?.cycle &&
+    live.subscription?.termsVersion === reviewed.subscription?.termsVersion;
+}
+
+export function approvalForForward(
+  entry: PaymentCheckpoint,
+  profile: CommercePaymentProfile,
+  now: number,
+) {
+  const payment = preparePresentedPayment(
+    entry.quote,
+    entry.order,
+    profile,
+    now,
+    entry.scope,
+  );
+  if (!entry.authorization) throw new Error('PAYMENT_APPROVAL_PENDING');
+  return {
+    payment,
+    approval: verifyCommerceApproval(
+      payment,
+      hexToBytes(entry.authorization),
+      now,
+    ),
+  };
+}

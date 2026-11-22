@@ -18,16 +18,29 @@
 | `lib/forge-std/` | forge-std v1.10.0(MIT/Apache-2.0, `VENDORED.md`) |
 
 ```bash
-make build        # forge build
-make test         # forge test
+make build        # verified Forge build
+make test         # compatibility, Solidity tests, fixed gas
 make sandbox-up   # 저장소 루트에서. anvil chainId 8283
 
 # sandbox 배포 (anvil 키는 로컬 전용)
 NU54_OPERATOR=... NU54_REGISTRY_ADMIN=... NU54_TOKEN_OWNER=... \
-  forge script script/Deploy.s.sol --rpc-url sandbox --broadcast --private-key <anvil key>
+  python3 ../../scripts/contract_forge.py p06 script script/Deploy.s.sol --rpc-url sandbox --broadcast --private-key <anvil key>
 ```
 
 ABI와 Go·TypeScript 바인딩은 [`packages/contracts-abi`](../../packages/contracts-abi/README.md)가 이 폴더의 빌드에서 생성한다.
+
+현재 P06 및 P08 빌드는 Solidity 0.8.39, Prague, optimizer 200회, legacy codegen을 사용한다. Foundry 1.5.1에서 컴파일러를 미리 준비하거나 오프라인 테스트를 실행할 때는 아래와 같이 저장소 루트에서 공식 바이너리의 SHA-256을 확인하고 해당 경로를 넘긴다. macOS용 공식 바이너리는 Apple Silicon에서 Rosetta가 필요하다.
+
+```sh
+solc_root=$(mktemp -d)
+FOUNDRY_SOLC=$(python3 scripts/install_contract_compiler.py "$solc_root/solc-0.8.39")
+export FOUNDRY_SOLC
+make -C products/p06-stablenet-contracts test
+make -C products/p08-market-services test
+```
+
+두 테스트는 [0.8.30 호환성 기준](compiler-compatibility.json)과 실제 계약의 전체 ABI 및 스토리지 레이아웃을 대조한다. 새 바이너리로 생성된 배포물의 코드 해시는 해당 배포에서 다시 측정한다. 8283 기존 배포의 소스와 빌드 입력은 [배포 기록](deployments/README.md)에 있다.
+
 
 
 StableNet testnet의 자산, 계정, 자격과 유료 리소스 계약 제품이다.

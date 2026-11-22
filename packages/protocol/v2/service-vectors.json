@@ -1,0 +1,469 @@
+[
+  {
+    "id": "C3/order.create",
+    "request": {
+      "version": 2,
+      "contract": "C3",
+      "operation": "order.create",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "asset": "0x1111111111111111111111111111111111111111",
+        "quantity": "99",
+        "intentDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "customer",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C3/order.create"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "9b325ca8c9fe6d1fc4af4dc7086412750446c01a46ec785fa58c8d8b1bad5acb",
+    "requestDigest": "6ef568d592f7093feb4e8d26e912335685417b207f32edfd72b13d2c2ccf8a41"
+  },
+  {
+    "id": "C3/order.status",
+    "request": {
+      "version": 2,
+      "contract": "C3",
+      "operation": "order.status",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {}
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "customer",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C3/order.status"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "e7438a9d2b2d041f1ef25258f2f74ff0a7a1f70df4d6084e5fc1be6d1c5b40ac",
+    "requestDigest": "9af6e7505289601fdafc7fe5eed578117fcb6fd154ef84b0f85613e2fb67e75f"
+  },
+  {
+    "id": "C4/mpc.sign",
+    "request": {
+      "version": 2,
+      "contract": "C4",
+      "operation": "mpc.sign",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "generation": "4",
+        "approvalRef": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+        "preimageDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "wallet-owner",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C4/mpc.sign"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "102f15c4c22751e29965943296779cfe032a756b2952ed2becb74b0663f1f462",
+    "requestDigest": "00862206bdeb8d1e70a2c3c031489bc96ce954edee6678a941cb1cbc7b2d98eb",
+    "wallet": {
+      "Generation": "4",
+      "ApprovalRef": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "PreimageDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "ValidUntil": 1630
+    }
+  },
+  {
+    "id": "C5/transaction.submit",
+    "request": {
+      "version": 2,
+      "contract": "C5",
+      "operation": "transaction.submit",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "mode": "direct",
+        "quoteDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "txDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "payer": "0x1111111111111111111111111111111111111111",
+        "feePayer": "0x1111111111111111111111111111111111111111",
+        "asset": "0x1111111111111111111111111111111111111111",
+        "feeLimit": "333",
+        "nonce": "5",
+        "txExpiresAt": "1640"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "payer",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C5/transaction.submit"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "10c1bf1c96fc74dece1ae0b3e9a0d579c39f30833c188130327bb345624a1230",
+    "requestDigest": "e05e5ec21c071d95690e2d26656c51f47a71d2f304268df38835cd2701643f53",
+    "payment": {
+      "QuoteDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "TxDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "Payer": "0x1111111111111111111111111111111111111111",
+      "FeePayer": "0x1111111111111111111111111111111111111111",
+      "Asset": "0x1111111111111111111111111111111111111111",
+      "MaxFee": "500",
+      "Nonce": "5",
+      "ValidUntil": 1650
+    }
+  },
+  {
+    "id": "C5/transaction.submit/sponsored",
+    "request": {
+      "version": 2,
+      "contract": "C5",
+      "operation": "transaction.submit",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "mode": "sponsored",
+        "quoteDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "txDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "payer": "0x1111111111111111111111111111111111111111",
+        "feePayer": "0x2222222222222222222222222222222222222222",
+        "asset": "0x1111111111111111111111111111111111111111",
+        "feeLimit": "333",
+        "nonce": "5",
+        "txExpiresAt": "1640"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "sponsor",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C5/transaction.submit"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "4116ea8c3859b85c9c496caa188e902e1dee73c040e493e296a5d1dd61529399",
+    "requestDigest": "5100a78c81cdb6cb51500d45eb01cbd20115a86ca80ad1cb9d51f173f7574ac8",
+    "payment": {
+      "QuoteDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "TxDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "Payer": "0x1111111111111111111111111111111111111111",
+      "FeePayer": "0x2222222222222222222222222222222222222222",
+      "Asset": "0x1111111111111111111111111111111111111111",
+      "MaxFee": "500",
+      "Nonce": "5",
+      "ValidUntil": 1650
+    }
+  },
+  {
+    "id": "C5/transaction.status",
+    "request": {
+      "version": 2,
+      "contract": "C5",
+      "operation": "transaction.status",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "txDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "priorRequestDigest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "receiptRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb"
+      }
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "payer",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C5/transaction.status"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "b66ab35b1943a62f120e81cab14226d20471b619a2f4c3835824ebb254cd05c4",
+    "requestDigest": "e4c19b421ab5b7bad980a66d0f1d6c42720f9888648183eca804a6eebc421604"
+  },
+  {
+    "id": "C6/chain.append",
+    "request": {
+      "version": 2,
+      "contract": "C6",
+      "operation": "chain.append",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "manifestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "abiDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "blockHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "parentHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "height": "12",
+        "logIndex": "0",
+        "fence": "2"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "chain-ingester",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C6/chain.append"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "4e12c3485404cab68f5b5907d3167d1961f77bb4575bb7175ac91301f0d87c9f",
+    "requestDigest": "d2e537751657ce5d60faae1e4e4cb6982ff1e2b2cbedb7e6426951daa35284ea",
+    "checkpoint": {
+      "ManifestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "ABIDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "BlockHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "ParentHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "NextHeight": "12",
+      "LogIndex": "0",
+      "Fence": "2"
+    }
+  },
+  {
+    "id": "C7/evidence.read",
+    "request": {
+      "version": 2,
+      "contract": "C7",
+      "operation": "evidence.read",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "kind": "finalized"
+      }
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "evidence-reader",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C7/evidence.read"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "3cb4ee4f9d1b32446606348024af34344291ad429f5ac69b91a14c7c41926f25",
+    "requestDigest": "aa96fd6c066597d3ff076de4d6525821f7023a6020a4f1851dda0821649a9658",
+    "reply": {
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "requestDigest": "aa96fd6c066597d3ff076de4d6525821f7023a6020a4f1851dda0821649a9658",
+      "status": "finalized",
+      "evidence": {
+        "eventId": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+        "generationRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+        "kind": "finalized",
+        "anchorHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "fact": "paid",
+        "merchantKey": "0x1111111111111111111111111111111111111111",
+        "orderKey": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "txHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observedAt": 1595,
+        "expiresAt": 1700
+      }
+    }
+  },
+  {
+    "id": "C8/market.quote",
+    "request": {
+      "version": 2,
+      "contract": "C8",
+      "operation": "market.quote",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "asset": "0x1111111111111111111111111111111111111111",
+        "quantity": "42"
+      }
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "market-user",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C8/market.quote"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "755a330cb728a4be2faffc73832b9e63f7f476eeb770bc6f5bf1efbe51db2da3",
+    "requestDigest": "e6750f90c1f6188f9d82cff9a27dacd4ffa9c376470c13e785599e72685948e7"
+  },
+  {
+    "id": "C9/oidc.bind",
+    "request": {
+      "version": 2,
+      "contract": "C9",
+      "operation": "oidc.bind",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "issuerRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+        "audienceRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+        "assertionDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "identity-provider",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C9/oidc.bind"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "646f82e675c8a6aa6b090b1ca747ad9190c524103d6be767c1b95043aad02db5",
+    "requestDigest": "e2e55719818e8307ecbd2616d9853c4f7dc6b5a825564e5ae9b7d80b61a06f5e",
+    "provider": {
+      "Issuer": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "Audience": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "AssertionDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "ValidUntil": 1700
+    }
+  },
+  {
+    "id": "C9/task.invoke",
+    "request": {
+      "version": 2,
+      "contract": "C9",
+      "operation": "task.invoke",
+      "requestId": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+      "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+      "expiresAt": 1630,
+      "body": {
+        "providerRef": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+        "purpose": "voice",
+        "consentVersion": "12",
+        "intentDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "idempotencyKey": "23a6f801-e925-42b9-b4fa-05f5d4f11cee"
+    },
+    "scope": {
+      "tenantRef": "80d39491-fa9b-4f35-9c2a-f6a258dd45d6",
+      "subjectRef": "0fb9757b-d626-4fb8-b02e-68a9fc8930f0",
+      "role": "service-provider",
+      "expiresAt": 1800,
+      "grants": [
+        {
+          "domainRef": "987e50a6-a874-487c-8d85-1451edacfe99",
+          "objectRef": "03f43389-3f6b-4bc4-a1d7-6cb11af65ccb",
+          "operations": [
+            "C9/task.invoke"
+          ]
+        }
+      ]
+    },
+    "at": 1600,
+    "intentDigest": "6729de1967b2515bf9ceae9600eae2a136cd751929e1dd295a626f500fccc9e5",
+    "requestDigest": "823b68debd769c451e1c10e5d893c4b96e496363ed7b615b81d1b3260bbb267f",
+    "provider": {
+      "Ref": "23a6f801-e925-42b9-b4fa-05f5d4f11cee",
+      "Purpose": "voice",
+      "ConsentVersion": "12",
+      "ValidUntil": 1700,
+      "Active": true
+    }
+  }
+]

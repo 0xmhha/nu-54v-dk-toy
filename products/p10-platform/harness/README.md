@@ -9,6 +9,21 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 
 결과는 검사마다 `PASS`, `FAIL`, `SKIP` 중 하나다. `SKIP`은 두 경우에 나온다. 검사에 필요한 도구가 설치되어 있지 않거나, 검사할 구현이 아직 없는 경우다. 이유는 괄호 안에 찍힌다. 12주차 판정은 `--strict`로 한다. 펌웨어 C 검사가 7주차에 준비되지 않으면 SKIP으로 기록하고 8주차 첫날 채운다.
 
+각 실행은 하나의 전용 임시 작업 공간을 사용합니다. CMake/CTest 빌드,
+Go 빌드와 모듈 다운로드, uv 환경과 pytest 캐시, Forge 출력·실패 자료를
+이 공간에 둡니다. 기존 Go 모듈 아카이브는 읽기 전용 로컬 프록시로 먼저
+사용하고, 필요한 새 다운로드는 전용 공간에 저장합니다. P04는 기존
+격리 Jest 실행기를 사용합니다. 성공·실패·중단 시 소유한 작업 공간을
+제거합니다. 검사 14개와 일반·엄격 판정은 동일합니다.
+
+
+`UV_OFFLINE=1`에서는 잠금 파일과 일치 여부를 읽기 전용으로 검사한
+기존 프로젝트 환경을 `--no-sync`로 사용할 수 있습니다. 기존 환경이
+일치하지 않으면 전용 환경으로 분리하며 `UV_FIND_LINKS`의 휠을 입력으로
+사용합니다. 명시적인 uv·pytest·Go·Forge 캐시/출력 경로는 호출자가 소유하므로
+harness가 삭제하지 않습니다.
+
+
 ## 서명자 역할
 
 벡터는 Foundry 공개 시험 mnemonic(`test test test test test test test test test test test junk`)의 키로 서명되어 있다. 이 키는 공개된 값이므로 시험에서만 쓴다.
@@ -38,7 +53,7 @@ python3 products/p10-platform/harness/run_conformance.py --strict   # SKIP도 �
 
 ### 펌웨어 (C, host 빌드)
 
-`products/p01-device-firmware/test/test_eip712.c`를 추가하고, `test/CMakeLists.txt`에 이름이 `eip712_vectors`인 ctest를 등록한다. harness는 `cmake -S test -B out/conformance`로 빌드한 뒤 `ctest -R eip712_vectors`를 실행한다. 벡터 값은 시험 코드에 넣거나 생성 헤더로 가져와도 된다. 다만 벡터 파일이 바뀌면 시험이 따라 바뀌도록 생성 경로를 README에 적는다. 시험은 다음을 확인한다.
+`products/p01-device-firmware/test/test_eip712.c`를 추가하고, `test/CMakeLists.txt`에 이름이 `eip712_vectors`인 ctest를 등록한다. harness는 전용 임시 디렉터리의 CMake 빌드에서 EIP-712, 프레임, CBOR 및 세션 CTest를 실행한다. 벡터 값은 시험 코드에 넣거나 생성 헤더로 가져와도 된다. 다만 벡터 파일이 바뀌면 시험이 따라 바뀌도록 생성 경로를 README에 적는다. 시험은 다음을 확인한다.
 
 1. 7개 벡터 모두의 digest를 펌웨어 코드로 계산해 벡터 값과 같은지. 기기는 운영자·가맹점 서명도 검증하므로 모든 타입의 digest가 필요하다.
 2. MerchantAttestation, TimeAnchor, DeviceReset 서명의 복원 주소가 operator 역할 주소이고, MerchantOrder 서명의 복원 주소가 merchant 역할 주소인지.

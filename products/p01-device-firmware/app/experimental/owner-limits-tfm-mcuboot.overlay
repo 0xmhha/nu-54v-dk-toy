@@ -1,0 +1,3 @@
+/* Compile-only MCUboot view of the combined TF-M primary slot. Never flash. */
+/delete-node/ &slot1_partition;
+&slot0_partition { reg = <0x10000 0x15b000>; };

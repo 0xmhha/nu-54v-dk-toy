@@ -16,6 +16,10 @@
       "frozenAtW6": false,
       "sha256": "c2c1803a94af6450615e93505dbe45dd18432b66284b7e4215143172f05be002"
     },
+    "SettlementV2": {
+      "frozenAtW6": false,
+      "sha256": "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814"
+    },
     "TestUSDC": {
       "frozenAtW6": false,
       "sha256": "1df01bbf69311f478a878017966fae0a6fcc9b6c95324f37ad2a4a6d5e357bb8"

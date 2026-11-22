@@ -31,4 +31,95 @@ config NU54_REQUIRE_PHONE
 	  With this on, payment.prepare and limit.change are refused NOT_PERMITTED when no phone app
 	  is listening. Development builds go on without one (week-7 path, N30).
 
+config NU54_PILOT_TLS
+	bool "Compile the certificate-only TLS 1.3 board adapter"
+	select MBEDTLS_TLS_LIBRARY
+	help
+	  Build the native v2 TLS adapter for installation-time enrollment.
+	  Activation needs explicitly provisioned credentials and a trusted policy.
+
+config NU54_INSTALL_AUTHORITY_HEX
+	string "Enrollment authority P-256 public point (uncompressed SEC1 in hex)"
+	depends on NU54_PILOT_TLS
+	default ""
+	help
+	  Pin the independently managed enrollment authority in the installation image.
+	  A missing pin leaves runtime enrollment unavailable. Never include a private key.
+
+config NU54_HD_RECOVERY
+	bool "Independent offline HD recovery provider"
+	depends on NU54_PILOT_TLS
+	select PSA_WANT_ALG_SHA_512
+	select PSA_WANT_ALG_CMAC
+	help
+	  Build the isolated recovery service for a separately enrolled laboratory accessory.
+
+config NU54_WALLET_CHAINS
+	bool "Bounded Bitcoin, Solana and XRP Ledger wallet profiles"
+	depends on NU54_HD_RECOVERY
+	select PSA_WANT_ALG_PURE_EDDSA
+	select PSA_WANT_ECC_TWISTED_EDWARDS_255
+	help
+	  Activate authorized chain-specific review, secure seed derivation and signing.
+
+config NU54_COMMISSIONED_WALLET_CHAINS
+	bool "Commissioned public test-network wallet transfers"
+	depends on NU54_WALLET_CHAINS
+	help
+	  Enable N54M profile 2 with fixed Signet, Devnet and XRPL Testnet identities.
+
+config NU54_HD_KMU_SLOT
+	int "Dedicated KMU seed commitment slot for the laboratory profile"
+	depends on NU54_HD_RECOVERY
+	range 32 127
+	default 96
+
+config NU54_COUNTED_UPDATE
+	bool "Physically authorized wired firmware staging"
+	depends on BOOTLOADER_MCUBOOT
+	select REBOOT
+
 source "Kconfig.zephyr"
+
+config NU54_EXPERIMENTAL_PMIC_VIN_READ
+	bool "Read qualified NU-54DK-C PMIC input status"
+	depends on NU54_PILOT_TLS && BOARD_NU54V_DK && I2C && GPIO
+	default n
+	help
+	  Use only with a qualified BQ25186 and assembled SB2 connection.
+	  Exposes a read-only VIN observation, with no update authorization.
+
+config NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS
+    bool "Compile experimental rollback-protected rental journal"
+    default n
+    depends on TRUSTED_EXECUTION_NONSECURE && TFM_PARTITION_PROTECTED_STORAGE && TFM_PS_ROLLBACK_PROTECTION
+    help
+      Compile the protected journal adapter for qualification. The legacy
+      setup path cannot activate this journal. Real measured boot, secure
+      registration and independent anti-rollback qualification are required.
+
+config NU54_EXPERIMENTAL_OWNER_LIMITS_PSA
+    bool "Compile experimental TF-M owner-limit storage port"
+    default n
+    depends on TRUSTED_EXECUTION_NONSECURE && TFM_PARTITION_PROTECTED_STORAGE && TFM_PS_ROLLBACK_PROTECTION
+    help
+      Compile-only port for qualification. It does not connect to signing or
+      enable policy mutation. Production requires independently verified secure
+      boot, provisioned keys and rollback-protected TF-M platform counters.
+
+config NU54_EXPERIMENTAL_OWNER_FINALITY_ONLY
+    bool "Use qualified 8283 finality-only owner policy mode"
+    default n
+    depends on NU54_EXPERIMENTAL_OWNER_LIMITS_PSA
+    help
+      Compile an isolated personal EVM signing mode. Other personal payment and
+      chain-signing routes remain unavailable. This does not provision a key or
+      qualify storage, firmware anti-downgrade, time, or independent finality.
+
+config NU54_EXPERIMENTAL_W27_QUALIFICATION
+    bool "Read experimental W27 TF-M platform observations"
+    default n
+    depends on NU54_EXPERIMENTAL_OWNER_LIMITS_PSA && SOC_NRF54L15 && TFM_IPC && TFM_ISOLATION_LEVEL = 1
+    help
+      Compile the read-only Nordic qualification service and client. Its
+      evidence is incomplete and cannot enable the owner limits or signing.

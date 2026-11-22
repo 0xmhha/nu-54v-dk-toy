@@ -121,25 +121,40 @@ function setup(over: Partial<DeviceConfig> = {}) {
 
 test("a new device: scan, setup on the buttons, the reconnect code, the passkey bond, the wallet check, home", async () => {
   const { phone, device, flow, states, kinds } = setup();
+  const random = phone.random.bind(phone);
+  // Force a valid reconnect code that happens to begin with the synthetic device PIN.
+  phone.random = (n) => n === 4 ? Promise.resolve(Uint8Array.of(0, 1, 226, 64)) : random(n);
   await flow.start();
   expect(flow.current()).toEqual({ kind: "scan", found: [FOUND], scanning: false });
   await flow.choose(FOUND);
   const code = flow.current();
   expect(code.kind).toBe("passkey");
   if (code.kind !== "passkey") return;
-  expect(code.passkey).toMatch(/^\d{6}$/);
+  expect(code.passkey === "123456").toBe(true);
   expect(code.wallet).toBe(device.address);
   expect(phone.bond_).toBe("justWorks");
   await noteAndVerify(flow, phone);
-  expect(flow.current()).toEqual({ kind: "home", record: { address: BLE, name: "NU54-HW-Wallet", wallet: device.address } });
+  const home = flow.current();
+  expect(home.kind).toBe("home");
   expect(phone.bond_).toBe("passkey");
-  expect(phone.stored).toEqual([{ address: BLE, name: "NU54-HW-Wallet", wallet: device.address }]);
+  expect(phone.stored).toHaveLength(1);
+  for (const record of [...phone.stored, ...(home.kind === "home" ? [home.record] : [])]) {
+    expect(Object.keys(record).sort()).toEqual(["address", "name", "wallet"]);
+    expect(record.address === BLE && record.name === FOUND.name && record.wallet === device.address).toBe(true);
+  }
   expect(kinds()).toEqual(["scan", "scan", "scan", "bonding", "connecting", "setupConfirm", "setupPin", "passkey", "rebonding", "verifyReady", "verify", "home"]);
   // The setup session carries the deployment's operator and contract, and is closed when stored.
   const op = phone.sent.find((m) => m.type === "setup.operator")!;
   expect([op.operator, op.contract, op.chainId]).toEqual([NETWORK.operator.toLowerCase(), NETWORK.contract.toLowerCase(), "8283"]); // CBOR bytes
   expect(phone.sent.filter((m) => m.type === "session.cancel")).toHaveLength(1);
-  expect(states.some((s) => JSON.stringify(s).includes("1234"))).toBe(false); // the PIN never reaches the app
+  // This fixture enters the PIN on the device without sending any pin.entry messages.
+  const pinStates = states.filter((state) => state.kind === "setupPin");
+  expect(pinStates).toHaveLength(1);
+  const [pinState] = pinStates;
+  expect(Object.keys(pinState).sort()).toEqual(["device", "entry", "kind", "until"]);
+  expect(Object.keys(pinState.entry).sort()).toEqual(["digits", "position"]);
+  expect(pinState.entry.digits === "0000" && pinState.entry.position === 0).toBe(true);
+  expect(pinState.device === FOUND && Number.isFinite(pinState.until)).toBe(true);
 });
 
 test("the next start reconnects to the registered device and goes home", async () => {

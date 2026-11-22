@@ -24,7 +24,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
 REPO = HERE.parents[1]
 CONTRACTS = REPO / "products/p06-stablenet-contracts"
+FORGE = [sys.executable, str(REPO / "scripts/contract_forge.py"), "p06"]
 ABIGEN = "github.com/ethereum/go-ethereum/cmd/abigen@v1.16.4"
+ABIGEN_V2 = "github.com/ethereum/go-ethereum/cmd/abigen@v1.17.10"
 
 # (contract name in Foundry, Go package, TS identifier, frozen at the W6 contract gate)
 TARGETS = [
@@ -33,17 +35,19 @@ TARGETS = [
     ("IPaymentSettlementExtensions", "settlementext", "paymentSettlementExtensions", False),
     ("IMerchantRegistryExtensions", "registryext", "merchantRegistryExtensions", False),
     ("TestUSDC", "testusdc", "testUsdc", False),
+    ("SettlementV2", "settlementv2", "settlementV2", False),
 ]
 
 
 def forge_abi(name: str) -> list:
-    out = subprocess.run(["forge", "inspect", name, "abi", "--json"], cwd=CONTRACTS, check=True,
+    out = subprocess.run([*FORGE, "inspect", name, "abi", "--json"], cwd=CONTRACTS, check=True,
                          capture_output=True, text=True).stdout
     return json.loads(out)
 
 
 def abigen(abi_path: Path, pkg: str, out_path: Path) -> None:
-    subprocess.run(["go", "run", ABIGEN, "--abi", str(abi_path), "--pkg", pkg, "--type", pkg.capitalize(),
+    generation = ABIGEN_V2 if pkg == "settlementv2" else ABIGEN
+    subprocess.run(["go", "run", generation, "--abi", str(abi_path), "--pkg", pkg, "--type", pkg.capitalize(),
                     "--out", str(out_path)], cwd=HERE / "go", check=True, capture_output=True, text=True)
 
 
@@ -74,7 +78,7 @@ def render(workdir: Path) -> dict[str, str]:
 
 def main(argv: list[str]) -> int:
     check = "--check" in argv
-    subprocess.run(["forge", "build", "--quiet"], cwd=CONTRACTS, check=True)
+    subprocess.run([*FORGE, "build", "--quiet", "--skip", "test", "--skip", "script"], cwd=CONTRACTS, check=True)
     with tempfile.TemporaryDirectory() as tmp:
         files = render(Path(tmp))
     stale = []

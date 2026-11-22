@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local browser login</title>
+<h1>Local browser login</h1>
+<p id="scope"></p>
+<button id="sign" disabled>Sign in</button>
+<p id="result" role="status"></p>
+<script>
+const button = document.getElementById('sign');
+const scope = document.getElementById('scope');
+const statusText = document.getElementById('result');
+const request = (method, params) => window.ethereum.request({method, params});
+let account, chain;
+async function post(path, body) {
+  const response = await fetch('/siwe/' + path, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error('Local verification failed');
+  return response.json();
+}
+async function readScope() {
+  const accounts = await request('eth_accounts');
+  if (accounts.length !== 1) throw new Error('Unexpected account scope');
+  return [accounts[0], await request('eth_chainId')];
+}
+async function start() {
+  try {
+    [account, chain] = await readScope();
+    scope.textContent = 'Account scope ready';
+    button.disabled = false;
+  } catch {
+    statusText.textContent = 'Wallet scope unavailable';
+  }
+}
+button.addEventListener('click', async () => {
+  button.disabled = true;
+  try {
+    const challenge = await post('challenge', {account, chain});
+    const message = challenge.message;
+    const hex = '0x' + [...new TextEncoder().encode(message)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+    let signature;
+    try {
+      signature = await request('personal_sign', [hex, account]);
+    } catch (error) {
+      if (error.code !== 4001) throw error;
+      statusText.textContent = 'Login declined';
+      button.disabled = false;
+      return;
+    }
+    const verified = await post('verify', {nonce: challenge.nonce, account, message, signature});
+    if (!verified.verified) throw new Error('Original signature was refused');
+    let replayCode;
+    try {
+      await request('personal_sign', [hex, account]);
+    } catch (error) {
+      replayCode = error.code;
+    }
+    const [currentAccount, currentChain] = await readScope();
+    if (replayCode !== 4001 || currentAccount !== account || currentChain !== chain)
+      throw new Error('Provider scope or replay check failed');
+    await post('complete', {account, chain, replayCode});
+    statusText.textContent = 'Verified original login. Replay refused. Account scope unchanged.';
+  } catch {
+    statusText.textContent = 'Local verification failed';
+  }
+});
+if (window.ethereum?.isConnected()) start();
+else window.addEventListener('ethereum#initialized', start, {once: true});
+</script>
+</html>

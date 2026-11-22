@@ -8,20 +8,23 @@
 #define DEVICE_KEY_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
-/* Week-7 fixed setup: opens the key, creating it on first boot. Returns 0 and the address, or a
- * negative PSA status. */
-int device_key_init(uint8_t address[20], int *created);
+typedef enum {
+	DEVICE_KEY_LEGACY_RENTER,
+	DEVICE_KEY_RENTER,
+	DEVICE_KEY_PERSONAL,
+	DEVICE_KEY_IDENTITY,
+} device_key_slot;
 
-/* Opens the existing key. Returns 0 and the address, or a PSA status (PSA_ERROR_INVALID_HANDLE
- * when there is no key). */
-int device_key_open(uint8_t address[20]);
+/* Create only if absent. Existing keys are opened without replacement. */
+int device_key_slot_open(device_key_slot slot, bool create, uint8_t address[20]);
+int device_key_slot_sign(device_key_slot slot, const uint8_t digest[32], uint8_t rs[64]);
 
-/* Rental setup: makes a new key in place of any old one. Returns 0 and the address, or a PSA status. */
-int device_key_generate(uint8_t address[20]);
-
-/* Destroys the key. Returns 0, also when there was none, or a PSA status. */
-int device_key_destroy(void);
+/* Legacy wire can activate only a committed rental key. Staging cannot enable signing. */
+int device_key_activate_rental(device_key_slot slot, bool create, uint8_t address[20]);
+void device_key_deactivate_rental(void);
+int device_key_retire_new_rental(void);
 
 /* Deterministic ECDSA (RFC 6979) over a 32-byte digest; raw r || s. Returns 0 or a PSA status. */
 int device_key_sign(const uint8_t digest[32], uint8_t rs[64]);

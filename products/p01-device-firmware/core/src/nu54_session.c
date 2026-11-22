@@ -8,10 +8,118 @@ void nu54_device_init(nu54_device_t *d, const uint8_t nonce_start[32])
 	d->anchored = 0;
 	d->last_anchor = 0;
 	memcpy(d->next_nonce, nonce_start, 32);
+	d->rental_journal = NULL;
+	d->rental_journal_required = 0;
+	memset(&d->rental_access, 0, sizeof(d->rental_access));
 	d->session_open = 0;
 	d->attested = 0;
 	d->pending = NU54_PENDING_NONE;
 	ss_drop_channel(d);
+}
+
+void nu54_device_init_rental_candidate(nu54_device_t *d, const uint8_t first_nonce[32])
+{
+	nu54_device_init(d, first_nonce);
+	d->rental_journal_required = 1;
+}
+
+int nu54_device_bind_rental_journal(nu54_device_t *d, nu54_rental_journal_t *journal)
+{
+	if (!journal || !journal->bound || !journal->loaded || !d->rental_journal_required || d->rental_journal ||
+	    (d->state != NU54_STATE_PROVISIONED_NO_ANCHOR && d->state != NU54_STATE_READY) ||
+	    d->pending != NU54_PENDING_NONE || !d->cfg.platform.monotonic_seconds ||
+	    memcmp(d->chain_id, journal->expected_binding.chain, sizeof(d->chain_id)) ||
+	    memcmp(d->contract, journal->expected_binding.contract, sizeof(d->contract)) ||
+	    memcmp(d->address, journal->expected_binding.account, sizeof(d->address)) ||
+	    memcmp(d->next_nonce, journal->expected_first, sizeof(d->next_nonce))) return -1;
+	d->rental_journal = journal;
+	return 0;
+}
+
+int nu54_device_install_rental_credential(nu54_device_t *d, const nu54_rental_credential_t *credential,
+					  const uint8_t signature[65])
+{
+	nu54_rental_journal_t *journal = d ? d->rental_journal : NULL;
+	if (!journal || !d->cfg.platform.rental_credential_required || !journal->loaded ||
+	    journal->image.frozen || journal->image.count ||
+	    d->pending != NU54_PENDING_NONE) return -1;
+	return nu54_rental_credential_install(d->cfg.platform.rental_credential_store,
+					      &journal->expected_binding, d->operator_address,
+					      credential, signature);
+}
+
+static int attest_rental_credential(nu54_device_t *d, const uint8_t challenge[32],
+				    const uint8_t board_identity[20],
+				    nu54_rental_credential_receipt_t *receipt, uint8_t signature[65],
+				    bool open_slot)
+{
+	static const uint8_t zero[32] = {0};
+	if (!d || !challenge || !board_identity || !receipt || !signature ||
+	    !memcmp(challenge, zero, 32) || !memcmp(board_identity, zero, 20) ||
+	    !memcmp(board_identity, d->address, 20) || !memcmp(board_identity, d->operator_address, 20) ||
+	    !d->cfg.platform.rental_credential_required || !d->cfg.platform.sign_rental_attestation) return -1;
+	const nu54_rental_journal_t *journal = d->rental_journal;
+	if (!journal || !journal->loaded || journal->image.frozen) return -1;
+
+	if (open_slot && (memcmp(journal->expected_binding.account, d->address, sizeof(d->address)) ||
+			  nu54_rental_journal_observe_open(journal) != 0)) return -1;
+	const nu54_rental_binding_t binding = journal->expected_binding;
+	uint8_t authority[20];
+	memcpy(authority, d->operator_address, sizeof(authority));
+	nu54_rental_credential_receipt_t observed = {0};
+	if (nu54_rental_credential_current(d->cfg.platform.rental_credential_store, &binding,
+					    authority, &observed.credential, &observed.checked_at)) return -1;
+	memcpy(observed.challenge, challenge, sizeof(observed.challenge));
+	uint8_t digest[32], raw[64], completed[65];
+	if (open_slot) nu54_rental_slot_open_receipt_digest(&binding, &observed, digest);
+	else nu54_rental_credential_receipt_digest(&binding, &observed, digest);
+	if (d->cfg.platform.sign_rental_attestation(d->cfg.platform.ctx, digest, raw) ||
+	    nu54_sig_finish(digest, raw, board_identity, completed) != NU54_SIG_OK) return -1;
+	if (open_slot) {
+		uint64_t now;
+		nu54_rental_credential_receipt_t current = observed;
+		if (d->rental_journal != journal || memcmp(&binding, &journal->expected_binding, sizeof(binding)) ||
+		    memcmp(authority, d->operator_address, sizeof(authority)) ||
+		    memcmp(binding.account, d->address, sizeof(binding.account)) ||
+		    nu54_rental_journal_observe_open(journal) != 0 ||
+		    nu54_rental_credential_current(d->cfg.platform.rental_credential_store, &binding, authority,
+						   &current.credential, &now) != 0 ||
+		    now < observed.checked_at) return -1;
+		uint8_t current_digest[32];
+		nu54_rental_slot_open_receipt_digest(&binding, &current, current_digest);
+		if (memcmp(current_digest, digest, sizeof(digest))) return -1;
+	}
+	*receipt = observed;
+	memcpy(signature, completed, sizeof(completed));
+	return 0;
+}
+
+int nu54_device_attest_rental_credential(nu54_device_t *d, const uint8_t challenge[32],
+					 const uint8_t board_identity[20],
+					 nu54_rental_credential_receipt_t *receipt, uint8_t signature[65])
+{
+	return attest_rental_credential(d, challenge, board_identity, receipt, signature, false);
+}
+
+int nu54_device_attest_rental_slot_open(nu54_device_t *d, const uint8_t challenge[32],
+				      const uint8_t board_identity[20],
+				      nu54_rental_credential_receipt_t *receipt, uint8_t signature[65])
+{
+	if (!d || !d->cfg.platform.begin_rental_slot_observation || !d->cfg.platform.end_rental_slot_observation ||
+	    d->cfg.platform.begin_rental_slot_observation(d->cfg.platform.ctx) != 0) return -1;
+
+	int result = attest_rental_credential(d, challenge, board_identity, receipt, signature, true);
+	d->cfg.platform.end_rental_slot_observation(d->cfg.platform.ctx);
+	return result;
+}
+
+int nu54_device_freeze_rental_journal(nu54_device_t *d, uint8_t root[32])
+{
+	uint64_t now;
+	if (!d->rental_journal || ss_rental_time(d, &now) != 0) return -1;
+	ss_abort_pending(d);
+	if (!d->rental_journal->loaded && nu54_rental_journal_reload(d->rental_journal) != 0) return -1;
+	return nu54_rental_journal_freeze(d->rental_journal, now, root);
 }
 
 void nu54_device_init_unprovisioned(nu54_device_t *d)
@@ -21,6 +129,7 @@ void nu54_device_init_unprovisioned(nu54_device_t *d)
 
 void nu54_device_power_cycle(nu54_device_t *d)
 {
+	memset(&d->rental_access, 0, sizeof(d->rental_access));
 	d->anchored = 0;
 	d->session_open = 0;
 	ss_abort_pending(d);
@@ -35,6 +144,11 @@ void nu54_session_link_closed(nu54_device_t *d)
 	d->session_open = 0;
 	ss_abort_pending(d);
 	ss_drop_channel(d);
+}
+
+void nu54_device_rental_peer_closed(nu54_device_t *d, uint64_t connection_epoch)
+{
+	if (d->rental_access.epoch == connection_epoch) memset(&d->rental_access, 0, sizeof(d->rental_access));
 }
 
 static void session_open(nu54_device_t *d, const nu54_msg_t *m, nu54_out_t *out)
@@ -146,6 +260,14 @@ static void dispatch(nu54_device_t *d, const uint8_t *body, size_t len, uint64_t
 		ss_setup_operator(d, &m, out);
 	} else if (strcmp(type, "device.reset") == 0) {
 		ss_device_reset(d, &m, out);
+	} else if (strcmp(type, "rental.freeze.challenge") == 0) {
+		ss_rental_freeze_challenge(d, &m, out);
+	} else if (strcmp(type, "rental.freeze.v2") == 0) {
+		ss_rental_freeze_command(d, &m, out);
+	} else if (strcmp(type, "rental.cleanup.challenge") == 0) {
+		ss_rental_cleanup_challenge(d, &m, out);
+	} else if (strcmp(type, "rental.cleanup.admit") == 0) {
+		ss_rental_cleanup_command(d, &m, out);
 	} else if (strcmp(type, "limit.change") == 0) {
 		ss_limit_change(d, &m, now, out);
 	} else if (strcmp(type, "device.paymentMode") == 0) {

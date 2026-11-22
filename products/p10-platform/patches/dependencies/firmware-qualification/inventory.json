@@ -1,0 +1,113 @@
+{
+  "boardTarget": "nu54v_dk/nrf54l15/cpuapp/ns",
+  "distinctSdkSourcesAcrossImages": 481,
+  "images": {
+    "bootloader": {
+      "compilationDatabaseSha256": "2805c1793d440d6c94a19d4235661aec0646b3ff748fad8c48609c319570e8c9",
+      "compilerCommands": 263,
+      "distinctTranslationUnits": 259,
+      "elfSha256": "2a2a941872d8b86de279a0d9fe5367c6c438d231ad956ff2f052d36b1cfbfedc",
+      "linkerMapSha256": "c7f17b0b09590bac3fe5ae99df3c3119ffdf30b76410a598892a782b081ecdb7",
+      "portableReport": "bootloader-sdk.spdx",
+      "portableReportSha256": "2761a6ba1306c9595617efef70e20b5e4e3f7e32f8dd7fc66315eefa94007a17",
+      "repositoryRevisions": {
+        "bootloader/mcuboot": {
+          "commit": "8122be0de002ede060d37aa39b2a7f18aecc00c3",
+          "sourceFilesMatchingCommit": 31
+        },
+        "modules/crypto/oberon-psa-crypto": {
+          "commit": "e8db62ed0fba5028e7ae0eba7b1fb63436ae6416",
+          "sourceFilesMatchingCommit": 28
+        },
+        "modules/hal/nordic": {
+          "commit": "69865c20dc4afbdd27060ad1e81af1b62d31f7af",
+          "sourceFilesMatchingCommit": 13
+        },
+        "modules/lib/zcbor": {
+          "commit": "9164bd18dcd88ff9d9ef98279501fc1093571017",
+          "sourceFilesMatchingCommit": 4
+        },
+        "nrf": {
+          "commit": "b20f8619ba9a5530f8c34b0a130d829947cfe55d",
+          "sourceFilesMatchingCommit": 66
+        },
+        "zephyr": {
+          "commit": "33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6",
+          "sourceFilesMatchingCommit": 113
+        }
+      },
+      "sdkSourceTreeSha256": "70ff3a053de6d874c7147e1c67ce80845c2c7ce83e77066c962bd7c873ca2891",
+      "sdkTranslationUnits": 255,
+      "supplierReportSha256": "3d79019eb04ee9187b30206c40fd501e5935b7e6ba9e1f5898ac5371ea250e71"
+    },
+    "nonsecure": {
+      "compilationDatabaseSha256": "ecb71aac9c659beb617bab12b0f886a3ce2e9348f3def0ef09509d74332362b5",
+      "compilerCommands": 325,
+      "distinctTranslationUnits": 322,
+      "elfSha256": "b0f9545bed49f8e532c5db584e74f9763cec18e53b3bfe9f4ae38949224b40a4",
+      "linkerMapSha256": "ab0b4b1662998c0d24121972b718800311f7021e7c1a72512882335b0dc842f9",
+      "portableReport": "nonsecure-sdk.spdx",
+      "portableReportSha256": "ac909ae4cde9091b6acef350e1bff50b6d583a88fb3d2d9d9cae64e73499fa1f",
+      "repositoryRevisions": {
+        "modules/crypto/oberon-psa-crypto": {
+          "commit": "e8db62ed0fba5028e7ae0eba7b1fb63436ae6416",
+          "sourceFilesMatchingCommit": 24
+        },
+        "modules/hal/nordic": {
+          "commit": "69865c20dc4afbdd27060ad1e81af1b62d31f7af",
+          "sourceFilesMatchingCommit": 5
+        },
+        "nrf": {
+          "commit": "b20f8619ba9a5530f8c34b0a130d829947cfe55d",
+          "sourceFilesMatchingCommit": 21
+        },
+        "zephyr": {
+          "commit": "33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6",
+          "sourceFilesMatchingCommit": 175
+        }
+      },
+      "sdkSourceTreeSha256": "928f6635cbdf41460cb12bbdeddd709b7f19eb4228afd639345fdb4b6ccef9e5",
+      "sdkTranslationUnits": 225,
+      "supplierReportSha256": "16a13309f6d409aa22af714c2fcb8abe0a3f74ba52690c0fd3e2d3758bc05679"
+    },
+    "secure": {
+      "compilationDatabaseSha256": "322b7fd16d2284d6e12d77875c16abff18d0e6d9c58d6ec24675ea18ef56ae03",
+      "compilerCommands": 249,
+      "distinctTranslationUnits": 229,
+      "elfSha256": "5032c0083937dba2567c7c6fcbe7ff606bb790e0622d6ea90305ac6c0a19229d",
+      "linkerMapSha256": "549098ed0d15d8933e371e89335efd2e86b81c26e936fb93baf33d9114da9bbc",
+      "portableReport": "secure-sdk.spdx",
+      "portableReportSha256": "e929016a39e3c724795dfb61dd8a854a7bc8c3fb040f736cddb8348cdb97c5e2",
+      "repositoryRevisions": {
+        "modules/crypto/oberon-psa-crypto": {
+          "commit": "e8db62ed0fba5028e7ae0eba7b1fb63436ae6416",
+          "sourceFilesMatchingCommit": 8
+        },
+        "modules/hal/nordic": {
+          "commit": "69865c20dc4afbdd27060ad1e81af1b62d31f7af",
+          "sourceFilesMatchingCommit": 4
+        },
+        "modules/tee/tf-m/trusted-firmware-m": {
+          "commit": "b0d724bc0f2f46a396d59280476ec06fad1d4ecd",
+          "sourceFilesMatchingCommit": 117
+        },
+        "nrf": {
+          "commit": "b20f8619ba9a5530f8c34b0a130d829947cfe55d",
+          "sourceFilesMatchingCommit": 87
+        },
+        "zephyr": {
+          "commit": "33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6",
+          "sourceFilesMatchingCommit": 1
+        }
+      },
+      "sdkSourceTreeSha256": "643fe48f6a4e8904cf18958c9c678409072708b9edfe6f3a12dd5f3e8dc7a4cb",
+      "sdkTranslationUnits": 217,
+      "supplierReportSha256": "3d16f4c50233e9ac357e2a4338564ad201f5413dae8e8872ab7c8624ea15e250"
+    }
+  },
+  "implementationReceiptSha256": "18c8d2bd41f022bac7bfde3d590e1dfe568d1872cfbf80ce16890ca67e463a26",
+  "ncs": "3.4.1",
+  "scope": "Experimental nRF54L15 counted build; NCS SDK source files named as primary compiler inputs in each recorded compilation database. Counts exclude application sources, generated sources outside NCS, header-only inputs, prebuilt archives and the compiler. Source inclusion does not establish runtime reachability.",
+  "signedCombinedImageSha256": "381cd9528bfb5d887cbb9fcce6953b8dbcdc490a8ff77a5d159a814618c412fe",
+  "tool": "west ncs-sbom (SPDX 2.2, spdx-tag and git-info)"
+}

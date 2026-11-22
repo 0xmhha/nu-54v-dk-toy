@@ -1,0 +1,341 @@
+{
+  "scope": "P06 and P08 compiler compatibility, reproducible Foundry builds, loopback Anvil deployment and historical receipt verification. The upstream bug list applies by version.",
+  "tool": "Solidity standard JSON, Foundry 1.5.1 project settings",
+  "evm": "prague",
+  "viaIR": false,
+  "optimizerRuns": 200,
+  "compilerSha256Mac": {
+    "0.8.30": "738dcdc6afddeb505ee4e4ef24f1c1fdba2b8c924e614cbbf5801a5b062dd683",
+    "0.8.39": "6134d77c433e3b714b64b4101a6147cacff93d50137c0b66ab80825fb274ef51"
+  },
+  "supplier": {
+    "previous": "0.8.30",
+    "candidate": "0.8.39",
+    "candidateReleasedAt": "2026-11-19T10:25:55Z",
+    "versionIndex": "https://raw.githubusercontent.com/argotorg/solidity/v0.8.39/docs/bugs_by_version.json",
+    "issueIndex": "https://raw.githubusercontent.com/argotorg/solidity/v0.8.39/docs/bugs.json",
+    "versionIndexSha256": "e131b93baa16786dcdff0490dca8dc69fef56116b58db47b16de5d47a9935d86",
+    "issueIndexSha256": "0da30cec4b9678f4b884e506540b88fa7e6885eb8de4c5c7485e3d83de5f8406",
+    "issueRecordsForPrevious": [
+      {
+        "uid": "SOL-2026-8",
+        "name": "OverlappingRecursiveStorageStructCopyCorruption",
+        "severity": "medium",
+        "fixed": "0.8.39",
+        "conditions": {
+          "viaIR": false
+        }
+      },
+      {
+        "uid": "SOL-2026-8",
+        "name": "OverlappingRecursiveStorageStructCopyCorruptionViaIR",
+        "severity": "medium",
+        "fixed": "0.8.39",
+        "conditions": {
+          "viaIR": true
+        }
+      },
+      {
+        "uid": "SOL-2026-7",
+        "name": "YulOptimizerKnowledgeBaseStaleBookkeeping",
+        "severity": "low",
+        "fixed": "0.8.38",
+        "conditions": {
+          "yulOptimizer": true
+        }
+      },
+      {
+        "uid": "SOL-2026-6",
+        "name": "MisorderedNamedParametersInRequireWithCustomErrors",
+        "severity": "very low",
+        "fixed": "0.8.37",
+        "conditions": {
+          "viaIR": true
+        }
+      },
+      {
+        "uid": "SOL-2026-5",
+        "name": "MemoryByteArrayElementDeleteClearsWholeWord",
+        "severity": "low/medium",
+        "fixed": "0.8.37",
+        "conditions": {
+          "viaIR": false
+        }
+      },
+      {
+        "uid": "SOL-2026-4",
+        "name": "SpillSlotCollisionAcrossMutualRecursion",
+        "severity": "low/medium",
+        "fixed": "0.8.37",
+        "conditions": {
+          "viaIR": true
+        }
+      },
+      {
+        "uid": "SOL-2026-3",
+        "name": "InheritanceOrderReversalOnStorageEndWarning",
+        "severity": "medium",
+        "fixed": "0.8.36"
+      },
+      {
+        "uid": "SOL-2026-2",
+        "name": "UnsoundSpillInMutualRecursion",
+        "severity": "medium",
+        "fixed": "0.8.36",
+        "conditions": {
+          "viaIR": true
+        }
+      },
+      {
+        "uid": "SOL-2026-1",
+        "name": "TransientStorageClearingHelperCollision",
+        "severity": "high",
+        "fixed": "0.8.34",
+        "conditions": {
+          "viaIR": true,
+          "evmVersion": ">=cancun"
+        }
+      },
+      {
+        "uid": "SOL-2025-1",
+        "name": "LostStorageArrayWriteOnSlotOverflow",
+        "severity": "low",
+        "fixed": "0.8.32"
+      }
+    ],
+    "issueRecordsForCandidate": []
+  },
+  "products": {
+    "p06-stablenet-contracts": {
+      "compilerInputSha256": "426a55096ebb883918e24f4b7568e542202c517f42ae1a0249ca0076e449845d",
+      "sourceFiles": 11,
+      "definitions": {
+        "src/IMerchantRegistry.sol:IMerchantRegistry": {
+          "abiEntries": 9,
+          "abiSha256": "2c214ade655dfbf59c6f2d2ef7f5a2f9248b5fe93001f6397d22fc257136b68b",
+          "selectorTableSha256": "2a81cb44e1743759df5e88accfb41ea5883687ff6d522302f007267322b74a9a",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 0,
+          "oldRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "candidateRuntimeBytes": 0,
+          "candidateRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "src/IMerchantRegistryExtensions.sol:IMerchantRegistryExtensions": {
+          "abiEntries": 12,
+          "abiSha256": "87f324ec14bc5b87e4e81754d921dc5198d8f0f6ba0a5cbd25644e26a60fdcf4",
+          "selectorTableSha256": "af0da7482ffb2619f746082ed123bc8544e1fb54ba944e49572832045598b01c",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 0,
+          "oldRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "candidateRuntimeBytes": 0,
+          "candidateRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "src/IPaymentSettlement.sol:IPaymentSettlement": {
+          "abiEntries": 26,
+          "abiSha256": "b3aec9c4bb7d9bce443060e92fe7b772c9f9a232a02be79fd7af8d083f6460f9",
+          "selectorTableSha256": "eaa3b965ee192da3243901dd0e50ff3640c70de956d3a2444c2348a44bdc7380",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 0,
+          "oldRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "candidateRuntimeBytes": 0,
+          "candidateRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "src/IPaymentSettlementExtensions.sol:IPaymentSettlementExtensions": {
+          "abiEntries": 21,
+          "abiSha256": "bbd9cde8261087f25ebecf10c1f277b6e942603918470f2fe9525b6d0e0910f3",
+          "selectorTableSha256": "8f2819332bd2255ac6e234e45b8084a70d412f46035f18963ba212020fc2f188",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 0,
+          "oldRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "candidateRuntimeBytes": 0,
+          "candidateRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "src/MerchantRegistry.sol:MerchantRegistry": {
+          "abiEntries": 22,
+          "abiSha256": "9b61990e76fd0fbed25ccce252431db9583e0a2781ae50a6f323e183ed2bd493",
+          "selectorTableSha256": "1329794894da9f921c76cbd907a23c0c09f983e1e74492b3e237618eca67065e",
+          "storageVariables": 1,
+          "storageLayoutSha256": "943114c8fe88298ff076eb44786a2be2883adb95d22b6b5ca21c1091826e26f8",
+          "oldRuntimeBytes": 2241,
+          "oldRuntimeSha256": "ee98dbce44f2ee14c77c922bd9953a56bc1a4c16e85d72972f97b8ca6af7cbea",
+          "candidateRuntimeBytes": 2241,
+          "candidateRuntimeSha256": "b6c63377ef2955a4bce2d579845637abdf37c5cab57b0f94d77f8e5b35a47f02"
+        },
+        "src/PaymentSettlement.sol:PaymentSettlement": {
+          "abiEntries": 52,
+          "abiSha256": "a98e04c0adf6cdc251720d9290a3086709dd24817cbb601cca08af6b68d6dbed",
+          "selectorTableSha256": "ae7901cf3a15061e57f6587343b45fb9d7baeb1ba3017d49c0c070a02b3b58c5",
+          "storageVariables": 5,
+          "storageLayoutSha256": "38f05462044ad803971f1791c722591e1edfcbea09a1bb73fb30e06af09cf68a",
+          "oldRuntimeBytes": 8738,
+          "oldRuntimeSha256": "0fbeebe9703fde30919acb618ad1ccb193125cf59514123f160be8a1c89753e5",
+          "candidateRuntimeBytes": 8738,
+          "candidateRuntimeSha256": "a43947bfcf14b147116be39360e96878ef2fc7cc8cbce68c51f82308fe220050"
+        },
+        "src/PaymentTypes.sol:PaymentTypes": {
+          "abiEntries": 0,
+          "abiSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "selectorTableSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 85,
+          "oldRuntimeSha256": "70bc54d3022e0ed08274fa983017d3826d696761aae1f8e86494a284bb165b2b",
+          "candidateRuntimeBytes": 85,
+          "candidateRuntimeSha256": "9445af583888cd5c758f815bdbfb626f9fba9bb4db0d11f237b03b464a4bfd6b"
+        },
+        "src/PaymentTypesV2.sol:PaymentTypesV2": {
+          "abiEntries": 0,
+          "abiSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "selectorTableSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 85,
+          "oldRuntimeSha256": "8e46690df7923834a5a569dd72d662967a140339720b16e204211298dba60d80",
+          "candidateRuntimeBytes": 85,
+          "candidateRuntimeSha256": "8c47693a63df450adfd5c3900ee5a800d4d91be1a642213b804739c1bb3ec4e3"
+        },
+        "src/SettlementV2.sol:IERC20AllowanceV2": {
+          "abiEntries": 1,
+          "abiSha256": "7d4e98ee0003ee088436ee25d0cb357291899d390de775054c209359ab429209",
+          "selectorTableSha256": "4a884c5496d90cc6482f398f990c724d83fdce3b322f11bcf63884426451d3f5",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 0,
+          "oldRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "candidateRuntimeBytes": 0,
+          "candidateRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "src/SettlementV2.sol:SettlementV2": {
+          "abiEntries": 60,
+          "abiSha256": "fa62949d373f952f6edf118bcc291ef9357aaedcbf253e11da4b850bb9d94b2e",
+          "selectorTableSha256": "21f359e2ab2e3fba7deb8a3b20a067e0ccf7a8e6073d536800ed2b1b93f8a847",
+          "storageVariables": 15,
+          "storageLayoutSha256": "111d6a123dbd8d39d09ea1e556c85853058ce357a52d6855cad79359622ccb8e",
+          "oldRuntimeBytes": 14944,
+          "oldRuntimeSha256": "6271505a3ce2dee1d79c3e3d1f7243efb4a289bc49036c076b842b0c17fa6bd2",
+          "candidateRuntimeBytes": 14944,
+          "candidateRuntimeSha256": "95f01e59c6c4f865c1af97e429b76d67eb45f593c58036ccda71fd4957ba92bb"
+        },
+        "src/interfaces/IERC20Minimal.sol:IERC20Minimal": {
+          "abiEntries": 3,
+          "abiSha256": "92cee455c185d56774fc5a9050bc3f0d1b7da34cb1cc5751a1e587cc8c5bfa3e",
+          "selectorTableSha256": "54a0c5a7cdc1a4bac47741e1fbfd8e9747c6f6d380b8e27c69615690caf88422",
+          "storageVariables": 0,
+          "storageLayoutSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "oldRuntimeBytes": 0,
+          "oldRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "candidateRuntimeBytes": 0,
+          "candidateRuntimeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "src/test-token/TestUSDC.sol:TestUSDC": {
+          "abiEntries": 44,
+          "abiSha256": "248fc74d41338140451d45ef62aed54807b89d56ddf6ac8b13155b482798c7c4",
+          "selectorTableSha256": "6bd60a8e718fa8820197e8064b9a8d1594c5efc8d4c5f4c35774b4fd82900fc0",
+          "storageVariables": 8,
+          "storageLayoutSha256": "ea4170aade56aa80ee9e4c5891ebfe0d17a99a6329e09eec4f70b7a365d87a7f",
+          "oldRuntimeBytes": 4222,
+          "oldRuntimeSha256": "183e01cce36fa79e878a98cf3a85e75b2744758c14c08a17e94a89f65f2269fd",
+          "candidateRuntimeBytes": 4222,
+          "candidateRuntimeSha256": "5fc7d9ec3993d594cc2f8723b42f45ca2481504aace285796f782f6bd25ac428"
+        }
+      }
+    },
+    "p08-market-services": {
+      "compilerInputSha256": "1f2cd28851e9e4eb9a642f1f5107daa83e87f67171dacebfa93eb95eeca6f835",
+      "sourceFiles": 2,
+      "definitions": {
+        "src/LabToken.sol:LabToken": {
+          "abiEntries": 16,
+          "abiSha256": "5dd295512682b395da22149ba5db282f64001c878bf1799f4038193da0ab9ae6",
+          "selectorTableSha256": "44c0ded70ce6e7d025dbe9db0319aaec736996416c29e67b2d62de92a7981281",
+          "storageVariables": 5,
+          "storageLayoutSha256": "aea40274129f3b831aaa2f1cc1969026f4e407bd976baf43c02486ccca69c9e2",
+          "oldRuntimeBytes": 1870,
+          "oldRuntimeSha256": "abd5ba2f2333e6ccfaffd25fc03923747a7a4047763a84154b753b6b1f23b2a0",
+          "candidateRuntimeBytes": 1870,
+          "candidateRuntimeSha256": "831027b382fc744fa2b2049c9bbcd4dcf54711064792c80f3478dcda0ac612b2"
+        },
+        "src/Market.sol:Market": {
+          "abiEntries": 54,
+          "abiSha256": "b9de790a744cc8d98e6300747de93cfc731831c67aeffa7192d3a16279c7ba98",
+          "selectorTableSha256": "2b4790bcfde8f26983c00e8c905b546c35d51c19876f4f735abfa829f3ff57a7",
+          "storageVariables": 12,
+          "storageLayoutSha256": "b15140db0aee543b3df946e1fb56fa7fc8b81c693bea1433dea19a2fcaa33a5a",
+          "oldRuntimeBytes": 12366,
+          "oldRuntimeSha256": "45b29cf7e59ac2ef6cdbfd816c47edd6cb1b2ce7a4919089b7e960d55c30f1b0",
+          "candidateRuntimeBytes": 12366,
+          "candidateRuntimeSha256": "107e338ae49b7faced0aaed12712b45016f343533f203b610a383d1b5a0668e0"
+        }
+      }
+    }
+  },
+  "foundryVerification": {
+    "forge": "1.5.1",
+    "compiler": "0.8.39",
+    "network": "isolated Anvil over loopback",
+    "artifactHashAlgorithm": "SHA-256 of decoded bytecode",
+    "relocatedCheckouts": 2,
+    "buildOutputs": {
+      "MerchantRegistry": {
+        "bytecode": "8c2a526f2afda82967d9c65df68dd63788dbcdd5183a9a79bfaa699ef9e13f71",
+        "deployedBytecode": "f3e240bd0e9522015330226c4fbbdee5da8861bfe2851ac0f9cf6b394b2614bf"
+      },
+      "PaymentSettlement": {
+        "bytecode": "e4db773e269f462b21b6436654f590812522a6e06aecf5cc9f651c2e32aa7f3a",
+        "deployedBytecode": "1b6b50adf468dd856bb395008143ac8e15dc99b61af7d8e909c96c8d9e82eb04"
+      },
+      "TestUSDC": {
+        "bytecode": "f28c8db89637b9a5ac1361af224875b095187f46f570356e7e985cf0e65e30f5",
+        "deployedBytecode": "00bd9916535610a74f4b5c5735b0fcb729dabe5f776854663b4d0b71113302f3"
+      },
+      "SettlementV2": {
+        "bytecode": "8315fd24fb9ac1ec6d50c72ef700808d7a7f8118f919ee66a902845c61ab43c7",
+        "deployedBytecode": "b85f115ca7bf8c26adddd87fd4b9692e850eaa533e2e68e4ef96fbcfba74b7ff"
+      },
+      "LabToken": {
+        "bytecode": "2427ed4ab5124b6914d3599d6dab68c0e68035d94ecd9c9edcb4e48db2c0e3e1",
+        "deployedBytecode": "4c6ce6d7c1d3918465cd3a5d4e110e66cc66921108ee09c9b599dcddd1f20bc3"
+      },
+      "Market": {
+        "bytecode": "8a7f8e93dbed7251eb298f273f3506b15c49a0e01d08147c4d2eedbe5a78a668",
+        "deployedBytecode": "e08ed1535ca96010854f7586dbdb7b9ab5fc02ad0858e9fdfd61d7dd0b1079bf"
+      }
+    },
+    "actualMarketdDeploy": {
+      "Market": {
+        "creation": "8a7f8e93dbed7251eb298f273f3506b15c49a0e01d08147c4d2eedbe5a78a668",
+        "fullRuntime": "b7d5feb1ecb79be3365586d6bce15476d7b0d8def57f584c856f93a5f219dc7e",
+        "runtimeTemplate": "e08ed1535ca96010854f7586dbdb7b9ab5fc02ad0858e9fdfd61d7dd0b1079bf"
+      },
+      "Base": {
+        "creation": "2427ed4ab5124b6914d3599d6dab68c0e68035d94ecd9c9edcb4e48db2c0e3e1",
+        "fullRuntime": "143f1a3c157f9ba62b0359e19067d38c7eaa9f9b5bca7e56686879b813df1e80",
+        "runtimeTemplate": "4c6ce6d7c1d3918465cd3a5d4e110e66cc66921108ee09c9b599dcddd1f20bc3"
+      },
+      "Quote": {
+        "creation": "2427ed4ab5124b6914d3599d6dab68c0e68035d94ecd9c9edcb4e48db2c0e3e1",
+        "fullRuntime": "00697fecf0190ab6f3398096a0a152455671b0bef0127c89f11d98d82022ff88",
+        "runtimeTemplate": "4c6ce6d7c1d3918465cd3a5d4e110e66cc66921108ee09c9b599dcddd1f20bc3"
+      }
+    },
+    "checkedAtDeploymentBlock": [
+      "three CREATE inputs including constructor arguments",
+      "three returned runtimes and eth_getCode",
+      "runtime templates and encoded immutable fields"
+    ],
+    "archive": {
+      "chainId": 8283,
+      "sourceCommit": "66a5f433d11ba87119959b6f3b477b4843e93bae",
+      "compiler": "0.8.30",
+      "runtimeKeccak256FromArchivedDeployment": {
+        "TestUSDC": "0x3fe6cc45290cfe6b01ba55d34513f0be3d614253d0ee0fde33cf43633d2561bb",
+        "MerchantRegistry": "0xb77b0a74749086b832121812588398f69e541bb972db6ad6bf6827ed25539ca9",
+        "PaymentSettlement": "0xe62e549103f9db8abbd232efda36fd910702e5004de9248153ec9656555586d3"
+      }
+    }
+  }
+}

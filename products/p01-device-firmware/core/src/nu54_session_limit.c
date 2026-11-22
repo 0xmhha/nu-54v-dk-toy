@@ -24,6 +24,10 @@ void ss_limit_change(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_o
 		limit_refused(d, out, "TIME_ANCHOR_MISSING");
 		return;
 	}
+	if (!ss_rental_can_prompt(d)) {
+		limit_refused(d, out, "NOT_PERMITTED");
+		return;
+	}
 	int c = nu54_msg_find(m, 0, "change");
 	nu54_limit_change_t *l = &d->pending_limit;
 	memset(l, 0, sizeof(*l));
@@ -83,17 +87,18 @@ void ss_limit_confirmed(nu54_device_t *d, int approve, nu54_out_t *out)
 		return;
 	}
 	nu54_limit_change_t l = d->pending_limit;
-	memcpy(l.nonce, d->next_nonce, 32);
-	ss_increment(d->next_nonce); /* the same sequential counter as payments */
-	if (d->cfg.platform.persist_nonce && d->cfg.platform.persist_nonce(d->cfg.platform.ctx, d->next_nonce) != 0) {
+	uint8_t domain[32], h[32], digest[32], sig[65];
+	nu54_rental_journal_request_t request = {0};
+	memset(l.nonce, 0, sizeof(l.nonce));
+	nu54_hash_limit_change(&l, request.key);
+	if (ss_rental_nonce(d, NU54_RENTAL_LIMIT, request.key, l.nonce) != 0) {
 		limit_refused(d, out, "NOT_PERMITTED");
 		return;
 	}
-	uint8_t domain[32], h[32], digest[32], rs[64], sig[65];
 	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
 	nu54_hash_limit_change(&l, h);
 	nu54_eip712_digest(domain, h, digest);
-	if (d->cfg.platform.sign(d->cfg.platform.ctx, digest, rs) != 0 || nu54_sig_finish(digest, rs, d->address, sig) != NU54_SIG_OK) {
+	if (ss_rental_sign(d, NU54_RENTAL_LIMIT, &request, l.expiry, digest, l.nonce, sig) != 0) {
 		limit_refused(d, out, "NOT_PERMITTED");
 		return;
 	}

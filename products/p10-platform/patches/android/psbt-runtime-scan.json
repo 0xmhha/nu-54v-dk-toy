@@ -1,0 +1,59 @@
+{
+  "observedAt": "2026-11-21T07:40:00+09:00",
+  "ecosystem": "Maven",
+  "resolver": "Gradle resolved runtime classpath, offline cache",
+  "query": "https://api.osv.dev/v1/querybatch",
+  "versionsQueried": 89,
+  "reportedVulnerabilities": 0,
+  "responseSha256": "5c4653dc20261d1719fe633769d80f559273cadee9b2bd77d540d8b212386722",
+  "variantGraphs": [
+    {
+      "product": "p02-user-app",
+      "configuration": "customRuntimeClasspath",
+      "baseGraph": "p02-owner-custom-gradle.lockfile",
+      "baseSha256": "70c9fb9ef9286c6b901baf7697a8dd258e8cea8c454a9d40d0d108e55edd8a03",
+      "added": [
+        "com.google.zxing:core:3.5.4"
+      ],
+      "removed": [],
+      "resolvedCount": 89,
+      "resolvedSha256": "78b14a7a081c8f38d737f5771bc25236203afc98f83cb6411bc3a88b59d41016"
+    },
+    {
+      "product": "p02-user-app",
+      "configuration": "releaseRuntimeClasspath",
+      "baseGraph": "p02-owner-release-gradle.lockfile",
+      "baseSha256": "178ae23292f131370d8773708c07f80d5b4080a3b4b091af0876db72f1930d33",
+      "added": [
+        "com.google.zxing:core:3.5.4"
+      ],
+      "removed": [],
+      "resolvedCount": 89,
+      "resolvedSha256": "4c9482ed36c9a88f7258a540308878af9bb77c5d15d92b26dd03300ff24c5e32"
+    },
+    {
+      "product": "p04-merchant-kiosk",
+      "configuration": "customRuntimeClasspath",
+      "baseGraph": "p04-custom-gradle.lockfile",
+      "baseSha256": "4ecfccadea764c39d746d54f35201860b60ca76b16cbdea4b24c01ea6b56eb22",
+      "added": [
+        "org.conscrypt:conscrypt-android:2.7.0"
+      ],
+      "removed": [],
+      "resolvedCount": 88,
+      "resolvedSha256": "70c9fb9ef9286c6b901baf7697a8dd258e8cea8c454a9d40d0d108e55edd8a03"
+    },
+    {
+      "product": "p04-merchant-kiosk",
+      "configuration": "releaseRuntimeClasspath",
+      "baseGraph": "p04-release-gradle.lockfile",
+      "baseSha256": "5d05c3d3e5cb7f9a76b5c36fcaeee1613cf37ca49541d036919c536189440b0e",
+      "added": [
+        "org.conscrypt:conscrypt-android:2.7.0"
+      ],
+      "removed": [],
+      "resolvedCount": 88,
+      "resolvedSha256": "178ae23292f131370d8773708c07f80d5b4080a3b4b091af0876db72f1930d33"
+    }
+  ]
+}

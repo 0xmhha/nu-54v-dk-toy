@@ -7,14 +7,19 @@
  * the device buttons (P02-FR-06).
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { BackHandler, Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
 import { bodyLink } from './setup/channel.ts';
 import { SetupFlow, type DeviceRecord, type FoundDevice, type PinEntry, type SetupPlatform, type SetupState } from './setup/flow.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
+import { WalletHome } from './wallet/WalletHome.tsx';
+import {readCommissioningQr, type CommissioningPins} from './wallet/ownerWire.ts';
+import { CustomerOrders } from './merchant/CustomerOrders.tsx';
+import {MarketLab} from './market/MarketLab.tsx';
+import { TravelHome, type TravelBookingScope } from './travel/TravelHome.tsx';
 
 const OUTCOME_TEXT: Record<string, string> = {
   approved: '결제 완료',
@@ -402,24 +407,177 @@ function Receipt({ receipt: r, txHash }: { receipt: DigitalReceipt; txHash?: str
 
 function Button({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable style={[styles.button, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !!disabled}}
+      style={[styles.button, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
       <Text style={styles.buttonText}>{label}</Text>
     </Pressable>
   );
 }
 
 export default function App() {
+  const [renting, setRenting] = useState(false);
+  const [commissioningPins, setCommissioningPins] = useState<CommissioningPins>();
+  const [shopping, setShopping] = useState(false);
+  const [travel, setTravel] = useState(false);
+  const [travelBooking, setTravelBooking] = useState<TravelBookingScope>();
+  const [marketLab, setMarketLab] = useState(false);
+  const [marketTravel, setMarketTravel] = useState(false);
+  const [exploreSite,setExploreSite]=useState('');
+  const [exploreService,setExploreService]=useState<'travel'|'market'>();
+  const resumeExplore=useRef(false);
+  const [practicing, setPracticing] = useState(false);
+  const rentalActive = useRef(false);
+  rentalActive.current = renting;
+  const marketReturnAllowed = useRef(true);
+  marketReturnAllowed.current = !shopping && !travel && !marketTravel && !practicing;
+  const marketLearningRoute = 'nu54://market-learning';
+  const [orderLink, setOrderLink] = useState('');
+  const [incomingPaymentLink, setIncomingPaymentLink] = useState(0);
+  const [subscriptionLink, setSubscriptionLink] = useState('');
+  const [counterQr, setCounterQr] = useState('');
+  const [shopQr, setShopQr] = useState('');
+  const [shopEntry, setShopEntry] = useState(false);
+  const openShopQr = useCallback((raw: string) => {
+    setOrderLink('');
+    setSubscriptionLink('');
+    setCounterQr('');
+    setShopQr(raw.slice(0, 97));
+    setShopEntry(true);
+    setIncomingPaymentLink(value => value + 1);
+    setShopping(true);
+  }, []);
+  const openNearbyOrders = () => {
+    openShopQr('');
+  };
+  useEffect(()=>{
+    let present=true;
+    let receivedLiveLink=false;
+    const offer=(url:string)=>{
+      if(!present || rentalActive.current)return;
+      const pins = readCommissioningQr(url);
+      if (pins) {
+        setCommissioningPins(pins);
+        return;
+      }
+      if (url === marketLearningRoute) {
+        if (marketReturnAllowed.current) setMarketLab(true);
+        return;
+      }
+      if (url.startsWith('nu54://shop/')) {
+        openShopQr(url);
+        return;
+      }
+      const subscription = /^nu54:\/\/subscriptions\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$/.exec(url);
+      if (subscription) {
+        setIncomingPaymentLink(value => value + 1);
+        setOrderLink('');
+        setCounterQr('');
+        setShopQr('');
+        setShopEntry(false);
+        setSubscriptionLink(subscription[1]);
+        setShopping(true);
+        return;
+      }
+      if (!url.startsWith('nu54://order')) return;
+      setIncomingPaymentLink(value => value + 1);
+      setSubscriptionLink('');
+      setCounterQr('');
+      setShopQr('');
+      setShopEntry(false);
+      setOrderLink(url === 'nu54://order' ? '' : url.slice(0, 133));
+      setShopping(true);
+    };
+    Linking.getInitialURL().then(url=>{if(url && !receivedLiveLink)offer(url);}).catch(()=>{});
+    const callback=Linking.addEventListener('url',event=>{
+      if (event.url === marketLearningRoute || event.url.startsWith('nu54://order') || event.url.startsWith('nu54://subscriptions/') || event.url.startsWith('nu54://shop/') || readCommissioningQr(event.url))
+        receivedLiveLink=true;
+      offer(event.url);
+    });
+    return ()=>{present=false;callback.remove();};
+  },[marketLearningRoute,openShopQr]);
+  const [honorExistingRental, setHonorExistingRental] = useState(true);
+  const rental = useCallback(() => setRenting(true), []);
+  const profiles = () => {
+    setHonorExistingRental(false);
+    setRenting(false);
+  };
+  const openPaymentList = (qr = '') => {
+    setOrderLink('');
+    setSubscriptionLink('');
+    setCounterQr(qr);
+    setShopQr('');
+    setShopEntry(false);
+    setIncomingPaymentLink(value => value + 1);
+  };
+  const closePayments = () => {
+    openPaymentList();
+    setShopping(false);
+  };
+  const openTravelBookings = (scope: TravelBookingScope) => {
+    setTravelBooking(scope);
+    setShopping(false);
+    setTravel(true);
+  };
+  const closeTravel = useCallback(() => {
+    if (exploreService==='travel') resumeExplore.current=true;
+    setExploreService(undefined);
+    setTravel(false);
+    if (travelBooking) setShopping(true);
+    setTravelBooking(undefined);
+  },[exploreService,travelBooking]);
+  const closeMarket=useCallback(()=>{
+    if (exploreService==='market') resumeExplore.current=true;
+    setExploreService(undefined);
+    setMarketTravel(false);
+    setMarketLab(false);
+  },[exploreService]);
+  const onExploreRestored=useCallback(()=>{resumeExplore.current=false;},[]);
+  useEffect(()=>{
+    if ((!exploreService && !marketTravel) || shopping || renting) return;
+    const listener=BackHandler.addEventListener('hardwareBackPress',()=>{
+      if (marketTravel) setMarketTravel(false);
+      else if (exploreService==='travel') closeTravel();
+      else closeMarket();
+      return true;
+    });
+    return ()=>listener.remove();
+  },[exploreService, marketTravel, shopping, renting, closeTravel,closeMarket]);
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
-        <Renter />
+        {shopping ? <CustomerOrders key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
+          openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
+          initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
+          <Button label="지갑 프로필 선택" onPress={profiles} />
+          <Renter />
+        </View> : marketLab ? <View style={styles.home}>
+          <View style={marketTravel ? styles.hidden : styles.home} accessibilityElementsHidden={marketTravel}
+            importantForAccessibility={marketTravel ? 'no-hide-descendants' : 'auto'}>
+            <MarketLab back={closeMarket} permission={bluetoothPermission} openTravel={() => setMarketTravel(true)} />
+          </View>
+          {marketTravel && <TravelHome back={() => setMarketTravel(false)} backLabel="학습 시장으로 돌아가기"
+            permission={bluetoothPermission} />}
+        </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : <View style={styles.home}>
+          {!practicing && <Button label="테스트 시장 학습" onPress={() => setMarketLab(true)} />}
+          {!practicing && <Button label="가까운 매장에서 주문" onPress={openNearbyOrders} />}
+          {!practicing && <Button label="내 결제" onPress={() => setShopping(true)} />}
+          {!practicing && <Button label="여행지 찾기" onPress={() => setTravel(true)} />}
+          <WalletHome onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
+            initialExplore={resumeExplore.current} onExploreRestored={onExploreRestored}
+            exploreSite={exploreSite} onExploreSiteChange={setExploreSite}
+            openExploreTravel={()=>{setExploreService('travel');setTravel(true);}}
+            openExploreMarket={()=>{setExploreService('market');setMarketLab(true);}}
+            commissioningPins={commissioningPins} dismissCommissioningPins={()=>setCommissioningPins(undefined)} />
+        </View>}
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  home: { flex: 1 },
+  hidden: { display: 'none' },
   root: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
   title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
   body: { fontSize: 17, color: '#333', marginBottom: 12 },

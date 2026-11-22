@@ -1,0 +1,28 @@
+{
+  "rows": [
+    {
+      "sku": "drink-12",
+      "option": "iced",
+      "label": "Americano",
+      "displayPrice": "3.50",
+      "required": true,
+      "metadata": {"labels": {"ko": "아메리카노", "en": "Americano"}, "optionLabels": {"ko": "아이스", "en": "Iced"}, "allergens": [], "crossContact": "possible", "optionGroupLabels": {"ko": "온도", "en": "Temperature"}}
+    },
+    {
+      "sku": "drink-12",
+      "option": "hot",
+      "label": "Americano",
+      "displayPrice": "4.00",
+      "required": true,
+      "metadata": {"labels": {"ko": "아메리카노", "en": "Americano"}, "optionLabels": {"ko": "따뜻하게", "en": "Hot"}, "allergens": [], "crossContact": "possible", "optionGroupLabels": {"ko": "온도", "en": "Temperature"}}
+    },
+    {
+      "sku": "baked-09",
+      "option": "standard",
+      "label": "Croissant",
+      "displayPrice": "3.00",
+      "metadata": {"labels": {"ko": "크루아상", "en": "Croissant"}, "optionLabels": {"ko": "기본", "en": "Standard"}, "allergens": ["wheat", "milk", "egg"], "crossContact": "possible", "crossContactAllergens": ["tree-nuts"], "crossContactSource": "shared-baking-equipment"}
+    }
+  ],
+  "stock": 5
+}

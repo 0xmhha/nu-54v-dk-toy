@@ -17,6 +17,7 @@ typedef struct {
 
 PATTERN(P_MODE, true, 100, 1900);
 PATTERN(P_PAIRING, true, 100, 150, 100, 1650);
+PATTERN(P_LOCATE, false, 400, 650, 400, 650, 400, 650, 400, 650);
 PATTERN(P_BONDED, false, 1000, 0);
 PATTERN(P_WAITING, true, 200, 200);
 PATTERN(P_SIGNED, true, 500, 500);
@@ -103,6 +104,7 @@ static void set(bool *flag, bool value)
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	if (*flag != value) {
 		*flag = value;
+		if (value && oneshot == &P_LOCATE) oneshot = NULL;
 		if (!oneshot) {
 			restart();
 		}
@@ -116,6 +118,22 @@ static void play(const pattern_t *p)
 	oneshot = p;
 	restart();
 	k_spin_unlock(&lock, key);
+}
+
+bool status_led_locate(bool start)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	bool accepted = !start || (!pin_active && !waiting && !pairing && !mode &&
+				  !oneshot && !ongoing());
+	if (start && accepted) {
+		oneshot = &P_LOCATE;
+		restart();
+	} else if (!start && oneshot == &P_LOCATE) {
+		oneshot = NULL;
+		restart();
+	}
+	k_spin_unlock(&lock, key);
+	return accepted;
 }
 
 void status_led_mode(bool on)

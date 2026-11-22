@@ -1,0 +1,119 @@
+{
+  "version": "v1",
+  "source": {
+    "commit": "4ca2e59a83151e6ab9bed10a39f89f5c194358b9",
+    "objects": {
+      "products/p01-device-firmware": "dc7fbef7d90593cf7dfa6e7b0a7b61ad2003cc35",
+      "products/p01-device-firmware/boards/nucode/nu54v_dk": "8c7d23cfb7e108db9c48dba3afab95c508a0362a",
+      "products/p02-user-app": "dc345661a0d51ce006cf268b7700fddac01f6e09",
+      "products/p04-merchant-kiosk": "c5ccf3d7111c166d4076513509dc527e724436fe",
+      "products/p05-operations-backoffice": "8d70c1935473f2562540b70f63bd28626d18f5f7",
+      "products/p06-stablenet-contracts": "8304530f0d89731a8383c268635382570f389619",
+      "products/p07-indexer": "a05adbb63aa03b05e0b17002444ce64401c58942",
+      "packages/contracts-abi": "0b89c6fc69262d4a1e9641a6230d695d3a482a4d",
+      "packages/protocol": "dd9befaf4ebd9713250d8d2eae974b709621c0ab",
+      "packages/device-sim": "6c04d992247553f1993a4b564949a587d348b69f",
+      "pnpm-lock.yaml": "569c66833ee1309511f6eb4fe6399d87ab60944f",
+      "package.json": "b956e5952696ef04109a9330c9bb9f9c5f358b66",
+      "pnpm-workspace.yaml": "19e188897dbf112aacceecde92a8427dfad3e237",
+      "go.work": "a1b3731e1832de526936809c2e6d1c4b302edef0",
+      "go.work.sum": "2da86f0642815960f83310b3f10a3a838ea5656c",
+      "uv.lock": "444abab2530040646e38912c0c6207a6fb7a5515",
+      "docs/content/acceptance/finality-8283.md": "20bce585d97d6ad8a10c1b40ffe46987553afab6",
+      "docs/content/acceptance/gate-w7.md": "f01db4f34015d638cb2ac1d970352c0cd6dde1cf",
+      "docs/content/nu54v-basic-peripheral-bringup-log.md": "9c5a3db9e43be18ebb3f4ee78e09b34c7c96b51e"
+    }
+  },
+  "board": {
+    "model": "NU-54V-DK",
+    "revision": "NU-54DK-C / v2 Pre-release",
+    "soc": "nRF54L15",
+    "target": "nu54v_dk/nrf54l15/cpuapp",
+    "definitionPath": "products/p01-device-firmware/boards/nucode/nu54v_dk",
+    "record": "docs/content/nu54v-basic-peripheral-bringup-log.md",
+    "releaseImageSha256": null
+  },
+  "apps": {
+    "P02": {
+      "path": "products/p02-user-app",
+      "packageVersion": "0.0.1",
+      "reactNative": "0.87.1",
+      "androidGradle": "9.4.1",
+      "androidArtifactSha256": null,
+      "iOSSourceAvailable": false
+    },
+    "P04": {
+      "path": "products/p04-merchant-kiosk",
+      "packageVersion": "0.0.1",
+      "reactNative": "0.87.1",
+      "androidGradle": "9.4.1",
+      "androidArtifactSha256": null,
+      "iOSArtifactSha256": null,
+      "iOSSourceAvailable": true
+    }
+  },
+  "toolchain": {
+    "archivedBringup": {
+      "ncs": "v3.4.1",
+      "zephyr": "v4.4.2-33fa6a7aac6a",
+      "sdk": "1.0.1",
+      "armGcc": "14.3.0",
+      "west": "1.5.0",
+      "nrfutil": "8.2.1",
+      "pyocd": "0.42.0"
+    },
+    "sourceBuildInputs": {
+      "nodeMinimum": "22",
+      "pnpm": "10.18.0",
+      "goModMinimum": "1.25.0",
+      "solc": "0.8.30",
+      "optimizerRuns": 200,
+      "evmVersion": "prague",
+      "foundry": "1.5.1"
+    },
+    "buildToolchainDigest": null
+  },
+  "deployment": {
+    "record": "products/p06-stablenet-contracts/deployments/8283.json",
+    "chainId": 8283,
+    "deployedSourceCommit": "66a5f433d11ba87119959b6f3b477b4843e93bae",
+    "equivalentMainCommit": "a8c0c440256ead014f751575cb9735e8135297c1",
+    "contracts": {
+      "TestUSDC": {
+        "address": "0x500ef69da230E42bFF34487B578eA0cBefbdA2BA",
+        "block": 21129130,
+        "runtimeCodeKeccak": "0x3fe6cc45290cfe6b01ba55d34513f0be3d614253d0ee0fde33cf43633d2561bb"
+      },
+      "MerchantRegistry": {
+        "address": "0x0c293f18815D8336f4F299bF59b796a6CFDA2ae0",
+        "block": 21129131,
+        "runtimeCodeKeccak": "0xb77b0a74749086b832121812588398f69e541bb972db6ad6bf6827ed25539ca9"
+      },
+      "PaymentSettlement": {
+        "address": "0xDe7596556D35Fa62F238F074A0f0E59cF730caA4",
+        "block": 21129134,
+        "runtimeCodeKeccak": "0xe62e549103f9db8abbd232efda36fd910702e5004de9248153ec9656555586d3"
+      }
+    },
+    "abiSha256": {
+      "IMerchantRegistry": "8c7171ee96c74a4e13249122f56bd7b8ae8a8d865ddfeec2d60943a202ad7da4",
+      "IMerchantRegistryExtensions": "a213f04d87bbfab5bc3209a2c1393a341f803c02b9082d3cba9dd21cd3be86ea",
+      "IPaymentSettlement": "05bbfd86dc59243e5456ce494036f33870e319d66aa96a91ee82e7054670ca4d",
+      "IPaymentSettlementExtensions": "c2c1803a94af6450615e93505dbe45dd18432b66284b7e4215143172f05be002",
+      "TestUSDC": "1df01bbf69311f478a878017966fae0a6fcc9b6c95324f37ad2a4a6d5e357bb8"
+    }
+  },
+  "confirmedPayment": {
+    "scope": "Historical W7 Android kiosk and physical board gate",
+    "record": "docs/content/acceptance/gate-w7.md",
+    "firmwareVersion": "0.3.0",
+    "firmwareBranchAnchor": "3562dde",
+    "firmwareExactBuildCommit": null,
+    "kioskBuild": "Android debug / Galaxy S25 Ultra (Android 16)",
+    "block": 21463022,
+    "blockHash": "0x16849e128759f64d25a3c0eea80a34c9ae2d4cc9370d7adbed806ac60b0dd517",
+    "finalizedHeadAtCheck": 21463049,
+    "receiptPath": "evidence/w7/2026-10-05-kiosk-app/receipt.json",
+    "receiptSha256": "3484f4fc224978a9171e8fb7870eb2fd8a413f69ed5e503a0d6c024f470780cb"
+  }
+}

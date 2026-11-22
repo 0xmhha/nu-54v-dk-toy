@@ -1,0 +1,45 @@
+{
+  "ncs": "3.4.1",
+  "experimentalServiceVersion": 1,
+  "endpoint": "https://api.osv.dev/v1/querybatch",
+  "checkedAtUtc": "2026-11-21T02:38:36+00:00",
+  "responseSha256": "00a7a4ea40924a110461073f8d40d8fad7b0bed7cf6b8f079af3d461baaf4965",
+  "scope": "Exact upstream Git commits queried against OSV. This does not evaluate fork ancestry, reachability, unlisted dependencies or supplier advisories.",
+  "repositories": [
+    {
+      "name": "bootloader/mcuboot",
+      "commit": "8122be0de002ede060d37aa39b2a7f18aecc00c3",
+      "advisoryIds": []
+    },
+    {
+      "name": "modules/crypto/oberon-psa-crypto",
+      "commit": "e8db62ed0fba5028e7ae0eba7b1fb63436ae6416",
+      "advisoryIds": []
+    },
+    {
+      "name": "modules/hal/nordic",
+      "commit": "69865c20dc4afbdd27060ad1e81af1b62d31f7af",
+      "advisoryIds": []
+    },
+    {
+      "name": "modules/lib/zcbor",
+      "commit": "9164bd18dcd88ff9d9ef98279501fc1093571017",
+      "advisoryIds": []
+    },
+    {
+      "name": "modules/tee/tf-m/trusted-firmware-m",
+      "commit": "b0d724bc0f2f46a396d59280476ec06fad1d4ecd",
+      "advisoryIds": []
+    },
+    {
+      "name": "nrf",
+      "commit": "b20f8619ba9a5530f8c34b0a130d829947cfe55d",
+      "advisoryIds": []
+    },
+    {
+      "name": "zephyr",
+      "commit": "33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6",
+      "advisoryIds": []
+    }
+  ]
+}

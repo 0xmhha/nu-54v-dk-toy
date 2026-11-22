@@ -1,0 +1,39 @@
+{
+  "ncs": "3.4.1",
+  "target": "nu54v_dk/nrf54l15/cpuapp/ns",
+  "psaServiceVersion": 2,
+  "requestBytes": 68,
+  "responseBytes": 36,
+  "signedCombinedImageSha256": "2a5caae862afade6c49d2916f46e2a2bb04b7f416601353f1ed5ac3f57e4720b",
+  "implementationReceiptSha256": "7319dd385a6b696648decc80717df02219cdff189c65790dc51f1ebbbb478f54",
+  "auditReceiptSha256": "6911587ad319168938003d69c6f59f8189281f54ee2e781d13725e137f582c3a",
+  "images": {
+    "nonsecure": {
+      "sdkPrimarySourceCount": 225,
+      "sdkSourceTreeSha256": "928f6635cbdf41460cb12bbdeddd709b7f19eb4228afd639345fdb4b6ccef9e5",
+      "matchesV1Spdx": "nonsecure-sdk.spdx",
+      "elfSha256": "9c66607e4fd7c73dec1cdcabc64b6822586f6636bed3fdb2b25a0aa15e5705c6",
+      "linkerMapSha256": "e1726d1fb48a8397d0b69e311ec8ebd59e84c953fdd18bd8ee50b62cd4d026a3",
+      "compilationDatabaseSha256": "e78d36d0174aa5fbc795934fcca99aa3fe65dcb769022b4421a3235eae3b7ee6"
+    },
+    "secure": {
+      "sdkPrimarySourceCount": 217,
+      "sdkSourceTreeSha256": "643fe48f6a4e8904cf18958c9c678409072708b9edfe6f3a12dd5f3e8dc7a4cb",
+      "matchesV1Spdx": "secure-sdk.spdx",
+      "elfSha256": "6bb5ddb33bbf756eece229caa44dbabfafb92c90445c600bb2269b001f668f48",
+      "linkerMapSha256": "b95a63c302789bb152a2105e8d908bec4289b07d0bd1c98713966d673fda3b0c",
+      "compilationDatabaseSha256": "8c91e3ae1ff08fc7e6a568d9a91a19daa71730626d00901bbcb0ab3b074a14b1"
+    },
+    "bootloader": {
+      "sdkPrimarySourceCount": 255,
+      "sdkSourceTreeSha256": "70ff3a053de6d874c7147e1c67ce80845c2c7ce83e77066c962bd7c873ca2891",
+      "matchesV1Spdx": "bootloader-sdk.spdx",
+      "elfSha256": "1ea171826fd9fb4d4af8f183b7c2a1f86306ec7ca34da67be3614e2c840891cf",
+      "linkerMapSha256": "58edc3ea04a4efda748d8537f6689f88372dd889240dd40cd6401a1f7ed1ef33",
+      "compilationDatabaseSha256": "a9f162bcfca5e5761572565cff3efada0c17312fdddb75835df0fabebd6c07b8"
+    }
+  },
+  "scope": "Compared the SDK primary compiler inputs by relative path and content against the earlier V1 inventory. The application and secure service changed. This check does not cover all linked components or qualify the board in production.",
+  "boardFlashed": false,
+  "productionQualification": false
+}

@@ -140,8 +140,17 @@ func (in *Ingester) Step(ctx context.Context) (caughtUp bool, err error) {
 
 // Run polls until the context ends; errors are logged and the same range is read again.
 func (in *Ingester) Run(ctx context.Context) {
+	in.RunWithGuard(ctx, func(ctx context.Context, op func(context.Context) error) error { return op(ctx) })
+}
+
+func (in *Ingester) RunWithGuard(ctx context.Context, guard func(context.Context, func(context.Context) error) error) {
 	for {
-		caughtUp, err := in.Step(ctx)
+		var caughtUp bool
+		err := guard(ctx, func(ctx context.Context) error {
+			var err error
+			caughtUp, err = in.Step(ctx)
+			return err
+		})
 		if err != nil {
 			log.Printf("ingest: %v (cursor kept, retrying)", err)
 		}

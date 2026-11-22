@@ -1,0 +1,43 @@
+-- Run against the scratch database containing the five target DDLs.
+-- psql -X -Atq -v ON_ERROR_STOP=1 -f erd.psql > erd.md
+-- Reads system catalogs only. Names in the allowlist belong to this design.
+SET search_path = pg_catalog;
+SELECT '# 상용 데이터 스키마 ERD';
+SELECT '';
+SELECT '검증용 PostgreSQL에 적용된 테이블·PK·FK와 널 허용 여부에서 생성했다. 왼쪽은 부모, 오른쪽은 자식이다. 실선은 외래 키 전체가 자식 기본키에 포함된 식별 관계, 점선은 비식별 관계다. 조건부 유일 인덱스와 서비스 전이 조건은 [DDL과 도메인 설계](README.md)에 있다. 다른 소유자의 불투명 참조에는 FK 선을 긋지 않는다. 보드 NVM·모바일 로컬 저장소는 [지갑 논리 ERD](wallet.md), 공개 계약의 상태 키·이벤트는 [체인 상태 사전](ledger.md)에 정의했다.';
+WITH tables AS (
+  SELECT c.oid, n.nspname AS scope, c.relname AS name
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind='r' AND n.nspname IN ('wallet_mpc','ledger','kiosk','chainview','market','travel','platform','privacy_ops')
+), rel AS (
+  SELECT child.scope, child.name AS child, parent.name AS parent, con.conname,
+    (SELECT string_agg(a.attname, ', ' ORDER BY k.ord)
+       FROM unnest(con.conkey) WITH ORDINALITY k(num, ord)
+       JOIN pg_attribute a ON a.attrelid=child.oid AND a.attnum=k.num) AS fk,
+    (SELECT bool_and(a.attnotnull) FROM pg_attribute a
+       WHERE a.attrelid=child.oid AND a.attnum=ANY(con.conkey)) AS required,
+    EXISTS (SELECT 1 FROM pg_constraint pk WHERE pk.conrelid=child.oid
+       AND pk.contype='p' AND con.conkey <@ pk.conkey) AS identifying,
+    EXISTS (SELECT 1 FROM pg_constraint u WHERE u.conrelid=child.oid
+       AND u.contype IN ('u','p') AND u.conkey <@ con.conkey) AS single_child
+  FROM pg_constraint con JOIN tables child ON child.oid=con.conrelid
+    JOIN tables parent ON parent.oid=con.confrelid WHERE con.contype='f'
+), fields AS (
+  SELECT t.scope, t.name, string_agg(
+    '`'||a.attname||' '||format_type(a.atttypid,a.atttypmod)||
+    CASE WHEN NOT a.attnotnull THEN '?' ELSE '' END||'`', ', ' ORDER BY a.attnum) AS columns,
+    (SELECT string_agg(a2.attname, ', ' ORDER BY k.ord) FROM pg_constraint p,
+       unnest(p.conkey) WITH ORDINALITY k(num, ord), pg_attribute a2
+       WHERE p.contype='p' AND p.conrelid=t.oid AND a2.attrelid=t.oid AND a2.attnum=k.num) AS pk
+  FROM tables t JOIN pg_attribute a ON a.attrelid=t.oid
+  WHERE a.attnum>0 AND NOT a.attisdropped GROUP BY t.scope,t.name,t.oid
+), lines AS (
+  SELECT DISTINCT scope, 0 AS section, '' AS seq, E'\n## '||scope||E'\n\n```mermaid\nerDiagram' AS line FROM tables
+  UNION ALL SELECT scope,1,name,'    '||upper(name) FROM tables
+  UNION ALL SELECT scope,2,child||conname,'    '||upper(parent)||' '||
+    CASE WHEN required THEN '||' ELSE '|o' END||CASE WHEN identifying THEN '--' ELSE '..' END||CASE WHEN single_child THEN 'o|' ELSE 'o{' END||
+    ' '||upper(child)||' : "'||fk||'"' FROM rel
+  UNION ALL SELECT DISTINCT scope,3,'',E'```\n\n| 테이블 | 기본키 | 필드와 형식 (물음표는 선택값) |\n|---|---|---|' FROM tables
+  UNION ALL SELECT scope,4,name,'| '||name||' | '||pk||' | '||columns||' |' FROM fields
+)
+SELECT line FROM lines ORDER BY scope COLLATE "C",section,seq COLLATE "C";

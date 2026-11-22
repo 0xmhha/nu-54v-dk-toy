@@ -1,0 +1,15 @@
+string(FIND "${TFM_PLATFORM}" "nrf54l15_cpuapp" w27_platform)
+if(w27_platform LESS 0 OR NOT TFM_ISOLATION_LEVEL EQUAL 1)
+  message(FATAL_ERROR "W27 qualification transport requires the Nordic nRF54L15 isolation-level 1 platform")
+endif()
+
+add_library(tfm_app_rot_partition_w27q STATIC)
+set(generated "${CMAKE_BINARY_DIR}/w27_qualification")
+target_include_directories(tfm_app_rot_partition_w27q PRIVATE "${generated}" "${NU54_W27Q_CONFIG_DIR}")
+target_include_directories(tfm_partitions INTERFACE "${generated}")
+target_sources(tfm_app_rot_partition_w27q PRIVATE
+  secure.c "${generated}/auto_generated/intermedia_partition.c")
+target_sources(tfm_partitions INTERFACE "${generated}/auto_generated/load_info_partition.c")
+target_link_libraries(tfm_app_rot_partition_w27q PRIVATE platform_s tfm_sprt psa_crypto_config)
+target_link_libraries(tfm_spm PRIVATE tfm_app_rot_partition_w27q)
+target_link_libraries(tfm_partitions INTERFACE tfm_app_rot_partition_w27q)

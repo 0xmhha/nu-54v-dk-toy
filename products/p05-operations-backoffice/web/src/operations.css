@@ -1,0 +1,107 @@
+:root {
+  font-family: system-ui, sans-serif;
+  background: #edf1ed;
+  color: #183027;
+  line-height: 1.55;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 75rem;
+  margin: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+section,
+.branch {
+  background: white;
+  border: 1px solid #adbaaf;
+  border-radius: 0.6rem;
+  padding: 1rem;
+  margin-block: 1rem;
+}
+fieldset {
+  border: 1px solid #c7d3ca;
+  border-radius: 0.4rem;
+  padding: 0.7rem;
+  margin-block: 0.6rem;
+  min-width: 0;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin-block: 0.4rem;
+}
+input,
+select,
+textarea {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  border: 1px solid #73867a;
+  border-radius: 0.25rem;
+  background: #fafcf9;
+  font: inherit;
+  color: inherit;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.5rem 1rem;
+}
+button {
+  font: inherit;
+  background: #1d4636;
+  color: white;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  min-height: 2.75rem;
+  margin: 0.35rem 0.5rem 0.35rem 0;
+  padding: 0.5rem 0.8rem;
+}
+button:disabled {
+  background: #667e73;
+}
+:focus-visible {
+  outline: 3px solid #1e6aab;
+  outline-offset: 2px;
+}
+.live {
+  padding: 0;
+  list-style: none;
+}
+.live li {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0.6rem 0;
+  border-top: 1px solid #dbe3dc;
+  gap: 0.2rem 1rem;
+}
+main {
+  overflow-wrap: anywhere;
+}
+input[type="checkbox"] {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  min-height: 0;
+  margin-inline-end: 0.45em;
+  vertical-align: text-bottom;
+}
+button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 24rem) {
+  main,
+  section,
+  .branch {
+    padding-inline: 0.65rem;
+  }
+  fieldset {
+    padding-inline: 0.45rem;
+  }
+}

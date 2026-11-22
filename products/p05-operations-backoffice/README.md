@@ -70,7 +70,9 @@ $O refusal host --kind all --merchant <키오스크 가맹점> --payout <그 pay
 - 철회는 되돌릴 수 없으므로 MERCHANT_REVOKED 시연에는 따로 만든 시연용 가맹점을 쓴다. 2026-10-03 testnet: 시연용 가맹점을 등록하고 attestation을 발급한 뒤 철회했다. 소프트웨어 기기는 결제에 서명했고(기기는 철회를 모른다), 정산 시뮬레이션은 `MerchantRevoked`(`0x6ceb7c4f`)로 거절되었다.
 - `refusal host`는 키오스크처럼 페어링 없이 결제 세션을 열고, 기기가 거절해야 하는 요청을 보낸다. 스키마 밖의 원시 트랜잭션·Permit 서명 요청은 `UNSUPPORTED_TYPE`이고, 운영자가 서명하지 않은 attestation과 attestation과 다른 payout의 주문은 `MERCHANT_FORGED`다. 키오스크 배포 빌드에는 이런 요청을 넣지 않는다. 보내는 바이트는 공용 세션 벡터 SV-23, SV-03, SV-05와 같음을 Go 시험으로 확인한다.
 
-### 반납 (`rental return`)
+### v1 테스트넷 CLI 반납 (`rental return`)
+
+아래 명령은 기존 v1 일회용 기기의 반납 절차다. 상용 운영 콘솔에서 보호 대여 세대를 반납할 때에는 원세대의 미결 지급·한도 변경을 대사하고 확정 인출을 확인한다. 이어서 같은 세대의 정리 요청을 조회한다. 재배정에는 해당 세대의 키 폐기를 입증하는 보드 영수증이 필요하다. 기존 CLI의 `reset` 응답은 v1 초기화 결과로만 해석한다. [운영자 반납 유즈케이스](../../docs/content/commercial/products/p05-operations-backoffice/use-cases.md) · [보드 반납 증거](../../packages/protocol/v2/transport.md)
 
 계정을 닫고(`closeAccount`, 즉시 결제 정지, 잔액은 출금 지연 뒤 withdraw 주소로), AccountClosed가 finalized 된 뒤에만 운영자가 서명한 `device.reset`으로 기기를 지운다. 순서는 바뀌지 않는다(P05-FR-07). reset은 결제 세션으로 보낸다(READY 기기는 셋업 세션을 거절한다). nonce는 AccountClosed 블록 번호라 다시 실행해도 같은 명령이다. 연결된 기기의 주소가 `--device`와 다르면 보내지 않는다. 기기가 근처에 없으면 계정만 닫고 `resetPending`을 남기므로, 기기를 가져와 같은 명령을 다시 실행한다(닫기는 건너뛴다).
 
@@ -100,3 +102,9 @@ $O rental return --device <기기 주소>
 
 구현 시 web UI와 운영 API의 배포 단위, 고위험 작업의 승인 증거와 복구
 runbook을 이 폴더에서 관리한다.
+
+상용 v2 중앙 주문·견적 API는 [배치 설정과 검증 절차](COMMERCE.md)를 참고한다.
+
+## 격리 복원 입구
+
+복원 관리 배포는 `P05_RECOVERY_DATABASE_URL`, `P05_RECOVERY_SCOPE`, `P05_RECOVERY_MANIFEST`를 함께 설정합니다. 상태 조회, 지급·환불 처리, 출고·인쇄 및 구독 작업은 현재 세대의 입구 임대를 확인합니다. [P10 운영 구성과 복원 검증](../p10-platform/recovery/README.md)

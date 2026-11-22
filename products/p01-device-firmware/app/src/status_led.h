@@ -23,6 +23,8 @@
 #include "nu54_session.h"
 
 /* Payment mode (advertising for a kiosk). */
+/* Bounded find pattern. Existing indications take precedence. */
+bool status_led_locate(bool start);
 void status_led_mode(bool on);
 /* Pairing mode: a new bond is accepted (shown over payment mode). */
 void status_led_pairing(bool on);

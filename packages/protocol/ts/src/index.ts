@@ -9,3 +9,6 @@ export * from "./signature.ts";
 export * from "./base64.ts";
 export * from "./secure.ts";
 export * from "./receipt.ts";
+export * from "./v2.ts";
+
+export * from './shop-identity.ts';

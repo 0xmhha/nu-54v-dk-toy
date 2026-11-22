@@ -3,6 +3,7 @@
 packages:
   - packages/contracts-abi/ts
   - packages/protocol/ts
+  - packages/protocol/platform
   - packages/device-sim
   - products/p02-user-app
   - products/p04-merchant-kiosk

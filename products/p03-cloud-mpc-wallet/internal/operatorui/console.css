@@ -1,0 +1,15 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body { margin: 0; line-height: 1.55; }
+main { max-width: 52rem; margin: auto; padding: 2rem 1.25rem; }
+form, nav { margin-block: 1rem; }
+nav { padding-block: .75rem; border-block: 1px solid GrayText; }
+nav a { display: inline-block; margin-block: .2rem; }
+input, button { font: inherit; }
+input:not([type="checkbox"]) { max-width: 100%; width: 26rem; }
+button { min-height: 2.5rem; padding-inline: .75rem; margin-block: .3rem; }
+:focus-visible { outline: 3px solid Highlight; outline-offset: 3px; }
+[role="status"] { border-inline-start: .25rem solid GrayText; padding-inline-start: 1rem; }
+li { overflow-wrap: anywhere; margin-block: .3rem; }

@@ -1,0 +1,110 @@
+{
+  "cycloneDxSha256": "64d4458fbea13647d9b00ded8afab0a1c9e670f60d47c766a0ef088034eee784",
+  "hardwareExecuted": false,
+  "ncs": "3.4.2",
+  "profiles": {
+    "counted-v2": {
+      "board": "nu54v_dk/nrf54l15/cpuapp/ns",
+      "images": {
+        "bootloader": {
+          "compileCommandsSha256": "08a1295a1697f8f517a45242e1ac19f5f4daa4990ba2d52489cf371597e5ebb7",
+          "elfSha256": "87733b8b0308eb99506970f8de31ba20a183ca7efe93f625a01bd5eb1868a2ca",
+          "excludedCategories": {
+            "compiler/toolchain": 42,
+            "generated or built in image build tree": 30,
+            "project or board source": 1
+          },
+          "objectsWithNinjaDeps": 261,
+          "supplierArchives": 0,
+          "supplierHeaders": 580,
+          "supplierInputs": 836,
+          "transitiveObjectInputs": 261
+        },
+        "nonsecure": {
+          "compileCommandsSha256": "f6f1744b172e9d20d07e205e44cc8ee22ef7027e545430827e471efbecb800f0",
+          "elfSha256": "e81f1950cb4dd65ac8b567837a25da7325cc05c68330eb894be8d79f0c19ca11",
+          "excludedCategories": {
+            "compiler/toolchain": 47,
+            "generated or built in image build tree": 53,
+            "project or board source": 153
+          },
+          "objectsWithNinjaDeps": 323,
+          "supplierArchives": 9,
+          "supplierHeaders": 547,
+          "supplierInputs": 815,
+          "transitiveObjectInputs": 324
+        },
+        "secure": {
+          "compileCommandsSha256": "d61337e8a00ae5ba0467b3dada00334418b2c544c8e2dca3b5a49348c555ae53",
+          "elfSha256": "8d3c70e26df004e194e270012ffcda2b1958be388907afe0c8e3bd703bed64a3",
+          "excludedCategories": {
+            "compiler/toolchain": 35,
+            "generated or built in image build tree": 31,
+            "project or board source": 3
+          },
+          "objectsWithNinjaDeps": 246,
+          "supplierArchives": 0,
+          "supplierHeaders": 512,
+          "supplierInputs": 727,
+          "transitiveObjectInputs": 246
+        }
+      },
+      "signedImageSha256": "b0b10e64425854a874dffb04f3531e762160cd32816362b3e125ecc53e65a3a5",
+      "uniqueSupplierInputs": 1444
+    },
+    "custom-release": {
+      "board": "nu54v_dk/nrf54l15/cpuapp",
+      "images": {
+        "application": {
+          "compileCommandsSha256": "62c449a5108bad95a02f7fcec8493462e95284e45ea76a5f29226b6e906c0081",
+          "elfSha256": "b61c661fc3dc535bfc839e568e4abd42bd81562cd1556283e8d477f30f1e2460",
+          "excludedCategories": {
+            "compiler/toolchain": 47,
+            "generated or built in image build tree": 35,
+            "project or board source": 139
+          },
+          "objectsWithNinjaDeps": 411,
+          "supplierArchives": 9,
+          "supplierHeaders": 731,
+          "supplierInputs": 1099,
+          "transitiveObjectInputs": 411
+        },
+        "bootloader": {
+          "compileCommandsSha256": "b8f0a8413ded38bb5e42baacb1bfafdda2d2f4a100180adb71736256d94c5525",
+          "elfSha256": "30db8469a3bf01798079ce9cdf204b22b4286935da9211738f6f9d9ac39d286b",
+          "excludedCategories": {
+            "compiler/toolchain": 42,
+            "generated or built in image build tree": 30,
+            "project or board source": 1
+          },
+          "objectsWithNinjaDeps": 252,
+          "supplierArchives": 1,
+          "supplierHeaders": 579,
+          "supplierInputs": 827,
+          "transitiveObjectInputs": 252
+        }
+      },
+      "manifestSha256": "7b24012fac8f7726a20f105a3cf70715d66258558ab7f93a0c72037926be5622",
+      "signedImageSha256": "e77b29f21388c011aa46b5ddd3a33713b60459af69797a9a7d755ee0b8692555",
+      "sourceMapping": "The build cleans ephemeral compiler source staging. Its recorded MCUboot and Mbed TLS paths were mapped to the separate checkouts prepared from the same pinned source, patch and archive. Linked ELF lines and the custom manifest independently record the selected TLV and TLS inputs.",
+      "uniqueSupplierInputs": 1176
+    }
+  },
+  "schemaValidated": "CycloneDX JSON 1.6",
+  "supplierRepositories": {
+    "bootloader/mcuboot": "5d8736c1fd98959f9a607f59fe1a2d82c7e37bde",
+    "external/mbedtls-4.1.2": "8808d31cdffb1a2c82645a531a96a0f26dd3e8c3",
+    "modules/crypto/oberon-psa-crypto": "e8db62ed0fba5028e7ae0eba7b1fb63436ae6416",
+    "modules/hal/cmsis_6": "30a859f44ef8ab4dc8f84b03ed586fd16ccf9d74",
+    "modules/hal/nordic": "2a63cca4ebae128e77b02d735525645b701b1ebf",
+    "modules/lib/zcbor": "9164bd18dcd88ff9d9ef98279501fc1093571017",
+    "modules/tee/tf-m/trusted-firmware-m": "c8e4fc8d79d2b6f2a4bbd2080a8dc3dc7c53d4ff",
+    "nrf": "f0b8ad4c737745efc407b294d99fbc2279ea09a1",
+    "nrfxlib": "43e5c2a78592f917d47b06e56d7df0bce4a87493",
+    "zephyr": "9133dab6b066f9d43a04aa6f645473f499d97522"
+  },
+  "toolchain": "fa36dcc52a",
+  "uniqueSupplierArchives": 19,
+  "uniqueSupplierFiles": 1518,
+  "uniqueSupplierHeaders": 959
+}

@@ -10,6 +10,8 @@
 
 import type { Outcome, Signed } from "../payment/submit.ts";
 
+import type {RenterV1Origin} from "./renterV1Origin.ts";
+
 export type OrderState = "waitingDevice" | "signed" | "submitted" | "Checking" | "approved" | "refused" | "failed" | "cancelled";
 
 export interface OrderRecord {
@@ -23,6 +25,7 @@ export interface OrderRecord {
   updatedAt: number;
   /** The device's signature and the authorization it signed (with its nonce). */
   signed?: Signed;
+  renterOrigin?: RenterV1Origin;
   txHash?: string;
   reason?: string;
   /** When the result became final (tablet clock, ms); with signed.requestedAt it times W12-04. */
@@ -30,6 +33,8 @@ export interface OrderRecord {
 }
 
 export type OrderEvent =
+  | { type: "preparedOrigin"; evidence:RenterV1Origin }
+  | { type: "reportedOrigin" }
   | { type: "signed"; signed: Signed }
   | { type: "submitted"; txHash: string }
   | { type: "outcome"; outcome: Outcome }
@@ -44,6 +49,12 @@ export function transition(o: OrderRecord, e: OrderEvent, now: number): OrderRec
   const to = (state: OrderState, extra: Partial<OrderRecord> = {}): OrderRecord => ({ ...o, ...extra, state, updatedAt: now });
   const bad = () => new Error(`order ${o.orderId.slice(0, 10)}: ${e.type} in ${o.state}`);
   switch (e.type) {
+    case "preparedOrigin":
+      if(o.state!=="waitingDevice" || o.renterOrigin)throw bad();
+      return to(o.state,{renterOrigin:e.evidence});
+    case "reportedOrigin":
+      if(!o.signed || !o.renterOrigin)throw bad();
+      return {...o,renterOrigin:undefined};
     case "signed":
       if (o.state !== "waitingDevice") throw bad();
       return to("signed", { signed: e.signed });
@@ -53,7 +64,7 @@ export function transition(o: OrderRecord, e: OrderEvent, now: number): OrderRec
     case "refused":
     case "cancelled":
       if (o.state !== "waitingDevice") throw bad(); // a signed order is never cancelled
-      return e.type === "refused" ? to("refused", { reason: e.reason }) : to("cancelled");
+      return e.type === "refused" ? to("refused", { reason: e.reason, renterOrigin:undefined }) : to("cancelled",{renterOrigin:undefined});
     case "outcome": {
       if (!o.signed || isFinal(o.state)) throw bad();
       const out = e.outcome;
@@ -99,6 +110,10 @@ export class OrderStore {
   /** Orders that are not final: signed, submitted or Checking (and waitingDevice after a crash). */
   open(): OrderRecord[] {
     return [...this.orders.values()].filter((o) => !isFinal(o.state)).sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  pendingOriginReports():OrderRecord[]{
+    return [...this.orders.values()].filter(order=>order.renterOrigin&&order.signed).slice(0,8);
   }
 
   async create(orderId: string, amount: bigint, detail: Pick<OrderRecord, "orderNumber" | "items"> = {}): Promise<OrderRecord> {

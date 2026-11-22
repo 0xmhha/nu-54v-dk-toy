@@ -27,4 +27,4 @@ export interface Spec extends TurboModule {
   readonly onDisconnect: CodegenTypes.EventEmitter<string>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>("NusBle");
+export default TurboModuleRegistry.get<Spec>("NusBle") as Spec;

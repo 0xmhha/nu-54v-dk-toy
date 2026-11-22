@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 2,
+  "sdkVersion": "0.2.0",
+  "domain": {
+    "name": "NU54 Payment Settlement",
+    "version": "2",
+    "type": "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
+    "fields": [["chainId", "uint256"], ["verifyingContract", "address"]]
+  },
+  "quote": {
+    "type": "MerchantQuote",
+    "fields": [
+      ["quoteId", "bytes32"],
+      ["tenantCommitment", "bytes32"],
+      ["branchCommitment", "bytes32"],
+      ["orderId", "bytes32"],
+      ["merchantId", "bytes32"],
+      ["claimCommitment", "bytes32"],
+      ["intentCommitment", "bytes32"],
+      ["payer", "address"],
+      ["asset", "address"],
+      ["beneficiary", "address"],
+      ["amount", "uint256"],
+      ["nonce", "uint256"],
+      ["merchantKeyVersion", "uint64"],
+      ["beneficiaryVersion", "uint64"],
+      ["payerGeneration", "uint64"],
+      ["issuedAt", "uint64"],
+      ["expiresAt", "uint64"],
+      ["mode", "uint8"],
+      ["payerRole", "uint8"]
+    ],
+    "mode": { "escrow": 1, "direct": 2 },
+    "payerRole": { "owner": 1, "renter": 2 },
+    "signature": { "size": 65, "recoveryIds": [27, 28], "lowS": true }
+  },
+  "privateCommitments": {
+    "algorithm": "HMAC-SHA-256",
+    "domainTag": "NU54-QUOTE-COMMIT-V2",
+    "keyBytes": 32,
+    "purposes": {
+      "tenant": { "id": 1, "minBytes": 16, "maxBytes": 16 },
+      "branch": { "id": 2, "minBytes": 16, "maxBytes": 16 },
+      "claim": { "id": 3, "minBytes": 32, "maxBytes": 32 },
+      "intent": { "id": 4, "minBytes": 1, "maxBytes": 65535 }
+    }
+  },
+  "pilot": { "chainId": "8283", "mode": "escrow" },
+  "errors": {
+    "ok": 0,
+    "malformed": 1,
+    "unsupportedProfile": 2,
+    "wrongBinding": 3,
+    "expired": 4,
+    "untrustedSigner": 5,
+    "consumed": 6
+  }
+}

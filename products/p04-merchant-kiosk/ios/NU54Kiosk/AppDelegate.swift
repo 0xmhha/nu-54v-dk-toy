@@ -4,32 +4,42 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
-  var window: UIWindow?
+final class AppDelegate: UIResponder, UIApplicationDelegate {
+  private let reactNativeDelegate = ReactNativeDelegate()
+  lazy var reactNativeFactory: RCTReactNativeFactory = {
+    reactNativeDelegate.dependencyProvider = RCTAppDependencyProvider()
+    return RCTReactNativeFactory(delegate: reactNativeDelegate)
+  }()
 
-  var reactNativeDelegate: ReactNativeDelegate?
-  var reactNativeFactory: RCTReactNativeFactory?
+  private(set) var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
 
   func application(
     _ application: UIApplication,
-    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let delegate = ReactNativeDelegate()
-    let factory = RCTReactNativeFactory(delegate: delegate)
-    delegate.dependencyProvider = RCTAppDependencyProvider()
+    self.launchOptions = launchOptions
+    return true
+  }
+}
 
-    reactNativeDelegate = delegate
-    reactNativeFactory = factory
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+  var window: UIWindow?
 
-    window = UIWindow(frame: UIScreen.main.bounds)
-
-    factory.startReactNative(
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    guard let windowScene = scene as? UIWindowScene,
+          let app = UIApplication.shared.delegate as? AppDelegate else { return }
+    let window = UIWindow(windowScene: windowScene)
+    self.window = window
+    let launchOptions = app.launchOptions
+    app.reactNativeFactory.startReactNative(
       withModuleName: "NU54Kiosk",
       in: window,
       launchOptions: launchOptions
     )
-
-    return true
   }
 }
 

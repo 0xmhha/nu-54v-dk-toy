@@ -15,12 +15,16 @@
 #ifndef NU54_SESSION_H
 #define NU54_SESSION_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "nu54_eip712.h"
+#include "nu54_pin_attempt.h"
+#include "nu54_rental_credential.h"
 
 #define NU54_OUT_MAX 512
+#define NU54_RENTAL_PEER_SIZE 7
 /* The phone app's body: the forwarded payment.outcome may carry a digital receipt, up to the
  * largest body (payment-protocol.md 4). */
 #define NU54_PHONE_MAX 2048
@@ -41,13 +45,26 @@ typedef struct {
 	uint8_t nonce_start[32];
 	const char *pin;
 	size_t pin_len;
+	/* Set only by authenticated new-generation commissioning before the setup PIN commits. */
+	uint8_t journal_requested;
+	uint8_t journal_required;
+	nu54_rental_binding_t rental_binding;
 } nu54_setup_record_t;
+
+struct nu54_device;
+struct nu54_rental_freeze_request;
+struct nu54_rental_freeze_receipt;
+struct nu54_rental_cleanup_intent;
+struct nu54_rental_cleanup_witness;
+struct nu54_rental_retirement_authority;
 
 typedef struct {
 	/* Signs a 32-byte digest with the device key; writes raw r || s. Returns 0 on success. */
 	int (*sign)(void *ctx, const uint8_t digest[32], uint8_t rs[64]);
 	/* Fills `out` with random bytes (TRNG on the device). */
 	void (*random)(void *ctx, uint8_t *out, size_t n);
+	/* Returns zero only when the full collector nonce was generated. */
+	int (*rental_challenge_random)(void *ctx, uint8_t out[32]);
 	/* Stores the next nonce before a signature is made (payment-protocol.md 2), so a reset can
 	 * never reuse one. Returns 0 on success; on failure nothing is signed. May be NULL in tests. */
 	int (*persist_nonce)(void *ctx, const uint8_t next_nonce[32]);
@@ -59,6 +76,8 @@ typedef struct {
 	int (*generate_key)(void *ctx, uint8_t address[20]);
 	int (*commit_setup)(void *ctx, const nu54_setup_record_t *record);
 	int (*wipe)(void *ctx);
+	/* Discard an uncommitted setup without retiring an active rental; NULL uses legacy wipe. */
+	int (*discard_setup)(void *ctx);
 	/* Compares an entered PIN with the stored one and keeps the failure counter in secure
 	 * storage (pinMaxRetries, survives RAM-clearing resets). Returns NU54_PIN_OK, NU54_PIN_WRONG,
 	 * or NU54_PIN_LOCKED once the failures reach pinMaxRetries. May be NULL: limit changes refuse. */
@@ -73,9 +92,41 @@ typedef struct {
 	/* Payment mode from the phone app (device.paymentMode): payment advertising on for `seconds`,
 	 * or off. Returns 0 on success; NULL refuses (NOT_PERMITTED). */
 	int (*payment_mode)(void *ctx, int on, uint32_t seconds);
+	/* Same monotonic seconds as nu54_session_handle, needed for journaled approvals. */
+	uint64_t (*monotonic_seconds)(void *ctx);
+	/* Separate board identity key. This must not use the rental key. */
+	int (*sign_rental_attestation)(void *ctx, const uint8_t digest[32], uint8_t rs[64]);
+	/* Set by the authenticated firmware profile, independently of adapter
+	 * initialization. Reconstruct from the same profile on every boot. */
+	bool rental_credential_required;
+	const nu54_rental_credential_store_t *rental_credential_store;
+	/* Open-slot evidence is enabled only by an adapter whose guard serializes
+	 * every binding, lifecycle, journal and credential writer, including reboot
+	 * restoration. begin returns 0 with the guard held; end releases it.
+	 * Callbacks under the guard must not reenter a writer. Config is immutable. */
+	int (*begin_rental_slot_observation)(void *ctx);
+	void (*end_rental_slot_observation)(void *ctx);
+	int (*can_commission_rental_journal)(void *ctx);
+	int (*allow_rental_collector)(void *ctx, const nu54_rental_binding_t *binding,
+				      const uint8_t peer[NU54_RENTAL_PEER_SIZE]);
+	int (*freeze_rental)(void *ctx, struct nu54_device *device, const struct nu54_rental_freeze_request *request,
+			     const uint8_t operator_signature[65], struct nu54_rental_freeze_receipt *receipt,
+			     uint8_t board_signature[65]);
+	/* All cleanup calls run under the same qualified, generation-scoped guard
+	 * as storage and lifecycle writers. The witness resolver must read only
+	 * a previously authenticated local record and must never access a network. */
+	int (*allow_rental_cleanup_station)(void *ctx, const nu54_rental_binding_t *binding,
+					     const uint8_t peer[NU54_RENTAL_PEER_SIZE]);
+	int (*begin_rental_cleanup)(void *ctx);
+	void (*end_rental_cleanup)(void *ctx);
+	int (*rental_cleanup_time)(void *ctx, uint64_t *now);
+	int (*rental_cleanup_binding)(void *ctx, nu54_rental_binding_t *binding);
+	int (*rental_cleanup_witness)(void *ctx, const nu54_rental_binding_t *binding,
+				     const struct nu54_rental_cleanup_intent *intent,
+				     struct nu54_rental_cleanup_witness *witness);
+	int (*fence_rental_cleanup)(void *ctx, const struct nu54_rental_retirement_authority *authority,
+				    uint64_t now);
 } nu54_platform_t;
-
-enum { NU54_PIN_OK = 0, NU54_PIN_WRONG = 1, NU54_PIN_LOCKED = 2 };
 
 typedef enum {
 	NU54_PENDING_NONE,
@@ -131,9 +182,11 @@ typedef struct {
 	/* Not the link that holds the open session (the phone app's device.paymentMode during a
 	 * kiosk session): the message neither opens nor is sealed by the session's channel. */
 	int foreign;
+	uint64_t connection_epoch; /* nonzero incarnation of the authenticated BLE link */
+	uint8_t peer[NU54_RENTAL_PEER_SIZE]; /* resolved authenticated link identity */
 } nu54_link_t;
 
-typedef struct {
+typedef struct nu54_device {
 	nu54_config_t cfg;
 
 	/* Rental setup values (setup.operator and key generation). */
@@ -149,7 +202,9 @@ typedef struct {
 	uint64_t anchor_timestamp; /* accepted TimeAnchor */
 	uint64_t anchor_at;        /* local clock when it was accepted */
 	uint64_t last_anchor;
-	uint8_t next_nonce[32]; /* sequential nonce, 256-bit big-endian */
+	uint8_t next_nonce[32]; /* legacy sequential nonce, 256-bit big-endian */
+	nu54_rental_journal_t *rental_journal;
+	uint8_t rental_journal_required;
 
 	/* The open session. */
 	int session_open;
@@ -180,6 +235,17 @@ typedef struct {
 	uint8_t pending_challenge[32]; /* wallet.check */
 	uint8_t pending_address[20];
 
+	/* One volatile collection handshake, separate from all payment sessions. */
+	struct {
+		uint64_t epoch;
+		uint64_t expires_at;
+		uint8_t peer[NU54_RENTAL_PEER_SIZE];
+		uint8_t nonce[32];
+		uint8_t cleanup;
+		uint8_t cleanup_binding[32];
+	} rental_access;
+	uint8_t last_rental_channel_nonce[32];
+
 	/* The link of the message being handled; set by nu54_session_handle only. */
 	nu54_link_t call;
 } nu54_device_t;
@@ -187,6 +253,30 @@ typedef struct {
 /* A provisioned device (address and setup values already set). `nonce_start` is the 32-byte
  * big-endian first nonce (a multiple of 256). */
 void nu54_device_init(nu54_device_t *d, const uint8_t nonce_start[32]);
+
+/* Initialize from a protected new-generation marker. No business approval can fall back
+ * to the old counter, even when activation or the protected journal is unavailable. */
+void nu54_device_init_rental_candidate(nu54_device_t *d, const uint8_t first_nonce[32]);
+
+/* Attach a successfully opened, authenticated generation before it can sign. This is not a
+ * network command. The platform must also fence rollback and legacy reset for this generation. */
+int nu54_device_bind_rental_journal(nu54_device_t *d, nu54_rental_journal_t *journal);
+int nu54_device_install_rental_credential(nu54_device_t *d, const nu54_rental_credential_t *credential,
+					  const uint8_t signature[65]);
+/* For an authorized private commissioning channel with a verifier-generated challenge. */
+int nu54_device_attest_rental_credential(nu54_device_t *d, const uint8_t challenge[32],
+					 const uint8_t board_identity[20],
+					 nu54_rental_credential_receipt_t *receipt, uint8_t signature[65]);
+
+/* Same private-channel authorization as credential attestation. This distinct
+ * receipt is evidence that the protected slot was open at checked_at. */
+int nu54_device_attest_rental_slot_open(nu54_device_t *d, const uint8_t challenge[32],
+				      const uint8_t board_identity[20],
+				      nu54_rental_credential_receipt_t *receipt, uint8_t signature[65]);
+
+/* Cancel any pending approval and durably fence future issuance and signature replay. The
+ * caller must authenticate the freeze command before invoking this function. */
+int nu54_device_freeze_rental_journal(nu54_device_t *d, uint8_t root[32]);
 
 /* A device without key or setup values (UNPROVISIONED), waiting for a setup session. */
 void nu54_device_init_unprovisioned(nu54_device_t *d);
@@ -197,6 +287,7 @@ void nu54_device_power_cycle(nu54_device_t *d);
 /* The link to the central dropped: the session ends, and a setup waiting for the PIN stores
  * nothing (payment-protocol.md 5, the generated key is wiped). */
 void nu54_session_link_closed(nu54_device_t *d);
+void nu54_device_rental_peer_closed(nu54_device_t *d, uint64_t connection_epoch);
 
 /* Handles one body from a central on `link` at local time `now` (seconds): CBOR, or in a secure
  * session AES-GCM over CBOR. Replies to the central are sealed the same way; bodies for the

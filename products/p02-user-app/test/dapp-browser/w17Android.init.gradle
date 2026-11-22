@@ -1,0 +1,22 @@
+gradle.beforeProject { project ->
+    if (project.path != ":app") return
+    def scratch = new File(System.getenv("NU54_W17_ANDROID_QA") ?: "")
+    if (!scratch.isAbsolute() || !new File(scratch, "AndroidManifest.xml").isFile() ||
+        !new File(scratch, "res/raw/qa_owner_ca.pem").isFile()) {
+        throw new GradleException("W17 requires a separate QA manifest and disposable local TLS certificate")
+    }
+    project.plugins.withId("com.android.application") {
+        project.androidComponents.finalizeDsl { application ->
+            def custom = application.buildTypes.getByName("custom")
+            custom.applicationIdSuffix = ".wallet.sendqa"
+            custom.buildConfigField("boolean", "NU54_WALLET_SEND_QA", "true")
+            def source = application.sourceSets.getByName("custom")
+            source.manifest.srcFile(new File(scratch, "AndroidManifest.xml"))
+            source.res.srcDir(new File(scratch, "res"))
+        }
+    }
+    project.afterEvaluate {
+        project.extensions.findByName("react").bundleConfig.set(
+            project.file("../../test/dapp-browser/wallet-native.metro.config.js"))
+    }
+}

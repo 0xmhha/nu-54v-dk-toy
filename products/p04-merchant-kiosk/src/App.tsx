@@ -26,11 +26,13 @@ import { anchorUsed, loadKiosk, pendingAnchor, type Loaded } from './kiosk/confi
 import { ANCHOR_MAX_AGE_S, WAIT_MS, type TimeAnchor } from './payment/session.ts';
 import { changeLimits, pay, resumeOrders, submitContext, type LimitResult, type PayDeps, type PayResult, type Phase } from './kiosk/pay.ts';
 import { resume } from './payment/submit.ts';
+import { renterV1Observation } from './kiosk/renterV1Origin.ts';
 import { OrderStore } from './kiosk/orders.ts';
 import { blockTimeText, fetchReceipt, type ReceiptResult } from './kiosk/receipt.ts';
 import Vault from './specs/NativeKioskVault.ts';
 import { cartItems, cartTotal, nextOrderNumber, type Cart } from './kiosk/menu.ts';
 import { DigitalReceiptView } from './DigitalReceiptView.tsx';
+import { MerchantScreen } from './kiosk/MerchantScreen.tsx';
 
 const PHASE_TEXT: Record<Phase, string> = {
   checkingGas: '가스 잔액 확인 중',
@@ -82,6 +84,7 @@ function deps(kiosk: Loaded, orders?: OrderStore): Omit<PayDeps, 'random'> {
   return {
     kiosk,
     orders,
+    renterObservation:renterV1Observation,
     chain: new JsonRpcChain(kiosk.config.rpc),
     connect: async () => {
       const found = await findDevice();
@@ -150,7 +153,7 @@ function Kiosk() {
   /** Picks up orders left open by a restart (P04-NFR-05): same signature only, never a new one. */
   const resumeOpen = useCallback(async (k: Loaded, store: OrderStore) => {
     if (store.open().length === 0) return;
-    await resumeOrders({ kiosk: k, chain: new JsonRpcChain(k.config.rpc), orders: store }).catch(() => undefined);
+    await resumeOrders({ kiosk: k, chain: new JsonRpcChain(k.config.rpc), orders: store, renterObservation:renterV1Observation }).catch(() => undefined);
     setOpenCount(store.open().length);
   }, []);
 
@@ -396,17 +399,19 @@ function ReceiptView({ state, onLoad, format }: { state: ReceiptResult | 'loadin
 
 function Button({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable style={[styles.button, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !!disabled}}
+      style={[styles.button, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
       <Text style={styles.buttonText}>{label}</Text>
     </Pressable>
   );
 }
 
 export default function App() {
+  const [legacy,setLegacy]=useState(false);
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
-      <Kiosk />
+      {legacy ? <Kiosk /> : <MerchantScreen legacy={Platform.OS==='android' ? ()=>setLegacy(true) : undefined} />}
     </SafeAreaProvider>
   );
 }

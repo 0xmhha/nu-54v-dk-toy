@@ -23,4 +23,4 @@ export interface Spec extends TurboModule {
   takeFile(name: string): Promise<string | null>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>("KioskVault");
+export default TurboModuleRegistry.get<Spec>("KioskVault") as Spec;

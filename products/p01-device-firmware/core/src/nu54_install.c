@@ -1,0 +1,150 @@
+#include "nu54_install.h"
+
+#include <string.h>
+
+enum nu54_install_boot_action nu54_install_boot(unsigned found)
+{
+	const unsigned keys = NU54_INSTALL_FOUND_ID | NU54_INSTALL_FOUND_PAYER;
+	const unsigned prepared = NU54_INSTALL_FOUND_MARKER | NU54_INSTALL_FOUND_REPLAY;
+	if (!found) return NU54_INSTALL_BOOT_CREATE;
+	if (found == NU54_INSTALL_FOUND_MARKER) return NU54_INSTALL_BOOT_CREATE_REPLAY;
+	if ((found & prepared) != prepared) return NU54_INSTALL_BOOT_DENY;
+	if (!(found & NU54_INSTALL_FOUND_KEYS))
+		return (found & ~(prepared | keys)) ? NU54_INSTALL_BOOT_DENY : NU54_INSTALL_BOOT_CREATE_KEYS;
+	if ((found & keys) != keys || ((found & NU54_INSTALL_FOUND_COMMIT) && !(found & NU54_INSTALL_FOUND_FLOOR)))
+		return NU54_INSTALL_BOOT_DENY;
+	return ((found & NU54_INSTALL_FOUND_FLOOR) && !(found & NU54_INSTALL_FOUND_COMMIT)) ?
+	       NU54_INSTALL_BOOT_FINISH : NU54_INSTALL_BOOT_READY;
+}
+
+static uint64_t integer(const uint8_t *bytes, size_t length)
+{
+	uint64_t value = 0;
+	for (size_t i = 0; i < length; ++i) value = (value << 8) | bytes[i];
+	return value;
+}
+
+static bool nonzero(const uint8_t *bytes, size_t length)
+{
+	uint8_t value = 0;
+	for (size_t i = 0; i < length; ++i) value |= bytes[i];
+	return value != 0;
+}
+
+int nu54_install_bootstrap_ticket(const uint8_t *ticket, size_t length,
+		const uint8_t public_value[NU54_INSTALL_BOOTSTRAP_PUBLIC_SIZE], nu54_install_verify verify,
+		const uint8_t **certificate, size_t *certificate_length)
+{
+	static const uint8_t domain[] = "NU54IT01";
+	enum { header = sizeof(domain) - 1 + NU54_INSTALL_BOOTSTRAP_PUBLIC_SIZE + 2 };
+	if (!ticket || !public_value || !verify || !certificate || !certificate_length ||
+	    length <= header + NU54_INSTALL_SIGNATURE_SIZE || length > NU54_INSTALL_BOOTSTRAP_TICKET_MAX ||
+	    public_value[0] != NU54_INSTALL_BOOTSTRAP_VERSION || !nonzero(public_value + 1, NU54_INSTALL_CHALLENGE_SIZE) ||
+	    memcmp(ticket, domain, sizeof(domain) - 1) ||
+	    memcmp(ticket + sizeof(domain) - 1, public_value, NU54_INSTALL_BOOTSTRAP_PUBLIC_SIZE)) return -1;
+	size_t body = length - NU54_INSTALL_SIGNATURE_SIZE;
+	if (integer(ticket + header - 2, 2) != body - header || verify(ticket, body, ticket + body)) return -1;
+	*certificate = ticket + header;
+	*certificate_length = body - header;
+	return 0;
+}
+
+int nu54_install_bootstrap_offer_digest(const uint8_t offer[NU54_INSTALL_OFFER_SIZE],
+		const uint8_t exporter[32], nu54_install_hash hash, uint8_t output[32])
+{
+	uint8_t statement[8 + 32 + 32] = "NU54IB01";
+	memcpy(statement + 8, exporter, 32);
+	return hash(offer, NU54_INSTALL_OFFER_SIZE, statement + 40) || hash(statement, sizeof(statement), output) ? -1 : 0;
+}
+
+int nu54_install_accept(const uint8_t *bundle, size_t length, const uint8_t challenge[32],
+			const uint8_t identity[65], const uint8_t payer[20], uint64_t minimum_time,
+			const nu54_install_floor *previous, nu54_install_hash hash, nu54_install_verify verify,
+			nu54_install_floor *floor, nu54_install_policy *policy, size_t *ca_length, size_t *board_length)
+{
+	if (!bundle || length < NU54_INSTALL_HEADER_SIZE + NU54_INSTALL_SIGNATURE_SIZE ||
+	    length > NU54_INSTALL_BUNDLE_MAX || (memcmp(bundle, "N54P", 4) && memcmp(bundle, "N54Q", 4)) ||
+	    memcmp(bundle + 4, challenge, 32) || memcmp(bundle + 36, identity, 65) ||
+	    memcmp(bundle + 101, payer, 20)) return -1;
+	const uint8_t *raw = bundle + 129;
+	const uint8_t *sizes = raw + NU54_INSTALL_POLICY_SIZE;
+	size_t ca = integer(sizes, 2), board = integer(sizes + 2, 2);
+	if (!ca || !board || length != NU54_INSTALL_HEADER_SIZE + ca + board + NU54_INSTALL_SIGNATURE_SIZE ||
+	    verify(bundle, length - NU54_INSTALL_SIGNATURE_SIZE, bundle + length - NU54_INSTALL_SIGNATURE_SIZE))
+		return -1;
+
+	nu54_install_floor candidate = {.revision = integer(raw, 8), .time = integer(bundle + 121, 8),
+		.generation = integer(raw + 8, 8)};
+	uint64_t end = integer(raw + 16, 8);
+	bool commercial_testnet = !memcmp(bundle, "N54Q", 4);
+	if (!candidate.revision || candidate.revision < previous->revision ||
+	    candidate.generation < previous->generation || candidate.time < previous->time || candidate.time < minimum_time ||
+	    end <= candidate.time || end - candidate.time > NU54_INSTALL_MAX_LEASE ||
+	    hash(raw, length - 129 - NU54_INSTALL_SIGNATURE_SIZE, candidate.digest))
+		return -1;
+	if (commercial_testnet) {
+		uint8_t domain_digest[36];
+		memcpy(domain_digest, bundle, 4);
+		memcpy(domain_digest + 4, candidate.digest, sizeof(candidate.digest));
+		if (hash(domain_digest, sizeof(domain_digest), candidate.digest)) return -1;
+	}
+	if (candidate.revision == previous->revision && memcmp(candidate.digest, previous->digest, 32))
+		return -1;
+
+	nu54_install_policy decoded = {
+		.revision = candidate.revision, .payer_generation = integer(raw + 8, 8), .not_after = end,
+		.merchant_key_version = integer(raw + 24, 8), .beneficiary_version = integer(raw + 32, 8),
+		.allowlist.max_amount = integer(raw + 40, 8), .allowlist.commercial_testnet = commercial_testnet,
+		.payer_role = raw[48]
+	};
+	const uint8_t *fields = raw + 49;
+#define COPY_FIELD(field) do { \
+		memcpy(decoded.field, fields, sizeof(decoded.field)); \
+		fields += sizeof(decoded.field); \
+	} while (0)
+	COPY_FIELD(allowlist.contract);
+	COPY_FIELD(allowlist.token);
+	COPY_FIELD(allowlist.beneficiary);
+	COPY_FIELD(merchant_signer);
+	COPY_FIELD(merchant);
+	COPY_FIELD(owner);
+	COPY_FIELD(terminal);
+	COPY_FIELD(display);
+	COPY_FIELD(recovery);
+#undef COPY_FIELD
+	if (!decoded.payer_generation || !decoded.merchant_key_version || !decoded.beneficiary_version ||
+	    !decoded.allowlist.max_amount ||
+	    decoded.allowlist.max_amount > (commercial_testnet ? NU54_PILOT_TESTUSDC2_CAP : NU54_PILOT_LEGACY_CAP) ||
+	    (decoded.payer_role != NU54_V2_OWNER_ROLE && decoded.payer_role != NU54_V2_RENTER_ROLE) ||
+	    !nonzero(decoded.allowlist.contract, 20) || !nonzero(decoded.allowlist.token, 20) ||
+	    !nonzero(decoded.allowlist.beneficiary, 20) || !nonzero(decoded.merchant_signer, 20) ||
+	    !nonzero(decoded.merchant, 32) ||
+	    !nonzero(decoded.owner, 32) || !nonzero(decoded.terminal, 32) ||
+	    !memcmp(decoded.owner, decoded.terminal, 32) || decoded.display[0] != 4 ||
+	    decoded.recovery[0] != 4 || !memcmp(decoded.display, decoded.recovery, 65) ||
+	    (previous->revision && memcmp(previous->recovery, decoded.recovery, 65)))
+		return -1;
+	memcpy(candidate.recovery, decoded.recovery, sizeof(candidate.recovery));
+	*floor = candidate;
+	*policy = decoded;
+	*ca_length = ca;
+	*board_length = board;
+	return 0;
+}
+
+int nu54_install_quote(const nu54_install_policy *policy, const uint8_t *payload, size_t length,
+		       uint64_t now, nu54_v2_quote_policy *order)
+{
+	if (!payload || length != NU54_V2_SIGNED_SIZE || !now || now >= policy->not_after ||
+	    memcmp(payload + NU54_V2_MERCHANT_ID_OFFSET, policy->merchant, 32) ||
+	    payload[NU54_V2_PAYER_ROLE_OFFSET + 31] != policy->payer_role ||
+	    integer(payload + NU54_V2_MERCHANT_KEY_VERSION_OFFSET + 24, 8) != policy->merchant_key_version ||
+	    integer(payload + NU54_V2_BENEFICIARY_VERSION_OFFSET + 24, 8) != policy->beneficiary_version ||
+	    integer(payload + NU54_V2_EXPIRES_AT_OFFSET + 24, 8) > policy->not_after)
+		return -1;
+	/* The issuer authenticates the dynamic fields. Independently pinned policy constrains their scope. */
+	*order = (nu54_v2_quote_policy){.now = now};
+	memcpy(order->merchant_signer, policy->merchant_signer, 20);
+	memcpy(order->expected, payload, sizeof(order->expected));
+	return 0;
+}

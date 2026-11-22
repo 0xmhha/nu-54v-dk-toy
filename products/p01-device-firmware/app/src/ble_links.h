@@ -17,11 +17,11 @@
 #define BLE_LINKS_FRAGMENT_MAX 247
 
 typedef struct {
-	void (*connected)(int link);
-	void (*disconnected)(int link);
+	void (*connected)(int link, uint64_t epoch);
+	void (*disconnected)(int link, uint64_t epoch);
 	/* One fragment written to RX. Returns 0, or nonzero when it could not be queued (the write
 	 * is then refused with an ATT error). */
-	int (*fragment)(int link, const uint8_t *data, uint16_t len);
+	int (*fragment)(int link, uint64_t epoch, const uint8_t *data, uint16_t len);
 } ble_links_handlers_t;
 
 /* Starts Bluetooth and loads the bonds. `passkey` and `just_works` set how pairing mode pairs. */
@@ -29,9 +29,15 @@ int ble_links_init(const ble_links_handlers_t *h, uint32_t passkey, bool just_wo
 
 /* Frames one body (envelope and fragments for the link's ATT_MTU) and notifies it. */
 int ble_links_send(int link, const uint8_t *body, size_t len);
+int ble_links_send_epoch(int link, uint64_t expected_epoch, const uint8_t *body, size_t len);
+bool ble_links_connection_matches(int link, uint64_t expected_epoch);
 
 /* Link is bonded with LE Secure Connections: passkey-authenticated (need_passkey) or any LESC bond. */
 bool ble_links_bonded(int link, bool need_passkey);
+
+/* Authenticated resolved identity plus the current non-reusable connection incarnation. */
+#define BLE_RENTAL_PEER_SIZE 7
+bool ble_links_rental_peer(int link, uint64_t expected_epoch, uint8_t peer[BLE_RENTAL_PEER_SIZE]);
 
 /* Link subscribed to TX notifications. */
 bool ble_links_listening(int link);

@@ -1,0 +1,26 @@
+{
+  "format": "nu54-board-reference-v1",
+  "catalogModel": "NU-54V-DK",
+  "board": "nu54_rev1",
+  "buildTarget": "nu54v_dk/nrf54l15/cpuapp",
+  "referenceVariant": "NU-54DK-C",
+  "upstream": "https://github.com/chcbaram/nu54v-dk",
+  "commit": "d8ecbbd97a3377ee8936a1b502ccc6de17cd49ff",
+  "files": {
+    "schematic": {
+      "file": "hardware/NU54_DK_2026-07-13T15_16_09_UTC_SCH.pdf",
+      "sha256": "e601fe8457b22e720f548cf79e1839e1f82674547892ac51f333eeafe921e242"
+    },
+    "pinctrl": {
+      "file": "firmware/boards/nucode/nu54v_dk/nu54v_dk-pinctrl.dtsi",
+      "sha256": "b839224c2b4b43d5b99288d179de675aadf33a5a5862d48c42c5a7e5328b6e4c"
+    },
+    "target": {
+      "file": "firmware/boards/nucode/nu54v_dk/nu54v_dk_nrf54l15_cpuapp.dts",
+      "sha256": "85f14177bb83553bd61ef65459d5dc1035bee9378e2de0df6810923867cefb49"
+    }
+  },
+  "manufacturingBom": "unverified",
+  "alternateParts": "unverified",
+  "physicalRevision": "unverified"
+}

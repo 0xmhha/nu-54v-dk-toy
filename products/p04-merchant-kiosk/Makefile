@@ -8,7 +8,7 @@ build:
 	pnpm --filter @nu54/p04-kiosk typecheck
 
 test:
-	npx jest
+	node ../../scripts/test-jest.cjs --runInBand
 
 lint:
 	pnpm --filter @nu54/p04-kiosk typecheck

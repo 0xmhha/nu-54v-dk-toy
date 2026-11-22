@@ -1,0 +1,72 @@
+/* Compile-only layout: not provisioned, not a release image, never flash.
+ * Aligned TrustZone regions and combined MCUboot secure/nonsecure primary slot. */
+/delete-node/ &slot0_partition;
+/delete-node/ &slot0_ns_partition;
+/delete-node/ &tfm_ps_partition;
+/delete-node/ &tfm_its_partition;
+/delete-node/ &tfm_otp_partition;
+/delete-node/ &storage_partition;
+&cpuapp_rram {
+  partitions {
+    ranges;
+    #address-cells = <1>;
+    #size-cells = <1>;
+    boot_partition: partition@0 {
+      compatible = "zephyr,mapped-partition";
+      label = "mcuboot";
+      reg = <0x0 0xf800>;
+    };
+    slot0_partition: partition@10000 {
+      compatible = "zephyr,mapped-partition";
+      label = "image-0";
+      reg = <0x10000 0xa8000>;
+      ranges = <0x0 0x10000 0xa8000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      slot0_s_partition: partition@0 {
+        compatible = "zephyr,mapped-partition";
+        label = "image-0-secure";
+        reg = <0x0 0x20000>;
+      };
+      slot0_ns_partition: partition@20000 {
+        compatible = "zephyr,mapped-partition";
+        label = "image-0-nonsecure";
+        reg = <0x20000 0x88000>;
+      };
+    };
+    slot1_partition: partition@b8000 {
+      compatible = "zephyr,mapped-partition";
+      label = "image-1";
+      reg = <0xb8000 0xa8000>;
+    };
+    storage_partition: partition@160000 {
+      compatible = "zephyr,mapped-partition";
+      label = "storage";
+      reg = <0x160000 0x8000>;
+    };
+    tfm_storage_partition: partition@168000 {
+      compatible = "zephyr,mapped-partition";
+      label = "tfm-storage";
+      reg = <0x168000 0xa000>;
+      ranges = <0x0 0x168000 0xa000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      tfm_its_partition: partition@0 { compatible = "zephyr,mapped-partition"; label = "tfm-its"; reg = <0x0 0x4000>; };
+      tfm_otp_partition: partition@4000 { compatible = "zephyr,mapped-partition"; label = "tfm-otp"; reg = <0x4000 0x2000>; };
+      tfm_ps_partition: partition@6000 { compatible = "zephyr,mapped-partition"; label = "tfm-ps"; reg = <0x6000 0x4000>; };
+    };
+  };
+};
+/* 64 KiB secure and 192 KiB nonsecure SRAM; TrustZone boundary aligned. */
+/delete-node/ &sram0_s;
+/delete-node/ &sram0_ns;
+&cpuapp_sram {
+  sram0_s: image_s@0 {
+    #address-cells = <1>; #size-cells = <1>;
+    reg = <0x0 0x10000>; ranges = <0x0 0x0 0x10000>;
+  };
+  sram0_ns: image_ns@10000 {
+    #address-cells = <1>; #size-cells = <1>;
+    reg = <0x10000 0x30000>; ranges = <0x0 0x10000 0x30000>;
+  };
+};

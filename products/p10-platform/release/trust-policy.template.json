@@ -1,0 +1,5 @@
+{
+  "format": "nu54-release-trust-v1",
+  "channels": {"official": {}, "custom": {}},
+  "installers": {"official": {}, "custom": {}}
+}

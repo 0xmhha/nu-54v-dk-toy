@@ -1,0 +1,3 @@
+name: nu54_test_capability_cache
+build:
+  sysbuild-cmake: .

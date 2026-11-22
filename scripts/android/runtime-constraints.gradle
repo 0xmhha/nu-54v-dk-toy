@@ -1,0 +1,20 @@
+// Keep the two React Native Android variants on the same compatible HTTP stack.
+// The old OkHttp 4.9.2 path brings in Okio 2.9.0 (CVE-2023-3635).
+dependencies {
+    constraints {
+        implementation('com.squareup.okhttp3:okhttp') {
+            version { strictly '4.12.0' }
+            because 'Align Fresco and React Native with a compatible OkHttp release using patched Okio'
+        }
+        implementation('com.squareup.okhttp3:okhttp-urlconnection') {
+            version { strictly '4.12.0' }
+        }
+        implementation('com.squareup.okio:okio') {
+            version { strictly '3.6.0' }
+            because 'Use the fixed Okio line for CVE-2023-3635'
+        }
+        implementation('com.squareup.okio:okio-jvm') {
+            version { strictly '3.6.0' }
+        }
+    }
+}

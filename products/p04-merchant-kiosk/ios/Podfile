@@ -1,3 +1,5 @@
+require_relative "build_support/active_support_backport"
+
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
@@ -15,6 +17,10 @@ if linkage != nil
 end
 
 target 'NU54Kiosk' do
+  mobile_package = Pod::Executable.execute_command('node', ['--preserve-symlinks', '--print',
+    "require.resolve('@nu54/protocol-mobile/package.json', { paths: [process.argv[1]] })",
+    __dir__]).strip
+  pod 'Nu54ProtocolMobile', :path => Pathname.new(File.dirname(mobile_package)).relative_path_from(Pathname.new(__dir__)).to_s
   config = use_native_modules!
 
   use_react_native!(
