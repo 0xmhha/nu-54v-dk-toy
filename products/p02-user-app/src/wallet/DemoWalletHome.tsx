@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
-import {Brand, KitButton, Section, TabBar} from '../ui/kit.tsx';
+import {Brand, KitButton, Section} from '../ui/kit.tsx';
 import {color, radius, font} from '../ui/theme.ts';
 import {defaultReadState, observationScope, type ReadProfileState} from './readProfiles.ts';
 import {WalletHomeSummary} from './WalletHomeSummary.tsx';
@@ -45,10 +45,6 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
       {group('보안과 복구', ['독립 백업 시작', '원래 보드에서 분실한 휴대전화 교체', '휴대전화 분실 및 지갑 복구', '펌웨어 적용 증거 확인'])}
       <KitButton label={t('시연 화면 닫기')} run={close} variant="primary" />
     </ScrollView>
-    <TabBar current="wallet" disabled tabs={[
-      {key: 'wallet', label: t('지갑'), run: off}, {key: 'pay', label: t('결제'), run: off},
-      {key: 'explore', label: t('둘러보기'), run: off}, {key: 'settings', label: t('설정'), run: off},
-    ]} />
   </View>;
 }
 

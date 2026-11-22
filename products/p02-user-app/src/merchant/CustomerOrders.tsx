@@ -230,6 +230,7 @@ type PickupCartReview = CommerceCartReview & {
 
 export function CustomerOrders({
   back,
+  tabbed = false,
   openTravel,
   openPayments,
   permission,
@@ -241,6 +242,8 @@ export function CustomerOrders({
   travelCheckout,
   subscriptionLink,
 }: {
+  /** Inside the app tabs the 결제 tab replaces the separate back button. */
+  tabbed?: boolean;
   back: () => void;
   openTravel?: (booking: TravelBookingScope) => void;
   openPayments?: (qr?: string) => void;
@@ -2764,7 +2767,7 @@ export function CustomerOrders({
             )}
         </View>
       )}
-      <Button label="지갑으로 돌아가기" run={back} disabled={busy} variant="secondary" />
+      {!tabbed && <Button label="지갑으로 돌아가기" run={back} disabled={busy} variant="secondary" />}
     </ScrollView>
   );
 }

@@ -11,7 +11,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'row';
 export function KitButton({label, run, disabled = false, variant = 'primary', testID, detail}: {
   label: string; run: () => void; disabled?: boolean; variant?: ButtonVariant; testID?: string; detail?: string;
 }) {
-  return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled}}
+  return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={detail} accessibilityState={{disabled}}
     disabled={disabled} onPress={run}
     style={({pressed}) => [styles.button, styles[variant], disabled && styles.disabled, pressed && !disabled && styles.pressed]}>
     <View style={styles.buttonBody}>
@@ -66,7 +66,7 @@ export function TabBar({tabs, current, disabled}: {tabs: Tab[]; current: string;
     {tabs.map(tab => {
       const here = tab.key === current;
       return <Pressable key={tab.key} accessibilityRole="tab" accessibilityLabel={tab.label}
-        accessibilityState={{selected: here, disabled}} disabled={disabled || here} onPress={tab.run} style={styles.tab}>
+        accessibilityState={{selected: here, disabled}} disabled={disabled} onPress={tab.run} style={styles.tab}>
         <View style={[styles.tabMark, here && styles.tabMarkHere]} />
         <Text style={[styles.tabText, here && styles.tabTextHere]}>{tab.label}</Text>
       </Pressable>;

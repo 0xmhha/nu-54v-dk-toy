@@ -191,6 +191,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     else returnToRecoveryOptions();
   });
   useEffect(() => {
+    if (screen !== 'demo') return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { setScreen('owner'); return true; });
+    return () => listener.remove();
+  }, [screen]);
+  useEffect(() => {
     if (screen==='dapp'||screen==='walletconnect'||screen==='evm-registry'&&exploreBack.current===screen) {
       const listener=BackHandler.addEventListener('hardwareBackPress',()=>{
         setScreen(exploreBack.current===screen?'dapp':'owner');
@@ -1678,8 +1683,6 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Text accessibilityRole="header" style={styles.sectionTitle}>{stored.installation?.state === 'consumed' ? (language === 'ko' ? '설치 확인서를 검증했습니다' : 'Installation receipt verified') : (language === 'ko' ? '설치 검증을 기다리고 있습니다' : 'Installation verification pending')}</Text>
         <Text style={styles.body}>{language === 'ko' ? '컴퓨터에 보드를 USB로 연결하세요. 서명된 릴리스와 별도 경로로 확인한 신뢰키를 준비합니다. 공식 채널은 승인된 키가 등록되기 전까지 사용할 수 없습니다.' : 'Connect the board to a computer by USB. Prepare the signed release and a trust key verified through an independent channel. The official channel is unavailable until an approved key is registered.'}</Text>
         <Text style={styles.body}>{language === 'ko' ? '데스크톱 설치 도구에서 모델, 채널, 서명, 이미지와 최소 보안 카운터를 확인하고 결과를 보관하세요. 중단되면 기존 기기 상태를 확인한 뒤 같은 절차를 다시 시작하세요.' : 'Use the desktop installation tool to check model, channel, signature, image and minimum security counter. Keep its result. After interruption, check the existing board state before resuming.'}</Text>
-        <Text style={styles.body}>{language === 'ko' ? '지원 모델: nu54v_dk/nrf54l15/cpuapp · 채널: 사용자 선택 · 보안 카운터: 독립 설치 기록과 대조' : 'Supported model: nu54v_dk/nrf54l15/cpuapp · Channel: your choice · Compare the security counter with independent installation records'}</Text>
-        <Text selectable style={styles.mono}>python3 products/p01-device-firmware/scripts/verify_board_release.py --help</Text>
         {!stored.installation && <>
           <Text style={styles.body}>{language === 'ko' ? '컴퓨터의 검증 결과를 가져오고 별도 경로에서 확인한 설치자 지문·릴리스 해시·보드 식별값을 대조하세요.' : 'Import the verified desktop result and compare the installer fingerprint, release hash and board identity from an independent source.'}</Text>
           <Action title={language === 'ko' ? '검증된 설치 파일 선택' : 'Choose verified setup file'} disabled={busy || !native} run={() => work(async()=>{
@@ -1775,7 +1778,6 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           setPublicKey(await native.publicIdentity());
         }, '이 휴대전화에서 보호된 등록 키를 만들 수 없습니다.')} />
         {!!publicKey && <Text selectable style={styles.mono}>{publicKey}</Text>}
-        {!stored?.verified && status?.state !== 'active' && !boardWait && <BoardStepPanel wait={{flow:'register',step:'window'}} t={t} />}
         {!profile && <>
           {commissioningPins && <>
             <Text style={styles.body}>{language === 'ko' ? '케이블로 확인한 독립 설치 QR의 지문을 대조하세요.' : 'Compare both fingerprints with the independent cabled installation record.'}</Text>
@@ -1792,6 +1794,8 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('기기 식별값')} placeholder={t('기기 식별값')} value={board} onChangeText={setBoard} maxLength={64} autoCorrect={false} autoCapitalize="none" />
           <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('발급 문서의 서버 공개키 지문')} placeholder={t('발급 문서의 서버 공개키 지문')} value={pin} onChangeText={setPin} maxLength={64} autoCorrect={false} autoCapitalize="none" />
         </>}
+        {/* The board step comes after the enrollment inputs, right before the scan it prepares. */}
+        {!stored?.verified && status?.state !== 'active' && !boardWait && <BoardStepPanel wait={{flow:'register',step:'window'}} t={t} />}
         <Action title={t('개인 기기 찾기')} disabled={!native || busy} run={()=>scan()} />
         {ownerScanComplete && !found.length && <Text style={styles.body} accessibilityLiveRegion="polite">
           {t('기기 검색을 마쳤습니다. 주변에서 개인 보드를 찾지 못했습니다.')}
@@ -1818,7 +1822,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         {retiring && <Action title={t('권한 철회 취소')} disabled={busy} run={() => {setRetiring(false); setMessage('');}} />}
         {status?.state === 'active' && status.root === 2 && status.profile === 1 && status.backedUp &&
           <Text style={styles.body}>{t('원본 기기가 독립 복원 시험 완료를 확인했습니다.')}</Text>}
-        {!stored.verified && <>
+        {!stored.verified && !tabbed && <>
           <Action title={t('다른 체인 받기')} disabled variant="row" run={() => setScreen('receive-chain')} />
           <Action title={t('다른 체인 보내기')} disabled variant="row" run={() => setScreen('send-chain')} />
         </>}
@@ -1843,7 +1847,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
               await save({...stored, signing:undefined});
             }, language === 'ko' ? '원래 보드가 승인 요청 만료를 확인하지 못했습니다.' : 'The original board could not verify expiry.')} />)}
         </>}
-        {tabbed ? <>
+        {tabbed ? stored.verified && <>
         <Section title={t('자산과 계정')}>
           <Action variant="row" title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
           run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
@@ -1876,7 +1880,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           <Action variant="row" title={t('결제 연습')} disabled={busy} run={() => {setPracticeWarning(false); setScreen('practice');}} />
         </Section>
         </>}
-        {(!isPersonal || fromInstall) && <Action title={t('이전')} disabled={busy} run={() => {setFromInstall(false); setScreen('profiles');}} />}
+        {(!isPersonal || fromInstall) && <Action variant="secondary" title={t('이전')} disabled={busy} run={() => {setFromInstall(false); setScreen('profiles');}} />}
       </>}
       {stored && settingsScreen && <WalletSettings tabbed={tabbed} language={language}
         policyRoute={screen==='policy'||screen==='policy-applied'} applied={screen==='policy-applied'}

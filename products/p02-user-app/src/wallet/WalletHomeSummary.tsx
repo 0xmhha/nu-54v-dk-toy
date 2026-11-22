@@ -53,7 +53,7 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
       snapshot.inactive ? <Text style={styles.text}>{ko ? '계정이 활성화되지 않았습니다.' : 'Account is inactive.'}</Text> :
       snapshot.unconfigured ? <Text style={styles.text}>{ko ? '설정된 발행 자산 신뢰선 없음' : 'No configured trust line for this issued asset'}</Text> :
       <Text style={styles.balance}>{snapshot.issued ?? formatReadAmount(snapshot.amount!, snapshot.decimals)} {unit}</Text>}
-    {active && <View style={styles.link}><View style={[styles.dot, connectivity.link === 'offline' && styles.dotOff]} />
+    {active && <View style={styles.link}><View style={[styles.dot, !rechecked && styles.dotWait, connectivity.link === 'offline' && styles.dotOff]} />
       <Text accessibilityLiveRegion="polite" style={styles.text}>{linkLabel}</Text></View>}
     {active && connectivity.link === 'offline' && <Text style={styles.text}>
       {ko ? '현재 지급 가능액 · 확인 대기' : 'Available to spend · verification pending'}
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   text: {fontFamily: font, fontSize: 14, lineHeight: 20, color: color.onGreenSoft},
   balance: {fontFamily: font, fontSize: 40, fontWeight: '800', letterSpacing: -1.4, color: '#ffffff', marginVertical: 4},
   link: {flexDirection: 'row', alignItems: 'center', gap: 8},
-  dot: {width: 8, height: 8, borderRadius: 4, backgroundColor: color.mint}, dotOff: {backgroundColor: '#e1a3a3'},
+  dot: {width: 8, height: 8, borderRadius: 4, backgroundColor: color.mint}, dotOff: {backgroundColor: '#e1a3a3'}, dotWait: {backgroundColor: '#e6c27a'},
   actions: {flexDirection: 'row', gap: 8, marginTop: 8},
   button: {flex: 1, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.m, borderWidth: 1.5,
     borderColor: color.mint, alignItems: 'center', justifyContent: 'center'},

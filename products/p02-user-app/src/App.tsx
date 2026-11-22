@@ -557,11 +557,19 @@ export default function App() {
     : settingsScreens.includes(walletScreen) ? 'settings' : 'wallet';
   // Tabs stay out of rental mode, practice and the secure wallet subflows that hide navigation.
   const showTabs = !renting && !practicing;
+  useEffect(() => {
+    // On the payments and explore tabs' first pages, system Back returns to the wallet tab instead of leaving the app.
+    if (!showTabs || !(shopping || exploring)) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { closeOverlays(); requestWallet('owner'); return true; });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTabs, shopping, exploring]);
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
-        {shopping ? <CustomerOrders key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
+        <View style={styles.page}>
+        {shopping ? <CustomerOrders tabbed={showTabs} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
           <Button label="지갑 프로필 선택" onPress={profiles} />
@@ -592,6 +600,7 @@ export default function App() {
             openExploreMarket={()=>{setExploreService('market');setMarketLab(true);}}
             commissioningPins={commissioningPins} dismissCommissioningPins={()=>setCommissioningPins(undefined)} />
         </View>}
+        </View>
         {showTabs && <TabBar current={currentTab} disabled={false} tabs={[
           {key: 'wallet', label: '지갑', run: () => { closeOverlays(); requestWallet('owner'); }},
           {key: 'pay', label: '결제', run: () => { closeOverlays(); setShopping(true); }},
@@ -606,7 +615,8 @@ export default function App() {
 const styles = StyleSheet.create({
   home: { flex: 1 },
   hidden: { display: 'none' },
-  root: { flex: 1, paddingHorizontal: 16, paddingTop: 12, backgroundColor: color.ground },
+  root: { flex: 1, backgroundColor: color.ground },
+  page: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
   title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
   body: { fontSize: 17, color: '#333', marginBottom: 12 },
   hint: { fontSize: 15, color: '#666', marginTop: 12 },
