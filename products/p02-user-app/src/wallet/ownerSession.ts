@@ -41,6 +41,9 @@ export class OwnerSession {
   private decode = new V2StreamDecoder();
   private ended = false;
   private mtu = 20;
+  // The board reads the route from the first BLE write of a link: C1 management is 1. The
+  // payment route (C2) prefixes 2 the same way in the kiosk transport.
+  private routed = false;
   private ready?: {resolve: () => void; reject: (e: Error) => void};
   private pending?: {
     resolve: (response: V2Request) => void; reject: (error: Error) => void;
@@ -81,7 +84,11 @@ export class OwnerSession {
   private async accept(serialized: string) {
     const data = JSON.parse(serialized) as TLSNotice;
     if (data.out) {
-      const encrypted = fromBase64(data.out);
+      let encrypted = fromBase64(data.out);
+      if (!this.routed && encrypted.length) {
+        encrypted = concat(Uint8Array.of(1), encrypted);
+        this.routed = true;
+      }
       for (let index=0; index<encrypted.length; index+=this.mtu) {
         await this.ble.writeFragment(toBase64(encrypted.subarray(index,index+this.mtu)));
       }

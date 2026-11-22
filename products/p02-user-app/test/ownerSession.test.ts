@@ -42,12 +42,13 @@ function harness(options: {commerce?:{bytes:Uint8Array; mode:'ready'|'mismatch'|
   let powerRead=false;
   let wireDisplay: {operation:number;session:string;request:string;expires:string}|undefined;
   const inbound: number[] = [];
+  const leading: number[] = [];
   const ble = {
     connectOwner:async () => 23,
     disconnect:async () => {},
     onDisconnect:() => ({remove(){}}),
     onFragment:() => ({remove(){}}),
-    writeFragment:async (value: string) => inbound.push(fromBase64(value).length),
+    writeFragment:async (value: string) => {const bytes=fromBase64(value);leading.push(bytes[0]);return inbound.push(bytes.length);},
   } as unknown as Ble;
   const native = {
     onTls:() => ({remove(){}}),
@@ -241,7 +242,7 @@ function harness(options: {commerce?:{bytes:Uint8Array; mode:'ready'|'mismatch'|
       return JSON.stringify({clear:toBase64(concat(...replies)),closed});
     },
   } as unknown as Native;
-  return {currentDisplay:()=>wireDisplay,session:new OwnerSession(ble,native,credential),inbound,applied:() => next};
+  return {currentDisplay:()=>wireDisplay,session:new OwnerSession(ble,native,credential),inbound,leading,applied:() => next};
 }
 
 test.each(['ready','mismatch','refused'] as const)('commerce gates prepare on exact authenticated board evidence (%s)', async mode => {
@@ -289,14 +290,16 @@ test.each(['live','loss','legacy'] as const)('owner progress preserves the origi
 });
 
 test('owner enrollment binds a P-256 proof to the exact challenge and handles final-and-close', async () => {
-  const {session,inbound,applied} = harness();
+  const {session,inbound,leading,applied} = harness();
   await session.connect('synthetic');
   let asked = 0;
   expect(await session.register(() => {expect(applied()).toBe(0); asked++;})).toMatchObject({
     state:'active',generation:1n,owner:bytesToHex(owner,false),
   });
   expect(asked).toBe(1);
-  expect(inbound).toEqual([20,13]);
+  // The first write carries the C1 route byte before the 33-byte TLS start; later writes do not.
+  expect(inbound).toEqual([20,14]);
+  expect(leading).toEqual([1,0]);
 });
 
 test('commit and dropped reply remain unknown to the phone, even with valid proof', async () => {
