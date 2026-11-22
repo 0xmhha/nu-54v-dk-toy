@@ -10,7 +10,6 @@ import {sha256} from '@noble/hashes/sha256';
 import {
   AppState,
   BackHandler,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -100,6 +99,9 @@ import {
 
 import {BoardStepPanel} from '../wallet/BoardStepPanel.tsx';
 import {english as walletEnglish} from '../wallet/walletEnglish.ts';
+import {KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
+import {AmountLine, PickupTicket} from './paymentParts.tsx';
+import {color, font, radius} from '../ui/theme.ts';
 import {customerDigest, customerJournals} from './customerJournal.ts';
 
 type RentalBoardReview = RentalReviewChallenge & {
@@ -185,22 +187,16 @@ function Button({
   label,
   run,
   disabled = false,
+  variant = 'primary',
+  detail,
 }: {
   label: string;
   run: () => void;
   disabled?: boolean;
+  variant?: ButtonVariant;
+  detail?: string;
 }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      style={[s.button, disabled && s.disabled]}
-      onPress={run}
-    >
-      <Text style={s.buttonText}>{label}</Text>
-    </Pressable>
-  );
+  return <KitButton label={label} run={run} disabled={disabled} variant={variant} detail={detail} />;
 }
 
 function isMenuNetworkOffline(error: unknown) {
@@ -2115,7 +2111,7 @@ export function CustomerOrders({
       {phase === 'active' && deniedLink && (
         <>
           <Text style={s.text}>이 계정에서 열 수 없는 주문입니다.</Text>
-          {openPayments && <Button label="내 결제로" run={() => openPayments()} />}
+          {openPayments && <Button variant="secondary" label="내 결제로" run={() => openPayments()} />}
           {openPayments && counterQrAllowed && (
             <Button label="매장 QR 대조하기" run={() => openPayments(initialLocator)} />
           )}
@@ -2123,20 +2119,22 @@ export function CustomerOrders({
       )}
       {phase === 'active' && !travelBranch && !initialLocator && !showSubscriptions && !invoiceDetail && !shopEntry && (
         <View style={s.scroll}>
-          {orderRows.map(row => (
-            <View key={row.id}>
-              <Button label={`매장 주문 ${row.id}`} disabled={busy}
+          {!!orderRows.length && <Section title="매장 주문" aside={`${orderRows.length}건`}>
+            {orderRows.map(row => (
+              <Button key={row.id} label={`매장 주문 ${row.id}`} disabled={busy} variant="row"
+                detail={`${commerceAmount(row.amount, row.asset, policy)} · ${orderStateLabel[row.state]}`}
                 run={() => work(() => readHistoryOrder(row.id), '이 계정에서 열 수 없는 주문입니다.')} />
-              <Text style={s.text}>{commerceAmount(row.amount, row.asset, policy)} · {orderStateLabel[row.state]}</Text>
-            </View>
-          ))}
+            ))}
+          </Section>}
           {moreOrders && <Button label="매장 주문 더 보기" disabled={busy}
             run={() => work(nextOrderPage, '매장 주문을 더 불러올 수 없습니다.')} />}
-          {invoiceRows.map(row => (
-            <Button key={row.id} label={`구독 회차 청구서 ${row.cycle} · ${commerceAmount(row.amount, row.asset, policy)} · ${orderStateLabel[row.state]}`} disabled={busy}
-              run={() => work(() => readInvoice(row.saleRef), '이 계정에서 열 수 없는 청구서입니다.')} />
-          ))}
-          {openTravel && client && <Button label="여행 예약" disabled={busy}
+          {!!invoiceRows.length && <Section title="구독 청구" aside={`${invoiceRows.length}건`}>
+            {invoiceRows.map(row => (
+              <Button key={row.id} variant="row" label={`구독 회차 청구서 ${row.cycle} · ${commerceAmount(row.amount, row.asset, policy)} · ${orderStateLabel[row.state]}`} disabled={busy}
+                run={() => work(() => readInvoice(row.saleRef), '이 계정에서 열 수 없는 청구서입니다.')} />
+            ))}
+          </Section>}
+          {openTravel && client && <Button label="여행 예약" disabled={busy} variant="secondary"
             run={() => openTravel({branch: client.profile.branchRef, customer: client.profile.subjectRef, tenant: client.profile.tenantRef})} />}
           {historyState === 'unavailable' && client && (
             <Button label="결제 목록 다시 조회" disabled={busy}
@@ -2475,7 +2473,7 @@ export function CustomerOrders({
                 <Text accessibilityRole="header" style={s.text}>{`${order.id} 미지급 확인`}</Text>
                 <Text style={s.text}>원 견적 미소비와 유효 범위를 확인했습니다.</Text>
                 <Text style={s.text}>지급 0건</Text>
-                {openPayments && <Button label="내 결제" disabled={busy} run={() => openPayments()} />}
+                {openPayments && <Button variant="secondary" label="내 결제" disabled={busy} run={() => openPayments()} />}
               </>}
               <Text style={s.text}>
                 {invoiceDetail ? invoiceStatus(order) : order.payment ? settlementLabel[order.payment.stage] : order.state === 'paid'
@@ -2487,9 +2485,7 @@ export function CustomerOrders({
                   : travelPayment ? order.state === 'preview' ? '원주문 연결 · 견적 요청 전' : '견적 발행 · 지급 미확정'
                   : '주문이 연결되었습니다. 보드 승인 대기 중입니다.'}
               </Text>
-              <Text style={s.text}>
-                금액 {commerceAmount(order.amount, order.asset, policy)}
-              </Text>
+              <AmountLine amount={commerceAmount(order.amount, order.asset, policy)} />
               {travelPayment && travelOrderObservedAt !== undefined &&
                 <Text style={s.text}>마지막 조회 {new Date(travelOrderObservedAt).toLocaleString()}</Text>}
               {invoiceDetail && order.subscription && (
@@ -2514,7 +2510,7 @@ export function CustomerOrders({
                 <Text accessibilityLiveRegion="polite" style={s.text}>지급 확정 · 매장 접수 대기</Text>
               )}
               {!pickupMode && !point?.cart.pickup && order.state === 'paid' && order.pickupNo !== undefined && (
-                <Text style={s.text}>픽업 번호 {order.pickupNo}</Text>
+                <PickupTicket number={order.pickupNo} />
               )}
               {order.payment?.finalizedAt && (
                 <Text style={s.text}>지급 확정 시각 {new Date(order.payment.finalizedAt).toLocaleString()}</Text>
@@ -2552,13 +2548,13 @@ export function CustomerOrders({
               )}
               {order.state === 'paid' && order.payment?.pickupReadyAt &&
                 order.payment.pickupStage === 'ready' && openPayments && (
-                <Button label="결제 목록" disabled={busy} run={() => openPayments()} />
+                <Button variant="secondary" label="결제 목록" disabled={busy} run={() => openPayments()} />
               )}
               {nearbyPending && <>
                 <Button label="같은 주문의 지급 결과 확인" disabled={busy}
                   run={() => work(() => readHistoryOrder(order.id),
                     '네트워크 응답을 기다립니다. 같은 원주문을 조회하세요.')} />
-                {openPayments && <Button label="내 결제" disabled={busy} run={() => openPayments()} />}
+                {openPayments && <Button variant="secondary" label="내 결제" disabled={busy} run={() => openPayments()} />}
               </>}
               {canReplaceReview(order.id) &&
                 policy &&
@@ -2766,33 +2762,29 @@ export function CustomerOrders({
 
 const s = StyleSheet.create({
   scroll: { gap: 12, paddingBottom: 24 },
-  title: { fontSize: 25, fontWeight: '700', color: '#122a22' },
-  text: { fontSize: 16, lineHeight: 24, color: '#213a31' },
+  title: { fontFamily: font, fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink },
+  text: { fontFamily: font, fontSize: 16, lineHeight: 24, color: color.ink },
   registrationInput: {
     height: 120,
     textAlignVertical: 'top',
   },
   input: {
+    fontFamily: font,
     borderWidth: 1,
-    borderColor: '#73887c',
-    borderRadius: 8,
+    borderColor: '#8fa497',
+    borderRadius: radius.m,
     padding: 12,
-    minHeight: 48,
-    color: '#172a22',
+    minHeight: 50,
+    color: color.ink,
+    backgroundColor: color.sheet,
   },
+  // A detail block reads as one card, as in the design book's order and receipt pages.
   line: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#c8d8cf',
-    paddingBottom: 10,
+    backgroundColor: color.sheet,
+    borderWidth: 1,
+    borderColor: color.line,
+    borderRadius: radius.l,
+    padding: 16,
     gap: 8,
   },
-  button: {
-    borderRadius: 8,
-    backgroundColor: '#193f32',
-    padding: 12,
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  buttonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
-  disabled: { opacity: 0.55 },
 });

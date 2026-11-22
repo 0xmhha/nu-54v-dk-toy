@@ -940,7 +940,8 @@ test('W09 opens the same paid travel pickup from history before and after mercha
   mockOrder = {...mockOrder, receiptKind: undefined, pickupNo: 12};
   await press('같은 주문의 지급 결과 확인');
   expect(screen()).toContain(receipt);
-  expect(screen()).toContain('"children":["픽업 번호 ","12"]');
+  // The pickup number is shown as a ticket whose accessible name carries the number.
+  expect(screen()).toContain('"accessibilityLabel":"픽업 번호 12"');
   expect(screen()).not.toContain('매장 접수 대기');
   expect(mockApprove).not.toHaveBeenCalled();
   expect(mockForwardRequests).toHaveLength(0);
