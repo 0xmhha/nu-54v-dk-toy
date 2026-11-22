@@ -35,3 +35,6 @@ export const type = {
 
 export const space = {xs: 4, s: 8, m: 12, l: 16, xl: 24};
 export const radius = {s: 8, m: 12, l: 18, pill: 999};
+
+/** Placeholder text color for every input; the system dark theme would otherwise draw a light hint on a light field. */
+export const inputPlaceholder = color.mute;

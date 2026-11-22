@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {WalletNonEvmAssets} from './WalletNonEvmAssets.tsx';
 import {nonEvmAssetKey, scopedNonEvmAssets} from './nonEvmAssetCatalog.ts';
 import {unknownConnectivity, type ReadProof, type WalletConnectivity} from './walletConnectivity.ts';
@@ -396,7 +397,7 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
     </View>}
     <Text style={styles.label}>{accountRow?.name ?? t('계정') + ' ' + (selection.account + 1)}
       {accountRow?.hidden ? ' · ' + t('숨김') : ''}</Text>
-    <TextInput value={accountName} onChangeText={setAccountName} maxLength={32} editable={!busy}
+    <TextInput placeholderTextColor={inputPlaceholder} value={accountName} onChangeText={setAccountName} maxLength={32} editable={!busy}
       placeholder={accountRow?.name} accessibilityLabel={t('계정 이름')} style={styles.input} />
     {onWatchSignet && selection.id==='btc' && <Button text={t('Signet 읽기 전용 계정 내보내기')}
       disabled={busy || !enabled || !!accountRow?.hidden} click={()=>onWatchSignet(selection.account)} />}
@@ -415,9 +416,9 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
       }, t('계정 표시를 저장하지 못했습니다.'))} />}
     {'evm' in profile && <>
       {!assetReady && <Text style={styles.label}>{t('이전 토큰을 공유하거나 조회하려면 메타데이터를 다시 검증하세요.')}</Text>}
-      <TextInput value={asset} onChangeText={input => {setAsset(input); setAssetReview(undefined);}} autoCapitalize="none"
+      <TextInput placeholderTextColor={inputPlaceholder} value={asset} onChangeText={input => {setAsset(input); setAssetReview(undefined);}} autoCapitalize="none"
         editable={!busy} maxLength={42} accessibilityLabel={t('읽을 토큰 주소')} style={styles.input} />
-      <TextInput value={expectedDecimals} onChangeText={input => {setExpectedDecimals(input); setAssetReview(undefined);}}
+      <TextInput placeholderTextColor={inputPlaceholder} value={expectedDecimals} onChangeText={input => {setExpectedDecimals(input); setAssetReview(undefined);}}
         keyboardType="number-pad" maxLength={2} editable={!busy} placeholder={t('알고 있는 소수 자릿수 (선택)')}
         accessibilityLabel={t('예상 소수 자릿수')} style={styles.input} />
       <Button text={t('토큰 정보 검토')} disabled={busy || !enabled || !asset.trim() || !value.endpoints[selection.id]} click={reviewAsset} />
@@ -438,7 +439,7 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
         <Button text={t('즐겨찾기')} disabled={busy || assetFilter === 'favorites'} click={() => setAssetFilter('favorites')} />
         <Button text={t('숨긴 자산')} disabled={busy || assetFilter === 'hidden'} click={() => setAssetFilter('hidden')} />
       </View>
-      <TextInput accessibilityLabel={language === 'ko' ? '등록 자산 검색' : 'Search registered assets'} value={assetSearch} maxLength={64}
+      <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={language === 'ko' ? '등록 자산 검색' : 'Search registered assets'} value={assetSearch} maxLength={64}
         style={styles.input} autoCapitalize="none" autoCorrect={false} onChangeText={setAssetSearch} />
       {assetSearch.trim() && !shownAssets.length ? <Text style={styles.label}>{language === 'ko' ? '일치하는 등록 자산이 없습니다.' : 'No matching registered assets.'}</Text> :
         assetFilter === 'favorites' && !shownAssets.length && <Text style={styles.label}>{t('즐겨찾는 자산이 없습니다')}</Text>}
@@ -479,7 +480,7 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
       key={[verified.boardFingerprint,verified.generation,selection.id,selection.account,endpoint,connectivity.revision].join('/')}
       owner={verified} value={value} busy={busy} enabled={enabled && connectivity.link !== 'offline'} rpc={rpc} work={work} save={save} t={t} language={language} />}
     {selection.id === 'xrp' && <>
-      <TextInput value={tag} onChangeText={setTag} keyboardType="number-pad" editable={!busy} maxLength={10}
+      <TextInput placeholderTextColor={inputPlaceholder} value={tag} onChangeText={setTag} keyboardType="number-pad" editable={!busy} maxLength={10}
         inputAccessoryViewID={Platform.OS === 'ios' ? 'wallet-receive-tag' : undefined}
         accessibilityLabel={t('목적지 태그')} placeholder={t('목적지 태그 (선택)')} style={styles.input} />
       {Platform.OS === 'ios' && <InputAccessoryView nativeID="wallet-receive-tag">
@@ -493,7 +494,7 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
       <Button text={t('공개 Signet 인덱서 사용 준비')} disabled={busy || !enabled}
         click={() => {setCandidate(publicSignetIndexer); setEndpointCheck(undefined);}} />
     </>}
-    <TextInput value={candidate} onChangeText={next => {setCandidate(next); setEndpointCheck(undefined);}} autoCapitalize="none" maxLength={512}
+    <TextInput placeholderTextColor={inputPlaceholder} value={candidate} onChangeText={next => {setCandidate(next); setEndpointCheck(undefined);}} autoCapitalize="none" maxLength={512}
       editable={!busy} style={styles.input} accessibilityLabel={t('검증된 HTTPS RPC 주소')} />
     <Button text={t('지문 확인 후 읽기 전용 RPC 저장')} disabled={busy || !enabled || !candidate.trim()} click={verifyEndpoint} />
     {endpointCheck && <Text accessibilityLiveRegion="polite" style={styles.label}>{t(endpointCheck === 'checking' ?
@@ -566,11 +567,11 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
       <Text key={item.address + (item.tag ?? '')} style={styles.label} selectable>
         {item.name} · {item.address}{item.tag !== undefined ? ' · DestinationTag: ' + item.tag : ''}
       </Text>)}
-    <TextInput value={name} onChangeText={setName} maxLength={32} editable={!busy}
+    <TextInput placeholderTextColor={inputPlaceholder} value={name} onChangeText={setName} maxLength={32} editable={!busy}
       accessibilityLabel={t('주소록 이름')} style={styles.input} />
-    <TextInput value={address} onChangeText={setAddress} autoCapitalize="none" maxLength={90}
+    <TextInput placeholderTextColor={inputPlaceholder} value={address} onChangeText={setAddress} autoCapitalize="none" maxLength={90}
       editable={!busy} accessibilityLabel={t('주소록 주소')} style={styles.input} />
-    {selection.id === 'xrp' && <TextInput value={contactTag} onChangeText={setContactTag}
+    {selection.id === 'xrp' && <TextInput placeholderTextColor={inputPlaceholder} value={contactTag} onChangeText={setContactTag}
       editable={!busy} keyboardType="number-pad" maxLength={10}
       accessibilityLabel={t('주소록 목적지 태그')} style={styles.input} />}
     <Button text={t('주소록에 저장')} disabled={busy || !name.trim() || !address.trim() || (!!contactTag && !isXrpTag(contactTag))} click={addContact} />

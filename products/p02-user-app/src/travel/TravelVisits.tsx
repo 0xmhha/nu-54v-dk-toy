@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {AppState, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import {consentScope, privateTravel, travelID, TravelAuthorityError, type Consent, type TravelPolicy} from './privateClient.ts';
@@ -246,7 +247,7 @@ export function TravelVisits({screen, place, places, policies}: {
         <Text style={styles.heading}>{placeName(item)}</Text>
         {screen === 'review' && item.state === 'settled' && <>
           <Text>공개 목록에는 후기 본문과 배지 상태가 표시됩니다. 주소나 결제 정보를 입력하지 마세요.</Text>
-          <TextInput accessibilityLabel="후기 본문" value={draft} onChangeText={setDraft} multiline maxLength={800} style={styles.input} />
+          <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="후기 본문" value={draft} onChangeText={setDraft} multiline maxLength={800} style={styles.input} />
         </>}
         {policy && !authorized && item.state === 'settled' && <>
           <Button title={purposeLabel[purpose] + ' 동의 내용 확인'} onPress={() => setConsentOpen(true)} disabled={busy} />

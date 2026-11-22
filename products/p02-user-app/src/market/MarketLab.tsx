@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useEffect, useRef, useState} from 'react';
 import {Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import MarketVault from '../specs/NativeCommerceHttp.ts';
@@ -597,7 +598,7 @@ export function MarketLab({back, permission, openTravel}: {
     {boardWaiting && <BoardStepPanel wait={{flow:'sign',step:'display'}} t={text=>text} />}
     {loaded && !session && <>
       <Text>로컬 학습 배포의 블록 해시를 확인해 앱에서 전용 지갑을 만듭니다.</Text>
-      <TextInput accessibilityLabel="학습 배포 블록 해시" placeholder="학습 배포 블록 해시" value={pin} onChangeText={setPin}
+      <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="학습 배포 블록 해시" placeholder="학습 배포 블록 해시" value={pin} onChangeText={setPin}
         autoCapitalize="none" autoCorrect={false} maxLength={66} editable={!busy} style={styles.input} />
       <Action label="격리된 클라우드 학습 지갑 선택" disabled={busy || !validHash(pin)}
         run={()=>work(pickCloud,'이 앱에는 격리된 클라우드 지갑 등록 정보이 없습니다.')} />
@@ -688,7 +689,7 @@ export function MarketLab({back, permission, openTravel}: {
           }} />}
         </View>}
       </>}
-      {operation.fields.map(([field,label]) => <TextInput key={field} accessibilityLabel={label} placeholder={label}
+      {operation.fields.map(([field,label]) => <TextInput placeholderTextColor={inputPlaceholder} key={field} accessibilityLabel={label} placeholder={label}
         keyboardType="decimal-pad" value={draft[field] ?? ''} editable={!busy && !pending} style={styles.input}
         onChangeText={value => {
           setDraft({...draft,[field]:value});

@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../../ui/theme.ts';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {AppState,Keyboard,Pressable,Text,TextInput,View} from 'react-native';
 import {bytesToHex,fromBase64} from '@nu54/protocol';
@@ -249,7 +250,7 @@ export function DappBrowserScreen({scope,boards,scan,verify,back,initialSite='',
     {loginResult}
     <Text accessibilityRole="header">DApp 둘러보기</Text>
     {!review && <Text>사이트와 서비스를 선택하세요. 열기 전에 HTTPS 출처와 공개 범위를 확인합니다.</Text>}
-    <TextInput accessibilityLabel="HTTPS 사이트 주소" value={site} editable={!busy}
+    <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="HTTPS 사이트 주소" value={site} editable={!busy}
       maxLength={320} autoCorrect={false} autoCapitalize="none" returnKeyType="done" onSubmitEditing={Keyboard.dismiss}
       onChangeText={value=>{setSite(value);onSiteChange?.(value);setReview('');setAllowSpend(false);}} />
     {tap('사이트 범위 검토',()=>{

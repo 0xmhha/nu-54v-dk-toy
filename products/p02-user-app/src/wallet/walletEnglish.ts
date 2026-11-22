@@ -494,4 +494,8 @@ export const english: Record<string,string> = {
   "등록서와 설치 기록의 기기 식별값·서버 공개키 지문을 입력하세요.": "Enter the enrollment document and the device ID and server key fingerprint from the installation record.",
   "보드의 SW4를 1초 이상 길게 누른 뒤 개인 기기를 찾아 등록하세요.": "Hold SW4 on the board for at least 1 second, then find your device and enroll it.",
   "보드를 연결하고 백업을 확인한 뒤 앱 연결을 사용할 수 있습니다.": "Connect your board and verify the backup before using app connections.",
+  // First-run trial card
+  "행사에서 체험하기": "Try it at the event",
+  "체험 시작": "Start the trial",
+  "운영자 안내에 따라 대여 보드에 연결하고 테스트넷 결제를 해 봅니다. 내 지갑은 만들지 않으며, 체험이 끝나면 운영자가 대여를 닫습니다.": "Connect to the rental board as the operator guides you and make a testnet payment. No wallet of your own is created, and the operator closes the rental afterwards.",
 };

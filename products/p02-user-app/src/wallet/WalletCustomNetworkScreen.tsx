@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useEffect, useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import {formatReadAmount, readCustomEvmBalance, readCustomEvmDescriptor, setCustomEvmDescriptor,
@@ -97,7 +98,7 @@ export function WalletCustomNetworkScreen({profiles, save, readAddress, found, d
     })}</View>)}
     {Object.entries(fields).map(([name, label]) => <View key={name}>
       <Text style={styles.label}>{t(label)}</Text>
-      <TextInput accessibilityLabel={t(label)} style={styles.input} value={draft[name as keyof Draft]} maxLength={512}
+      <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={t(label)} style={styles.input} value={draft[name as keyof Draft]} maxLength={512}
         editable={!locked} autoCorrect={false} autoCapitalize="none"
         onChangeText={value => {setDraft({...draft, [name]: value}); setPreview(undefined);}} />
     </View>)}

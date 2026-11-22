@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../../ui/theme.ts';
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {BackHandler, Keyboard, Linking, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import {fromBase64} from '@nu54/protocol';
@@ -509,13 +510,13 @@ export function CloudWalletScreen({profile, back, backLabel, selectMarket, recov
       <Action title="Sepolia 전송 요청" disabled={busy||!!flow} run={()=>setEditing(!editing)}/>
       {editing&&<>
         <Action title="키보드 닫기" run={Keyboard.dismiss}/>
-        <TextInput accessibilityLabel="받는 주소" placeholder="받는 주소" style={styles.input} autoCapitalize="none" autoCorrect={false}
+        <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="받는 주소" placeholder="받는 주소" style={styles.input} autoCapitalize="none" autoCorrect={false}
           returnKeyType="done" submitBehavior="blurAndSubmit"
           maxLength={42} value={to} onChangeText={setTo}/>
         {([
           ['전송액 (wei)',amount,setAmount],['거래 nonce',nonce,setNonce],
           ['최대 가스 단가 (wei)',fee,setFee],['우선 가스 단가 (wei)',priority,setPriority],
-        ] as const).map(([label,value,set])=><TextInput key={label} accessibilityLabel={label} placeholder={label}
+        ] as const).map(([label,value,set])=><TextInput placeholderTextColor={inputPlaceholder} key={label} accessibilityLabel={label} placeholder={label}
           style={styles.input} keyboardType="number-pad" maxLength={38} value={value} onChangeText={set}/>)}
         <Action title="원문 검토" disabled={busy||!!flow} run={()=>perform(()=>start('sign'))}/>
       </>}

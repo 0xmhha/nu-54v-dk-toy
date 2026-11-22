@@ -1617,6 +1617,12 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
       {!stored && !message && <Text style={styles.body}>{t('지갑 기록 확인 중')}</Text>}
       {stored && screen === 'profiles' && <>
+        {/* Event visitors try a payment on the operator's rental board without creating their own wallet. */}
+        {Platform.OS === 'android' && <Card tone="green">
+          <Text accessibilityRole="header" style={styles.trialTitle}>{t('행사에서 체험하기')}</Text>
+          <Text style={styles.trialBody}>{t('운영자 안내에 따라 대여 보드에 연결하고 테스트넷 결제를 해 봅니다. 내 지갑은 만들지 않으며, 체험이 끝나면 운영자가 대여를 닫습니다.')}</Text>
+          <KitButton label={t('체험 시작')} run={rental} variant="secondary" />
+        </Card>}
         <Text style={styles.body}>{language === 'ko' ? '어떤 지갑을 사용할까요?' : 'Which wallet would you like to use?'}</Text>
         <View style={styles.device}><Text accessibilityRole="header" style={styles.sectionTitle}>{language === 'ko' ? '개인 보드' : 'Personal board'}</Text>
           <Text style={styles.body}>{language === 'ko' ? '내 보드를 새로 설치하거나 이미 설치된 보드를 연결합니다.' : 'Set up your board or connect one already installed.'}</Text>
@@ -1626,11 +1632,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           <Text style={styles.body}>{language === 'ko' ? '기존 대여 주소와 잔액을 유지합니다.' : 'Keep your existing rental address and balance.'}</Text>
           {Platform.OS === 'android' ? <Action title={t('기기 찾기 · 기존 대여')} run={rental} /> : <Text style={styles.body}>{t('기존 대여는 등록에 사용한 Android 휴대전화에서 열 수 있습니다.')}</Text>}
           <Action title={language==='ko'?'대여 보드 반납 상태':'Rental board return'} run={()=>setScreen('rental-maintenance')}/></View>
-        <Action testID="w06-choose-recovery" title={language==='ko'?'분실 복구':'Wallet recovery'} run={()=>openRecoveryOptions('profiles')} />
+        <Action testID="w06-choose-recovery" variant="row" title={language==='ko'?'분실 복구':'Wallet recovery'} run={()=>openRecoveryOptions('profiles')} />
         <View style={styles.device}><Text accessibilityRole="header" style={styles.sectionTitle}>{language === 'ko' ? '클라우드 지갑' : 'Cloud wallet'}</Text>
           <Text style={styles.body}>{language === 'ko' ? '별도의 모바일 승인으로 사용하는 지갑입니다.' : 'A wallet with separate mobile approval.'}</Text>
           {cloudProfile ? <Action title={t('클라우드 지갑')} run={()=>setScreen('cloud')} /> : <Text style={styles.body}>{language === 'ko' ? '현재 이 기기에서 사용할 수 없습니다.' : 'Not available on this device yet.'}</Text>}</View>
-        <Action title={stored.practice?.state === 'practice' ? (language === 'ko' ? '연습 이어하기' : 'Resume practice') : t('결제 연습')} run={() => {setPracticeWarning(false); setScreen('practice');}} />
+        <Action variant="row" title={stored.practice?.state === 'practice' ? (language === 'ko' ? '연습 이어하기' : 'Resume practice') : t('결제 연습')} run={() => {setPracticeWarning(false); setScreen('practice');}} />
       </>}
       {stored && screen === 'practice' && <>
         <Text style={styles.body}>{language === 'ko' ? '이 연습은 실제 돈을 보내거나 서명하지 않습니다. 보드에는 화면이 없습니다. 실제 결제는 신뢰할 수 있는 별도 표시에서 내용을 확인한 뒤 보드 버튼으로 승인합니다.' : 'This practice sends no money and creates no signature. The board has no screen. For a real payment, review the details on a trusted independent display before using the board button.'}</Text>
@@ -2372,6 +2378,8 @@ const styles = StyleSheet.create({
   recoveryDocument:{minHeight:80,maxHeight:160,textAlignVertical:'top'},
   content: {paddingBottom: 24, gap: 12},
   tabbed: {flex: 1},
+  trialTitle: {fontFamily: font, fontSize: 20, fontWeight: '800', color: color.mint},
+  trialBody: {fontFamily: font, fontSize: 15, lineHeight: 22, color: color.onGreen},
   languageRow: {flexDirection: 'row', justifyContent: 'flex-end'},
   pair: {flexDirection: 'row', gap: 10},
   pairItem: {flex: 1},

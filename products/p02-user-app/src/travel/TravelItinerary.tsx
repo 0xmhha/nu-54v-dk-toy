@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {Keyboard, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import type {Place} from './catalog.ts';
@@ -82,7 +83,7 @@ function DraftInputs({draft, change, zone, disabled}: {draft: Draft; change: (up
       <Button label="종료 늦추기" disabled={disabled || until >= 23} action={() => change({until: until + 1})} />
     </View>
     <View style={styles.row}>
-      <TextInput accessibilityLabel="일정 예산 상한 (원)" keyboardType="number-pad" maxLength={9}
+      <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="일정 예산 상한 (원)" keyboardType="number-pad" maxLength={9}
         editable={!disabled} value={budget} onChangeText={value => change({budget: value})} style={styles.input} />
       <Button label="예산 입력 완료" disabled={disabled} action={Keyboard.dismiss} />
     </View>

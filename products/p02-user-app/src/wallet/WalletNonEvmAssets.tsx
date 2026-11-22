@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useState} from 'react';
 import {Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import {nonEvmAssetKey, registerNonEvmAsset, reviewNonEvmAsset, scopedNonEvmAssets,
@@ -39,10 +40,10 @@ export function WalletNonEvmAssets({owner,value,busy,enabled,save,rpc,work,t,lan
   },t('자산 표시를 저장하지 못했습니다.'));
   return <View>
     <Text accessibilityRole="header" style={styles.text}>{t(solana ? 'Solana 토큰 관리' : 'XRPL 발행 자산 관리')}</Text>
-    <TextInput accessibilityLabel={t(solana ? 'SPL 민트 주소' : 'XRPL 통화 코드')} style={styles.input}
+    <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={t(solana ? 'SPL 민트 주소' : 'XRPL 통화 코드')} style={styles.input}
       value={identity} maxLength={44} editable={!busy} autoCapitalize="none" autoCorrect={false}
       onChangeText={text => {setIdentity(text); setCandidate(undefined);}} />
-    <TextInput accessibilityLabel={t(solana ? '예상 소수 자릿수' : 'XRPL 발행자 주소')} style={styles.input}
+    <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={t(solana ? '예상 소수 자릿수' : 'XRPL 발행자 주소')} style={styles.input}
       value={extra} maxLength={solana ? 2 : 35} editable={!busy} autoCapitalize="none" autoCorrect={false}
       onChangeText={text => {setExtra(text); setCandidate(undefined);}} />
     {button(t('토큰 정보 검토'), () => work(async () => {
@@ -67,7 +68,7 @@ export function WalletNonEvmAssets({owner,value,busy,enabled,save,rpc,work,t,lan
     {button(t('등록 토큰'),()=>setGroup('all'),busy || group==='all')}
     {button(t('즐겨찾기'),()=>setGroup('favorite'),busy || group==='favorite')}
     {button(t('숨긴 자산'),()=>setGroup('hidden'),busy || group==='hidden')}
-    <TextInput accessibilityLabel={language === 'ko' ? '등록 자산 검색' : 'Search registered assets'} style={styles.input}
+    <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={language === 'ko' ? '등록 자산 검색' : 'Search registered assets'} style={styles.input}
       value={search} maxLength={64} autoCapitalize="none" autoCorrect={false} onChangeText={setSearch} />
     {search.trim() && !listed.length && <Text style={styles.text}>
       {language === 'ko' ? '일치하는 등록 자산이 없습니다.' : 'No matching registered assets.'}

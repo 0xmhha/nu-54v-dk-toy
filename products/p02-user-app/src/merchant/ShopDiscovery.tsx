@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { readEntranceQr, type ShopIdentity } from '@nu54/protocol';
@@ -163,7 +164,7 @@ export function ShopDiscovery({
           <Text>
             단말 신호로 근처 후보를 찾습니다. 단말과 간판의 지점을 대조하세요.
           </Text>
-          <TextInput
+          <TextInput placeholderTextColor={inputPlaceholder}
             accessibilityLabel="간판의 지점명"
             placeholder="간판의 지점명 (선택)"
             editable={!busy}
@@ -266,7 +267,7 @@ export function ShopDiscovery({
               }, qrFailure)
             }
           />
-          <TextInput
+          <TextInput placeholderTextColor={inputPlaceholder}
             accessibilityLabel="매장 입구 QR 주소"
             placeholder="매장 입구 QR 주소"
             autoCapitalize="none"

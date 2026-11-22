@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useLayoutEffect,useRef,useState} from 'react';
 import {Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import {RenterReturnStatus} from './RenterReturnStatus.tsx';
@@ -198,7 +199,7 @@ export function WalletMaintenance(props:Props) {
         !unsettled&&verdict.update==='ready-to-read'&&<>
         {props.pickCandidate&&<Action label={t('서명된 후보 확인서 선택','Choose signed candidate receipt')}
           disabled={working} run={()=>{if(props.pickCandidate)inspectCandidate(props.pickCandidate);}}/>}
-        <TextInput style={styles.input} accessibilityLabel={t('서명된 후보 확인서','Signed candidate receipt')}
+        <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} accessibilityLabel={t('서명된 후보 확인서','Signed candidate receipt')}
           value={candidateDocument} autoCapitalize="none" autoCorrect={false} multiline maxLength={8192} editable={!working}
           onChangeText={value=>{setCandidate(undefined);setCandidateDocument(value);}}/>
         <Action label={t('후보 확인서 검증','Verify candidate receipt')} disabled={working||!candidateDocument}
@@ -230,7 +231,7 @@ export function WalletMaintenance(props:Props) {
         : <Text>{t('운영 캠페인의 전원·모델·최소 허용 버전과 배포 서명을 확인하세요. 실행 버전은 기기의 적용 증거를 받아 승인된 캠페인에서 대조합니다.',
           'Check power, model, minimum version and release signature in the approved campaign. Verify the running version against authenticated board evidence there.')}</Text>}
       <Text accessibilityRole="header">{t('설치 후 캠페인 증거','Post-installation campaign evidence')}</Text>
-      <TextInput style={styles.input} accessibilityLabel={t('펌웨어 적용 증거 요청','Firmware evidence request')}
+      <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} accessibilityLabel={t('펌웨어 적용 증거 요청','Firmware evidence request')}
         editable={!working&&active} autoCapitalize="none" autoCorrect={false} maxLength={98} value={request}
         onChangeText={value=>{setRequest(value);setProof('');}}/>
       <Action label={t('이 기기 적용 증거 읽기','Read this device rollout evidence')}

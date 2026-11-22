@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useEffect,useRef,useState} from 'react';
 import {AppState,Keyboard,Pressable, Share, StyleSheet, Text, TextInput, View} from 'react-native';
 import {bytesToHex,toBase64} from '@nu54/protocol';
@@ -213,14 +214,14 @@ export function Bip48WalletScreen({verified, found, scan, back, busy, work, sess
   return <View>
     <Text accessibilityRole="header" style={styles.label}>{t('Bitcoin 공동서명')} · 2 of 3</Text>
     {registered ? <Text style={styles.label}>Bitcoin Signet · {registered.anchor}</Text> : <>
-    <TextInput style={styles.input} value={endpoint} editable={!busy} maxLength={512}
+    <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} value={endpoint} editable={!busy} maxLength={512}
       autoCorrect={false} autoCapitalize="none" accessibilityLabel={t('로컬 HTTPS RPC 주소')}
       onChangeText={value => {setEndpoint(value);setSelected(undefined);clearImport();}} />
-    <TextInput style={styles.input} value={anchor} editable={!busy} maxLength={64}
+    <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} value={anchor} editable={!busy} maxLength={64}
       autoCorrect={false} autoCapitalize="none" accessibilityLabel={t('네트워크 식별자')} placeholder="Regtest genesis hash"
       onChangeText={value => {setAnchor(value);setSelected(undefined);clearImport();}} />
     </>}
-    <TextInput style={styles.input} value={account} editable={!busy && !registered} maxLength={3} keyboardType="number-pad"
+    <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} value={account} editable={!busy && !registered} maxLength={3} keyboardType="number-pad"
       accessibilityLabel={t('공동서명 계정 번호')} onChangeText={value => {setAccount(value);setParticipant('');setSelected(undefined);clearImport();}} />
     <Button text={t('개인 기기 찾기')} disabled={busy} run={scan} />
     {found.map(({name, address}) => <Button key={'export-' + address} text={t('공개 공동서명 키 내보내기') + ' · ' + name}
@@ -243,13 +244,13 @@ export function Bip48WalletScreen({verified, found, scan, back, busy, work, sess
             {importedDocument ? <>
               <Text style={styles.label}>{t('PSBT 파일을 불러왔습니다.')}</Text>
               <Button text={t('PSBT 직접 입력')} disabled={busy} run={clearImport} />
-            </> : <TextInput multiline style={[styles.input,styles.psbtInput]} value={counterpart} editable={!busy} maxLength={2376}
+            </> : <TextInput placeholderTextColor={inputPlaceholder} multiline style={[styles.input,styles.psbtInput]} value={counterpart} editable={!busy} maxLength={2376}
               autoCorrect={false} autoCapitalize="none" onChangeText={value=>{epoch.current.document++;setCounterpart(value);discardReview();}} accessibilityLabel="PSBT" />}
           </> :
           <>
-            <TextInput style={styles.input} value={recipient} editable={!busy} maxLength={85} autoCapitalize="none"
+            <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} value={recipient} editable={!busy} maxLength={85} autoCapitalize="none"
               accessibilityLabel={t('수취인 주소')} placeholder={t('수취인 주소')} onChangeText={value=>{setRecipient(value);discardReview();}} />
-            <TextInput style={styles.input} value={amount} editable={!busy} maxLength={20} keyboardType="decimal-pad"
+            <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} value={amount} editable={!busy} maxLength={20} keyboardType="decimal-pad"
               accessibilityLabel={t('보낼 금액')} placeholder={t('보낼 금액')} onChangeText={value=>{setAmount(value);discardReview();}} />
           </>}
         <Button text={t('PSBT 원문 검토')} disabled={busy || (alternative ? !counterpart : !recipient || !amount)} run={review} />

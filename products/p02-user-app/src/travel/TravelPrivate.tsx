@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {AppState, PermissionsAndroid, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import {fromBase64, utf8Decode} from '@nu54/protocol';
@@ -24,7 +25,7 @@ function Button({title, action, disabled}: {title: string; action: () => void; d
     style={[styles.button, disabled && styles.disabled]}><Text>{title}</Text></Pressable>;
 }
 function Input({label, value, update, limit = 128, secure = false}: {label: string; value: string; update: (v: string) => void; limit?: number; secure?: boolean}) {
-  return <TextInput accessibilityLabel={label} placeholder={label} value={value} onChangeText={update}
+  return <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={label} placeholder={label} value={value} onChangeText={update}
     autoCapitalize="none" autoCorrect={!secure} secureTextEntry={secure} returnKeyType="done" maxLength={limit} style={styles.input} />;
 }
 

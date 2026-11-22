@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../../ui/theme.ts';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {Alert,AppState,Keyboard,Pressable,StyleSheet,Text,TextInput,View} from 'react-native';
 import {bytesToHex,hexToBytes} from '@nu54/protocol';
@@ -234,7 +235,7 @@ export function WalletConnectScreen({scope,relay,projectId,stored,save,boards,sc
       {openConnections && button('연결 목록',openConnections)}
     </>}
     {!active && <>
-      <TextInput style={styles.input} accessibilityLabel="WalletConnect 연결 주소" value={uri} onChangeText={setUri} maxLength={1200}
+      <TextInput placeholderTextColor={inputPlaceholder} style={styles.input} accessibilityLabel="WalletConnect 연결 주소" value={uri} onChangeText={setUri} maxLength={1200}
         autoCorrect={false} autoCapitalize="none" secureTextEntry returnKeyType="done" onSubmitEditing={Keyboard.dismiss} />
       {PairingCamera ? button('WalletConnect QR 읽기',()=>{Keyboard.dismiss();scanPairing();},!!liveStored) :
         <Text>이 배포에서 QR을 읽을 수 없습니다. 연결 주소를 입력하거나 붙여 넣으세요.</Text>}

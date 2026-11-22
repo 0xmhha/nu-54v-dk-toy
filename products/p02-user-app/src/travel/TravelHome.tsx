@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {sha256} from '@noble/hashes/sha256';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {AppState, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
@@ -677,7 +678,7 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
     {loading ? <Text>공개 지역을 불러오는 중입니다.</Text> : !endpoint ?
       <Action label="여행 서비스 다시 연결" disabled={busy} onPress={() => {run(workspace, '승인된 여행 서비스 설정을 확인해 주세요.');}} />
       : <>
-        <TextInput accessibilityLabel="지역 이름" placeholder="지역 이름 예시 서울" editable={!busy && !pending}
+        <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="지역 이름" placeholder="지역 이름 예시 서울" editable={!busy && !pending}
           value={regionText} onChangeText={setRegionText} style={styles.input} />
         {matchingRegions.map(option => <Action key={option.code} label={option.name} disabled={(commerceBusy && !mapRequest.current) || !!pending}
           onPress={() => {search(option);}} />)}
@@ -688,7 +689,7 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
     {catalog && <>
       {catalog.environment === 'synthetic' && <Text>시험용 장소 데이터</Text>}
       <Text style={styles.heading}>{region?.name}</Text>
-      <TextInput accessibilityLabel="장소 이름" placeholder="장소 이름 또는 공개 주소" value={placeText}
+      <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="장소 이름" placeholder="장소 이름 또는 공개 주소" value={placeText}
         editable={!busy && !pending} onChangeText={value => {setPlaceText(value); setPage(0);}} style={styles.input} />
       <View style={styles.row}>
         <Action label="전체" onPress={() => applyFilters({...filters, category: 'all'})} />
@@ -786,7 +787,7 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
         <Action label="내 예약 다시 열기" disabled={busy} onPress={() => {run(async () => {setPolicy(await branchProfile(branch)); setBookings((await exchange(branch, 'my-bookings')).bookings ?? []);}, '예약 상태를 확인할 수 없습니다.');}} />
         {slots && <>
           <View style={styles.row}>
-            <TextInput accessibilityLabel="인원" keyboardType="number-pad" editable={!busy && !pending} value={party}
+            <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel="인원" keyboardType="number-pad" editable={!busy && !pending} value={party}
               maxLength={2} onChangeText={setParty} onSubmitEditing={Keyboard.dismiss} style={styles.input} />
             <Action label="인원 입력 완료" disabled={busy || !!pending || count === 0} onPress={Keyboard.dismiss} />
           </View>

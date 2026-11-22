@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {
   useCallback,
   useEffect,
@@ -99,7 +100,7 @@ import {
 
 import {BoardStepPanel} from '../wallet/BoardStepPanel.tsx';
 import {english as walletEnglish} from '../wallet/walletEnglish.ts';
-import {KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
+import {Card, KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
 import {AmountLine, PickupTicket} from './paymentParts.tsx';
 import {color, font, radius} from '../ui/theme.ts';
 import {customerDigest, customerJournals} from './customerJournal.ts';
@@ -1990,11 +1991,17 @@ export function CustomerOrders({
       )}
       {phase === 'setup' && (
         <>
-          <Text style={s.text}>
-            지점 등록서 발급 담당자에게 이 휴대전화의 공개키를 전달하세요.
-          </Text>
+          {/* Before registration the payments tab explains the three steps instead of opening on a bare form. */}
+          <Card>
+            <Text accessibilityRole="header" style={s.cardTitle}>매장 결제를 시작하려면</Text>
+            {['매장 담당자에게 이 휴대전화의 주문 등록 공개키를 보여 주세요.',
+              '받은 주문 등록서와 두 지문을 아래에 입력하세요.',
+              '등록을 확인하면 이 휴대전화의 주문과 결제가 여기에 모입니다.'].map((step, index) =>
+              <Text key={step} style={s.text}>{`${index + 1}. ${step}`}</Text>)}
+          </Card>
           <Button
             label="주문 등록 공개키 보기"
+            variant="secondary"
             disabled={busy}
             run={() =>
               work(
@@ -2006,6 +2013,7 @@ export function CustomerOrders({
           {Nearby && (
             <Button
               label="근거리 등록 공개키 보기"
+              variant="secondary"
               disabled={busy}
               run={() =>
                 work(
@@ -2025,7 +2033,8 @@ export function CustomerOrders({
               {pub}
             </Text>
           )}
-          <TextInput
+          <Text accessibilityRole="header" style={s.cardTitle}>등록 정보</Text>
+          <TextInput placeholderTextColor={inputPlaceholder}
             testID="customer-commerce-registration"
             accessibilityLabel="고객 주문 등록서"
             placeholder="고객 주문 등록서"
@@ -2042,7 +2051,7 @@ export function CustomerOrders({
             value={profile}
             onChangeText={setProfile}
           />
-          <TextInput
+          <TextInput placeholderTextColor={inputPlaceholder}
             ref={serverPinInput}
             testID="customer-commerce-tls-pin"
             accessibilityLabel="독립 확인한 주문 서버 지문"
@@ -2059,7 +2068,7 @@ export function CustomerOrders({
             value={pin}
             onChangeText={setPin}
           />
-          <TextInput
+          <TextInput placeholderTextColor={inputPlaceholder}
             ref={presentationPinInput}
             testID="customer-commerce-presentation-pin"
             accessibilityLabel="별도 발급한 비공개 주문 서명 지문"
@@ -2192,7 +2201,7 @@ export function CustomerOrders({
             </>
           )}
           {!pickupMode && !shopEntry && <>
-          <TextInput
+          <TextInput placeholderTextColor={inputPlaceholder}
             accessibilityLabel="매장 주문 QR 내용"
             placeholder="카메라를 사용할 수 없으면 QR 내용 입력"
             autoCapitalize="none"
@@ -2764,6 +2773,7 @@ const s = StyleSheet.create({
   scroll: { gap: 12, paddingBottom: 24 },
   title: { fontFamily: font, fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink },
   text: { fontFamily: font, fontSize: 16, lineHeight: 24, color: color.ink },
+  cardTitle: { fontFamily: font, fontSize: 18, fontWeight: '800', color: color.ink },
   registrationInput: {
     height: 120,
     textAlignVertical: 'top',

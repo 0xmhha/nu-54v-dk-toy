@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {commissionedProfile,type CommissionedChain} from './commissionedChainProfiles.ts';
 import {xrplIssue} from './nonEvmAssets.ts';
 import type {ReadProof, WalletConnectivity} from './walletConnectivity.ts';
@@ -382,9 +383,9 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
       {boardAccount && <>
         <Text selectable style={styles.label}>{boardAccount.address}</Text>
         {boardAccount.network===1 && <>
-        <TextInput style={styles.field} value={endpoint} maxLength={512} editable={!busy}
+        <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={endpoint} maxLength={512} editable={!busy}
           accessibilityLabel={t('로컬 HTTPS RPC 주소')} onChangeText={value => {setEndpoint(value); setReceiveBalance(undefined);}} />
-        <TextInput style={styles.field} value={anchor} maxLength={64} editable={!busy}
+        <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={anchor} maxLength={64} editable={!busy}
           accessibilityLabel={t('네트워크 식별자')} placeholder={t('네트워크 식별자')}
           onChangeText={value => {setAnchor(value); setReceiveBalance(undefined);}} />
         <Button text={t('입금 잔액 다시 확인')} disabled={busy || !anchor.trim()} run={() => work(async () => {
@@ -398,7 +399,7 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
             t('첫 입금 대기 · XRPL 계정 미활성') : receiveBalance.amount + ' ' + receiveBalance.unit} · {receiveBalance.observation}
         </Text>}
 
-        {boardAccount.chain === 3 && <TextInput style={styles.field} value={tag} maxLength={10}
+        {boardAccount.chain === 3 && <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={tag} maxLength={10}
           accessibilityLabel={t('목적지 태그')} placeholder={t('목적지 태그 (선택)')} keyboardType="number-pad" onChangeText={setTag} />}
         {card && <>
           <Text selectable style={styles.label}>{card.detail}</Text>
@@ -413,10 +414,10 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
       {Platform.OS === 'ios' && <InputAccessoryView nativeID="wallet-chain-send-input">
         <Button text={language === 'en' ? 'Done entering transfer details' : '전송 입력 완료'} run={Keyboard.dismiss} />
       </InputAccessoryView>}
-      {selected.network===1 ? <><TextInput style={styles.field} value={endpoint} maxLength={512} autoCorrect={false} autoCapitalize="none"
+      {selected.network===1 ? <><TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={endpoint} maxLength={512} autoCorrect={false} autoCapitalize="none"
         accessibilityLabel={t('로컬 HTTPS RPC 주소')} placeholder={t('로컬 HTTPS RPC 주소')}
         onChangeText={value => { setEndpoint(value); setNetworkOk(false); }} />
-      <TextInput style={styles.field} value={anchor} maxLength={64} autoCorrect={false} autoCapitalize="none"
+      <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={anchor} maxLength={64} autoCorrect={false} autoCapitalize="none"
         accessibilityLabel={t('네트워크 식별자')} placeholder={selected.chain === 3 ? 'Network ID' : 'Genesis hash'}
         onChangeText={value => { setAnchor(value); setNetworkOk(false); }} /></> : <Text selectable style={styles.label}>{approvedNetwork?.rpc} · {approvedNetwork?.anchor}</Text>}
       <Button text={networkOk ? t('네트워크 확인 완료') : t(selected.network===2 ? '등록된 시험망 확인' : '로컬 네트워크 확인')} disabled={busy || networkOk || (selected.network===2 ? !approvedNetwork : !anchor)}
@@ -425,29 +426,29 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
           await checkChainNetwork(storedChainRpc(scope,rpc,commissionedToken),selected,scope.anchor);
           setNetworkOk(true);
         }, t('로컬 네트워크의 식별자가 일치하지 않습니다.'))} />
-      <TextInput style={styles.field} value={destination} maxLength={85} onChangeText={setDestination}
+      <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={destination} maxLength={85} onChangeText={setDestination}
         editable={!busy} autoCorrect={false} autoCapitalize="none" placeholder={t('수취인 주소')}
         accessibilityLabel={t('수취인 주소')} />
-      <TextInput style={styles.field} value={amount} maxLength={34} onChangeText={setAmount}
+      <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={amount} maxLength={34} onChangeText={setAmount}
         inputAccessoryViewID={Platform.OS === 'ios' ? 'wallet-chain-send-input' : undefined}
         editable={!busy} keyboardType="decimal-pad" placeholder={t('보낼 금액')} accessibilityLabel={t('보낼 금액')} />
       {selected.chain === 1 && selected.network===1 && <>
-        <TextInput style={styles.field} value={outpoint} maxLength={74} onChangeText={setOutpoint}
+        <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={outpoint} maxLength={74} onChangeText={setOutpoint}
           editable={!busy} autoCapitalize="none" placeholder={t('지출할 UTXO (선택)')} accessibilityLabel={t('지출할 UTXO')} />
         <Button text={t(replaceable ? '수수료 교체 가능' : '수수료 교체 없음')} disabled={busy}
           run={() => setReplaceable(!replaceable)} />
       </>}
-      {selected.network===1 && selected.chain !== 1 && <TextInput style={styles.field} value={asset} maxLength={50} onChangeText={setAsset}
+      {selected.network===1 && selected.chain !== 1 && <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={asset} maxLength={50} onChangeText={setAsset}
         editable={!busy} autoCorrect={false} autoCapitalize="none"
         accessibilityLabel={t('자산')} placeholder={selected.chain === 2 ? t('SPL 민트 (SOL은 비워 두세요)') :
           t('발행 자산 통화 코드 (XRP는 비워 두세요)')} />}
-      {selected.chain === 2 && !!asset && <TextInput style={styles.field} value={source} maxLength={45} onChangeText={setSource}
+      {selected.chain === 2 && !!asset && <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={source} maxLength={45} onChangeText={setSource}
         editable={!busy} autoCorrect={false} autoCapitalize="none" accessibilityLabel={t('토큰 출금 계정')}
         placeholder={t('토큰 출금 계정')} />}
-      {selected.chain === 3 && !!asset && <TextInput style={styles.field} value={issuer} maxLength={35}
+      {selected.chain === 3 && !!asset && <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={issuer} maxLength={35}
         editable={!busy} autoCorrect={false} autoCapitalize="none" accessibilityLabel={t('XRPL 발행자 주소')}
         placeholder={t('XRPL 발행자 주소')} onChangeText={setIssuer} />}
-      {selected.chain === 3 && <TextInput style={styles.field} value={tag} maxLength={10} onChangeText={setTag}
+      {selected.chain === 3 && <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={tag} maxLength={10} onChangeText={setTag}
         inputAccessoryViewID={Platform.OS === 'ios' ? 'wallet-chain-send-input' : undefined}
         editable={!busy} keyboardType="number-pad" accessibilityLabel={t('목적지 태그')}
         placeholder={t('목적지 태그 (선택)')} />}
@@ -496,7 +497,7 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
       {pending.attempted && pending.btc?.replaceable && pending.ownerGeneration === verified.generation && pending.clock?.board === verified.boardFingerprint &&
         (result === undefined || result === 'pending') && <>
           <Text style={styles.label}>{t('현재 수수료 (sats)')} {pending.btc.fee}</Text>
-          <TextInput style={styles.field} value={replacementFee} onChangeText={setReplacementFee}
+          <TextInput placeholderTextColor={inputPlaceholder} style={styles.field} value={replacementFee} onChangeText={setReplacementFee}
             editable={!busy} accessibilityLabel={t('새 전체 수수료 (sats)')} placeholder={t('새 전체 수수료 (sats)')}
             maxLength={6} keyboardType="number-pad" />
           <Button text={t('개인 기기 찾기')} disabled={busy} run={scan} />

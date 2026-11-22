@@ -1,3 +1,4 @@
+import {inputPlaceholder} from '../ui/theme.ts';
 import {useCallback,useLayoutEffect,useRef,useState} from 'react';
 import {Pressable,Text,TextInput,View} from 'react-native';
 import {sha256} from '@noble/hashes/sha256';
@@ -199,11 +200,11 @@ export function RenterReturnStatus({language,active,detailVisible=false,navigate
       })}/>;
   }
   return <View style={{gap:8}}>
-    <TextInput accessibilityLabel={t('대여 인도 참조','Rental handover reference')} value={assignment}
+    <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={t('대여 인도 참조','Rental handover reference')} value={assignment}
       onChangeText={next=>{clear();setAssignment(next);}} autoCapitalize="none" autoCorrect={false} maxLength={36}
       placeholder={t('대여 인도 참조','Rental handover reference')}/>
     {button(t('같은 대여 상태 조회','Check this rental'),active&&!busy&&reference,()=>{void read(false);})}
-    <TextInput accessibilityLabel={t('인도받은 대여 계정','Handed-over rental account')} value={account}
+    <TextInput placeholderTextColor={inputPlaceholder} accessibilityLabel={t('인도받은 대여 계정','Handed-over rental account')} value={account}
       onChangeText={next=>{clear();setAccount(next);}} autoCapitalize="none" autoCorrect={false} maxLength={42}
       placeholder={t('인도받은 대여 계정','Handed-over rental account')}/>
     {button(t('이 계정의 대여 인도 수락','Accept handover for this rental account'),active&&!busy&&reference&&accountRef.test(account.trim().toLowerCase()),()=>{void read(true);})}
