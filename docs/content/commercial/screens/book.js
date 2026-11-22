@@ -62,6 +62,31 @@ function fieldList(s){
  if(!s.inputs?.length)return '';
  return `<div class="inputs" aria-label="입력 양식의 고정 예시">${s.inputs.map(([k,v])=>`<label>${esc(k)}<input type="text" value="${esc(v)}" readonly></label>`).join('')}</div>`;
 }
+// Board drawing that matches the NU54DK v2 silkscreen: SW4, SW3, SW2, SW1 top to bottom on the
+// right edge (P0.04, P1.08, P1.09, P1.13) and LED1-LED4 in one row beside SW2/SW1 (status_led.c
+// drives all four together). Each step animates only what the user must do or watch.
+const boardButtons=[['SW4',58],['SW3',86],['SW2',114],['SW1',142]];
+const boardArtSteps={window:{hold:['SW4']},recovery:{hold:['SW3']},hold:{hold:['SW3']},approve:{tap:['SW1'],alt:['SW2'],led:'wait'},
+ pin:{seq:['SW1','SW3'],alt:['SW2'],led:'pin'},update:{press:['SW1','SW2'],later:['SW3'],led:'two'},locate:{led:'locate'},
+ display:{display:['독립 표시 장치',['금액','받는 곳','네트워크']]},
+ working:{still:true},done:{},failed:{},recoveryproof:{display:['독립 복구 장치',['새 휴대전화 지문','소유 세대']]},confirm:{}};
+function boardArt(stepId){
+ const a=boardArtSteps[stepId]||{};
+ if(a.display){const [name,rows]=a.display;return `<svg class="boardart art-display" viewBox="0 0 120 190" role="img" aria-label="${esc(name)} 그림">
+ <rect class="indepbody" x="4" y="44" width="112" height="92" rx="9"/><rect class="indepscreen" x="12" y="52" width="96" height="76" rx="4"/>
+ ${rows.map((row,i)=>`<text class="indeprow" x="18" y="${68+i*24}">${esc(row)}</text><path class="indepline" d="M18 ${75+i*24}h${62-i*12}"/>`).join('')}
+ <text class="indeptitle" x="60" y="156">${esc(name)}</text></svg>`;}
+ const role=name=>a.hold?.includes(name)?'hold':a.tap?.includes(name)?'tap':a.press?.includes(name)?'press':
+  a.seq?.includes(name)?'seq-'+name:a.later?.includes(name)?'later':a.alt?.includes(name)?'alt':'';
+ const buttons=boardButtons.map(([name,y])=>{const r=role(name);return `<g class="sw ${r}"><rect class="pad" x="66" y="${y-11}" width="22" height="22" rx="4"/><circle class="cap" cx="77" cy="${y}" r="7"/>${r==='hold'?`<circle class="ring" cx="77" cy="${y}" r="13" pathLength="100"/>`:''}<text x="94" y="${y+3.5}">${name}</text></g>`;}).join('');
+ const leds=[0,1,2,3].map(i=>`<rect class="led led${i}" x="${14+i*12}" y="126" width="9" height="6" rx="1.5"/>`).join('');
+ const marked=boardButtons.map(([n])=>n).filter(n=>role(n)&&role(n)!=='alt'&&role(n)!=='later');
+ const said=marked.length?'보드 그림: '+marked.join('·')+' 강조':a.still?'보드 그림: 버튼을 누르지 않는 단계':'보드 그림';
+ return `<svg class="boardart art-${esc(stepId)} led-${a.led||'off'}${a.still?' still':''}" viewBox="0 0 120 190" role="img" aria-label="${esc(said)}">
+ <rect class="pcb" x="4" y="4" width="112" height="182" rx="8"/><rect class="module" x="14" y="12" width="46" height="34" rx="4"/>
+ <text class="mod" x="37" y="32">NU-54V</text><rect class="usb" x="42" y="172" width="36" height="10" rx="3"/>
+ ${leds}<text class="ledlabel" x="14" y="143">LED</text>${buttons}</svg>`;
+}
 function boardPanel(p,s){
  const mark=board.states[p.id+'#'+s.id];
  if(!mark)return '';
@@ -75,8 +100,8 @@ function boardPanel(p,s){
  return `<section class="boardsteps step-${esc(stepId)}" aria-label="하드월렛 진행 단계">
  <div class="bshead"><span>하드월렛 · ${esc(flow.label)}</span><b>${ended?esc(step.label):`${at+1} / ${flow.steps.length}`}</b></div>
  <ol class="bstrack" role="list">${track}</ol>
- <p class="bsdo"><strong>${ended?'결과':'지금 할 일'}</strong>${esc(step.do)}</p>
- ${keys?`<ul class="bskeys" role="list">${keys}</ul>`:''}${step.led?`<p class="bsled">표시등 · ${esc(step.led)}</p>`:''}
+ <div class="bsnow">${boardArt(stepId)}<div><p class="bsdo"><strong>${ended?'결과':'지금 할 일'}</strong>${esc(step.do)}</p>
+ ${keys?`<ul class="bskeys" role="list">${keys}</ul>`:''}${step.led?`<p class="bsled">표시등 · ${esc(step.led)}</p>`:''}</div></div>
  <p class="bsapp">${esc(step.app)}</p>${step.pending?`<p class="bspending">${esc(step.pending)}</p>`:''}${ahead}</section>`;
 }
 function appPreview(p,s){
