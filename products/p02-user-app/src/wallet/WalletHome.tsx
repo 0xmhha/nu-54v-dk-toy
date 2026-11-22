@@ -1682,10 +1682,13 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
       {stored && screen === 'install' && <>
         <Text accessibilityRole="header" style={styles.sectionTitle}>{stored.installation?.state === 'consumed' ? (language === 'ko' ? '설치 확인서를 검증했습니다' : 'Installation receipt verified') : (language === 'ko' ? '설치 검증을 기다리고 있습니다' : 'Installation verification pending')}</Text>
-        <Text style={styles.body}>{language === 'ko' ? '컴퓨터에 보드를 USB로 연결하세요. 서명된 릴리스와 별도 경로로 확인한 신뢰키를 준비합니다. 공식 채널은 승인된 키가 등록되기 전까지 사용할 수 없습니다.' : 'Connect the board to a computer by USB. Prepare the signed release and a trust key verified through an independent channel. The official channel is unavailable until an approved key is registered.'}</Text>
-        <Text style={styles.body}>{language === 'ko' ? '데스크톱 설치 도구에서 모델, 채널, 서명, 이미지와 최소 보안 카운터를 확인하고 결과를 보관하세요. 중단되면 기존 기기 상태를 확인한 뒤 같은 절차를 다시 시작하세요.' : 'Use the desktop installation tool to check model, channel, signature, image and minimum security counter. Keep its result. After interruption, check the existing board state before resuming.'}</Text>
+        {/* Three plain steps replace the release-engineering paragraphs; the detailed checks stay in the setup tool. */}
+        <Card>
+          {(language === 'ko' ? ['컴퓨터에 보드를 USB로 연결하고 설치 도구로 이미지를 기록하세요.', '설치 도구가 만든 검증 파일과, 따로 받은 신뢰 파일을 차례로 고르세요.', '파일의 값이 따로 받은 기록과 같은지 확인한 뒤 설치 확인 요청을 만드세요.']
+            : ['Connect the board to a computer by USB and write the image with the setup tool.', 'Choose the verified file from the setup tool, then the trust file you received separately.', 'Check the values against the records you received separately, then create the installation request.'])
+            .map((step, index) => <Text key={step} style={styles.body}>{`${index + 1}. ${step}`}</Text>)}
+        </Card>
         {!stored.installation && <>
-          <Text style={styles.body}>{language === 'ko' ? '컴퓨터의 검증 결과를 가져오고 별도 경로에서 확인한 설치자 지문·릴리스 해시·보드 식별값을 대조하세요.' : 'Import the verified desktop result and compare the installer fingerprint, release hash and board identity from an independent source.'}</Text>
           <Action title={language === 'ko' ? '검증된 설치 파일 선택' : 'Choose verified setup file'} disabled={busy || !native} run={() => work(async()=>{
             if (!native) throw new Error('NATIVE_REQUIRED');
             const text=await native.pickInstallationFile(); if (text.length > 8192) throw new Error('FILE_TOO_LARGE');
@@ -1693,12 +1696,12 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             if (!data || typeof data !== 'object') throw new Error('FILE_INVALID');
             setInstallConfirmed(false); setInstallSetup(text);
           },language === 'ko' ? '설치 파일을 선택하지 못했습니다.' : 'Could not select the setup file.')} />
-          <Action title={language === 'ko' ? '독립 신뢰 파일 선택' : 'Choose independent trust file'} disabled={busy || !native} run={() => work(async()=>{
+          <Action variant="secondary" title={language === 'ko' ? '독립 신뢰 파일 선택' : 'Choose independent trust file'} disabled={busy || !native} run={() => work(async()=>{
             if (!native) throw new Error('NATIVE_REQUIRED');
             const trust=readInstallTrust(await native.pickInstallationFile());
             setInstallConfirmed(false); setInstallerPin(trust.signer); setCandidatePin(trust.candidate); setInstallDevice(trust.device);
           },language === 'ko' ? '독립 신뢰 파일을 확인할 수 없습니다.' : 'Could not verify the independent trust file.')} />
-          <Action title={language === 'ko' ? (installAdvanced ? '직접 입력 닫기' : '직접 입력하기') : (installAdvanced ? 'Close manual entry' : 'Enter manually')} run={()=>{setInstallAdvanced(!installAdvanced); setInstallConfirmed(false);}} />
+          <Action variant="row" title={language === 'ko' ? (installAdvanced ? '직접 입력 닫기' : '직접 입력하기') : (installAdvanced ? 'Close manual entry' : 'Enter manually')} run={()=>{setInstallAdvanced(!installAdvanced); setInstallConfirmed(false);}} />
           {installAdvanced && <>
           <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '검증된 설치 자료' : 'Verified setup data'} value={installSetup} onChangeText={value=>{setInstallConfirmed(false); setInstallSetup(value);}} multiline maxLength={4096} autoCapitalize="none" autoCorrect={false} />
           <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '독립 설치자 지문' : 'Independent installer fingerprint'} value={installerPin} onChangeText={value=>{setInstallConfirmed(false); setInstallerPin(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
@@ -1768,7 +1771,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           <Text accessibilityRole="header" style={styles.sectionTitle}>{t('보드 연결하기')}</Text>
           {['이 휴대전화의 등록 공개키를 발급 담당자에게 보여 주고 등록서를 받으세요.',
             '등록서와 설치 기록의 기기 식별값·서버 공개키 지문을 입력하세요.',
-            '보드의 SW4를 1초 이상 길게 누른 뒤 개인 기기를 찾아 등록하세요.'].map((step, index) =>
+            '아래 하드월렛 단계에 따라 보드를 준비한 뒤 개인 기기를 찾아 등록하세요.'].map((step, index) =>
             <Text key={step} style={styles.body}>{`${index + 1}. ${t(step)}`}</Text>)}
         </Card> : <>
         {!stored.verified && <Text style={styles.body}>{language === 'ko' ? '독립 설치 기록에서 보드 지문을 확인한 뒤 Bluetooth 권한을 허용하세요. 이 보드에는 화면이 없습니다. 검증된 별도 표시에서 요청을 확인하고 보드에서 PIN을 입력합니다.' : 'Check the board fingerprint against independent installation records before allowing Bluetooth. The board has no screen. Review the request on a verified independent display and enter the PIN on the board.'}</Text>}

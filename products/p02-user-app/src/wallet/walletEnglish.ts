@@ -498,4 +498,5 @@ export const english: Record<string,string> = {
   "행사에서 체험하기": "Try it at the event",
   "체험 시작": "Start the trial",
   "운영자 안내에 따라 대여 보드에 연결하고 테스트넷 결제를 해 봅니다. 내 지갑은 만들지 않으며, 체험이 끝나면 운영자가 대여를 닫습니다.": "Connect to the rental board as the operator guides you and make a testnet payment. No wallet of your own is created, and the operator closes the rental afterwards.",
+  "아래 하드월렛 단계에 따라 보드를 준비한 뒤 개인 기기를 찾아 등록하세요.": "Prepare the board with the hardware wallet steps below, then find your device and enroll it.",
 };

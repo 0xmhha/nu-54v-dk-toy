@@ -106,7 +106,8 @@ export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvid
   const accessibilityControls=<WalletAccessibility {...{language, reader, motion, notification, setLanguage, practice, pendingOrders, rejectPractice, requestNotifications, requestingNotifications, resetAccessibilityScroll}}
     openDeviceSettings={()=>{Linking.openSettings().catch(()=>setFailure(true));}}/>;
   const diagnosticControls=<>
-      <Text accessibilityRole="header" style={styles.heading}>{ko?'도움말·진단':'Help and diagnostics'}</Text>
+      {/* Inside the tabs the page title already names this section. */}
+      {!tabbed && <Text accessibilityRole="header" style={styles.heading}>{ko?'도움말·진단':'Help and diagnostics'}</Text>}
     {button(ko?'진단 항목 검토':'Review diagnostics',()=>setPreview(true))}
     {preview && <>
       <Text accessibilityRole="header" style={styles.heading}>{ko?'공유할 진단 미리보기':'Diagnostic preview'}</Text>
