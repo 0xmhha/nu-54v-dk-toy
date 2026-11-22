@@ -464,4 +464,16 @@ export const english: Record<string,string> = {
   "펌웨어 적용": "Firmware update",
   "기기 찾기": "Find device",
   "개인 슬롯 삭제": "Personal slot erase",
+  // Wallet header, tabs and home groups
+  "보드 연결": "Board connected",
+  "보드 미등록": "No board enrolled",
+  "백업 확인 필요": "Backup check needed",
+  "보드 상태 미확인": "Board status unchecked",
+  "지갑": "Wallet",
+  "결제": "Payments",
+  "둘러보기": "Explore",
+  "자산과 네트워크": "Assets and networks",
+  "앱 연결과 권한": "App connections and permissions",
+  "보안과 복구": "Security and recovery",
+  "연습": "Practice",
 };

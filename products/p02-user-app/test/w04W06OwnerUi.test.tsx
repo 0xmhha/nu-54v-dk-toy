@@ -133,7 +133,8 @@ test('secure subflow hides global navigation and Android back restores owner nav
  try{await Renderer.act(async()=>{tree=Renderer.create(<WalletHome onPracticeChange={onPracticeChange} permission={async()=>true} honorExistingRental={false} rental={()=>{}} orders={()=>{}}/>);});
   expect(onPracticeChange).toHaveBeenLastCalledWith(false);await tap(tree!,'독립 백업 시작');expect(onPracticeChange).toHaveBeenLastCalledWith(true);
   await Renderer.act(async()=>{expect(hardware?.()).toBe(true);});expect(onPracticeChange).toHaveBeenLastCalledWith(false);
-  expect(JSON.stringify(tree!.toJSON())).toContain('독립 설치 기록');
+  // The enrolled home shows its grouped entries and bottom tabs again; enrollment guidance is hidden once enrolled.
+  expect(JSON.stringify(tree!.toJSON())).toContain('보안과 복구');expect(tree!.root.findAll(node=>node.props.accessibilityRole==='tab').length).toBeGreaterThan(0);
  }finally{await Renderer.act(async()=>tree?.unmount());back.mockRestore();}
 });
 

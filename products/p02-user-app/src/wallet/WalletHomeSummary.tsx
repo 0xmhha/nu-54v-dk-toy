@@ -3,7 +3,8 @@ import {unknownConnectivity, type ReadProof, type WalletConnectivity} from './wa
 import React from 'react';
 import {WalletEducationRateCard} from './WalletEducationRateCard.tsx';
 import {educationRate, stableTestUsdc} from './walletEducationRate.ts';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View, type ViewStyle} from "react-native";
+import {color, radius} from '../ui/theme.ts';
 import {accountPreference, assetsForAccount} from './walletCatalog.ts';
 import {defaultReadState, formatReadAmount, observationScope, readProfiles, type ReadProfileState} from './readProfiles.ts';
 
@@ -32,9 +33,15 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
     rechecked ? (ko ? '연결됨 · 원장 재확인 완료' : 'Connected · ledger verified') :
       connectivity.link === 'online' ? (ko ? '연결됨 · 원장 재확인 필요' : 'Connected · ledger check required') :
         (ko ? '마지막 조회 · 현재 연결 미확인' : 'Last observation · connection not checked');
-  const button = (label:string, run:()=>void) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={run} style={styles.button}><Text style={styles.buttonText}>{label}</Text></Pressable>;
+  const button = (label:string, run:()=>void, style: ViewStyle = styles.button) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={run}
+    style={({pressed}) => [style, pressed && styles.pressed]}><Text style={styles.buttonText}>{label}</Text></Pressable>;
+  // Balance card of the design book (W01): dark green surface, the balance as the largest text,
+  // network and freshness underneath, and the hide control in the corner.
   return <View style={styles.card}>
-    <Text accessibilityRole="header" style={styles.heading}>{ko ? '내 자산' : 'My assets'}</Text>
+    <View style={styles.top}>
+      <Text accessibilityRole="header" style={styles.heading}>{ko ? '내 자산' : 'My assets'}</Text>
+      {button(selected.hidden ? (ko ? '잔액 표시' : 'Show balance') : (ko ? '잔액 숨기기' : 'Hide balance'), onHide, styles.hide)}
+    </View>
     <Text style={styles.text}>{ko ? '개인 소유 프로필 · 세대 ' : 'Personal owner profile · generation '}{owner.generation}</Text>
     <Text style={styles.text}>{readProfiles[selected.id].label} · {account?.name ?? ((ko ? '계정 ' : 'Account ') + (selected.account + 1))}</Text>
     {!available ? <Text style={styles.text}>{ko ? '선택한 계정 또는 자산을 사용할 수 없습니다.' : 'The selected account or asset is unavailable.'}</Text> :
@@ -43,15 +50,31 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
       snapshot.inactive ? <Text style={styles.text}>{ko ? '계정이 활성화되지 않았습니다.' : 'Account is inactive.'}</Text> :
       snapshot.unconfigured ? <Text style={styles.text}>{ko ? '설정된 발행 자산 신뢰선 없음' : 'No configured trust line for this issued asset'}</Text> :
       <Text style={styles.balance}>{snapshot.issued ?? formatReadAmount(snapshot.amount!, snapshot.decimals)} {unit}</Text>}
-    {active && <Text accessibilityLiveRegion="polite" style={styles.text}>{linkLabel}</Text>}
+    {active && <View style={styles.link}><View style={[styles.dot, connectivity.link === 'offline' && styles.dotOff]} />
+      <Text accessibilityLiveRegion="polite" style={styles.text}>{linkLabel}</Text></View>}
     {active && connectivity.link === 'offline' && <Text style={styles.text}>
       {ko ? '현재 지급 가능액 · 확인 대기' : 'Available to spend · verification pending'}
     </Text>}
     {available && snapshot && !hidden && <Text style={styles.text}>{snapshot.point}{'\n'}{new Date(snapshot.time).toLocaleString(language === 'ko' ? 'ko-KR' : 'en-US')}</Text>}
     {rate && <WalletEducationRateCard key={rate.scope} rate={rate} stale={connectivity.link !== 'online'} language={language} />}
-    {button(selected.hidden ? (ko ? '잔액 표시' : 'Show balance') : (ko ? '잔액 숨기기' : 'Hide balance'), onHide)}
-    {button(ko ? '계정 및 자산 선택' : 'Choose account and asset', onAccounts)}
-    {button(ko ? '받기' : 'Receive', onReceive)}
+    <View style={styles.actions}>
+      {button(ko ? '계정 및 자산 선택' : 'Choose account and asset', onAccounts)}
+      {button(ko ? '받기' : 'Receive', onReceive)}
+    </View>
   </View>;
 }
-const styles = StyleSheet.create({card:{padding:16, borderWidth:1, borderColor:'#777', borderRadius:12, gap:8}, heading:{fontSize:22,fontWeight:'700',color:'#111'},text:{fontSize:16,color:'#111'},balance:{fontSize:26,fontWeight:'700',color:'#111'},button:{padding:12,backgroundColor:'#123f6b',borderRadius:8},buttonText:{color:'#fff',fontSize:16,fontWeight:'600'}});
+const styles = StyleSheet.create({
+  card: {padding: 20, borderRadius: radius.l, gap: 8, backgroundColor: color.green},
+  top: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8},
+  heading: {fontSize: 17, fontWeight: '800', color: color.mint},
+  text: {fontSize: 14, lineHeight: 20, color: color.onGreenSoft},
+  balance: {fontSize: 40, fontWeight: '800', letterSpacing: -1.4, color: '#ffffff', marginVertical: 4},
+  link: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  dot: {width: 8, height: 8, borderRadius: 4, backgroundColor: color.mint}, dotOff: {backgroundColor: '#e1a3a3'},
+  actions: {flexDirection: 'row', gap: 8, marginTop: 8},
+  button: {flex: 1, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.m, borderWidth: 1.5,
+    borderColor: color.mint, alignItems: 'center', justifyContent: 'center'},
+  hide: {minHeight: 44, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: '#2c5c47', justifyContent: 'center'},
+  buttonText: {color: color.onGreen, fontSize: 14, fontWeight: '700', textAlign: 'center'},
+  pressed: {opacity: 0.8},
+});

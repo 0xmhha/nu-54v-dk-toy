@@ -1,6 +1,6 @@
 import {useWalletConnectivity, type ReadProof} from './walletConnectivity.ts';
 import {useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ComponentRef} from 'react';
-import {AccessibilityInfo, Alert, AppState, BackHandler, findNodeHandle, Image, Keyboard, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from 'react-native';
+import {AccessibilityInfo, Alert, AppState, BackHandler, findNodeHandle, Image, Keyboard, Linking, Platform, ScrollView, Share, StyleSheet, Text, TextInput, View} from 'react-native';
 import NativeCloudWalletProfile from '../specs/NativeCloudWalletProfile.ts';
 import {CloudWalletScreen} from './cloud/CloudWalletScreen.tsx';
 import {readCloudProfile, type CloudProfile} from './cloud/client.ts';
@@ -34,6 +34,8 @@ import {decodeWalletStorage, storedWalletConnects, type PendingEvmTransfer, type
 import {persistWalletSignature, WalletProfileStore} from './walletStorage.ts';
 import {importRecoveryTrust} from './recoveryProof.ts';
 import {BoardStepPanel} from './BoardStepPanel.tsx';
+import {Brand, Chip, KitButton, Section, TabBar, type ButtonVariant} from '../ui/kit.tsx';
+import {color} from '../ui/theme.ts';
 import type {BoardWait} from './boardSteps.ts';
 import {importEnrollment, OWNER_GATT, type CommissioningPins, type Enrollment, type OwnerStatus} from './ownerWire.ts';
 
@@ -41,11 +43,9 @@ type RecoveryOrigin = 'profiles' | 'settings';
 type RecoveryEnrollmentDraft = {document: string; device: string; fingerprint: string};
 const emptyRecoveryEnrollment: RecoveryEnrollmentDraft = {document:'',device:'',fingerprint:''};
 
-function Action({title, run, disabled = false, testID}: {title: string; run: () => void; disabled?: boolean; testID?:string}) {
-  return (
-    <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={title} accessibilityState={{disabled}} disabled={disabled}
-      onPress={run} style={[styles.action, disabled && styles.disabled]}><Text style={styles.actionLabel}>{title}</Text></Pressable>
-  );
+function Action({title, run, disabled = false, testID, variant = 'primary'}: {title: string; run: () => void; disabled?: boolean;
+  testID?: string; variant?: ButtonVariant}) {
+  return <KitButton testID={testID} label={title} run={run} disabled={disabled} variant={variant} />;
 }
 
 function savedEnrollment(store: WalletStorage): Enrollment | undefined {
@@ -1537,7 +1537,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       ['document','발급 등록서',8000],
       ['device','기기 식별값',64],
       ['fingerprint','발급 문서의 서버 공개키 지문',64],
-    ] as const).map(([field,label,maxLength]) => <TextInput key={field} testID={'w06-board-enrollment-'+field}
+    ] as const).map(([field,label,maxLength]) => <TextInput placeholderTextColor={color.mute} key={field} testID={'w06-board-enrollment-'+field}
       accessibilityLabel={t(label)} placeholder={t(label)} value={recoveryEnrollmentDraft[field]} maxLength={maxLength}
       style={styles.input} multiline={field==='document'} autoCorrect={false} autoCapitalize="none" editable={!busy}
       onChangeText={value=>setRecoveryEnrollmentDraft(previous=>({...previous,[field]:value}))} />)}
@@ -1546,14 +1546,21 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     !!recoveryEnrollmentDraft.document && /^[0-9a-f]{64}$/i.test(recoveryEnrollmentDraft.device.trim()) &&
     /^[0-9a-f]{64}$/i.test(recoveryEnrollmentDraft.fingerprint.trim()));
   const backToRecovery = language==='ko'?'복구 방법으로 돌아가기':'Back to recovery choices';
+  // The personal wallet home carries the bottom tabs of the design book (지갑 · 결제 · 둘러보기 · 설정).
+  const homeTabs = screen === 'owner' && isPersonal && !!stored?.verified && !boardWait;
   const content=(
     <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets={keyboardForm} keyboardDismissMode={keyboardForm ? 'on-drag' : 'none'}>
+      {/* Verified means the board, its owner and the backed-up address were all checked; an enrollment
+          document alone means the phone holds an owner credential but the account is not open yet. */}
+      {isOwner && <Brand chip={stored?.verified ? {label:t('보드 연결'),tone:status?.state==='active'?'ok':'off'}
+        : status?.state==='active' ? {label:t('백업 확인 필요'),tone:'wait'}
+        : profile ? {label:t('보드 상태 미확인'),tone:'off'} : {label:t('보드 미등록'),tone:'wait'}} />}
       <Text ref={sectionHeading} accessibilityRole="header" style={styles.title}>{t(isOwner ? '개인 지갑' : screen === 'practice' ? '결제 연습' : settingsScreen ? (language === 'ko' ? '설정' : 'Settings') : screen === 'install' ? '새 보드 설치' : screen === 'evm-registry' ? '네트워크 및 자산 설정' : screen === 'read-profiles' ? '6개 체인 · 읽기 전용' : screen === 'receive-chain' ? '다른 체인 받기' : screen === 'send-chain' ? '다른 체인 보내기' : screen === 'receive-evm' ? 'EVM 수신' : screen === 'transfer' ? '개인 전송' : screen === 'allowance' ? '온체인 토큰 권한' : screen === 'receipts' ? '지급 기록 관리' : screen === 'recovery-options' ? (language==='ko'?'어떤 기기를 교체하나요?':'Which device are you replacing?') : screen.startsWith('recovery-cloud') ? (language==='ko'?'클라우드 휴대전화 복구':'Cloud phone recovery') : screen === 'replace-phone' ? '분실한 휴대전화 교체' : screen === 'recovery' ? '지갑 복구' : screen === 'backup' ? '독립 백업' : '지갑 시작하기')}</Text>
-      <Action title={language === 'ko' ? 'English' : '한국어'} disabled={busy || !stored || !native} run={() => {
+      <View style={styles.languageRow}><Chip label={language === 'ko' ? 'English' : '한국어'} onPress={busy || !stored || !native ? undefined : () => {
         const next = language === 'ko' ? 'en' : 'ko';
         if (stored) work(async () => { await save({...stored, language: next}); setLanguage(next); }, '언어 설정을 저장할 수 없습니다.');
-      }} />
+      }} /></View>
       {!!message && <Text style={styles.body} accessibilityLiveRegion="polite">{t(message)}</Text>}
       {boardWait && <BoardStepPanel wait={boardWait} t={t} />}
       {displayBinding && <View>
@@ -1571,7 +1578,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           t('Android 설정에서 이 앱의 주변 기기 권한을 허용하세요.'))} />
         <Action title={t('개인 기기 검색 다시 시도')} disabled={busy} run={()=>scan()} />
       </>}
-      {stored && (screen==='profiles'||screen==='owner')&&<Action title={t('매장 주문')} run={orders} disabled={busy}/>}
+      {stored && (screen==='profiles'||(screen==='owner'&&!homeTabs))&&<Action title={t('매장 주문')} run={orders} disabled={busy} variant="secondary"/>}
       {!stored && !message && <Text style={styles.body}>{t('지갑 기록 확인 중')}</Text>}
       {stored && screen === 'profiles' && <>
         <Text style={styles.body}>{language === 'ko' ? '어떤 지갑을 사용할까요?' : 'Which wallet would you like to use?'}</Text>
@@ -1647,10 +1654,10 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           },language === 'ko' ? '독립 신뢰 파일을 확인할 수 없습니다.' : 'Could not verify the independent trust file.')} />
           <Action title={language === 'ko' ? (installAdvanced ? '직접 입력 닫기' : '직접 입력하기') : (installAdvanced ? 'Close manual entry' : 'Enter manually')} run={()=>{setInstallAdvanced(!installAdvanced); setInstallConfirmed(false);}} />
           {installAdvanced && <>
-          <TextInput style={styles.input} accessibilityLabel={language === 'ko' ? '검증된 설치 자료' : 'Verified setup data'} value={installSetup} onChangeText={value=>{setInstallConfirmed(false); setInstallSetup(value);}} multiline maxLength={4096} autoCapitalize="none" autoCorrect={false} />
-          <TextInput style={styles.input} accessibilityLabel={language === 'ko' ? '독립 설치자 지문' : 'Independent installer fingerprint'} value={installerPin} onChangeText={value=>{setInstallConfirmed(false); setInstallerPin(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
-          <TextInput style={styles.input} accessibilityLabel={language === 'ko' ? '독립 릴리스 해시' : 'Independent release hash'} value={candidatePin} onChangeText={value=>{setInstallConfirmed(false); setCandidatePin(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
-          <TextInput style={styles.input} accessibilityLabel={language === 'ko' ? '독립 보드 식별값' : 'Independent board identity'} value={installDevice} onChangeText={value=>{setInstallConfirmed(false); setInstallDevice(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '검증된 설치 자료' : 'Verified setup data'} value={installSetup} onChangeText={value=>{setInstallConfirmed(false); setInstallSetup(value);}} multiline maxLength={4096} autoCapitalize="none" autoCorrect={false} />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '독립 설치자 지문' : 'Independent installer fingerprint'} value={installerPin} onChangeText={value=>{setInstallConfirmed(false); setInstallerPin(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '독립 릴리스 해시' : 'Independent release hash'} value={candidatePin} onChangeText={value=>{setInstallConfirmed(false); setCandidatePin(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '독립 보드 식별값' : 'Independent board identity'} value={installDevice} onChangeText={value=>{setInstallConfirmed(false); setInstallDevice(value);}} maxLength={64} autoCapitalize="none" autoCorrect={false} />
           </>}
           {!!installSetup && !!installerPin && !!candidatePin && !!installDevice && <View style={styles.device}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>{language === 'ko' ? '독립 기록과 비교' : 'Compare with independent records'}</Text>
@@ -1677,7 +1684,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             JSON.parse(text); setInstallReceipt(text);
           },language === 'ko' ? '확인서 파일을 읽을 수 없습니다.' : 'Could not read the receipt file.')} />
           <Action title={language === 'ko' ? (installAdvanced ? '직접 입력 닫기' : '확인서 직접 입력') : (installAdvanced ? 'Close manual entry' : 'Enter receipt manually')} run={()=>setInstallAdvanced(!installAdvanced)} />
-          {installAdvanced && <TextInput style={styles.input} accessibilityLabel={language === 'ko' ? '서명된 설치 확인서' : 'Signed installation receipt'} value={installReceipt} onChangeText={setInstallReceipt} multiline maxLength={8192} autoCapitalize="none" autoCorrect={false} />}
+          {installAdvanced && <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={language === 'ko' ? '서명된 설치 확인서' : 'Signed installation receipt'} value={installReceipt} onChangeText={setInstallReceipt} multiline maxLength={8192} autoCapitalize="none" autoCorrect={false} />}
           {!!installReceipt && <Action title={language === 'ko' ? '확인서 지우기' : 'Clear receipt'} disabled={busy} run={() => setInstallReceipt('')} />}
           <Action title={language === 'ko' ? '설치 확인서 검증' : 'Verify installation receipt'} disabled={busy || !installReceipt} run={() => work(async()=>{
             const checkpoint=stored.installation;
@@ -1705,10 +1712,14 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           connectivity={connectivity} proof={readProof}
           onHide={() => {const walletRead = stored.walletRead ?? defaultReadState; work(() => save({...stored, walletRead:{...walletRead, selection:{...walletRead.selection, hidden:!walletRead.selection.hidden}}}), language === 'ko' ? '잔액 설정을 저장할 수 없습니다.' : 'Could not save balance visibility.');}}
           onAccounts={() => setScreen('read-profiles')} onReceive={() => setScreen('receive-chain')} />}
-        {isPersonal && <Action title={language === 'ko' ? '설정' : 'Settings'} disabled={busy} run={openSettings} />}
-        <Text style={styles.body}>{language === 'ko' ? '독립 설치 기록에서 보드 지문을 확인한 뒤 Bluetooth 권한을 허용하세요. 이 보드에는 화면이 없습니다. 검증된 별도 표시에서 요청을 확인하고 보드에서 PIN을 입력합니다.' : 'Check the board fingerprint against independent installation records before allowing Bluetooth. The board has no screen. Review the request on a verified independent display and enter the PIN on the board.'}</Text>
-        <Text style={styles.body}>{t('발급 담당자에게 휴대전화 공개키를 건네세요. 독립 확인이 가능한 공급·설치 기록에서 기기 식별값과 서버 공개키 지문을 대조하세요.')}</Text>
-        <Action title={t('휴대전화의 등록 공개키 보기')} disabled={!native || busy} run={() => work(async () => {
+        {isPersonal && stored.verified && <View style={styles.pair}>
+          <View style={styles.pairItem}><Action title={t('다른 체인 받기')} disabled={busy} variant="secondary" run={() => setScreen('receive-chain')} /></View>
+          <View style={styles.pairItem}><Action title={t('다른 체인 보내기')} disabled={busy} variant="secondary" run={() => setScreen('send-chain')} /></View>
+        </View>}
+        {isPersonal && !homeTabs && <Action title={language === 'ko' ? '설정' : 'Settings'} disabled={busy} run={openSettings} variant="secondary" />}
+        {!stored.verified && <Text style={styles.body}>{language === 'ko' ? '독립 설치 기록에서 보드 지문을 확인한 뒤 Bluetooth 권한을 허용하세요. 이 보드에는 화면이 없습니다. 검증된 별도 표시에서 요청을 확인하고 보드에서 PIN을 입력합니다.' : 'Check the board fingerprint against independent installation records before allowing Bluetooth. The board has no screen. Review the request on a verified independent display and enter the PIN on the board.'}</Text>}
+        {!stored.verified && <Text style={styles.body}>{t('발급 담당자에게 휴대전화 공개키를 건네세요. 독립 확인이 가능한 공급·설치 기록에서 기기 식별값과 서버 공개키 지문을 대조하세요.')}</Text>}
+        <Action title={t('휴대전화의 등록 공개키 보기')} variant="row" disabled={!native || busy} run={() => work(async () => {
           if (!native) throw new Error('SECURE_IDENTITY_REQUIRED');
           setPublicKey(await native.publicIdentity());
         }, '이 휴대전화에서 보호된 등록 키를 만들 수 없습니다.')} />
@@ -1726,9 +1737,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             }} />
             <Action title={language === 'ko' ? '설치 QR 닫기' : 'Dismiss installation QR'} run={() => dismissCommissioningPins?.()} />
           </>}
-          <TextInput style={styles.input} accessibilityLabel={t('발급 등록서')} placeholder={t('발급 등록서')} value={raw} onChangeText={setRaw} maxLength={8000} multiline autoCorrect={false} autoCapitalize="none" />
-          <TextInput style={styles.input} accessibilityLabel={t('기기 식별값')} placeholder={t('기기 식별값')} value={board} onChangeText={setBoard} maxLength={64} autoCorrect={false} autoCapitalize="none" />
-          <TextInput style={styles.input} accessibilityLabel={t('발급 문서의 서버 공개키 지문')} placeholder={t('발급 문서의 서버 공개키 지문')} value={pin} onChangeText={setPin} maxLength={64} autoCorrect={false} autoCapitalize="none" />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('발급 등록서')} placeholder={t('발급 등록서')} value={raw} onChangeText={setRaw} maxLength={8000} multiline autoCorrect={false} autoCapitalize="none" />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('기기 식별값')} placeholder={t('기기 식별값')} value={board} onChangeText={setBoard} maxLength={64} autoCorrect={false} autoCapitalize="none" />
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('발급 문서의 서버 공개키 지문')} placeholder={t('발급 문서의 서버 공개키 지문')} value={pin} onChangeText={setPin} maxLength={64} autoCorrect={false} autoCapitalize="none" />
         </>}
         <Action title={t('개인 기기 찾기')} disabled={!native || busy} run={()=>scan()} />
         {ownerScanComplete && !found.length && <Text style={styles.body} accessibilityLiveRegion="polite">
@@ -1756,10 +1767,10 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         {retiring && <Action title={t('권한 철회 취소')} disabled={busy} run={() => {setRetiring(false); setMessage('');}} />}
         {status?.state === 'active' && status.root === 2 && status.profile === 1 && status.backedUp &&
           <Text style={styles.body}>{t('원본 기기가 독립 복원 시험 완료를 확인했습니다.')}</Text>}
-        <Action title={t('다른 체인 받기')} disabled={busy || !stored.verified}
-          run={() => setScreen('receive-chain')} />
-        <Action title={t('다른 체인 보내기')} disabled={busy || !stored.verified}
-          run={() => setScreen('send-chain')} />
+        {!stored.verified && <>
+          <Action title={t('다른 체인 받기')} disabled variant="row" run={() => setScreen('receive-chain')} />
+          <Action title={t('다른 체인 보내기')} disabled variant="row" run={() => setScreen('send-chain')} />
+        </>}
         {stored.signing && <>
           <Text style={styles.body}>{language === 'ko' ?
             (stored.signing.kind==='evm' ? '이전 EVM 서명 결과를 확인하지 못했습니다. 요청 만료만으로 서명이 무효가 되지는 않습니다. 원래 기기와 요청을 보관하고 신뢰된 정산 증거를 확인하세요.' : '이전 승인 결과를 저장하지 못했습니다. 원래 보드에서 승인 요청이 만료됐는지 확인하세요.') :
@@ -1781,21 +1792,29 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
               await save({...stored, signing:undefined});
             }, language === 'ko' ? '원래 보드가 승인 요청 만료를 확인하지 못했습니다.' : 'The original board could not verify expiry.')} />)}
         </>}
-        <Action title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
+        <Section title={t('자산과 네트워크')}>
+          <Action variant="row" title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
           run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
-        <Action title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
-        <Action title={t('네트워크 및 자산 설정')} disabled={busy || !stored.verified} run={() => setScreen('evm-registry')} />
-        <Action title={t('외부 DApp 연결')} disabled={busy || !stored.verified || !registry?.walletConnect || !registryCurrent}
+          <Action variant="row" title={t('EVM 수신')} disabled={busy || !stored.verified} run={() => {setReceiveAddress(''); setEvmReceiveBalance(undefined);setScreen('receive-evm');}} />
+          <Action variant="row" title={t('네트워크 및 자산 설정')} disabled={busy || !stored.verified} run={() => setScreen('evm-registry')} />
+          <Action variant="row" title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
+          <Action variant="row" title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
+        </Section>
+        <Section title={t('앱 연결과 권한')}>
+          <Action variant="row" title={t('외부 DApp 연결')} disabled={busy || !stored.verified || !registry?.walletConnect || !registryCurrent}
           run={()=>openExternalConnection(connections[0])} />
-        <Action title={t('DApp 둘러보기')} disabled={busy || !stored.verified} run={() => {dappSigned.current=undefined;setScreen('dapp');}} />
-        <Action title={t('온체인 토큰 권한')} disabled={busy || !stored.verified} run={()=>openAllowance()} />
-        <Action title={t('개인 전송')} disabled={busy || !stored.verified} run={() => setScreen('transfer')} />
-        <Action title={t('지급 기록 관리')} disabled={busy || !profile} run={() => setScreen('receipts')} />
-        <Action title={t('펌웨어 적용 증거 확인')} disabled={busy || !profile} run={() => setScreen('firmware')} />
-        <Action title={t('독립 백업 시작')} disabled={busy || !profile} run={() => setScreen('backup')} />
-        <Action title={t('원래 보드에서 분실한 휴대전화 교체')} disabled={busy} run={() => setScreen('replace-phone')} />
-        <Action title={t('휴대전화 분실 및 지갑 복구')} disabled={busy} run={() => setScreen('recovery')} />
-        <Action title={t('결제 연습')} disabled={busy} run={() => {setPracticeWarning(false); setScreen('practice');}} />
+          <Action variant="row" title={t('DApp 둘러보기')} disabled={busy || !stored.verified} run={() => {dappSigned.current=undefined;setScreen('dapp');}} />
+          <Action variant="row" title={t('온체인 토큰 권한')} disabled={busy || !stored.verified} run={()=>openAllowance()} />
+        </Section>
+        <Section title={t('보안과 복구')}>
+          <Action variant="row" title={t('독립 백업 시작')} disabled={busy || !profile} run={() => setScreen('backup')} />
+          <Action variant="row" title={t('원래 보드에서 분실한 휴대전화 교체')} disabled={busy} run={() => setScreen('replace-phone')} />
+          <Action variant="row" title={t('휴대전화 분실 및 지갑 복구')} disabled={busy} run={() => setScreen('recovery')} />
+          <Action variant="row" title={t('펌웨어 적용 증거 확인')} disabled={busy || !profile} run={() => setScreen('firmware')} />
+        </Section>
+        <Section title={t('연습')}>
+          <Action variant="row" title={t('결제 연습')} disabled={busy} run={() => {setPracticeWarning(false); setScreen('practice');}} />
+        </Section>
         {(!isPersonal || fromInstall) && <Action title={t('이전')} disabled={busy} run={() => {setFromInstall(false); setScreen('profiles');}} />}
       </>}
       {stored && settingsScreen && <WalletSettings language={language}
@@ -1831,7 +1850,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Action title={language==='ko'?'설정으로 돌아가기':'Return to Settings'} disabled={busy} run={()=>{setMessage('');setScreen('settings');}} />
       </>}
       {stored && screen === 'receipts' && <>
-        <TextInput style={styles.input} accessibilityLabel={t('발급자가 서명한 정산 결과')} value={reclaimWire}
+        <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('발급자가 서명한 정산 결과')} value={reclaimWire}
           onChangeText={setReclaimWire} maxLength={1510} multiline autoCorrect={false} autoCapitalize="none" />
         <Action title={t('개인 기기 찾기')} disabled={!profile || busy} run={()=>scan()} />
         {found.map(item => <Action key={item.address} title={t('확정된 지급 기록 회수')} disabled={!reclaimWire || busy}
@@ -1941,9 +1960,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
       {stored && screen === 'evm-registry' && <>
         <Text style={styles.body}>{t('등록된 지갑 서비스에서 발급한 주소와 접근 코드를 입력하세요.')}</Text>
-        <TextInput style={styles.input} accessibilityLabel={t('지갑 서비스 주소')} value={registryEndpoint}
+        <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('지갑 서비스 주소')} value={registryEndpoint}
           editable={!busy} onChangeText={setRegistryEndpoint} maxLength={320} autoCorrect={false} autoCapitalize="none" />
-        <TextInput style={styles.input} accessibilityLabel={t('서비스 접근 코드')} value={registryToken}
+        <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('서비스 접근 코드')} value={registryToken}
           editable={!busy} onChangeText={setRegistryToken} maxLength={64} secureTextEntry autoCorrect={false} autoCapitalize="none" />
         <Action title={t('개인 기기 찾기')} disabled={!profile || busy || !registryEndpoint || !registryToken} run={()=>scan()} />
         {found.map(item=><Action key={item.address} title={t('보드로 설정 검증')} disabled={busy || !registryEndpoint || !registryToken} run={()=>enrollEvmRegistry(item.address)} />)}
@@ -1956,7 +1975,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             await checkEvmNetwork(rpc,network.chain,network.genesis);
             setMessage(t('서명된 설정의 네트워크와 RPC가 일치합니다.'));
           },networkFailure('검증된 네트워크에 연결할 수 없습니다.'))} />
-          <TextInput style={styles.input} accessibilityLabel={t('대체 HTTPS RPC 주소') + ' · ' + evmProfiles[network.chain].label}
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('대체 HTTPS RPC 주소') + ' · ' + evmProfiles[network.chain].label}
             value={rpcCandidate[network.chain] ?? ''} editable={!busy} maxLength={512} autoCorrect={false} autoCapitalize="none"
             onChangeText={value=>setRpcCandidate(previous=>({...previous,[network.chain]:value}))} />
           <Action title={t('제네시스 확인 후 이 세션에서 사용')} disabled={busy || !rpcCandidate[network.chain]} run={()=>work(async()=>{
@@ -2037,11 +2056,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           {chosenNetwork.assets.map(asset=><Action key={asset.address} title={asset.symbol} disabled={busy || asset.address===chosenAsset.address}
             run={()=>{setEvmAsset(asset.address);setEvmAmount('');setTransfer(undefined);setAllowanceRead(undefined);}} />)}
           {screen==='transfer' ? <>
-          <TextInput style={styles.input} accessibilityLabel={t('수취인')} editable={!busy} value={evmRecipient}
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('수취인')} editable={!busy} value={evmRecipient}
             onChangeText={value=>{setEvmRecipient(value);setTransfer(undefined);}} maxLength={42} autoCorrect={false} autoCapitalize="none" />
           {stored.evmRecipients?.filter(item=>item.genesis===chosenNetwork.genesis).map(item=><Action key={item.address}
             title={item.name} disabled={busy} run={()=>{setEvmRecipient(item.address);setTransfer(undefined);}} />)}
-          <TextInput style={styles.input} accessibilityLabel={t('연락처 이름')} editable={!busy} value={contactName}
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('연락처 이름')} editable={!busy} value={contactName}
             onChangeText={setContactName} maxLength={32} autoCorrect={false} />
           <Action title={t('이 네트워크 주소록에 저장')} disabled={busy || !contactName || !evmRecipient} run={()=>work(async()=>{
             const address=normalizeEvmAddress(evmRecipient.trim()), name=contactName.trim();
@@ -2051,14 +2070,14 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             await save({...stored,evmRecipients:[...previous,{name,genesis:chosenNetwork.genesis,address}]});
             setContactName('');
           },t('수취인 주소를 저장할 수 없습니다.'))} />
-          <TextInput style={styles.input} accessibilityLabel={t('전송 금액')} editable={!busy} value={evmAmount}
+          <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('전송 금액')} editable={!busy} value={evmAmount}
             onChangeText={value=>{setEvmAmount(value);setTransfer(undefined);}} maxLength={100} keyboardType="decimal-pad" />
           <Action title={t('전송 내용 검토')} disabled={!evmRecipient || !evmAmount || busy} run={()=>quoteEvmTransfer()} />
           </> : <>
             {chosenAsset.address==='0x'+'0'.repeat(40) ? <Text style={styles.body}>{t('사용 한도를 조회할 토큰을 선택하세요.')}</Text> : <>
               <Text selectable style={styles.mono}>Chain ID {chosenNetwork.chain} · {chosenNetwork.genesis}</Text>
               <Text selectable style={styles.mono}>{t('토큰 계약')} {chosenAsset.address}</Text>
-              <TextInput style={styles.input} accessibilityLabel={t('권한 대상 주소')} editable={!busy && !transfer}
+              <TextInput placeholderTextColor={color.mute} style={styles.input} accessibilityLabel={t('권한 대상 주소')} editable={!busy && !transfer}
                 value={allowanceSpender} onChangeText={value=>{setAllowanceSpender(value);setAllowanceRead(undefined);}}
                 maxLength={42} autoCorrect={false} autoCapitalize="none" />
               {!transfer && <Action title={t('확정 한도 조회')} disabled={!activeAllowanceScope || busy} run={readAllowance} />}
@@ -2108,7 +2127,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             <Text style={styles.body}>{t('실행 수수료 상한')} {pendingEvmReview.executionMaximum.toString()} wei</Text>
           </>}
           <Text style={styles.body}>{t(stored.pendingEvm.submitted ? '기존 거래 상태 확인 필요' : '서명됨 · 전송 전')}</Text>
-          {!stored.pendingEvm.rpc && stored.pendingEvm.genesis && <TextInput style={styles.input}
+          {!stored.pendingEvm.rpc && stored.pendingEvm.genesis && <TextInput placeholderTextColor={color.mute} style={styles.input}
             accessibilityLabel={t('검증된 HTTPS RPC 주소')} value={rpcEndpoint}
             onChangeText={setRpcEndpoint} maxLength={512} autoCorrect={false} autoCapitalize="none" />}
           {stored.pendingEvm.genesis
@@ -2219,12 +2238,12 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         {recoveryOrigin && <Text style={styles.body}>{language==='ko'?'새 보드와 검증된 백업을 준비하고 원본·교체 기기·검증자의 지문을 대조하세요.':'Prepare the replacement board and verified backup, then compare the original board, replacement board and verifier fingerprints.'}</Text>}
         <Text style={styles.body}>{t('새 휴대전화 등록서와 복구용 기기를 준비하세요. 복구 기기가 기존 지갑 주소와 네트워크를 확인하기 전까지 결제 승인은 잠겨 있습니다.')}</Text>
         <Text style={styles.body} accessible={false}>{t('독립 복구 검증자 등록서')}</Text>
-        <TextInput testID="w06-trust-document" style={[styles.input,styles.recoveryDocument]} accessibilityLabel={t('독립 복구 검증자 등록서')}
+        <TextInput placeholderTextColor={color.mute} testID="w06-trust-document" style={[styles.input,styles.recoveryDocument]} accessibilityLabel={t('독립 복구 검증자 등록서')}
           value={trustDoc} onChangeText={value=>{if(recoveryTarget)endRecovery();setTrustDoc(value);}} maxLength={2048} multiline autoCorrect={false} autoCapitalize="none" editable={!busy && !restore} />
         {([['original','원래 기기 공개키 지문'],['new','새 기기 공개키 지문'],['verifier','독립 복구 장치 공개키 지문']] as const).map(([id,label],i) =>
           <View key={id}>
             <Text style={styles.body} accessible={false}>{t(label)}</Text>
-            <TextInput testID={`w06-${id}-fingerprint`} style={styles.input} accessibilityLabel={t(label)} value={pins[i]}
+            <TextInput placeholderTextColor={color.mute} testID={`w06-${id}-fingerprint`} style={styles.input} accessibilityLabel={t(label)} value={pins[i]}
               onChangeText={value=>{if(recoveryTarget)endRecovery();setPins(previous=>previous.map((pinValue,index)=>i===index?value:pinValue));}}
               maxLength={64} returnKeyType="done" submitBehavior="blurAndSubmit" editable={!busy && !restore} autoCorrect={false} autoCapitalize="none" />
           </View>)}
@@ -2269,6 +2288,14 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
     </ScrollView>
   );
+  if (homeTabs) return <View style={styles.tabbed}>{content}
+    <TabBar current="wallet" disabled={busy} tabs={[
+      {key:'wallet',label:t('지갑'),run:()=>setScreen('owner')},
+      {key:'pay',label:t('결제'),run:orders},
+      {key:'explore',label:t('둘러보기'),run:()=>{dappSigned.current=undefined;setScreen('dapp');}},
+      {key:'settings',label:language === 'ko' ? '설정' : 'Settings',run:openSettings},
+    ]} />
+  </View>;
   if(screen==='recovery'&&!restore)return <View style={styles.recoveryScreen}>
     <Action testID="w06-dismiss-keyboard" title={t('키보드 닫기')} run={Keyboard.dismiss} />
     {content}
@@ -2281,13 +2308,14 @@ const styles = StyleSheet.create({
   recoveryScreen:{flex:1,gap:8},
   recoveryDocument:{minHeight:80,maxHeight:160,textAlignVertical:'top'},
   content: {paddingBottom: 24, gap: 12},
-  sectionTitle: {fontSize: 20, fontWeight: '700', color: '#172a24'},
-  title: {fontSize: 27, fontWeight: '700', color: '#172a24'},
-  body: {fontSize: 17, lineHeight: 25, color: '#27362e'},
-  mono: {fontFamily: 'monospace', color: '#172a24', fontSize: 14},
-  action: {borderRadius: 9, backgroundColor: '#193d33', minHeight: 48, padding: 14, justifyContent: 'center'},
-  actionLabel: {fontSize: 17, fontWeight: '600', color: '#fff'},
-  disabled: {opacity: 0.55},
-  input: {borderWidth: 1, borderColor: '#72877b', borderRadius: 8, minHeight: 48, padding: 12, color: '#172a24'},
-  device: {borderWidth: 1, borderColor: '#72877b', borderRadius: 8, padding: 12, gap: 8},
+  tabbed: {flex: 1},
+  languageRow: {flexDirection: 'row', justifyContent: 'flex-end'},
+  pair: {flexDirection: 'row', gap: 10},
+  pairItem: {flex: 1},
+  sectionTitle: {fontSize: 20, fontWeight: '700', color: color.ink},
+  title: {fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink},
+  body: {fontSize: 16, lineHeight: 24, color: color.ink},
+  mono: {fontFamily: 'monospace', color: color.ink, fontSize: 13, backgroundColor: color.sheet, borderRadius: 8, padding: 10},
+  input: {borderWidth: 1, borderColor: '#8fa497', borderRadius: 12, minHeight: 50, padding: 12, color: color.ink, backgroundColor: color.sheet},
+  device: {borderWidth: 1, borderColor: color.line, borderRadius: 18, padding: 16, gap: 10, backgroundColor: color.sheet},
 });

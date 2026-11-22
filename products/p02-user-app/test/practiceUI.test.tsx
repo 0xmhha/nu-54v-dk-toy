@@ -17,7 +17,8 @@ jest.mock('../src/specs/NativeRenterBle.ts', () => ({__esModule:true, default:{l
 const mockRoute = jest.fn();
 const props = {rental:jest.fn(), orders:jest.fn(), permission:async()=>true, honorExistingRental:false, onPracticeChange:mockRoute};
 async function press(tree:ReactTestRenderer.ReactTestRenderer, label:string) {
-  const button = tree.root.find(node => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label);
+  // Home navigation moved to the bottom tab bar, whose entries carry the tab role.
+  const button = tree.root.find(node => ['button', 'tab'].includes(node.props.accessibilityRole) && node.props.accessibilityLabel === label);
   await ReactTestRenderer.act(async () => {button.props.onPress(); await Promise.resolve();});
 }
 test('wrong sample rejects, survives remount, and never signs or sends', async () => {

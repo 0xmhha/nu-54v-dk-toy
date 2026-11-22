@@ -15,7 +15,7 @@
 | 운영·정산 시스템 | 22 | O01–O10, O12–O15, W24, L06, X03–X06, D04, D06 | [영업일 정산](book.html#O01) · [가격·keeper 운영](book.html#L06/auth) · [전환 요청과 활성 확인](book.html#X05/switching) |
 | 공개 웹 | 6 | X01, X02, D01–D03, D05 | [확정 영수증](book.html#X01) · [SDK 계약](book.html#D01) |
 
-페이지별 상세 명세는 ID 묶음별 파일에 있다. [W](specs/W.md) · [K](specs/K.md) · [T](specs/T.md) · [O](specs/O.md) · [L](specs/L.md) · [X](specs/X.md) · [D](specs/D.md)
+설계서와 실제 지갑 앱의 모양 차이는 [시연 경로 화면 일치 점검](conformance-demo.md)에 기록한다. 페이지별 상세 명세는 ID 묶음별 파일에 있다. [W](specs/W.md) · [K](specs/K.md) · [T](specs/T.md) · [O](specs/O.md) · [L](specs/L.md) · [X](specs/X.md) · [D](specs/D.md)
 
 ## 하드월렛 진행 단계
 
