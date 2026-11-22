@@ -92,6 +92,9 @@ android {
         testInstrumentationRunner(findProperty("nu54LabRunner") ?: "com.nu54renter.ble.OwnerTlsLab")
         applicationId "com.nu54renter"
         buildConfigField "boolean", "NU54_WALLET_SEND_QA", "false"
+        // Demo wallet screens with fixture data. Nothing in this repository turns it on; only an
+        // out-of-tree QA init script may set it for the custom build type.
+        buildConfigField "boolean", "NU54_DEMO_WALLET", "false"
         manifestPlaceholders.nu54P03Profile = (findProperty("nu54P03Profile") ?: "")
         manifestPlaceholders.nu54MarketProfile = (findProperty("nu54MarketProfile") ?: "")
         minSdkVersion rootProject.ext.minSdkVersion

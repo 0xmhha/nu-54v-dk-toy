@@ -19,6 +19,7 @@ import { WalletHome } from './wallet/WalletHome.tsx';
 import {readCommissioningQr, type CommissioningPins} from './wallet/ownerWire.ts';
 import { CustomerOrders } from './merchant/CustomerOrders.tsx';
 import {MarketLab} from './market/MarketLab.tsx';
+import {color} from './ui/theme.ts';
 import { TravelHome, type TravelBookingScope } from './travel/TravelHome.tsx';
 
 const OUTCOME_TEXT: Record<string, string> = {
@@ -559,11 +560,14 @@ export default function App() {
           {marketTravel && <TravelHome back={() => setMarketTravel(false)} backLabel="학습 시장으로 돌아가기"
             permission={bluetoothPermission} />}
         </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : <View style={styles.home}>
-          {!practicing && <Button label="테스트 시장 학습" onPress={() => setMarketLab(true)} />}
-          {!practicing && <Button label="가까운 매장에서 주문" onPress={openNearbyOrders} />}
-          {!practicing && <Button label="내 결제" onPress={() => setShopping(true)} />}
-          {!practicing && <Button label="여행지 찾기" onPress={() => setTravel(true)} />}
-          <WalletHome onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
+          {/* Service entries live in the wallet's first screen as a grouped list instead of sitting
+              above every wallet screen. */}
+          <WalletHome services={practicing ? [] : [
+              {label: '테스트 시장 학습', run: () => setMarketLab(true)},
+              {label: '가까운 매장에서 주문', run: openNearbyOrders},
+              {label: '내 결제', run: () => setShopping(true)},
+              {label: '여행지 찾기', run: () => setTravel(true)},
+            ]} onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
             initialExplore={resumeExplore.current} onExploreRestored={onExploreRestored}
             exploreSite={exploreSite} onExploreSiteChange={setExploreSite}
             openExploreTravel={()=>{setExploreService('travel');setTravel(true);}}
@@ -578,7 +582,7 @@ export default function App() {
 const styles = StyleSheet.create({
   home: { flex: 1 },
   hidden: { display: 'none' },
-  root: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
+  root: { flex: 1, paddingHorizontal: 16, paddingTop: 12, backgroundColor: color.ground },
   title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
   body: { fontSize: 17, color: '#333', marginBottom: 12 },
   hint: { fontSize: 15, color: '#666', marginTop: 12 },

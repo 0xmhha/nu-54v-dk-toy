@@ -164,6 +164,8 @@ RCT_EXPORT_MODULE(OwnerWallet)
     resolve(nil);
   });
 }
+// The iOS app has no demo wallet build; the fixture screens exist only for the Android QA build.
+- (void)demoWallet:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject { resolve(@NO); }
 - (void)unavailable:(RCTPromiseRejectBlock)reject { reject(@"OWNER_UNAVAILABLE", @"The requested owner operation is unavailable.", nil); }
 
 - (NSMutableDictionary *)profileQuery {

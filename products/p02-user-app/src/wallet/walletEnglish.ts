@@ -476,4 +476,15 @@ export const english: Record<string,string> = {
   "앱 연결과 권한": "App connections and permissions",
   "보안과 복구": "Security and recovery",
   "연습": "Practice",
+  // Wallet services and demo screen
+  "서비스": "Services",
+  "테스트 시장 학습": "Test market lab",
+  "가까운 매장에서 주문": "Order from a nearby shop",
+  "내 결제": "My payments",
+  "여행지 찾기": "Find places to visit",
+  "시연용": "Demo",
+  "시연용 화면": "Demo screen",
+  "시연용 지갑 화면 보기": "Show the demo wallet screen",
+  "시연 화면 닫기": "Close the demo",
+  "실제 보드 확인 없이 만든 예시입니다. 잔액과 주소는 가짜이며 승인·서명·전송은 모두 꺼져 있습니다.": "An example made without checking a real board. The balance and address are fake, and approval, signing and sending are all off.",
 };

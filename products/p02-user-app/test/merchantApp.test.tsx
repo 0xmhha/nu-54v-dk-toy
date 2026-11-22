@@ -631,7 +631,7 @@ test.each([[false, false], [true, false], [true, true]])(
         tree = Renderer.create(<App />);
       });
       await Renderer.act(async () => {
-        tree.root.findAll(node => node.props.label === '가까운 매장에서 주문' &&
+        tree.root.findAll(node => node.props.accessibilityLabel === '가까운 매장에서 주문' &&
           typeof node.props.onPress === 'function')[0].props.onPress();
       });
     };
@@ -802,7 +802,7 @@ test('내 결제 discovers the current customer order without a link or a saved 
   let tree!: Renderer.ReactTestRenderer;
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   await Renderer.act(async () => {
-    tree.root.findAll(node => node.props.label === '내 결제' &&
+    tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
       typeof node.props.onPress === 'function')[0].props.onPress();
   });
   expect(mockRequests).toEqual(['order.list', 'invoice.list']);
@@ -851,7 +851,7 @@ test('a changed customer registration discards the delayed prior list and keeps 
   try {
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
     await Renderer.act(async () => {
-      tree.root.findAll(node => node.props.label === '내 결제' &&
+      tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
         typeof node.props.onPress === 'function')[0].props.onPress();
     });
     expect(mockRequests).toContain('order.list');
@@ -894,7 +894,7 @@ test('the App payment tab opens the registered travel-booking route and returns 
   let tree!: Renderer.ReactTestRenderer;
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   await Renderer.act(async () => {
-    tree.root.findAll(node => node.props.label === '내 결제' &&
+    tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
       typeof node.props.onPress === 'function')[0].props.onPress();
   });
   await Renderer.act(async () => {
@@ -922,7 +922,7 @@ test('W11 reopens the same paid receipt and shows kitchen ready, then collected'
   try {
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
     await Renderer.act(async () => {
-      tree.root.findAll(node => node.props.label === '내 결제' &&
+      tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
         typeof node.props.onPress === 'function')[0].props.onPress();
     });
     async function tap(label: string) {

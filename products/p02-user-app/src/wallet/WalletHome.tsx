@@ -34,6 +34,7 @@ import {decodeWalletStorage, storedWalletConnects, type PendingEvmTransfer, type
 import {persistWalletSignature, WalletProfileStore} from './walletStorage.ts';
 import {importRecoveryTrust} from './recoveryProof.ts';
 import {BoardStepPanel} from './BoardStepPanel.tsx';
+import {DemoWalletHome} from './DemoWalletHome.tsx';
 import {Brand, Chip, KitButton, Section, TabBar, type ButtonVariant} from '../ui/kit.tsx';
 import {color} from '../ui/theme.ts';
 import type {BoardWait} from './boardSteps.ts';
@@ -54,11 +55,13 @@ function savedEnrollment(store: WalletStorage): Enrollment | undefined {
 }
 
 export function WalletHome({rental, orders, permission, honorExistingRental, onPracticeChange, commissioningPins, dismissCommissioningPins,
-  initialExplore, onExploreRestored, exploreSite, onExploreSiteChange, openExploreTravel, openExploreMarket}: {
+  initialExplore, onExploreRestored, exploreSite, onExploreSiteChange, openExploreTravel, openExploreMarket, services = []}: {
   rental: () => void; orders:()=>void; permission: () => Promise<boolean>; honorExistingRental: boolean;
   onPracticeChange?: (active: boolean) => void; commissioningPins?: CommissioningPins; dismissCommissioningPins?: () => void;
   initialExplore?:boolean; onExploreRestored?:()=>void; exploreSite?:string; onExploreSiteChange?:(site:string)=>void;
   openExploreTravel?:()=>void; openExploreMarket?:()=>void;
+  /** App-level services (market, nearby shop, payments, travel) listed on the wallet's first screens. */
+  services?: {label:string; run:()=>void}[];
 }) {
   const exploreOnLoad=useRef(initialExplore);
   const exploreBack=useRef<'allowance'|'walletconnect'|'evm-registry'|undefined>(undefined);
@@ -77,7 +80,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const [allowanceRead, setAllowanceRead] = useState<{scope:string; value?:bigint; activeHash?:string; result?:string}>();
   const [ownerPermissionDenied,setOwnerPermissionDenied]=useState(false);
   const [ownerScanComplete,setOwnerScanComplete]=useState(false);
-  const [screen, setScreen] = useState<'profiles' | 'cloud' | 'practice' | 'install' | 'settings' | 'settings-access' | 'settings-diagnostics' | 'settings-device' | 'policy-picker' | 'lock-picker' | 'credentials' | 'travel-privacy' | 'policy' | 'policy-applied' | 'policy-device' | 'owner' | 'recovery-options' | 'recovery-cloud-info' | 'recovery-cloud' | 'recovery' | 'backup' | 'replace-phone' | 'transfer' | 'allowance' | 'receipts' | 'receive-evm' | 'receive-chain' | 'send-chain' | 'read-profiles' | 'evm-registry' | 'dapp' | 'walletconnect' | 'firmware' | 'rental-maintenance' | 'rental-original-payment'>('profiles');
+  const [screen, setScreen] = useState<'demo' | 'profiles' | 'cloud' | 'practice' | 'install' | 'settings' | 'settings-access' | 'settings-diagnostics' | 'settings-device' | 'policy-picker' | 'lock-picker' | 'credentials' | 'travel-privacy' | 'policy' | 'policy-applied' | 'policy-device' | 'owner' | 'recovery-options' | 'recovery-cloud-info' | 'recovery-cloud' | 'recovery' | 'backup' | 'replace-phone' | 'transfer' | 'allowance' | 'receipts' | 'receive-evm' | 'receive-chain' | 'send-chain' | 'read-profiles' | 'evm-registry' | 'dapp' | 'walletconnect' | 'firmware' | 'rental-maintenance' | 'rental-original-payment'>('profiles');
   const navigateRentalOriginal=useCallback((detail:boolean)=>setScreen(detail?'rental-original-payment':'rental-maintenance'),[]);
   const [cloudProfile,setCloudProfile] = useState<CloudProfile>();
   useEffect(()=>{
@@ -229,6 +232,8 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const [message, setMessage] = useState('');
   // The board has no screen: while a request waits on it, the app shows the board step and buttons.
   const [boardWait, setBoardWait] = useState<BoardWait>();
+  // QA builds made with the demo switch can show the verified home with fixture data.
+  const [demoAllowed, setDemoAllowed] = useState(false);
   const waitOnBoard = (wait: BoardWait, text: string) => {setMessage(text); setBoardWait(wait);};
   const [displayBinding,setDisplayBinding]=useState<OwnerDisplayBinding>();
   const [showDisplayBinding,setShowDisplayBinding]=useState(false);
@@ -287,12 +292,19 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const dappSigned=useRef<PendingEvmTransfer|undefined>(undefined);
   const operation = useRef(false);
   const native = NativeWallet;
+  useEffect(() => {
+    let live = true;
+    // Older test doubles and builds without the method simply keep the demo off.
+    if (typeof native?.demoWallet === 'function') native.demoWallet().then(value => { if (live) setDemoAllowed(value === true); }).catch(() => {});
+    return () => { live = false; };
+  }, [native]);
   const connectivity = useWalletConnectivity(native, stored?.mode === 'personal');
   const [readProof, setReadProof] = useState<ReadProof>();
   const [homeProtected, setHomeProtected] = useState(false);
   const [protectionError, setProtectionError] = useState(false);
   const [protectionAttempt, setProtectionAttempt] = useState(0);
-  const needsHomeProtection = stored?.mode === 'personal' && !['profiles','cloud','practice','install','rental-maintenance','rental-original-payment'].includes(screen);
+  // The demo screen renders fixture data only, so it stays capturable for design review.
+  const needsHomeProtection = stored?.mode === 'personal' && !['demo','profiles','cloud','practice','install','rental-maintenance','rental-original-payment'].includes(screen);
   useEffect(() => {
     if (!needsHomeProtection) { setHomeProtected(false); return; }
     if (!native?.setHomeProtection) { setHomeProtected(false); setProtectionError(true); return; }
@@ -1579,6 +1591,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Action title={t('개인 기기 검색 다시 시도')} disabled={busy} run={()=>scan()} />
       </>}
       {stored && (screen==='profiles'||(screen==='owner'&&!homeTabs))&&<Action title={t('매장 주문')} run={orders} disabled={busy} variant="secondary"/>}
+      {(screen==='profiles'||screen==='owner') && !!services.length && <Section title={t('서비스')}>
+        {services.map(service => <Action key={service.label} title={t(service.label)} run={service.run} disabled={busy} variant="row" />)}
+      </Section>}
       {!stored && !message && <Text style={styles.body}>{t('지갑 기록 확인 중')}</Text>}
       {stored && screen === 'profiles' && <>
         <Text style={styles.body}>{language === 'ko' ? '어떤 지갑을 사용할까요?' : 'Which wallet would you like to use?'}</Text>
@@ -1717,6 +1732,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           <View style={styles.pairItem}><Action title={t('다른 체인 보내기')} disabled={busy} variant="secondary" run={() => setScreen('send-chain')} /></View>
         </View>}
         {isPersonal && !homeTabs && <Action title={language === 'ko' ? '설정' : 'Settings'} disabled={busy} run={openSettings} variant="secondary" />}
+        {demoAllowed && !stored.verified && <Action title={t('시연용 지갑 화면 보기')} variant="row" disabled={busy} run={() => setScreen('demo')} />}
         {!stored.verified && <Text style={styles.body}>{language === 'ko' ? '독립 설치 기록에서 보드 지문을 확인한 뒤 Bluetooth 권한을 허용하세요. 이 보드에는 화면이 없습니다. 검증된 별도 표시에서 요청을 확인하고 보드에서 PIN을 입력합니다.' : 'Check the board fingerprint against independent installation records before allowing Bluetooth. The board has no screen. Review the request on a verified independent display and enter the PIN on the board.'}</Text>}
         {!stored.verified && <Text style={styles.body}>{t('발급 담당자에게 휴대전화 공개키를 건네세요. 독립 확인이 가능한 공급·설치 기록에서 기기 식별값과 서버 공개키 지문을 대조하세요.')}</Text>}
         <Action title={t('휴대전화의 등록 공개키 보기')} variant="row" disabled={!native || busy} run={() => work(async () => {
@@ -2288,6 +2304,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
     </ScrollView>
   );
+  if (screen === 'demo' && demoAllowed) return <DemoWalletHome t={t} close={() => setScreen('owner')} />;
   if (homeTabs) return <View style={styles.tabbed}>{content}
     <TabBar current="wallet" disabled={busy} tabs={[
       {key:'wallet',label:t('지갑'),run:()=>setScreen('owner')},

@@ -5,6 +5,8 @@ export interface Spec extends TurboModule {
   getNetworkLink(): Promise<string>;
   readonly onNetworkLink: CodegenTypes.EventEmitter<string>;
   setHomeProtection(enabled: boolean): Promise<void>;
+  /** True only in a QA build made with the demo wallet switch; release and store builds return false. */
+  demoWallet(): Promise<boolean>;
   loadProfile(): Promise<string>;
   saveProfile(value: string): Promise<void>;
   compareAndSaveProfile(expected: string, value: string): Promise<boolean>;

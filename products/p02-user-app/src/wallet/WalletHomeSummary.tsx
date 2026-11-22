@@ -9,9 +9,11 @@ import {accountPreference, assetsForAccount} from './walletCatalog.ts';
 import {defaultReadState, formatReadAmount, observationScope, readProfiles, type ReadProfileState} from './readProfiles.ts';
 
 type Owner = {boardFingerprint:string; generation:number; address:string};
-export function WalletHomeSummary({owner, state = defaultReadState, language, active, connectivity = unknownConnectivity, proof, onHide, onAccounts, onReceive}: {
+export function WalletHomeSummary({owner, state = defaultReadState, language, active, connectivity = unknownConnectivity, proof, onHide, onAccounts, onReceive, inert = false}: {
   owner:Owner; state?:ReadProfileState; language:'ko'|'en'; active:boolean; connectivity?:WalletConnectivity; proof?:ReadProof;
   onHide:()=>void; onAccounts:()=>void; onReceive:()=>void;
+  /** Fixture views show the account and receive entries switched off. */
+  inert?:boolean;
 }) {
   const ko = language === 'ko';
   const selected = state.selection;
@@ -33,8 +35,9 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
     rechecked ? (ko ? '연결됨 · 원장 재확인 완료' : 'Connected · ledger verified') :
       connectivity.link === 'online' ? (ko ? '연결됨 · 원장 재확인 필요' : 'Connected · ledger check required') :
         (ko ? '마지막 조회 · 현재 연결 미확인' : 'Last observation · connection not checked');
-  const button = (label:string, run:()=>void, style: ViewStyle = styles.button) => <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={run}
-    style={({pressed}) => [style, pressed && styles.pressed]}><Text style={styles.buttonText}>{label}</Text></Pressable>;
+  const button = (label:string, run:()=>void, style: ViewStyle = styles.button, disabled = false) => <Pressable accessibilityRole="button"
+    accessibilityLabel={label} accessibilityState={{disabled}} disabled={disabled} onPress={run}
+    style={({pressed}) => [style, disabled && styles.off, pressed && styles.pressed]}><Text style={styles.buttonText}>{label}</Text></Pressable>;
   // Balance card of the design book (W01): dark green surface, the balance as the largest text,
   // network and freshness underneath, and the hide control in the corner.
   return <View style={styles.card}>
@@ -58,8 +61,8 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
     {available && snapshot && !hidden && <Text style={styles.text}>{snapshot.point}{'\n'}{new Date(snapshot.time).toLocaleString(language === 'ko' ? 'ko-KR' : 'en-US')}</Text>}
     {rate && <WalletEducationRateCard key={rate.scope} rate={rate} stale={connectivity.link !== 'online'} language={language} />}
     <View style={styles.actions}>
-      {button(ko ? '계정 및 자산 선택' : 'Choose account and asset', onAccounts)}
-      {button(ko ? '받기' : 'Receive', onReceive)}
+      {button(ko ? '계정 및 자산 선택' : 'Choose account and asset', onAccounts, styles.button, inert)}
+      {button(ko ? '받기' : 'Receive', onReceive, styles.button, inert)}
     </View>
   </View>;
 }
@@ -77,4 +80,5 @@ const styles = StyleSheet.create({
   hide: {minHeight: 44, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: '#2c5c47', justifyContent: 'center'},
   buttonText: {color: color.onGreen, fontSize: 14, fontWeight: '700', textAlign: 'center'},
   pressed: {opacity: 0.8},
+  off: {opacity: 0.45},
 });

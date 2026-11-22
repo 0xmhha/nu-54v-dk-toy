@@ -137,6 +137,7 @@ class OwnerWalletModule(context: ReactApplicationContext) : NativeOwnerWalletSpe
         }
     }
 
+    override fun demoWallet(promise: Promise) = promise.resolve(BuildConfig.NU54_DEMO_WALLET)
     override fun loadProfile(promise: Promise) = resolve(promise) { keys.load() }
     override fun saveProfile(value: String, promise: Promise) = resolve(promise) { keys.save(value); null }
     override fun compareAndSaveProfile(expected: String, value: String, promise: Promise) =
