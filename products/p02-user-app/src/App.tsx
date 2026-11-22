@@ -20,6 +20,8 @@ import {readCommissioningQr, type CommissioningPins} from './wallet/ownerWire.ts
 import { CustomerOrders } from './merchant/CustomerOrders.tsx';
 import {MarketLab} from './market/MarketLab.tsx';
 import {color} from './ui/theme.ts';
+import {ExploreHome} from './explore/ExploreHome.tsx';
+import {TabBar} from './ui/kit.tsx';
 import { TravelHome, type TravelBookingScope } from './travel/TravelHome.tsx';
 
 const OUTCOME_TEXT: Record<string, string> = {
@@ -427,6 +429,11 @@ export default function App() {
   const [exploreService,setExploreService]=useState<'travel'|'market'>();
   const resumeExplore=useRef(false);
   const [practicing, setPracticing] = useState(false);
+  // App-level bottom tabs (지갑 · 결제 · 둘러보기 · 설정) from the P02 IA.
+  const [exploring, setExploring] = useState(false);
+  const [walletScreen, setWalletScreen] = useState('');
+  const [walletRequest, setWalletRequest] = useState<{screen:'owner'|'settings'|'dapp'; nonce:number}>();
+  const requestWallet = (screen:'owner'|'settings'|'dapp') => setWalletRequest(previous => ({screen, nonce: (previous?.nonce ?? 0) + 1}));
   const rentalActive = useRef(false);
   rentalActive.current = renting;
   const marketReturnAllowed = useRef(true);
@@ -543,6 +550,13 @@ export default function App() {
     });
     return ()=>listener.remove();
   },[exploreService, marketTravel, shopping, renting, closeTravel,closeMarket]);
+  const closeOverlays = () => { setShopping(false); setTravel(false); setMarketLab(false); setMarketTravel(false); setExploring(false); };
+  const settingsScreens = ['settings', 'settings-access', 'settings-diagnostics', 'settings-device', 'policy-picker', 'lock-picker',
+    'credentials', 'travel-privacy', 'policy', 'policy-applied', 'policy-device'];
+  const currentTab = shopping ? 'pay' : travel || marketLab || exploring || walletScreen === 'dapp' ? 'explore'
+    : settingsScreens.includes(walletScreen) ? 'settings' : 'wallet';
+  // Tabs stay out of rental mode, practice and the secure wallet subflows that hide navigation.
+  const showTabs = !renting && !practicing;
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
@@ -559,21 +573,29 @@ export default function App() {
           </View>
           {marketTravel && <TravelHome back={() => setMarketTravel(false)} backLabel="학습 시장으로 돌아가기"
             permission={bluetoothPermission} />}
-        </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : <View style={styles.home}>
-          {/* Service entries live in the wallet's first screen as a grouped list instead of sitting
-              above every wallet screen. */}
-          <WalletHome services={practicing ? [] : [
-              {label: '테스트 시장 학습', run: () => setMarketLab(true)},
-              {label: '가까운 매장에서 주문', run: openNearbyOrders},
-              {label: '내 결제', run: () => setShopping(true)},
-              {label: '여행지 찾기', run: () => setTravel(true)},
-            ]} onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
+        </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : exploring ? <ExploreHome
+          places={[
+            {label: '여행지 찾기', detail: '지도와 목록에서 장소를 찾고 예약합니다', run: () => { setExploring(false); setTravel(true); }},
+            {label: '가까운 매장에서 주문', detail: '근처 매장의 메뉴를 보고 주문합니다', run: () => { setExploring(false); openNearbyOrders(); }},
+          ]}
+          apps={[
+            {label: 'DApp 둘러보기', detail: '연결한 사이트에서 로그인과 결제를 요청받습니다', run: () => { setExploring(false); requestWallet('dapp'); }},
+            {label: '테스트 시장 학습', detail: '테스트넷에서 교환과 유동성을 연습합니다', run: () => { setExploring(false); setMarketLab(true); }},
+          ]} /> : <View style={styles.home}>
+          {/* Services open from the 둘러보기 tab; the wallet keeps only wallet pages. */}
+          <WalletHome tabbed requestScreen={walletRequest} onScreenChange={setWalletScreen} onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
             initialExplore={resumeExplore.current} onExploreRestored={onExploreRestored}
             exploreSite={exploreSite} onExploreSiteChange={setExploreSite}
             openExploreTravel={()=>{setExploreService('travel');setTravel(true);}}
             openExploreMarket={()=>{setExploreService('market');setMarketLab(true);}}
             commissioningPins={commissioningPins} dismissCommissioningPins={()=>setCommissioningPins(undefined)} />
         </View>}
+        {showTabs && <TabBar current={currentTab} disabled={false} tabs={[
+          {key: 'wallet', label: '지갑', run: () => { closeOverlays(); requestWallet('owner'); }},
+          {key: 'pay', label: '결제', run: () => { closeOverlays(); setShopping(true); }},
+          {key: 'explore', label: '둘러보기', run: () => { closeOverlays(); setExploring(true); }},
+          {key: 'settings', label: '설정', run: () => { closeOverlays(); requestWallet('settings'); }},
+        ]} />}
       </SafeAreaView>
     </SafeAreaProvider>
   );

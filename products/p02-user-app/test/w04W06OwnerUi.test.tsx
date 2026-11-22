@@ -139,15 +139,15 @@ test('secure subflow hides global navigation and Android back restores owner nav
 });
 
 
-test('normal app keeps product entries on home and hides them during sensitive recovery',async()=>{
+test('normal app shows the bottom tabs on home and hides them during sensitive recovery',async()=>{
  Object.defineProperty(Platform,'OS',{value:'ios',configurable:true});mockStored=JSON.stringify(profile());let tree:Renderer.ReactTestRenderer;
+ const tabs=()=>tree!.root.findAll(node=>node.props.accessibilityRole==='tab'&&typeof node.props.onPress==='function').map(node=>node.props.accessibilityLabel);
  try{await Renderer.act(async()=>{tree=Renderer.create(<App/>);});
-  expect(tree!.root.findAll(node=>node.props.accessibilityLabel==='내 결제')).not.toHaveLength(0);
-  await tap(tree!,'독립 백업 시작');
-  for(const label of ['내 결제','여행지 찾기','테스트 시장 학습'])expect(tree!.root.findAll(node=>node.props.accessibilityLabel===label)).toHaveLength(0);
-  await tap(tree!,'등록 상태로 돌아가기');expect(tree!.root.findAll(node=>node.props.accessibilityLabel==='내 결제')).not.toHaveLength(0);
-  await tap(tree!,'원래 보드에서 분실한 휴대전화 교체');expect(tree!.root.findAll(node=>node.props.accessibilityLabel==='내 결제')).toHaveLength(0);
-  await tap(tree!,'등록 상태로 돌아가기');expect(tree!.root.findAll(node=>node.props.accessibilityLabel==='내 결제')).not.toHaveLength(0);
+  expect([...new Set(tabs())]).toEqual(['지갑','결제','둘러보기','설정']);
+  await tap(tree!,'독립 백업 시작');expect(tabs()).toHaveLength(0);
+  await tap(tree!,'등록 상태로 돌아가기');expect(tabs()).not.toHaveLength(0);
+  await tap(tree!,'원래 보드에서 분실한 휴대전화 교체');expect(tabs()).toHaveLength(0);
+  await tap(tree!,'등록 상태로 돌아가기');expect(tabs()).not.toHaveLength(0);
  }finally{await Renderer.act(async()=>tree?.unmount());}
 });
 

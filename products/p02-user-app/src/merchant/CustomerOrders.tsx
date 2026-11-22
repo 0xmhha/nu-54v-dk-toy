@@ -2755,7 +2755,7 @@ export function CustomerOrders({
             )}
         </View>
       )}
-      <Button label="지갑으로 돌아가기" run={back} disabled={busy} />
+      <Button label="지갑으로 돌아가기" run={back} disabled={busy} variant="secondary" />
     </ScrollView>
   );
 }

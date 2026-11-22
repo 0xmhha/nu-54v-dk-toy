@@ -41,7 +41,7 @@ test('payments can open from home before any board is enrolled', async () => {
     tree = ReactTestRenderer.create(<App />);
   });
   const payment = tree.root.findAll(node =>
-    node.props.accessibilityLabel === '내 결제' && typeof node.props.onPress === 'function',
+    node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '결제' && typeof node.props.onPress === 'function',
   )[0];
   expect(payment).toBeDefined();
   await ReactTestRenderer.act(async () => payment.props.onPress());

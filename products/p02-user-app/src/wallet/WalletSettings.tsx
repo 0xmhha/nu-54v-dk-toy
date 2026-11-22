@@ -1,12 +1,16 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AccessibilityInfo, AppState, Linking, Platform, Pressable, Share, StyleSheet, Text, TextInput, View} from 'react-native';
+import {AccessibilityInfo, AppState, Linking, Platform, Share, StyleSheet, Text, TextInput, View} from 'react-native';
 import {WalletAccessibility} from './WalletAccessibility.tsx';
 import Alerts from '../specs/NativeSubscriptionAlerts.ts';
 import {normalizePolicyRecipients, type OwnerIdleLock, type OwnerLimits} from './ownerLimitsWire.ts';
 import {formatReadAmount} from './readProfiles.ts';
+import {KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
+import {color, font} from '../ui/theme.ts';
 import {stableTestUsdc} from './walletEducationRate.ts';
 
-export function WalletSettings({language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll}: {
+export function WalletSettings({tabbed=false, language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll}: {
+  /** Inside the app tabs the 설정 tab replaces the back-to-wallet button. */
+  tabbed?:boolean;
   language:'ko'|'en'; section?:'home'|'access'|'diagnostics'; accessibility?:()=>void; diagnostics?:()=>void; policyRoute?:boolean; applied?:boolean; idleLock?:OwnerIdleLock; checkIdleLock?:()=>void; setLanguage:(language:'ko'|'en')=>void; back:()=>void; practice:()=>void;
   rejectPractice?:()=>void; resetAccessibilityScroll?:()=>void; pendingOrders:()=>void; pendingEvm:()=>void; pendingChain:()=>void; device:()=>void;
   pending?:{evm:boolean;chain:boolean;signing:boolean;evmExpires?:number}; boardStatus?:'active'|'unavailable'; boardSuffix?:string; recover?:()=>void; credentials?:()=>void; networks?:()=>void; privacy?:()=>void; policy?:OwnerLimits|null; policyDecimals?:number; policyReadAt?:number; policyFresh?:boolean; policyFinalityFresh?:boolean; policyFinalityPending?:boolean; finalityEnroll?:()=>void; finalityReconcile?:()=>void; finalityResume?:()=>void; freshAsset?:{chain:string;address:string;decimals:number}; chooseAsset?:()=>void; initialize?:(destination:string,per:string,daily:string)=>void; change?:(destination:string,per:string,daily:string)=>void; activate?:()=>void; readPolicy?:()=>void;
@@ -67,7 +71,7 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
   const amount=(n:bigint)=>quantity(n)+' '+amountUnit;
   const activation=(n:bigint)=>n<=8640000000000n ? new Date(Number(n)*1000).toLocaleString(ko?'ko-KR':'en-US') : (ko?'확인 불가':'Unavailable');
   const diagnostic = 'NU54 · ' + Platform.OS + ' ' + String(Platform.Version);
-  const button=(label:string,action:()=>void)=><Pressable accessibilityRole="button" accessibilityLabel={label} onPress={action} style={styles.button}><Text style={styles.buttonText}>{label}</Text></Pressable>;
+  const button=(label:string,action:()=>void,variant:ButtonVariant='row')=><KitButton label={label} run={action} variant={variant} />;
   const recipientList=(label:string,entries:string[])=><>
     <Text style={styles.text}>{label}</Text>
     {entries.length ? entries.map(entry=><Text key={entry} selectable style={styles.text}>{entry}</Text>) :
@@ -114,14 +118,44 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
   if(section==='access'||section==='diagnostics')return <View style={styles.card}>
     {section==='access' ? accessibilityControls : diagnosticControls}
     {failure && <Text accessibilityLiveRegion="polite" style={styles.text}>{ko?'기기 기능을 열지 못했습니다.':'Could not open the device feature.'}</Text>}
-    {button(ko?'설정으로 돌아가기':'Return to Settings',back)}
+    {button(ko?'설정으로 돌아가기':'Return to Settings',back,'secondary')}
   </View>;
   if(applied && policy)return <View style={styles.card}>
     <Text accessibilityRole="header" style={styles.heading}>{ko?'기기에서 새 활성 정책을 확인했습니다':'New active policy verified on device'}</Text>
     <Text style={styles.text}>{ko?'건별 한도':'Per transfer'}: {amount(policy.perTransfer)} · {ko?'일별 한도':'Daily'}: {amount(policy.daily)}</Text>
     {policy.recipients && <Text style={styles.text}>{ko?'정책 버전':'Policy revision'} {policy.revision.toString()}</Text>}
     {policy.recipients && recipientList(ko?'활성 수취인':'Active recipients',policy.recipients)}
-    {button(ko?'설정으로 돌아가기':'Return to Settings',back)}
+    {button(ko?'설정으로 돌아가기':'Return to Settings',back,'secondary')}
+  </View>;
+  // First page of the 설정 tab: grouped entries per the P02 IA (내 보드, 보안과 복구, 네트워크와 개인정보, 앱).
+  if(section==='home')return <View style={styles.home}>
+    <Section title={ko?'내 보드':'My board'} aside={boardStatus === 'active' ? (ko?'상태 확인됨':'Status verified')+(boardSuffix?' · '+boardSuffix:'') : (ko?'상태 미확인':'Status not checked')}>
+      {button(ko?'기기·업데이트':'Device and updates',device)}
+      {readPolicy && button(ko?'한도와 잠금':'Limits and auto-lock',readPolicy)}
+      {checkIdleLock && button(ko?'기기 잠금 규칙 확인':'Verify device auto-lock',checkIdleLock)}
+    </Section>
+    {(recover || credentials) && <Section title={ko?'보안과 복구':'Security and recovery'}>
+      {recover && button(ko?'분실 복구':'Wallet recovery',recover)}
+      {credentials && button(ko?'인증수단':'Sign-in methods',credentials)}
+    </Section>}
+    {(networks || privacy) && <Section title={ko?'네트워크와 개인정보':'Networks and privacy'}>
+      {networks && button(ko?'네트워크':'Networks',networks)}
+      {privacy && button(ko?'개인정보와 여행 동의':'Privacy and travel consent',privacy)}
+    </Section>}
+    <Section title={ko?'앱':'App'}>
+      {accessibility && button(ko?'접근성':'Accessibility',accessibility)}
+      {diagnostics && button(ko?'도움말·진단':'Help and diagnostics',diagnostics)}
+      {button(ko?'연습 다시 보기':'Replay practice',practice)}
+    </Section>
+    <Section title={ko?'미결 요청':'Pending requests'}>
+      {button(ko?'미결 결제':'Pending payments',pendingOrders)}
+      {pending?.evm && button(ko?'EVM 전송 확인':'Review EVM transfer',pendingEvm)}
+      {pending?.chain && button(ko?'체인 전송 확인':'Review chain transfer',pendingChain)}
+    </Section>
+    {pending?.signing && <Text style={styles.text}>{ko?'이전 승인 결과가 불확실합니다. 원래 기기에서 만료를 확인하세요.':'A prior approval is unresolved. Verify expiry on the original device.'}</Text>}
+    <Text style={styles.caption}>{ko?'미결 상태는 원래 요청에서 다시 확인합니다. 시계나 만료 시각만으로 완료를 판단하지 않습니다.':'Review pending status at its original source. A clock or expiry alone does not establish completion.'}</Text>
+    {failure && <Text accessibilityLiveRegion="polite" style={styles.text}>{ko?'기기 기능을 열지 못했습니다.':'Could not open the device feature.'}</Text>}
+    {!tabbed && button(ko?'지갑으로':'Back to wallet',back,'secondary')}
   </View>;
   return <View style={styles.card}>
     <Text accessibilityRole="header" style={styles.heading}>{ko?'기기와 미결 요청':'Device and pending requests'}</Text>
@@ -153,7 +187,7 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
           {!policyReview && <>
             {recipientDraft.map(entry=><View key={entry}>{button((ko?'제거 ':'Remove ')+entry,
               ()=>setRecipientDraft(recipientDraft.filter(item=>item!==entry)))}</View>)}
-            <TextInput accessibilityLabel={ko?'추가할 주소':'Address to add'} maxLength={42} autoCapitalize="none"
+            <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'추가할 주소':'Address to add'} maxLength={42} autoCapitalize="none"
               autoCorrect={false} value={recipientInput} onChangeText={setRecipientInput} style={styles.input}/>
             {button(ko?'주소 추가':'Add address',()=>addRecipient(recipientInput))}
             {policyContacts?.filter(contact=>!recipientDraft.includes(contact.address.toLowerCase())).map(contact=>
@@ -168,9 +202,9 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
             ()=>changeSet({recipients:[...recipientDraft]}))}
         </>}
         {setEditor==='caps' && <>
-          <TextInput accessibilityLabel={ko?'새 건별 한도':'New per-transfer limit'} keyboardType="decimal-pad"
+          <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'새 건별 한도':'New per-transfer limit'} keyboardType="decimal-pad"
             value={policyPer} onChangeText={value=>{setPolicyPer(value);setPolicyReview(false);}} style={styles.input}/>
-          <TextInput accessibilityLabel={ko?'새 일별 한도':'New daily limit'} keyboardType="decimal-pad"
+          <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'새 일별 한도':'New daily limit'} keyboardType="decimal-pad"
             value={policyDaily} onChangeText={value=>{setPolicyDaily(value);setPolicyReview(false);}} style={styles.input}/>
           {policyReview ? button(ko?'한도 변경 독립 표시 요청':'Review limits on independent display',
             ()=>changeSet({per:policyPer,daily:policyDaily})) :
@@ -184,11 +218,11 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
       {!policy.recipients && !applied && policy.mode!=='finality' && !policy.pending && policyDecimals!==undefined && change && <>
         <Text style={styles.text}>{ko?'변경은 독립 표시와 보드 승인을 거쳐 대기 시간이 지난 뒤에 적용됩니다.':'Changes require independent display and board approval, then a waiting period.'}</Text>
         <Text style={styles.text}>{ko?'새 허용 주소':'New allowed address'}</Text>
-        <TextInput accessibilityLabel={ko?'새 허용 주소':'New allowed address'} autoCapitalize="none" value={policyDestination} onChangeText={value=>{setPolicyDestination(value);setPolicyReview(false);}} style={styles.input}/>
+        <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'새 허용 주소':'New allowed address'} autoCapitalize="none" value={policyDestination} onChangeText={value=>{setPolicyDestination(value);setPolicyReview(false);}} style={styles.input}/>
         <Text style={styles.text}>{ko?'새 건별 한도':'New per-transfer limit'}</Text>
-        <TextInput accessibilityLabel={ko?'새 건별 한도':'New per-transfer limit'} keyboardType="decimal-pad" value={policyPer} onChangeText={value=>{setPolicyPer(value);setPolicyReview(false);}} style={styles.input}/>
+        <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'새 건별 한도':'New per-transfer limit'} keyboardType="decimal-pad" value={policyPer} onChangeText={value=>{setPolicyPer(value);setPolicyReview(false);}} style={styles.input}/>
         <Text style={styles.text}>{ko?'새 일별 한도':'New daily limit'}</Text>
-        <TextInput accessibilityLabel={ko?'새 일별 한도':'New daily limit'} keyboardType="decimal-pad" value={policyDaily} onChangeText={value=>{setPolicyDaily(value);setPolicyReview(false);}} style={styles.input}/>
+        <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'새 일별 한도':'New daily limit'} keyboardType="decimal-pad" value={policyDaily} onChangeText={value=>{setPolicyDaily(value);setPolicyReview(false);}} style={styles.input}/>
         {button(ko?'변경 내용 검토':'Review change',()=>setPolicyReview(true))}
         {policyReview && <>
           <Text selectable style={styles.text}>{policyDestination}{'\n'}{policyPer} {amountUnit} / {policyDaily} {amountUnit}</Text>
@@ -211,11 +245,11 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
       </> : <>
         <Text selectable style={styles.text}>{ko?'검증한 자산':'Reviewed asset'}: {freshAsset.address} · {ko?'소수 자릿수':'Decimals'} {freshAsset.decimals}</Text>
         <Text style={styles.text}>{ko?'허용 주소':'Allowed address'}</Text>
-        <TextInput accessibilityLabel={ko?'허용 주소':'Allowed address'} autoCapitalize="none" value={policyDestination} onChangeText={value=>{setPolicyDestination(value);setPolicyReview(false);}} style={styles.input}/>
+        <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'허용 주소':'Allowed address'} autoCapitalize="none" value={policyDestination} onChangeText={value=>{setPolicyDestination(value);setPolicyReview(false);}} style={styles.input}/>
         <Text style={styles.text}>{ko?'건별 한도':'Per-transfer limit'}</Text>
-        <TextInput accessibilityLabel={ko?'건별 한도':'Per-transfer limit'} keyboardType="decimal-pad" value={policyPer} onChangeText={value=>{setPolicyPer(value);setPolicyReview(false);}} style={styles.input}/>
+        <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'건별 한도':'Per-transfer limit'} keyboardType="decimal-pad" value={policyPer} onChangeText={value=>{setPolicyPer(value);setPolicyReview(false);}} style={styles.input}/>
         <Text style={styles.text}>{ko?'일별 한도':'Daily limit'}</Text>
-        <TextInput accessibilityLabel={ko?'일별 한도':'Daily limit'} keyboardType="decimal-pad" value={policyDaily} onChangeText={value=>{setPolicyDaily(value);setPolicyReview(false);}} style={styles.input}/>
+        <TextInput placeholderTextColor={color.mute} accessibilityLabel={ko?'일별 한도':'Daily limit'} keyboardType="decimal-pad" value={policyDaily} onChangeText={value=>{setPolicyDaily(value);setPolicyReview(false);}} style={styles.input}/>
         {button(ko?'설정 검토':'Review setup',()=>setPolicyReview(true))}
         {policyReview && <>
           <Text style={styles.text}>{ko?'설정할 주소와 금액을 독립 표시에서도 대조하고 보드에서 승인하세요.':'Compare the destination and limits on the independent display and approve on the board.'}</Text>
@@ -257,7 +291,14 @@ export function WalletSettings({language, setLanguage, back, policyRoute, applie
     {button(section==='home'?(ko?'미결 결제':'Pending payments'):(ko?'매장 주문 확인':'Review store orders'),pendingOrders)}
     {!section && <>{accessibilityControls}{diagnosticControls}</>}
     {failure && <Text accessibilityLiveRegion="polite" style={styles.text}>{ko?'기기 기능을 열지 못했습니다.':'Could not open the device feature.'}</Text>}
-    {button(policyRoute?(ko?'설정으로 돌아가기':'Return to Settings'):(ko?'지갑으로':'Back to wallet'),back)}
+    {!tabbed && button(policyRoute?(ko?'설정으로 돌아가기':'Return to Settings'):(ko?'지갑으로':'Back to wallet'),back,'secondary')}
   </View>;
 }
-const styles=StyleSheet.create({card:{gap:12,padding:16,borderRadius:12,borderWidth:1,borderColor:'#777'},heading:{fontSize:22,fontWeight:'700',color:'#111'},text:{fontSize:17,color:'#111'},button:{padding:14,minHeight:48,backgroundColor:'#193d33',borderRadius:9},buttonText:{fontSize:17,color:'#fff',fontWeight:'600'},input:{borderWidth:1,borderColor:'#555',padding:12,minHeight:48,fontSize:17,color:'#111'}});
+const styles=StyleSheet.create({
+  home:{gap:16},
+  card:{gap:12,padding:16,borderRadius:18,borderWidth:1,borderColor:color.line,backgroundColor:color.sheet},
+  heading:{fontFamily:font,fontSize:20,fontWeight:'800',color:color.ink},
+  text:{fontFamily:font,fontSize:16,lineHeight:24,color:color.ink},
+  caption:{fontFamily:font,fontSize:13,lineHeight:19,color:color.mute},
+  input:{fontFamily:font,borderWidth:1,borderColor:'#8fa497',borderRadius:12,minHeight:50,padding:12,color:color.ink,backgroundColor:color.sheet},
+});

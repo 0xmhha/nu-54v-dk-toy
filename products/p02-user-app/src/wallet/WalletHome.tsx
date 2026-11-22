@@ -55,13 +55,20 @@ function savedEnrollment(store: WalletStorage): Enrollment | undefined {
 }
 
 export function WalletHome({rental, orders, permission, honorExistingRental, onPracticeChange, commissioningPins, dismissCommissioningPins,
-  initialExplore, onExploreRestored, exploreSite, onExploreSiteChange, openExploreTravel, openExploreMarket, services = []}: {
+  initialExplore, onExploreRestored, exploreSite, onExploreSiteChange, openExploreTravel, openExploreMarket, services = [],
+  tabbed = false, requestScreen, onScreenChange}: {
   rental: () => void; orders:()=>void; permission: () => Promise<boolean>; honorExistingRental: boolean;
   onPracticeChange?: (active: boolean) => void; commissioningPins?: CommissioningPins; dismissCommissioningPins?: () => void;
   initialExplore?:boolean; onExploreRestored?:()=>void; exploreSite?:string; onExploreSiteChange?:(site:string)=>void;
   openExploreTravel?:()=>void; openExploreMarket?:()=>void;
   /** App-level services (market, nearby shop, payments, travel) listed on the wallet's first screens. */
   services?: {label:string; run:()=>void}[];
+  /** The app shell draws the bottom tabs; the wallet then leaves out its own settings and service entries. */
+  tabbed?: boolean;
+  /** Tab requests from the shell: the wallet home, settings or the DApp browser. A new nonce repeats a request. */
+  requestScreen?: {screen:'owner'|'settings'|'dapp'; nonce:number};
+  /** Reports the wallet's current screen so the shell can mark the active tab and hide tabs in secure flows. */
+  onScreenChange?: (screen:string)=>void;
 }) {
   const exploreOnLoad=useRef(initialExplore);
   const exploreBack=useRef<'allowance'|'walletconnect'|'evm-registry'|undefined>(undefined);
@@ -150,8 +157,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const storedVerified=!!stored?.verified;
   useEffect(() => {
     const secure=['backup','replace-phone','recovery','recovery-options','recovery-cloud-info','recovery-cloud'].includes(screen);
-    onPracticeChange?.(screen === 'practice' || screen === 'install' || secure ||
-      (screen === 'owner' && (fromInstall || storedMode !== 'personal' || !storedVerified)));
+    // Navigation hides only in practice, installation and the secure recovery flows; the tabs stay
+    // visible before enrollment so a first-time user can still reach payments and settings.
+    onPracticeChange?.(screen === 'practice' || screen === 'install' || secure);
     scroll.current?.scrollTo({y: 0, animated: false});
     if (screen === 'practice') AccessibilityInfo.announceForAccessibility(language === 'ko' ? '결제 연습' : 'Payment practice');
     const shouldFocus=secure || (previousSecure.current && screen==='owner');previousSecure.current=secure;
@@ -232,6 +240,21 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const [message, setMessage] = useState('');
   // The board has no screen: while a request waits on it, the app shows the board step and buttons.
   const [boardWait, setBoardWait] = useState<BoardWait>();
+  const appliedRequest = useRef(0);
+  useEffect(() => {
+    // The wallet may mount before its stored profile loads; apply the request once it has.
+    if (!requestScreen || !stored || appliedRequest.current === requestScreen.nonce) return;
+    appliedRequest.current = requestScreen.nonce;
+    const verified = !!stored.verified;
+    if (requestScreen.screen === 'dapp') {
+      if (!verified) { setScreen('owner'); setMessage('보드를 연결하고 백업을 확인한 뒤 DApp을 둘러볼 수 있습니다.'); return; }
+      dappSigned.current = undefined;
+    }
+    setScreen(requestScreen.screen);
+    // Only a new nonce, or the profile arriving, can apply a request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestScreen?.nonce, !!stored]);
+  useEffect(() => { onScreenChange?.(screen); }, [screen, onScreenChange]);
   // QA builds made with the demo switch can show the verified home with fixture data.
   const [demoAllowed, setDemoAllowed] = useState(false);
   const waitOnBoard = (wait: BoardWait, text: string) => {setMessage(text); setBoardWait(wait);};
@@ -1727,7 +1750,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           <View style={styles.pairItem}><Action title={t('다른 체인 받기')} disabled={busy} variant="secondary" run={() => setScreen('receive-chain')} /></View>
           <View style={styles.pairItem}><Action title={t('다른 체인 보내기')} disabled={busy} variant="secondary" run={() => setScreen('send-chain')} /></View>
         </View>}
-        {isPersonal && !homeTabs && <Action title={language === 'ko' ? '설정' : 'Settings'} disabled={busy} run={openSettings} variant="secondary" />}
+        {isPersonal && !tabbed && !homeTabs && <Action title={language === 'ko' ? '설정' : 'Settings'} disabled={busy} run={openSettings} variant="secondary" />}
         {demoAllowed && !stored.verified && <Action title={t('시연용 지갑 화면 보기')} variant="row" disabled={busy} run={() => setScreen('demo')} />}
         {!stored.verified && <Text style={styles.body}>{language === 'ko' ? '독립 설치 기록에서 보드 지문을 확인한 뒤 Bluetooth 권한을 허용하세요. 이 보드에는 화면이 없습니다. 검증된 별도 표시에서 요청을 확인하고 보드에서 PIN을 입력합니다.' : 'Check the board fingerprint against independent installation records before allowing Bluetooth. The board has no screen. Review the request on a verified independent display and enter the PIN on the board.'}</Text>}
         {!stored.verified && <Text style={styles.body}>{t('발급 담당자에게 휴대전화 공개키를 건네세요. 독립 확인이 가능한 공급·설치 기록에서 기기 식별값과 서버 공개키 지문을 대조하세요.')}</Text>}
@@ -1829,7 +1852,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         </Section>
         {(!isPersonal || fromInstall) && <Action title={t('이전')} disabled={busy} run={() => {setFromInstall(false); setScreen('profiles');}} />}
       </>}
-      {stored && settingsScreen && <WalletSettings language={language}
+      {stored && settingsScreen && <WalletSettings tabbed={tabbed} language={language}
         policyRoute={screen==='policy'||screen==='policy-applied'} applied={screen==='policy-applied'}
         section={screen==='settings'?'home':screen==='settings-access'?'access':screen==='settings-diagnostics'?'diagnostics':undefined}
         accessibility={()=>setScreen('settings-access')} diagnostics={()=>setScreen('settings-diagnostics')}
@@ -2304,7 +2327,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     </ScrollView>
   );
   if (screen === 'demo' && demoAllowed) return <DemoWalletHome t={t} close={() => setScreen('owner')} />;
-  if (homeTabs) return <View style={styles.tabbed}>{content}
+  if (homeTabs && !tabbed) return <View style={styles.tabbed}>{content}
     <TabBar current="wallet" disabled={busy} tabs={[
       {key:'wallet',label:t('지갑'),run:()=>setScreen('owner')},
       {key:'pay',label:t('결제'),run:orders},

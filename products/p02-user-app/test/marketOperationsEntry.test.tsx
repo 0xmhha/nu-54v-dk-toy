@@ -83,6 +83,8 @@ test('learning home explains the test-only venue and offers real destinations be
     node.props.accessibilityLabel === label && typeof node.props.onPress === 'function');
   const tell = (text: string) => expect(JSON.stringify(view.toJSON())).toContain(text);
   try {
+    // The learning market opens from the 둘러보기 tab.
+    await ReactTestRenderer.act(async () => view.root.find(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '둘러보기').props.onPress());
     await ReactTestRenderer.act(async () => buttons('테스트 시장 학습')[0].props.onPress());
     tell('테스트 자산으로 연습하기');
     tell('StableNet 테스트넷 · 테스트 자산만');

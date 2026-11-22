@@ -433,6 +433,8 @@ async function firstRegistration() {
   const open = async () => {
     if (closed) throw new Error('Registration renderer is closed');
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
+    // Nearby shop orders open from the 둘러보기 tab.
+    await Renderer.act(async () => tree!.root.find(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '둘러보기').props.onPress());
     await tap('가까운 매장에서 주문');
   };
   const button = (label: string) => activeTree().root.findAll(node =>
@@ -630,6 +632,7 @@ test.each([[false, false], [true, false], [true, true]])(
       await Renderer.act(async () => {
         tree = Renderer.create(<App />);
       });
+      await Renderer.act(async () => tree.root.find(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '둘러보기').props.onPress());
       await Renderer.act(async () => {
         tree.root.findAll(node => node.props.accessibilityLabel === '가까운 매장에서 주문' &&
           typeof node.props.onPress === 'function')[0].props.onPress();
@@ -735,6 +738,8 @@ test.each(['direct', 'nearby', 'legacy'])('keeps independent selection and saved
   };
   const open = async () => {
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
+    // Nearby shop orders open from the 둘러보기 tab.
+    await Renderer.act(async () => tree.root.find(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '둘러보기').props.onPress());
     await tap('가까운 매장에서 주문');
     if (nearby) {
       await tap('근처 단말 찾기');
@@ -802,7 +807,7 @@ test('내 결제 discovers the current customer order without a link or a saved 
   let tree!: Renderer.ReactTestRenderer;
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   await Renderer.act(async () => {
-    tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
+    tree.root.findAll(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '결제' &&
       typeof node.props.onPress === 'function')[0].props.onPress();
   });
   expect(mockRequests).toEqual(['order.list', 'invoice.list']);
@@ -851,7 +856,7 @@ test('a changed customer registration discards the delayed prior list and keeps 
   try {
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
     await Renderer.act(async () => {
-      tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
+      tree.root.findAll(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '결제' &&
         typeof node.props.onPress === 'function')[0].props.onPress();
     });
     expect(mockRequests).toContain('order.list');
@@ -894,7 +899,7 @@ test('the App payment tab opens the registered travel-booking route and returns 
   let tree!: Renderer.ReactTestRenderer;
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   await Renderer.act(async () => {
-    tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
+    tree.root.findAll(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '결제' &&
       typeof node.props.onPress === 'function')[0].props.onPress();
   });
   await Renderer.act(async () => {
@@ -922,7 +927,7 @@ test('W11 reopens the same paid receipt and shows kitchen ready, then collected'
   try {
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
     await Renderer.act(async () => {
-      tree.root.findAll(node => node.props.accessibilityLabel === '내 결제' &&
+      tree.root.findAll(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '결제' &&
         typeof node.props.onPress === 'function')[0].props.onPress();
     });
     async function tap(label: string) {
@@ -974,6 +979,8 @@ test('K01 mobile filters both catalog pages, retains its cart and browses offlin
   };
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   try {
+    // Nearby shop orders open from the 둘러보기 tab.
+    await Renderer.act(async () => tree.root.find(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === '둘러보기').props.onPress());
     await tap('가까운 매장에서 주문');
     await tap('온라인으로 매장 확인');
     await tap('이 매장 메뉴 열기');
