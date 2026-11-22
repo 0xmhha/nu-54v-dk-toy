@@ -36,7 +36,7 @@ import {importRecoveryTrust} from './recoveryProof.ts';
 import {BoardStepPanel} from './BoardStepPanel.tsx';
 import {DemoWalletHome} from './DemoWalletHome.tsx';
 import {Brand, Chip, KitButton, Section, TabBar, type ButtonVariant} from '../ui/kit.tsx';
-import {color} from '../ui/theme.ts';
+import {color, font} from '../ui/theme.ts';
 import type {BoardWait} from './boardSteps.ts';
 import {importEnrollment, OWNER_GATT, type CommissioningPins, type Enrollment, type OwnerStatus} from './ownerWire.ts';
 
@@ -1590,10 +1590,6 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           t('Android 설정에서 이 앱의 주변 기기 권한을 허용하세요.'))} />
         <Action title={t('개인 기기 검색 다시 시도')} disabled={busy} run={()=>scan()} />
       </>}
-      {stored && (screen==='profiles'||(screen==='owner'&&!homeTabs))&&<Action title={t('매장 주문')} run={orders} disabled={busy} variant="secondary"/>}
-      {(screen==='profiles'||screen==='owner') && !!services.length && <Section title={t('서비스')}>
-        {services.map(service => <Action key={service.label} title={t(service.label)} run={service.run} disabled={busy} variant="row" />)}
-      </Section>}
       {!stored && !message && <Text style={styles.body}>{t('지갑 기록 확인 중')}</Text>}
       {stored && screen === 'profiles' && <>
         <Text style={styles.body}>{language === 'ko' ? '어떤 지갑을 사용할까요?' : 'Which wallet would you like to use?'}</Text>
@@ -2302,6 +2298,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Action testID={recoveryOrigin?'w06-recovery-back':undefined} title={recoveryOrigin?backToRecovery:t('등록 상태로 돌아가기')}
           disabled={busy} run={recoveryOrigin ? returnToRecoveryOptions : ()=>{endRecovery();setScreen('owner');}} />
       </>}
+      {(screen==='profiles'||screen==='owner') && !!services.length && <Section title={t('서비스')}>
+        {services.map(service => <Action key={service.label} title={t(service.label)} run={service.run} disabled={busy} variant="row" />)}
+      </Section>}
     </ScrollView>
   );
   if (screen === 'demo' && demoAllowed) return <DemoWalletHome t={t} close={() => setScreen('owner')} />;
@@ -2329,9 +2328,9 @@ const styles = StyleSheet.create({
   languageRow: {flexDirection: 'row', justifyContent: 'flex-end'},
   pair: {flexDirection: 'row', gap: 10},
   pairItem: {flex: 1},
-  sectionTitle: {fontSize: 20, fontWeight: '700', color: color.ink},
-  title: {fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink},
-  body: {fontSize: 16, lineHeight: 24, color: color.ink},
+  sectionTitle: {fontFamily: font, fontSize: 20, fontWeight: '700', color: color.ink},
+  title: {fontFamily: font, fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink},
+  body: {fontFamily: font, fontSize: 16, lineHeight: 24, color: color.ink},
   mono: {fontFamily: 'monospace', color: color.ink, fontSize: 13, backgroundColor: color.sheet, borderRadius: 8, padding: 10},
   input: {borderWidth: 1, borderColor: '#8fa497', borderRadius: 12, minHeight: 50, padding: 12, color: color.ink, backgroundColor: color.sheet},
   device: {borderWidth: 1, borderColor: color.line, borderRadius: 18, padding: 16, gap: 10, backgroundColor: color.sheet},

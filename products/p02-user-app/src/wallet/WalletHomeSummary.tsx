@@ -4,7 +4,7 @@ import React from 'react';
 import {WalletEducationRateCard} from './WalletEducationRateCard.tsx';
 import {educationRate, stableTestUsdc} from './walletEducationRate.ts';
 import {Pressable, StyleSheet, Text, View, type ViewStyle} from "react-native";
-import {color, radius} from '../ui/theme.ts';
+import {color, radius, font} from '../ui/theme.ts';
 import {accountPreference, assetsForAccount} from './walletCatalog.ts';
 import {defaultReadState, formatReadAmount, observationScope, readProfiles, type ReadProfileState} from './readProfiles.ts';
 
@@ -69,16 +69,16 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
 const styles = StyleSheet.create({
   card: {padding: 20, borderRadius: radius.l, gap: 8, backgroundColor: color.green},
   top: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8},
-  heading: {fontSize: 17, fontWeight: '800', color: color.mint},
-  text: {fontSize: 14, lineHeight: 20, color: color.onGreenSoft},
-  balance: {fontSize: 40, fontWeight: '800', letterSpacing: -1.4, color: '#ffffff', marginVertical: 4},
+  heading: {fontFamily: font, fontSize: 17, fontWeight: '800', color: color.mint},
+  text: {fontFamily: font, fontSize: 14, lineHeight: 20, color: color.onGreenSoft},
+  balance: {fontFamily: font, fontSize: 40, fontWeight: '800', letterSpacing: -1.4, color: '#ffffff', marginVertical: 4},
   link: {flexDirection: 'row', alignItems: 'center', gap: 8},
   dot: {width: 8, height: 8, borderRadius: 4, backgroundColor: color.mint}, dotOff: {backgroundColor: '#e1a3a3'},
   actions: {flexDirection: 'row', gap: 8, marginTop: 8},
   button: {flex: 1, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.m, borderWidth: 1.5,
     borderColor: color.mint, alignItems: 'center', justifyContent: 'center'},
   hide: {minHeight: 44, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: '#2c5c47', justifyContent: 'center'},
-  buttonText: {color: color.onGreen, fontSize: 14, fontWeight: '700', textAlign: 'center'},
+  buttonText: {color: color.onGreen, fontFamily: font, fontSize: 14, fontWeight: '700', textAlign: 'center'},
   pressed: {opacity: 0.8},
   off: {opacity: 0.45},
 });

@@ -1,7 +1,7 @@
 import React, {useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {Brand, KitButton, Section, TabBar} from '../ui/kit.tsx';
-import {color, radius} from '../ui/theme.ts';
+import {color, radius, font} from '../ui/theme.ts';
 import {defaultReadState, observationScope, type ReadProfileState} from './readProfiles.ts';
 import {WalletHomeSummary} from './WalletHomeSummary.tsx';
 
@@ -56,9 +56,9 @@ const styles = StyleSheet.create({
   screen: {flex: 1, gap: 12},
   content: {gap: 12, paddingBottom: 24},
   banner: {backgroundColor: color.amberBg, borderRadius: radius.m, padding: 12, gap: 4},
-  bannerTitle: {fontSize: 15, fontWeight: '800', color: color.amber},
-  bannerText: {fontSize: 13, lineHeight: 19, color: '#5a3b05'},
-  title: {fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink},
+  bannerTitle: {fontFamily: font, fontSize: 15, fontWeight: '800', color: color.amber},
+  bannerText: {fontFamily: font, fontSize: 13, lineHeight: 19, color: '#5a3b05'},
+  title: {fontFamily: font, fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink},
   pair: {flexDirection: 'row', gap: 10},
   pairItem: {flex: 1},
 });

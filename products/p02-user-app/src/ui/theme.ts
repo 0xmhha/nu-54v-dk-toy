@@ -1,6 +1,11 @@
 // Design tokens of the wallet app. Values come from the screen design book
 // (docs/content/commercial/screens/book.css and screens.css) so the app and the book read as one
 // product. Change them there first, then here.
+import {Platform} from 'react-native';
+
+/** Pretendard is bundled on Android (MainApplication registers it); iOS keeps the system font for now. */
+export const font = Platform.OS === 'android' ? 'Pretendard' : undefined;
+
 export const color = {
   ink: '#182d25',      // primary text
   green: '#174b38',    // brand surface, primary action
@@ -20,12 +25,12 @@ export const color = {
 } as const;
 
 export const type = {
-  display: {fontSize: 40, fontWeight: '800' as const, letterSpacing: -1.6, color: color.ink},
-  title: {fontSize: 28, fontWeight: '800' as const, letterSpacing: -0.8, color: color.ink},
-  section: {fontSize: 18, fontWeight: '700' as const, color: color.ink},
-  body: {fontSize: 16, lineHeight: 24, color: color.ink},
-  small: {fontSize: 14, lineHeight: 20, color: color.mute},
-  label: {fontSize: 15, fontWeight: '700' as const, color: color.ink},
+  display: {fontFamily: font, fontSize: 40, fontWeight: '800' as const, letterSpacing: -1.6, color: color.ink},
+  title: {fontFamily: font, fontSize: 28, fontWeight: '800' as const, letterSpacing: -0.8, color: color.ink},
+  section: {fontFamily: font, fontSize: 18, fontWeight: '700' as const, color: color.ink},
+  body: {fontFamily: font, fontSize: 16, lineHeight: 24, color: color.ink},
+  small: {fontFamily: font, fontSize: 14, lineHeight: 20, color: color.mute},
+  label: {fontFamily: font, fontSize: 15, fontWeight: '700' as const, color: color.ink},
 };
 
 export const space = {xs: 4, s: 8, m: 12, l: 16, xl: 24};

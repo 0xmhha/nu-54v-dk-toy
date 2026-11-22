@@ -1,6 +1,6 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle} from 'react-native';
-import {color, radius, space, type} from './theme.ts';
+import {color, font, radius, space, type} from './theme.ts';
 
 // Shared building blocks that carry the design book's look: brand header, status chip, card,
 // label/value row, section label, buttons in three weights and the bottom tab bar.
@@ -62,7 +62,7 @@ export type Tab = {key: string; label: string; run: () => void};
 
 /** Bottom navigation of the mobile app: 지갑 · 결제 · 둘러보기 · 설정, as in the design book. */
 export function TabBar({tabs, current, disabled}: {tabs: Tab[]; current: string; disabled?: boolean}) {
-  return <View style={styles.tabs} accessibilityRole="tablist">
+  return <View style={[styles.tabs, disabled && styles.tabsOff]} accessibilityRole="tablist">
     {tabs.map(tab => {
       const here = tab.key === current;
       return <Pressable key={tab.key} accessibilityRole="tab" accessibilityLabel={tab.label}
@@ -83,34 +83,36 @@ const styles = StyleSheet.create({
   disabled: {opacity: 0.45},
   pressed: {opacity: 0.82},
   buttonBody: {flex: 1, gap: 2},
-  buttonLabel: {fontSize: 16, fontWeight: '700', color: color.green, textAlign: 'center'},
+  buttonLabel: {fontFamily: font, fontSize: 16, fontWeight: '700', color: color.green, textAlign: 'center'},
   primaryLabel: {color: '#ffffff'},
   rowLabel: {color: color.ink, fontWeight: '600', textAlign: 'left'},
-  detail: {fontSize: 13, color: color.mute},
+  detail: {fontFamily: font, fontSize: 13, color: color.mute},
   chevron: {width: 9, height: 9, borderTopWidth: 2, borderRightWidth: 2, borderColor: color.mute, transform: [{rotate: '45deg'}], marginRight: 4},
   brandRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s},
   brand: {flexDirection: 'row', alignItems: 'center', gap: space.s},
   mark: {width: 34, height: 34, borderRadius: 10, backgroundColor: color.green, alignItems: 'center', justifyContent: 'center'},
-  markText: {color: color.mint, fontSize: 20, fontWeight: '900', fontStyle: 'italic', marginTop: -3},
-  brandText: {fontSize: 22, fontWeight: '800', letterSpacing: -0.6, color: color.ink},
+  markText: {color: color.mint, fontFamily: font, fontSize: 20, fontWeight: '900', fontStyle: 'italic', marginTop: -3},
+  brandText: {fontFamily: font, fontSize: 22, fontWeight: '800', letterSpacing: -0.6, color: color.ink},
   chip: {flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7},
   chip_ok: {backgroundColor: color.mint}, chip_wait: {backgroundColor: color.amberBg}, chip_off: {backgroundColor: color.line},
   dot: {width: 7, height: 7, borderRadius: 4},
   dot_ok: {backgroundColor: color.green}, dot_wait: {backgroundColor: color.amber}, dot_off: {backgroundColor: color.mute},
-  chipText: {fontSize: 13, fontWeight: '700'},
+  chipText: {fontFamily: font, fontSize: 13, fontWeight: '700'},
   chipText_ok: {color: color.deep}, chipText_wait: {color: color.amber}, chipText_off: {color: color.ink},
   card: {backgroundColor: color.sheet, borderRadius: radius.l, borderWidth: 1, borderColor: color.line, padding: space.l, gap: space.s},
   cardGreen: {backgroundColor: color.green, borderColor: color.green},
   section: {gap: space.s},
   sectionHead: {flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2},
-  group: {borderRadius: radius.m, overflow: 'hidden', borderWidth: 1, borderColor: color.line, gap: StyleSheet.hairlineWidth,
+  // A 1 px gap over the line color draws the row separators; hairline widths vanish on some densities.
+  group: {borderRadius: radius.m, overflow: 'hidden', borderWidth: 1, borderColor: color.line, gap: 1,
     backgroundColor: color.line},
   kvRow: {flexDirection: 'row', justifyContent: 'space-between', gap: space.m, paddingVertical: 6},
-  rowKey: {fontSize: 15, color: color.mute}, rowValue: {fontSize: 15, fontWeight: '700', color: color.ink, flexShrink: 1, textAlign: 'right'},
+  rowKey: {fontFamily: font, fontSize: 15, color: color.mute}, rowValue: {fontFamily: font, fontSize: 15, fontWeight: '700', color: color.ink, flexShrink: 1, textAlign: 'right'},
+  tabsOff: {opacity: 0.5},
   tabs: {flexDirection: 'row', borderTopWidth: 1, borderTopColor: color.line, backgroundColor: color.sheet, paddingBottom: 6},
   tab: {flex: 1, alignItems: 'center', paddingTop: 10, paddingBottom: 6, gap: 5, minHeight: 56},
   tabMark: {width: 22, height: 4, borderRadius: 2, backgroundColor: 'transparent'},
   tabMarkHere: {backgroundColor: color.green},
-  tabText: {fontSize: 13, color: color.mute, fontWeight: '600'},
+  tabText: {fontFamily: font, fontSize: 13, color: color.mute, fontWeight: '600'},
   tabTextHere: {color: color.green, fontWeight: '800'},
 });

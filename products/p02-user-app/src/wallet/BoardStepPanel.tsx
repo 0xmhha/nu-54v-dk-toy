@@ -1,4 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
+import {font} from '../ui/theme.ts';
 import {AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View} from 'react-native';
 import {boardFlows, boardPosition, boardSteps, boardStepsAhead, type BoardStepId, type BoardWait} from './boardSteps.ts';
 
@@ -87,11 +88,11 @@ function BoardDrawing({step, t}: {step: BoardStepId; t: (ko: string) => string})
   const ledAnimated = a.led === 'wait' || a.led === 'pin' || a.led === 'locate';
   return <View style={styles.board} accessible accessibilityRole="image" accessibilityLabel={label}>
     <View style={styles.module}><Text style={styles.moduleText}>NU-54V</Text></View>
-    <View style={styles.leds}>{[0, 1, 2, 3].map(i => {
+    <View style={styles.leds}><View style={styles.ledRow}>{[0, 1, 2, 3].map(i => {
       const lit = ledAnimated ? (reduced ? 1 : led) : ledOn[i] ? 1 : 0;
       return <View key={i} style={styles.ledSlot}><View style={styles.ledOff} />
         <Animated.View style={[styles.ledOn, {opacity: lit}]} /></View>;
-    })}<Text style={styles.ledText}>LED</Text></View>
+    })}</View><Text style={styles.ledText}>LED</Text></View>
     <View style={styles.buttons}>{order.map(name => {
       const r = role(name);
       const value = r === 'hold' ? hold : r === 'tap' ? tap : r === 'seq' ? (name === 'SW1' ? first : next) : undefined;
@@ -158,26 +159,28 @@ const ink = '#f4f8ed', mint = '#d4efa7', soft = '#cfe0cf', green = '#174b38';
 const styles = StyleSheet.create({
   panel: {backgroundColor: green, borderRadius: 14, padding: 14, gap: 10},
   head: {flexDirection: 'row', justifyContent: 'space-between', gap: 10},
-  headText: {color: mint, fontSize: 13, flexShrink: 1}, headCount: {color: '#fff', fontSize: 13, fontWeight: '700'},
+  headText: {color: mint, fontFamily: font, fontSize: 13, flexShrink: 1}, headCount: {color: '#fff', fontFamily: font, fontSize: 13, fontWeight: '700'},
   track: {flexDirection: 'row', gap: 4}, trackItem: {flex: 1, minWidth: 0},
   bar: {height: 3, borderRadius: 2, backgroundColor: '#8fae99', opacity: 0.55, marginBottom: 6},
   barPast: {backgroundColor: '#9fc98c', opacity: 1}, barNow: {backgroundColor: mint, opacity: 1, height: 5},
   barEnded: {backgroundColor: '#e1a3a3', opacity: 1},
-  trackText: {color: '#b8cfba', fontSize: 11, lineHeight: 14}, trackTextNow: {color: '#fff', fontWeight: '700'},
+  trackText: {color: '#b8cfba', fontFamily: font, fontSize: 11, lineHeight: 14}, trackTextNow: {color: '#fff', fontWeight: '700'},
   now: {flexDirection: 'row', gap: 12, alignItems: 'flex-start'}, nowText: {flex: 1, gap: 6},
-  caption: {color: mint, fontSize: 12, fontWeight: '600'}, doText: {color: '#fff', fontSize: 17, lineHeight: 24},
+  caption: {color: mint, fontFamily: font, fontSize: 12, fontWeight: '600'}, doText: {color: '#fff', fontFamily: font, fontSize: 17, lineHeight: 24},
   key: {flexDirection: 'row', alignItems: 'center', gap: 8},
-  keyName: {backgroundColor: mint, color: '#123a2b', fontWeight: '700', fontSize: 13, borderRadius: 7, paddingHorizontal: 8,
+  keyName: {backgroundColor: mint, color: '#123a2b', fontWeight: '700', fontFamily: font, fontSize: 13, borderRadius: 7, paddingHorizontal: 8,
     paddingVertical: 5, overflow: 'hidden'},
-  keyHow: {color: ink, fontSize: 14, flexShrink: 1},
-  small: {color: soft, fontSize: 13, lineHeight: 19}, pending: {color: '#5a3b05', backgroundColor: '#f6e3bf', borderRadius: 8, padding: 8, fontSize: 13},
+  keyHow: {color: ink, fontFamily: font, fontSize: 14, flexShrink: 1},
+  small: {color: soft, fontFamily: font, fontSize: 13, lineHeight: 19}, pending: {color: '#5a3b05', backgroundColor: '#f6e3bf', borderRadius: 8, padding: 8, fontFamily: font, fontSize: 13},
   ahead: {borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#8fae99', paddingTop: 8, gap: 4},
-  board: {width: 104, borderRadius: 9, backgroundColor: '#0e2a1f', borderWidth: 1.5, borderColor: '#4f7a63', padding: 8, gap: 8},
+  board: {width: 118, borderRadius: 9, backgroundColor: '#0e2a1f', borderWidth: 1.5, borderColor: '#4f7a63', padding: 8, gap: 8},
   module: {width: 46, height: 30, borderRadius: 4, backgroundColor: '#9fb0a6', alignItems: 'center', justifyContent: 'center'},
-  moduleText: {color: '#0e2a1f', fontSize: 8, fontWeight: '700'},
-  leds: {position: 'absolute', left: 8, top: 112, flexDirection: 'row', gap: 4, alignItems: 'center'},
-  ledSlot: {width: 8, height: 5}, ledOff: {position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#4d7563', borderRadius: 1.5},
-  ledOn: {position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: mint, borderRadius: 1.5}, ledText: {color: '#9fb7a6', fontSize: 8, marginLeft: 2},
+  moduleText: {color: '#0e2a1f', fontFamily: font, fontSize: 8, fontWeight: '700'},
+  // LEDs sit left of the button pads, level with SW2 and SW1 as on the board.
+  leds: {position: 'absolute', left: 8, top: 118, gap: 3},
+  ledRow: {flexDirection: 'row', gap: 3},
+  ledSlot: {width: 6, height: 4}, ledOff: {position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#4d7563', borderRadius: 1.5},
+  ledOn: {position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: mint, borderRadius: 1.5}, ledText: {color: '#9fb7a6', fontFamily: font, fontSize: 8, marginLeft: 2},
   buttons: {alignSelf: 'flex-end', gap: 6},
   buttonRow: {flexDirection: 'row', alignItems: 'center', gap: 5},
   pad: {width: 22, height: 22, borderRadius: 4, backgroundColor: '#1d3d30', borderWidth: 1, borderColor: '#5f8a72', alignItems: 'center', justifyContent: 'center'},
@@ -185,10 +188,10 @@ const styles = StyleSheet.create({
   cap: {width: 13, height: 13, borderRadius: 7, backgroundColor: '#5f8a72'},
   capStrong: {backgroundColor: mint}, capAlt: {backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#f3d2d2'},
   capLater: {backgroundColor: 'transparent', borderWidth: 1.5, borderColor: mint, borderStyle: 'dashed'}, capStill: {backgroundColor: '#3c5c4c'},
-  buttonText: {color: soft, fontSize: 10, fontWeight: '700'}, buttonTextStrong: {color: '#fff'},
+  buttonText: {color: soft, fontFamily: font, fontSize: 10, fontWeight: '700'}, buttonTextStrong: {color: '#fff'},
   device: {width: 104, borderRadius: 9, backgroundColor: '#e9f3df', padding: 6, gap: 6, alignItems: 'center'},
   deviceScreen: {alignSelf: 'stretch', backgroundColor: '#fffefa', borderRadius: 4, borderWidth: 2, borderColor: green, padding: 6, gap: 6},
-  deviceRow: {gap: 3}, deviceLabel: {color: '#4f655a', fontSize: 9, fontWeight: '600'},
+  deviceRow: {gap: 3}, deviceLabel: {color: '#4f655a', fontFamily: font, fontSize: 9, fontWeight: '600'},
   deviceLine: {height: 3, borderRadius: 2, backgroundColor: green, width: '80%'},
-  deviceName: {color: '#123a2b', fontSize: 10, fontWeight: '800'},
+  deviceName: {color: '#123a2b', fontFamily: font, fontSize: 10, fontWeight: '800'},
 });
