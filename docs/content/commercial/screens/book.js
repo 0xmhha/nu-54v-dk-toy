@@ -1,46 +1,42 @@
 'use strict';
-const {pages,refs} = JSON.parse(document.querySelector('#book-data').textContent,(_key,value)=>demoValue(value));
+const {pages,refs,products,board} = JSON.parse(document.querySelector('#book-data').textContent,(_key,value)=>demoValue(value));
 const byId = new Map(pages.map(p=>[p.id,p]));
+const productOf = new Map(products.products.flatMap(x=>x.pages.map(id=>[id,x])));
 const main = document.querySelector('main');
-const sections = {
- W:['지갑·보드·클라우드','모바일 지갑','NU Wallet','개인 계정, 자산, 표시와 승인'],
- K:['매장·키오스크','가맹점 단말','여울 커피','매장 주문, POS와 근거리 픽업'],
- T:['여행·예약','모바일 여행','NU Travel','장소 탐색, 예약금과 여행 기록'],
- O:['가맹점 운영','운영 백오피스','NU Merchant','영업 준비, 지급·환불과 마감'],
- L:['테스트 시장','학습 서비스','NU Market','교환과 유동성, 가격과 포지션'],
- X:['체인 영수증','체인 탐색기','NU Explorer','지급 근거, 확정 범위와 재대사'],
- D:['SDK·릴리스','개발·운영 포털','NU Platform','호환성, 설치, 보안과 복구']
-};
 const toneIcon={normal:'○',success:'✓',warning:'◷',blocked:'⊘'};
 const kindLabel={home:'홈',form:'정보 입력',review:'내용 확인',receipt:'결과 상세',list:'목록·탐색',monitor:'상태 조회'};
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function url(target){return '#'+target.replace('#','/');}
 function destination(target){const [id,state='start']=target.split('#');const p=byId.get(id);return p.title+' · '+p.states.find(s=>s.id===state).label;}
 function link(label,target,cls=''){return `<a class="${cls}" href="${esc(url(target))}">${esc(label)}</a>`;}
-function productSurface(p){
- if((p.id.startsWith('L')||p.id.startsWith('W')) && /운영자|관리자|감사자|담당자/.test(p.role))return 'desk';
- if(p.id.startsWith('K') && /개인 폰|고객 폰|개인 장바구니|근거리 고객/.test(p.role+' '+p.title))return 'mobile';
- if(['W','T','L'].includes(p.id[0]))return 'mobile';
- return p.id[0]==='K'?'kiosk':'desk';
-}
+function productSurface(p){return productOf.get(p.id).surface;}
+function boardFlows(p){return [...new Set(p.states.map(s=>board.states[p.id+'#'+s.id]?.[0]).filter(Boolean))];}
+function inScope(p,scope){return !scope||(scope==='hardware'?boardFlows(p).length>0:productOf.get(p.id).id===scope);}
 function choices(q='',scope=''){
  const text=q.trim().toLowerCase();
- return pages.filter(p=>(!scope||p.id[0]===scope)&&(!text||[p.id,p.title,p.role,p.area,...p.refs,...p.states.map(s=>s.label)].join(' ').toLowerCase().includes(text)));
+ return pages.filter(p=>inScope(p,scope)&&(!text||[p.id,p.title,p.role,p.area,...p.refs,...p.states.map(s=>s.label)].join(' ').toLowerCase().includes(text)));
 }
+function tile(p,extra=''){return `<a class="tile" href="${url(p.id)}"><span class="pagecode">${p.id}</span><span><b>${esc(p.title)}</b><small>${esc(extra||p.role)} · ${p.states.length}개 상태</small></span><span class="go">›</span></a>`;}
 function showList(q,scope){
  const items=choices(q,scope);
  const list=document.querySelector('#page-list');
- list.innerHTML=Object.entries(sections).map(([prefix,[name,,,desc]])=>{
-  const found=items.filter(p=>p.id[0]===prefix);
+ const groups=products.products.map(x=>{
+  const found=items.filter(p=>inScope(p,scope)&&productOf.get(p.id).id===x.id&&(scope!=='hardware'));
   if(!found.length)return '';
-  return `<section class="index-section"><div class="listhead"><h2>${esc(name)}</h2><span>${found.length}페이지</span></div><p>${esc(desc)}</p><div class="tiles">${found.map(p=>`<a class="tile" href="${url(p.id)}"><span class="pagecode">${p.id}</span><span><b>${esc(p.title)}</b><small>${esc(p.role)} · ${p.states.length}개 상태</small></span><span class="go">›</span></a>`).join('')}</div></section>`;
- }).join('');
+  return `<section class="index-section"><div class="listhead"><h2>${esc(x.name)}</h2><span>${found.length}페이지</span></div><p>${esc(x.summary)}</p><div class="tiles">${found.map(p=>tile(p)).join('')}</div></section>`;
+ });
+ const hw=items.filter(p=>boardFlows(p).length);
+ const steps=Object.entries(board.steps).filter(([k])=>!['done','failed'].includes(k));
+ if(hw.length&&(!scope||scope==='hardware'))groups.push(`<section class="index-section hardware"><div class="listhead"><h2>${esc(products.hardware.name)}</h2><span>보드 단계를 안내하는 모바일 페이지 ${hw.length}개</span></div><p>${esc(products.hardware.summary)}</p>
+ <ul class="steplegend">${steps.map(([k,v])=>`<li><b>${esc(v.label)}</b><span>${esc(v.do)}</span></li>`).join('')}</ul>
+ <div class="tiles">${hw.map(p=>tile(p,'모바일 앱 표시 · '+boardFlows(p).map(f=>board.flows[f].label).join(', '))).join('')}</div></section>`);
+ list.innerHTML=groups.join('');
  if(!items.length)list.innerHTML='<p class="empty">조건에 맞는 페이지가 없습니다. 다른 기능명이나 제품 ID로 찾아보세요.</p>';
  document.querySelector('#result-count').textContent=items.length+'페이지';
 }
 function indexView(){
  main.innerHTML=`<div class="indexwrap"><header class="indexhero"><div><p class="eyebrow">NU 하드월렛 · 상용 설계</p><h1>페이지별 화면 설계</h1><p>페이지를 열고 사용자 동작과 실패 시 복귀 경로를 따라가세요.</p></div><div class="sum"><strong>${pages.length}</strong><span>페이지</span><strong>${pages.reduce((n,p)=>n+p.states.length,0)}</strong><span>상태</span></div></header>
- <form class="filters" onsubmit="return false"><label>페이지 검색<input id="query" type="search" placeholder="예: 환불, P09.UC4, W10"></label><label>제품 영역<select id="scope"><option value="">전체 영역</option>${Object.entries(sections).map(([k,[n]])=>`<option value="${k}">${esc(n)}</option>`).join('')}</select></label><output id="result-count" aria-live="polite"></output></form><div id="page-list"></div></div>`;
+ <form class="filters" onsubmit="return false"><label>페이지 검색<input id="query" type="search" placeholder="예: 환불, P09.UC4, W10"></label><label>제품<select id="scope"><option value="">전체 제품</option>${products.products.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}<option value="hardware">${esc(products.hardware.name)} 단계</option></select></label><output id="result-count" aria-live="polite"></output></form><div id="page-list"></div></div>`;
  const update=()=>showList(document.querySelector('#query').value,document.querySelector('#scope').value);
  document.querySelector('#query').oninput=update;document.querySelector('#scope').onchange=update;update();
 }
@@ -66,8 +62,25 @@ function fieldList(s){
  if(!s.inputs?.length)return '';
  return `<div class="inputs" aria-label="입력 양식의 고정 예시">${s.inputs.map(([k,v])=>`<label>${esc(k)}<input type="text" value="${esc(v)}" readonly></label>`).join('')}</div>`;
 }
+function boardPanel(p,s){
+ const mark=board.states[p.id+'#'+s.id];
+ if(!mark)return '';
+ const [flowId,stepId]=mark, flow=board.flows[flowId], step=board.steps[stepId];
+ const at=flow.steps.indexOf(stepId), ended=at<0;
+ const status=i=>ended?['ended','요청 종료']:i<at?['past','완료']:i===at?['now','현재']:['next','다음'];
+ const track=flow.steps.map((id,i)=>{const [cls,said]=status(i);return `<li class="${cls}"${i===at?' aria-current="step"':''}><span>${i+1}</span>${esc(board.steps[id].label)}<em class="sr">${said}</em></li>`;}).join('');
+ const keys=step.buttons.map(([b,how])=>`<li><kbd>${esc(b)}</kbd>${esc(how)}</li>`).join('');
+ const later=ended?[]:flow.steps.slice(at+1).filter(id=>board.steps[id].buttons.length);
+ const ahead=later.length?`<div class="bsahead"><strong>이어서 할 일</strong><ul role="list">${later.map(id=>`<li><b>${esc(board.steps[id].label)}</b> ${board.steps[id].buttons.map(([b,how])=>`<kbd>${esc(b)}</kbd>${esc(how)}`).join(' ')}</li>`).join('')}</ul></div>`:'';
+ return `<section class="boardsteps step-${esc(stepId)}" aria-label="하드월렛 진행 단계">
+ <div class="bshead"><span>하드월렛 · ${esc(flow.label)}</span><b>${ended?esc(step.label):`${at+1} / ${flow.steps.length}`}</b></div>
+ <ol class="bstrack" role="list">${track}</ol>
+ <p class="bsdo"><strong>${ended?'결과':'지금 할 일'}</strong>${esc(step.do)}</p>
+ ${keys?`<ul class="bskeys" role="list">${keys}</ul>`:''}${step.led?`<p class="bsled">표시등 · ${esc(step.led)}</p>`:''}
+ <p class="bsapp">${esc(step.app)}</p>${step.pending?`<p class="bspending">${esc(step.pending)}</p>`:''}${ahead}</section>`;
+}
 function appPreview(p,s){
- const group=sections[p.id[0]], device=productSurface(p), tone=s.tone||'normal';
+ const group=[,,productOf.get(p.id).brand], device=productSurface(p), tone=s.tone||'normal';
  const nav=mobileTabs(p,s);
  const actions=(s.actions||[]).filter(([label,target])=>!nav||!tabs.some(([n,t])=>n===label&&t===target.split('#')[0]));
  const protectedReview=p.id==='W10'&&['start','bleReview','repriced'].includes(s.id);
@@ -79,7 +92,7 @@ function appPreview(p,s){
  return `<article class="surface ${device} kind-${p.kind} tone-${tone}" data-page="${p.id}" aria-label="제품 화면">
  <div class="surfacehead"><span class="appword"><span class="mark mini">n</span>${esc(group[2])}</span><span>${esc(p.area)}</span></div>
  <div class="surfacebody"><div class="pageline">${esc(p.title)}</div><span class="condition"><i aria-hidden="true">${toneIcon[tone]}</i> ${esc(s.label)}</span>
- ${identity}<h2 id="screen-title">${esc(s.headline)}</h2>${protectedReview?'':note}${getArtwork(p,s)}${fieldList(s)}
+ ${identity}<h2 id="screen-title">${esc(s.headline)}</h2>${protectedReview?'':note}${boardPanel(p,s)}${getArtwork(p,s)}${fieldList(s)}
  <dl class="fields">${list}</dl>${protectedReview?note:''}
  <div class="actions">${actions.map(([l,t],i)=>link(l,t,i===0?'primary':'secondary')).join('')}</div></div>${nav}</article>`;
 }
@@ -107,7 +120,7 @@ function route(){
  const p=byId.get(id), s=p?.states.find(st=>st.id===state);
  if(!p||!s){main.innerHTML='<section class="indexwrap"><h1>화면을 찾을 수 없습니다</h1><a href="#index">전체 페이지로</a></section>';return;}
  document.title=p.title+' · '+s.label+' | NU';
- main.innerHTML=`<div class="workspace"><header class="context"><div><a href="#index">전체 페이지</a><span> / </span>${esc(sections[p.id[0]][0])}</div><h1>${esc(p.title)}</h1><span class="context-meta">${esc(p.id)} · ${esc(kindLabel[p.kind])} · ${esc(p.role)}</span></header>
+ main.innerHTML=`<div class="workspace"><header class="context"><div><a href="#index">전체 페이지</a><span> / </span>${esc(productOf.get(p.id).name)}</div><h1>${esc(p.title)}</h1><span class="context-meta">${esc(p.id)} · ${esc(kindLabel[p.kind])} · ${esc(p.role)}</span></header>
  <div class="workgrid"><div class="stage">${appPreview(p,s)}</div>${brief(p,s)}</div></div>`;
  document.querySelector('#variant').onchange=e=>{location.hash=url(p.id+'#'+e.target.value);};
 }

@@ -12,7 +12,7 @@ function wallet(){
  <div><div class="caption">주문 S-0142 · 가맹점 요청</div><h1 style="margin-top:6px">결제 내용을 확인하세요</h1></div>
  <div class="box"><div class="row">${square('coffee')}<div><b>여울 커피 성수점</b><p class="caption">검증된 가맹점</p></div></div><div class="sep" style="margin:14px 0"></div>${amount('6.50','samount')}</div>
  <div>${pair('네트워크','StableNet · 8283') }${pair('수령 주소','0x62c9…8e41　›') }${pair('가스 비용','매장 부담') }${pair('결제 원천','대여 지갑 예치금')}</div>
- ${topgap}<div class="securepanel"><div class="row">${square('chip')}<div><small>실물 승인 대기</small><strong>보드의 SW1을 누르세요</strong></div></div><p class="small" style="margin-top:9px">금액과 받는 곳이 맞으면 승인하세요.<br>보드에서 거절하려면 SW2를 누르세요.</p></div>
+ ${topgap}<div class="securepanel"><div class="row">${square('chip')}<div><small>하드월렛 · 2 / 4 보드 승인</small><strong>독립 표시와 같으면 SW1</strong></div></div><p class="small" style="margin-top:9px">금액과 받는 곳은 독립 표시 장치에서 대조하세요.<br>다르면 SW2로 거절합니다. 승인 뒤 보드에서 PIN을 입력해요.</p></div>
  ${btn('이 요청 거절','outline wide','close')}`);
  const pickup=phone(`${bar('주문 상세',badge('테스트넷'))}<div>${badge('결제 확정','mint','check')}<h1 style="margin-top:10px">주문을 접수했어요</h1></div>
  <div class="ticket"><b>내 픽업 번호</b><div class="bignum">A17</div><span>여울 커피 성수점</span></div>
