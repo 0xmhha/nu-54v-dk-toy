@@ -51,4 +51,7 @@ int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works);
 /* Remove every bond (device.reset). Safe before Bluetooth is up. */
 int ble_links_unpair_all(void);
 
+/* Bonds in the default identity, or -1 before Bluetooth is ready. */
+int ble_links_bond_count(void);
+
 #endif /* BLE_LINKS_H */

@@ -27,6 +27,13 @@ typedef struct {
 
 int nu54_owner_status(const nu54_vault *, const nu54_owner_crypto *, const nu54_owner_enrollment *,
 		      uint8_t [NU54_OWNER_STATUS_SIZE]);
+
+/* Status byte 4: bit 0 is the backup flag; bit 1 reports an empty legacy BLE bond store. Commercial
+ * owner phones never bond (owner authority is the C1 TLS generation), so the board clears every
+ * legacy bond and reports here that none is left for a previous phone. */
+#define NU54_OWNER_STATUS_BACKUP 0x01
+#define NU54_OWNER_STATUS_BONDS_CLEAR 0x02
+void nu54_owner_status_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE], bool clear);
 int nu54_owner_begin(nu54_owner_enrollment *, const nu54_vault *, const nu54_owner_crypto *,
 		     const nu54_v2_link *, const nu54_v2_request *, uint64_t now, const uint8_t enrollment_peer[32]);
 int nu54_owner_begin_lost(nu54_owner_enrollment *, const nu54_vault *, const nu54_owner_crypto *,

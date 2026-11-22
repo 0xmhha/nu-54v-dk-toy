@@ -12,7 +12,7 @@ const mockRecoveryCloudRequest=jest.fn(),mockScanOwner=jest.fn();
 jest.mock('../src/specs/NativeCloudWalletProfile.ts',()=>({__esModule:true,default:{
  profile:async()=>mockRecoveryCloudProfile,request:(...args: unknown[])=>mockRecoveryCloudRequest(...args),
 }}));
-let mockStored='',mockBackupReady=false,mockBackupUnavailable=false,mockVerify='committed',mockReverse=false;
+let mockStored='',mockBackupReady=false,mockBackupUnavailable=false,mockVerify='committed',mockReverse=false,mockBondsClear=false;
 const mockConnect=jest.fn(),mockRegister=jest.fn(),mockVerifyLost=jest.fn(),mockBeginRecovery=jest.fn();
 const initialPlatform=Platform.OS;afterAll(()=>Object.defineProperty(Platform,'OS',{value:initialPlatform,configurable:true}));
 const mockDevice='34'.repeat(32),mockOwner='ab'.repeat(32),mockAddress='0x'+'12'.repeat(20);
@@ -28,7 +28,7 @@ jest.mock('../src/wallet/ownerSession.ts',()=>({OwnerSession:class {
  async register(confirm:()=>void){mockRegister();confirm();return this.status();}
  async backedUpAddress(){return mockAddress;}
  async beginBackup(){if(mockBackupUnavailable)throw Error('BACKUP_UNAVAILABLE');return{requestId:'56'.repeat(16),expires:'9999999999',checkpoint:{device:mockDevice,owner:mockOwner,generation:'1'}};}async checkBackup(){return mockBackupReady?{verified:true,address:mockAddress,status:await this.status()}:{verified:false};}
- async verifyLostPhone(){mockVerifyLost();if(mockVerify==='not-committed')throw Error('OWNER_REPLACEMENT_NOT_COMMITTED');return{state:'active',device:mockDevice,owner:mockOwner,generation:2n,root:2,profile:1,backedUp:true};}
+ async verifyLostPhone(){mockVerifyLost();if(mockVerify==='not-committed')throw Error('OWNER_REPLACEMENT_NOT_COMMITTED');return{state:'active',device:mockDevice,owner:mockOwner,generation:2n,root:2,profile:1,backedUp:true,legacyBondsClear:mockBondsClear};}
 }}));
 const profile=()=>({version:2,exercised:true,mode:'personal',verified:{boardFingerprint:mockDevice,address:mockAddress,generation:1,network:'8283'},
  enrollment:{version:2,device:mockDevice,boardSPKI:'24'.repeat(32),ca:'MA==',certificateChain:['MA==']}});
@@ -83,14 +83,17 @@ test('W05 unsupported recovery stays locked on restart and retry uses the enroll
  }finally{mockBackupUnavailable=false;await Renderer.act(async()=>tree?.unmount());}
 });
 
-test.each(['ios','android'] as const)('W06 %s resumes generation change and preserves the original address',async platform=>{
- Object.defineProperty(Platform,'OS',{value:platform,configurable:true});mockBackupReady=true;mockVerify='committed';mockVerifyLost.mockClear();
+test.each([['ios',false],['android',false],['ios',true],['android',true]] as const)('W06 %s resumes generation change and preserves the original address (bond store empty: %s)',async(platform,bondsClear)=>{
+ Object.defineProperty(Platform,'OS',{value:platform,configurable:true});mockBackupReady=true;mockVerify='committed';mockBondsClear=bondsClear;mockVerifyLost.mockClear();
  mockStored=JSON.stringify({...profile(),phoneReplacement:{device:mockDevice,replacement:mockOwner,generation:'1',address:mockAddress}});
  let tree:Renderer.ReactTestRenderer;const app=<WalletHome permission={async()=>true} honorExistingRental={false} rental={()=>{}} orders={()=>{}}/>;
  try{await Renderer.act(async()=>{tree=Renderer.create(app);});await tap(tree!,'개인 기기 찾기');await tap(tree!,'교체 후 보드 상태 확인',1);
   expect(mockVerifyLost).toHaveBeenCalledTimes(1);const saved=JSON.parse(mockStored);expect(saved.verified).toMatchObject({address:mockAddress,generation:2,boardFingerprint:mockDevice});expect(saved.phoneReplacement).toBeUndefined();
-  expect(JSON.stringify(tree!.toJSON())).toContain('이전 휴대전화의 BLE 연결 기록은 아직 확인하지 못했습니다.');
- }finally{await Renderer.act(async()=>tree?.unmount());}
+  const screen=JSON.stringify(tree!.toJSON());
+  // The board reports an empty legacy bond store only after it removed every bond.
+  expect(screen).toContain(bondsClear ? '보드에 남은 이전 휴대전화의 BLE 연결 기록이 없습니다.' : '이전 휴대전화의 BLE 연결 기록은 아직 확인하지 못했습니다.');
+  expect(screen).not.toContain(bondsClear ? '아직 확인하지 못했습니다' : '연결 기록이 없습니다');
+ }finally{await Renderer.act(async()=>{mockBondsClear=false;tree?.unmount();});}
 });
 
 test('W06 pre-commit interruption keeps old owner and offers a fresh explicit recovery',async()=>{

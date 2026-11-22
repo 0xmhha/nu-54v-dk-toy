@@ -89,3 +89,9 @@ statement from that challenge, the in-person one-time owner session binding
 and independently verified policy or grant fields. A registered display key
 signs those exact bytes before the board enables its physical approval
 prompt. [Independent display handoff](../../../products/p01-device-firmware/W27-RECONCILIATION-DESIGN.md#independent-display-handoff)
+
+## Owner state reply
+
+Operation 3 and a confirmed owner change return a 77-byte state: version `3`, state (`0` new, `1` active, `2` pending, `3` revoked), root format, root profile version, a flag byte, the generation as an 8-byte big-endian integer, the SHA-256 of the device identity, and the current owner identity.
+
+Bit 0 of the flag byte is the backup flag. Bit 1 reports that the board holds no legacy BLE bond. Commercial owner phones never bond, because the C1 TLS generation identifies the owner and the owner service requires no link encryption. Every legacy bond therefore predates commercial mode. A commercial board removes all of them at boot and after each confirmed owner change, then reads the bond store again for this bit. A reader rejects any other flag bit. Apps that accept only `0` and `1` in this byte must be updated before boards report bit 1.

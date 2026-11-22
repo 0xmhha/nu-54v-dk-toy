@@ -194,6 +194,16 @@ int main(void)
 	assert(nu54_vault_revoke(&vault, 0, link.peer_identity) < 0);
 	assert(nu54_vault_revoke(&vault, 1, link.peer_identity) == 0 && vault.record.generation == 2);
 	assert(nu54_owner_status(&vault, &crypto, &enrollment, status) == 0 && status[1] == 3 && status[12] == 2);
+	/* The bond flag keeps the backup bit, sets or clears only bit 1, and leaves other bytes alone. */
+	uint8_t flagged[NU54_OWNER_STATUS_SIZE];
+	for (uint8_t backup = 0; backup < 2; backup++) {
+		status[4] = backup;
+		memcpy(flagged, status, sizeof(flagged));
+		nu54_owner_status_bonds(flagged, true);
+		assert(flagged[4] == (backup | NU54_OWNER_STATUS_BONDS_CLEAR));
+		nu54_owner_status_bonds(flagged, false);
+		assert(memcmp(flagged, status, sizeof(flagged)) == 0);
+	}
 	EVP_MD_CTX_free(sign);
 	EVP_PKEY_free(owner);
 	return 0;

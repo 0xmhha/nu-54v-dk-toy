@@ -491,6 +491,20 @@ int ble_links_unpair_all(void)
 	return bt_is_ready() ? bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY) : 0;
 }
 
+static void count_bond(const struct bt_bond_info *info, void *data)
+{
+	(void)info;
+	(*(int *)data)++;
+}
+
+int ble_links_bond_count(void)
+{
+	int n = 0;
+	if (!bt_is_ready()) return -1;
+	bt_foreach_bond(BT_ID_DEFAULT, count_bond, &n);
+	return n;
+}
+
 /* ---------------------------------------------------------------- framing out */
 
 int ble_links_send_epoch(int i, uint64_t expected_epoch, const uint8_t *body, size_t len)

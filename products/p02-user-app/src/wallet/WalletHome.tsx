@@ -593,7 +593,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         setRecoveryOrigin(undefined);
         setScreen('owner');
         setMessage(t('새 소유자 세대와 그대로 유지된 지갑 주소를 확인했습니다.') + ' ' +
-          t('이전 휴대전화의 BLE 연결 기록은 아직 확인하지 못했습니다.'));
+          t(checked.legacyBondsClear
+            ? '보드에 남은 이전 휴대전화의 BLE 연결 기록이 없습니다.'
+            : '이전 휴대전화의 BLE 연결 기록은 아직 확인하지 못했습니다.'));
       } catch (error) {
         if (!(error instanceof Error) || error.message !== 'OWNER_REPLACEMENT_NOT_COMMITTED') throw error;
         await save({...stored,phoneReplacement:undefined});

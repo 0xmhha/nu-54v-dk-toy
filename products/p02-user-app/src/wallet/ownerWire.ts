@@ -14,6 +14,8 @@ export type OwnerStatus = {
   root: number;
   profile: number;
   backedUp: boolean;
+  /** Status byte 4 bit 1: the board holds no legacy BLE bond, so no previous phone keeps one. */
+  legacyBondsClear?: boolean;
 };
 
 export type Enrollment = {
@@ -54,10 +56,10 @@ export function importEnrollment(raw: string, independentDevice: string, indepen
 
 export function readStatus(payload: Uint8Array, device: string): OwnerStatus {
   const states = ['new', 'active', 'pending', 'revoked'] as const;
-  if (payload.length !== 77 || payload[0] !== 3 || !states[payload[1]] || payload[4] > 1 ||
+  if (payload.length !== 77 || payload[0] !== 3 || !states[payload[1]] || payload[4] > 3 ||
       bytesToHex(payload.subarray(13,45), false) !== device) throw new Error('OWNER_BINDING');
   return {
-    state: states[payload[1]], root: payload[2], profile: payload[3], backedUp: payload[4]===1,
+    state: states[payload[1]], root: payload[2], profile: payload[3], backedUp: payload[4] % 2===1, legacyBondsClear: payload[4] >= 2,
     generation: bytesToBig(payload.subarray(5,13)), device, owner: bytesToHex(payload.subarray(45), false),
   };
 }

@@ -42,6 +42,11 @@ int nu54_owner_status(const nu54_vault *vault, const nu54_owner_crypto *crypto,
 	return 0;
 }
 
+void nu54_owner_status_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE], bool clear)
+{
+	status[4] = (uint8_t)((status[4] & NU54_OWNER_STATUS_BACKUP) | (clear ? NU54_OWNER_STATUS_BONDS_CLEAR : 0));
+}
+
 static int begin(nu54_owner_enrollment *enrollment, const nu54_vault *vault, const nu54_owner_crypto *crypto,
 		     const nu54_v2_link *link, const nu54_v2_request *request, uint64_t now,
 		     const uint8_t enrollment_peer[32], bool lost)

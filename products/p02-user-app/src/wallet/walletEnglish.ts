@@ -221,6 +221,7 @@ export const english: Record<string,string> = {
   '새 휴대전화 키 증명':'Prove the new phone key',
   '교체 후 보드 상태 확인':'Check the board after replacement',
   '이전 휴대전화의 BLE 연결 기록은 아직 확인하지 못했습니다.':'The previous phone’s Bluetooth pairing status is still unverified.',
+  '보드에 남은 이전 휴대전화의 BLE 연결 기록이 없습니다.':'The board keeps no Bluetooth pairing from the previous phone.',
   '독립 복구 장치에 요청을 전달할 준비를 하세요.':'Prepare to share the request with the independent recovery device.',
   '원래 보드에서 SW3을 길게 누른 뒤 다시 연결하세요.':'Hold SW3 on the original board, then reconnect.',
   '등록된 독립 장치에서 확인한 뒤 보드에서 SW1을 누르고 PIN을 입력하세요.':'Confirm on the registered recovery device, then press SW1 and enter the PIN on the board.',

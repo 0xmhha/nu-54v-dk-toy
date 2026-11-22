@@ -418,6 +418,20 @@ static int load_refusal(void *context, unsigned slot, nu54_pilot_refusal *out)
 	return read == PSA_SUCCESS && used == sizeof(*out) ? 0 : -1;
 }
 
+/* Commercial owner phones never bond: the owner is the C1 TLS generation and the owner service needs
+ * no link encryption. Every bond in the legacy store therefore predates commercial mode, so the
+ * board removes all of them at boot and at each owner change, and the owner status reports whether
+ * the store is empty. A failed removal is retried at the next owner change or boot. */
+static void clear_legacy_bonds(void)
+{
+	(void)ble_links_unpair_all();
+}
+
+static void report_legacy_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE])
+{
+	nu54_owner_status_bonds(status, ble_links_bond_count() == 0);
+}
+
 static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_policy *policy)
 {
 	nu54_vault *vault = device_vault_owner();
@@ -865,6 +879,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 #if defined(CONFIG_NU54_HD_RECOVERY)
 		device_hd_public_status(status);
 #endif
+		report_legacy_bonds(status); /* after the HD status, which rewrites byte 4 */
 	}
 	request->command = NU54_V2_REPLY;
 	request->payload = response;
@@ -1323,7 +1338,11 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		if (link.pending_expiry <= now ||
 		    nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) goto failed;
 		uint8_t status[NU54_OWNER_STATUS_SIZE];
+		/* The owner changed: no bond may outlive the previous owner phone. This runs on the TLS
+		 * work item, off the Bluetooth thread, and the phone in session holds no bond. */
+		clear_legacy_bonds();
 		if (nu54_owner_status(vault, &owner_crypto, &enrollment, status)) goto failed;
+		report_legacy_bonds(status);
 		nu54_v2_request reply = {.command = NU54_V2_REPLY, .expires = link.pending_expiry,
 			.payload = status, .payload_length = sizeof(status)};
 		memcpy(reply.id, link.pending_id, sizeof(reply.id));
@@ -1442,7 +1461,9 @@ void device_pilot_init(void)
 	mbedtls_ssl_init(&tls);
 	k_work_init_delayable(&worker, poll_tls);
 	initialized = device_install_init() == 0;
-	/* Owner TLS generations do not identify ACL entries in the legacy BLE bond store. */
+	/* Bluetooth and its bond settings are loaded before this runs (pay_link_init). A commercial
+	 * board keeps no legacy bond, including one a power cut left behind after an owner change. */
+	if (initialized && device_pilot_active()) clear_legacy_bonds();
 }
 
 static ssize_t receive_bytes(struct bt_conn *conn, const struct bt_gatt_attr *attribute,
