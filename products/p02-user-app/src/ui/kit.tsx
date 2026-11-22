@@ -80,7 +80,8 @@ export function TabBar({tabs, current, disabled}: {tabs: Tab[]; current: string;
       return <Pressable key={tab.key} accessibilityRole="tab" accessibilityLabel={tab.label}
         accessibilityState={{selected: here, disabled}} disabled={disabled} onPress={tab.run} style={styles.tab}>
         <View style={[styles.tabMark, here && styles.tabMarkHere]} />
-        <TabIcon name={tab.key} active={here} />
+        {/* A fixed 24x24 box keeps every label on one baseline whatever the icon's own height. */}
+        <View style={iconStyles.frame}><TabIcon name={tab.key} active={here} /></View>
         <Text style={[styles.tabText, here && styles.tabTextHere]}>{tab.label}</Text>
       </Pressable>;
     })}
@@ -131,6 +132,7 @@ const styles = StyleSheet.create({
 });
 
 const iconStyles = StyleSheet.create({
+  frame: {width: 24, height: 24, alignItems: 'center', justifyContent: 'center'},
   box: {width: 22, height: 17, justifyContent: 'center'},
   clasp: {position: 'absolute', right: 2, width: 7, height: 6, borderWidth: 2, borderRadius: 2},
   stripe: {height: 3, marginHorizontal: 0, marginTop: -3},
