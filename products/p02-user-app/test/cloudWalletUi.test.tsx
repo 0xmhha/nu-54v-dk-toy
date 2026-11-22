@@ -385,7 +385,7 @@ test('leaves rejected isolated market binding visible in the authenticated choos
     expect(binding).toHaveBeenCalledWith(expect.objectContaining({
       owner:bob.subject,account:expect.objectContaining({id:bob.wallet,address:marketAddress,profile:marketProfile}),
     }));
-    expect(JSON.stringify(tree!.toJSON())).toContain('현재 배포와 일치하는 승인된 P03 학습 지갑을 선택하세요.');
+    expect(JSON.stringify(tree!.toJSON())).toContain('현재 배포와 일치하는 승인된 클라우드 학습 지갑을 선택하세요.');
     expect(action('이 클라우드 지갑을 격리 시장에 연결').props.disabled).toBe(false);
   } finally {
     offerMarketAccount=false;

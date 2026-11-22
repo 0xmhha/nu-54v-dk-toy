@@ -461,7 +461,7 @@ export function CloudWalletScreen({profile, back, backLabel, selectMarket, recov
       <Action title="이 클라우드 지갑을 격리 시장에 연결" disabled={busy}
         run={()=>perform(async()=>{
           try { await selectMarket({client,token,owner:subject,account}); }
-          catch { setNotice('현재 배포와 일치하는 승인된 P03 학습 지갑을 선택하세요.'); }
+          catch { setNotice('현재 배포와 일치하는 승인된 클라우드 학습 지갑을 선택하세요.'); }
         })}/>}
     <Action title={backLabel ?? "지갑 선택"} run={backLabel ? back : ()=>perform(async()=>{await clearSession();back();})} disabled={busy}/>
     {notice&&<Text accessibilityLiveRegion="polite">{notice}</Text>}

@@ -64,15 +64,15 @@ test('selects a registered board account from the ordinary market chooser withou
     await ReactTestRenderer.act(async()=>{
       control('학습 배포 블록 해시','onChangeText').props.onChangeText(mockProfile.deploymentHash);
     });
-    await press('P01 격리 하드웨어 지갑 선택');
+    await press('격리된 하드월렛 선택');
     await press('보드 선택 취소');
     expect(mockReadBoard).not.toHaveBeenCalled();
-    await press('P01 격리 하드웨어 지갑 선택');
-    await press('P01 보드 후보 1 확인');
+    await press('격리된 하드월렛 선택');
+    await press('하드월렛 보드 후보 1 확인');
     expect(mockReadBoard).toHaveBeenCalledWith('owned-board');
     expect(mockSave).toHaveBeenCalledTimes(1);
     expect(JSON.parse(mockSave.mock.calls[0][1])).toEqual({user:mockBoard.user,profile:mockProfile,positions:[],board:mockBoard});
-    expect(JSON.stringify(view!.toJSON())).toContain('P01 보드 학습 계정 · 독립 화면과 기기 승인 필요');
+    expect(JSON.stringify(view!.toJSON())).toContain('하드월렛 학습 계정 · 독립 화면과 기기 승인 필요');
   } finally {
     await ReactTestRenderer.act(async()=>view?.unmount());
   }

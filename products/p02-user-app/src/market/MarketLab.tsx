@@ -599,38 +599,38 @@ export function MarketLab({back, permission, openTravel}: {
       <Text>로컬 학습 배포의 블록 해시를 확인해 앱에서 전용 지갑을 만듭니다.</Text>
       <TextInput accessibilityLabel="학습 배포 블록 해시" placeholder="학습 배포 블록 해시" value={pin} onChangeText={setPin}
         autoCapitalize="none" autoCorrect={false} maxLength={66} editable={!busy} style={styles.input} />
-      <Action label="P03 격리 학습 지갑 선택" disabled={busy || !validHash(pin)}
-        run={()=>work(pickCloud,'이 앱에는 격리 P03 등록 프로필이 없습니다.')} />
-      <Action label="P01 격리 하드웨어 지갑 선택" disabled={busy || !validHash(pin)}
-        run={()=>work(pickBoard,'등록된 P01 보드와 블루투스 권한을 확인하세요.')} />
+      <Action label="격리된 클라우드 학습 지갑 선택" disabled={busy || !validHash(pin)}
+        run={()=>work(pickCloud,'이 앱에는 격리된 클라우드 지갑 등록 정보이 없습니다.')} />
+      <Action label="격리된 하드월렛 선택" disabled={busy || !validHash(pin)}
+        run={()=>work(pickBoard,'등록된 하드월렛 보드와 블루투스 권한을 확인하세요.')} />
       <Action label="격리 학습 지갑 만들기" disabled={busy || !validHash(pin)}
         run={() => work(connect,'배포 해시와 승인된 학습 시장 연결을 확인하세요.')} />
     </>}
-    {boardOptions.map((handle,index)=><Action key={handle} label={`P01 보드 후보 ${index+1} 확인`} disabled={busy}
+    {boardOptions.map((handle,index)=><Action key={handle} label={`하드월렛 보드 후보 ${index+1} 확인`} disabled={busy}
       run={()=>work(()=>attachBoard(handle),'독립 등록과 일치하는 보드를 확인할 수 없습니다.')} />)}
     {boardOptions.length>0 && <Action label="보드 선택 취소" disabled={busy} run={()=>setBoardOptions([])} />}
     {session && <>
       <Text selectable accessibilityLabel={'전용 학습 지갑 ' + user}>전용 학습 지갑 {user}</Text>
       {session.board && <>
-        <Text>P01 보드 학습 계정 · 독립 화면과 기기 승인 필요</Text>
-        <Action label="등록 P01 보드 다시 연결" disabled={busy} run={()=>work(pickBoard,'등록된 P01 보드를 찾을 수 없습니다.')} />
+        <Text>하드월렛 학습 계정 · 독립 화면과 기기 승인 필요</Text>
+        <Action label="등록한 하드월렛 보드 다시 연결" disabled={busy} run={()=>work(pickBoard,'등록된 하드월렛 보드를 찾을 수 없습니다.')} />
       </>}
       {session.cloud && <>
-        <Text>P03 두 참여자 공동 서명 · 독립 승인 필요</Text>
-        <Action label="P03 로그인 확인" disabled={busy} run={()=>work(pickCloud,'독립 P03 프로필을 읽을 수 없습니다.')} />
+        <Text>클라우드 지갑 두 참여자 공동 서명 · 독립 승인 필요</Text>
+        <Action label="클라우드 지갑 로그인 확인" disabled={busy} run={()=>work(pickCloud,'독립 클라우드 지갑 정보을 읽을 수 없습니다.')} />
       </>}
       {threshold && <View style={styles.card}>
         <Text>P03 승인 요청 {threshold.request.id}</Text>
-        <Action label={cloudFlow ? '독립 승인 결과 가져오기' : cloudOp?.state==='reserved' ? '독립 승인 열기' : 'P03 원래 요청 조회'}
-          disabled={busy || !cloudAuth} run={()=>work(advanceThreshold,'P03의 원래 요청을 확인하세요.')} />
-        {!cloudFlow && !cloudOp && cloudAuth && <Action label="같은 P03 요청 다시 제출" disabled={busy}
+        <Action label={cloudFlow ? '독립 승인 결과 가져오기' : cloudOp?.state==='reserved' ? '독립 승인 열기' : '클라우드 지갑 원래 요청 조회'}
+          disabled={busy || !cloudAuth} run={()=>work(advanceThreshold,'클라우드 지갑의 원래 요청을 확인하세요.')} />
+        {!cloudFlow && !cloudOp && cloudAuth && <Action label="같은 클라우드 지갑 요청 다시 제출" disabled={busy}
           run={()=>work(async()=>{
             const auth=await liveCloud();
             const offer = threshold.request.transfer?.market?.offer;
             if (!offer) throw new Error('LAB_CLOUD_ORDER');
             await requireDispatchOffer(session.profile,offer,threshold.fundingAt);
             await acceptThreshold(await auth.client.reserve(auth.token,threshold.request));
-          },'기존 P03 요청을 다시 확인할 수 없습니다.')} />}
+          },'기존 클라우드 지갑 요청을 다시 확인할 수 없습니다.')} />}
       </View>}
       <Action label="가격과 잔액 확인" disabled={busy} run={() => work(refresh,'학습 환경과 잔액을 확인할 수 없습니다.')} />
       {snapshot && !positionStale && <View style={styles.card}>
