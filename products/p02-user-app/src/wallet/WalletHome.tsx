@@ -1754,7 +1754,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           },language === 'ko' ? '설치 확인이 만료됐거나 기기가 재부팅되었습니다. 요청을 취소하고 다시 시작하세요.' : 'Installation confirmation expired or the device rebooted. Cancel the request and start again.')} />
         </>}
         {!!stored.installation && <Action title={language === 'ko' ? '설치 요청 취소' : 'Cancel installation request'} disabled={busy} run={() => work(()=>save({...stored,installation:undefined}),language === 'ko' ? '설치 요청을 취소할 수 없습니다.' : 'Could not cancel the installation request.')} />}
-        <Action title={language === 'ko' ? '지갑 선택으로' : 'Back to wallet selection'} run={() => setScreen('profiles')} />
+        <Action variant="secondary" title={language === 'ko' ? '지갑 선택으로' : 'Back to wallet selection'} run={() => setScreen('profiles')} />
       </>}
       {stored && isOwner && <>
         {isPersonal && stored.verified && <WalletHomeSummary owner={stored.verified} state={stored.walletRead} language={language} active={homeActive}

@@ -19,9 +19,9 @@ import { WalletHome } from './wallet/WalletHome.tsx';
 import {readCommissioningQr, type CommissioningPins} from './wallet/ownerWire.ts';
 import { CustomerOrders } from './merchant/CustomerOrders.tsx';
 import {MarketLab} from './market/MarketLab.tsx';
-import {color} from './ui/theme.ts';
+import {color, font} from './ui/theme.ts';
 import {ExploreHome} from './explore/ExploreHome.tsx';
-import {TabBar} from './ui/kit.tsx';
+import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
 import { TravelHome, type TravelBookingScope } from './travel/TravelHome.tsx';
 
 const OUTCOME_TEXT: Record<string, string> = {
@@ -408,13 +408,8 @@ function Receipt({ receipt: r, txHash }: { receipt: DigitalReceipt; txHash?: str
   );
 }
 
-function Button({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{disabled: !!disabled}}
-      style={[styles.button, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
-      <Text style={styles.buttonText}>{label}</Text>
-    </Pressable>
-  );
+function Button({ label, onPress, disabled, variant = 'primary' }: { label: string; onPress: () => void; disabled?: boolean; variant?: ButtonVariant }) {
+  return <View style={styles.buttonGap}><KitButton label={label} run={onPress} disabled={disabled} variant={variant} /></View>;
 }
 
 export default function App() {
@@ -558,6 +553,24 @@ export default function App() {
   // Tabs stay out of rental mode, practice and the secure wallet subflows that hide navigation.
   const showTabs = !renting && !practicing;
   useEffect(() => {
+    // Travel and the learning market opened from the explore tab have no Back handling of their own:
+    // Back returns to the explore page, or to payments for a booking opened from there.
+    if (!showTabs || !(travel || marketLab) || exploreService || marketTravel) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (travel && travelBooking) { closeTravel(); return true; }
+      closeOverlays(); setExploring(true); return true;
+    });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTabs, travel, marketLab, exploreService, marketTravel, travelBooking]);
+  useEffect(() => {
+    // In the rental (trial) screens system Back returns to the wallet choice instead of leaving the app.
+    if (!renting) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { profiles(); return true; });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renting]);
+  useEffect(() => {
     // On the payments and explore tabs' first pages, system Back returns to the wallet tab instead of leaving the app.
     if (!showTabs || !(shopping || exploring)) return;
     const listener = BackHandler.addEventListener('hardwareBackPress', () => { closeOverlays(); requestWallet('owner'); return true; });
@@ -572,7 +585,7 @@ export default function App() {
         {shopping ? <CustomerOrders tabbed={showTabs} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
-          <Button label="지갑 프로필 선택" onPress={profiles} />
+          <Button label="지갑 프로필 선택" onPress={profiles} variant="secondary" />
           <Renter />
         </View> : marketLab ? <View style={styles.home}>
           <View style={marketTravel ? styles.hidden : styles.home} accessibilityElementsHidden={marketTravel}
@@ -612,38 +625,37 @@ export default function App() {
   );
 }
 
+// Rental (trial) screens use the same tokens and typeface as the wallet.
 const styles = StyleSheet.create({
   home: { flex: 1 },
   hidden: { display: 'none' },
   root: { flex: 1, backgroundColor: color.ground },
   page: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
-  title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
-  body: { fontSize: 17, color: '#333', marginBottom: 12 },
-  hint: { fontSize: 15, color: '#666', marginTop: 12 },
-  label: { fontSize: 14, color: '#666', marginTop: 12 },
-  value: { fontSize: 20, color: '#111' },
-  amount: { fontSize: 36, fontWeight: '600', color: '#111' },
-  mono: { fontSize: 15, color: '#111', fontFamily: 'monospace' },
-  cta: { fontSize: 22, fontWeight: '600', color: '#1b4fa0', marginTop: 28 },
-  error: { fontSize: 14, color: '#b00020', marginBottom: 12 },
-  input: { fontSize: 15, borderBottomWidth: 1, borderColor: '#333', paddingVertical: 8, marginBottom: 16, color: '#111' },
-  button: { backgroundColor: '#111', paddingVertical: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  disabled: { backgroundColor: '#999' },
-  paper: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginTop: 8 },
-  store: { fontSize: 22, fontWeight: '700', color: '#111' },
-  small: { fontSize: 13, color: '#555', marginTop: 2 },
-  rule: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#999', marginVertical: 8 },
+  buttonGap: { marginTop: 8 },
+  title: { fontFamily: font, fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink, marginVertical: 12 },
+  body: { fontFamily: font, fontSize: 16, lineHeight: 24, color: color.ink, marginBottom: 12 },
+  hint: { fontFamily: font, fontSize: 14, lineHeight: 20, color: color.mute, marginTop: 12 },
+  label: { fontFamily: font, fontSize: 14, color: color.mute, marginTop: 12 },
+  value: { fontFamily: font, fontSize: 20, fontWeight: '700', color: color.ink },
+  amount: { fontFamily: font, fontSize: 36, fontWeight: '800', letterSpacing: -1.2, color: color.ink },
+  mono: { fontSize: 14, color: color.ink, fontFamily: 'monospace' },
+  cta: { fontFamily: font, fontSize: 20, fontWeight: '800', color: color.green, marginTop: 28 },
+  error: { fontFamily: font, fontSize: 15, color: color.danger, marginBottom: 12 },
+  input: { fontFamily: font, fontSize: 16, borderWidth: 1, borderColor: '#8fa497', borderRadius: 12, padding: 12, minHeight: 50, marginBottom: 16, color: color.ink, backgroundColor: color.sheet },
+  paper: { backgroundColor: color.sheet, borderRadius: 18, borderWidth: 1, borderColor: color.line, padding: 16, marginTop: 8 },
+  store: { fontFamily: font, fontSize: 20, fontWeight: '800', color: color.ink },
+  small: { fontFamily: font, fontSize: 13, color: color.mute, marginTop: 2 },
+  rule: { borderBottomWidth: 1, borderColor: color.line, marginVertical: 8 },
   line: { flexDirection: 'row', justifyContent: 'space-between' },
-  total: { fontSize: 20, fontWeight: '700', color: '#111', marginVertical: 4 },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  device: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#bbb' },
-  connect: { fontSize: 16, fontWeight: '600', color: '#1b4fa0', marginTop: 6 },
-  remove: { fontSize: 15, color: '#b00020', marginTop: 6 },
+  total: { fontFamily: font, fontSize: 20, fontWeight: '800', color: color.ink, marginVertical: 4 },
+  device: { backgroundColor: color.sheet, borderRadius: 14, padding: 14, marginTop: 10, borderWidth: 1, borderColor: color.line },
+  connect: { fontFamily: font, fontSize: 16, fontWeight: '700', color: color.green, marginTop: 6 },
+  remove: { fontFamily: font, fontSize: 15, color: color.danger, marginTop: 6 },
   pinRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 16 },
-  pinBox: { width: 56, height: 68, marginHorizontal: 6, borderRadius: 8, borderWidth: 1, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  pinCurrent: { borderWidth: 3, borderColor: '#1b4fa0' },
-  pinKept: { backgroundColor: '#e8eef8', borderColor: '#1b4fa0' },
-  pinDigit: { fontSize: 34, fontWeight: '700', color: '#111', fontFamily: 'monospace' },
-  pinLater: { color: '#bbb' },
-  code: { fontSize: 44, fontWeight: '700', letterSpacing: 6, color: '#111', fontFamily: 'monospace', marginVertical: 8 },
+  pinBox: { width: 56, height: 68, marginHorizontal: 6, borderRadius: 12, borderWidth: 1, borderColor: color.line, alignItems: 'center', justifyContent: 'center', backgroundColor: color.sheet },
+  pinCurrent: { borderWidth: 3, borderColor: color.green },
+  pinKept: { backgroundColor: color.mintSoft, borderColor: color.green },
+  pinDigit: { fontSize: 34, fontWeight: '700', color: color.ink, fontFamily: 'monospace' },
+  pinLater: { color: color.line },
+  code: { fontSize: 44, fontWeight: '700', letterSpacing: 6, color: color.ink, fontFamily: 'monospace', marginVertical: 8 },
 });
