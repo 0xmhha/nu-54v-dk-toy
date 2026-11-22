@@ -33,6 +33,8 @@ import {beginPractice, practiceDecision, practiceOrderText, type Practice} from 
 import {decodeWalletStorage, storedWalletConnects, type PendingEvmTransfer, type StoredConnect, type WalletStorage} from './profile.ts';
 import {persistWalletSignature, WalletProfileStore} from './walletStorage.ts';
 import {importRecoveryTrust} from './recoveryProof.ts';
+import {BoardStepPanel} from './BoardStepPanel.tsx';
+import type {BoardWait} from './boardSteps.ts';
 import {importEnrollment, OWNER_GATT, type CommissioningPins, type Enrollment, type OwnerStatus} from './ownerWire.ts';
 
 type RecoveryOrigin = 'profiles' | 'settings';
@@ -225,6 +227,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     return () => listener.remove();
   }, [screen, stored?.mode, fromInstall, closeAllowance,navigateRentalOriginal,recoveryOrigin]);
   const [message, setMessage] = useState('');
+  // The board has no screen: while a request waits on it, the app shows the board step and buttons.
+  const [boardWait, setBoardWait] = useState<BoardWait>();
+  const waitOnBoard = (wait: BoardWait, text: string) => {setMessage(text); setBoardWait(wait);};
   const [displayBinding,setDisplayBinding]=useState<OwnerDisplayBinding>();
   const [showDisplayBinding,setShowDisplayBinding]=useState(false);
   const displayCode=showDisplayBinding && displayBinding ?
@@ -354,9 +359,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     operation.current = true;
     setBusy(true);
     setMessage('');
+    setBoardWait(undefined);
     run().catch(error => setMessage(typeof failure === 'string' ? failure : failure(error))).finally(() => {
       operation.current = false;
       setBusy(false);
+      setBoardWait(undefined);
     });
   }
 
@@ -491,7 +498,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
                 (current.state === 'active' && current.generation === BigInt(checkpoint.claim.generation + 1))))
             throw new Error('INSTALL_PROOF_STALE');
         }
-        const confirm = () => setMessage('검증된 별도 표시에서 요청을 확인하고 보드 버튼으로 승인하거나 거절하세요.');
+        const confirm = () => waitOnBoard({flow:'register',step:'approve'},'검증된 별도 표시에서 요청을 확인하고 보드 버튼으로 승인하거나 거절하세요.');
         const confirmed = action === 'register' ? await session.register(confirm)
           : action === 'revoke' ? await session.revoke(confirm) : await session.status();
         if (confirmed.state === 'active' && confirmed.owner !== identity.fingerprint) throw new Error('OWNER_MISMATCH');
@@ -558,7 +565,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         await save({...stored,mode:'personal',enrollment:recoveryBoard,
           phoneReplacement:{device,replacement,generation:generation.toString(),address}});
         setLostPhone({...pending,submitted:true});
-        await session.proveLostPhone(() => setMessage(t('등록된 독립 장치에서 확인한 뒤 보드에서 SW1을 누르고 PIN을 입력하세요.')));
+        await session.proveLostPhone(() => waitOnBoard({flow:'replace',step:'recoveryproof'},t('등록된 독립 장치에서 확인한 뒤 보드에서 SW1을 누르고 PIN을 입력하세요.')));
         setMessage(t('보드에 다시 연결해 새 소유자와 같은 지갑 주소를 확인하세요.'));
       } finally {
         session.close();
@@ -636,7 +643,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
      (asset.id==='base' && policyView.chain===84532n)))?.decimals : undefined;
   const policyPrompt = (binding:OwnerDisplayBinding) => {
     setDisplayBinding(binding);
-    setMessage(language === 'ko' ? '신뢰하는 독립 표시에만 요청 정보를 전달하고, 확인한 뒤 보드에서 승인하세요.' :
+    waitOnBoard({flow:'sign',step:'display'},language === 'ko' ? '신뢰하는 독립 표시에만 요청 정보를 전달하고, 확인한 뒤 보드에서 승인하세요.' :
       'Give the request binding only to your trusted independent display, then confirm on the board.');
   };
   function initializePolicy(destination:string,per:string,daily:string) {
@@ -1045,7 +1052,8 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       const context={request,unsigned:bytesToHex(draft.raw,true),chain:draft.chain,genesis:draft.genesis,signer:owner.address};
       const committed = await persistWalletSignature(stored, 'evm', wire, Number(draft.expires), commit, async () => {
         ensureCurrent();
-        const checked=await session.signDirectTransfer(wire,owner.address,BigInt(owner.generation),()=>{},request);
+        const checked=await session.signDirectTransfer(wire,owner.address,BigInt(owner.generation),
+          ()=>waitOnBoard({flow:'sign',step:'display'},t('독립 화면에서 체인, 수취인, 금액과 수수료를 확인하고 보드에서 승인하세요.')),request);
         return {pendingEvm:{...checked,chain:draft.chain,sender:owner.address,expires:Number(draft.expires),
           submitted:false,genesis:draft.genesis,profileRevision:Number(draft.profileRevision),leaseRevision:draft.leaseRevision.toString(),rpc:selectedRpc(chosenNetwork)}};
       },context);
@@ -1053,6 +1061,8 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       dappSigned.current=pending;
       return pending.hash;
     } finally {
+      // This runs outside work(), so the board step it opened must be closed here.
+      setBoardWait(undefined);
       signal.removeEventListener('abort',cancel);
       session.close();
       if (connection.current===session) connection.current=undefined;
@@ -1249,7 +1259,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         await persistWalletSignature(stored, 'evm', wire, Number(transfer.expires), commit, async () => {
           if (transfer.revoke && !keepAllowanceResult(epoch)) throw new Error('EVM_ALLOWANCE_INACTIVE');
           const checked = await session.signDirectTransfer(wire, owner.address, BigInt(owner.generation),
-            () => setMessage(t(transfer.revoke ? '독립 화면에서 토큰, 권한 대상, 권한 0과 수수료를 확인하세요.' : '독립 화면에서 체인, 수취인, 금액과 수수료를 확인하고 보드에서 승인하세요.')),request);
+            () => waitOnBoard({flow:'sign',step:'display'},t(transfer.revoke ? '독립 화면에서 토큰, 권한 대상, 권한 0과 수수료를 확인하세요.' : '독립 화면에서 체인, 수취인, 금액과 수수료를 확인하고 보드에서 승인하세요.')),request);
           return {pendingEvm:{...checked,chain:transfer.chain,sender:owner.address,
             expires:Number(transfer.expires),submitted:false,genesis:transfer.genesis,
             profileRevision:Number(transfer.profileRevision),leaseRevision:transfer.leaseRevision.toString(),rpc:selectedRpc(chosenNetwork)}};
@@ -1545,6 +1555,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         if (stored) work(async () => { await save({...stored, language: next}); setLanguage(next); }, '언어 설정을 저장할 수 없습니다.');
       }} />
       {!!message && <Text style={styles.body} accessibilityLiveRegion="polite">{t(message)}</Text>}
+      {boardWait && <BoardStepPanel wait={boardWait} t={t} />}
       {displayBinding && <View>
         <Action title={showDisplayBinding ? (language==='ko'?'요청 정보 숨기기':'Hide private request') :
           (language==='ko'?'독립 표시 요청 정보 보기':'Show private request for independent display')}
@@ -1702,6 +1713,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           setPublicKey(await native.publicIdentity());
         }, '이 휴대전화에서 보호된 등록 키를 만들 수 없습니다.')} />
         {!!publicKey && <Text selectable style={styles.mono}>{publicKey}</Text>}
+        {!stored?.verified && status?.state !== 'active' && !boardWait && <BoardStepPanel wait={{flow:'register',step:'window'}} t={t} />}
         {!profile && <>
           {commissioningPins && <>
             <Text style={styles.body}>{language === 'ko' ? '케이블로 확인한 독립 설치 QR의 지문을 대조하세요.' : 'Compare both fingerprints with the independent cabled installation record.'}</Text>
@@ -1871,7 +1883,9 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           persistSignature={async (wire, expires, approve) => {
             await persistWalletSignature(stored, 'chain', wire, expires, commit, async () => ({pendingChain: await approve()}));
           }}
-          prompt={setMessage} challenge={async () => fromBase64(await native.randomBytes(32))}
+          // Chain screens mark prompts that wait on the independent display and the board; any other
+          // message (for example a saved result) ends the board step.
+          prompt={(text, onBoard) => onBoard ? waitOnBoard({flow:'sign',step:'display'},text) : (setMessage(text), setBoardWait(undefined))} challenge={async () => fromBase64(await native.randomBytes(32))}
           rpc={(endpoint,packet) => native.evmRpc(endpoint,packet)} t={t} />}
       {native && stored?.verified && screen==='walletconnect' && chosenNetwork && registryCurrent && registry?.walletConnect &&
         <WalletConnectScreen scope={{board:stored.verified.boardFingerprint,account:stored.verified.address,
@@ -2151,6 +2165,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
       {stored && screen === 'backup' && <>
         <Text style={styles.body}>{t('등록된 원본 기기와 독립 복구 장치를 준비하세요. 복원 시험을 마치고 원본 기기에서 확인해야 백업 상태가 완료됩니다.')}</Text>
+        {backup && <BoardStepPanel wait={{flow:'backup',step:'hold'}} t={t} />}
         {!stored.verified && (backup || backupBlocked) && <>
           <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={styles.title}>{t('입금 안내가 잠겨 있습니다')}</Text>
           <Text style={styles.body}>{t('기존 활성 슬롯 — 보존')}</Text>
@@ -2177,6 +2192,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       </>}
       {stored && screen === 'replace-phone' && <>
         <Text style={styles.body}>{t('원래 보드, 등록한 독립 복구 장치, 보드 PIN을 준비하세요. 보드에서 SW3을 길게 눌러 교체를 시작하세요.')}</Text>
+        {!lostPhone && !boardWait && <BoardStepPanel wait={{flow:'replace',step:'recovery'}} t={t} />}
         {!lostPhone && <>
           {routeEnrollmentForm}
           <Action title={t('개인 기기 찾기')} disabled={!native || !routeReady || busy} run={()=>scan(false,!!recoveryOrigin)} />
@@ -2238,6 +2254,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             <Action testID="w06-authenticated-restore" title={t('확인한 기기에서 복구 요청')} disabled={busy} run={startRecovery} />
           </>}
         </>}
+        {restore && <BoardStepPanel wait={{flow:'backup',step:'hold'}} t={t} />}
         {restore && <>
           <Text style={styles.body}>{t('복구 요청 번호')}</Text><Text selectable style={styles.mono}>{restore.requestId}</Text>
           <Action title={t('복구 증거 확인')} disabled={busy} run={checkRecovery} />

@@ -13,6 +13,7 @@ jest.mock('../src/specs/NativeCloudWalletProfile.ts',()=>({__esModule:true,defau
  profile:async()=>mockRecoveryCloudProfile,request:(...args: unknown[])=>mockRecoveryCloudRequest(...args),
 }}));
 let mockStored='',mockBackupReady=false,mockBackupUnavailable=false,mockVerify='committed',mockReverse=false,mockBondsClear=false;
+let mockRegisterGate:Promise<void>=Promise.resolve();
 const mockConnect=jest.fn(),mockRegister=jest.fn(),mockVerifyLost=jest.fn(),mockBeginRecovery=jest.fn();
 const initialPlatform=Platform.OS;afterAll(()=>Object.defineProperty(Platform,'OS',{value:initialPlatform,configurable:true}));
 const mockDevice='34'.repeat(32),mockOwner='ab'.repeat(32),mockAddress='0x'+'12'.repeat(20);
@@ -25,7 +26,7 @@ jest.mock('../src/wallet/ownerSession.ts',()=>({OwnerSession:class {
  async identity(){return{fingerprint:mockOwner};}async status(){return{state:'active',device:mockDevice,owner:mockOwner,generation:1n,root:2,profile:1,backedUp:mockBackupReady};}
  async maintenanceStatus(){return this.status();}
  async beginRecovery(){mockBeginRecovery(this.handle);return{requestId:'11'.repeat(16),challenge:'22',expires:'9999999999'};}
- async register(confirm:()=>void){mockRegister();confirm();return this.status();}
+ async register(confirm:()=>void){mockRegister();confirm();await mockRegisterGate;return this.status();}
  async backedUpAddress(){return mockAddress;}
  async beginBackup(){if(mockBackupUnavailable)throw Error('BACKUP_UNAVAILABLE');return{requestId:'56'.repeat(16),expires:'9999999999',checkpoint:{device:mockDevice,owner:mockOwner,generation:'1'}};}async checkBackup(){return mockBackupReady?{verified:true,address:mockAddress,status:await this.status()}:{verified:false};}
  async verifyLostPhone(){mockVerifyLost();if(mockVerify==='not-committed')throw Error('OWNER_REPLACEMENT_NOT_COMMITTED');return{state:'active',device:mockDevice,owner:mockOwner,generation:2n,root:2,profile:1,backedUp:true,legacyBondsClear:mockBondsClear};}
@@ -33,6 +34,23 @@ jest.mock('../src/wallet/ownerSession.ts',()=>({OwnerSession:class {
 const profile=()=>({version:2,exercised:true,mode:'personal',verified:{boardFingerprint:mockDevice,address:mockAddress,generation:1,network:'8283'},
  enrollment:{version:2,device:mockDevice,boardSPKI:'24'.repeat(32),ca:'MA==',certificateChain:['MA==']}});
 async function tap(tree:Renderer.ReactTestRenderer,label:string,index=0){await Renderer.act(async()=>{const items=tree.root.findAll(node=>node.props.accessibilityLabel===label&&typeof node.props.onPress==='function');expect(items[index]).toBeDefined();items[index].props.onPress();});}
+
+test('W04 shows the board step and buttons while registration waits on the screenless board',async()=>{
+ mockStored=JSON.stringify({...profile(),verified:undefined});mockRegister.mockClear();
+ let release=()=>{};mockRegisterGate=new Promise<void>(resolve=>{release=resolve;});
+ let tree:Renderer.ReactTestRenderer;const app=<WalletHome permission={async()=>true} honorExistingRental={false} rental={()=>{}} orders={()=>{}}/>;
+ const panel=()=>tree!.root.findAll(node=>node.props.testID==='board-step-panel');
+ const shown=()=>JSON.stringify(panel().map(node=>node.findAll(child=>typeof child.props.children==='string').map(child=>child.props.children)));
+ try{await Renderer.act(async()=>{tree=Renderer.create(app);});
+  expect(shown()).toContain('보드의 SW4를 1초 이상 길게 누르세요.');expect(shown()).toContain('1 / 4');
+  await tap(tree!,'개인 기기 찾기');await tap(tree!,'기기 등록 시작',1);
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  expect(shown()).toContain('승인하려면 SW1, 거절하려면 SW2를 짧게 누르세요.');expect(shown()).toContain('2 / 4');
+  expect(shown()).toContain('이어서 할 일');expect(shown()).not.toContain('연결 창을 열면');
+  await Renderer.act(async()=>{release();await mockRegisterGate;});
+  expect(panel()).toHaveLength(0);
+ }finally{mockRegisterGate=Promise.resolve();await Renderer.act(async()=>tree?.unmount());}
+});
 
 test.each(['ios','android'] as const)('W04/W05 %s distinguishes scan candidates and waits for backup proof',async platform=>{
  Object.defineProperty(Platform,'OS',{value:platform,configurable:true});mockStored=JSON.stringify({...profile(),verified:undefined});mockBackupReady=false;mockConnect.mockClear();mockRegister.mockClear();

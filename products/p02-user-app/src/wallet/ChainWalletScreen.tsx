@@ -48,7 +48,8 @@ type Props = {
   persistSignature: (wire: string, expires: number, approve: () => Promise<StoredChain>) => Promise<void>;
   work: (operation: () => Promise<void>, failure: string | ((error: unknown) => string)) => void;
   session: <T>(handle: string, action: (session: OwnerSession) => Promise<T>) => Promise<T>;
-  prompt: (message: string) => void;
+  /** `onBoard` marks a prompt shown while the request waits on the independent display and the board. */
+  prompt: (message: string, onBoard?: boolean) => void;
   challenge: () => Promise<Uint8Array>;
   rpc: (endpoint: string, packet: string) => Promise<string>;
   t: (message: string) => string;
@@ -170,7 +171,7 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
           }
           if (sequence!==watchEpoch.current.revision) throw new Error('BTC_XPUB_CANCELLED');
           return active.exportBitcoinWatchAccount(selected,verified.address,generation,
-            () => prompt(t('독립 화면에서 읽기 전용 Bitcoin 계정을 확인한 뒤 보드에서 승인하세요.')));
+            () => prompt(t('독립 화면에서 읽기 전용 Bitcoin 계정을 확인한 뒤 보드에서 승인하세요.'), true));
         });
         if (sequence!==watchEpoch.current.revision || AppState.currentState==='background') return;
         await saveWatch?.({account:selected, board:verified.boardFingerprint,generation:verified.generation,proof:descriptors.proof});
@@ -254,7 +255,7 @@ export function ChainWalletScreen({initial,pickBip48File,pendingBip48,persistBip
         await persistSignature(bytesToHex(transfer.body,false),transfer.expires,async () => {
           if (epoch!==reviewEpoch.current.revision) throw new Error('CHAIN_REVIEW_EXPIRED');
           const signed=await active.signChainTransfer(transfer,verified.address,generation,() =>
-            prompt(t('독립 화면에서 수취인, 금액, 수수료를 확인하고 보드에서 승인 또는 거절하세요.')));
+            prompt(t('독립 화면에서 수취인, 금액, 수수료를 확인하고 보드에서 승인 또는 거절하세요.'), true));
           if (original && (!signed.btc || signed.btc.fee !== prepared.fee || signed.id === original.id))
             throw new Error('BTC_REPLACEMENT_SIGNED');
           return {...signed,...(original && signed.btc && original.btc ?

@@ -84,8 +84,8 @@ export function WalletAccessibility({language, reader, motion, notification, set
   if (panel === 'approval') return <View style={styles.group}>
     {heading(ko ? '실제 기기 승인 화면 예시' : 'Real approval screen example')}
     <Text style={styles.text}>{ko
-      ? '실물 보드가 필요합니다. 인증된 견적의 금액·수취인·체인을 독립 표시에서 확인하세요. 맞으면 보드 SW1, 다르면 SW2를 누르세요.'
-      : 'Requires the physical board. Compare the authenticated quote amount, recipient and network on the independent display. Press SW1 to confirm or SW2 to decline.'}</Text>
+      ? '실물 보드가 필요합니다. 인증된 견적의 금액·수취인·체인을 독립 표시에서 확인하세요. 독립 표시의 내용이 의도한 결제와 같으면 보드 SW1, 다르면 SW2를 누르세요.'
+      : 'Requires the physical board. Compare the authenticated quote amount, recipient and network on the independent display. If it matches the payment you intended, press SW1 on the board; otherwise press SW2.'}</Text>
     <View style={styles.guide}>
       <Text style={styles.text}>{ko ? '예시 · 인증된 가맹점 견적' : 'Example · Authenticated merchant quote'}</Text>
       <Text style={styles.text}>{ko ? '금액: 6.50 TestUSDC' : 'Amount: 6.50 TestUSDC'}</Text>

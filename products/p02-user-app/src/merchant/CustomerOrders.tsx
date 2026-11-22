@@ -98,6 +98,8 @@ import {
   type PaymentReviewStop,
 } from './paymentCheckpoint.ts';
 
+import {BoardStepPanel} from '../wallet/BoardStepPanel.tsx';
+import {english as walletEnglish} from '../wallet/walletEnglish.ts';
 import {customerDigest, customerJournals} from './customerJournal.ts';
 
 type RentalBoardReview = RentalReviewChallenge & {
@@ -325,6 +327,8 @@ export function CustomerOrders({
   const [nearbySoldOut, setNearbySoldOut] = useState<CommerceCartLine[]>();
   const [invoiceDetail, setInvoiceDetail] = useState(false);
   const [message, setMessage] = useState('');
+  // The board has no screen: show its step while the payment approval waits on it.
+  const [boardWaiting, setBoardWaiting] = useState(false);
   const [orderRows, setOrderRows] = useState<CustomerOrderSummary[]>([]);
   const [invoiceRows, setInvoiceRows] = useState<SubscriptionInvoice[]>([]);
   const [historyState, setHistoryState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
@@ -1575,12 +1579,13 @@ export function CustomerOrders({
       }
       if (!currentReview()) return;
       let activeProgress: OwnerApprovalProgress | undefined;
-      const signed = await session.approvePayment(
+      const signed = await (async () => { try { return await session.approvePayment(
         payment,
         hexToBytes(reviewed.request),
         () => {
           if (currentReview()) {
             setBoardVerified(reviewed.request);
+            setBoardWaiting(true);
             setMessage('독립 표시기에 주문과 금액이 표시되면 대조한 뒤 SW1로 승인하거나 SW2로 거절하세요.');
           }
         },
@@ -1597,7 +1602,7 @@ export function CustomerOrders({
             }).catch(()=>{});
           }
         } : undefined,
-      );
+      ); } finally { setBoardWaiting(false); } })();
       if (!currentReview()) return;
       if (payment.deadline <= now()) {
         await keepPayment({...activeReview, reviewStop: 'expired'});
@@ -1974,6 +1979,8 @@ export function CustomerOrders({
         {invoiceDetail && !showSubscriptions ? '구독 회차 청구서' : travelPayment ? '원예약 지급 주문'
           : travelBranch || initialLocator || shopEntry ? '내 매장 주문' : '내 결제와 미결 청구'}
       </Text>
+      {boardWaiting && <BoardStepPanel wait={{flow: 'sign', step: 'display'}}
+        t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text} />}
       {!!message && (
         <Text style={s.text} accessibilityLiveRegion="polite">
           {message}

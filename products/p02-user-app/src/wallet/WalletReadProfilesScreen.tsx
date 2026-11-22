@@ -15,6 +15,7 @@ import {Image} from 'react-native';
 import {hash160,segwitAddress,type ChainPublicAccount} from './chainAccounts.ts';
 import type {OwnerSession} from './ownerSession.ts';
 import type {PendingEvmTransfer, PersonalMetadata} from './profile.ts';
+import {BoardStepPanel} from './BoardStepPanel.tsx';
 import {discoverSignetBranches, formatReadAmount, isXrpTag, observationScope, readContact, readEndpoint, readProfiles, readSelectedBalance, receiveAddressForProfile, updateReadObservation, verifyReadNetwork, walletReadRpc,
   type ReadProfileId, type ReadProfileState, type ReadSelection} from './readProfiles.ts';
 
@@ -514,6 +515,7 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
       {found.map(item => <Button key={'discover-' + item.address}
         text={t('사용한 Bitcoin 주소 재발견') + ' · ' + item.name} disabled={busy || !enabled || connectivity.link==='offline' || !value.endpoints.btc || value.endpoints.btc === publicSignetIndexer}
         click={() => discoverBitcoin(item.address)} />)}
+      {discovering==='approval' && <BoardStepPanel wait={{flow:'sign',step:'display'}} t={t} />}
       {discovering && <Text accessibilityLiveRegion="polite" style={styles.label}>{t(discovering==='approval'
         ? '독립 화면에서 이 계정의 공개키 범위를 확인한 후 보드에서 승인하세요.'
         : '확정된 수신·거스름돈 이력을 조회하고 있습니다.')}</Text>}

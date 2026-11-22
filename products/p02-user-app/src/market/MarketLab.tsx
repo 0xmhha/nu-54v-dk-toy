@@ -8,6 +8,7 @@ import {readLabBoard,scanLabBoards,signLabBoard,type LabBoard} from './board.ts'
 import {CloudWalletScreen, type MarketCloudSession} from '../wallet/cloud/CloudWalletScreen.tsx';
 import {CloudHttpError, cloudMarketProfile, readCloudProfile, readPending, requestID, signedTransfer,
   type CloudFlow, type CloudOperation, type CloudProfile, type PendingCloud} from '../wallet/cloud/client.ts';
+import {BoardStepPanel} from '../wallet/BoardStepPanel.tsx';
 import {
   deleteIsolatedWallet, displayAmount, installedMarketOperatorOrigin, installedMarketPolicy, isolatedWallet, makeIntent, marketAPI, operations, requiredAllowance, sameDeployment,
   prepareCloudMarketTransfer, signAllowance, signExecution, signedCloudCheckpoint, validAddr, validHash, verifyDeploymentPolicy, verifyApproval, verifyCheckpoint,
@@ -68,6 +69,7 @@ export function MarketLab({back, permission, openTravel}: {
   const result = session?.receipt;
   const [position,setPosition] = useState<{id: string; view: PositionView; events: PositionEvent[]}>();
   const [message,setMessage] = useState('');
+  const [boardWaiting,setBoardWaiting] = useState(false);
   const [busy,setBusy] = useState(false);
   const [cloudProfile,setCloudProfile]=useState<CloudProfile>();
   const [cloudShown,setCloudShown]=useState(false);
@@ -473,9 +475,12 @@ export function MarketLab({back, permission, openTravel}: {
     if (session.board) {
       if (!boardHandle) throw new Error('LAB_BOARD_RECONNECT');
       const transfer=prepareCloudMarketTransfer(session.profile,user,nextWallet,offered.intent,fresh,current.time,allowance);
-      const raw=await signLabBoard(boardHandle,session.board,session.profile,transfer,fresh,
-        ()=>setMessage('독립 화면의 시장 주문을 확인하고 보드에서 승인하세요.'),
-        () => requireDispatchOffer(profile,q.data,originalRisk?.nextFunding));
+      let raw;
+      try {
+        raw=await signLabBoard(boardHandle,session.board,session.profile,transfer,fresh,
+          ()=>{setBoardWaiting(true);setMessage('독립 화면의 시장 주문을 확인하고 보드에서 승인하세요.');},
+          () => requireDispatchOffer(profile,q.data,originalRisk?.nextFunding));
+      } finally { setBoardWaiting(false); }
       const item=signedCloudCheckpoint(raw,allowance?undefined:fresh.digest,q.data);
       setReceiptActive(false);
       if(!allowance) setOffered(undefined);
@@ -589,6 +594,7 @@ export function MarketLab({back, permission, openTravel}: {
     {!operatorOrigin && <Text>이 설치에는 승인된 운영자 주소가 없습니다.</Text>}
     {!session && <Text>{`${group} 연습 · 승인된 학습 지갑을 연결하면 시작할 수 있습니다.`}</Text>}
     {!!message && <Text accessibilityLiveRegion="polite">{message}</Text>}
+    {boardWaiting && <BoardStepPanel wait={{flow:'sign',step:'display'}} t={text=>text} />}
     {loaded && !session && <>
       <Text>로컬 학습 배포의 블록 해시를 확인해 앱에서 전용 지갑을 만듭니다.</Text>
       <TextInput accessibilityLabel="학습 배포 블록 해시" placeholder="학습 배포 블록 해시" value={pin} onChangeText={setPin}

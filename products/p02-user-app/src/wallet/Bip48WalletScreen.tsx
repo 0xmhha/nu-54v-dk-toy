@@ -24,7 +24,8 @@ type Props = {
   busy: boolean;
   work: (operation: () => Promise<void>, failure: string | ((error: unknown) => string)) => void;
   session: <T>(handle: string, action: (session: OwnerSession) => Promise<T>) => Promise<T>;
-  prompt: (message: string) => void;
+  /** `onBoard` marks a prompt shown while the request waits on the independent display and the board. */
+  prompt: (message: string, onBoard?: boolean) => void;
   rpc: (endpoint: string, packet: string) => Promise<string>;
   t: (message: string) => string;
 };
@@ -149,7 +150,7 @@ export function Bip48WalletScreen({verified, found, scan, back, busy, work, sess
       const key = await session(device, async active => {
         await context(active);
         return active.exportBip48Participant(Number(account)-1,
-          () => prompt(t('독립 화면에서 공개 공동서명 키 내보내기를 확인하세요.')),network);
+          () => prompt(t('독립 화면에서 공개 공동서명 키 내보내기를 확인하세요.'), true),network);
       });
       setParticipant(key);
     }, failure);
@@ -163,7 +164,7 @@ export function Bip48WalletScreen({verified, found, scan, back, busy, work, sess
         const current = await loadBip48Policy(exchange(), scope);
         if (bytesToHex(current.hash, false) !== bytesToHex(selected.policy.hash, false))
           throw new Error('BIP48_POLICY_MISMATCH');
-        await active.registerBip48(current, () => prompt(t('독립 화면에서 세 공동서명 키와 2-of-3 정책을 확인하세요.')));
+        await active.registerBip48(current, () => prompt(t('독립 화면에서 세 공동서명 키와 2-of-3 정책을 확인하세요.'), true));
         setSelected({...selected, ready: true});
       });
     }, failure);
@@ -194,7 +195,7 @@ export function Bip48WalletScreen({verified, found, scan, back, busy, work, sess
         if (revision!==epoch.current.revision || progress.grant.expires<=Math.floor(Date.now()/1000)) throw new Error('BIP48_REVIEW_EXPIRED');
         const approve=async():Promise<StoredBip48>=>{
           const signed=await active.signBip48(policy,progress.grant,
-            ()=>prompt(t('독립 화면에서 모든 송금 출력과 수수료를 확인한 뒤 보드에서 승인하세요.')));
+            ()=>prompt(t('독립 화면에서 모든 송금 출력과 수수료를 확인한 뒤 보드에서 승인하세요.'), true));
           if (signed.count!==1 && signed.count!==2) throw new Error('BIP48_SIGNATURE');
           return {...signed,count:signed.count,network,account:policy.account,board:verified.boardFingerprint,
             generation:verified.generation,policy:bytesToHex(policy.hash,false),original:toBase64(progress.grant.raw),id:progress.id};
