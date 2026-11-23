@@ -24,6 +24,16 @@ contract OrderEscrowTest is Test {
     address internal phone;
     uint256 internal start = 1_800_000_000;
 
+    event OrderReleased(
+        bytes32 indexed merchantId,
+        bytes32 indexed orderId,
+        address beneficiary,
+        uint256 amount,
+        OrderEscrow.Payout reason
+    );
+    event OrderCancelled(
+        bytes32 indexed merchantId, bytes32 indexed orderId, address payer, uint256 amount, OrderEscrow.Refund reason
+    );
     event ClaimSkipped(bytes32 indexed merchantId, bytes32 indexed orderId, OrderEscrow.SkipReason reason);
 
     function setUp() public {
@@ -96,6 +106,10 @@ contract OrderEscrowTest is Test {
 
     function action(uint256 key, bytes32 typehash, bytes32 order) internal view returns (bytes memory) {
         return sig(key, escrow.actionDigest(typehash, MERCHANT, order));
+    }
+
+    function buyer(uint256 key, bytes32 typehash, bytes32 order) internal view returns (bytes memory) {
+        return sig(key, escrow.buyerDigest(typehash, MERCHANT, order));
     }
 
     function deliver(bytes32 order) internal {
@@ -204,7 +218,7 @@ contract OrderEscrowTest is Test {
     function testReceiptPaysTheStoreAndIsFinal() public {
         bytes32 order = lockOrder(1);
         deliver(order);
-        escrow.release(MERCHANT, order, action(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order));
+        escrow.release(MERCHANT, order, buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order));
         assertEq(token.balanceOf(store), PRICE);
         assertEq(uint8(state(order)), uint8(OrderEscrow.State.Paid));
         assertBacked();
@@ -212,14 +226,14 @@ contract OrderEscrowTest is Test {
         bytes memory c = action(MERCHANT_KEY, escrow.CANCEL_TYPEHASH(), order);
         vm.expectRevert(OrderEscrow.InvalidState.selector);
         escrow.cancel(MERCHANT, order, c);
-        bytes memory d = action(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order);
+        bytes memory d = buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order);
         vm.expectRevert(OrderEscrow.InvalidState.selector);
         escrow.dispute(MERCHANT, order, d);
     }
 
     function testPhoneAloneCannotPayBeforeTheStoreMarksDelivery() public {
         bytes32 order = lockOrder(1);
-        bytes memory r = action(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order);
+        bytes memory r = buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order);
         vm.expectRevert(OrderEscrow.InvalidState.selector);
         escrow.release(MERCHANT, order, r);
     }
@@ -227,7 +241,7 @@ contract OrderEscrowTest is Test {
     function testStoreAloneCannotConfirmReceipt() public {
         bytes32 order = lockOrder(1);
         deliver(order);
-        bytes memory r = action(MERCHANT_KEY, escrow.RECEIPT_TYPEHASH(), order);
+        bytes memory r = buyer(MERCHANT_KEY, escrow.RECEIPT_TYPEHASH(), order);
         vm.expectRevert(OrderEscrow.InvalidSignature.selector);
         escrow.release(MERCHANT, order, r);
     }
@@ -237,7 +251,7 @@ contract OrderEscrowTest is Test {
         bytes32 other = lockOrder(2);
         deliver(order);
         deliver(other);
-        bytes memory r = action(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order);
+        bytes memory r = buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order);
         vm.expectRevert(OrderEscrow.InvalidSignature.selector);
         escrow.release(MERCHANT, other, r);
         vm.expectRevert(OrderEscrow.InvalidSignature.selector);
@@ -282,7 +296,7 @@ contract OrderEscrowTest is Test {
         deliver(a);
         deliver(b);
         deliver(disputed);
-        escrow.dispute(MERCHANT, disputed, action(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), disputed));
+        escrow.dispute(MERCHANT, disputed, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), disputed));
         vm.warp(start + 1 days);
         deliver(late);
         vm.warp(start + 2 days);
@@ -307,8 +321,8 @@ contract OrderEscrowTest is Test {
         assertEq(uint8(state(disputed)), uint8(OrderEscrow.State.Disputed));
         assertBacked();
 
-        vm.expectRevert(OrderEscrow.NothingToClaim.selector); // a retry pays nothing
-        escrow.claimBatch(MERCHANT, store, ids(a, b, disputed));
+        assertEq(escrow.claimBatch(MERCHANT, store, ids(a, b, disputed)), 0, "a retry pays nothing");
+        assertEq(token.balanceOf(store), 2 * PRICE);
     }
 
     function testBatchCannotRedirectThePayout() public {
@@ -317,8 +331,11 @@ contract OrderEscrowTest is Test {
         vm.warp(start + 2 days);
         bytes32[] memory list = new bytes32[](1);
         list[0] = a;
-        vm.expectRevert(OrderEscrow.NothingToClaim.selector);
-        escrow.claimBatch(MERCHANT, relay, list);
+        vm.expectEmit(address(escrow));
+        emit ClaimSkipped(MERCHANT, a, OrderEscrow.SkipReason.OtherBeneficiary);
+        assertEq(escrow.claimBatch(MERCHANT, relay, list), 0);
+        assertEq(token.balanceOf(relay), 0);
+        assertEq(uint8(state(a)), uint8(OrderEscrow.State.Delivered));
     }
 
     function testBatchSizeIsBounded() public {
@@ -349,7 +366,7 @@ contract OrderEscrowTest is Test {
     function testDisputeStopsTheClaimAndTheArbiterDecides() public {
         bytes32 order = lockOrder(1);
         deliver(order);
-        escrow.dispute(MERCHANT, order, action(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+        escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
         vm.warp(start + 30 days);
         vm.expectRevert(OrderEscrow.InvalidState.selector);
         escrow.claim(MERCHANT, order);
@@ -367,7 +384,7 @@ contract OrderEscrowTest is Test {
         vm.prank(arbiter);
         vm.expectRevert(OrderEscrow.InvalidState.selector);
         escrow.resolve(MERCHANT, order, true);
-        escrow.dispute(MERCHANT, order, action(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+        escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
         vm.prank(arbiter);
         escrow.resolve(MERCHANT, order, true);
         assertEq(token.balanceOf(store), PRICE);
@@ -377,7 +394,7 @@ contract OrderEscrowTest is Test {
         bytes32 order = lockOrder(1);
         deliver(order);
         vm.warp(start + 2 days);
-        bytes memory d = action(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order);
+        bytes memory d = buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order);
         vm.expectRevert(OrderEscrow.InvalidTime.selector);
         escrow.dispute(MERCHANT, order, d);
     }
@@ -405,6 +422,165 @@ contract OrderEscrowTest is Test {
         escrow.refundUndelivered(MERCHANT, order);
         assertEq(token.balanceOf(wallet), DEPOSIT);
         assertBacked();
+    }
+
+    // ---- found by the independent audit ----
+
+    function testReceiptSignedBeforeDeliveryNeverWorks() public {
+        bytes32 order = lockOrder(1);
+        bytes memory early = buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order);
+        deliver(order);
+        vm.expectRevert(OrderEscrow.InvalidSignature.selector);
+        escrow.release(MERCHANT, order, early);
+    }
+
+    function testOldReceiptCannotOverrideALaterDispute() public {
+        bytes32 order = lockOrder(1);
+        deliver(order);
+        bytes memory receipt = buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order);
+        escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+        vm.expectRevert(OrderEscrow.InvalidState.selector);
+        escrow.release(MERCHANT, order, receipt);
+        vm.expectRevert(OrderEscrow.InvalidSignature.selector);
+        escrow.withdrawDispute(MERCHANT, order, receipt);
+        escrow.withdrawDispute(MERCHANT, order, buyer(PHONE_KEY, escrow.WITHDRAW_DISPUTE_TYPEHASH(), order));
+        assertEq(token.balanceOf(store), PRICE);
+        assertBacked();
+    }
+
+    function testDisputeCannotBeWithdrawnBeforeItExists() public {
+        bytes32 order = lockOrder(1);
+        deliver(order);
+        bytes memory w = buyer(PHONE_KEY, escrow.WITHDRAW_DISPUTE_TYPEHASH(), order);
+        vm.expectRevert(OrderEscrow.InvalidState.selector);
+        escrow.withdrawDispute(MERCHANT, order, w);
+    }
+
+    function testStoreMayRefundADisputedOrder() public {
+        bytes32 order = lockOrder(1);
+        deliver(order);
+        escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+        escrow.cancel(MERCHANT, order, action(MERCHANT_KEY, escrow.CANCEL_TYPEHASH(), order));
+        assertEq(token.balanceOf(wallet), DEPOSIT);
+        assertBacked();
+    }
+
+    function testDeadlinesDoNotOverlap() public {
+        bytes32 order = lockOrder(1);
+        vm.warp(start + 7 days - 1);
+        deliver(order); // the last second the store may deliver
+        bytes memory d = buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order);
+        vm.warp(start + 9 days - 2);
+        uint256 snapshot = vm.snapshotState();
+        escrow.dispute(MERCHANT, order, d); // the last second the buyer may dispute
+        vm.revertToState(snapshot);
+        vm.warp(start + 9 days - 1);
+        vm.expectRevert(OrderEscrow.InvalidTime.selector);
+        escrow.dispute(MERCHANT, order, d);
+        escrow.claim(MERCHANT, order);
+        assertEq(token.balanceOf(store), PRICE);
+    }
+
+    function testRotatedStoreKeyTakesOverAndTheOldOneStops() public {
+        bytes32 order = lockOrder(1);
+        Types.MerchantQuote memory stale = quoteFor(2);
+        bytes memory oldQuote = sig(MERCHANT_KEY, escrow.quoteDigest(stale));
+        bytes memory w = walletSig(WALLET_KEY, stale, phone);
+        bytes memory oldMark = action(MERCHANT_KEY, escrow.DELIVERY_TYPEHASH(), order);
+        escrow.configureMerchant(MERCHANT, vm.addr(STRANGER_KEY), store, 2 days, 7 days);
+        vm.expectRevert(OrderEscrow.InvalidMerchant.selector);
+        escrow.lock(stale, phone, oldQuote, w);
+        vm.expectRevert(OrderEscrow.InvalidSignature.selector);
+        escrow.markDelivered(MERCHANT, order, oldMark);
+        escrow.markDelivered(MERCHANT, order, action(STRANGER_KEY, escrow.DELIVERY_TYPEHASH(), order));
+        // Going back to the first key does not revive its old quotes.
+        escrow.configureMerchant(MERCHANT, vm.addr(MERCHANT_KEY), store, 2 days, 7 days);
+        vm.expectRevert(OrderEscrow.InvalidMerchant.selector);
+        escrow.lock(stale, phone, oldQuote, w);
+    }
+
+    function testBatchPaysOnlyTheNamedPayoutAddress() public {
+        bytes32 a = lockOrder(1);
+        address nextStore = makeAddr("next payout");
+        escrow.configureMerchant(MERCHANT, vm.addr(MERCHANT_KEY), nextStore, 2 days, 7 days);
+        Types.MerchantQuote memory q = quoteFor(2);
+        q.beneficiary = nextStore;
+        q.beneficiaryVersion = 2;
+        escrow.lock(q, phone, sig(MERCHANT_KEY, escrow.quoteDigest(q)), walletSig(WALLET_KEY, q, phone));
+        deliver(a);
+        deliver(q.orderId);
+        vm.warp(start + 2 days);
+        bytes32[] memory list = new bytes32[](2);
+        (list[0], list[1]) = (a, q.orderId);
+        assertEq(escrow.claimBatch(MERCHANT, store, list), PRICE);
+        assertEq(escrow.claimBatch(MERCHANT, nextStore, list), PRICE);
+        assertEq(token.balanceOf(store), PRICE);
+        assertEq(token.balanceOf(nextStore), PRICE);
+        assertBacked();
+    }
+
+    function testEveryOutcomeSaysWhy() public {
+        bytes32 a = lockOrder(1);
+        deliver(a);
+        bytes memory receipt = buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), a);
+        vm.expectEmit(address(escrow));
+        emit OrderReleased(MERCHANT, a, store, PRICE, OrderEscrow.Payout.Receipt);
+        escrow.release(MERCHANT, a, receipt);
+        bytes32 b = lockOrder(2);
+        deliver(b);
+        escrow.dispute(MERCHANT, b, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), b));
+        vm.expectEmit(address(escrow));
+        emit OrderReleased(MERCHANT, b, store, PRICE, OrderEscrow.Payout.Arbiter);
+        vm.prank(arbiter);
+        escrow.resolve(MERCHANT, b, true);
+        bytes32 c = lockOrder(3);
+        bytes memory stop = action(MERCHANT_KEY, escrow.CANCEL_TYPEHASH(), c);
+        vm.expectEmit(address(escrow));
+        emit OrderCancelled(MERCHANT, c, wallet, PRICE, OrderEscrow.Refund.Store);
+        escrow.cancel(MERCHANT, c, stop);
+        bytes32 d = lockOrder(4);
+        bytes32 e = lockOrder(5);
+        deliver(e);
+        vm.warp(start + 7 days);
+        vm.expectEmit(address(escrow));
+        emit OrderCancelled(MERCHANT, d, wallet, PRICE, OrderEscrow.Refund.Undelivered);
+        escrow.refundUndelivered(MERCHANT, d);
+        vm.expectEmit(address(escrow));
+        emit OrderReleased(MERCHANT, e, store, PRICE, OrderEscrow.Payout.Claim);
+        escrow.claim(MERCHANT, e);
+    }
+
+    function testHighSSignaturesAndOtherChainsAreRefused() public {
+        Types.MerchantQuote memory q = quoteFor(1);
+        bytes memory m = sig(MERCHANT_KEY, escrow.quoteDigest(q));
+        bytes memory w = walletSig(WALLET_KEY, q, phone);
+        bytes memory high = flip(m);
+        vm.expectRevert(OrderEscrow.InvalidSignature.selector);
+        escrow.lock(q, phone, high, w);
+        bytes memory highWallet = flip(w);
+        vm.expectRevert(TestUSDC3009.InvalidAuthorization.selector);
+        escrow.lock(q, phone, m, highWallet);
+        vm.chainId(1);
+        vm.expectRevert(OrderEscrow.WrongDomain.selector);
+        escrow.lock(q, phone, m, w);
+    }
+
+    function flip(bytes memory signature) internal pure returns (bytes memory) {
+        (bytes32 r, bytes32 s) = abi.decode(signature, (bytes32, bytes32));
+        uint256 order = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
+        return abi.encodePacked(r, bytes32(order - uint256(s)), uint8(signature[64]) == 27 ? uint8(28) : uint8(27));
+    }
+
+    function testRefundToARefusingAccountWaitsForTheTrustedEntry() public {
+        bytes32 order = lockOrder(1);
+        vm.prank(wallet);
+        token.setRefusalMode(true);
+        bytes memory stop = action(MERCHANT_KEY, escrow.CANCEL_TYPEHASH(), order);
+        vm.expectRevert(OrderEscrow.TokenBalanceMismatch.selector);
+        escrow.cancel(MERCHANT, order, stop);
+        token.setTrustedSender(address(escrow), true);
+        escrow.cancel(MERCHANT, order, stop);
+        assertEq(token.balanceOf(wallet), DEPOSIT);
     }
 
     // ---- settings and the token ----
@@ -496,8 +672,8 @@ contract OrderEscrowTest is Test {
             uint256 outcome = outcomes[i] % 6;
             if (outcome == 1) escrow.cancel(MERCHANT, order, action(MERCHANT_KEY, escrow.CANCEL_TYPEHASH(), order));
             if (outcome >= 2) deliver(order);
-            if (outcome == 3) escrow.release(MERCHANT, order, action(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order));
-            if (outcome >= 4) escrow.dispute(MERCHANT, order, action(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+            if (outcome == 3) escrow.release(MERCHANT, order, buyer(PHONE_KEY, escrow.RECEIPT_TYPEHASH(), order));
+            if (outcome >= 4) escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
             if (outcome == 5) {
                 vm.prank(arbiter);
                 escrow.resolve(MERCHANT, order, i % 2 == 0);

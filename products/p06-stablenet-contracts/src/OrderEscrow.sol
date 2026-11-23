@@ -47,6 +47,19 @@ contract OrderEscrow {
         OtherBeneficiary
     }
 
+    enum Payout {
+        Receipt,
+        Claim,
+        Arbiter,
+        DisputeWithdrawn
+    }
+
+    enum Refund {
+        Store,
+        Undelivered,
+        Arbiter
+    }
+
     struct Merchant {
         address signer;
         address beneficiary;
@@ -80,8 +93,14 @@ contract OrderEscrow {
     bytes32 public constant LOCK_TYPEHASH = keccak256("OrderLock(bytes32 quoteDigest,address confirmer)");
     bytes32 public constant DELIVERY_TYPEHASH = keccak256("OrderDelivered(bytes32 merchantId,bytes32 orderId)");
     bytes32 public constant CANCEL_TYPEHASH = keccak256("OrderCancel(bytes32 merchantId,bytes32 orderId)");
-    bytes32 public constant RECEIPT_TYPEHASH = keccak256("OrderReceipt(bytes32 merchantId,bytes32 orderId)");
-    bytes32 public constant DISPUTE_TYPEHASH = keccak256("OrderDispute(bytes32 merchantId,bytes32 orderId)");
+    // The buyer's actions name the delivery they answer, so nothing signed before the delivered mark,
+    // or for another one, can be used. Giving up a dispute is its own action.
+    bytes32 public constant RECEIPT_TYPEHASH =
+        keccak256("OrderReceipt(bytes32 merchantId,bytes32 orderId,uint64 claimableAt)");
+    bytes32 public constant DISPUTE_TYPEHASH =
+        keccak256("OrderDispute(bytes32 merchantId,bytes32 orderId,uint64 claimableAt)");
+    bytes32 public constant WITHDRAW_DISPUTE_TYPEHASH =
+        keccak256("OrderDisputeWithdraw(bytes32 merchantId,bytes32 orderId,uint64 claimableAt)");
 
     address public immutable asset;
     address public immutable governor;
@@ -93,7 +112,13 @@ contract OrderEscrow {
     mapping(bytes32 => mapping(bytes32 => Order)) public orders;
 
     event MerchantConfigured(
-        bytes32 indexed merchantId, address signer, address beneficiary, uint32 confirmWindow, uint32 deliveryWindow
+        bytes32 indexed merchantId,
+        address signer,
+        address beneficiary,
+        uint64 keyVersion,
+        uint64 beneficiaryVersion,
+        uint32 confirmWindow,
+        uint32 deliveryWindow
     );
     event MerchantActive(bytes32 indexed merchantId, bool active);
     event ArbiterChanged(address indexed arbiter);
@@ -105,14 +130,17 @@ contract OrderEscrow {
         address confirmer,
         uint256 amount,
         uint64 deliverBy,
+        uint32 confirmWindow,
         bytes32 quoteDigest
     );
     event OrderDelivered(bytes32 indexed merchantId, bytes32 indexed orderId, uint64 claimableAt);
     event OrderDisputed(bytes32 indexed merchantId, bytes32 indexed orderId);
     event OrderReleased(
-        bytes32 indexed merchantId, bytes32 indexed orderId, address beneficiary, uint256 amount, bool confirmed
+        bytes32 indexed merchantId, bytes32 indexed orderId, address beneficiary, uint256 amount, Payout reason
     );
-    event OrderCancelled(bytes32 indexed merchantId, bytes32 indexed orderId, address payer, uint256 amount);
+    event OrderCancelled(
+        bytes32 indexed merchantId, bytes32 indexed orderId, address payer, uint256 amount, Refund reason
+    );
     event ClaimSkipped(bytes32 indexed merchantId, bytes32 indexed orderId, SkipReason reason);
 
     error WrongDomain();
@@ -124,7 +152,6 @@ contract OrderEscrow {
     error InvalidTime();
     error InvalidState();
     error OrderAlreadyPaid();
-    error NothingToClaim();
     error TokenTransferFailed();
     error TokenBalanceMismatch();
     error Reentered();
@@ -179,7 +206,15 @@ contract OrderEscrow {
         merchant.beneficiary = beneficiary;
         merchant.confirmWindow = confirmWindow;
         merchant.deliveryWindow = deliveryWindow;
-        emit MerchantConfigured(merchantId, signer, beneficiary, confirmWindow, deliveryWindow);
+        emit MerchantConfigured(
+            merchantId,
+            signer,
+            beneficiary,
+            merchant.keyVersion,
+            merchant.beneficiaryVersion,
+            confirmWindow,
+            deliveryWindow
+        );
     }
 
     /// @notice Stops new orders only. Orders already paid can still be delivered, claimed or refunded.
@@ -208,6 +243,11 @@ contract OrderEscrow {
         return Types.digest(domainSeparator(), keccak256(abi.encode(typehash, merchantId, orderId)));
     }
 
+    function buyerDigest(bytes32 typehash, bytes32 merchantId, bytes32 orderId) public view returns (bytes32) {
+        uint64 claimableAt = orders[merchantId][orderId].claimableAt;
+        return Types.digest(domainSeparator(), keccak256(abi.encode(typehash, merchantId, orderId, claimableAt)));
+    }
+
     // ---- order life ----
 
     /// @notice Pays an order into escrow. Anyone may submit it and pay the gas.
@@ -233,7 +273,15 @@ contract OrderEscrow {
         totalHeld += quote.amount;
         _pull(quote, keccak256(abi.encode(LOCK_TYPEHASH, hash, confirmer)), payerSignature);
         emit OrderLocked(
-            quote.merchantId, quote.orderId, quote.payer, quote.beneficiary, confirmer, quote.amount, deliverBy, hash
+            quote.merchantId,
+            quote.orderId,
+            quote.payer,
+            quote.beneficiary,
+            confirmer,
+            quote.amount,
+            deliverBy,
+            merchant.confirmWindow,
+            hash
         );
     }
 
@@ -251,9 +299,17 @@ contract OrderEscrow {
     /// @notice The buyer confirms receipt. Final: the merchant is paid and nothing can be cancelled.
     function release(bytes32 merchantId, bytes32 orderId, bytes calldata signature) external guarded {
         Order storage order = orders[merchantId][orderId];
-        if (order.state != State.Delivered && order.state != State.Disputed) revert InvalidState();
+        if (order.state != State.Delivered) revert InvalidState();
         _checkBuyerAction(order, RECEIPT_TYPEHASH, merchantId, orderId, signature);
-        _pay(order, merchantId, orderId, true);
+        _pay(order, merchantId, orderId, Payout.Receipt);
+    }
+
+    /// @notice The buyer gives up a dispute and pays. A receipt signed earlier does not do this.
+    function withdrawDispute(bytes32 merchantId, bytes32 orderId, bytes calldata signature) external guarded {
+        Order storage order = orders[merchantId][orderId];
+        if (order.state != State.Disputed) revert InvalidState();
+        _checkBuyerAction(order, WITHDRAW_DISPUTE_TYPEHASH, merchantId, orderId, signature);
+        _pay(order, merchantId, orderId, Payout.DisputeWithdrawn);
     }
 
     /// @notice The buyer says the goods did not arrive. Only before the merchant may claim.
@@ -271,8 +327,8 @@ contract OrderEscrow {
         if (msg.sender != arbiter) revert Unauthorized();
         Order storage order = orders[merchantId][orderId];
         if (order.state != State.Disputed) revert InvalidState();
-        if (payMerchant) _pay(order, merchantId, orderId, false);
-        else _refund(order, merchantId, orderId);
+        if (payMerchant) _pay(order, merchantId, orderId, Payout.Arbiter);
+        else _refund(order, merchantId, orderId, Refund.Arbiter);
     }
 
     /// @notice The store gives the money back before the buyer confirmed.
@@ -282,7 +338,7 @@ contract OrderEscrow {
             revert InvalidState();
         }
         _checkMerchantAction(CANCEL_TYPEHASH, merchantId, orderId, signature);
-        _refund(order, merchantId, orderId);
+        _refund(order, merchantId, orderId, Refund.Store);
     }
 
     /// @notice Returns the money of an order the store never marked as delivered.
@@ -290,7 +346,7 @@ contract OrderEscrow {
         Order storage order = orders[merchantId][orderId];
         if (order.state != State.Locked) revert InvalidState();
         if (_now() < order.deliverBy) revert InvalidTime();
-        _refund(order, merchantId, orderId);
+        _refund(order, merchantId, orderId, Refund.Undelivered);
     }
 
     /// @notice The store collects one order the buyer did not confirm in time. A contract never
@@ -298,11 +354,12 @@ contract OrderEscrow {
     function claim(bytes32 merchantId, bytes32 orderId) external guarded {
         Order storage order = orders[merchantId][orderId];
         if (claimStatus(merchantId, orderId) != SkipReason.None) revert InvalidState();
-        _pay(order, merchantId, orderId, false);
+        _pay(order, merchantId, orderId, Payout.Claim);
     }
 
     /// @notice Collects many orders in one transaction with one token transfer. An order that cannot
-    /// be claimed is skipped with its reason and does not stop the others.
+    /// be claimed is skipped with its reason and does not stop the others. A batch with nothing to claim
+    /// succeeds with zero, so its reasons stay on record.
     function claimBatch(bytes32 merchantId, address beneficiary, bytes32[] calldata orderIds)
         external
         guarded
@@ -320,9 +377,9 @@ contract OrderEscrow {
             }
             order.state = State.Paid; // a repeated id in the same batch is skipped as settled
             total += order.amount;
-            emit OrderReleased(merchantId, orderId, beneficiary, order.amount, false);
+            emit OrderReleased(merchantId, orderId, beneficiary, order.amount, Payout.Claim);
         }
-        if (total == 0) revert NothingToClaim();
+        if (total == 0) return 0;
         totalHeld -= total;
         _push(beneficiary, total);
     }
@@ -381,22 +438,22 @@ contract OrderEscrow {
         bytes32 orderId,
         bytes calldata signature
     ) private view {
-        if (_recover(actionDigest(typehash, merchantId, orderId), signature) != order.confirmer) {
+        if (_recover(buyerDigest(typehash, merchantId, orderId), signature) != order.confirmer) {
             revert InvalidSignature();
         }
     }
 
-    function _pay(Order storage order, bytes32 merchantId, bytes32 orderId, bool confirmed) private {
+    function _pay(Order storage order, bytes32 merchantId, bytes32 orderId, Payout reason) private {
         order.state = State.Paid;
         totalHeld -= order.amount;
-        emit OrderReleased(merchantId, orderId, order.beneficiary, order.amount, confirmed);
+        emit OrderReleased(merchantId, orderId, order.beneficiary, order.amount, reason);
         _push(order.beneficiary, order.amount);
     }
 
-    function _refund(Order storage order, bytes32 merchantId, bytes32 orderId) private {
+    function _refund(Order storage order, bytes32 merchantId, bytes32 orderId, Refund reason) private {
         order.state = State.Refunded;
         totalHeld -= order.amount;
-        emit OrderCancelled(merchantId, orderId, order.payer, order.amount);
+        emit OrderCancelled(merchantId, orderId, order.payer, order.amount, reason);
         _push(order.payer, order.amount);
     }
 
