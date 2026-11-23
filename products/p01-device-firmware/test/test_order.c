@@ -14,6 +14,8 @@
 
 #define NOW UINT64_C(1800000000)
 #define GENERATION 1
+#define EARLIEST (NOW - 2)
+static uint64_t earliest = EARLIEST;
 
 static uint8_t unsigned_quote[NU54_V2_UNSIGNED_SIZE], merchant_signature[65], merchant_signer[20], confirmer[20];
 static uint8_t expected_preimage[NU54_LOCAL_PREIMAGE_SIZE], payer_signature[65];
@@ -70,7 +72,7 @@ static int stage(nu54_v2_link link, nu54_v2_request req, const uint8_t *phone, c
 		 nu54_pilot_policy policy, const uint8_t *account, uint64_t generation)
 {
 	nu54_local_approval approval = {0};
-	return nu54_order_stage(&approval, &link, &req, phone, signed_quote, &order, &policy, account, generation, 9,
+	return nu54_order_stage(&approval, &link, &req, phone, signed_quote, &order, &policy, account, generation, earliest, 9,
 				present, NULL);
 }
 
@@ -114,7 +116,7 @@ static void test_physical_approval_signs_exactly_once(void)
 	nu54_v2_request req = request();
 	uint8_t signature[65];
 	shown = 0;
-	assert(!nu54_order_stage(&approval, &link, &req, confirmer, quote, &order, &allowlist, payer, GENERATION, 9,
+	assert(!nu54_order_stage(&approval, &link, &req, confirmer, quote, &order, &allowlist, payer, GENERATION, EARLIEST, 9,
 				 present, NULL));
 	assert(shown == 1 && approval.pending);
 	assert(nu54_pilot_complete(&approval, &link, GENERATION, NOW + 1, 8, NU54_LOCAL_APPROVE, payer, sign,
@@ -125,7 +127,7 @@ static void test_physical_approval_signs_exactly_once(void)
 	assert(nu54_pilot_complete(&approval, &link, GENERATION, NOW + 1, 9, NU54_LOCAL_APPROVE, payer, sign,
 				   payer_signature, signature));
 	/* The reject button never signs. */
-	assert(!nu54_order_stage(&approval, &link, &req, confirmer, quote, &order, &allowlist, payer, GENERATION, 9,
+	assert(!nu54_order_stage(&approval, &link, &req, confirmer, quote, &order, &allowlist, payer, GENERATION, EARLIEST, 9,
 				 present, NULL));
 	assert(nu54_pilot_complete(&approval, &link, GENERATION, NOW + 1, 9, NU54_LOCAL_REJECT, payer, sign,
 				   payer_signature, signature));
@@ -199,6 +201,17 @@ static void test_refuses_everything_outside_the_grant(void)
 	order.now = NOW + 110;
 	assert(stage(channel(), request(), confirmer, quote, allowlist, payer, GENERATION));
 	order = saved;
+
+	/* The vector expires at NOW + 110. A longer-lived authorization could outlast a reset. */
+	earliest = NOW + 110 - NU54_ORDER_MAX_SECONDS;
+	assert(!stage(channel(), request(), confirmer, quote, allowlist, payer, GENERATION));
+	earliest -= 1;
+	assert(stage(channel(), request(), confirmer, quote, allowlist, payer, GENERATION));
+	earliest = 0;
+	assert(stage(channel(), request(), confirmer, quote, allowlist, payer, GENERATION));
+	earliest = NOW + 1; /* a lower bound above the upper one */
+	assert(stage(channel(), request(), confirmer, quote, allowlist, payer, GENERATION));
+	earliest = EARLIEST;
 }
 
 /* A price an ordinary grant could pay, so only the testnet flag is left to refuse it. */

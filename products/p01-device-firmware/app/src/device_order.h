@@ -12,7 +12,7 @@ bool device_order_within_daily(uint64_t earliest, uint64_t amount);
 /* Commits the amount before the signature exists, so a power cut can only lower what is left. */
 int device_order_charge(uint64_t earliest, uint64_t amount);
 
-/* True while an approved order could still execute; a storage failure counts as open. */
+/* True while an approved order could still execute. */
 bool device_order_open(uint64_t earliest, int64_t uptime_ms);
 int device_order_erase(void);
 

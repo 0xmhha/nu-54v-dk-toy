@@ -20,8 +20,10 @@ bool nu54_order_preimage(const uint8_t quote[NU54_V2_UNSIGNED_SIZE], const uint8
  * quote must come from the enrolled merchant and stay within the grant's per-payment cap. */
 int nu54_order_stage(nu54_local_approval *, const nu54_v2_link *, const nu54_v2_request *,
 		     const uint8_t confirmer[20], const uint8_t *quote, const nu54_v2_quote_policy *order,
-		     const nu54_pilot_policy *allowlist, const uint8_t payer[20], uint64_t generation,
+		     const nu54_pilot_policy *allowlist, const uint8_t payer[20], uint64_t generation, uint64_t earliest,
 		     uint32_t physical_prompt, int (*present)(void *, const uint8_t *, size_t), void *context);
+/* The longest a signed order may stay executable, from the trusted lower bound of the time. */
+#define NU54_ORDER_MAX_SECONDS 180
 
 /* Daily total in asset base units. `earliest` is the trusted lower bound of the time, so a clock
  * that runs ahead cannot open the next day early, and an older time never lowers the total. */

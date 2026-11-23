@@ -52,9 +52,7 @@ int device_order_charge(uint64_t earliest, uint64_t amount)
 
 bool device_order_open(uint64_t earliest, int64_t uptime_ms)
 {
-	bool failed;
-	bool open = nu54_spend_order_open(load, NULL, earliest, uptime_ms, &failed);
-	return open || failed;
+	return nu54_spend_order_open(load, NULL, earliest, uptime_ms);
 }
 
 int device_order_erase(void)

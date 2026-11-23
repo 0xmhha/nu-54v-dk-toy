@@ -94,7 +94,7 @@ bool nu54_order_preimage(const uint8_t quote[NU54_V2_UNSIGNED_SIZE], const uint8
 
 int nu54_order_stage(nu54_local_approval *approval, const nu54_v2_link *channel, const nu54_v2_request *request,
 		     const uint8_t confirmer[20], const uint8_t *quote, const nu54_v2_quote_policy *order,
-		     const nu54_pilot_policy *allowlist, const uint8_t payer[20], uint64_t generation,
+		     const nu54_pilot_policy *allowlist, const uint8_t payer[20], uint64_t generation, uint64_t earliest,
 		     uint32_t physical_prompt, int (*present)(void *, const uint8_t *, size_t), void *context)
 {
 	if (!channel || channel->closed || channel->local != NU54_V2_BOARD || channel->profile != NU54_V2_MANAGEMENT ||
@@ -107,6 +107,7 @@ int nu54_order_stage(nu54_local_approval *approval, const nu54_v2_link *channel,
 	    /* The store must not hold the key that confirms receipt for the buyer. */
 	    !memcmp(confirmer, order->merchant_signer, 20) || !memcmp(confirmer, allowlist->beneficiary, 20)) return -1;
 	uint64_t expiry = word_u64(quote + NU54_V2_EXPIRES_AT_OFFSET);
+	if (!earliest || earliest > order->now || expiry - earliest > NU54_ORDER_MAX_SECONDS) return -1;
 	nu54_local_intent intent = {.generation = generation, .expires = expiry < request->expires ? expiry : request->expires,
 				    .physical_prompt = physical_prompt};
 	memcpy(intent.session, channel->epoch, sizeof(intent.session));

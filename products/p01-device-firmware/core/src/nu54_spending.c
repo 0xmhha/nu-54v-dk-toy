@@ -123,15 +123,20 @@ void nu54_spend_return_preimage(const uint8_t token[20], const uint8_t from[20],
 	nu54_keccak256(fields, 224, out + 34);
 }
 
-bool nu54_spend_order_open(nu54_order_read read_slot, void *context, uint64_t earliest, int64_t uptime_ms, bool *failed)
+_Static_assert(NU54_SPEND_ORDER_LIFE_MS > NU54_ORDER_MAX_SECONDS * INT64_C(1000), "an order outlives the boot wait");
+
+bool nu54_spend_order_open(nu54_order_read read_slot, void *context, uint64_t earliest, int64_t uptime_ms)
 {
-	*failed = false;
+	const bool young = uptime_ms < NU54_SPEND_ORDER_LIFE_MS;
 	for (unsigned slot = 1; slot <= NU54_ORDER_RECORDS; ++slot) {
 		nu54_order_record saved;
 		int read = read_slot(context, slot, &saved);
-		if (read < 0) *failed = true;
-		if (read || saved.outcome != NU54_ORDER_APPROVED) continue;
-		if (earliest ? saved.expires > earliest : uptime_ms < NU54_SPEND_ORDER_LIFE_MS) return true;
+		if (read > 0) continue;
+		if (read < 0) {
+			if (young) return true;
+			continue;
+		}
+		if (saved.outcome == NU54_ORDER_APPROVED && (earliest ? saved.expires > earliest : young)) return true;
 	}
 	return false;
 }

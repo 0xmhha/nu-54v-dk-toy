@@ -28,6 +28,14 @@ void nu54_owner_cancel(nu54_owner_enrollment *enrollment)
 	memset(enrollment, 0, sizeof(*enrollment));
 }
 
+bool nu54_owner_session_pin(const nu54_vault *vault, const uint8_t enrollment[32], const uint8_t **pin)
+{
+	bool released = vault->record.flags & NU54_VAULT_RELEASED;
+	if (!vault->enabled || ((vault->record.flags & NU54_VAULT_REVOKED) && !released)) return false;
+	*pin = released || !vault->record.generation ? enrollment : vault->record.owner;
+	return true;
+}
+
 int nu54_owner_status(const nu54_vault *vault, const nu54_owner_crypto *crypto,
 		      const nu54_owner_enrollment *enrollment, uint8_t out[NU54_OWNER_STATUS_SIZE])
 {

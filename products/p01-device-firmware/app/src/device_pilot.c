@@ -488,18 +488,16 @@ static int spending_request(const nu54_v2_request *request, uint64_t now, const 
 	return 0;
 }
 
-/* Runs with the pilot lock held and does not return on success. */
-static int spending_erase_and_reboot(void)
+/* Runs with the pilot lock held and does not return. */
+static void spending_erase_and_reboot(void)
 {
-	if (device_spending_erase()) {
-		status_led_event(NU54_EVENT_REFUSED);
-		return -1;
-	}
+	/* An unfinished erase leaves its mark, and the restart continues it. */
+	const bool erased = device_spending_erase() == 0;
 	status_led_clear();
-	status_led_reset_done();
+	if (erased) status_led_reset_done();
+	else status_led_event(NU54_EVENT_REFUSED);
 	k_msleep(4000);
 	sys_reboot(SYS_REBOOT_COLD);
-	return 0;
 }
 
 static int spending_button(uint32_t prompt, bool approved)
@@ -521,6 +519,7 @@ static int spending_button(uint32_t prompt, bool approved)
 	int pin = spend_action.op == NU54_SPEND_OPERATOR_RESET_OP ? 0 : pilot_pin(false, prompt);
 	if (pin || prompt != (uint32_t)atomic_get(&pending_prompt) || !connection || pay_link_waiting() ||
 	    !device_install_policy() || !vault->enabled || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    (recovering && k_uptime_get() >= recovery_window) ||
 	    !nu54_spend_consume(&spend_action, &link, trusted_now(), vault->record.generation, prompt, &action)) return -1;
 	if (action.op == NU54_SPEND_SET_RETURN_OP) {
 		if (device_spending_set_return(action.address)) return -1;
@@ -546,14 +545,16 @@ static int spending_button(uint32_t prompt, bool approved)
 	reply.payload_length = 1; /* the phone learns that the reset starts; the board then restarts */
 	nu54_v2_link_send(&link, &reply, send_frame, NULL);
 	reset_link();
-	return spending_erase_and_reboot();
+	spending_erase_and_reboot();
+	return 0;
 }
 
 void device_pilot_button_reset(void)
 {
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 	const nu54_vault *vault = device_vault_owner();
-	bool allowed = vault->enabled && vault->record.generation && !(vault->record.flags & NU54_VAULT_REVOKED) &&
+	/* A revoked owner's board can still be reset by whoever knows its PIN; nothing else could free it. */
+	bool allowed = vault->enabled && vault->record.generation && !(vault->record.flags & NU54_VAULT_RELEASED) &&
 		       !approval.pending && !enrollment.issued && !spend_action.pending && !pay_link_waiting() &&
 		       !device_order_open(device_install_earliest(), k_uptime_get());
 	if (allowed) reset_link();
@@ -603,7 +604,11 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 #endif
 	if (recovering && (k_uptime_get() >= recovery_window ||
 	    (request->payload[0] != 1 && request->payload[0] != 2 && request->payload[0] != 3 &&
-	     request->payload[0] != 7))) return -1;
+	     request->payload[0] != 7
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	     && request->payload[0] != NU54_SPEND_RESET_NONCE_OP && request->payload[0] != NU54_SPEND_OPERATOR_RESET_OP
+#endif
+	     ))) return -1;
 	switch (request->payload[0]) {
 	case NU54_OWNER_IDLE_OP: {
 		if (!owner_idle.generation || request->payload_length != 1 || !session_live(k_uptime_get())) return -1;
@@ -1238,7 +1243,7 @@ static int order_request(nu54_v2_request *request, int state, uint64_t now, cons
 	    nu54_install_quote(policy, quote, NU54_V2_SIGNED_SIZE, now, &order)) return -1;
 	uint32_t prompt = NU54_PILOT_PROMPT_MASK | ++next_prompt;
 	if (nu54_order_stage(&approval, &link, request, confirmer, quote, &order, &policy->allowlist, payer,
-			     policy->payer_generation, prompt, present, NULL)) return -1;
+			     policy->payer_generation, device_install_earliest(), prompt, present, NULL)) return -1;
 	if (hash(approval.intent.preimage, sizeof(approval.intent.preimage), digest)) return -1;
 	int found = device_order_find(device_install_earliest(), request->id, digest, &saved, &order_slot);
 	if (found == NU54_PILOT_RECEIPT_RECORDED) {
@@ -1491,13 +1496,11 @@ static void poll_tls(struct k_work *ignored)
 		if (result == MBEDTLS_ERR_SSL_WANT_READ || result == MBEDTLS_ERR_SSL_WANT_WRITE) goto wait;
 		const nu54_vault *vault = device_vault_owner();
 		const uint8_t *pin = policy->terminal;
-		if (profile == NU54_V2_MANAGEMENT) {
-			if (!vault->enabled || (vault->record.flags & NU54_VAULT_REVOKED)) goto failed;
-			pin = vault->record.generation ? vault->record.owner : policy->owner;
-		}
+		if (profile == NU54_V2_MANAGEMENT && !nu54_owner_session_pin(vault, policy->owner, &pin)) goto failed;
 		if (result || trusted_now() >= policy->not_after) goto failed;
 		if (k_uptime_get() < recovery_window) {
 			if (profile != NU54_V2_MANAGEMENT || !vault->record.generation ||
+			    (vault->record.flags & NU54_VAULT_REVOKED) ||
 			    device_tls_v2_bind(&tls, &link, profile, NULL, &journal, trusted_now()) ||
 			    !memcmp(pin, link.peer_identity, 32)) goto failed;
 			recovering = true;
@@ -1788,7 +1791,8 @@ bool device_pilot_recovery_window(void)
 {
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 	bool available = ready && device_install_policy() && device_vault_owner()->enabled &&
-			 device_vault_owner()->record.generation && !pay_link_waiting();
+			 device_vault_owner()->record.generation &&
+			 !(device_vault_owner()->record.flags & NU54_VAULT_REVOKED) && !pay_link_waiting();
 	struct bt_conn *prior = NULL;
 	if (available) {
 		if (connection) prior = bt_conn_ref(connection);

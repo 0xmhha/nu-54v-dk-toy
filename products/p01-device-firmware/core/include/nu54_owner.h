@@ -25,6 +25,9 @@ typedef struct {
 	bool issued, proven, independent;
 } nu54_owner_enrollment;
 
+/* Which phone may open an owner session: the enrolled owner, or the grant's phone while the board
+ * has no owner (new, or released by a reset). A revoked owner leaves no one. */
+bool nu54_owner_session_pin(const nu54_vault *, const uint8_t enrollment[32], const uint8_t **pin);
 int nu54_owner_status(const nu54_vault *, const nu54_owner_crypto *, const nu54_owner_enrollment *,
 		      uint8_t [NU54_OWNER_STATUS_SIZE]);
 

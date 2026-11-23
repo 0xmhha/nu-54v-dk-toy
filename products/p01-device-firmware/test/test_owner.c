@@ -194,6 +194,9 @@ int main(void)
 	assert(nu54_vault_revoke(&vault, 0, link.peer_identity) < 0);
 	assert(nu54_vault_revoke(&vault, 1, link.peer_identity) == 0 && vault.record.generation == 2);
 	assert(nu54_owner_status(&vault, &crypto, &enrollment, status) == 0 && status[1] == 3 && status[12] == 2);
+	const uint8_t *session;
+	const uint8_t grant_phone[32] = {77};
+	assert(!nu54_owner_session_pin(&vault, grant_phone, &session)); /* revoked: nobody */
 	/* A revoked owner stays revoked: only a local reset lets a new phone register. */
 	nu54_owner_cancel(&enrollment);
 	request.payload = begin;
@@ -208,9 +211,18 @@ int main(void)
 	assert(nu54_vault_revoke(&vault, 3, link.peer_identity) < 0);
 	assert(nu54_owner_begin(&enrollment, &vault, &crypto, &link, &request, 3, link.peer_identity) == 0);
 	nu54_owner_cancel(&enrollment);
+	/* After a reset the grant's phone must be able to connect, or the board could never be used again. */
+	assert(nu54_owner_session_pin(&vault, grant_phone, &session) && session == grant_phone);
 	assert(nu54_vault_rebind(&vault, 3, link.peer_identity) == 0 && vault.record.generation == 4 && !vault.record.flags);
 	assert(nu54_owner_begin(&enrollment, &vault, &crypto, &link, &request, 3, link.peer_identity) < 0);
 	nu54_owner_cancel(&enrollment);
+	assert(nu54_owner_session_pin(&vault, grant_phone, &session) && session == vault.record.owner);
+	vault.enabled = false;
+	assert(!nu54_owner_session_pin(&vault, grant_phone, &session));
+	vault.enabled = true;
+	vault.record.generation = 0;
+	assert(nu54_owner_session_pin(&vault, grant_phone, &session) && session == grant_phone);
+	vault.record.generation = 4;
 	assert(nu54_owner_status(&vault, &crypto, &enrollment, status) == 0 && status[1] == 1);
 	/* The bond flag keeps the backup bit, sets or clears only bit 1, and leaves other bytes alone. */
 	uint8_t flagged[NU54_OWNER_STATUS_SIZE];

@@ -99,14 +99,15 @@ static int enroll(const char *first, struct pin_record *record, device_pin_guard
 }
 
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-/* Counted from the last wrong PIN or from boot, so switching the power off does not shorten it. */
-static int64_t wait_from;
+/* Seconds of uptime, rounded up: counted from the last wrong PIN or from boot, so switching the
+ * power off does not shorten it. One aligned word, because two threads read it. */
+static volatile uint32_t wait_from;
 
 static int32_t wait_left(uint8_t failures)
 {
 	uint32_t seconds = nu54_pin_wait_seconds(failures);
 	if (!seconds) return 0;
-	int64_t left = wait_from + (int64_t)seconds * 1000 - k_uptime_get();
+	int64_t left = ((int64_t)wait_from + seconds) * 1000 - k_uptime_get();
 	return left > 0 ? (int32_t)((left + 999) / 1000) : 0;
 }
 
@@ -157,7 +158,7 @@ int device_recovery_pin_guarded(bool virgin, device_pin_guard guard, void *conte
 			result = enroll(pin, &record, guard, context);
 		} else {
 			result = nu54_pin_attempt_waited(&storage, pin, NU54_PIN_LEN) == NU54_PIN_OK ? 0 : -1;
-			if (result) wait_from = k_uptime_get();
+			if (result) wait_from = (uint32_t)((k_uptime_get() + 999) / 1000);
 		}
 #else
 		result = state == PSA_ERROR_DOES_NOT_EXIST ? enroll(pin, &record, guard, context) :

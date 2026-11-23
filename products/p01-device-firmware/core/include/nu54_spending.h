@@ -35,9 +35,10 @@ void nu54_spend_return_preimage(const uint8_t token[20], const uint8_t from[20],
 				uint8_t out[NU54_LOCAL_PREIMAGE_SIZE]);
 
 /* An approved order can still execute until its authorization ends, so a reset or a return waits.
- * Without trusted time (no grant since boot) the board counts from boot instead. */
-#define NU54_SPEND_ORDER_LIFE_MS INT64_C(180000)
-bool nu54_spend_order_open(nu54_order_read, void *context, uint64_t earliest, int64_t uptime_ms, bool *failed);
+ * Without trusted time (no grant since boot) or for an unreadable record the board counts from
+ * boot, which outlasts NU54_ORDER_MAX_SECONDS. So neither can hold a reset back forever. */
+#define NU54_SPEND_ORDER_LIFE_MS INT64_C(240000)
+bool nu54_spend_order_open(nu54_order_read, void *context, uint64_t earliest, int64_t uptime_ms);
 
 void nu54_spend_operator_statement(const uint8_t board[32], uint64_t generation, const uint8_t nonce[32],
 				   uint8_t out[NU54_SPEND_OPERATOR_STATEMENT_SIZE]);
