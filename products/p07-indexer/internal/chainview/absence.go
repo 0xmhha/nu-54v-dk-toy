@@ -28,7 +28,7 @@ func checkedCoverage(ctx context.Context, db absenceQuery, profile Profile, merc
 		EXISTS (SELECT FROM chainview.observed_event e JOIN chainview.block b
 		    ON b.generation_id=e.generation_id AND b.block_hash=e.block_hash
 		    WHERE e.generation_id=g.id AND b.canonical AND b.height<=g.finalized_height
-		        AND e.kind='paid' AND e.merchant_key=$3 AND e.order_key=$4)
+		        AND e.kind IN ('paid','locked') AND e.merchant_key=$3 AND e.order_key=$4)
 		FROM chainview.generation g JOIN chainview.read_target t ON t.generation_id=g.id
 		JOIN chainview.block anchor ON anchor.generation_id=g.id AND anchor.block_hash=g.finalized_hash
 		  AND anchor.height=g.finalized_height AND anchor.canonical
@@ -48,7 +48,7 @@ func checkedCoverage(ctx context.Context, db absenceQuery, profile Profile, merc
 }
 
 func (r *Reader) ProveAbsence(ctx context.Context, merchant, order string, expiry time.Time) (string, error) {
-	if !validOrderKeys(merchant, order) || (r.Profile.Version == 1 && len(merchant) != 42) || (r.Profile.Version == 2 && len(merchant) != 66) ||
+	if !validOrderKeys(merchant, order) || (r.Profile.Version == 1 && len(merchant) != 42) || (r.Profile.Version >= 2 && len(merchant) != 66) ||
 		expiry.Unix() <= 0 || expiry.Nanosecond() != 0 {
 		return "", errors.New("invalid scoped order reference or expiry")
 	}

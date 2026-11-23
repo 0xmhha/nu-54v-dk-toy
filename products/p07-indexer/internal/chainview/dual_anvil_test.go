@@ -61,23 +61,7 @@ func postBothVersions(t *testing.T, ctx context.Context, client *ethclient.Clien
 	}
 	deploy := func(name string, args ...any) (common.Address, *types.Receipt) {
 		t.Helper()
-		path := filepath.Join(cmp.Or(os.Getenv("FOUNDRY_OUT"), "../../../../products/p06-stablenet-contracts/out"), name+".sol", name+".json")
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var artifact struct {
-			ABI      json.RawMessage
-			Bytecode struct{ Object hexutil.Bytes }
-		}
-		if err := json.Unmarshal(raw, &artifact); err != nil {
-			t.Fatal(err)
-		}
-		contract, err := abi.JSON(bytes.NewReader(artifact.ABI))
-		if err != nil {
-			t.Fatal(err)
-		}
-		address, tx, _, err := bind.DeployContract(operator, contract, artifact.Bytecode.Object, client, args...)
+		address, tx, err := deployArtifact(t, operator, client, name, args...)
 		return address, mined(tx, err)
 	}
 
@@ -181,4 +165,27 @@ func postBothVersions(t *testing.T, ctx context.Context, client *ethclient.Clien
 		Version: 1, ChainID: 8283, Contract: address, Asset: asset, ABIHash: v1ABIHash, CodeHash: crypto.Keccak256Hash(code),
 		StartHeight: deployment.BlockNumber.Int64(), StartHash: deployment.BlockHash,
 		Manifest: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abce00"}, v1Receipt.BlockNumber.Int64()
+}
+
+// deployArtifact submits one contract from the Foundry output the harness built.
+func deployArtifact(t *testing.T, operator *bind.TransactOpts, client *ethclient.Client, name string, args ...any) (common.Address, *types.Transaction, error) {
+	t.Helper()
+	path := filepath.Join(cmp.Or(os.Getenv("FOUNDRY_OUT"), "../../../../products/p06-stablenet-contracts/out"), name+".sol", name+".json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var artifact struct {
+		ABI      json.RawMessage
+		Bytecode struct{ Object hexutil.Bytes }
+	}
+	if err := json.Unmarshal(raw, &artifact); err != nil {
+		t.Fatal(err)
+	}
+	contract, err := abi.JSON(bytes.NewReader(artifact.ABI))
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, tx, _, err := bind.DeployContract(operator, contract, artifact.Bytecode.Object, client, args...)
+	return address, tx, err
 }

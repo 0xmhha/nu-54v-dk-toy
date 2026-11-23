@@ -24,7 +24,7 @@ Run v1 and v2 listeners over the same controlled block interval. Reconcile count
 
 ## Running the indexer
 
-Apply owner migrations through 014 using the existing P07 migration target. Configure separate database logins for ingest, switching, public queries and merchant-scoped reconciliation. The default `indexer` invocation still opens the v1 receipt/cursor service.
+Apply owner migrations through 019 using the existing P07 migration target. Configure separate database logins for ingest, switching, public queries and merchant-scoped reconciliation. The default `indexer` invocation still opens the v1 receipt/cursor service.
 
 ```sh
 P07_CHAINVIEW_DATABASE_URL='service=indexer-ingest' \
@@ -40,9 +40,53 @@ A replay can run against the same stream with another generation ID. Use the sep
 
 Public `GET /v2/receipts?stream=<uuid>&merchant=<merchant-key>&order=<chain-order>` uses the projection-only login. It exposes exact units and canonical inclusion time. Payer, recipient, signer nonce, authority generation, mode and quote digest are available to the restricted role through `chainview.reconciliation_receipt(stream_id, merchant, order)`. The role must hold an unexpired `chainview.receipt_scope` entry bound to its authenticated SQL session login, stream and merchant. The restricted result also carries deployment, ABI, policy, inclusion block/hash and finalized anchor. The P05 consumer authenticates the quote/merchant/order and matches exact payment values before producing ledger effects. The existing mutually authenticated C7 endpoint serves its narrower proof-ID contract.
 
-The owner-only command `indexer prove-absence <generation> <merchant> <order> <signed-expiry-unix-seconds>` uses expiry from the issuer's stored signed quote. It requires continuous canonical coverage from deployment, a finalized block at or after expiry, no successful payment in the covered observations, and unconsumed state from an EIP-1898 block-hash call. It checks the anchor around the RPC call and binds the observation to the still-active generation in the proof transaction. Authorized consumers can read the unexpired result through `chainview.reconciliation_absence(stream_id, merchant, order)`. The state reference is SHA-256 over the canonical fields in [absence.go](internal/chainview/absence.go), including the original signed expiry, so owners can compare the proof to their stored quote. This reference attests the approved RPC observation. Ethereum storage proofs are outside this receipt format. P07 only produces observations and evidence. No P07 entry point submits a payment, refund or shipment.
+The owner-only command `indexer prove-absence <generation> <merchant> <order> <signed-expiry-unix-seconds>` uses expiry from the issuer's stored signed quote. It requires continuous canonical coverage from deployment, a finalized block at or after expiry, no successful payment in the covered observations, and unconsumed state from an EIP-1898 block-hash call. It checks the anchor around the RPC call and binds the observation to the still-active generation in the proof transaction. Authorized consumers can read the unexpired result through `chainview.reconciliation_absence(stream_id, merchant, order)`. They need no operator for it: see [Requested absence proofs](#requested-absence-proofs). The state reference is SHA-256 over the canonical fields in [absence.go](internal/chainview/absence.go), including the original signed expiry, so owners can compare the proof to their stored quote. This reference attests the approved RPC observation. Ethereum storage proofs are outside this receipt format. P07 only produces observations and evidence. No P07 entry point submits a payment, refund or shipment.
 
 For local verification, set `P07_CHAINVIEW_TEST_URL` to a disposable migrated PostgreSQL database and run `sh products/p07-indexer/test/chainview-anvil.sh` with Foundry 1.5.1 on `PATH`. The harness deploys both Solidity versions on loopback Anvil, mines their payments together, compares exact amounts and checkpoint hash, runs the real ingest command through a restricted login, and changes one fork below and one at the protected finalized boundary. The PostgreSQL tests also cover expiry, no-gap absence, projection privilege, governed read switching and incident redelivery.
+
+## OrderEscrow profile
+
+Profile version 3 pins the OrderEscrow ABI digest `e326762a…`. It runs through the same `indexer chainview` command, generation lease, receipt-root checks, finality, reorganization, hold, signed approval and replay as versions 1 and 2. Migration 017 adds the order columns to `observed_event`; there is no second event store. The operations server reads the confirmed facts with `chainview.escrow_receipt(stream_id, merchant, order)` as specified in the [shared wire contract](../../docs/content/commercial/architecture/spending-wallet-wire.md), under the existing `receipt_scope` grant and the `nu54_p07_reconcile` role. `reconciliation_ready` and `reconciliation_absence` are used unchanged.
+
+| Event | Fact | Carries |
+|---|---|---|
+| `OrderLocked` | `locked` | payer, beneficiary, confirmer, amount, quote digest, `deliver_by`, `confirm_window` |
+| `OrderDelivered` | `delivered` | `claimable_at` |
+| `OrderDisputed` | `disputed` | `resolve_by` |
+| `OrderReleased` | `released` | beneficiary, amount, `reason` (contract `Payout`) |
+| `OrderCancelled` | `cancelled` | payer, amount, `reason` (contract `Refund`) |
+| `ClaimSkipped` | `claim-skipped` | `reason` (contract `SkipReason`) |
+
+The contract events do not carry the token, so the asset is the one in the profile. A batch may emit many facts in one transaction; the log index orders them. An event with a wrong topic count, a noncanonical word, an unknown reason or a zero identity stops the poll like a malformed settlement event. There are two exceptions, because anyone can cause them. A `ClaimSkipped` for an order that was never locked, including a zero merchant or order, is ignored, and one transaction keeps one skip for each order. A lock whose quote lies outside the SDK form (the contract does not check payer role and generation) keeps its event and only loses the quote window.
+
+A lock does not have to be a direct call. When the transaction calls `lock` on the escrow itself, its quote calldata must hash to the event digest and the block time must be inside the signed window, which is stored. A lock sent through another contract keeps its event without the window. The operations server matches `quote_digest` and `included_at` to its stored quote in both cases.
+
+`prove-absence` requires that no `locked` event is in the covered observations and that `orders(merchantId, orderId).state` is 0 at the finalized block, which is at or after the signed expiry. The proof reference keeps the same form as version 2.
+
+Escrow facts are not in `active_evidence`, so the public, explorer, finance and C7 evidence readers do not see them. Those readers report nothing for an escrow stream; this is not evidence of nonpayment. Replay comparison covers the order columns, and its payment and refund totals count locks and cancellations.
+
+`escrow_receipt` returns every other fact of the order and the 20 most recently confirmed skips, so a stranger's skipped claims do not slow or hide it. `chainview.escrow_transaction(stream_id, merchant, tx_hash)` returns, under the same grant, every fact of the merchant in one confirmed transaction with `order_ref` in front of the `escrow_receipt` columns. The server settles a batch claim from its own transaction there. An order it named that has neither `released` nor `claim-skipped` in that confirmed transaction was never locked. A poll stops after a block that brings it to 5000 events.
+
+`chainview.finance_day_evidence` answers an escrow stream with its own object, under the same arguments, grant, hold and finality rules. A settlement stream keeps its earlier object. An escrow object has no `gross` or `refunds`, so it cannot pass as a settlement day.
+
+| Field | Meaning |
+|---|---|
+| `anchor`, `height` | finalized block the proof stands on; its time is at or after the end of the day |
+| `locked`, `lockedCount` | amount (minor-unit string) and number of orders locked in the day |
+| `released`, `releasedCount` | paid to the merchant in the day: sales of that day |
+| `cancelled`, `cancelledCount` | returned to the payer in the day |
+| `count` | all facts above |
+| `digest` | SHA-256 hex of the JSON array of `[kind, tx_hash, log_index, block_hash, amount]`, ordered by transaction, log and block as for a settlement day, with kinds `locked`, `released`, `cancelled` |
+
+The day of a fact is the time of the block that contains it. An order locked on one day and released on the next is in both days.
+
+Run the local fixture with `sh products/p07-indexer/test/chainview-anvil.sh -run '^TestAnvilOrderEscrowFacts$' -v` and `P07_CHAINVIEW_TEST_URL` set to a disposable database migrated through 019. It covers receipt, dispute, batch claim, cancellation, a lock removed by a reorganization and absence.
+
+## Requested absence proofs
+
+`chainview.request_absence(stream_id, merchant, order, signed_expiry)` asks for the proof that `prove-absence` makes, for settlement v2 and OrderEscrow streams. The `nu54_p07_reconcile` login needs a live `receipt_scope` row and a transaction that may write. It returns true when the request is waiting or the same proof is readable for at least two more minutes, so the server can call it on every pass until `reconciliation_absence` answers. It returns false when nothing was kept: no grant, another profile version, a malformed key, an expiry more than one hour ahead of both the wall clock and the finalized block, an order with a confirmed payment or lock, or 1000 requests of that merchant already waiting.
+
+The running `indexer chainview` process works the requests with the same `ProveAbsence` code, so the proof and its reference are identical. A request becomes due when the active generation has a finalized block at or after the expiry. A payment or lock confirmed meanwhile drops it. A failure delays the request from 2 seconds up to 5 minutes, and its stream up to 1 minute. Requests leave when they are answered or after seven days. One worker serves all streams apart from ingest and rests at least as long as it worked. Each proof checks the whole stored chain twice (about 0.25 seconds per 200,000 blocks on a local machine), the second time under the lock that also guards a checkpoint advance.
 
 ## Browser surfaces and disclosure
 

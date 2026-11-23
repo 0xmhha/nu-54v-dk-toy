@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	escrow "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/orderescrow"
 	v1 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlement"
 	v2 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlementv2"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,8 +21,9 @@ import (
 )
 
 const (
-	v1ABIHash = "05bbfd86dc59243e5456ce494036f33870e319d66aa96a91ee82e7054670ca4d"
-	v2ABIHash = "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814"
+	v1ABIHash     = "05bbfd86dc59243e5456ce494036f33870e319d66aa96a91ee82e7054670ca4d"
+	v2ABIHash     = "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814"
+	escrowABIHash = "e326762a55880c673cec09249bab8a76725183e812f3b3709dec2b92bd936c29"
 )
 
 var ErrUnknownABI = errors.New("unapproved settlement ABI")
@@ -35,15 +37,21 @@ type Event struct {
 	PayerGeneration                                                       uint64
 	Index                                                                 int32
 	IssuedAt, ExpiresAt                                                   *time.Time
+	// OrderEscrow facts. Zero times and a nil reason mean the event does not carry them.
+	Confirmer                                        string
+	DeliverBy, ConfirmWindow, ClaimableAt, ResolveBy int64
+	Reason                                           *int16
 }
 
 type Decoder struct {
 	profile Profile
 	legacy  *v1.SettlementFilterer
 	modern  *v2.Settlementv2Filterer
+	escrow  *escrow.OrderescrowFilterer
+	orders  map[common.Hash]abi.Event // OrderEscrow events this profile records
 	paid    common.Hash
 	refund  common.Hash
-	settle  abi.Method
+	settle  abi.Method // the method whose calldata carries the signed quote
 }
 
 func NewDecoder(profile Profile) (*Decoder, error) {
@@ -69,22 +77,45 @@ func NewDecoder(profile Profile) (*Decoder, error) {
 		d.paid, d.refund = abi.Events["Paid"].ID, abi.Events["Refunded"].ID
 		d.settle = abi.Methods["settle"]
 		return d, err
+	case profile.Version == 3 && profile.ABIHash == escrowABIHash:
+		contract, err := escrow.OrderescrowMetaData.GetAbi()
+		if err != nil {
+			return nil, err
+		}
+		d.escrow, err = escrow.NewOrderescrowFilterer(profile.Contract, nil)
+		d.orders = make(map[common.Hash]abi.Event, len(orderKinds))
+		for name := range orderKinds {
+			d.orders[contract.Events[name].ID] = contract.Events[name]
+		}
+		d.paid, d.settle = contract.Events["OrderLocked"].ID, contract.Methods["lock"]
+		return d, err
 	default:
 		return nil, ErrUnknownABI
 	}
 }
 
 func (d *Decoder) matches(log types.Log) bool {
-	return log.Address == d.profile.Contract && len(log.Topics) != 0 &&
-		(log.Topics[0] == d.paid || (d.modern != nil && log.Topics[0] == d.refund))
+	if log.Address != d.profile.Contract || len(log.Topics) == 0 {
+		return false
+	}
+	if d.escrow != nil {
+		return d.matchesOrder(log)
+	}
+	return log.Topics[0] == d.paid || (d.modern != nil && log.Topics[0] == d.refund)
 }
 
 func (d *Decoder) Decode(log types.Log, status uint64) (Event, error) {
+	topics := 4
+	if d.escrow != nil && d.matches(log) && log.Topics[0] != d.paid {
+		topics = 3
+	}
 	if !d.matches(log) || status != types.ReceiptStatusSuccessful || log.Removed || log.Index > math.MaxInt32 ||
-		log.TxHash == (common.Hash{}) || log.BlockHash == (common.Hash{}) || len(log.Topics) != 4 {
+		log.TxHash == (common.Hash{}) || log.BlockHash == (common.Hash{}) || len(log.Topics) != topics {
 		return Event{}, errors.New("log is outside the successful pinned settlement receipt")
 	}
 	switch {
+	case d.escrow != nil:
+		return d.decodeOrder(log)
 	case d.legacy != nil:
 		if len(log.Data) != 64 || !wordAddress(log.Topics[1][:]) || !wordAddress(log.Topics[3][:]) {
 			return Event{}, errors.New("noncanonical v1 receipt encoding")
@@ -141,8 +172,10 @@ func (d *Decoder) Decode(log types.Log, status uint64) (Event, error) {
 
 // bindQuoteWindow verifies that the canonical direct transaction's quote
 // calldata hashes to the same digest the settlement contract accepted.
+// An order lock sent through another contract keeps its event without the window.
 func (d *Decoder) bindQuoteWindow(event *Event, tx *types.Transaction, included time.Time) error {
-	if d.modern == nil || event.Kind != "paid" || tx.To() == nil || *tx.To() != d.profile.Contract {
+	if !(d.modern != nil && event.Kind == "paid" || d.escrow != nil && event.Kind == "locked") ||
+		tx.To() == nil || *tx.To() != d.profile.Contract {
 		return nil
 	}
 	data := tx.Data()
@@ -159,6 +192,11 @@ func (d *Decoder) bindQuoteWindow(event *Event, tx *types.Transaction, included 
 	copy(raw[44:64], d.profile.Contract.Bytes())
 	copy(raw[64:], fields)
 	digest, err := quotev2.Digest(raw)
+	if err != nil && d.escrow != nil {
+		// OrderEscrow accepts role and generation values outside the SDK quote form.
+		// A store must not be able to stop the stream with one of them.
+		return nil
+	}
 	if err != nil || common.Hash(digest).Hex() != event.QuoteDigest {
 		return errors.New("accepted settlement event and quote digest differ")
 	}
@@ -167,6 +205,9 @@ func (d *Decoder) bindQuoteWindow(event *Event, tx *types.Transaction, included 
 		return errors.New("invalid settlement quote timing")
 	}
 	q := *abi.ConvertType(decoded[0], new(v2.PaymentTypesV2MerchantQuote)).(*v2.PaymentTypesV2MerchantQuote)
+	if d.escrow != nil && q.ExpiresAt > math.MaxInt64 {
+		return nil // accepted by OrderEscrow, but no calendar time to record
+	}
 	if q.IssuedAt > math.MaxInt64 || q.ExpiresAt > math.MaxInt64 ||
 		included.Unix() < int64(q.IssuedAt) || included.Unix() >= int64(q.ExpiresAt) {
 		return errors.New("settlement inclusion is outside the authenticated quote window")

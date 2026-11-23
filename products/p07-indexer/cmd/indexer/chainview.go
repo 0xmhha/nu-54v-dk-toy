@@ -158,7 +158,7 @@ func runChainview(gate *service.RecoveryGate) error {
 	if err != nil || interval <= 0 {
 		return errors.New("invalid P07_POLL")
 	}
-	done := make(chan struct{}, len(readers))
+	done := make(chan struct{}, len(readers)+1)
 	for _, reader := range readers {
 		go func() {
 			defer func() { done <- struct{}{} }()
@@ -184,10 +184,50 @@ func runChainview(gate *service.RecoveryGate) error {
 			}
 		}()
 	}
-	for range readers {
+	go func() {
+		defer func() { done <- struct{}{} }()
+		answerAbsence(ctx, gate, readers, interval)
+	}()
+	for range len(readers) + 1 {
 		<-done
 	}
 	return nil
+}
+
+// answerAbsence works the requested absence proofs of all streams one at a time, apart from ingest.
+// It rests at least as long as it worked, and a failing stream waits longer each time.
+func answerAbsence(ctx context.Context, gate *service.RecoveryGate, readers []*chainview.Reader, interval time.Duration) {
+	type pause struct {
+		until time.Time
+		delay time.Duration
+	}
+	paused := make([]pause, len(readers))
+	for rest := interval; ; {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(rest):
+		}
+		start := time.Now()
+		for i, reader := range readers {
+			if time.Now().Before(paused[i].until) {
+				continue
+			}
+			work, cancel := context.WithTimeout(ctx, 25*time.Second)
+			err := gate.Run(work, func(ctx context.Context) error { return reader.AnswerAbsence(ctx, time.Second) })
+			cancel()
+			if err == nil {
+				paused[i] = pause{}
+				continue
+			}
+			paused[i].delay = min(max(2*paused[i].delay, interval), time.Minute)
+			paused[i].until = time.Now().Add(paused[i].delay)
+			if !errors.Is(err, context.Canceled) && !errors.Is(err, service.ErrRecoveryFenced) {
+				log.Printf("absence requests of generation %s: %v", reader.Profile.GenerationID, err)
+			}
+		}
+		rest = max(interval, time.Since(start))
+	}
 }
 
 func runPublicReceipts(gate *service.RecoveryGate) error {

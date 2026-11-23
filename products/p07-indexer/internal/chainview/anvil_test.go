@@ -103,6 +103,20 @@ func TestAnvilActualReceiptsAndDivergentFork(t *testing.T) {
 	if err != nil || absence == "" {
 		t.Fatalf("could not prove actual unconsumed order at latest finalized hash: %s %v", absence, err)
 	}
+	requested := (common.Hash{31: 98}).Hex()
+	server, _ := orderReader(t, database, db, stream, merchant)
+	if !requestAbsence(t, server, stream, merchant, requested, base.Time.Unix()) ||
+		requestAbsence(t, server, stream, merchant, (common.Hash{31: 4}).Hex(), base.Time.Unix()) {
+		t.Fatal("settlement request not kept, or kept for a paid order")
+	}
+	if err := reader.AnswerAbsence(ctx, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	var answered bool
+	if err := server.QueryRow(ctx, "SELECT EXISTS(SELECT FROM chainview.reconciliation_absence($1,$2,$3))",
+		stream, merchant, requested).Scan(&answered); err != nil || !answered {
+		t.Fatalf("settlement absence request not answered: %v %v", answered, err)
+	}
 	rows, err := db.Query(ctx, `SELECT kind,count(*),sum(amount)::text FROM chainview.finalized_receipt
 		WHERE stream_id=$1 GROUP BY kind ORDER BY kind`, stream)
 	if err != nil {

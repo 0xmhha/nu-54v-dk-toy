@@ -19,6 +19,7 @@ var (
 const (
 	batchSize     = 32
 	maxReorgDepth = 512
+	maxPollEvents = 5000 // a crowded block ends the batch, so one poll stays within its deadline
 )
 
 func (p Profile) validate() error {
@@ -115,6 +116,7 @@ func (r *Reader) Poll(ctx context.Context) error {
 		end = ancestor + batchSize
 	}
 	blocks := make([]Block, 0, end-ancestor)
+	events := 0
 	for height := ancestor + 1; height <= end; height++ {
 		head, err := r.Source.Header(ctx, height)
 		if err != nil {
@@ -134,6 +136,9 @@ func (r *Reader) Poll(ctx context.Context) error {
 		}
 		blocks = append(blocks, block)
 		parent = block.Hash
+		if events += len(block.Events); events >= maxPollEvents {
+			end = height
+		}
 	}
 	last, err := r.Source.Header(ctx, end)
 	if err != nil {

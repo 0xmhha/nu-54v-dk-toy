@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"time"
 
+	escrow "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/orderescrow"
 	v1 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlement"
 	v2 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlementv2"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p07-indexer/pkg/finality"
@@ -142,6 +143,7 @@ func (s *RPCSource) Block(ctx context.Context, expected Header) (Block, error) {
 	result := Block{Header: header}
 	transactions := block.Transactions()
 	for i, receipt := range receipts {
+		skips := make(map[[2]string]bool)
 		for _, log := range receipt.Logs {
 			if !s.decoder.matches(*log) {
 				continue
@@ -155,6 +157,9 @@ func (s *RPCSource) Block(ctx context.Context, expected Header) (Block, error) {
 			}
 			if err := s.decoder.bindQuoteWindow(&event, transactions[i], header.Time); err != nil {
 				return Block{}, err
+			}
+			if repeatedSkip(skips, event) {
+				continue
 			}
 			result.Events = append(result.Events, event)
 		}
@@ -183,6 +188,26 @@ func (s *RPCSource) Paid(ctx context.Context, merchant, order string, anchor Hea
 			return false, errors.New("could not verify legacy unconsumed state")
 		}
 		return values[0].(bool), nil
+	}
+
+	if s.decoder.profile.Version == 3 {
+		abi, err := escrow.OrderescrowMetaData.GetAbi()
+		if err != nil {
+			return false, err
+		}
+		call, err := abi.Pack("orders", common.HexToHash(merchant), orderID)
+		if err != nil {
+			return false, err
+		}
+		raw, err := s.callAt(ctx, address, call, anchor.Hash)
+		if err != nil {
+			return false, err
+		}
+		values, err := abi.Unpack("orders", raw)
+		if err != nil || len(values) != 9 || len(raw) != 9*32 {
+			return false, errors.New("could not verify order escrow state")
+		}
+		return values[8].(uint8) != 0, nil
 	}
 
 	abi, err := v2.Settlementv2MetaData.GetAbi()

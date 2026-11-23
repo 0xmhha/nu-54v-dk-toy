@@ -54,7 +54,7 @@ StableNet의 canonical event를 업무 projection으로 만드는 제품이다.
 
 전환 서비스가 운영자 인증과 비교 증적을 검증한다. DB는 준비된 세대를 잠그고 기대 revision을 대조해 읽기 대상과 적용 영수증을 한 번에 저장한다. 같은 요청을 재시도하면 기존 적용 시각을 반환한다. 신규 읽기 대상의 기대 revision은 0이다. `P07_DATABASE_URL`로 실행하는 기존 인덱서는 `nu54_p07_legacy`를 사용한다.
 
-[버전별 체인 수집·조회·장애 검증](chainview-v2.md)에서 P07 003의 프로필, 운영 명령, 읽기 권한 및 포크 시험을 확인할 수 있다.
+[버전별 체인 수집·조회·장애 검증](chainview-v2.md)에서 P07 003의 프로필, 운영 명령, 읽기 권한 및 포크 시험을 확인할 수 있다. 주문 에스크로(OrderEscrow) 프로필과 `chainview.escrow_receipt`는 [같은 문서의 해당 절](chainview-v2.md#orderescrow-profile)에 있다.
 
 ## 격리 복원 입구
 

@@ -268,6 +268,8 @@ func insertBlock(ctx context.Context, tx pgx.Tx, generation string, block Block)
 	if result.RowsAffected() != 1 {
 		return errors.New("block identity differs")
 	}
+	// One round trip carries all events of the block.
+	var batch pgx.Batch
 	for _, e := range block.Events {
 		var mode, generationNumber string
 		if e.Mode != 0 {
@@ -276,17 +278,20 @@ func insertBlock(ctx context.Context, tx pgx.Tx, generation string, block Block)
 		if e.PayerGeneration != 0 {
 			generationNumber = strconv.FormatUint(e.PayerGeneration, 10)
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO chainview.observed_event(
+		batch.Queue(`INSERT INTO chainview.observed_event(
 			generation_id,block_hash,tx_hash,log_index,kind,receipt_success,recipient_ref,signer_nonce,
-			merchant_key,order_key,refund_key,asset_ref,amount,payer_ref,quote_digest,payment_mode,payer_generation,quote_issued_at,quote_expires_at)
-			VALUES($1,$2,$3,$4,$5,true,$6,NULLIF($7,''),$8,$9,NULLIF($10,''),$11,$12::text::numeric,
-				$13,NULLIF($14,''),NULLIF($15,'')::smallint,NULLIF($16,'')::numeric,$17,$18)
+			merchant_key,order_key,refund_key,asset_ref,amount,payer_ref,quote_digest,payment_mode,payer_generation,quote_issued_at,quote_expires_at,
+			confirmer_ref,deliver_by,confirm_window,claimable_at,resolve_by,reason)
+			VALUES($1,$2,$3,$4,$5,true,NULLIF($6,''),NULLIF($7,''),$8,$9,NULLIF($10,''),NULLIF($11,''),NULLIF($12::text,'')::numeric,
+				NULLIF($13,''),NULLIF($14,''),NULLIF($15,'')::smallint,NULLIF($16,'')::numeric,$17,$18,
+				NULLIF($19,''),NULLIF($20::bigint,0),NULLIF($21::bigint,0),NULLIF($22::bigint,0),NULLIF($23::bigint,0),$24::smallint)
 			ON CONFLICT(generation_id,block_hash,tx_hash,log_index) DO NOTHING`,
 			generation, hash, e.TxHash, e.Index, e.Kind, e.Recipient, e.Nonce, e.Merchant, e.Order, e.Refund,
-			e.Asset, e.Amount, e.Payer, e.QuoteDigest, mode, generationNumber, e.IssuedAt, e.ExpiresAt)
-		if err != nil {
-			return fmt.Errorf("insert accepted settlement log: %w", err)
-		}
+			e.Asset, e.Amount, e.Payer, e.QuoteDigest, mode, generationNumber, e.IssuedAt, e.ExpiresAt,
+			e.Confirmer, e.DeliverBy, e.ConfirmWindow, e.ClaimableAt, e.ResolveBy, e.Reason)
+	}
+	if err := tx.SendBatch(ctx, &batch).Close(); err != nil {
+		return fmt.Errorf("insert accepted settlement log: %w", err)
 	}
 	return nil
 }
@@ -306,7 +311,7 @@ func finalize(ctx context.Context, tx pgx.Tx, generation string, prior *int64, f
 		FROM chainview.observed_event ev JOIN chainview.block b
 			ON (b.generation_id,b.block_hash)=(ev.generation_id,ev.block_hash)
 		WHERE ev.generation_id=$1 AND b.canonical AND b.height BETWEEN COALESCE($5::bigint+1,0) AND $2
-			AND ev.kind IN ('paid','refunded','invalidated')
+			AND ev.kind IN ('paid','refunded','invalidated','locked','delivered','disputed','released','cancelled','claim-skipped')
 		ON CONFLICT(generation_id,log_block,tx_hash,log_index) WHERE log_block IS NOT NULL DO NOTHING`,
 		generation, final.Height, hash, policy, prior)
 	return err
