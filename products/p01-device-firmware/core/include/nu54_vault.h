@@ -12,6 +12,8 @@
 #define NU54_VAULT_PERSONAL UINT32_C(1)
 #define NU54_VAULT_BACKUP UINT32_C(2)
 #define NU54_VAULT_REVOKED UINT32_C(4)
+/* A factory reset of a spending wallet: no owner, and a new one may register. */
+#define NU54_VAULT_RELEASED UINT32_C(8)
 
 enum {
 	NU54_VAULT_IO = -1,
@@ -48,6 +50,8 @@ int nu54_vault_open(nu54_vault *vault, const nu54_vault_storage *storage);
 /* The platform calls rebind only after independent recovery/physical authorization. */
 int nu54_vault_rebind(nu54_vault *vault, uint64_t expected_generation, const uint8_t owner[32]);
 int nu54_vault_revoke(nu54_vault *vault, uint64_t generation, const uint8_t owner[32]);
+/* Only after the local reset authorization. Repeating it changes nothing. */
+int nu54_vault_release(nu54_vault *vault);
 int nu54_vault_initialize_personal(nu54_vault *vault, uint64_t generation, const uint8_t owner[32]);
 int nu54_vault_personal_address(const nu54_vault *vault, uint64_t generation, const uint8_t owner[32], uint8_t address[20]);
 int nu54_vault_reserve(nu54_vault *vault, uint64_t generation, const uint8_t owner[32], const uint8_t id[16],

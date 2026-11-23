@@ -176,6 +176,13 @@ int main(void)
 			continue;
 		}
 		if (pin_prompt) continue;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		if (ev.event == NU54_BTN_CHORD) {
+			if (!ev.prompt && !pin_entry.active && !pay_link_waiting() && !device_pilot_waiting())
+				device_pilot_button_reset();
+			continue;
+		}
+#endif
 		LOG_INF("SW%u %s", ev.button + 1, ev.event == NU54_BTN_CLICK ? "click" : "long press");
 		if (ev.button == 3 && ev.event == NU54_BTN_LONG) {
 			status_led_clear();

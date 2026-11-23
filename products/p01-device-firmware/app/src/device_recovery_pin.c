@@ -98,6 +98,36 @@ static int enroll(const char *first, struct pin_record *record, device_pin_guard
 	return write_count(record, 0);
 }
 
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* Counted from the last wrong PIN or from boot, so switching the power off does not shorten it. */
+static int64_t wait_from;
+
+static int32_t wait_left(uint8_t failures)
+{
+	uint32_t seconds = nu54_pin_wait_seconds(failures);
+	if (!seconds) return 0;
+	int64_t left = wait_from + (int64_t)seconds * 1000 - k_uptime_get();
+	return left > 0 ? (int32_t)((left + 999) / 1000) : 0;
+}
+
+int32_t device_recovery_pin_wait(void)
+{
+	struct pin_record record;
+	size_t length;
+	psa_status_t state = psa_its_get(PIN_UID, 0, sizeof(record), &record, &length);
+	if (state == PSA_ERROR_DOES_NOT_EXIST) return 0;
+	return state == PSA_SUCCESS && length == sizeof(record) ? wait_left(record.count) : -1;
+}
+
+int device_recovery_pin_erase(void)
+{
+	psa_status_t key = psa_destroy_key(PIN_KEY), record = psa_its_remove(PIN_UID);
+	wait_from = 0;
+	return (key == PSA_SUCCESS || key == PSA_ERROR_DOES_NOT_EXIST || key == PSA_ERROR_INVALID_HANDLE) &&
+	       (record == PSA_SUCCESS || record == PSA_ERROR_DOES_NOT_EXIST) ? 0 : -1;
+}
+#endif
+
 int device_recovery_pin_guarded(bool virgin, device_pin_guard guard, void *context)
 {
 	struct pin_record record = {0};
@@ -108,14 +138,31 @@ int device_recovery_pin_guarded(bool virgin, device_pin_guard guard, void *conte
 	if (state == PSA_SUCCESS) {
 		size_t length;
 		if (psa_its_get(PIN_UID, 0, sizeof(record), &record, &length) != PSA_SUCCESS || length != sizeof(record) ||
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		    false) return -1;
+		if (wait_left(record.count)) {
+			status_led_locked();
+			return -1;
+		}
+#else
 		    record.count >= NU54_PIN_ATTEMPT_LIMIT) return -1;
+#endif
 	}
 	char pin[NU54_PIN_LEN + 1];
 	int result = -1;
 	if (!entry(pin, guard, context) && (!guard || guard(context, false, 0)) && nu54_pin_is_local_format(pin, NU54_PIN_LEN)) {
 		const nu54_pin_attempt_storage storage = {&record, read_count, write_count, verify};
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		if (state == PSA_ERROR_DOES_NOT_EXIST) {
+			result = enroll(pin, &record, guard, context);
+		} else {
+			result = nu54_pin_attempt_waited(&storage, pin, NU54_PIN_LEN) == NU54_PIN_OK ? 0 : -1;
+			if (result) wait_from = k_uptime_get();
+		}
+#else
 		result = state == PSA_ERROR_DOES_NOT_EXIST ? enroll(pin, &record, guard, context) :
 			 nu54_pin_attempt(&storage, pin, NU54_PIN_LEN) == NU54_PIN_OK ? 0 : -1;
+#endif
 	}
 	erase(pin, sizeof(pin));
 	return result;

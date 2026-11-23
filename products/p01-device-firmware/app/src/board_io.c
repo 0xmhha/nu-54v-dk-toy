@@ -41,6 +41,9 @@ static struct gpio_callback button_cb[BOARD_IO_COUNT];
 static struct k_work_delayable debounce[BOARD_IO_COUNT];
 static struct k_work_delayable hold_poll;
 static nu54_button_t state[BOARD_IO_COUNT];
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static nu54_chord_t reset_chord; /* SW2 and SW3 together */
+#endif
 static atomic_t debounce_pending;
 static atomic_t current_prompt, edge_prompt[BOARD_IO_COUNT];
 static uint32_t gesture_prompt[BOARD_IO_COUNT];
@@ -63,6 +66,21 @@ static void hold_poll_fn(struct k_work *work)
 	ARG_UNUSED(work);
 	bool any_held = false;
 	uint32_t now = k_uptime_get_32();
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	bool both = state[1].pressed && state[2].pressed && gpio_pin_get_dt(&buttons[1]) > 0 &&
+		    gpio_pin_get_dt(&buttons[2]) > 0;
+	if (both) {
+		/* The pair means only the reset gesture, never a rejection or the recovery window. */
+		nu54_button_suppress(&state[1]);
+		nu54_button_suppress(&state[2]);
+	}
+	nu54_button_event_t chord = nu54_chord_tick(&reset_chord, both, now);
+	if (chord != NU54_BTN_NONE) {
+		gesture_prompt[1] |= gesture_prompt[2]; /* a press begun during an approval stays tied to it */
+		post(1, chord);
+	}
+#endif
 
 	for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
 		if (!state[i].pressed) {

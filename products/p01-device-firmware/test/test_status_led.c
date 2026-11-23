@@ -62,5 +62,42 @@ int main(void)
     status_led_pin_end();
     advance(801);
     assert(!lamps[0] && !pending);
+    /* Each spending state must look different from the others. */
+    status_led_waiting(true);
+    advance(0);
+    status_led_pressed();
+    advance(500);
+    assert(lamps[0]); /* a taken press is one steady light, the wait would have blinked */
+    advance(101);
+    status_led_waiting(false);
+    advance(800);
+    assert(!lamps[0] && !pending);
+    unsigned edges = 0;
+    status_led_locked();
+    for (int i = 0; i < 1200; ++i) {
+        bool before = lamps[0];
+        advance(1);
+        edges += lamps[0] && !before;
+    }
+    assert(edges == 5 && !lamps[0] && !pending);
+    edges = 0;
+    status_led_reset_armed(true);
+    for (int i = 0; i < 1599; ++i) {
+        bool before = lamps[0];
+        advance(1);
+        edges += lamps[0] && !before;
+    }
+    assert(edges == 10 && pending); /* keeps going until SW1 or the timeout */
+    status_led_clear();
+    advance(200);
+    assert(!lamps[0] && !pending);
+    edges = 0;
+    status_led_reset_done();
+    for (int i = 0; i < 3999; ++i) {
+        bool before = lamps[0];
+        advance(1);
+        edges += lamps[0] && !before;
+    }
+    assert(edges == 2 && !lamps[0] && !pending); /* fits before the restart */
     return 0;
 }

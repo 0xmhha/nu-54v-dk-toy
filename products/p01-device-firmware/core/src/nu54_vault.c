@@ -56,7 +56,9 @@ int nu54_vault_open(nu54_vault *vault, const nu54_vault_storage *storage)
 		}
 		record.version = VAULT_VERSION;
 		if (io.key(io.context, false, true, record.identity) != 0 || save(vault, &record) != 0) return NU54_VAULT_IO;
-	} else if (read != 0 || record.version != VAULT_VERSION || (record.flags & ~(NU54_VAULT_PERSONAL | NU54_VAULT_BACKUP | NU54_VAULT_REVOKED)) ||
+	} else if (read != 0 || record.version != VAULT_VERSION || (record.flags & ~(NU54_VAULT_PERSONAL | NU54_VAULT_BACKUP | NU54_VAULT_REVOKED | NU54_VAULT_RELEASED)) ||
+		   ((record.flags & NU54_VAULT_RELEASED) &&
+		    (!(record.flags & NU54_VAULT_REVOKED) || (record.flags & NU54_VAULT_PERSONAL))) ||
 		   ((record.flags & NU54_VAULT_BACKUP) && !(record.flags & NU54_VAULT_PERSONAL)) ||
 		   ((record.flags & NU54_VAULT_PERSONAL) && (record.root_format != NU54_VAULT_ROOT_PSA_SECP256K1 ||
 		    record.root_profile_version != NU54_VAULT_ROOT_PROFILE_V1)) ||
@@ -85,7 +87,7 @@ int nu54_vault_rebind(nu54_vault *vault, uint64_t expected_generation, const uin
 			return NU54_VAULT_IO;
 	}
 	next.generation++;
-	next.flags &= ~NU54_VAULT_REVOKED;
+	next.flags &= ~(NU54_VAULT_REVOKED | NU54_VAULT_RELEASED);
 	memcpy(next.owner, owner, sizeof(next.owner));
 	vault->pending_record = 0;
 	return save(vault, &next);
@@ -103,6 +105,20 @@ int nu54_vault_revoke(nu54_vault *vault, uint64_t generation, const uint8_t owne
 	nu54_vault_record next = vault->record;
 	next.generation++;
 	next.flags |= NU54_VAULT_REVOKED;
+	memset(next.owner, 0, sizeof(next.owner));
+	vault->pending_record = 0;
+	return save(vault, &next);
+}
+
+int nu54_vault_release(nu54_vault *vault)
+{
+	if (!vault->enabled || (vault->record.flags & NU54_VAULT_PERSONAL) || vault->record.generation == UINT64_MAX)
+		return NU54_VAULT_DENIED;
+	if (!vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED)) return 0;
+	nu54_vault_record next = vault->record;
+	/* The generation only grows, so a grant or a phone of the previous owner stays outdated. */
+	next.generation++;
+	next.flags |= NU54_VAULT_REVOKED | NU54_VAULT_RELEASED;
 	memset(next.owner, 0, sizeof(next.owner));
 	vault->pending_record = 0;
 	return save(vault, &next);

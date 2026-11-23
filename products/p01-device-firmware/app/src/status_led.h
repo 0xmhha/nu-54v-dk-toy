@@ -11,6 +11,10 @@
  *   approved                              on for 2 s, then dark
  *   refused, failed or cancelled          three short flashes, then dark
  *   PIN entry: start / tap / keep digit   two long flashes / one short / one 0.5 s
+ *   button accepted                       on for 0.6 s
+ *   PIN wait not over yet                 five very short flashes
+ *   reset armed, waiting for SW1          very fast blinking (0.08 s)
+ *   reset done                            two long 1.5 s flashes
  *
  * One-off indications (results, PIN feedback) play over the ongoing one and then hand back.
  * This module is the only one that drives the LEDs.
@@ -47,5 +51,11 @@ typedef enum { STATUS_PIN_START, STATUS_PIN_TAP, STATUS_PIN_KEEP } status_pin_t;
 /* PIN entry feedback; while PIN entry runs the ongoing patterns pause. */
 void status_led_pin(status_pin_t what);
 void status_led_pin_end(void);
+
+/* Spending wallet: a press was taken, the PIN must wait, a factory reset is armed or done. */
+void status_led_pressed(void);
+void status_led_locked(void);
+void status_led_reset_armed(bool on);
+void status_led_reset_done(void);
 
 #endif /* STATUS_LED_H */

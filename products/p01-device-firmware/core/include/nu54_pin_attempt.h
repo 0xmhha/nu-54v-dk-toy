@@ -19,4 +19,11 @@ typedef struct {
 bool nu54_pin_is_local_format(const char *pin, size_t length);
 int nu54_pin_attempt(const nu54_pin_attempt_storage *storage, const char *pin, size_t length);
 
+/* Waiting instead of a lock: the board key has no backup, so nobody may make the balance
+ * unreachable by entering wrong PINs. `failures` is the stored count. */
+uint32_t nu54_pin_wait_seconds(uint8_t failures);
+/* Same durable-before-compare rule as nu54_pin_attempt, without the permanent lock. The caller
+ * has already checked that the wait is over. */
+int nu54_pin_attempt_waited(const nu54_pin_attempt_storage *storage, const char *pin, size_t length);
+
 #endif

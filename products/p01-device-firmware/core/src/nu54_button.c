@@ -33,3 +33,25 @@ nu54_button_event_t nu54_button_tick(nu54_button_t *b, uint32_t now_ms)
 	b->long_sent = true;
 	return NU54_BTN_LONG;
 }
+
+void nu54_button_suppress(nu54_button_t *b)
+{
+	if (b->pressed) b->long_sent = true;
+}
+
+nu54_button_event_t nu54_chord_tick(nu54_chord_t *c, bool both, uint32_t now_ms)
+{
+	if (!both) {
+		c->held = c->sent = false;
+		return NU54_BTN_NONE;
+	}
+	if (!c->held) {
+		c->held = true;
+		c->sent = false;
+		c->since = now_ms;
+		return NU54_BTN_NONE;
+	}
+	if (c->sent || (uint32_t)(now_ms - c->since) < NU54_CHORD_MS) return NU54_BTN_NONE;
+	c->sent = true;
+	return NU54_BTN_CHORD;
+}

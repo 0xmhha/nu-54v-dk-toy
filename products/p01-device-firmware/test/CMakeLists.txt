@@ -172,6 +172,23 @@ target_compile_options(test_order PRIVATE -Wall -Wextra -Werror)
 add_test(NAME order_payment COMMAND test_order
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/order-lock.vectors)
 
+add_executable(test_spending test_spending.c ../core/src/nu54_spending.c ../core/src/nu54_button.c
+  ../core/src/nu54_pin_attempt.c)
+target_link_libraries(test_spending PRIVATE nu54_crypto)
+target_compile_options(test_spending PRIVATE -Wall -Wextra -Werror)
+add_test(NAME spending_actions COMMAND test_spending
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/wallet-return.vectors)
+
+add_executable(test_spending_store test_spending_store.c ../app/src/device_spending.c ../app/src/device_order.c
+  ../core/src/nu54_spending.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
+  ../core/src/nu54_local_approval.c ../core/src/nu54_vault.c ../core/src/nu54_pin_attempt.c
+  ../core/src/nu54_pin_entry.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
+target_include_directories(test_spending_store BEFORE PRIVATE fakes-spending ../app/src)
+target_compile_definitions(test_spending_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=100)
+target_link_libraries(test_spending_store PRIVATE nu54_crypto)
+target_compile_options(test_spending_store PRIVATE -Wall -Wextra -Werror)
+add_test(NAME spending_store COMMAND test_spending_store)
+
 add_executable(test_evm test_evm.c ../core/src/nu54_evm_tx.c ../core/src/nu54_siwe.c)
 target_link_libraries(test_evm PRIVATE nu54_crypto)
 target_compile_options(test_evm PRIVATE -Wall -Wextra -Werror)

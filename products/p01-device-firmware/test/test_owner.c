@@ -194,6 +194,24 @@ int main(void)
 	assert(nu54_vault_revoke(&vault, 0, link.peer_identity) < 0);
 	assert(nu54_vault_revoke(&vault, 1, link.peer_identity) == 0 && vault.record.generation == 2);
 	assert(nu54_owner_status(&vault, &crypto, &enrollment, status) == 0 && status[1] == 3 && status[12] == 2);
+	/* A revoked owner stays revoked: only a local reset lets a new phone register. */
+	nu54_owner_cancel(&enrollment);
+	request.payload = begin;
+	request.payload_length = sizeof(begin);
+	assert(nu54_owner_begin(&enrollment, &vault, &crypto, &link, &request, 3, link.peer_identity) < 0);
+	vault.record.flags = 0;
+	memcpy(vault.record.owner, link.peer_identity, 32);
+	assert(nu54_owner_begin(&enrollment, &vault, &crypto, &link, &request, 3, link.peer_identity) < 0); /* owned */
+	assert(nu54_vault_release(&vault) == 0 && vault.record.generation == 3);
+	assert(nu54_vault_release(&vault) == 0 && vault.record.generation == 3); /* repeating changes nothing */
+	assert(nu54_owner_status(&vault, &crypto, &enrollment, status) == 0 && status[1] == 4 && status[12] == 3);
+	assert(nu54_vault_revoke(&vault, 3, link.peer_identity) < 0);
+	assert(nu54_owner_begin(&enrollment, &vault, &crypto, &link, &request, 3, link.peer_identity) == 0);
+	nu54_owner_cancel(&enrollment);
+	assert(nu54_vault_rebind(&vault, 3, link.peer_identity) == 0 && vault.record.generation == 4 && !vault.record.flags);
+	assert(nu54_owner_begin(&enrollment, &vault, &crypto, &link, &request, 3, link.peer_identity) < 0);
+	nu54_owner_cancel(&enrollment);
+	assert(nu54_owner_status(&vault, &crypto, &enrollment, status) == 0 && status[1] == 1);
 	/* The bond flag keeps the backup bit, sets or clears only bit 1, and leaves other bytes alone. */
 	uint8_t flagged[NU54_OWNER_STATUS_SIZE];
 	for (uint8_t backup = 0; backup < 2; backup++) {

@@ -1,7 +1,7 @@
 #include "device_order.h"
+#include "nu54_spending.h"
 
 #include <psa/internal_trusted_storage.h>
-#include <zephyr/sys/util.h>
 
 #define ORDER_RECORD_UID ((psa_storage_uid_t)0x5550)
 #define ORDER_SPENDING_UID ((psa_storage_uid_t)0x5561)
@@ -9,7 +9,7 @@ _Static_assert(sizeof(nu54_order_record) <= 128, "P01 order record exceeds ITS l
 
 static int load(void *context, unsigned slot, nu54_order_record *out)
 {
-	ARG_UNUSED(context);
+	(void)context;
 	size_t used;
 	psa_status_t read = psa_its_get(ORDER_RECORD_UID + slot, 0, sizeof(*out), out, &used);
 	if (read == PSA_ERROR_DOES_NOT_EXIST) return 1;
@@ -48,4 +48,21 @@ int device_order_charge(uint64_t earliest, uint64_t amount)
 	nu54_order_spending next;
 	if (next_total(earliest, amount, &next)) return -1;
 	return psa_its_set(ORDER_SPENDING_UID, sizeof(next), &next, PSA_STORAGE_FLAG_NONE) == PSA_SUCCESS ? 0 : -1;
+}
+
+bool device_order_open(uint64_t earliest, int64_t uptime_ms)
+{
+	bool failed;
+	bool open = nu54_spend_order_open(load, NULL, earliest, uptime_ms, &failed);
+	return open || failed;
+}
+
+int device_order_erase(void)
+{
+	for (unsigned slot = 1; slot <= NU54_ORDER_RECORDS; ++slot) {
+		psa_status_t removed = psa_its_remove(ORDER_RECORD_UID + slot);
+		if (removed != PSA_SUCCESS && removed != PSA_ERROR_DOES_NOT_EXIST) return -1;
+	}
+	psa_status_t removed = psa_its_remove(ORDER_SPENDING_UID);
+	return removed == PSA_SUCCESS || removed == PSA_ERROR_DOES_NOT_EXIST ? 0 : -1;
 }

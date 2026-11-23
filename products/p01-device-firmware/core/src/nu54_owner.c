@@ -33,7 +33,8 @@ int nu54_owner_status(const nu54_vault *vault, const nu54_owner_crypto *crypto,
 {
 	if (!vault->enabled || crypto->hash(vault->record.identity, sizeof(vault->record.identity), out + 13)) return -1;
 	out[0] = 3;
-	out[1] = enrollment->proven ? 2 : vault->record.flags & NU54_VAULT_REVOKED ? 3 : vault->record.generation != 0;
+	out[1] = enrollment->proven ? 2 : vault->record.flags & NU54_VAULT_RELEASED ? 4 :
+		 vault->record.flags & NU54_VAULT_REVOKED ? 3 : vault->record.generation != 0;
 	out[2] = (uint8_t)vault->record.root_format;
 	out[3] = (uint8_t)vault->record.root_profile_version;
 	out[4] = !!(vault->record.flags & NU54_VAULT_BACKUP);
@@ -57,7 +58,7 @@ static int begin(nu54_owner_enrollment *enrollment, const nu54_vault *vault, con
 	uint8_t operation = request->payload[1];
 	const uint8_t *target = request->payload + 2;
 	const uint8_t *peer = link->peer_identity;
-	bool virgin = vault->record.generation == 0;
+	bool virgin = vault->record.generation == 0 || (vault->record.flags & NU54_VAULT_RELEASED);
 	bool active = !virgin && !(vault->record.flags & NU54_VAULT_REVOKED);
 	if (!bytes_present(target, 32)) return -1;
 	if (lost != (operation == NU54_OWNER_REPLACE_LOST)) return -1;

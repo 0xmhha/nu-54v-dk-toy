@@ -90,6 +90,51 @@ contract OrderLockVectorTest is Test {
         assertEq(token.balanceOf(ESCROW), 6_500_000);
     }
 
+    function testBoardReturnVectorSendsTheMoneyHome() public {
+        vm.chainId(8283);
+        vm.warp(1_800_000_000);
+        deployCodeTo("TestUSDC3009.sol:TestUSDC3009", abi.encode(address(this)), TOKEN);
+        TestUSDC3009 token = TestUSDC3009(TOKEN);
+        address wallet = vm.addr(WALLET_KEY);
+        address home = address(0x1005);
+        bytes32 nonce = bytes32(uint256(0x77));
+        token.mint(wallet, 10_000_000);
+        bytes memory preimage = abi.encodePacked(
+            hex"1901",
+            token.DOMAIN_SEPARATOR(),
+            keccak256(
+                abi.encode(
+                    token.TRANSFER_WITH_AUTHORIZATION_TYPEHASH(),
+                    wallet,
+                    home,
+                    uint256(9_500_000),
+                    uint256(0),
+                    uint256(1_800_000_500),
+                    nonce
+                )
+            )
+        );
+        string memory expected = string.concat(
+            "token=",
+            vm.toString(abi.encodePacked(TOKEN)),
+            "\nfrom=",
+            vm.toString(abi.encodePacked(wallet)),
+            "\nto=",
+            vm.toString(abi.encodePacked(home)),
+            "\nnonce=",
+            vm.toString(nonce),
+            "\npreimage=",
+            vm.toString(preimage),
+            "\n"
+        );
+        assertEq(
+            vm.readFile("../../packages/protocol/v2/testdata/wallet-return.vectors"), expected, "regenerate the vector"
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(WALLET_KEY, keccak256(preimage));
+        token.transferWithAuthorization(wallet, home, 9_500_000, 0, 1_800_000_500, nonce, v, r, s);
+        assertEq(token.balanceOf(home), 9_500_000);
+    }
+
     function sign(uint256 key, bytes32 digest) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, digest);
         return abi.encodePacked(r, s, v);

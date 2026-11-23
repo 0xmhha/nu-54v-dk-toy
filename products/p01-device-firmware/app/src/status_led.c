@@ -26,10 +26,14 @@ PATTERN(P_FAILED, false, 100, 150, 100, 150, 100, 0);
 PATTERN(P_PIN_START, false, 300, 200, 300, 0);
 PATTERN(P_PIN_TAP, false, 80, 0);
 PATTERN(P_PIN_KEEP, false, 500, 0);
+PATTERN(P_PRESSED, false, 600, 0);
+PATTERN(P_LOCKED, false, 60, 100, 60, 100, 60, 100, 60, 100, 60, 0);
+PATTERN(P_RESET_ARMED, true, 80, 80);
+PATTERN(P_RESET_DONE, false, 1500, 300, 1500, 0);
 
 #define SIGNED_MS 30000
 
-static bool mode, pairing, waiting, signed_wait, pin_active;
+static bool mode, pairing, waiting, signed_wait, pin_active, reset_armed;
 static int64_t signed_until;
 static const pattern_t *oneshot; /* plays over the ongoing pattern, then ends */
 static const pattern_t *playing;
@@ -51,6 +55,9 @@ static const pattern_t *ongoing(void)
 {
 	if (pin_active) {
 		return NULL;
+	}
+	if (reset_armed) {
+		return &P_RESET_ARMED;
 	}
 	if (waiting) {
 		return &P_WAITING;
@@ -193,7 +200,7 @@ void status_led_new_session(void)
 void status_led_clear(void)
 {
 	k_spinlock_key_t key = k_spin_lock(&lock);
-	mode = pairing = waiting = signed_wait = pin_active = false;
+	mode = pairing = waiting = signed_wait = pin_active = reset_armed = false;
 	oneshot = NULL;
 	restart();
 	k_spin_unlock(&lock, key);
@@ -220,4 +227,24 @@ void status_led_pin(status_pin_t what)
 void status_led_pin_end(void)
 {
 	set(&pin_active, false);
+}
+
+void status_led_pressed(void)
+{
+	play(&P_PRESSED);
+}
+
+void status_led_locked(void)
+{
+	play(&P_LOCKED);
+}
+
+void status_led_reset_armed(bool on)
+{
+	set(&reset_armed, on);
+}
+
+void status_led_reset_done(void)
+{
+	play(&P_RESET_DONE);
 }

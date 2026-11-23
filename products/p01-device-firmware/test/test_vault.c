@@ -100,6 +100,22 @@ int main(void)
 	assert(nu54_vault_personal_address(&vault, 2, replacement, address) == NU54_VAULT_DENIED);
 	assert(nu54_vault_personal_address(&vault, 3, replacement, address) == 0);
 	assert(memcmp(address, personal, 20) == 0);
+	assert(nu54_vault_release(&vault) == NU54_VAULT_DENIED); /* never drops a personal key's owner */
+	assert(vault.record.generation == 3 && !(vault.record.flags & NU54_VAULT_RELEASED));
+	nu54_vault_record kept = vault.record, odd = vault.record;
+	odd.flags = NU54_VAULT_RELEASED; /* released without being ownerless */
+	memset(odd.personal, 0, sizeof(odd.personal));
+	odd.root_format = odd.root_profile_version = 0;
+	assert(write_record(&disk, 0, &odd, sizeof(odd)) == 0 && nu54_vault_open(&vault, &io) == NU54_VAULT_IO);
+	odd = kept;
+	odd.flags |= NU54_VAULT_RELEASED | NU54_VAULT_REVOKED; /* released but personal */
+	memset(odd.owner, 0, sizeof(odd.owner));
+	assert(write_record(&disk, 0, &odd, sizeof(odd)) == 0 && nu54_vault_open(&vault, &io) == NU54_VAULT_IO);
+	odd.flags = NU54_VAULT_RELEASED | NU54_VAULT_REVOKED;
+	memset(odd.personal, 0, sizeof(odd.personal));
+	odd.root_format = odd.root_profile_version = 0;
+	assert(write_record(&disk, 0, &odd, sizeof(odd)) == 0 && nu54_vault_open(&vault, &io) == 0);
+	assert(write_record(&disk, 0, &kept, sizeof(kept)) == 0 && nu54_vault_open(&vault, &io) == 0);
 	disk.length[0] = 0;
 	assert(nu54_vault_open(&vault, &io) == NU54_VAULT_IO);
 	assert(nu54_vault_rebind(&vault, 0, owner) == NU54_VAULT_DENIED);

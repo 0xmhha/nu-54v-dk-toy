@@ -14,5 +14,9 @@ bool device_pilot_recovery_window(void);
 bool device_pilot_active(void);
 void device_pilot_button(uint32_t prompt, bool approved);
 bool device_pilot_waiting(void);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* Main thread: PIN, then SW1 held within ten seconds, then everything of the user is erased. */
+void device_pilot_button_reset(void);
+#endif
 
 #endif

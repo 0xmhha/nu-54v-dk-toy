@@ -1,0 +1,415 @@
+/* The real storage, PIN, order and vault code over a fake flash that loses power at every step. */
+#include "board_io.h"
+#include "device_order.h"
+#include "device_recovery_pin.h"
+#include "device_spending.h"
+#include "device_vault.h"
+#include "nu54_pin_entry.h"
+#include "status_led.h"
+
+#include <psa/crypto.h>
+#include <psa/internal_trusted_storage.h>
+
+#include <assert.h>
+#include <setjmp.h>
+#include <stdio.h>
+#include <string.h>
+
+/* ---- flash and keys; a write either happened or did not when the power goes ---- */
+struct item {uint64_t uid; size_t size; uint8_t data[160];};
+struct key {psa_key_attributes_t attrs; uint8_t seed;};
+struct flash {struct item items[64]; struct key keys[8];};
+static struct flash flash;
+static uint8_t next_seed = 1;
+static int writes_left = -1; /* -1: power stays on */
+static bool power_after;     /* the write lands and then the power goes */
+static jmp_buf power;
+static bool read_fails;
+
+static bool cut(void)
+{
+	if (writes_left < 0) return false;
+	if (writes_left-- > 0) return false;
+	writes_left = -1;
+	return true;
+}
+
+static struct item *item(uint64_t uid)
+{
+	for (size_t i = 0; i < 64; ++i)
+		if (flash.items[i].uid == uid) return &flash.items[i];
+	return NULL;
+}
+
+static struct key *key(psa_key_id_t id)
+{
+	for (size_t i = 0; i < 8; ++i)
+		if (flash.keys[i].attrs.id == id) return &flash.keys[i];
+	return NULL;
+}
+
+#define WRITE(action) do { \
+		bool dies = cut(); \
+		if (dies && !power_after) longjmp(power, 1); \
+		action; \
+		if (dies) longjmp(power, 1); \
+	} while (0)
+
+psa_status_t psa_its_get_info(psa_storage_uid_t uid, struct psa_storage_info_t *info)
+{
+	struct item *found = item(uid);
+	if (read_fails) return PSA_ERROR_GENERIC_ERROR;
+	if (!found) return PSA_ERROR_DOES_NOT_EXIST;
+	info->size = found->size;
+	return PSA_SUCCESS;
+}
+psa_status_t psa_its_get(psa_storage_uid_t uid, size_t offset, size_t size, void *data, size_t *used)
+{
+	struct item *found = item(uid);
+	assert(!offset);
+	if (read_fails) return PSA_ERROR_GENERIC_ERROR;
+	if (!found) return PSA_ERROR_DOES_NOT_EXIST;
+	*used = size < found->size ? size : found->size;
+	memcpy(data, found->data, *used);
+	return PSA_SUCCESS;
+}
+psa_status_t psa_its_set(psa_storage_uid_t uid, size_t size, const void *data, uint32_t flags)
+{
+	assert(!flags && uid && size <= 160);
+	struct item *slot = item(uid);
+	for (size_t i = 0; !slot && i < 64; ++i)
+		if (!flash.items[i].uid) slot = &flash.items[i];
+	assert(slot);
+	WRITE(slot->uid = uid; slot->size = size; memcpy(slot->data, data, size));
+	return PSA_SUCCESS;
+}
+psa_status_t psa_its_remove(psa_storage_uid_t uid)
+{
+	struct item *found = item(uid);
+	if (!found) return PSA_ERROR_DOES_NOT_EXIST;
+	WRITE(memset(found, 0, sizeof(*found)));
+	return PSA_SUCCESS;
+}
+psa_status_t psa_get_key_attributes(psa_key_id_t id, psa_key_attributes_t *attrs)
+{
+	if (!key(id)) return PSA_ERROR_INVALID_HANDLE;
+	*attrs = key(id)->attrs;
+	return PSA_SUCCESS;
+}
+psa_status_t psa_generate_key(const psa_key_attributes_t *attrs, psa_key_id_t *id)
+{
+	if (key(attrs->id)) return PSA_ERROR_ALREADY_EXISTS;
+	struct key *slot = NULL;
+	for (size_t i = 0; !slot && i < 8; ++i)
+		if (!flash.keys[i].attrs.id) slot = &flash.keys[i];
+	assert(slot);
+	WRITE(slot->attrs = *attrs; slot->seed = next_seed++);
+	*id = attrs->id;
+	return PSA_SUCCESS;
+}
+psa_status_t psa_destroy_key(psa_key_id_t id)
+{
+	if (!key(id)) return PSA_ERROR_INVALID_HANDLE;
+	WRITE(memset(key(id), 0, sizeof(struct key)));
+	return PSA_SUCCESS;
+}
+psa_status_t psa_export_public_key(psa_key_id_t id, uint8_t *out, size_t size, size_t *used)
+{
+	if (!key(id)) return PSA_ERROR_INVALID_HANDLE;
+	assert(size >= 65);
+	memset(out, key(id)->seed, 65);
+	out[0] = 4;
+	*used = 65;
+	return PSA_SUCCESS;
+}
+psa_status_t psa_sign_hash(psa_key_id_t id, psa_algorithm_t alg, const uint8_t *digest, size_t length, uint8_t *out,
+			   size_t size, size_t *used)
+{
+	(void)digest;
+	if (!key(id)) return PSA_ERROR_INVALID_HANDLE;
+	assert(length == 32 && size == 64 && alg == key(id)->attrs.algorithm);
+	memset(out, key(id)->seed, 64);
+	*used = 64;
+	return PSA_SUCCESS;
+}
+psa_status_t psa_mac_compute(psa_key_id_t id, psa_algorithm_t alg, const uint8_t *data, size_t length, uint8_t *out,
+			     size_t size, size_t *used)
+{
+	(void)alg;
+	if (!key(id)) return PSA_ERROR_INVALID_HANDLE;
+	memset(out, 0, size);
+	memcpy(out, data, length);
+	out[31] = key(id)->seed;
+	*used = size;
+	return PSA_SUCCESS;
+}
+psa_status_t psa_mac_verify(psa_key_id_t id, psa_algorithm_t alg, const uint8_t *data, size_t length,
+			    const uint8_t *mac, size_t size)
+{
+	uint8_t expected[32];
+	size_t used;
+	assert(size == 32);
+	return psa_mac_compute(id, alg, data, length, expected, 32, &used) == PSA_SUCCESS && !memcmp(expected, mac, 32) ?
+	       PSA_SUCCESS : PSA_ERROR_GENERIC_ERROR;
+}
+
+/* Included so a simulated restart can clear its memory. */
+#include "../app/src/device_recovery_pin.c"
+
+/* ---- vault over the same flash ---- */
+static nu54_vault vault;
+static int vault_read(void *context, unsigned record, void *data, size_t size)
+{
+	(void)context;
+	struct item *found = item(0x5420 + record);
+	if (!found) return NU54_VAULT_ABSENT;
+	if (found->size != size) return NU54_VAULT_IO;
+	memcpy(data, found->data, size);
+	return 0;
+}
+static int vault_write(void *context, unsigned record, const void *data, size_t size)
+{
+	(void)context;
+	return psa_its_set(0x5420 + record, size, data, 0);
+}
+static int vault_key(void *context, bool personal, bool create, uint8_t address[20])
+{
+	(void)context;
+	(void)create;
+	memset(address, 7, 20);
+	return personal ? NU54_VAULT_ABSENT : 0;
+}
+nu54_vault *device_vault_owner(void) { return &vault; }
+
+/* ---- buttons, lamp, clock ---- */
+static int64_t uptime = 1000;
+static const char *taps;
+static unsigned digit, tapped, locked_shown, started;
+int64_t k_uptime_get(void) { return uptime; }
+void status_led_pin(status_pin_t what) { if (what == STATUS_PIN_START) ++started; }
+void status_led_pin_end(void) {}
+void status_led_locked(void) { ++locked_shown; }
+int board_button_wait(board_button_event_t *out, int32_t timeout_ms)
+{
+	(void)timeout_ms;
+	uptime += 20;
+	*out = (board_button_event_t){.event = NU54_BTN_CLICK};
+	if (tapped < (unsigned)(taps[digit] - '0')) {
+		++tapped;
+		out->button = 0;
+	} else {
+		out->button = 2;
+		tapped = 0;
+		digit = (digit + 1) % 4;
+	}
+	return 0;
+}
+static int enter(const char *pin, bool virgin)
+{
+	taps = pin;
+	digit = tapped = 0;
+	return device_recovery_pin(virgin);
+}
+
+static int boot(void)
+{
+	const nu54_vault_storage io = {NULL, vault_read, vault_write, vault_key};
+	uptime = 1000;
+	wait_from = 0;
+	if (nu54_vault_open(&vault, &io)) return -1;
+	return device_spending_init();
+}
+
+static void use_wallet(uint8_t address[20])
+{
+	const uint8_t owner[32] = {1}, home[20] = {9};
+	nu54_order_record record = {.expires = 500, .outcome = NU54_ORDER_APPROVED};
+	assert(!boot());
+	memcpy(address, device_spending_address(), 20);
+	assert(!nu54_vault_rebind(&vault, vault.record.generation, owner));
+	assert(!enter("1234", true));
+	assert(!device_spending_set_return(home));
+	assert(!device_order_store(3, &record) && !device_order_charge(86400 * 5, 70));
+}
+
+static void assert_fresh(const uint8_t before[20], uint64_t generation)
+{
+	uint8_t home[20];
+	const uint8_t *address = device_spending_address();
+	assert(address && memcmp(address, before, 20)); /* a different key */
+	assert(!device_spending_return_address(home));
+	assert(!item(0x5472) && !key(0x54a0) && !item(0x5553) && !item(0x5561) && !item(0x5570));
+	assert(vault.record.generation == generation && (vault.record.flags & NU54_VAULT_RELEASED));
+	const uint8_t none[32] = {0};
+	assert(!memcmp(vault.record.owner, none, 32));
+	assert(device_recovery_pin_wait() == 0);
+}
+
+static void test_reset_survives_power_loss_everywhere(void)
+{
+	unsigned cuts = 0;
+	for (int after = 0; after < 2; ++after) {
+		for (int step = 0;; ++step) {
+			uint8_t before[20];
+			memset(&flash, 0, sizeof(flash));
+			use_wallet(before);
+			uint64_t generation = vault.record.generation;
+			power_after = after;
+			writes_left = step;
+			volatile bool finished = false;
+			if (!setjmp(power)) {
+				assert(!device_spending_erase());
+				finished = true;
+			}
+			writes_left = -1;
+			/* Power comes back; a second loss during the repair is repaired as well. */
+			writes_left = 1;
+			if (!setjmp(power)) (void)boot();
+			writes_left = -1;
+			assert(!boot());
+			if (!memcmp(device_spending_address(), before, 20)) {
+				/* Nothing was erased: only possible when even the first mark was not written. */
+				assert(!after && step == 0 && !(vault.record.flags & NU54_VAULT_RELEASED));
+			} else {
+				assert_fresh(before, generation + 1);
+			}
+			++cuts;
+			if (finished) break;
+			assert(step < 40);
+		}
+	}
+	printf("power cut at %u points\n", cuts);
+}
+
+static void test_first_boot_survives_power_loss(void)
+{
+	for (int after = 0; after < 2; ++after) {
+		for (int step = 0; step < 8; ++step) {
+			memset(&flash, 0, sizeof(flash));
+			power_after = after;
+			writes_left = step;
+			if (!setjmp(power)) (void)boot();
+			writes_left = -1;
+			assert(!boot() && device_spending_address());
+		}
+	}
+}
+
+static void test_reset_then_new_owner(void)
+{
+	uint8_t first[20], second[20];
+	const uint8_t owner[32] = {2};
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(first);
+	uint64_t generation = vault.record.generation;
+	assert(!device_spending_erase() && !device_spending_address());
+	uint8_t digest[32] = {0}, signature[64];
+	assert(device_spending_sign(digest, signature)); /* nothing signs until the restart */
+	assert(!boot());
+	assert_fresh(first, generation + 1);
+	assert(!device_spending_erase() && !boot()); /* resetting an empty wallet is harmless */
+	assert(vault.record.generation == generation + 1);
+	memcpy(second, device_spending_address(), 20);
+	assert(!nu54_vault_rebind(&vault, vault.record.generation, owner));
+	assert(vault.record.generation == generation + 2 && !vault.record.flags);
+	assert(!enter("5678", true) && enter("1234", false) && !enter("5678", false));
+	assert(!boot() && !memcmp(device_spending_address(), second, 20)); /* stays after a restart */
+}
+
+static void test_lost_key_is_not_replaced(void)
+{
+	uint8_t before[20];
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(before);
+	memset(key(0x54b2), 0, sizeof(struct key));
+	assert(boot() && !device_spending_address() && !key(0x54b2));
+
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(before);
+	key(0x54b2)->attrs.usage |= PSA_KEY_USAGE_EXPORT; /* a key that could leave the board */
+	assert(boot() && !device_spending_address());
+
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(before);
+	key(0x54b2)->seed ^= 0x40; /* another key under the same name */
+	assert(boot() && !device_spending_address());
+
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(before);
+	read_fails = true;
+	assert(device_spending_init() && !device_spending_address());
+	assert(device_order_open(1, 999999));
+	read_fails = false;
+}
+
+static void test_return_address_is_set_once(void)
+{
+	uint8_t before[20], home[20];
+	const uint8_t other[20] = {8};
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot());
+	assert(device_spending_set_return(device_spending_address())); /* not to itself */
+	use_wallet(before);
+	assert(device_spending_return_address(home) && home[0] == 9);
+	assert(device_spending_set_return(other));
+	assert(device_spending_return_address(home) && home[0] == 9);
+}
+
+static void test_wrong_pins_wait_and_never_erase(void)
+{
+	uint8_t before[20];
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(before);
+	const int32_t waits[] = {60, 300, 900, 3600, 3600};
+	for (int i = 0; i < 4; ++i) assert(enter("0000", false) && device_recovery_pin_wait() == 0);
+	for (int i = 0; i < 5; ++i) {
+		assert(enter("0000", false));
+		assert(device_recovery_pin_wait() == waits[i]);
+		unsigned shown = locked_shown, begun = started;
+		assert(enter("1234", false)); /* even the right PIN waits */
+		assert(locked_shown == shown + 1 && started == begun);
+		uptime += (int64_t)waits[i] * 1000 / 2;
+		assert(device_recovery_pin_wait() == waits[i] / 2);
+		/* Switching the power off starts the same wait again, never a shorter one. */
+		assert(!boot());
+		uptime = (int64_t)waits[i] * 1000 - 1;
+		assert(device_recovery_pin_wait() == 1 && enter("1234", false));
+		uptime = (int64_t)waits[i] * 1000;
+		assert(device_recovery_pin_wait() == 0);
+	}
+	assert(!memcmp(device_spending_address(), before, 20) && key(0x54b2)); /* the wallet is still there */
+	assert(!enter("1234", false) && device_recovery_pin_wait() == 0);
+	assert(enter("0000", false) && device_recovery_pin_wait() == 0); /* the count started over */
+
+	struct item *record = item(0x5472);
+	assert(record->size == 33);
+	record->data[32] = 255;
+	uptime += 3600 * 1000;
+	assert(enter("0000", false) && record->data[32] == 255); /* the count never wraps */
+	assert(device_recovery_pin_wait() == 3600);
+}
+
+static void test_open_orders_hold_a_reset_back(void)
+{
+	nu54_order_record record = {.expires = 500, .outcome = NU54_ORDER_APPROVED};
+	memset(&flash, 0, sizeof(flash));
+	assert(!device_order_open(400, 0) && !device_order_open(0, 0));
+	assert(!device_order_store(1, &record));
+	assert(device_order_open(499, 1 << 30) && !device_order_open(500, 0));
+	assert(device_order_open(0, NU54_SPEND_ORDER_LIFE_MS - 1) && !device_order_open(0, NU54_SPEND_ORDER_LIFE_MS));
+	record.outcome = NU54_ORDER_REFUSED;
+	assert(!device_order_store(1, &record) && !device_order_open(499, 0));
+}
+
+int main(void)
+{
+	test_first_boot_survives_power_loss();
+	test_reset_then_new_owner();
+	test_lost_key_is_not_replaced();
+	test_return_address_is_set_once();
+	test_wrong_pins_wait_and_never_erase();
+	test_open_orders_hold_a_reset_back();
+	test_reset_survives_power_loss_everywhere();
+	puts("spending store ok");
+	return 0;
+}

@@ -18,6 +18,8 @@ _Static_assert(NU54_EVM_SIWE_OP != NU54_CHAIN_XPUB_OP, "Each management request 
 #include "device_install.h"
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 #include "device_order.h"
+#include "device_spending.h"
+#include <zephyr/sys/reboot.h>
 #endif
 #include "device_firmware_power.h"
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
@@ -49,6 +51,10 @@ _Static_assert(NU54_EVM_SIWE_OP != NU54_CHAIN_XPUB_OP, "Each management request 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/ring_buffer.h>
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+BUILD_ASSERT(IS_ENABLED(CONFIG_REBOOT), "The spending profile restarts after a reset");
+#endif
 
 #define PILOT_REFUSAL_UID ((psa_storage_uid_t)0x5530)
 #define PILOT_RECEIPT_UID ((psa_storage_uid_t)0x5490)
@@ -133,6 +139,9 @@ static bool display_confirmed;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 static unsigned order_slot;
 static uint64_t order_amount, order_expires;
+static nu54_spend_action spend_action;
+static uint8_t reset_nonce[32];
+static bool reset_nonce_live;
 #endif
 static uint8_t rental_review_hash[32];
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
@@ -236,6 +245,8 @@ static void reset_link(void)
 	order_slot = 0;
 	order_amount = 0;
 	order_expires = 0;
+	memset(&spend_action, 0, sizeof(spend_action));
+	reset_nonce_live = false;
 #endif
 	memset(active_quote, 0, sizeof(active_quote));
 	memset(display_challenge, 0, sizeof(display_challenge));
@@ -444,6 +455,138 @@ static void report_legacy_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE])
 {
 	nu54_owner_status_bonds(status, ble_links_bond_count() == 0);
 }
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static int spending_request(const nu54_v2_request *request, uint64_t now, const nu54_vault *vault)
+{
+	uint8_t board[32], statement[NU54_SPEND_OPERATOR_STATEMENT_SIZE], known[20];
+	const uint8_t op = request->payload[0];
+	const bool operator_reset = op == NU54_SPEND_OPERATOR_RESET_OP;
+	/* Only the operator's signed reset works for a phone that is not the enrolled owner. */
+	if (enrollment.issued || !vault->enabled || !vault->record.generation ||
+	    (vault->record.flags & NU54_VAULT_REVOKED) || !device_spending_address() ||
+	    (!operator_reset && (recovering ||
+	      memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)))) ||
+	    next_prompt == (NU54_PILOT_PROMPT_MASK >> 1) - 1) return -1;
+	if (op != NU54_SPEND_SET_RETURN_OP && device_order_open(device_install_earliest(), k_uptime_get())) return -1;
+	if (op == NU54_SPEND_RETURN_OP && !device_spending_return_address(known)) return -1;
+	if (op == NU54_SPEND_SET_RETURN_OP && device_spending_return_address(known)) return -1;
+	if (operator_reset) {
+		bool live = reset_nonce_live;
+		reset_nonce_live = false; /* one try per nonce */
+		if (!live || request->payload_length != 97 || memcmp(request->payload + 1, reset_nonce, 32) ||
+		    hash(vault->record.identity, sizeof(vault->record.identity), board)) return -1;
+		nu54_spend_operator_statement(board, vault->record.generation, reset_nonce, statement);
+		if (device_install_verify_authority(statement, sizeof(statement), request->payload + 33)) return -1;
+	}
+	uint32_t prompt = NU54_PILOT_PROMPT_MASK | ++next_prompt;
+	if (nu54_spend_stage(&spend_action, &link, request, now, device_install_earliest(), vault->record.generation, prompt))
+		return -1;
+	atomic_set(&pending_prompt, (atomic_val_t)prompt);
+	board_io_set_prompt(prompt);
+	status_led_waiting(true);
+	return 0;
+}
+
+/* Runs with the pilot lock held and does not return on success. */
+static int spending_erase_and_reboot(void)
+{
+	if (device_spending_erase()) {
+		status_led_event(NU54_EVENT_REFUSED);
+		return -1;
+	}
+	status_led_clear();
+	status_led_reset_done();
+	k_msleep(4000);
+	sys_reboot(SYS_REBOOT_COLD);
+	return 0;
+}
+
+static int spending_button(uint32_t prompt, bool approved)
+{
+	nu54_spend_action action;
+	nu54_v2_request reply = {.command = NU54_V2_REPLY, .expires = link.pending_expiry};
+	const nu54_vault *vault = device_vault_owner();
+	uint8_t answer[1 + 20 + 65] = {spend_action.op};
+	memcpy(reply.id, link.pending_id, sizeof(reply.id));
+	reply.payload = answer;
+	if (!approved) {
+		memset(&spend_action, 0, sizeof(spend_action));
+		answer[0] = 0;
+		reply.payload_length = 1;
+		nu54_v2_link_send(&link, &reply, send_frame, NULL);
+		return -1;
+	}
+	/* The operator resets a board whose PIN is forgotten, so only that action skips the PIN. */
+	int pin = spend_action.op == NU54_SPEND_OPERATOR_RESET_OP ? 0 : pilot_pin(false, prompt);
+	if (pin || prompt != (uint32_t)atomic_get(&pending_prompt) || !connection || pay_link_waiting() ||
+	    !device_install_policy() || !vault->enabled || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    !nu54_spend_consume(&spend_action, &link, trusted_now(), vault->record.generation, prompt, &action)) return -1;
+	if (action.op == NU54_SPEND_SET_RETURN_OP) {
+		if (device_spending_set_return(action.address)) return -1;
+		memcpy(answer + 1, action.address, 20);
+		reply.payload_length = 21;
+		return nu54_v2_link_send(&link, &reply, send_frame, NULL);
+	}
+	if (device_order_open(device_install_earliest(), k_uptime_get())) return -1;
+	if (action.op == NU54_SPEND_RETURN_OP) {
+		const nu54_install_policy *policy = device_install_policy();
+		uint8_t preimage[NU54_LOCAL_PREIMAGE_SIZE], digest[32], raw[64];
+		const uint8_t *account = device_spending_address();
+		if (!policy || !policy->allowlist.commercial_testnet || !account ||
+		    !device_spending_return_address(answer + 1)) return -1;
+		nu54_spend_return_preimage(policy->allowlist.token, account, answer + 1, action.amount,
+					   action.valid_before, action.nonce, preimage);
+		nu54_keccak256(preimage, sizeof(preimage), digest);
+		if (device_spending_sign(digest, raw) ||
+		    nu54_sig_finish(digest, raw, account, answer + 21) != NU54_SIG_OK) return -1;
+		reply.payload_length = sizeof(answer);
+		return nu54_v2_link_send(&link, &reply, send_frame, NULL);
+	}
+	reply.payload_length = 1; /* the phone learns that the reset starts; the board then restarts */
+	nu54_v2_link_send(&link, &reply, send_frame, NULL);
+	reset_link();
+	return spending_erase_and_reboot();
+}
+
+void device_pilot_button_reset(void)
+{
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	const nu54_vault *vault = device_vault_owner();
+	bool allowed = vault->enabled && vault->record.generation && !(vault->record.flags & NU54_VAULT_REVOKED) &&
+		       !approval.pending && !enrollment.issued && !spend_action.pending && !pay_link_waiting() &&
+		       !device_order_open(device_install_earliest(), k_uptime_get());
+	if (allowed) reset_link();
+	k_mutex_unlock(&pilot_lock);
+	if (!allowed || device_recovery_pin(false)) {
+		status_led_event(NU54_EVENT_REFUSED);
+		return;
+	}
+	status_led_reset_armed(true);
+	const int64_t until = k_uptime_get() + 10000;
+	bool confirmed = false;
+	while (!confirmed && k_uptime_get() < until) {
+		board_button_event_t event;
+		if (board_button_wait(&event, 100)) continue;
+		if (event.button != 0 || event.event != NU54_BTN_LONG) break; /* anything else cancels */
+		confirmed = true;
+	}
+	status_led_reset_armed(false);
+	if (!confirmed) {
+		status_led_event(NU54_EVENT_REFUSED);
+		return;
+	}
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	/* A phone may have connected while the PIN was entered. */
+	if (!approval.pending && !spend_action.pending && !device_order_open(device_install_earliest(), k_uptime_get())) {
+		reset_link();
+		spending_erase_and_reboot();
+	} else {
+		status_led_event(NU54_EVENT_REFUSED);
+	}
+	k_mutex_unlock(&pilot_lock);
+}
+#endif
 
 static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_policy *policy)
 {
@@ -709,11 +852,43 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 	}
 #endif
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+	case NU54_SPEND_STATUS_OP: {
+		uint8_t answer[NU54_SPEND_STATUS_SIZE] = {NU54_SPEND_STATUS_OP};
+		const uint8_t *account = device_spending_address();
+		int32_t wait = device_recovery_pin_wait();
+		if (request->payload_length != 1 || !account || wait < 0) return -1;
+		answer[1] = device_spending_return_address(answer + 22);
+		memcpy(answer + 2, account, 20);
+		sys_put_be64(policy->allowlist.max_amount, answer + 42);
+		sys_put_be64(CONFIG_NU54_SPENDING_DAILY_CAP, answer + 50);
+		sys_put_be32((uint32_t)wait, answer + 58);
+		answer[62] = device_order_open(device_install_earliest(), k_uptime_get());
+		request->command = NU54_V2_REPLY;
+		request->payload = answer;
+		request->payload_length = sizeof(answer);
+		return nu54_v2_link_send(&link, request, send_frame, NULL);
+	}
+	case NU54_SPEND_RESET_NONCE_OP: {
+		uint8_t answer[33] = {NU54_SPEND_RESET_NONCE_OP};
+		if (request->payload_length != 1 || enrollment.issued || !vault->record.generation ||
+		    owner_random(reset_nonce, sizeof(reset_nonce))) return -1;
+		reset_nonce_live = true;
+		memcpy(answer + 1, reset_nonce, 32);
+		request->command = NU54_V2_REPLY;
+		request->payload = answer;
+		request->payload_length = sizeof(answer);
+		return nu54_v2_link_send(&link, request, send_frame, NULL);
+	}
+	case NU54_SPEND_SET_RETURN_OP:
+	case NU54_SPEND_RETURN_OP:
+	case NU54_SPEND_RESET_OP:
+	case NU54_SPEND_OPERATOR_RESET_OP:
+		return spending_request(request, now, vault);
 	case NU54_ACCOUNT_PROOF_OP: {
 		uint8_t proof[NU54_ACCOUNT_PROOF_REPLY_SIZE] = {NU54_ACCOUNT_PROOF_OP};
 		uint8_t preimage[NU54_LOCAL_PREIMAGE_SIZE], statement[NU54_ACCOUNT_STATEMENT_SIZE], digest[32], raw[64];
-		const uint8_t *account = device_install_payer(), *challenge = request->payload + 1;
-		if (request->payload_length != NU54_ACCOUNT_PROOF_REQUEST_SIZE || recovering || enrollment.issued ||
+		const uint8_t *account = device_spending_address(), *challenge = request->payload + 1;
+		if (!account || request->payload_length != NU54_ACCOUNT_PROOF_REQUEST_SIZE || recovering || enrollment.issued ||
 		    !vault->enabled || !vault->record.generation || (vault->record.flags & NU54_VAULT_REVOKED) ||
 		    link.peer != NU54_V2_OWNER ||
 		    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
@@ -721,7 +896,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		    request->expires <= now || request->expires - now > 10 ||
 		    !nu54_account_preimage(account, challenge, preimage)) return -1;
 		nu54_keccak256(preimage, sizeof(preimage), digest);
-		if (device_install_sign(digest, raw) ||
+		if (device_spending_sign(digest, raw) ||
 		    nu54_sig_finish(digest, raw, account, proof + 21) != NU54_SIG_OK) return -1;
 		memcpy(proof + 1, account, 20);
 		nu54_account_statement(account, challenge, proof + 21, statement);
@@ -902,7 +1077,8 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 			return -1;
 		}
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-		memcpy(status + NU54_OWNER_STATUS_SIZE, device_install_payer(), 20);
+		if (!device_spending_address()) return -1;
+		memcpy(status + NU54_OWNER_STATUS_SIZE, device_spending_address(), 20);
 		break;
 #endif
 		if (vault->record.flags & NU54_VAULT_PERSONAL)
@@ -1025,12 +1201,17 @@ static bool payment_generation_current(const nu54_install_policy *policy)
 
 static bool payment_address(const nu54_install_policy *policy, uint8_t address[20])
 {
+#if !defined(CONFIG_NU54_SPENDING_PROFILE)
 	if (policy->payer_role == NU54_V2_RENTER_ROLE) {
 		memcpy(address, device_install_payer(), 20);
 		return true;
 	}
+#else
+	if (policy->payer_role != NU54_V2_OWNER_ROLE) return false;
+#endif
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-	memcpy(address, device_install_payer(), 20);
+	if (!device_spending_address()) return false;
+	memcpy(address, device_spending_address(), 20);
 	return true;
 #elif defined(CONFIG_NU54_HD_RECOVERY)
 	return device_hd_public_address(address);
@@ -1129,6 +1310,9 @@ static int frame(const uint8_t *data, size_t length)
 	int rc = nu54_v2_link_receive(&link, data, length, now, &request);
 	if (rc == NU54_V2_MORE) return 0;
 	if (rc < 0 || pay_link_waiting() || !policy || enrollment.proven || approval.pending) return -1;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (spend_action.pending) return -1;
+#endif
 #if defined(CONFIG_NU54_WALLET_CHAINS)
 	if (chains.pending) return -1;
 #endif
@@ -1348,7 +1532,11 @@ static int sign(void *context, const uint8_t digest[32], uint8_t signature[64])
 	if (policy->payer_role == NU54_V2_OWNER_ROLE) return device_hd_sign(context, digest, signature);
 #else
 	(void)context;
-	if (policy->payer_role == NU54_V2_OWNER_ROLE && !IS_ENABLED(CONFIG_NU54_SPENDING_PROFILE)) return -1;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	return policy->payer_role == NU54_V2_OWNER_ROLE ? device_spending_sign(digest, signature) : -1;
+#else
+	if (policy->payer_role == NU54_V2_OWNER_ROLE) return -1;
+#endif
 #endif
 	return device_install_sign(digest, signature);
 }
@@ -1471,7 +1659,8 @@ void device_pilot_button(uint32_t prompt, bool approved)
 	if (enrollment.proven) {
 		if (recovering && (!enrollment.independent || k_uptime_get() >= recovery_window)) goto failed;
 		if (approved) {
-			bool virgin = !recovering && !device_vault_owner()->record.generation;
+			bool virgin = !recovering && (!device_vault_owner()->record.generation ||
+						      (device_vault_owner()->record.flags & NU54_VAULT_RELEASED));
 			int pin = pilot_pin(virgin, prompt);
 			if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
 			if (pin || !device_install_policy() || !enrollment.proven ||
@@ -1496,6 +1685,13 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		}
 		goto failed; /* A changed generation retires the authenticated session. */
 	}
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (approved) status_led_pressed();
+	if (spend_action.pending) {
+		if (spending_button(prompt, approved)) goto failed;
+		goto answered;
+	}
+#endif
 	if (!approval.pending) goto done;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 	if (order_button(prompt, approved)) goto failed;
@@ -1614,6 +1810,9 @@ void device_pilot_init(void)
 	mbedtls_ssl_init(&tls);
 	k_work_init_delayable(&worker, poll_tls);
 	initialized = device_install_init() == 0;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	initialized = initialized && device_spending_init() == 0;
+#endif
 	/* Bluetooth and its bond settings are loaded before this runs (pay_link_init). A commercial
 	 * board keeps no legacy bond, including one a power cut left behind after an owner change. */
 	if (initialized && device_pilot_active()) clear_legacy_bonds();
