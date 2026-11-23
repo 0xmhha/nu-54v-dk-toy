@@ -28,7 +28,7 @@ export function MenuCategorySelector({categories, selected, select, locale}: {
         accessibilityLabel={label} accessibilityState={{ selected: key === selected }}
         style={[styles.option, key === selected && styles.selected]}
         onPress={() => select(key)}>
-        <Text style={key === selected && styles.selectedLabel}>{label}</Text>
+        <Text style={[styles.label, key === selected && styles.selectedLabel]}>{label}</Text>
       </Pressable>)}
     </View>
   </View>;
@@ -37,8 +37,9 @@ export function MenuCategorySelector({categories, selected, select, locale}: {
 const styles = StyleSheet.create({
   categories: { gap: 8 },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  option: { borderWidth: 1, borderColor: '#6b7280', borderRadius: 8,
-    justifyContent: 'center', minHeight: 44, paddingHorizontal: 12 },
-  selected: { backgroundColor: '#173e35', borderColor: '#173e35' },
-  selectedLabel: { color: '#fff', fontWeight: '600' },
+  option: { borderWidth: 1, borderColor: '#d5dfd3', borderRadius: 999, backgroundColor: '#fffefa',
+    justifyContent: 'center', minHeight: 48, paddingHorizontal: 22 },
+  label: { fontSize: 16, fontWeight: '700', color: '#182d25' },
+  selected: { backgroundColor: '#174b38', borderColor: '#174b38' },
+  selectedLabel: { color: '#f4f8ed' },
 });

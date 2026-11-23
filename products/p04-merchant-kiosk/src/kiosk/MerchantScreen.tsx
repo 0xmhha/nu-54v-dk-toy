@@ -18,13 +18,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   CommerceClient,
   NearbyCommerceLink,
-  V2Journal,
   readNearbyReady,
   commerceProfile,
   commerceAmount,
@@ -44,6 +44,7 @@ import {
   bytesToHex,
   hexToBytes,
   paymentProfile,
+  paysThroughEscrow,
   preparePresentedPayment,
   presentationFingerprint,
   utf8Encode,
@@ -65,6 +66,7 @@ import {
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import Nearby from '../specs/NativeNearby.ts';
+import { NearbyJournals } from './nearbyJournals.ts';
 import { NearbyRelay } from './nearbyRelay.ts';
 import { PickupKitchen } from './PickupKitchen.tsx';
 import { ReceiptPrint } from './ReceiptPrint.tsx';
@@ -72,6 +74,7 @@ import { pickupHash, pickupJournalName } from './pickupJournal.ts';
 import { QrCode } from '../DigitalReceiptView.tsx';
 import { boardPayment, findPaymentBoards, reviewRentalBoard } from './boardPayment.ts';
 import { MerchantInbox } from './merchantInbox.ts';
+import { holdOrder, orderFinished, orderProgress, pollDelayMs, screenMs } from './orderProgress.ts';
 import { encodeCachedMenu, menuCacheJournal, networkUnavailable, OfflineMenu, readCachedMenu, type CachedMenu } from './offlineMenu.tsx';
 import {
   readPOSOrder,
@@ -134,6 +137,13 @@ type PublicScreen = {
   pos?: POSOrder;
   selectedCode?: string;
   posSelection?: POSSelection;
+  locatorUntil?: number;
+  /** The mark of the phone accepted over the nearby link. */
+  paired?: string;
+  submitting?: true;
+  disconnected?: true;
+  quoteUntil?: number;
+  holdUntil?: number;
   pairing?: {state: 'binding'; code: string} | {state: 'unknown'; checkedAt: number};
 };
 type POSSelection = {state: 'locking'; code: string} | {state: 'unknown' | 'conflict'};
@@ -144,6 +154,7 @@ type CartReplacement = {
 };
 type SetupState = 'loading' | 'configure' | 'blocked' | Slot;
 const now = () => Math.floor(Date.now() / 1000);
+const posBlockedNotice = '이 매장은 주문 보호 결제를 쓰므로 POS 주문을 하드월렛으로 받을 수 없습니다. 직원은 POS에서 다른 결제 수단을 안내하거나 관리자에게 메뉴 주문 모드 전환을 요청하세요.';
 const id = async () =>
   commerceRequestId(fromBase64(await Http!.randomBytes(16)));
 
@@ -151,10 +162,15 @@ function Button({
   label,
   run,
   disabled = false,
+  primary = false,
+  text = label,
 }: {
+  /** The spoken name; `text` may show a shorter one where the card already names the item. */
   label: string;
+  text?: string;
   run: () => void;
   disabled?: boolean;
+  primary?: boolean;
 }) {
   return (
     <Pressable
@@ -163,9 +179,9 @@ function Button({
       accessibilityState={{ disabled }}
       onPress={run}
       disabled={disabled}
-      style={[s.button, disabled && s.disabled]}
+      style={({ pressed }) => [s.button, primary && s.primary, pressed && s.pressed, disabled && s.disabled]}
     >
-      <Text style={s.buttonText}>{label}</Text>
+      <Text style={[s.buttonText, primary && s.primaryText]}>{text}</Text>
     </Pressable>
   );
 }
@@ -223,7 +239,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const abortRef = useRef<AbortController>(undefined);
   const [onlinePairs, setOnlinePairs] = useState<CheckoutComparison[]>([]);
   const [unresolvedComparisons, setUnresolvedComparisons] = useState(false);
-  const [pairCode, setPairCode] = useState<string>();
+  const [pairCodes, setPairCodes] = useState<string[]>([]);
   const [entrance, setEntrance] = useState<{label: string; qr: string}>();
   const relayRef = useRef<NearbyRelay>(undefined);
   const [target, setTarget] = useState('');
@@ -248,10 +264,16 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const [cartReplacement, setCartReplacement] = useState<CartReplacement>();
   const [cartReview, setCartReview] = useState<CommerceCartReview>();
   const [pos, setPos] = useState('');
+  // The server refuses to quote a POS order for a store that is paid through the order escrow.
+  const [posUnsupported, setPosUnsupported] = useState(false);
+  const posBlocked = posUnsupported || (!!policy && paysThroughEscrow(policy));
   const posFlights = useRef(new Map<string, string>());
   const [screen, setScreen] = useState<PublicScreen>();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [clock, setClock] = useState(now);
+  const { width, height } = useWindowDimensions();
+  const wide = width >= 840 && width > height;
   const active = useRef<PublicScreen>(undefined);
   const latest = useRef<symbol>(undefined);
   const screenExpiry = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -264,7 +286,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const retirePublicOrder = useCallback(() => {
     const current = active.current;
     if (current && !current.pos && (!current.sale || current.sale.state === 'preview') &&
-        !current.sale?.menuCheckout?.payerBound && !current.selectedCode && inbox && client) {
+        !current.sale?.menuCheckout?.payerBound && !current.selectedCode && !current.quoteUntil && inbox && client) {
       void inbox.cancelPublic(current.session, (session, key) => client.cancelPublicOrder(session, key)).catch(() => {});
     }
     inbox?.endPublic();
@@ -272,7 +294,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     abortRef.current?.abort();
     setBoardOptions([]);
     setOnlinePairs([]);
-    setPairCode(undefined);
+    setPairCodes([]);
     if (qrExpiry.current) clearTimeout(qrExpiry.current);
     setChoice({});
     setBasketOpen(false);
@@ -282,6 +304,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     setCartReplacement(undefined);
     setCartReview(undefined);
     setPos('');
+    setPosUnsupported(false);
     setMessage('');
   }, [client, inbox]);
   const clearPublic = useCallback(() => {
@@ -388,10 +411,64 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   }, [staff, client, closeStaff]);
 
   function keepPublicActive() {
-    if (!active.current || active.current.connectionEnded) return;
+    const current = active.current;
+    if (!current || current.connectionEnded) return;
     if (screenExpiry.current) clearTimeout(screenExpiry.current);
-    screenExpiry.current = setTimeout(clearPublic, 60_000);
+    screenExpiry.current = setTimeout(clearPublic,
+      screenMs(orderProgress(current, now()), current.holdUntil, Date.now()));
   }
+
+  const progress = screen ? orderProgress(screen, clock) : undefined;
+  const orderBound = !!screen?.sale && (screen.sale.state !== 'preview' ||
+    !!(screen.paired || screen.quoteUntil || screen.selectedCode || screen.pos?.payerBound || screen.sale.menuCheckout?.payerBound));
+  const following = !!progress && !orderFinished(progress) && orderBound &&
+    !screen?.connectionEnded && !screen?.pairing && !screen?.posSelection;
+  // Rendering never waits for these: each call uses the latest closure and the latest screen.
+  const keepLatest = useRef(keepPublicActive);
+  keepLatest.current = keepPublicActive;
+  const pollLatest = useRef(pollOrder);
+  pollLatest.current = pollOrder;
+  const holdUntil = screen?.holdUntil;
+  useEffect(() => {
+    if (progress && progress !== 'open') {
+      setPublicGuide(undefined);
+      // A notice about the step before this one would contradict the new heading.
+      setMessage('');
+    }
+    if (progress) keepLatest.current();
+  }, [progress, holdUntil]);
+  const timed = !!screen?.sale && !!progress && !orderFinished(progress);
+  useEffect(() => {
+    if (!timed) return;
+    setClock(now());
+    const timer = setInterval(() => setClock(now()), 1_000);
+    return () => clearInterval(timer);
+  }, [timed]);
+  const followed = following ? screen?.sale?.id : undefined;
+  useEffect(() => {
+    if (!followed) return;
+    let open = true;
+    let reads = 0;
+    let failures = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const next = () => {
+      timer = setTimeout(async () => {
+        reads++;
+        try {
+          await pollLatest.current();
+          failures = 0;
+        } catch {
+          failures++;
+        }
+        if (open) next();
+      }, pollDelayMs(reads, failures));
+    };
+    next();
+    return () => {
+      open = false;
+      clearTimeout(timer);
+    };
+  }, [followed, progress]);
 
   async function load() {
     if (!Http) {
@@ -505,13 +582,13 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     if (!Nearby || !client || !inbox || setup !== 'terminal' || !nearbyProfile)
       return;
     const module = Nearby;
-    const journal = new V2Journal(128);
+    const journals = new NearbyJournals();
     const relay = new NearbyRelay(
       client,
       inbox,
       async () => fromBase64(await Http!.randomBytes(16)),
       () => (active.current?.locator ? active.current.sale?.id : undefined),
-      check => setPairCode(check?.code),
+      check => setPairCodes(check?.codes ?? []),
       () => (active.current?.pos ? active.current.sale?.id : undefined),
       policy && paymentEnrollment ? {
         policy,
@@ -548,6 +625,23 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           })();
         }),
       } : undefined,
+      event => {
+        const current = active.current;
+        if (current?.sale?.id !== event.sale || current.connectionEnded) return;
+        if (event.stage === 'unsupported') {
+          if (qrExpiry.current) clearTimeout(qrExpiry.current);
+          setPosUnsupported(true);
+          show({...current, locator: undefined});
+          return;
+        }
+        if (!('until' in event)) {
+          show({...current, disconnected: event.stage === 'disconnected' || undefined});
+          return;
+        }
+        if (qrExpiry.current) clearTimeout(qrExpiry.current);
+        show({...current, quoteUntil: event.until, holdUntil: event.until, disconnected: undefined,
+          ...(event.stage === 'submitting' ? {submitting: true as const} : {})});
+      },
     );
     relayRef.current = relay;
     const links = new Map<string, NearbyCommerceLink>();
@@ -565,22 +659,23 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             module.close(peer.link).catch(() => {});
             return;
           }
-          relay.activate(peer.link);
           links.set(
             peer.link,
             new NearbyCommerceLink(
               peer,
               'terminal',
               module,
-              journal,
+              journals.open(peer),
               (req, auth) => relay.handle(req, auth),
             ),
           );
+          relay.activate(peer.link);
         } else if (data.kind === 'data' && typeof data.clear === 'string') {
           links.get(data.link)?.receive(data.clear);
         } else if (data.kind === 'closed') {
           links.get(data.link)?.close();
           links.delete(data.link);
+          journals.release(data.link);
           relay.retire(data.link);
         }
       } catch {
@@ -620,7 +715,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       links.clear();
       relayRef.current = undefined;
     };
-  }, [setup, client, inbox, nearbyProfile, policy, paymentEnrollment]);
+  }, [setup, client, inbox, nearbyProfile, policy, paymentEnrollment, show]);
 
   function work(run: () => Promise<void>, failure: string) {
     if (latest.current) return;
@@ -943,7 +1038,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     );
   }
 
-  async function reconcilePOS(handoff: string, outcome?: POSSelection) {
+  async function reconcilePOS(handoff: string, outcome?: POSSelection, polled = false) {
     const slot = active.current;
     const transport = Http;
     if (!slot || !client || !transport || mode?.mode !== 'pos')
@@ -965,7 +1060,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         ? {state: 'locking' as const, code: inFlight}
         : undefined;
       publishOrder(slot.session, handoff, result.order, result,
-        !selection ? result.selectedCode : undefined, undefined, selection);
+        !selection ? result.selectedCode : undefined, undefined, selection, polled);
     } catch (error) {
       if (active.current !== slot) return;
       if (error instanceof Error && error.message === 'POS_ASSET_UNSUPPORTED') {
@@ -986,6 +1081,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     selectedCode?: string,
     pairing?: PublicScreen['pairing'],
     posSelection?: POSSelection,
+    polled = false,
   ) {
     if (!client || active.current?.session !== session || active.current.connectionEnded) return;
     const expiresAt = Math.min(
@@ -1004,8 +1100,11 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     );
     const payerBound =
       posOrder?.payerBound ?? latestSale.menuCheckout?.payerBound;
+    const held = !finished && (payerBound || !!code || latestSale.state !== 'preview');
+    const until = held ? holdOrder(latestSale, now(), previous?.quoteUntil,
+      previous?.sale?.state === 'preview' && latestSale.state === 'issued' ? undefined : previous?.holdUntil) : undefined;
     const canPair =
-      latestSale.state === 'preview' && !payerBound && !code && !pairing && !posSelection;
+      latestSale.state === 'preview' && !payerBound && !code && !pairing && !posSelection && !(posOrder && posBlocked);
     const locator =
       canPair && expiresAt > now()
         ? encodeOrderLocator(
@@ -1024,32 +1123,70 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       key,
       sale: latestSale,
       locator,
+      locatorUntil: locator ? expiresAt : undefined,
+      paired: finished || locator ? undefined : previous?.paired,
+      submitting: finished ? undefined : previous?.submitting,
+      disconnected: finished ? undefined : previous?.disconnected,
+      quoteUntil: previous?.quoteUntil,
+      holdUntil: until,
       pos: posOrder,
       selectedCode: code,
       pairing: finished ? undefined : pairing,
       posSelection: finished ? undefined : posSelection,
     });
-    keepPublicActive();
+    if (!polled) keepPublicActive();
     if (qrExpiry.current) clearTimeout(qrExpiry.current);
-    if (locator)
-      qrExpiry.current = setTimeout(() => {
-        const latestOrder = active.current;
-        if (latestOrder?.session !== session || latestOrder.locator !== locator)
-          return;
-        if (!latestOrder.pos) {
-          retirePublicOrder();
-          latest.current = undefined;
-          setBusy(false);
-          show({ session, connectionEnded: true });
-          return;
-        }
-        relayRef.current?.clearPublic();
-        setOnlinePairs([]);
-        show({ ...latestOrder, locator: undefined });
-        setMessage(
-          '주문 QR이 만료되었습니다. 현재 주문을 다시 확인해 새 코드를 표시하세요.',
-        );
-      }, Math.max(0, (expiresAt - now()) * 1000));
+    if (locator) endLocatorAt(session, locator, expiresAt);
+  }
+
+  function endLocatorAt(session: string, locator: string, expiresAt: number) {
+    if (qrExpiry.current) clearTimeout(qrExpiry.current);
+    qrExpiry.current = setTimeout(() => {
+      const latestOrder = active.current;
+      if (latestOrder?.session !== session || latestOrder.locator !== locator)
+        return;
+      if (!latestOrder.pos) {
+        retirePublicOrder();
+        latest.current = undefined;
+        setBusy(false);
+        show({ session, connectionEnded: true });
+        return;
+      }
+      relayRef.current?.clearPublic();
+      setOnlinePairs([]);
+      show({ ...latestOrder, locator: undefined });
+      setMessage(
+        '주문 QR이 만료되었습니다. 현재 주문을 다시 확인해 새 코드를 표시하세요.',
+      );
+    }, Math.max(0, (expiresAt - now()) * 1000));
+  }
+
+  /** The accepted phone still has to fetch its quote, so the order outlives the scanned QR briefly. */
+  async function acceptNearby(code: string) {
+    relayRef.current?.approveDisplayed(code);
+    const current = active.current;
+    if (!current?.locator) return;
+    show({ ...current, paired: code });
+    keepPublicActive();
+    endLocatorAt(current.session, current.locator, now() + 35);
+  }
+
+  /** Reads the shown order again without touching the idle timer or a running customer action. */
+  async function pollOrder() {
+    const visible = active.current;
+    if (!client || !visible?.sale || !visible.key || latest.current) return;
+    if (visible.pos) {
+      await reconcilePOS(visible.pos.handoff, undefined, true);
+      return;
+    }
+    const order = await client.status(visible.sale.id);
+    if (active.current?.session !== visible.session || active.current.sale?.id !== order.id || latest.current) return;
+    // An older answer must not bring back a state this screen has already left.
+    if (order.revision < active.current.sale.revision) return;
+    await clearFinishedPayment(order);
+    if (active.current?.session !== visible.session || active.current.sale?.id !== order.id) return;
+    if (order.state === 'preview' && !order.menuCheckout?.payerBound && !active.current.selectedCode) return;
+    publishOrder(visible.session, visible.key, order, undefined, undefined, undefined, undefined, true);
   }
 
   async function pollPairs() {
@@ -1106,6 +1243,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     const selected = order.menuCheckout
       ? order.menuCheckout.customerRef === candidate.customerRef
       : !!claim;
+    if (selected)
+      await recordOwner(order.id, candidate.customerRef!,
+        claim?.expiresAt ?? Math.floor(Date.parse(order.expiresAt) / 1000));
     const pending =
       !selected &&
       !order.menuCheckout?.payerBound &&
@@ -1130,6 +1270,12 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       await reconcileComparison(requestKey, order, comparison);
       await clearFinishedPayment(order);
     }
+  }
+
+  /** The server named this customer as the payer, so their nearby link may read and lock the order. */
+  async function recordOwner(sale: string, customer: string, until: number) {
+    // Without the record the phone can still reach the server itself.
+    if (until > now()) await inbox?.grantClaim(sale, customer, until).catch(() => {});
   }
 
   function comparisonKey(sale: string, candidate: CheckoutComparison) {
@@ -1161,10 +1307,12 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           return client.confirmComparison(sale.id, candidate, key);
         });
       confirmed = true;
+      await recordOwner(sale.id, candidate.customerRef!, claim.expiresAt);
       // A POS customer uses their own approval path. Terminal board enrollment
       // and a different order's pending board payment do not gate issuance.
       await client.quote(sale.id, claim.claimDigest, quoteOrderRevision(sale), key);
     } catch (error) {
+      if (confirmed && error instanceof Error && error.message === 'UNSUPPORTED_CAPABILITY') setPosUnsupported(true);
       outcome = !confirmed && error instanceof Error && error.message === 'CHECKOUT_CONFLICT'
         ? {state: 'conflict'} : {state: 'unknown'};
     } finally {
@@ -1250,6 +1398,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       quoteOrderRevision(sale),
       key,
     );
+    relayRef.current?.rememberIssued(quote, candidate.customerRef!);
     const checked = await client.status(sale.id);
     const saved = inbox
       ?.recovery()
@@ -1617,8 +1766,116 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     else menuGroups.set(row.sku, [row]);
   }
 
+  const amountBox = screen?.sale && (
+    <View style={s.amountBox}>
+      <Text style={s.amountLabel}>금액</Text>
+      <Text style={s.amount}>
+        {screen.pos
+          ? posAmount(screen.sale.amount)
+          : commerceAmount(
+              screen.sale.amount,
+              screen.sale.asset,
+              policy,
+            )}
+      </Text>
+      {Object.keys(choice).length > 0 && <Text style={s.amountLabel}>
+        {Object.values(choice).map(({ row, quantity }) =>
+          `${commerceMenuLabels(row, menuLocale).product} ${quantity}`).join(' · ')}
+      </Text>}
+    </View>
+  );
+  const kitchenOpen = staffView === 'work' && pickupOpen && !printView && !!staff?.permissions.includes('pickup') && !!pickupJournal;
+  const showsQr = !!screen?.locator && !screen.paired;
+  const branchTitle = staffView === 'public' && !!screen && !screen.connectionEnded && !publicGuide &&
+    mode?.mode === 'menu' && !!menuBranchLabel;
+  const basketSummary = (
+      <>
+        {Object.values(choice).map(({ row, quantity }) => {
+          const names = commerceMenuLabels(row, menuLocale);
+          const required = menuGroups.get(row.sku)?.some(item => item.metadata?.optionRequired);
+          return (
+            <View key={commerceLineKey(row)} style={s.basketLine}>
+              <Label>{`${names.product} · ${names.option} ×${quantity}`}</Label>
+              {(required || basketOpen || wide) && !menuDetail && !cartReplacement && <Button
+          text={menuLocale === 'ko' ? '빼기' : 'Remove'}
+                label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
+                disabled={busy}
+                run={() => reduceChoice(row)}
+              />}
+            </View>
+          );
+        })}
+        {!menuDetail && !cartReplacement && <>
+        {cartReview?.shortages.map(({ row, quantity }) => {
+          const names = commerceMenuLabels(row, menuLocale);
+          return (
+            <Label key={commerceLineKey(row)}>
+              {`확보 못한 품목 · ${names.product} · ${names.option} ×${quantity}`}
+            </Label>
+          );
+        })}
+        {!!cartReview?.priceChanges.length && (
+          <>
+            <Label>
+              가격이 바뀌었습니다. 변경된 옵션과 합계를 확인하세요.
+            </Label>
+            {cartReview.priceChanges.map(({ previous, current }) => {
+              const names = commerceMenuLabels(current, menuLocale);
+              return (
+                <Label key={commerceLineKey(current)}>{`${names.product} · ${
+                  names.option
+                } · ${commerceCartAmount(
+                  previous.unitPrice,
+                  previous.asset,
+                  policy,
+                )} → ${commerceCartAmount(
+                  current.unitPrice,
+                  current.asset,
+                  policy,
+                )}`}</Label>
+              );
+            })}
+            {cartReview.previousTotals.map(({ asset, amount }) => (
+              <Label key={asset}>{`기존 합계 · ${commerceCartAmount(
+                amount,
+                asset,
+                policy,
+              )}`}</Label>
+            ))}
+          </>
+        )}
+        {basketTotals.map(({ asset, amount }) => (
+          <Text key={asset} style={s.total}>
+            {`${
+              cartReview?.priceChanges.length ? '새 합계' : '합계'
+            } · ${commerceCartAmount(amount, asset, policy)}`}
+          </Text>
+        ))}
+        {!!basketUnits && <Text style={s.hint}>
+          {menuLocale === 'ko' ? '네트워크 수수료는 매장이 냅니다' : 'The store pays the network fee'}
+        </Text>}
+        <Button
+          label={
+            cartReview
+              ? '바뀐 장바구니 확인 후 주문 접수'
+              : '하드월렛으로 결제'
+          }
+          primary
+          disabled={busy || !Object.keys(choice).length}
+          run={() =>
+            work(
+              reserve,
+              '이 주문을 접수했는지 확인할 수 없습니다. 같은 주문 상태를 확인하세요.',
+            )
+          }
+        />
+        </>}
+      </>
+  );
+
   return (
     <SafeAreaView style={s.root}>
+      <View style={s.body}>
       <ScrollView
         ref={publicScroll}
         style={s.viewport}
@@ -1627,9 +1884,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets
       >
-        <Text accessibilityRole="header" style={s.title}>
-          {staffView === 'public' ? '매장 주문' : '직원 인증'}
-        </Text>
+        {!branchTitle && !kitchenOpen && <Text accessibilityRole="header" style={s.title}>
+          {staffView === 'public' ? '매장 주문' : staffView === 'work' ? '직원 화면' : '직원 인증'}
+        </Text>}
         {!!message && (
           <Text accessibilityLiveRegion="polite" style={s.notice}>
             {message}
@@ -1805,10 +2062,10 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             <Button label="고객 화면" run={() => closeStaff()} />
           </>
         )}
-        {staffView === 'work' && (
+        {staffView === 'work' && !kitchenOpen && (
           <Button label="고객 화면" run={() => closeStaff()} />
         )}
-        {staff?.permissions.includes('refund_console') &&
+        {!kitchenOpen && staff?.permissions.includes('refund_console') &&
           staffView === 'work' && (
             <>
               <Label>
@@ -1830,7 +2087,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
               )}
             </>
           )}
-        {staff?.permissions.includes('terminal_settings') &&
+        {!kitchenOpen && staff?.permissions.includes('terminal_settings') &&
           staffView === 'work' && (
             <>
               <Text accessibilityRole="header" style={s.title}>
@@ -1975,7 +2232,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
               )}
             </>
           )}
-        {staff?.permissions.includes('print_receipts') &&
+        {!kitchenOpen && staff?.permissions.includes('print_receipts') &&
           staffView === 'work' &&
           registration?.slot === 'operator' &&
           pickupJournal &&
@@ -2028,6 +2285,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   : undefined
               }
               close={() => setPickupOpen(false)}
+              lock={() => closeStaff()}
             />
           ) : (
             <Button
@@ -2093,6 +2351,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           !pickupStaff && (
             <Button
               label="새 고객 주문"
+              primary
               run={() =>
                 work(
                   newCustomer,
@@ -2132,7 +2391,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         {setup === 'terminal' && staffView === 'public' && screen && !screen.connectionEnded && publicGuide === 'cancel' && (
           <>
             <Text accessibilityRole="header" style={s.title}>공용 주문을 닫을까요?</Text>
-            <Label>휴대전화에 연결되지 않은 예약을 해제합니다.</Label>
+            {progress === 'open' ? <Label>휴대전화에 연결되지 않은 예약을 해제합니다.</Label> : (
+              <Label>휴대전화에서 이미 승인했다면 결제는 그대로 진행됩니다. 다시 주문하기 전에 휴대전화에서 결과를 확인하세요.</Label>
+            )}
             <Label>연결한 휴대전화에서 원주문을 확인할 수 있습니다.</Label>
             <Button label="계속 주문하기" run={() => openPublicGuide()} />
             <Button label="닫고 화면 지우기" run={clearPublic} />
@@ -2140,12 +2401,13 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         )}
         {setup === 'terminal' && staffView === 'public' && screen && !screen.connectionEnded && !publicGuide && (
           <>
-            <Label>
-              {mode?.mode === 'pos' ? 'POS 결제 전용' : (menuBranchLabel ?? '메뉴 주문')}
-            </Label>
+            {branchTitle ? (
+              <Text accessibilityRole="header" style={screen.key ? s.hint : s.title}>{menuBranchLabel}</Text>
+            ) : <Label>{mode?.mode === 'pos' ? 'POS 결제 전용' : '메뉴 주문'}</Label>}
             {!screen.key && mode?.mode === 'pos' && (
               <>
                 <Label>StableNet 테스트넷 8283 · TestUSDC</Label>
+                {posBlocked && <Text accessibilityRole="alert" style={s.notice}>{posBlockedNotice}</Text>}
                 <TextInput
                   accessibilityLabel="POS 인계 코드"
                   placeholder="등록된 POS에서 발급한 인계 코드"
@@ -2170,6 +2432,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             )}
             {!screen.key && mode?.mode === 'menu' && (
               <>
+                <View style={s.footer}>
                 {!!stock.length && (
                   <Button
                     label={
@@ -2184,8 +2447,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   />
                 )}
                 {!!menuBranchLabel && !menuDetail && !cartReplacement &&
-                  <Button label="내 폰에서 주문하기" disabled={busy} run={() => openPublicGuide('phone')} />}
-                {basketOpen && <>
+                  <Button label="내 폰으로 주문" disabled={busy} run={() => openPublicGuide('phone')} />}
+                </View>
+                {basketOpen && !wide && <>
                   <Text ref={basketHeading} accessibilityRole="header" style={s.title}>
                     {menuLocale === 'ko' ? '장바구니' : 'Basket'}
                   </Text>
@@ -2194,11 +2458,12 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     run={() => showBasket(false)} disabled={busy} />
                   <Button label="주문 그만하기" run={() => openPublicGuide('cancel')} disabled={busy} />
                 </>}
-                {!basketOpen && !menuDetail && !cartReplacement && (
+                {(wide || !basketOpen) && !menuDetail && !cartReplacement && (
                   <MenuCategorySelector categories={categories} selected={selectedCategory} locale={menuLocale}
                     select={(key) => { keepPublicActive(); setMenuCategory(key); }} />
                 )}
-                {!basketOpen && !menuDetail && !cartReplacement && stock.map(row => {
+                <View style={s.grid}>
+                {(wide || !basketOpen) && !menuDetail && !cartReplacement && stock.map(row => {
                   if (selectedCategory && row.category?.key !== selectedCategory) return null;
                   const productRows = menuGroups.get(row.sku) ?? [row];
                   const required = productRows.some(item => item.metadata?.optionRequired === true);
@@ -2212,13 +2477,13 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     ? row.skuAvailable ?? Math.max(...productRows.map(item => item.available))
                     : commerceLineCapacity(row, choice);
                   return (
-                    <View key={row.sku + '/' + row.optionKey} style={s.line}>
-                      <Label>
-                        {required
-                          ? names.product
-                          : `${names.product} · ${names.option} · ${commerceAmount(row.unitPrice, row.asset, policy)}`}
-                      </Label>
-                      {!required && <Label>{commerceMenuDisclosure(row, menuLocale)}</Label>}
+                    <View key={row.sku + '/' + row.optionKey}
+                      style={[s.card, wide && s.cardWide, !!quantity && s.cardChosen, available === 0 && s.cardOut]}>
+                      <Text style={s.cardTitle}>
+                        {required ? names.product : `${names.product} · ${names.option}`}
+                      </Text>
+                      {!required && <Text style={s.price}>{commerceAmount(row.unitPrice, row.asset, policy)}</Text>}
+                      {!required && <Text style={s.hint}>{commerceMenuDisclosure(row, menuLocale)}</Text>}
                       <Label>
                         {available === 0
                           ? menuLocale === 'ko'
@@ -2228,8 +2493,10 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                             ? `가능 수량 ${available} · 선택 ${quantity}`
                             : `Available ${available} · Selected ${quantity}`}
                       </Label>
+                      <View style={s.cardActions}>
                       {first && (
                         <Button
+                          text={menuLocale === 'ko' ? (required ? '옵션 선택' : '상세') : required ? 'Options' : 'Details'}
                           label={menuLocale === 'ko'
                             ? `${names.product} ${required ? '옵션 선택' : '상세'}`
                             : `${required ? 'Choose options for' : 'Details for'} ${names.product}`}
@@ -2238,6 +2505,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                         />
                       )}
                       {!required && <Button
+                        text={menuLocale === 'ko' ? '담기' : 'Add'}
                         label={`${names.product} ${names.option} ${
                           menuLocale === 'ko' ? '추가' : 'Add'
                         }`}
@@ -2249,14 +2517,17 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       />}
                       {!required && !!quantity && (
                         <Button
+                          text={menuLocale === 'ko' ? '빼기' : 'Remove'}
                           label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
                           disabled={busy}
                           run={() => reduceChoice(row)}
                         />
                       )}
+                      </View>
                     </View>
                   );
                 })}
+                </View>
                 {menuDetail && !cartReplacement && (() => {
                   const rows = menuGroups.get(menuDetail.sku) ?? [];
                   if (!rows.length) return null;
@@ -2332,6 +2603,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                         <Text accessibilityRole="alert">{ko ? '선택한 수량을 준비할 수 없습니다' : 'This quantity is unavailable'}</Text>
                       )}
                       <Button label={ko ? '장바구니에 담기' : 'Add to basket'}
+                        primary
                         disabled={maximum === 0}
                         run={() => { keepPublicActive(); addMenuDetail(menuDetail, selected, group); }} />
                       <Button label={ko ? '메뉴로 돌아가기' : 'Back to menu'}
@@ -2369,97 +2641,36 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     </View>
                   );
                 })()}
-                {Object.values(choice).map(({ row, quantity }) => {
-                  const names = commerceMenuLabels(row, menuLocale);
-                  const required = menuGroups.get(row.sku)?.some(item => item.metadata?.optionRequired);
-                  return (
-                    <View key={commerceLineKey(row)}>
-                      <Label>{`${names.product} · ${names.option} ×${quantity}`}</Label>
-                      {(required || basketOpen) && !menuDetail && !cartReplacement && <Button
-                        label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
-                        disabled={busy}
-                        run={() => reduceChoice(row)}
-                      />}
-                    </View>
-                  );
-                })}
-                {!menuDetail && !cartReplacement && <>
-                {cartReview?.shortages.map(({ row, quantity }) => {
-                  const names = commerceMenuLabels(row, menuLocale);
-                  return (
-                    <Label key={commerceLineKey(row)}>
-                      {`확보 못한 품목 · ${names.product} · ${names.option} ×${quantity}`}
-                    </Label>
-                  );
-                })}
-                {!!cartReview?.priceChanges.length && (
-                  <>
-                    <Label>
-                      가격이 바뀌었습니다. 변경된 옵션과 합계를 확인하세요.
-                    </Label>
-                    {cartReview.priceChanges.map(({ previous, current }) => {
-                      const names = commerceMenuLabels(current, menuLocale);
-                      return (
-                        <Label key={commerceLineKey(current)}>{`${names.product} · ${
-                          names.option
-                        } · ${commerceCartAmount(
-                          previous.unitPrice,
-                          previous.asset,
-                          policy,
-                        )} → ${commerceCartAmount(
-                          current.unitPrice,
-                          current.asset,
-                          policy,
-                        )}`}</Label>
-                      );
-                    })}
-                    {cartReview.previousTotals.map(({ asset, amount }) => (
-                      <Label key={asset}>{`기존 합계 · ${commerceCartAmount(
-                        amount,
-                        asset,
-                        policy,
-                      )}`}</Label>
-                    ))}
-                  </>
-                )}
-                {basketTotals.map(({ asset, amount }) => (
-                  <Label key={asset}>
-                    {`${
-                      cartReview?.priceChanges.length ? '새 합계' : '합계'
-                    } · ${commerceCartAmount(amount, asset, policy)}`}
-                  </Label>
-                ))}
-                <Button
-                  label={
-                    cartReview
-                      ? '바뀐 장바구니 확인 후 주문 접수'
-                      : '주문 접수 요청'
-                  }
-                  disabled={busy || !Object.keys(choice).length}
-                  run={() =>
-                    work(
-                      reserve,
-                      '이 주문을 접수했는지 확인할 수 없습니다. 같은 주문 상태를 확인하세요.',
-                    )
-                  }
-                />
-                </>}
+                {!wide && basketSummary}
               </>
             )}
-            {screen.key && (
-              <>
+            {screen.key && progress === 'paid' && screen.sale && (
+              <View style={s.paid} accessibilityLiveRegion="polite">
+                <Text accessibilityRole="header" style={s.paidBadge}>결제 완료</Text>
+                <Text style={s.paidLabel}>주문번호</Text>
+                <Text accessibilityLabel={`주문번호 ${screen.sale.pickupNo}`} style={s.paidNumber}>{screen.sale.pickupNo}</Text>
+                <View style={s.paidRow}>
+                  {screen.pos && <Text style={s.label}>{`POS 주문 ${screen.pos.reference}`}</Text>}
+                  <Text style={s.label}>{screen.pos ? posAmount(screen.sale.amount)
+                    : commerceAmount(screen.sale.amount, screen.sale.asset, policy)}</Text>
+                  <Text style={s.hint}>{`영수증 ${screen.sale.receiptRef?.slice(-8).toUpperCase()}`}</Text>
+                </View>
+                <Text style={s.label}>주문번호는 휴대전화에서도 볼 수 있어요. 준비되면 이 번호로 알려 드려요.</Text>
+                {screen.sale.menuCheckout?.finalOutcome === 'relay-paid' &&
+                  <Text style={s.hint}>네트워크 수수료는 매장이 냈습니다</Text>}
+                <Button primary label="처음 화면으로" run={clearPublic} />
+                <Text style={s.hint}>10초 뒤 자동으로 돌아갑니다</Text>
+              </View>
+            )}
+            {screen.key && progress !== 'paid' && (
+              <View style={!wide ? s.stack : showsQr ? s.split : s.splitStatus}>
+              <View style={!wide ? s.stack : showsQr ? s.splitSide : s.splitMain}>
                 {screen.pos && (
                   <Label>{`POS 주문 ${screen.pos.reference}`}</Label>
                 )}
                 {screen.pos && <Label>{screen.pos.branchLabel}</Label>}
                 {!screen.pos && screen.sale && (
-                  <>
-                    <Label>
-                      {screen.sale.menuCheckout?.branchLabel ??
-                        `지점 · ${client?.profile.branchRef.slice(-8)}`}
-                    </Label>
-                    <Label>{`원주문 · ${screen.sale.id}`}</Label>
-                  </>
+                  !branchTitle && <Label>{screen.sale.menuCheckout?.branchLabel ?? '매장 주문'}</Label>
                 )}
                 {(screen.pos ||
                   (screen.sale && policy?.asset === screen.sale.asset)) && (
@@ -2477,17 +2688,19 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 {screen.selectedCode && (
                   <Label>{`연결한 휴대전화 · ${screen.selectedCode}`}</Label>
                 )}
-                <Label>
-                  {screen.sale?.menuCheckout?.finalOutcome === 'relay-paid'
-                    ? '결제 완료'
-                    : screen.sale?.menuCheckout?.finalOutcome === 'expired-unpaid'
-                    ? '원견적 만료 · 지급 없음 확정'
-                    : screen.sale?.state === 'paid'
-                    ? '서버 지급 확인'
-                    : screen.sale?.state === 'closed'
-                    ? '주문 종료'
-                    : screen.sale?.state === 'checking'
-                    ? '결제 확인 중 · 재청구 보류'
+                <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.title}>
+                  {progress === 'unpaid'
+                    ? '결제되지 않았습니다 · 빠져나간 돈은 없습니다'
+                    : progress === 'elsewhere'
+                    ? screen.sale?.state === 'closed' ? '주문 종료' : '휴대전화에서 결제 결과를 확인해 주세요'
+                    : progress === 'submitting'
+                    ? '결제 확인 중입니다'
+                    : progress === 'unknown'
+                    ? '결제 결과를 아직 확인하지 못했습니다'
+                    : progress === 'late'
+                    ? '승인 시간이 지났습니다'
+                    : screen.pos && posBlocked && progress === 'open'
+                    ? 'POS 결제를 쓸 수 없는 매장입니다'
                     : screen.posSelection?.state === 'locking'
                     ? '선택한 지급자의 견적을 기록하고 있습니다'
                     : screen.posSelection?.state === 'conflict'
@@ -2498,45 +2711,53 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     ? '기존 지급자 결합을 확인해야 합니다 · 운영자 확인 대기'
                     : screen.pos?.payerBound && screen.sale?.state === 'preview'
                     ? '지급자 확인됨 · 견적 기록 대기'
-                    : screen.pos?.payerBound && screen.sale?.state === 'issued'
-                    ? '기존 견적 · 선택한 폰에서 결제를 계속하세요'
+                    : screen.pairing?.state === 'unknown'
+                    ? '기존 결제 연결을 확인하고 있습니다'
+                    : progress === 'approving'
+                    ? '휴대전화에서 승인 중'
                     : screen.pos
                     ? '고객 폰의 연결 표식을 확인하세요'
                     : screen.pairing?.state === 'binding'
                     ? '이 폰의 결제 요청을 준비합니다'
-                    : screen.pairing?.state === 'unknown'
-                    ? '기존 결제 연결을 확인하고 있습니다'
-                    : screen.sale?.state === 'issued'
-                    ? '기존 견적 · 연결한 폰에서 결제를 계속하세요'
-                    : screen.selectedCode ||
-                      screen.sale?.menuCheckout?.payerBound
+                    : screen.paired || screen.selectedCode || screen.sale?.menuCheckout?.payerBound
                     ? '휴대전화 연결 확인 · 연결한 폰에서 결제를 계속하세요'
                     : screen.locator
                     ? '폰에서 이 주문을 열어 주세요'
                     : screen.sale
                     ? '폰 연결 대기'
                     : '접수 여부 확인 중'}
-                </Label>
-                {screen.sale && (
-                  <Label>
-                    금액{' '}
-                    {screen.pos
-                      ? posAmount(screen.sale.amount)
-                      : commerceAmount(
-                          screen.sale.amount,
-                          screen.sale.asset,
-                          policy,
-                        )}
-                  </Label>
-                )}
-                {screen.locator && (
+                </Text>
+                {screen.pos && posBlocked && progress === 'open' &&
+                  <Text accessibilityRole="alert" style={s.notice}>{`${posBlockedNotice} 이 주문에서 빠져나간 돈은 없습니다.`}</Text>}
+                {progress === 'approving' && screen.disconnected &&
+                  <Text accessibilityRole="alert" style={s.notice}>휴대전화와의 연결이 끊어졌습니다. 같은 휴대전화를 키오스크 가까이에서 다시 연결하면 이 주문을 이어갑니다. 다시 결제하지 마세요.</Text>}
+                {progress === 'approving' && !screen.disconnected &&
+                  <Label>휴대전화에서 내용을 확인하고 하드월렛으로 승인하세요. 승인하는 동안 이 화면을 유지합니다.</Label>}
+                {progress === 'submitting' &&
+                  <Label>승인을 받아 결제를 확인하고 있습니다. 다시 결제하지 마세요.</Label>}
+                {(progress === 'unknown' || progress === 'late') &&
+                  <Label>다시 결제하지 마세요. 휴대전화에서 이 주문의 결과를 확인하고, 확인되지 않으면 직원에게 알려 주세요.</Label>}
+                {progress === 'unpaid' &&
+                  <Label>처음 화면에서 다시 주문할 수 있습니다.</Label>}
+                {progress === 'elsewhere' && screen.sale?.state === 'closed' &&
+                  <Label>휴대전화에서 이 주문의 결과를 확인해 주세요.</Label>}
+                {(!wide || showsQr) && amountBox}
+              </View>
+              <View style={!wide ? s.stack : showsQr ? s.splitMain : s.splitSide}>
+                {wide && !showsQr && amountBox}
+                {screen.paired && <Label>{`연결한 휴대전화 · ${screen.paired}`}</Label>}
+                {showsQr && (
                   <>
                     <View
                       accessible
                       accessibilityLabel="이 주문을 여는 일회용 QR"
                     >
-                      <QrCode text={screen.locator} />
+                      <QrCode text={screen.locator!} size={280} />
                     </View>
+                    <Text style={s.hint}>
+                      {`지갑 앱 결제 탭에서 QR을 스캔하거나 근처 키오스크를 누르세요. 연결 유효 시간 ${
+                        Math.max(0, (screen.locatorUntil ?? 0) - clock)}초`}
+                    </Text>
                     <Button
                       label="휴대전화 확인 번호 조회"
                       disabled={busy}
@@ -2566,19 +2787,10 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     ))}
                   </>
                 )}
-                {screen.sale?.menuCheckout?.finalOutcome === 'relay-paid' &&
-                  <Label>네트워크 수수료 · 가맹점 릴레이 부담</Label>}
-                {screen.sale?.state === 'paid' &&
-                  screen.sale.pickupNo !== undefined && (
-                    <Label>픽업 번호 {screen.sale.pickupNo}</Label>
-                  )}
-                {screen.pos && screen.sale?.state === 'paid' && (
-                  <Label>{`같은 영수증 ${screen.sale.receiptRef}`}</Label>
-                )}
                 {pendingPayment &&
                   pendingPayment.order.id === screen.sale?.id && (
                     <>
-                      {screen.sale?.state === 'issued' && !pendingPayment.signature && (
+                      {progress === 'approving' && !screen.submitting && !pendingPayment.signature && (
                         <Button
                           label="직접 승인할 보드 찾기"
                           disabled={busy}
@@ -2590,7 +2802,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                           }
                         />
                       )}
-                      {screen.sale?.state === 'issued' && !pendingPayment.signature && boardOptions.map((row, index) => (
+                      {progress === 'approving' && !screen.submitting && !pendingPayment.signature && boardOptions.map((row, index) => (
                         <Button
                           key={row.handle}
                           label={`보드 후보 ${index + 1} 인증 및 검토`}
@@ -2612,22 +2824,26 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       />
                     </>
                   )}
-                {screen.locator && pairCode && (
+                {showsQr && pairCodes.length > 0 && (
                   <View style={s.line}>
                     <Label>
                       휴대전화 화면과 같은 확인 번호인지 확인하세요.
                     </Label>
-                    <Text style={s.mono}>{pairCode}</Text>
-                    <Button
-                      label="확인 번호가 같은 휴대전화에 연결"
-                      run={() =>
-                        work(
-                          async () =>
-                            relayRef.current?.approveDisplayed(pairCode),
-                          '인계 요청이 만료되었습니다.',
-                        )
-                      }
-                    />
+                    {pairCodes.map(code => (
+                      <View key={code} style={s.stack}>
+                        <Text style={s.code}>{code}</Text>
+                        <Button
+                          primary
+                          label={pairCodes.length > 1 ? `확인 번호 ${code} 휴대전화에 연결` : '확인 번호가 같은 휴대전화에 연결'}
+                          run={() =>
+                            work(
+                              () => acceptNearby(code),
+                              '인계 요청이 만료되었습니다.',
+                            )
+                          }
+                        />
+                      </View>
+                    ))}
                   </View>
                 )}
                 {screen.pos && (
@@ -2635,7 +2851,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     relayRef.current?.clearPublic();
                     if (qrExpiry.current) clearTimeout(qrExpiry.current);
                     setOnlinePairs([]);
-                    setPairCode(undefined);
+                    setPairCodes([]);
                     setMessage('');
                     setPos('');
                     show({session: screen.session});
@@ -2656,25 +2872,48 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     )
                   }
                 />
-              </>
+              </View>
+              </View>
             )}
-            <Label>
-              1분 동안 사용하지 않으면 이 주문 화면을 비웁니다. 주문을 더
-              살펴보려면 시간을 연장하세요.
-            </Label>
-            <Button
-              label="계속 주문하고 시간 연장"
-              run={keepPublicActive}
-              disabled={busy}
-            />
-            <Button label="화면을 비우고 대기"
-              run={screen.key && !screen.pos && screen.sale?.state === 'preview' &&
-                !screen.sale.menuCheckout?.payerBound && !screen.selectedCode
-                ? () => openPublicGuide('cancel') : clearPublic} />
+            {progress !== 'paid' && <>
+              {(progress === 'approving' || progress === 'submitting') && screen.holdUntil !== undefined ? (
+                <Text style={s.hint}>
+                  {`결제가 끝날 때까지 화면을 유지합니다 · 최대 ${Math.max(0, screen.holdUntil - clock)}초`}
+                </Text>
+              ) : (
+                <Text style={s.hint}>
+                  1분 동안 사용하지 않으면 이 주문 화면을 비웁니다. 주문을 더
+                  살펴보려면 시간을 연장하세요.
+                </Text>
+              )}
+              <View style={s.footer}>
+                {progress !== 'approving' && progress !== 'submitting' && <Button
+                  label="계속 주문하고 시간 연장"
+                  run={keepPublicActive}
+                  disabled={busy}
+                />}
+                <Button label="화면을 비우고 대기"
+                  run={screen.key && !screen.pos && screen.sale && progress !== 'unpaid' && progress !== 'elsewhere'
+                    ? () => openPublicGuide('cancel') : clearPublic} />
+              </View>
+            </>}
           </>
         )}
       </ScrollView>
-      {basketVisible && !publicGuide && !basketOpen && !menuDetail && !cartReplacement && (
+      {wide && basketVisible && !publicGuide && (
+        <View accessibilityLabel={menuLocale === 'ko' ? '장바구니' : 'Basket'} style={s.aside}>
+          <ScrollView contentContainerStyle={s.asideScroll}>
+            <Text ref={basketHeading} accessibilityRole="header" style={s.heading}>
+              {menuLocale === 'ko' ? '장바구니' : 'Basket'}
+            </Text>
+            {!basketUnits && <Text style={s.hint}>{menuLocale === 'ko' ? '담은 메뉴가 없습니다.' : 'Your basket is empty.'}</Text>}
+            {basketSummary}
+            <Button label="주문 그만하기" run={() => openPublicGuide('cancel')} disabled={busy} />
+          </ScrollView>
+        </View>
+      )}
+      </View>
+      {!wide && basketVisible && !publicGuide && !basketOpen && !menuDetail && !cartReplacement && (
         <View style={s.basketBar}>
           <View accessibilityLiveRegion="polite">
             <Text style={s.label}>
@@ -2692,13 +2931,23 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   );
 }
 
+const ink = '#182d25';
+const muted = '#4f655a';
+const line = '#d5dfd3';
+const paper = '#fffefa';
+const deep = '#174b38';
+const onDeep = '#f4f8ed';
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fafaf6' },
+  root: { flex: 1, backgroundColor: '#f1f4ec' },
+  body: { flex: 1, flexDirection: 'row' },
   viewport: { flex: 1 },
+  aside: { width: 380, backgroundColor: paper, borderLeftWidth: 1, borderLeftColor: line },
+  asideScroll: { padding: 28, gap: 12 },
   basketBar: {
     borderTopWidth: 1,
-    borderTopColor: '#d3dfd4',
-    backgroundColor: '#fafaf6',
+    borderTopColor: line,
+    backgroundColor: paper,
     paddingHorizontal: 22,
     paddingVertical: 8,
     flexDirection: 'row',
@@ -2707,33 +2956,74 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  scroll: { padding: 22, gap: 12 },
-  title: { fontSize: 26, color: '#122a22', fontWeight: '700' },
-  label: { fontSize: 17, color: '#26382f', lineHeight: 24 },
-  notice: { fontSize: 16, color: '#2d4b3e', lineHeight: 22 },
-  mono: { fontFamily: 'monospace', fontSize: 14, color: '#193c2c' },
+  basketLine: { borderBottomWidth: 1, borderBottomColor: line, paddingBottom: 10, gap: 8 },
+  scroll: { padding: 28, gap: 14 },
+  title: { fontSize: 30, color: ink, fontWeight: '800', letterSpacing: -0.6 },
+  heading: { fontSize: 22, color: ink, fontWeight: '800' },
+  label: { fontSize: 17, color: ink, lineHeight: 25 },
+  hint: { fontSize: 15, color: muted, lineHeight: 22 },
+  notice: { fontSize: 16, color: '#5a3b05', lineHeight: 23, backgroundColor: '#f6e3bf', borderRadius: 12, padding: 14 },
+  mono: { fontFamily: 'monospace', fontSize: 14, color: ink },
+  code: { fontSize: 28, fontWeight: '800', letterSpacing: 2, color: ink },
+  total: { fontSize: 26, fontWeight: '800', color: ink, letterSpacing: -0.6 },
   registration: { height: 100, textAlignVertical: 'top' },
   input: {
     borderWidth: 1,
     borderColor: '#71897d',
-    borderRadius: 8,
+    borderRadius: 12,
     minHeight: 48,
     padding: 12,
-    color: '#182923',
+    color: ink,
+    backgroundColor: paper,
   },
   line: {
     borderBottomWidth: 1,
-    borderBottomColor: '#d3dfd4',
+    borderBottomColor: line,
     paddingBottom: 12,
     gap: 8,
   },
-  button: {
-    minHeight: 45,
-    borderRadius: 8,
-    backgroundColor: '#1d4636',
-    padding: 12,
-    justifyContent: 'center',
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  card: { width: '100%', padding: 20, gap: 8, borderWidth: 1, borderColor: line, borderRadius: 20, backgroundColor: paper },
+  cardWide: { width: '48%', maxWidth: '49%', flexGrow: 1 },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 'auto' },
+  cardChosen: { borderWidth: 2, borderColor: deep },
+  cardOut: { borderStyle: 'dashed', backgroundColor: '#f1f4ec' },
+  cardTitle: { fontSize: 18, fontWeight: '800', color: ink },
+  price: { fontSize: 16, fontWeight: '700', color: deep },
+  split: { flexDirection: 'row-reverse', gap: 32, alignItems: 'flex-start' },
+  splitStatus: { flexDirection: 'row', gap: 32, alignItems: 'flex-start' },
+  splitSide: { width: 400, gap: 12 },
+  splitMain: { flex: 1, gap: 12 },
+  stack: { gap: 12 },
+  amountBox: { backgroundColor: deep, borderRadius: 24, padding: 24, gap: 6 },
+  amountLabel: { fontSize: 15, color: '#cfe0cf', lineHeight: 22 },
+  amount: { fontSize: 40, fontWeight: '800', color: onDeep, letterSpacing: -1 },
+  paid: { alignItems: 'center', gap: 16, paddingVertical: 24 },
+  paidBadge: {
+    fontSize: 18, fontWeight: '800', color: '#123a2b', backgroundColor: '#d4efa7',
+    paddingHorizontal: 20, paddingVertical: 8, borderRadius: 999, overflow: 'hidden',
   },
-  buttonText: { fontSize: 16, color: '#fff', fontWeight: '600' },
+  paidLabel: { fontSize: 20, color: muted },
+  paidNumber: { fontSize: 140, lineHeight: 150, fontWeight: '800', color: ink, letterSpacing: -4 },
+  paidRow: {
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 24, paddingHorizontal: 28, paddingVertical: 18,
+    borderRadius: 20, borderWidth: 1, borderColor: line, backgroundColor: paper,
+  },
+  footer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  button: {
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: line,
+    backgroundColor: paper,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primary: { minHeight: 60, backgroundColor: deep, borderColor: deep, borderRadius: 18 },
+  pressed: { opacity: 0.75 },
+  buttonText: { fontSize: 16, color: ink, fontWeight: '700', textAlign: 'center' },
+  primaryText: { fontSize: 18, color: onDeep, fontWeight: '800' },
   disabled: { opacity: 0.5 },
 });

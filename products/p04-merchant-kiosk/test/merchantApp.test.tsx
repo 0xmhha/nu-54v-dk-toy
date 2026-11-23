@@ -1,9 +1,10 @@
 import React from 'react';
-import { AccessibilityInfo, Linking } from 'react-native';
+import { AccessibilityInfo, Dimensions, Linking } from 'react-native';
 import Renderer from 'react-test-renderer';
 import App from '../src/App';
 import {
   bindServiceRequestV2 as mockBind,
+  orderEscrowAbiSha256,
   toBase64 as mockBase64,
   type ServiceRequestV2,
   type CommerceCart,
@@ -21,6 +22,8 @@ const mockHandoff = ref(6),
 let mockPOSPaid = false;
 let mockPOSIssued = false;
 let mockPOSConflict = false;
+let mockPOSQuoteUnsupported = false;
+let mockAbi: string | undefined;
 let mockPOSLegacyHeld = false;
 let mockPOSQuoteGate: Promise<void> | undefined;
 const mockSecondHandoff = ref(81), mockSecondSale = ref(82);
@@ -112,6 +115,7 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
                     keyVersion: 1,
                     beneficiaryVersion: 1,
                     maxBaseUnits: '30000000',
+                    abiSha256: mockAbi,
                   },
                 }
               : {}),
@@ -394,6 +398,8 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
       }
       if (command.operation === 'quote.issue' && mockMode === 'pos') {
         await mockPOSQuoteGate;
+        if (mockPOSQuoteUnsupported)
+          return JSON.stringify({requestId, requestDigest, status: 'error', error: 'UNSUPPORTED_CAPABILITY'});
         mockPOSIssued = true;
         throw new Error('lost committed quote response');
       }
@@ -461,6 +467,8 @@ beforeEach(() => {
   mockPOSPaid = false;
   mockPOSIssued = false;
   mockPOSConflict = false;
+  mockPOSQuoteUnsupported = false;
+  mockAbi = undefined;
   mockPOSLegacyHeld = false;
   mockPOSQuoteGate = undefined;
   mockMenuCheckout = false;
@@ -508,7 +516,7 @@ test('a terminal orders from server inventory, displays its locator, and clears 
   expect(view(tree!)).not.toContain('직원 단말 설정');
   await press(tree!, '새 고객 주문');
   await press(tree!, '차 hot 추가');
-  await press(tree!, '주문 접수 요청');
+  await press(tree!, '하드월렛으로 결제');
   expect(view(tree!)).toContain('이 주문을 여는 일회용 QR');
   expect(mockDialed).toEqual([
     'terminal.state',
@@ -537,7 +545,7 @@ test('K02 shows both totals and requires explicit price approval', async () => {
   await press(tree!, '차 hot 추가');
   mockMenuVersion = 2;
   mockMenuPrice = '10';
-  await press(tree!, '주문 접수 요청');
+  await press(tree!, '하드월렛으로 결제');
   expect(view(tree!)).toContain('기존 합계 · 9 기준 단위');
   expect(view(tree!)).toContain('새 합계 · 10 기준 단위');
   expect(view(tree!)).toContain('선택 1');
@@ -663,7 +671,7 @@ test('extending the public session does not extend an already displayed locator'
     });
     await press(tree!, '새 고객 주문');
     await press(tree!, '차 hot 추가');
-    await press(tree!, '주문 접수 요청');
+    await press(tree!, '하드월렛으로 결제');
     expect(view(tree!)).toContain('이 주문을 여는 일회용 QR');
     await Renderer.act(async () => {
       jest.advanceTimersByTime(30_000);
@@ -696,14 +704,14 @@ test.each(['unbound', 'issued'] as const)('K08 automatically resets an idle %s p
     });
     await press(tree, '새 고객 주문');
     await press(tree, '차 hot 추가');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(view(tree)).toContain('이 주문을 여는 일회용 QR');
     if (stage === 'issued') {
       await press(tree, '휴대전화 확인 번호 조회');
       await press(tree, '확인 번호 2ba8cf04와 일치');
       mockMenuOrderState = 'issued';
       await press(tree, '이 주문 다시 확인');
-      expect(view(tree)).toContain('기존 견적');
+      expect(view(tree)).toContain('휴대전화에서 승인 중');
     }
     const requests = [...mockDialed];
     await Renderer.act(async () => jest.advanceTimersByTime(41_000));
@@ -714,13 +722,23 @@ test.each(['unbound', 'issued'] as const)('K08 automatically resets an idle %s p
       expect(view(tree)).not.toContain('금액 6.50 TestUSDC');
       expect(view(tree)).not.toContain('이 주문을 여는 일회용 QR');
     } else {
-      expect(view(tree)).toContain('기존 견적');
+      expect(view(tree)).toContain('휴대전화에서 승인 중');
       expect(view(tree)).not.toContain('연결 시간이 지났습니다');
     }
     await Renderer.act(async () => jest.advanceTimersByTime(20_000));
-    expect(mockDialed).toEqual(stage === 'unbound' ? [...requests, 'order.cancel-public'] : requests);
+    if (stage === 'issued') {
+      // An order being approved is only read again, and it outlives the idle minute until its own deadline.
+      expect(view(tree)).toContain('휴대전화에서 승인 중');
+      await Renderer.act(async () => { await jest.advanceTimersByTimeAsync(40_000); });
+      expect(view(tree)).toContain('승인 시간이 지났습니다');
+      expect(view(tree)).toContain('다시 결제하지 마세요.');
+      await Renderer.act(async () => { await jest.advanceTimersByTimeAsync(61_000); });
+      expect(mockDialed.filter(op => op !== 'order.status')).toEqual(requests.filter(op => op !== 'order.status'));
+    } else {
+      expect(mockDialed).toEqual([...requests, 'order.cancel-public']);
+    }
     expect(view(tree)).toContain('새 고객 주문');
-    for (const prior of [mockSale, '2ba8cf04', '기존 견적', '연결 시간이 지났습니다', '이 주문을 여는 일회용 QR']) {
+    for (const prior of [mockSale, '2ba8cf04', '휴대전화에서 승인 중', '연결 시간이 지났습니다', '이 주문을 여는 일회용 QR']) {
       expect(view(tree)).not.toContain(prior);
     }
     await press(tree, '새 고객 주문');
@@ -755,9 +773,9 @@ test('POS handoff opens no menu and resumes the same server receipt after restar
   await Renderer.act(async () => tree!.unmount());
   mockPOSPaid = true;
   await start();
-  expect(view(tree!)).toContain('서버 지급 확인');
-  expect(view(tree!)).toContain('같은 영수증');
-  expect(view(tree!)).toContain(mockReceipt);
+  expect(view(tree!)).toContain('결제 완료');
+  expect(view(tree!)).toContain('영수증 ' + mockReceipt.slice(-8).toUpperCase());
+  expect(view(tree!)).not.toContain(mockReceipt);
   expect(view(tree!)).not.toContain('이 주문을 여는 일회용 QR');
   expect(mockDialed).toEqual([
     'terminal.state',
@@ -804,7 +822,7 @@ test('K11 keeps a pending POS original readable and isolates a second POS while 
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
     await press(tree!, '새 고객 주문');
     await openPOS(tree!, mockHandoff);
-    expect(view(tree!)).toContain('기존 견적 · 선택한 폰에서 결제를 계속하세요');
+    expect(view(tree!)).toContain('휴대전화에서 승인 중');
     expect(view(tree!)).toContain('연결한 휴대전화 · 2ba8cf04');
     expect(mockDialed.filter(row => row === 'quote.issue')).toHaveLength(1);
     expect(mockDialed.filter(row => row === 'checkout.confirm')).toHaveLength(1);
@@ -888,7 +906,7 @@ test('K02 preserves the other purchasable line when one selected SKU sells out',
     await press(tree!, '빵 plain 추가');
     expect(view(tree!)).toContain('가능 수량 2 · 선택 1');
     mockTeaAvailable = 0;
-    await press(tree!, '주문 접수 요청');
+    await press(tree!, '하드월렛으로 결제');
     expect(mockDialed).not.toContain('order.create');
     expect(view(tree!)).toContain('확보 못한 품목 · 차 · hot ×1');
     expect(view(tree!)).toContain('가능 수량 2 · 선택 1');
@@ -937,9 +955,9 @@ test('K12 clerk receives only the authenticated branch pickup queue', async () =
     expect(view(tree!)).not.toContain('현재 단말 모드 조회');
     expect(view(tree!)).not.toContain('P05 환불 운영 화면');
     await press(tree!, '지점 픽업 대기열');
-    await press(tree!, '지점 픽업 접수 조회');
+    await press(tree!, '주문 목록 새로 고침');
     expect(view(tree!)).toContain('픽업 37');
-    expect(mockDialed).toEqual(['staff.access', 'pickup-queue']);
+    expect(mockDialed).toEqual(['staff.access', 'pickup-queue', 'pickup-queue']);
     await press(tree!, '고객 화면');
     expect(view(tree!)).not.toContain('픽업 37');
   } finally {
@@ -1020,21 +1038,21 @@ test('K12 dedicated kitchen reauthenticates before resuming the original pickup 
   });
   const openQueue = async () => {
     await press(tree!, '직원 픽업 접수');
-    expect(view(tree!)).not.toContain('지점 픽업 접수 조회');
+    expect(view(tree!)).not.toContain('주문 목록 새로 고침');
     await press(tree!, '직원 권한 확인');
     await press(tree!, '지점 픽업 대기열');
-    await press(tree!, '지점 픽업 접수 조회');
+    await press(tree!, '주문 목록 새로 고침');
   };
   try {
     expect(view(tree!)).not.toContain('새 고객 주문');
     await openQueue();
     const label = tree!.root.findAll(
       node =>
-        typeof node.props.title === 'string' &&
-        node.props.title.startsWith('픽업 37 ·'),
-    )[0].props.title;
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith('픽업 37 ·'),
+    )[0].props.accessibilityLabel;
     await press(tree!, label);
-    await press(tree!, '준비 시작');
+    await press(tree!, '조리 시작');
     expect(mockPickupCommands).toHaveLength(1);
     const journal = [...mockJournal.keys()].find(name =>
       name.startsWith('pickup-v2-'),
@@ -1042,10 +1060,10 @@ test('K12 dedicated kitchen reauthenticates before resuming the original pickup 
     expect(mockJournal.get(journal)).toContain(mockSale);
     await press(tree!, '고객 화면');
     expect(view(tree!)).not.toContain(mockSale);
-    expect(view(tree!)).not.toContain('같은 픽업 상태 요청 다시 확인');
+    expect(view(tree!)).not.toContain('방금 누른 처리 결과 확인');
     mockLosePickupReply = false;
     await openQueue();
-    await press(tree!, '같은 픽업 상태 요청 다시 확인');
+    await press(tree!, '방금 누른 처리 결과 확인');
     expect(mockPickupCommands).toEqual([
       mockPickupCommands[0],
       mockPickupCommands[0],
@@ -1070,7 +1088,7 @@ test('K03 shows a branch-only entrance QR separately from the original checkout 
     expect(view(tree)).not.toContain(mockSale);
     await press(tree, '새 고객 주문');
     await press(tree, '차 hot 추가');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(view(tree)).not.toContain('개인 주문을 시작하는 매장 입구 QR');
     expect(view(tree)).toContain('이 주문을 여는 일회용 QR');
   } finally {
@@ -1089,11 +1107,11 @@ test('K08 selects one public menu customer and keeps the original order after is
   try {
     await press(tree!, '새 고객 주문');
     await press(tree!, '차 hot 추가');
-    await press(tree!, '주문 접수 요청');
+    await press(tree!, '하드월렛으로 결제');
     expect(view(tree!)).toContain('여울 커피 성수점');
     expect(view(tree!)).toContain('StableNet 테스트넷 8283');
     expect(view(tree!)).toContain('6.50 TestUSDC');
-    expect(view(tree!)).toContain(mockSale);
+    expect(view(tree!)).not.toContain(mockSale);
     expect(view(tree!)).toContain('이 주문을 여는 일회용 QR');
     expect(view(tree!)).not.toContain('POS 주문');
     await press(tree!, '휴대전화 확인 번호 조회');
@@ -1101,12 +1119,15 @@ test('K08 selects one public menu customer and keeps the original order after is
     await press(tree!, '확인 번호 2ba8cf04와 일치');
     expect(mockSelected).toHaveLength(1);
     expect(view(tree!)).toContain('연결한 휴대전화 · 2ba8cf04');
+    // The phone chosen by its mark may now read and lock this order over its nearby link.
+    expect(JSON.parse(mockJournal.get('commerce-inbox-v2')!).claims)
+      .toEqual([{sale: mockSale, owner: mockCandidates[1].customerRef, until: expect.any(Number)}]);
     expect(view(tree!)).not.toContain('37ea19cd');
     expect(view(tree!)).not.toContain('이 주문을 여는 일회용 QR');
 
     mockMenuOrderState = 'issued';
     await press(tree!, '이 주문 다시 확인');
-    expect(view(tree!)).toContain(mockSale);
+    expect(view(tree!)).not.toContain(mockSale);
     expect(view(tree!)).toContain('연결한 휴대전화 · 2ba8cf04');
     expect(view(tree!)).not.toContain('이 주문을 여는 일회용 QR');
     expect(
@@ -1128,7 +1149,7 @@ test('K08 shows the selected mark during binding, then offers a distinct unknown
   try {
     await press(tree!, '새 고객 주문');
     await press(tree!, '차 hot 추가');
-    await press(tree!, '주문 접수 요청');
+    await press(tree!, '하드월렛으로 결제');
     await press(tree!, '휴대전화 확인 번호 조회');
     await press(tree!, '확인 번호 2ba8cf04와 일치');
     expect(mockSelected).toHaveLength(1);
@@ -1162,7 +1183,7 @@ test('K08 safely retries an unreceived comparison after relaunch using the same 
   try {
     await press(tree!, '새 고객 주문');
     await press(tree!, '차 hot 추가');
-    await press(tree!, '주문 접수 요청');
+    await press(tree!, '하드월렛으로 결제');
     await press(tree!, '휴대전화 확인 번호 조회');
     await press(tree!, '확인 번호 2ba8cf04와 일치');
     expect(mockSelected).toHaveLength(1);
@@ -1196,14 +1217,14 @@ test('K08 recovers the already bound customer after a lost response without subm
   try {
     await press(tree!, '새 고객 주문');
     await press(tree!, '차 hot 추가');
-    await press(tree!, '주문 접수 요청');
+    await press(tree!, '하드월렛으로 결제');
     await press(tree!, '휴대전화 확인 번호 조회');
     await press(tree!, '확인 번호 2ba8cf04와 일치');
     expect(view(tree!)).not.toContain('연결한 휴대전화 · 2ba8cf04');
     expect(view(tree!)).not.toContain('이 주문을 여는 일회용 QR');
     await press(tree!, '기존 연결 조회');
     expect(view(tree!)).toContain('연결한 휴대전화 · 2ba8cf04');
-    expect(view(tree!)).toContain(mockSale);
+    expect(view(tree!)).not.toContain(mockSale);
     expect(view(tree!)).not.toContain('37ea19cd');
     expect(view(tree!)).not.toContain('이 주문을 여는 일회용 QR');
     expect(mockSelected).toHaveLength(1);
@@ -1224,7 +1245,7 @@ test.each(['relay-paid', 'expired-unpaid'] as const)('K08 shows only the authent
     await press(tree, '차 hot 추가');
     mockMenuVersion = 2;
     mockMenuPrice = mockMenuOrderAmount = '7000000';
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(view(tree)).toContain('새 합계 · 7.00 TestUSDC');
     expect(mockDialed).not.toContain('order.create');
     await press(tree, '바뀐 장바구니 확인 후 주문 접수');
@@ -1232,14 +1253,14 @@ test.each(['relay-paid', 'expired-unpaid'] as const)('K08 shows only the authent
     await press(tree, '확인 번호 2ba8cf04와 일치');
     mockMenuOrderState = 'issued';
     await press(tree, '이 주문 다시 확인');
-    expect(view(tree)).toContain('기존 견적');
-    expect(view(tree)).not.toContain('지급 없음 확정');
+    expect(view(tree)).toContain('휴대전화에서 승인 중');
+    expect(view(tree)).not.toContain('빠져나간 돈은 없습니다');
 
     if (outcome === 'expired-unpaid') {
       mockMenuOrderState = 'closed';
       await press(tree, '이 주문 다시 확인');
       expect(view(tree)).toContain('주문 종료');
-      expect(view(tree)).not.toContain('지급 없음 확정');
+      expect(view(tree)).not.toContain('빠져나간 돈은 없습니다');
     }
     mockMenuOrderState = outcome === 'relay-paid' ? 'paid' : 'closed';
     mockTerminalOutcome = outcome;
@@ -1247,11 +1268,11 @@ test.each(['relay-paid', 'expired-unpaid'] as const)('K08 shows only the authent
     if (outcome === 'relay-paid') {
       expect(view(tree)).toContain('결제 완료');
       expect(view(tree)).toContain('7.00 TestUSDC');
-      expect(view(tree)).toContain('픽업 번호');
-      expect(view(tree)).toContain('가맹점 릴레이 부담');
+      expect(view(tree)).toContain('주문번호');
+      expect(view(tree)).toContain('네트워크 수수료는 매장이 냈습니다');
     } else {
-      expect(view(tree)).toContain('원견적 만료 · 지급 없음 확정');
-      expect(view(tree)).not.toContain('픽업 번호');
+      expect(view(tree)).toContain('결제되지 않았습니다 · 빠져나간 돈은 없습니다');
+      expect(view(tree)).not.toContain('주문번호');
     }
     expect(view(tree)).not.toContain('2ba8cf04');
     expect(view(tree)).not.toContain(mockReceipt);
@@ -1259,11 +1280,11 @@ test.each(['relay-paid', 'expired-unpaid'] as const)('K08 shows only the authent
     expect(mockDialed.filter(operation => operation === 'order.create')).toHaveLength(1);
     expect(mockDialed).not.toContain('quote.issue');
     expect(mockDialed).not.toContain('payment.forward');
-    await press(tree, '화면을 비우고 대기');
+    await press(tree, outcome === 'relay-paid' ? '처음 화면으로' : '화면을 비우고 대기');
     await Renderer.act(async () => tree.unmount());
     await Renderer.act(async () => { tree = Renderer.create(<App />); });
     await press(tree, '새 고객 주문');
-    for (const stale of [mockSale, mockReceipt, '2ba8cf04', '픽업 번호', '지급 없음 확정', '이 주문을 여는 일회용 QR']) {
+    for (const stale of [mockSale, mockReceipt, '2ba8cf04', '주문번호', '빠져나간 돈은 없습니다', '이 주문을 여는 일회용 QR']) {
       expect(view(tree)).not.toContain(stale);
     }
     expect(mockDialed.filter(operation => operation === 'order.create')).toHaveLength(1);
@@ -1313,7 +1334,7 @@ test('K07 requires an explicit published option and keeps quantity on validation
     await press(tree, '장바구니에 담기');
     expect(view(tree)).toContain('아메리카노 · 아이스 ×2');
     expect(view(tree)).toContain('크루아상 · 기본 ×2');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(mockSubmittedCarts).toHaveLength(1);
     expect(mockSubmittedCarts[0].items).toEqual([
       {sku: 'baked-09', option_key: 'standard', quantity: 2},
@@ -1396,7 +1417,7 @@ test('K07 adds, edits and removes independent options within one SKU limit', asy
     await press(tree, '아메리카노 옵션 선택');
     await press(tree, '따뜻하게 선택');
     await press(tree, '장바구니에 담기');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(mockSubmittedCarts.map(cart => cart.items)).toEqual([[
       {sku: 'drink-12', option_key: 'hot', quantity: 1},
       {sku: 'drink-12', option_key: 'iced', quantity: 2},
@@ -1445,7 +1466,7 @@ test('K01 filters two pages of public categories by accepted labels and keeps th
     expect(view(tree)).toContain('Tea');
     expect(view(tree)).toContain('Croissant');
     await press(tree, 'Menu language 한국어');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(mockSubmittedCarts[0]?.items).toEqual([{sku:'z-croissant', option_key:'standard', quantity:1}]);
   } finally { await close(); }
 
@@ -1489,7 +1510,7 @@ test('K01 persists an authenticated read-only menu and opens one fresh order aft
     expect(view(tree)).toContain('최근 메뉴를 보고 있습니다');
     expect(view(tree)).toContain('여울 커피 성수점');
     expect(view(tree)).toContain('마지막 조회');
-    expect(view(tree)).not.toMatch(/새 고객 주문|장바구니에 담기|주문 접수 요청|매장 입구 QR/);
+    expect(view(tree)).not.toMatch(/새 고객 주문|장바구니에 담기|하드월렛으로 결제|매장 입구 QR/);
     expect(mockDialed).not.toContain('order.create');
     await press(tree,'메뉴 언어 English');
     expect(view(tree)).toContain('Viewing the last synced menu');
@@ -1504,7 +1525,7 @@ test('K01 persists an authenticated read-only menu and opens one fresh order aft
     await press(tree,'새 고객 주문');
     await press(tree,'크루아상 상세');
     await press(tree,'장바구니에 담기');
-    await press(tree,'주문 접수 요청');
+    await press(tree,'하드월렛으로 결제');
     expect(mockSubmittedCarts).toHaveLength(1);
     expect(mockSubmittedCarts[0].menuVersion).toBe(2);
   } finally { await close(); }
@@ -1571,7 +1592,7 @@ test('K01 opens the public basket from outside the full menu scroll area', async
     await press(tree, '메뉴로 돌아가기');
     expect(view(tree)).toContain('한정 메뉴');
     await press(tree, '내 장바구니');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     expect(mockSubmittedCarts).toHaveLength(1);
     expect(mockSubmittedCarts[0].items).toEqual([{sku:'z-croissant', option_key:'standard', quantity:1}]);
   } finally { await Renderer.act(async () => tree.unmount()); }
@@ -1584,7 +1605,7 @@ test('K09 phone guidance keeps the existing public basket and uses the branch en
   try {
     await press(tree, '새 고객 주문');
     await press(tree, '차 standard 추가');
-    await press(tree, '내 폰에서 주문하기');
+    await press(tree, '내 폰으로 주문');
     expect(view(tree)).toContain('개인 주문을 시작하는 매장 입구 QR');
     expect(view(tree)).toContain('여울 커피 성수점');
     expect(view(tree)).not.toContain(mockSale);
@@ -1627,7 +1648,7 @@ test('K09 never resurfaces a preview after cancellation reply loss and retries i
   try {
     await press(tree, '새 고객 주문');
     await press(tree, '차 hot 추가');
-    await press(tree, '주문 접수 요청');
+    await press(tree, '하드월렛으로 결제');
     const scope = mockSubmittedCarts[0].originRef;
     await press(tree, '화면을 비우고 대기');
     expect(view(tree)).toContain('공용 주문을 닫을까요?');
@@ -1669,12 +1690,69 @@ test('K05 an original checking order cannot open new board approval from an unsi
 
     await press(tree, '새 고객 주문');
     await press(tree, '차 hot 추가');
-    await press(tree, '주문 접수 요청');
-    expect(view(tree)).toContain(mockSale);
-    expect(view(tree)).toContain('결제 확인 중 · 재청구 보류');
+    await press(tree, '하드월렛으로 결제');
+    expect(view(tree)).not.toContain(mockSale);
+    expect(view(tree)).toContain('결제 확인 중입니다');
     expect(view(tree)).not.toContain('직접 승인할 보드 찾기');
     expect(view(tree)).not.toContain('인증 및 검토');
     expect(mockDialed).not.toContain('payment.forward');
+  } finally {
+    await Renderer.act(async () => tree.unmount());
+  }
+});
+
+test('K02 a landscape tablet keeps the same basket and its checkout beside the menu', async () => {
+  mockRole = 'terminal';
+  mockCategorizedPages = true;
+  mockMenuCheckout = true;
+  const before = Dimensions.get('window');
+  let tree!: Renderer.ReactTestRenderer;
+  await Renderer.act(async () => Dimensions.set({ window: { ...before, width: 1280, height: 800 } }));
+  await Renderer.act(async () => { tree = Renderer.create(<App />); });
+  try {
+    await press(tree, '새 고객 주문');
+    expect(view(tree)).toContain('담은 메뉴가 없습니다.');
+    expect(view(tree)).not.toContain('내 장바구니');
+    await press(tree, '차 standard 추가');
+    expect(view(tree)).toContain('한정 메뉴');
+    expect(view(tree)).toContain('차 · standard ×1');
+    expect(view(tree)).toContain('합계 · 3.00 TestUSDC');
+    await press(tree, '하드월렛으로 결제');
+    expect(mockSubmittedCarts).toHaveLength(1);
+    expect(view(tree)).toContain('이 주문을 여는 일회용 QR');
+  } finally {
+    await Renderer.act(async () => tree.unmount());
+    await Renderer.act(async () => Dimensions.set({ window: before }));
+  }
+});
+
+test.each(['refused by the server', 'known from the enrollment'] as const)('K11 tells staff that an escrow store cannot take a POS payment: %s', async how => {
+  mockRole = 'terminal';
+  mockMode = 'pos';
+  mockPOSQuoteUnsupported = true;
+  if (how === 'known from the enrollment') {
+    mockMenuCheckout = true;
+    mockAbi = orderEscrowAbiSha256;
+  }
+  let tree!: Renderer.ReactTestRenderer;
+  await Renderer.act(async () => { tree = Renderer.create(<App />); });
+  try {
+    await press(tree, '새 고객 주문');
+    await openPOS(tree, mockHandoff);
+    if (how === 'refused by the server') {
+      await press(tree, '휴대전화 확인 번호 조회');
+      await press(tree, '확인 번호 2ba8cf04와 일치');
+    }
+    expect(view(tree)).toContain('POS 결제를 쓸 수 없는 매장입니다');
+    expect(view(tree)).toContain('직원은 POS에서 다른 결제 수단을 안내하거나');
+    expect(view(tree)).toContain('빠져나간 돈은 없습니다.');
+    for (const hidden of ['이 주문을 여는 일회용 QR', '견적 기록 대기', 'UNSUPPORTED', '결합 결과를 확인하지 못했습니다'])
+      expect(view(tree)).not.toContain(hidden);
+    await press(tree, 'POS 원주문 다시 조회');
+    expect(view(tree)).toContain('POS 결제를 쓸 수 없는 매장입니다');
+    await press(tree, '다른 POS 원주문 열기');
+    expect(view(tree)).toContain('직원은 POS에서 다른 결제 수단을 안내하거나');
+    expect(mockDialed.filter(op => op === 'quote.issue').length).toBe(how === 'refused by the server' ? 1 : 0);
   } finally {
     await Renderer.act(async () => tree.unmount());
   }

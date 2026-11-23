@@ -21,7 +21,8 @@ type RecordV2 = {
   publicSession?: string;
   cancelPending?: true;
 };
-type ClaimAccess = { sale: string; owner: string; until: number };
+/** `statusOnly` outlives the checkout claim so the customer can read the order number; it yields its place first. */
+type ClaimAccess = { sale: string; owner: string; until: number; statusOnly?: true };
 type Denial = {
   ownerRef: string;
   requestKey: string;
@@ -457,9 +458,31 @@ export class MerchantInbox {
       const existing = claims.get(sale);
       if (existing && existing.owner !== owner)
         throw new Error('REPLAY_CONFLICT');
-      if (!existing && claims.size >= limit) throw new Error('INBOX_FULL');
+      if (existing?.statusOnly) return;
+      if (!existing && claims.size >= limit) {
+        // A new payment matters more than a paid order whose phone can also ask the server.
+        const oldest = [...claims.values()].filter(item => item.statusOnly)
+          .sort((a, b) => a.until - b.until)[0];
+        if (!oldest) throw new Error('INBOX_FULL');
+        claims.delete(oldest.sale);
+      }
       claims.set(sale, { sale, owner, until });
     });
+  }
+
+  /** Extends or ends an access this customer already has; it never creates one. */
+  async keepStatus(sale: string, owner: string, until: number) {
+    const held = this.claims.get(sale);
+    if (held?.owner !== owner || (held.statusOnly && held.until === until)) return;
+    await this.mutate((_entries, claims) => {
+      const existing = claims.get(sale);
+      if (existing?.owner === owner) claims.set(sale, { sale, owner, until, statusOnly: true });
+    });
+  }
+
+  statusUntil(sale: string, owner: string) {
+    const held = this.claims.get(sale);
+    return held?.owner === owner && held.statusOnly ? held.until : undefined;
   }
 
   private mutate(

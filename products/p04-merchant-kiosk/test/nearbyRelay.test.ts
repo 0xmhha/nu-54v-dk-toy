@@ -409,3 +409,22 @@ test('K11 nearby uses authenticated peer identity, accepts no unpublished quote 
   expect(app.ownsSale(existing, buyerA)).toBe(false);
   expect(app.ownsSale(existing, buyerB)).toBe(false);
 });
+
+test('K11 an escrow store that refuses a POS quote ends the phone request and tells the screen', async () => {
+  const pos = {active: true, selected: true};
+  const {app, api, transport} = await setup(true, undefined, pos);
+  const events: unknown[] = [];
+  const normal = transport.getMockImplementation()!;
+  transport.mockImplementation(async raw => {
+    const reply = JSON.parse(await normal(raw));
+    return JSON.stringify(JSON.parse(raw).command.operation === 'quote.issue' ? {...reply, error: 'UNSUPPORTED_CAPABILITY'} : reply);
+  });
+  const relay = new NearbyRelay(api, app, async () => new Uint8Array(16).fill(23), () => (pos.active ? existing : undefined),
+    () => {}, () => (pos.active ? existing : undefined), undefined, event => events.push(event));
+  const request = {op: 'checkout' as const, branch, key: ref(30), order: existing};
+  expect(await relay.handle(request, peer(buyerA, 'A'))).toEqual({status: 'denied'});
+  expect(events).toEqual([{sale: existing, stage: 'unsupported'}]);
+  pos.active = false;
+  expect(await relay.handle(request, peer(buyerA, 'A2'))).toEqual({status: 'denied'});
+  expect(events).toHaveLength(1);
+});

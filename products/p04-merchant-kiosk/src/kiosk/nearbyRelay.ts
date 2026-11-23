@@ -8,7 +8,10 @@ import {
   unpackNearbyPresentation,
   fromBase64,
   toBase64,
+  orderLock,
   quoteOrderRevision,
+  quoteV2Layout,
+  verifyOrderLock,
   preparePresentedPayment,
   verifyRentalReviewAuthority,
   verifyRentalPaymentDecision,
@@ -62,16 +65,30 @@ type RentalReviewSource = {
   timer: ReturnType<typeof setTimeout>;
 };
 
+/** A quote this terminal handed to one customer; a lock for that order must answer exactly this. */
+type IssuedQuote = { customer: string; quote: CommerceQuote; link?: string; sent?: string };
+/** What the public screen may show about a phone that is approving or has submitted its order. */
+export type RelayProgress =
+  | { sale: string; stage: 'quoted' | 'submitting'; until: number }
+  | { sale: string; stage: 'disconnected' | 'connected' }
+  | { sale: string; stage: 'unsupported' };
+// The phone reads its order number over this link until it collects the order, then a little longer.
+const statusGrace = 600;
+const statusLongest = 12 * 3_600;
+const issuedLimit = 64;
+
 /** Routes verified customer sessions independently of the visitor using the public screen. */
 export class NearbyRelay {
   private readonly pair = new Map<string, Pair>();
-  private readonly touch: (pair?: { code: string; until: number }) => void;
+  private readonly touch: (pair?: { code: string; until: number; codes: string[] }) => void;
   private readonly api: CommerceClient;
   private readonly inbox: MerchantInbox;
   private readonly entropy: () => Promise<Uint8Array>;
   private readonly publicOrder: () => string | undefined;
   private readonly publicPOS?: () => string | undefined;
   private readonly rental?: RentalReviewRoute;
+  private readonly progress?: (event: RelayProgress) => void;
+  private readonly issued = new Map<string, IssuedQuote>();
   private readonly activeLinks = new Set<string>();
   private readonly quotes = new Map<string, RentalReviewSource>();
   private readonly reviews = new Map<string, RentalReviewEntry>();
@@ -82,9 +99,10 @@ export class NearbyRelay {
     inbox: MerchantInbox,
     entropy: () => Promise<Uint8Array>,
     publicOrder: () => string | undefined,
-    touch: (pair?: { code: string; until: number }) => void,
+    touch: (pair?: { code: string; until: number; codes: string[] }) => void,
     publicPOS?: () => string | undefined,
     rental?: RentalReviewRoute,
+    progress?: (event: RelayProgress) => void,
   ) {
     this.api = api;
     this.inbox = inbox;
@@ -93,6 +111,7 @@ export class NearbyRelay {
     this.touch = touch;
     this.publicPOS = publicPOS;
     this.rental = rental;
+    this.progress = progress;
   }
 
   clearPublic() {
@@ -115,6 +134,11 @@ export class NearbyRelay {
 
   retire(link: string) {
     this.activeLinks.delete(link);
+    for (const [sale, row] of this.issued) {
+      if (row.link !== link) continue;
+      row.link = undefined;
+      if (row.quote.expiresAt > current()) this.progress?.({ sale, stage: 'disconnected' });
+    }
     for (const [sale, input] of this.quotes)
       if (input.link === link) this.removeQuote(sale);
     for (const [sale, row] of this.reviews)
@@ -137,13 +161,14 @@ export class NearbyRelay {
   }
 
   private showPrompt() {
-    const next = [...this.pair.values()].find(
+    const waiting = [...this.pair.values()].filter(
       row =>
         !row.approved &&
         row.until > current() &&
         row.sale === this.publicOrder(),
     );
-    this.touch(next ? { code: next.code, until: next.until } : undefined);
+    const next = waiting[0];
+    this.touch(next ? { code: next.code, until: next.until, codes: waiting.map(row => row.code) } : undefined);
   }
 
   async handle(req: NearbyRequest, peer: NearbyReady): Promise<NearbyReply> {
@@ -153,6 +178,11 @@ export class NearbyRelay {
       peer.expiresAt <= current()
     )
       return { status: 'denied' };
+    for (const [sale, row] of this.issued) {
+      if (row.customer !== peer.principal || row.link !== undefined || row.quote.expiresAt <= current()) continue;
+      row.link = peer.link;
+      this.progress?.({ sale, stage: 'connected' });
+    }
     try {
       if (req.op === 'discover') {
         const shop = await this.api.shopIdentity();
@@ -191,7 +221,7 @@ export class NearbyRelay {
         }
         if (req.order)
           return this.inbox.ownsSale(req.order, peer.principal)
-            ? { status: 'ok', value: await this.customerOrder(req.order) }
+            ? { status: 'ok', value: await this.followedOrder(req.order, peer.principal) }
             : { status: 'denied' };
         if (!this.inbox.hasIntent(req.key, peer.principal)) return { status: 'denied' };
         const sale = await this.inbox.reconcile(
@@ -218,6 +248,7 @@ export class NearbyRelay {
         );
         return { status: 'ok', value: { submitted } };
       }
+      if (req.op === 'lock') return await this.lock(req, peer);
       return await this.checkout(req, peer);
     } catch (error) {
       const name = error instanceof Error ? error.message : '';
@@ -229,6 +260,10 @@ export class NearbyRelay {
       if ((req.op === 'rental-review' || req.op === 'rental-review-source') &&
           (/^(PRESENTATION_|RENTAL_REVIEW_)/.test(name) ||
             name === 'PAYMENT_ORDER_STATE' || name === 'PAYMENT_REFUSED')) return {status:'denied'};
+      if (req.op === 'checkout' && name === 'UNSUPPORTED_CAPABILITY') {
+        if (this.publicPOS?.() === req.order) this.progress?.({ sale: req.order, stage: 'unsupported' });
+        return { status: 'denied' };
+      }
       if (name === 'EXPIRED' && error instanceof CommerceReservationError) return {status: 'expired'};
       if (
         [
@@ -373,10 +408,83 @@ export class NearbyRelay {
     return record?.decision ? {status:'ok',value:{decision:record.decision}} : {status:'pending'};
   }
 
+  /** Also used when the kiosk itself fetched the quote for a phone chosen by its mark. */
+  rememberIssued(quote: CommerceQuote, customer: string, link?: string) {
+    for (const [sale, row] of this.issued)
+      if (row.quote.expiresAt + statusGrace <= current()) this.issued.delete(sale);
+    const prior = this.issued.get(quote.saleRef);
+    if (prior?.quote.quoteDigest === quote.quoteDigest && prior.customer === customer) {
+      // A repeated checkout must not forget that this lock may already have been sent.
+      prior.quote = quote;
+      prior.link = link ?? prior.link;
+    } else {
+      if (this.issued.size >= issuedLimit) this.issued.delete(this.issued.keys().next().value!);
+      this.issued.set(quote.saleRef, { customer, quote, link });
+    }
+    this.progress?.({ sale: quote.saleRef, stage: 'quoted', until: quote.expiresAt });
+  }
+
+  /** Keeps `status` open for the customer who was quoted, so the order number can follow the payment. */
+  private async keepStatus(sale: string, customer: string) {
+    await this.inbox.keepStatus(sale, customer,
+      this.inbox.statusUntil(sale, customer) ?? current() + statusLongest).catch(() => {});
+  }
+
+  private async followedOrder(sale: string, customer: string) {
+    const order = await this.customerOrder(sale);
+    const until = this.inbox.statusUntil(sale, customer);
+    const over = order.state === 'closed' || order.escrow?.stage === 'failed' ||
+      ['collected', 'unfulfillable'].includes(order.payment?.pickupStage ?? '');
+    if (over && until !== undefined && until > current() + statusGrace)
+      await this.inbox.keepStatus(sale, customer, current() + statusGrace).catch(() => {});
+    return order;
+  }
+
+  private async lock(
+    req: Extract<NearbyRequest, { op: 'lock' }>,
+    peer: NearbyReady,
+  ): Promise<NearbyReply> {
+    const owned = this.inbox.ownsSale(req.order, peer.principal);
+    if (!owned && !await this.api.nearbyReservation(req.order, peer.principal, true))
+      return { status: 'denied' };
+    const held = this.issued.get(req.order);
+    if (held) {
+      const { quote } = held;
+      if (held.customer !== peer.principal || quote.quoteDigest !== req.quoteDigest)
+        return { status: 'denied' };
+      const bytes = hexToBytes(quote.signedQuote);
+      const unsigned = bytes.subarray(0, quoteV2Layout.unsignedSize);
+      const payer = bytesToHex(unsigned.subarray(quoteV2Layout.payerOffset + 12, quoteV2Layout.payerOffset + 32));
+      const payment = { bytes, payer, deadline: quote.expiresAt };
+      try {
+        if (orderLock(unsigned, req.confirmer).digest !== req.lockDigest) return { status: 'denied' };
+        // Check the signature apart from the clock: a retry of a lock already sent may arrive late.
+        verifyOrderLock(payment, req.confirmer, hexToBytes(req.signature), quote.expiresAt - 1);
+      } catch {
+        return { status: 'denied' };
+      }
+      const sent = req.confirmer + req.signature;
+      if (held.sent !== undefined && held.sent !== sent) return { status: 'denied' };
+      if (held.sent === undefined && current() >= quote.expiresAt) return { status: 'expired' };
+      held.sent = sent;
+      this.progress?.({ sale: req.order, stage: 'submitting', until: quote.expiresAt });
+    }
+    if (owned) await this.keepStatus(req.order, peer.principal);
+    const submitted = await this.api.lock(
+      req.order,
+      req.quoteDigest,
+      req.confirmer,
+      req.lockDigest,
+      req.signature,
+      req.key,
+    );
+    return { status: 'ok', value: { submitted } };
+  }
+
   private async customerOrder(sale: string) {
     const order = await this.api.status(sale);
     const { id, revision, state, asset, amount, expiresAt, pickupNo, receiptRef,
-      receiptKind, quoteDigest, orderKey, payment } = order;
+      receiptKind, quoteDigest, orderKey, payment, escrow } = order;
     return {
       id, revision, state, asset, amount, expiresAt, pickupNo, receiptRef,
       receiptKind, quoteDigest, orderKey,
@@ -388,6 +496,7 @@ export class NearbyRelay {
         includedAt: payment.includedAt,
         pickupStage: payment.pickupStage,
       } } : {}),
+      ...(escrow ? { escrow } : {}),
     } satisfies CommerceOrder;
   }
 
@@ -426,6 +535,7 @@ export class NearbyRelay {
           req.key,
         );
         await this.inbox.grantClaim(req.order, peer.principal, result.claim.expiresAt);
+        this.rememberIssued(quote, peer.principal, peer.link);
         return {
           status: 'ok',
           value: packNearbyPresentation(await this.customerOrder(req.order), quote, toBase64),
@@ -482,6 +592,7 @@ export class NearbyRelay {
       quoteOrderRevision(order),
       req.key,
     );
+    this.rememberIssued(quote, peer.principal, peer.link);
     return {
       status: 'ok',
       value: packNearbyPresentation(
