@@ -79,6 +79,22 @@ config NU54_COUNTED_UPDATE
 	depends on BOOTLOADER_MCUBOOT
 	select REBOOT
 
+config NU54_SPENDING_PROFILE
+	bool "Screenless spending wallet for the 8283 test network"
+	depends on NU54_PILOT_TLS && !NU54_HD_RECOVERY && !NU54_EXPERIMENTAL_OWNER_LIMITS_PSA
+	default n
+	help
+	  The owner pays orders into OrderEscrow with the key the board generated itself. There is
+	  no backup. The phone shows the amount and the store, so the physical prompt opens without
+	  the independent display. The board still requires a testnet grant, the enrolled store's
+	  signature, the per-payment and daily caps, SW1 and the PIN. Never enable it for real funds.
+
+config NU54_SPENDING_DAILY_CAP
+	int "Daily total the board signs, in asset base units"
+	depends on NU54_SPENDING_PROFILE
+	range 1 2000000000
+	default 100000000
+
 source "Kconfig.zephyr"
 
 config NU54_EXPERIMENTAL_PMIC_VIN_READ

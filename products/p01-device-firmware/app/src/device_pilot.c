@@ -16,6 +16,9 @@ _Static_assert(NU54_EVM_SIWE_OP != NU54_CHAIN_XPUB_OP, "Each management request 
 #include "board_io.h"
 #include "ble_links.h"
 #include "device_install.h"
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+#include "device_order.h"
+#endif
 #include "device_firmware_power.h"
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
 #include "device_owner_limits_ps.h"
@@ -31,6 +34,7 @@ _Static_assert(NU54_EVM_SIWE_OP != NU54_CHAIN_XPUB_OP, "Each management request 
 #include "nu54_owner_idle.h"
 #include <mbedtls/pk.h>
 #include <mbedtls/platform_util.h>
+#include "nu54_keccak.h"
 #include "nu54_sig.h"
 #include "pay_link.h"
 #include "status_led.h"
@@ -126,6 +130,10 @@ static int64_t deadline, enrollment_window, recovery_window;
 static nu54_owner_idle owner_idle;
 static uint8_t display_challenge[32], active_quote[NU54_V2_SIGNED_SIZE];
 static bool display_confirmed;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static unsigned order_slot;
+static uint64_t order_amount, order_expires;
+#endif
 static uint8_t rental_review_hash[32];
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
 #define OWNER_LIMITS_READ_OP 23
@@ -224,6 +232,11 @@ static void reset_link(void)
 	}
 	atomic_set(&pending_prompt, 0);
 	display_confirmed = false;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	order_slot = 0;
+	order_amount = 0;
+	order_expires = 0;
+#endif
 	memset(active_quote, 0, sizeof(active_quote));
 	memset(display_challenge, 0, sizeof(display_challenge));
 	nu54_local_approval_cancel(&approval);
@@ -695,6 +708,30 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		return nu54_v2_link_send(&link, request, send_frame, NULL);
 	}
 #endif
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	case NU54_ACCOUNT_PROOF_OP: {
+		uint8_t proof[NU54_ACCOUNT_PROOF_REPLY_SIZE] = {NU54_ACCOUNT_PROOF_OP};
+		uint8_t preimage[NU54_LOCAL_PREIMAGE_SIZE], statement[NU54_ACCOUNT_STATEMENT_SIZE], digest[32], raw[64];
+		const uint8_t *account = device_install_payer(), *challenge = request->payload + 1;
+		if (request->payload_length != NU54_ACCOUNT_PROOF_REQUEST_SIZE || recovering || enrollment.issued ||
+		    !vault->enabled || !vault->record.generation || (vault->record.flags & NU54_VAULT_REVOKED) ||
+		    link.peer != NU54_V2_OWNER ||
+		    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
+		    !policy->allowlist.commercial_testnet || policy->payer_role != NU54_V2_OWNER_ROLE ||
+		    request->expires <= now || request->expires - now > 10 ||
+		    !nu54_account_preimage(account, challenge, preimage)) return -1;
+		nu54_keccak256(preimage, sizeof(preimage), digest);
+		if (device_install_sign(digest, raw) ||
+		    nu54_sig_finish(digest, raw, account, proof + 21) != NU54_SIG_OK) return -1;
+		memcpy(proof + 1, account, 20);
+		nu54_account_statement(account, challenge, proof + 21, statement);
+		if (device_install_account_statement(statement, sizeof(statement), proof + 86)) return -1;
+		request->command = NU54_V2_REPLY;
+		request->payload = proof;
+		request->payload_length = sizeof(proof);
+		return nu54_v2_link_send(&link, request, send_frame, NULL);
+	}
+#endif
 	case NU54_RUNNING_FIRMWARE_OP: {
 		uint8_t running[NU54_RUNNING_FIRMWARE_REPLY_SIZE] = {NU54_RUNNING_FIRMWARE_OP};
 		uint64_t generation = vault->record.generation;
@@ -864,6 +901,10 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		} else if (request->payload_length != 1) {
 			return -1;
 		}
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		memcpy(status + NU54_OWNER_STATUS_SIZE, device_install_payer(), 20);
+		break;
+#endif
 		if (vault->record.flags & NU54_VAULT_PERSONAL)
 			memcpy(status + NU54_OWNER_STATUS_SIZE, vault->record.personal, 20);
 #if defined(CONFIG_NU54_HD_RECOVERY)
@@ -904,6 +945,7 @@ static int send_receipt(nu54_v2_request *request, const uint8_t *signature, size
 	return nu54_v2_link_send(&link, request, send_frame, NULL);
 }
 
+#if !defined(CONFIG_NU54_SPENDING_PROFILE)
 /* A W10 decision is emitted only by the physical handler after durable commitment. */
 static int send_payment_decision(nu54_v2_request *request, uint64_t generation, const uint8_t *signature)
 {
@@ -917,6 +959,7 @@ static int send_payment_decision(nu54_v2_request *request, uint64_t generation, 
 	memset(rental_review_hash, 0, sizeof(rental_review_hash));
 	return send_receipt(request, decision, sizeof(decision));
 }
+#endif
 
 
 /* Reclaim only after an independent signed disposition for the exact archived approval. */
@@ -949,6 +992,17 @@ static int receipt_status(nu54_v2_request *request, const nu54_install_policy *p
 {
 	if (request->payload_length != 49 || request->payload[0] != 1 || approval.pending || enrollment.issued)
 		return -1;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	ARG_UNUSED(policy);
+	nu54_order_record answer;
+	unsigned slot;
+	int known = device_order_find(device_install_earliest(), request->payload + 1, request->payload + 17, &answer, &slot);
+	if (known == NU54_PILOT_RECEIPT_ERROR) return -1;
+	if (known == NU54_PILOT_RECEIPT_RECORDED && answer.outcome == NU54_ORDER_APPROVED)
+		return send_receipt(request, answer.signature, sizeof(answer.signature));
+	const uint8_t none = 0;
+	return send_receipt(request, &none, sizeof(none));
+#else
 	nu54_pilot_receipt saved;
 	unsigned free_slot;
 	int found = nu54_pilot_receipt_find(load_receipt, NULL, policy->payer_generation,
@@ -958,6 +1012,7 @@ static int receipt_status(nu54_v2_request *request, const nu54_install_policy *p
 		return send_receipt(request, saved.signature, sizeof(saved.signature));
 	const uint8_t unknown = 0;
 	return send_receipt(request, &unknown, sizeof(unknown));
+#endif
 }
 
 static bool payment_generation_current(const nu54_install_policy *policy)
@@ -974,12 +1029,97 @@ static bool payment_address(const nu54_install_policy *policy, uint8_t address[2
 		memcpy(address, device_install_payer(), 20);
 		return true;
 	}
-#if defined(CONFIG_NU54_HD_RECOVERY)
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	memcpy(address, device_install_payer(), 20);
+	return true;
+#elif defined(CONFIG_NU54_HD_RECOVERY)
 	return device_hd_public_address(address);
 #else
 	return false;
 #endif
 }
+
+static int sign(void *context, const uint8_t digest[32], uint8_t signature[64]);
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static int order_request(nu54_v2_request *request, int state, uint64_t now, const nu54_install_policy *policy,
+			 const uint8_t payer[20])
+{
+	const nu54_vault *vault = device_vault_owner();
+	const uint8_t *confirmer, *quote;
+	nu54_v2_quote_policy order;
+	nu54_order_record saved;
+	uint8_t digest[32];
+	if (request->command != NU54_V2_PAY_PREPARE || policy->payer_role != NU54_V2_OWNER_ROLE ||
+	    !vault->enabled || !vault->record.generation || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
+	    !nu54_order_decode(request->payload, request->payload_length, &confirmer, &quote) ||
+	    nu54_install_quote(policy, quote, NU54_V2_SIGNED_SIZE, now, &order)) return -1;
+	uint32_t prompt = NU54_PILOT_PROMPT_MASK | ++next_prompt;
+	if (nu54_order_stage(&approval, &link, request, confirmer, quote, &order, &policy->allowlist, payer,
+			     policy->payer_generation, prompt, present, NULL)) return -1;
+	if (hash(approval.intent.preimage, sizeof(approval.intent.preimage), digest)) return -1;
+	int found = device_order_find(device_install_earliest(), request->id, digest, &saved, &order_slot);
+	if (found == NU54_PILOT_RECEIPT_RECORDED) {
+		const uint8_t refused = 0;
+		nu54_local_approval_cancel(&approval);
+		return saved.outcome == NU54_ORDER_APPROVED ? send_receipt(request, saved.signature, sizeof(saved.signature)) :
+							      send_receipt(request, &refused, 1);
+	}
+	if (found != NU54_PILOT_RECEIPT_NEW) return -1;
+	order_amount = sys_get_be64(quote + NU54_V2_AMOUNT_OFFSET + 24);
+	order_expires = sys_get_be64(quote + NU54_V2_EXPIRES_AT_OFFSET + 24);
+	if (!device_order_within_daily(device_install_earliest(), order_amount)) return -1;
+	if (state == NU54_V2_NEW && link.approval_generation &&
+	    link.approval_generation == vault->record.generation && trusted_now() < request->expires) {
+		uint8_t progress[NU54_V2_APPROVAL_PROGRESS_SIZE];
+		if (nu54_v2_approval_progress_body(1, link.approval_generation, progress)) return -1;
+		request->command = NU54_V2_APPROVAL_PROGRESS;
+		request->payload = progress;
+		request->payload_length = sizeof(progress);
+		if (nu54_v2_link_send(&link, request, send_frame, NULL)) return -1;
+	}
+	/* The phone shows the order in this profile, so the physical prompt opens without the
+	 * independent display. SW1 and the PIN still decide. */
+	display_confirmed = true;
+	atomic_set(&pending_prompt, (atomic_val_t)prompt);
+	board_io_set_prompt(prompt);
+	status_led_waiting(true);
+	return 0;
+}
+
+static int order_button(uint32_t prompt, bool approved)
+{
+	nu54_order_record record = {.expires = order_expires};
+	nu54_v2_request reply = {.expires = link.pending_expiry};
+	if (!display_confirmed || !order_slot) return -1;
+	memcpy(record.request, approval.intent.request, sizeof(record.request));
+	memcpy(reply.id, record.request, sizeof(reply.id));
+	if (hash(approval.intent.preimage, sizeof(approval.intent.preimage), record.digest)) return -1;
+	if (!approved) {
+		const uint8_t refused = 0;
+		record.outcome = NU54_ORDER_REFUSED;
+		nu54_local_approval_cancel(&approval);
+		return device_order_store(order_slot, &record) ? -1 : send_receipt(&reply, &refused, 1);
+	}
+	/* The PIN consumes its own physical events. Revalidate everything after unlocking. */
+	int pin = pilot_pin(false, prompt);
+	const nu54_install_policy *policy = device_install_policy();
+	const nu54_vault *vault = device_vault_owner();
+	uint8_t payer[20];
+	if (pin || prompt != (uint32_t)atomic_get(&pending_prompt) || !policy || !approval.pending || !display_confirmed ||
+	    !connection || pay_link_waiting() || !order_slot || !policy->allowlist.commercial_testnet ||
+	    !vault->enabled || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    !payment_generation_current(policy) || !payment_address(policy, payer) ||
+	    trusted_now() >= approval.intent.expires ||
+	    device_order_charge(device_install_earliest(), order_amount) ||
+	    nu54_pilot_complete(&approval, &link, policy->payer_generation, trusted_now(), prompt, NU54_LOCAL_APPROVE,
+				payer, sign, payer, record.signature)) return -1;
+	record.outcome = NU54_ORDER_APPROVED;
+	if (device_order_store(order_slot, &record)) return -1;
+	return send_receipt(&reply, record.signature, sizeof(record.signature));
+}
+#endif
 
 static int frame(const uint8_t *data, size_t length)
 {
@@ -1003,6 +1143,9 @@ static int frame(const uint8_t *data, size_t length)
 	if (!payment_generation_current(policy) || !payment_address(policy, payer)) return -1;
 	if (request.command == NU54_V2_STATUS) return receipt_status(&request, policy);
 	if (next_prompt == (NU54_PILOT_PROMPT_MASK >> 1) - 1) return -1;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	return order_request(&request, rc, now, policy, payer);
+#else
 	const uint8_t *renter_challenge = NULL;
 	if (nu54_v2_rental_review_prepare(request.payload, request.payload_length)) {
 		if (profile != NU54_V2_PAYMENT || request.command != NU54_V2_PAY_PREPARE ||
@@ -1063,6 +1206,7 @@ static int frame(const uint8_t *data, size_t length)
 		if (nu54_v2_link_send(&link, &request, send_frame, NULL)) return -1;
 	}
 	return 0;
+#endif
 }
 
 static int stream(const uint8_t *data, size_t length)
@@ -1204,7 +1348,7 @@ static int sign(void *context, const uint8_t digest[32], uint8_t signature[64])
 	if (policy->payer_role == NU54_V2_OWNER_ROLE) return device_hd_sign(context, digest, signature);
 #else
 	(void)context;
-	if (policy->payer_role == NU54_V2_OWNER_ROLE) return -1;
+	if (policy->payer_role == NU54_V2_OWNER_ROLE && !IS_ENABLED(CONFIG_NU54_SPENDING_PROFILE)) return -1;
 #endif
 	return device_install_sign(digest, signature);
 }
@@ -1353,6 +1497,11 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		goto failed; /* A changed generation retires the authenticated session. */
 	}
 	if (!approval.pending) goto done;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (order_button(prompt, approved)) goto failed;
+	if (!approved) goto failed; /* a refusal ends the session, as on the other payment routes */
+	goto answered;
+#else
 	if (!approved) {
 		const uint64_t generation = approval.intent.generation;
 		nu54_pilot_refusal refusal;
@@ -1398,6 +1547,10 @@ void device_pilot_button(uint32_t prompt, bool approved)
 	nu54_v2_request reply = {.expires = link.pending_expiry};
 	memcpy(reply.id, receipt.request, sizeof(reply.id));
 	if (send_payment_decision(&reply, receipt.generation, receipt.signature)) goto failed;
+#endif
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+answered:
+#endif
 	atomic_set(&pending_prompt, 0);
 	board_io_set_prompt(0);
 	status_led_waiting(false);

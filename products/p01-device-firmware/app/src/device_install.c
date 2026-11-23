@@ -1,4 +1,7 @@
 #include "device_install.h"
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+#include "nu54_order.h"
+#endif
 #include "nu54_sig.h"
 #include "device_vault.h"
 
@@ -572,6 +575,15 @@ int device_install_sign(const uint8_t digest[32], uint8_t signature[64])
 	return device_install_policy() && psa_sign_hash(INSTALL_PAYER, PAY_ALG, digest, 32, signature, 64, &used) ==
 	       PSA_SUCCESS && used == 64 ? 0 : -1;
 }
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+int device_install_account_statement(const uint8_t *statement, size_t length, uint8_t signature[64])
+{
+	uint8_t digest[32];
+	return length == NU54_ACCOUNT_STATEMENT_SIZE && device_install_policy() && !hash(statement, length, digest) ?
+	       sign_installation_review(digest, signature) : -1;
+}
+#endif
 
 static int verify_independent(const uint8_t public_key[65], const uint8_t *data, size_t length, const uint8_t signature[64])
 {

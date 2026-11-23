@@ -33,6 +33,8 @@ if(CONFIG_NU54_WALLET_CHAINS)
     ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_solana.c
     ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_xrpl.c)
 endif()
+target_sources_ifdef(CONFIG_NU54_SPENDING_PROFILE app PRIVATE src/device_order.c
+  ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_order.c)
 target_sources_ifdef(CONFIG_NU54_PILOT_TLS app PRIVATE src/device_tls_v2.c src/device_pilot.c
   src/device_install.c src/device_recovery_pin.c ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_install.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_running_firmware.c

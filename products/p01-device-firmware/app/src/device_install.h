@@ -37,6 +37,10 @@ int device_install_update_ack(const uint8_t [48], uint8_t [180]);
 int device_install_check_hd(const uint8_t *, size_t);
 void device_install_consume_offer(void);
 int device_install_sign(const uint8_t [32], uint8_t [64]);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* Signs only the fixed-size account statement with the board identity key. */
+int device_install_account_statement(const uint8_t *statement, size_t length, uint8_t [64]);
+#endif
 int device_install_independent_finality_key(const uint8_t [65]);
 bool device_install_independent_peer(const uint8_t [32]);
 int device_install_verify_recovery(const uint8_t *, size_t, const uint8_t [64]);

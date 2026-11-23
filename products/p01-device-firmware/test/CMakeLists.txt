@@ -165,6 +165,13 @@ target_link_libraries(test_install PRIVATE nu54_crypto OpenSSL::Crypto)
 target_compile_options(test_install PRIVATE -Wall -Wextra -Werror)
 add_test(NAME enrollment_policy COMMAND test_install)
 
+add_executable(test_order test_order.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
+  ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
+target_link_libraries(test_order PRIVATE nu54_crypto)
+target_compile_options(test_order PRIVATE -Wall -Wextra -Werror)
+add_test(NAME order_payment COMMAND test_order
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/order-lock.vectors)
+
 add_executable(test_evm test_evm.c ../core/src/nu54_evm_tx.c ../core/src/nu54_siwe.c)
 target_link_libraries(test_evm PRIVATE nu54_crypto)
 target_compile_options(test_evm PRIVATE -Wall -Wextra -Werror)
