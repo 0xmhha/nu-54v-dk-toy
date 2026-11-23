@@ -105,3 +105,104 @@ button {
     padding-inline: 0.45rem;
   }
 }
+input[type="radio"] {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  min-height: 0;
+  margin-inline-end: 0.45em;
+  vertical-align: text-bottom;
+}
+.totals dt {
+  font-weight: 600;
+}
+.totals dd,
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+.totals dd {
+  margin: 0;
+}
+/* Sized by the section, so enlarged text stacks the rows the same way a phone does. */
+section:has(> .ledger) {
+  container-type: inline-size;
+}
+.ledger label {
+  margin: 0;
+}
+.ledger li {
+  align-items: baseline;
+}
+.ledger li > * {
+  flex: 1 1 100%;
+}
+.disputes li {
+  display: block;
+}
+.disputes li li {
+  border: 0;
+  padding: 0;
+  display: list-item;
+}
+.disputes h3 {
+  margin-block: 0.4rem;
+}
+.claimbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.5rem;
+  background: white;
+}
+button.quiet {
+  background: transparent;
+  color: #1d4636;
+  border-color: #73867a;
+}
+button.quiet:disabled {
+  color: #56685e;
+}
+.batch {
+  border-top: 1px solid #dbe3dc;
+}
+[tabindex="-1"]:focus {
+  outline: 3px solid #1e6aab;
+  outline-offset: 2px;
+}
+progress {
+  width: 100%;
+  accent-color: #1d4636;
+}
+@container (min-width: 46rem) {
+  .claimbar {
+    position: sticky;
+    top: 0;
+    padding-block: 0.3rem;
+    border-bottom: 1px solid #adbaaf;
+  }
+  .ledger li {
+    display: grid;
+    grid-template-columns: 10rem 10rem 7rem 1fr auto;
+  }
+  .ledger .amount {
+    text-align: right;
+  }
+  .ledger li > p {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .ledger li > div {
+    display: contents;
+  }
+  .ledger li > div > button {
+    grid-area: 1 / 5;
+    margin-block: 0;
+  }
+  .ledger li > div > :not(button) {
+    grid-column: 1 / -1;
+  }
+  /* Keyboard focus must not end up under the bar that stays on top. */
+  .ledger :is(button, input, summary) {
+    scroll-margin-top: 5rem;
+  }
+}

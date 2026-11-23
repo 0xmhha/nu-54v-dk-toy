@@ -1,5 +1,12 @@
+/// <reference types="vite/client" />
 import { RefundConsole } from "./RefundConsole";
-import { useRef, useState, type FormEvent } from "react";
+import {
+  escrowStage,
+  escrowStages,
+  RefundRefused,
+  type EscrowItem,
+} from "./Escrow";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 
 type Report = {
   receiptScope: string;
@@ -18,9 +25,10 @@ type EventSummary = {
   kind: string;
   state: string;
 };
-type Order = {
+export type Order = {
   saleId: string;
   amount: string;
+  asset?: string;
   state: string;
   paidAt: string | null;
   transaction: string | null;
@@ -31,6 +39,8 @@ type Order = {
   fulfillmentStatus: "held" | "closed" | "recorded";
   refunds: string;
   events: EventSummary[];
+  // Present when the server also reports the escrow state of the order.
+  escrow?: EscrowItem;
 };
 type RetryReceipt = EventSummary & { requestId: string };
 type NotificationReview = EventSummary & {
@@ -59,9 +69,9 @@ type Cases = {
   height?: number;
 };
 
-const scopedReceipt = (operation: string, scope: string) =>
+export const scopedReceipt = (operation: string, scope: string) =>
   `nu54-finance-v1/${operation}/${scope}`;
-function requestKey(operation: string, scope: string) {
+export function requestKey(operation: string, scope: string) {
   const name = scopedReceipt(operation, scope);
   const key = localStorage.getItem(name) ?? crypto.randomUUID();
   if (!/^[0-9a-f-]{36}$/.test(key))
@@ -81,11 +91,48 @@ export function formatFinanceAmount(units: string) {
   return `${value < 0n ? "-" : ""}${absolute / 1000000n}.${fraction} TestUSDC`;
 }
 
+// The escrow token of a deployment is named when the console is built, as lower-case addresses
+// separated by commas. Its six decimals are part of that choice, so no other asset gets its label.
+const pilotAssets = (import.meta.env.VITE_PILOT_ASSETS ?? "")
+  .toLowerCase()
+  .split(",")
+  .map((asset: string) => asset.trim())
+  .filter(Boolean);
+export const knownAsset = (asset?: string) =>
+  !!asset && pilotAssets.includes(asset.toLowerCase());
+export const assetWarning =
+  "시범 결제 자산으로 확인되지 않아 금액을 기본 단위로 표시합니다. 배포 설정을 확인하세요.";
+export function formatAssetAmount(units: string, asset?: string) {
+  return knownAsset(asset)
+    ? formatFinanceAmount(units)
+    : `${BigInt(units).toLocaleString("ko-KR")} 기본 단위`;
+}
+
+export function financeTime(seconds: number, timeZone?: string) {
+  return new Date(seconds * 1000).toLocaleString("ko-KR", {
+    timeZone,
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+}
+
 export class FinanceRequestError extends Error {
   constructor(message: string, readonly code: string) {
     super(message);
   }
 }
+
+/** The request may have been accepted, so only the same request may be sent again. */
+export class FinanceReplyLost extends Error {}
+
+const escrowRefusals: Record<number, string> = {
+  400: "요청 내용을 확인할 수 없습니다. 목록을 다시 조회하세요.",
+  404: "지점 또는 업무 권한을 확인할 수 없습니다.",
+  409: "주문 상태가 바뀌었습니다. 목록을 다시 조회하세요.",
+};
 
 export async function financeRequest(operation: string, body: object) {
   const reply = await fetch(`/v2/finance/${operation}`, {
@@ -93,7 +140,18 @@ export async function financeRequest(operation: string, body: object) {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  }).catch(() => {
+    throw new FinanceReplyLost(
+      "응답을 받지 못했습니다. 연결을 확인한 뒤 같은 요청을 다시 확인하세요."
+    );
   });
+  if (operation.startsWith("escrow-") && !reply.ok) {
+    const refusal = escrowRefusals[reply.status];
+    if (refusal) throw new FinanceRequestError(refusal, String(reply.status));
+    throw new FinanceReplyLost(
+      "서버가 처리 결과를 알려 주지 못했습니다. 잠시 뒤 같은 요청을 다시 확인하세요."
+    );
+  }
   if (reply.status === 404)
     throw new Error("지점 또는 업무 권한을 확인할 수 없습니다.");
   if (reply.status === 409 && operation.startsWith("refund-")) {
@@ -593,69 +651,159 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           </button>
         </form>
         {order && (
-          <section aria-label="원주문 지급 상세" aria-live="polite">
-            <h3>{order.fundsStatus === "held" ? "기존 주문을 조회하고 있습니다" : "기존 주문 결제 상세"}</h3>
-            <dl>
-              <dt>원주문</dt>
-              <dd>{order.saleId}</dd>
-              <dt>주문 금액</dt>
-              <dd>{formatFinanceAmount(order.amount)}</dd>
-              <dt>확정 환불</dt>
-              <dd>{formatFinanceAmount(order.refunds)}</dd>
-              {order.quoteId && (
-                <>
-                  <dt>발급 견적</dt>
-                  <dd>{order.quoteId}</dd>
-                </>
-              )}
-              <dt>지급</dt>
-              <dd>
-                {order.paidAt
-                  ? `지급 확정 ${order.paidAt}`
-                  : order.fundsStatus === "closed"
-                    ? "미지급 종료"
-                    : "확정 대기"}
-              </dd>
-              {order.transaction && (
-                <>
-                  <dt>거래 해시</dt>
-                  <dd>{order.transaction}</dd>
-                </>
-              )}
-              {order.observedHeight != null && (
-                <>
-                  <dt>관측 포함 높이</dt>
-                  <dd>{order.observedHeight}</dd>
-                </>
-              )}
-              {order.confirmedHeight != null && (
-                <>
-                  <dt>확정 근거 높이</dt>
-                  <dd>{order.confirmedHeight}</dd>
-                </>
-              )}
-              {order.fulfillmentStatus === "held" && (
-                <>
-                  <dt>이행</dt>
-                  <dd>보류</dd>
-                  <dt>새 지급·영수증</dt>
-                  <dd>보류</dd>
-                </>
-              )}
-            </dl>
-            {order.events.map((event) => (
-              <p key={event.eventId}>
-                이행 {event.kind} · {event.state} · {event.eventId}
-              </p>
-            ))}
-            {order.fundsStatus === "held" && businessDay && (
+          <OrderDetail order={order}>
+            {order.fundsStatus === "held" && !order.paidAt && businessDay && (
               <button disabled={busy} onClick={() => run(readCases)}>
                 이 지점 조사 대기열 조회
               </button>
             )}
-          </section>
+          </OrderDetail>
         )}
       </section>
     </>
+  );
+}
+
+/** Payment detail of one order; `escrow` replaces the held wording for an escrow order. */
+export function OrderDetail({
+  order,
+  escrow: listed,
+  timezone,
+  children,
+}: {
+  order: Order;
+  escrow?: EscrowItem;
+  timezone?: string;
+  children?: ReactNode;
+}) {
+  const reported = listed ?? order.escrow;
+  const escrow = reported && escrowStages[reported.status] ? reported : undefined;
+  // A paid order whose funds are still reported as held is kept by the order escrow.
+  const kept = !!reported || (order.fundsStatus === "held" && !!order.paidAt);
+  const asset = escrow?.asset ?? order.asset;
+  const references = (
+    <>
+      {order.transaction && (
+        <>
+          <dt>거래 해시</dt>
+          <dd>{order.transaction}</dd>
+        </>
+      )}
+      {order.observedHeight != null && (
+        <>
+          <dt>관측 포함 높이</dt>
+          <dd>{order.observedHeight}</dd>
+        </>
+      )}
+      {order.confirmedHeight != null && (
+        <>
+          <dt>확정 근거 높이</dt>
+          <dd>{order.confirmedHeight}</dd>
+        </>
+      )}
+    </>
+  );
+  return (
+    <section aria-label="원주문 지급 상세" aria-live="polite">
+      <h3>
+        {kept
+          ? "주문 결제 상세"
+          : order.fundsStatus === "held"
+            ? "기존 주문을 조회하고 있습니다"
+            : "기존 주문 결제 상세"}
+      </h3>
+      <dl>
+        {!kept && (
+          <>
+            <dt>원주문</dt>
+            <dd>{order.saleId}</dd>
+          </>
+        )}
+        <dt>주문 금액</dt>
+        <dd>
+          {kept
+            ? formatAssetAmount(order.amount, asset)
+            : formatFinanceAmount(order.amount)}
+          {kept && !knownAsset(asset) && (
+            <>
+              <br />
+              {assetWarning}
+            </>
+          )}
+        </dd>
+        {!kept && (
+          <>
+            <dt>확정 환불</dt>
+            <dd>{formatFinanceAmount(order.refunds)}</dd>
+          </>
+        )}
+        {!kept && order.quoteId && (
+          <>
+            <dt>발급 견적</dt>
+            <dd>{order.quoteId}</dd>
+          </>
+        )}
+        {kept ? (
+          <>
+            <dt>결제 확정</dt>
+            <dd>
+              {order.paidAt
+                ? financeTime(Date.parse(order.paidAt) / 1000, timezone)
+                : "확인 중"}
+            </dd>
+            <dt>대금 상태</dt>
+            <dd>
+              {escrow ? (
+                <>
+                  {escrowStages[escrow.status]}
+                  <br />
+                  {escrowStage(escrow, timezone)}
+                  <RefundRefused item={escrow} />
+                </>
+              ) : (
+                "구매자가 결제한 대금을 주문 계약이 보관하거나 정산했습니다. 현재 상태는 대금 정산에서 확인하세요."
+              )}
+            </dd>
+          </>
+        ) : (
+          <>
+            <dt>지급</dt>
+            <dd>
+              {order.paidAt
+                ? `지급 확정 ${order.paidAt}`
+                : order.fundsStatus === "closed"
+                  ? "미지급 종료"
+                  : "확정 대기"}
+            </dd>
+            {references}
+          </>
+        )}
+        {!kept && order.fulfillmentStatus === "held" && (
+          <>
+            <dt>이행</dt>
+            <dd>보류</dd>
+            <dt>새 지급·영수증</dt>
+            <dd>보류</dd>
+          </>
+        )}
+      </dl>
+      {kept ? (
+        <details>
+          <summary>조회 참조</summary>
+          <dl>
+            <dt>원주문</dt>
+            <dd>{order.saleId}</dd>
+            {references}
+          </dl>
+        </details>
+      ) : (
+        order.events.map((event) => (
+          <p key={event.eventId}>
+            이행 {event.kind} · {event.state} · {event.eventId}
+          </p>
+        ))
+      )}
+      {children}
+    </section>
   );
 }

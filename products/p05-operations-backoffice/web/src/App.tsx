@@ -11,6 +11,8 @@ import { Experience } from "./Experience";
 import { Fleet, type FleetScope } from "./Fleet";
 import { Payout } from "./Payout";
 import { Finance } from "./Finance";
+import { EscrowClaims } from "./EscrowClaims";
+import { EscrowDisputes } from "./EscrowDisputes";
 
 type CatalogRow = {
   sku: string;
@@ -259,6 +261,8 @@ export function App() {
     { id: "home", label: "지점 운영 홈" },
     { id: "catalog", label: "카탈로그" },
     { id: "finance", label: "정산과 이행" },
+    { id: "claims", label: "대금 정산" },
+    { id: "disputes", label: "이의 처리" },
     { id: "experience", label: "예약과 구독" },
     { id: "payout", label: "지급 주소" },
     { id: "rental", label: "대여 기기" },
@@ -282,6 +286,8 @@ export function App() {
       {page === "home" && <OperatorHome choose={choose} />}
       {page === "catalog" && <CatalogConsole initialBranch={assignedBranch} />}
       {page === "finance" && <Finance initialBranch={assignedBranch} />}
+      {page === "claims" && <EscrowClaims initialBranch={assignedBranch} />}
+      {page === "disputes" && <EscrowDisputes initialBranch={assignedBranch} />}
       {page === "experience" && <Experience initialBranch={assignedBranch} />}
       {page === "payout" && <Payout initialBranch={assignedBranch} />}
       {page === "rental" && (

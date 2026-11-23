@@ -63,6 +63,12 @@ const scopePages: Array<{
       "refund_submit",
     ],
   },
+  { page: "claims", name: "대금 정산", capabilities: ["report_read"] },
+  {
+    page: "disputes",
+    name: "이의 처리",
+    capabilities: ["escrow_dispute_request", "escrow_dispute_approve"],
+  },
   {
     page: "experience",
     name: "예약과 구독",

@@ -7,26 +7,42 @@ export type BranchScope = {
   capabilities: string[];
 };
 
+export type BranchAccess = "loading" | "ready" | "failed";
+
 export function useAuthorizedBranches(audience: "operator" | "finance") {
+  return useBranchAccess(audience).branches;
+}
+
+/** The same scopes, with whether they were read, so a page can tell no access from no reply. */
+export function useBranchAccess(audience: "operator" | "finance") {
   const [branches, setBranches] = useState<BranchScope[]>([]);
+  const [access, setAccess] = useState<BranchAccess>("loading");
   useEffect(() => {
     const stop = new AbortController();
     setBranches([]);
+    setAccess("loading");
     fetch(
       audience === "operator" ? "/v2/operations/scopes" : "/v2/finance/scopes",
       { credentials: "same-origin", signal: stop.signal }
     )
-      .then((response) => (response.ok ? response.json() : []))
-      .then(
-        (rows: BranchScope[]) =>
-          !stop.signal.aborted && setBranches(Array.isArray(rows) ? rows : [])
-      )
+      .then((response) => {
+        // 404 is the normal answer for an account without this kind of access.
+        if (response.status !== 404 && !response.ok) throw new Error("SCOPES");
+        return response.ok ? response.json() : [];
+      })
+      .then((rows: BranchScope[]) => {
+        if (stop.signal.aborted) return;
+        setBranches(Array.isArray(rows) ? rows : []);
+        setAccess("ready");
+      })
       .catch(() => {
-        if (!stop.signal.aborted) setBranches([]);
+        if (stop.signal.aborted) return;
+        setBranches([]);
+        setAccess("failed");
       });
     return () => stop.abort();
   }, [audience]);
-  return branches;
+  return { branches, access };
 }
 
 export function BranchPicker({
