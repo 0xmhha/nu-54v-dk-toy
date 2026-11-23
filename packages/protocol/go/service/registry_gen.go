@@ -120,6 +120,18 @@ const registryJSON = `{
       ],
       "ttlSeconds": 60
     },
+    "C3/order.answer": {
+      "fields": {
+        "action": "receipt|dispute|withdraw",
+        "claimableAt": "positive64"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
     "C3/order.cancel-public": {
       "fields": {},
       "mode": "command",
@@ -154,6 +166,20 @@ const registryJSON = `{
       ],
       "ttlSeconds": 60
     },
+    "C3/order.lock": {
+      "fields": {
+        "confirmer": "address",
+        "lockDigest": "digest",
+        "quoteDigest": "digest"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60
+    },
     "C3/order.nearby-result": {
       "fields": {
         "byOrder": "uint32",
@@ -173,6 +199,27 @@ const registryJSON = `{
       "roles": [
         "customer",
         "terminal"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/payer.enroll": {
+      "fields": {
+        "generation": "positive64",
+        "payer": "address"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/payer.status": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "customer"
       ],
       "ttlSeconds": 60
     },
@@ -345,6 +392,30 @@ const registryJSON = `{
       "roles": [
         "terminal",
         "operator"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/wallet.return": {
+      "fields": {
+        "amount": "positive256",
+        "nonce": "digest",
+        "payer": "address",
+        "to": "address",
+        "validBefore": "time"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/wallet.return-status": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "customer"
       ],
       "ttlSeconds": 60
     },

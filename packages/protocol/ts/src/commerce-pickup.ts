@@ -35,7 +35,11 @@ export type PickupKitchenOrder = {
   settlement?: PickupKitchenSettlement;
   revision: number;
   items?: {label: string; option: string; quantity: number}[];
+  /** Present only for an order paid through OrderEscrow. Absent rows keep the earlier refund flow. */
+  escrow?: {stage: PickupEscrowStage};
 };
+const escrowStages = ["locked", "delivered", "disputed", "paid", "refunded"] as const;
+export type PickupEscrowStage = typeof escrowStages[number];
 
 const reference = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const units = /^[1-9][0-9]{0,77}$/;
@@ -107,12 +111,14 @@ export function readPickupKitchen(raw: string): PickupKitchenOrder[] {
           !knownState(order.state) || !positiveNumber(order.pickupNo) ||
           (order.kind !== undefined ? !reference.test(order.eventRef ?? "") : order.eventRef !== undefined)) ||
         !kitchenSettlement(order) ||
+        (order.escrow !== undefined && (!order.escrow || order.state === "checking" || Object.keys(order.escrow).length !== 1 ||
+          !escrowStages.includes(order.escrow.stage))) ||
         (order.items !== undefined && (!Array.isArray(order.items) || order.items.length > 20 ||
           order.items.some(item => !item || typeof item.label !== "string" || item.label.length > 120 ||
             typeof item.option !== "string" || item.option.length > 32 || !positiveNumber(item.quantity)))))
       throw new Error("PICKUP_UNAVAILABLE");
   }
-  return list.map(({saleRef, startsAt, timezone, state, kind, eventRef, pickupNo, revision, items, settlement}) => ({
+  return list.map(({saleRef, startsAt, timezone, state, kind, eventRef, pickupNo, revision, items, settlement, escrow}) => ({
     saleRef, startsAt, timezone, state, revision,
     ...(kind === undefined ? {} : {kind}),
     ...(eventRef === undefined ? {} : {eventRef}),
@@ -121,6 +127,7 @@ export function readPickupKitchen(raw: string): PickupKitchenOrder[] {
       amount: settlement.amount, asset: settlement.asset,
       finalizedAt: settlement.finalizedAt, pickupReadyAt: settlement.pickupReadyAt,
     }}),
+    ...(escrow === undefined ? {} : {escrow: {stage: escrow.stage}}),
     ...(items === undefined ? {} : {items: items.map(({label, option, quantity}) => ({label, option, quantity}))}),
   }));
 }

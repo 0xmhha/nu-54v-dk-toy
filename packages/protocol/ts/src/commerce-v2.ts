@@ -1,3 +1,5 @@
+import { validOrderEscrowStatus, validPayerEnrollment, validWalletReturn, type OrderBuyerAction, type OrderEscrowStatus,
+  type PayerEnrollment, type WalletReturn } from "./order-escrow.ts";
 import {readShopIdentity, type ShopIdentity} from "./shop-identity.ts";
 import { validRentalReviewChallenge, type PrivatePresentation, type RentalReviewChallenge } from "./private-presentation.ts";
 import { sha256 } from "@noble/hashes/sha256";
@@ -220,6 +222,8 @@ export type CommerceOrder = {
   orderKey?: string;
   subscription?: SubscriptionInvoiceLifecycle;
   payment?: CommerceOrderPayment;
+  /** Present only for an order paid through OrderEscrow. */
+  escrow?: OrderEscrowStatus;
   cafeReview?: { branchLabel: string; payerBound: boolean };
   menuCheckout?: {
     branchLabel: string;
@@ -367,6 +371,16 @@ function validOrderPayment(order: CommerceOrder) {
   if (payment.stage === "received") return payment.relayTxHash === undefined;
   return ["relaySigned", "submitted", "checking"].includes(payment.stage) && payment.relayTxHash !== undefined;
 }
+function validOrderEscrow(order: CommerceOrder) {
+  const escrow = order.escrow;
+  if (escrow === undefined) return true;
+  if (!validOrderEscrowStatus(escrow)) return false;
+  if (order.orderKey !== undefined && order.orderKey !== escrow.orderKey) return false;
+  // The store has the order exactly while the lock is final. A refund later keeps the paid record.
+  if (escrow.stage === "received" || escrow.stage === "submitted") return order.state === "checking";
+  if (escrow.stage === "failed") return order.state === "checking" || order.state === "closed";
+  return order.state === "paid";
+}
 type Response = ServiceReplyV2 & {
   reservationFound?: boolean;
   unavailable?: CommerceCartLine[];
@@ -380,6 +394,8 @@ type Response = ServiceReplyV2 & {
   shop?: ShopIdentity;
   order?: CommerceOrder;
   orders?: CustomerOrderRow[];
+  payer?: PayerEnrollment;
+  walletReturn?: WalletReturn;
   claim?: CommerceClaim;
   offers?: SubscriptionOffer[];
   subscriptions?: SubscriptionRecord[];
@@ -932,6 +948,7 @@ export class CommerceClient {
       !Number.isFinite(Date.parse(order.expiresAt)) ||
       (order.subscription !== undefined && !validInvoiceLifecycle(order.subscription, order.state)) ||
       !validOrderPayment(order) ||
+      !validOrderEscrow(order) ||
       (order.payment?.nearbyUnpaid === true && this.profile.role !== "customer") ||
       (order.cafeReview !== undefined && (
         this.profile.role !== "customer" ||
@@ -1132,6 +1149,75 @@ export class CommerceClient {
       id,
       { quoteDigest, approvalDigest },
       { idempotencyKey, approvalSignature }
+    );
+    return result.resultRef!;
+  }
+
+  /** Sends the board's order signature; the store's relay pays the gas. */
+  async lock(
+    id: string,
+    quoteDigest: string,
+    confirmer: string,
+    lockDigest: string,
+    payerSignature: string,
+    idempotencyKey: string
+  ) {
+    if (!/^[0-9a-f]{128}(1b|1c)$/.test(payerSignature))
+      throw new Error("BAD_REQUEST");
+    const result = await this.call(
+      "order.lock",
+      id,
+      { quoteDigest, confirmer, lockDigest },
+      { idempotencyKey, approvalSignature: payerSignature }
+    );
+    return result.resultRef!;
+  }
+
+  /** Enrolls the board account this phone pays with. The board signed payerEnrollChallenge for this key. */
+  async enrollPayer(payer: string, generation: bigint, accountSignature: string, idempotencyKey: string) {
+    if (!/^[0-9a-f]{128}(1b|1c)$/.test(accountSignature)) throw new Error("BAD_REQUEST");
+    await this.call("payer.enroll", this.profile.subjectRef, { payer, generation: generation.toString() },
+      { idempotencyKey, approvalSignature: accountSignature });
+  }
+
+  async enrolledPayer(): Promise<PayerEnrollment | undefined> {
+    const { payer } = await this.call("payer.status", this.profile.subjectRef, {});
+    if (payer !== undefined && !validPayerEnrollment(payer)) throw new Error("BAD_RESPONSE");
+    return payer;
+  }
+
+  /** Sends the board's signed transfer home. The relay pays the gas. */
+  async returnWallet(
+    transfer: { payer: string; to: string; amount: string; validBefore: number; nonce: string },
+    boardSignature: string,
+    idempotencyKey: string
+  ) {
+    if (!/^[0-9a-f]{128}(1b|1c)$/.test(boardSignature)) throw new Error("BAD_REQUEST");
+    await this.call("wallet.return", this.profile.subjectRef, { ...transfer, validBefore: String(transfer.validBefore) },
+      { idempotencyKey, approvalSignature: boardSignature });
+  }
+
+  async walletReturn(): Promise<WalletReturn | undefined> {
+    const { walletReturn } = await this.call("wallet.return-status", this.profile.subjectRef, {});
+    if (walletReturn !== undefined && !validWalletReturn(walletReturn)) throw new Error("BAD_RESPONSE");
+    return walletReturn;
+  }
+
+  /** The buyer's answer after delivery, signed by the phone key that the order is locked to. */
+  async answer(
+    id: string,
+    action: OrderBuyerAction,
+    claimableAt: number,
+    phoneSignature: string,
+    idempotencyKey: string
+  ) {
+    if (!/^[0-9a-f]{128}(1b|1c)$/.test(phoneSignature))
+      throw new Error("BAD_REQUEST");
+    const result = await this.call(
+      "order.answer",
+      id,
+      { action, claimableAt: String(claimableAt) },
+      { idempotencyKey, approvalSignature: phoneSignature }
     );
     return result.resultRef!;
   }

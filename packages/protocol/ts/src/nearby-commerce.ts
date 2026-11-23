@@ -52,6 +52,16 @@ export type NearbyRequest =
       approvalDigest: string;
       signature: string;
       authoritative?: true;
+    }
+  | {
+      op: "lock";
+      branch: string;
+      key: string;
+      order: string;
+      quoteDigest: string;
+      confirmer: string;
+      lockDigest: string;
+      signature: string;
     };
 type Code = "ok" | "pending" | "denied" | "sold-out" | "catalog-changed" | "expired";
 export type NearbyReply = { status: Code; value?: unknown };
@@ -140,6 +150,18 @@ export function decodeNearbyRequest(
         !reference.test(req.order) ||
         !/^[a-f0-9]{64}$/.test(req.quoteDigest) ||
         !/^[a-f0-9]{64}$/.test(req.approvalDigest) ||
+        !/^[a-f0-9]{128}(1b|1c)$/.test(req.signature)
+      )
+        throw new Error("NEARBY_COMMAND");
+      break;
+    case "lock":
+      if (
+        !hasKeys(req, ["op", "branch", "key", "order", "quoteDigest", "confirmer", "lockDigest", "signature"]) ||
+        !reference.test(req.key) ||
+        !reference.test(req.order) ||
+        !/^[a-f0-9]{64}$/.test(req.quoteDigest) ||
+        !/^0x[a-f0-9]{40}$/.test(req.confirmer) || /^0x0+$/.test(req.confirmer) ||
+        !/^[a-f0-9]{64}$/.test(req.lockDigest) ||
         !/^[a-f0-9]{128}(1b|1c)$/.test(req.signature)
       )
         throw new Error("NEARBY_COMMAND");

@@ -310,6 +310,12 @@ func checkAuthority(operation string, body map[string]string, p Principal, now i
 		if a == nil || a.ValidUntil <= now || a.QuoteDigest != body["quoteDigest"] || a.ApprovalDigest != body["approvalDigest"] {
 			return Forbidden
 		}
+	case "C3/order.lock":
+		// The approval is the token authorization that pays the order into escrow.
+		a := p.Order
+		if a == nil || a.ValidUntil <= now || a.QuoteDigest != body["quoteDigest"] || a.ApprovalDigest != body["lockDigest"] {
+			return Forbidden
+		}
 	case "C4/mpc.sign", "C4/mpc.status":
 		a := p.Wallet
 		if a == nil || a.ValidUntil <= now || a.Generation != body["generation"] ||

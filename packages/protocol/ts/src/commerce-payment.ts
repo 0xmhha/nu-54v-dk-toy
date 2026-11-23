@@ -21,7 +21,19 @@ export type CommercePaymentProfile = {
   beneficiaryVersion: number;
   maxBaseUnits: string;
   presentationKey?: string;
+  /** The store's contract, as P05 names it in its payment profile. Absent means SettlementV2. */
+  abiSha256?: string;
 };
+// packages/contracts-abi/abi/manifest.json; test/order-escrow.test.ts keeps these in sync.
+export const settlementAbiSha256 = "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814";
+export const orderEscrowAbiSha256 = "e326762a55880c673cec09249bab8a76725183e812f3b3709dec2b92bd936c29";
+
+/** A store uses one contract; the signed quote alone cannot tell the two apart. */
+export function paysThroughEscrow(profile: Pick<CommercePaymentProfile, "abiSha256">): boolean {
+  if (profile.abiSha256 === undefined || profile.abiSha256 === settlementAbiSha256) return false;
+  if (profile.abiSha256 === orderEscrowAbiSha256) return true;
+  throw new Error("PAYMENT_PROFILE");
+}
 export type VerifiedCommercePayment = {
   bytes: Uint8Array;
   payer: string;
@@ -57,6 +69,7 @@ export function paymentProfile(
     BigInt(payment.maxBaseUnits) > 30_000_000n
   )
     throw new Error("PAYMENT_PROFILE");
+  paysThroughEscrow(payment); // refuses a contract this version does not know
   return payment;
 }
 

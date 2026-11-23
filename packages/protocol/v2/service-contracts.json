@@ -82,6 +82,46 @@
       },
       "response": "result"
     },
+    "C3/order.lock": {
+      "mode": "command",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "quoteDigest": "digest",
+        "confirmer": "address",
+        "lockDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C3/order.answer": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {
+        "action": "receipt|dispute|withdraw",
+        "claimableAt": "positive64"
+      },
+      "response": "result"
+    },
+    "C3/payer.enroll": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"payer": "address", "generation": "positive64"},
+      "response": "result"
+    },
+    "C3/payer.status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/wallet.return": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"payer": "address", "to": "address", "amount": "positive256", "validBefore": "time", "nonce": "digest"},
+      "response": "result"
+    },
+    "C3/wallet.return-status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
     "C4/mpc.sign": {
       "mode": "command",
       "roles": [
