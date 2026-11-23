@@ -138,6 +138,14 @@ v1을 되살리면 펌웨어 변경은 적다. 대신 운영자 의존이 남고
 | PIN 실패 대기 | `nu54_pin_attempt.c`, `device_recovery_pin.c`(지금은 5번째에 영구 잠금) | 5회 뒤부터 대기 시간을 늘린다. 횟수는 지금처럼 비교 전에 저장한다. 맞으면 횟수를 0으로 되돌린다 |
 | 운영자 서명 초기화 | `device_pilot.c` manage | PIN을 잊은 보드를 지운다. 보드 지문과 일회용 challenge에 묶어 다른 보드나 재사용을 막는다 |
 
+구현 상태(2026-11-23): 결제용 프로필을 `app/spending.conf`, `core/src/nu54_order.c`, `app/src/device_order.c`, `app/src/device_pilot.c`에 구현했다. 호스트 시험과 실제 칩용 컴파일까지 확인했고 보드에는 기록하지 않았다.
+
+- 보드가 서명하는 값은 실제 계약이 받아들인 공통 벡터(`packages/protocol/v2/testdata/order-lock.vectors`)와 같다.
+- 자산을 보내기 전의 서명 시험은 읽기 동작이라 버튼 없이 응답한다(명령 `0x79`). 계정 키와 보드 식별 키가 함께 서명한다.
+- 하루 한도의 기본값 100.00 TestUSDC는 구현할 때 정한 값이다(`CONFIG_NU54_SPENDING_DAILY_CAP`). 건당 한도는 허가의 값을 쓴다.
+- 허가 하나에 가맹점이 하나인 제약과 부팅마다 허가가 필요한 제약은 그대로 남아 있다.
+- 배포용 빌드 스크립트(`scripts/fw.py`)에는 아직 연결하지 않았다.
+
 ### 계약(P06)
 
 계약은 주문 결제에만 쓴다. 입금과 반납에는 쓰지 않는다. 지금 `SettlementV2.settle`은 결제 즉시 가맹점에 지급하므로(`SettlementV2.sol:265-303`), 수령 확인까지 맡아 두는 주문 escrow를 새로 만든다.
