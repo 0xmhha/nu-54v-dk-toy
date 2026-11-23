@@ -285,6 +285,14 @@ static void test_daily_total(void)
 	assert(nu54_order_charge(&fresh, 0, 1, cap, &next)); /* no trusted time */
 	assert(nu54_order_charge(&fresh, start, 0, cap, &next));
 	assert(nu54_order_charge(&fresh, start, 1, 0, &next));
+	/* The reported rest is exactly what a charge accepts. */
+	state = (nu54_order_spending){.day = day, .spent = 60};
+	assert(nu54_order_daily_left(&state, start + 5, cap) == 40);
+	assert(!nu54_order_charge(&state, start + 5, 40, cap, &next) && nu54_order_daily_left(&next, start + 5, cap) == 0);
+	assert(nu54_order_charge(&state, start + 5, 41, cap, &next));
+	assert(nu54_order_daily_left(&state, start + 86400, cap) == cap && nu54_order_daily_left(&state, start - 1, cap) == 40);
+	assert(nu54_order_daily_left(&corrupt, start, cap) == 0 && nu54_order_daily_left(&state, 0, cap) == 0);
+	assert(nu54_order_daily_left(NULL, start, cap) == 0);
 }
 
 static nu54_order_record records[NU54_ORDER_RECORDS + 1];

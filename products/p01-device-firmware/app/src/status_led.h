@@ -7,7 +7,8 @@
  *   pairing mode (a new bond, 60 s)       two short blips every 2 s
  *   bonded / pairing failed               on for 1 s / three short flashes
  *   waiting for the renter's button       fast blinking (0.2 s)
- *   signed, waiting for the kiosk         slow blinking (0.5 s), 30 s at most
+ *   signed (spending wallet: order or
+ *   return), waiting for the kiosk        slow blinking (0.5 s), 30 s at most
  *   approved                              on for 2 s, then dark
  *   refused, failed or cancelled          three short flashes, then dark
  *   PIN entry: start / tap / keep digit   two long flashes / one short / one 0.5 s
@@ -52,7 +53,9 @@ typedef enum { STATUS_PIN_START, STATUS_PIN_TAP, STATUS_PIN_KEEP } status_pin_t;
 void status_led_pin(status_pin_t what);
 void status_led_pin_end(void);
 
-/* Spending wallet: a press was taken, the PIN must wait, a factory reset is armed or done. */
+/* Spending wallet: a press was taken, the PIN must wait, a factory reset is armed or done.
+ * The PIN starts only after the press was shown. A refusal does not replace the PIN wait. */
+#define STATUS_LED_PRESSED_MS 600
 void status_led_pressed(void);
 void status_led_locked(void);
 void status_led_reset_armed(bool on);

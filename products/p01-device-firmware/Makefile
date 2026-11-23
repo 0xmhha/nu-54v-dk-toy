@@ -24,6 +24,8 @@ _host-test: build
 	python3 test/test_evm_service.py
 	NU54_WALLET_CHAIN_HOST="$(HOST_BUILD)/libwallet_chain_node_oracle.so" python3 test/test_commissioned_chains.py
 	python3 test/test_market_grant.py
+	python3 test/test_operator_reset.py "$(HOST_BUILD)/spending_operator_host"
+	python3 test/test_led_patterns.py
 	python3 test/test_owner_policy_display.py
 	python3 test/test_owner_finality_grant.py
 	python3 test/test_btc_vectors.py

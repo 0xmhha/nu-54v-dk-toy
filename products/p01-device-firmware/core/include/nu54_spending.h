@@ -10,8 +10,8 @@
 #define NU54_SPEND_RESET_OP 0x7c       /* op */
 #define NU54_SPEND_RESET_NONCE_OP 0x7d /* op: one-time value for the operator's reset */
 #define NU54_SPEND_OPERATOR_RESET_OP 0x7e /* op, nonce(32), authority signature(64) */
-#define NU54_SPEND_STATUS_OP 0x7f      /* op: caps, PIN wait, return address */
-#define NU54_SPEND_STATUS_SIZE (1 + 1 + 20 + 20 + 8 + 8 + 4 + 1)
+#define NU54_SPEND_STATUS_OP 0x7f      /* op: caps, PIN wait, return address, left today */
+#define NU54_SPEND_STATUS_SIZE (1 + 1 + 20 + 20 + 8 + 8 + 4 + 1 + 8)
 #define NU54_SPEND_RETURN_MAX_SECONDS 600
 #define NU54_SPEND_OPERATOR_STATEMENT_SIZE (24 + 32 + 8 + 32)
 

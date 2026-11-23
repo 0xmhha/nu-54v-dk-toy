@@ -6,7 +6,7 @@ global PATH setup is needed. The vendored board package is passed as BOARD_ROOT
 because sysbuild resolves the board before the application CMakeLists runs.
 
 Usage:
-    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--approtect] [--security-counter=N] [--official]]
+    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending] [--approtect] [--security-counter=N] [--official]]
     python3 scripts/fw.py keygen PATH
     python3 scripts/fw.py reject-images OUT_DIR
     python3 scripts/fw.py flash
@@ -19,6 +19,8 @@ an explicit, fresh absolute P01_BUILD_DIR for test output. Use a separate tree f
 recovery and the signed release app (app/sysbuild-release.conf, app/release.conf); it needs
 NU54_SIGNING_KEY. --approtect configures both images for debug lock (app/approtect.conf). Switching between
 variants needs --pristine or a separate P01_BUILD_DIR.
+--spending makes the release app the screenless spending wallet (app/spending.conf) in place of HD
+recovery. It needs NU54_INSTALL_AUTHORITY_HEX and is never an --official image.
 Signed builds record the verified bootloader and application outputs in release-manifest.json.
 --official requires --approtect, a monotonic security counter, a pinned signing key, and a clean source tree.
 
@@ -230,7 +232,7 @@ def release_manifest(official: bool, approtect: bool, public: Path, fingerprint:
 
 
 def build(pristine: bool, rental: bool, release: bool, approtect: bool, official: bool = False,
-          counter: int | None = None, *, test_cache: Path | None = None,
+          counter: int | None = None, spending: bool = False, *, test_cache: Path | None = None,
           runner=None) -> int:
     if approtect and not release:
         sys.exit("--approtect only goes with --release")
@@ -240,6 +242,14 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
         sys.exit("--official requires --approtect")
     if counter is not None and (not release or not 1 <= counter <= 65535):
         sys.exit("--security-counter requires --release and a counter from 1 to 65535")
+    if spending:
+        if not release or official or rental:
+            sys.exit("--spending is a custom test network profile: it requires --release without --official")
+        if not os.environ.get("NU54_INSTALL_AUTHORITY_HEX"):
+            sys.exit("--spending requires NU54_INSTALL_AUTHORITY_HEX")
+        if any(os.environ.get(name) for name in ("NU54_RECOVERY_OVERLAY", "NU54_LAB_WALLET_CHAINS",
+                                                 "NU54_COMMISSIONED_WALLET_CHAINS")):
+            sys.exit("--spending has no recovery accessory or other wallet chains")
     args = ["west", "build", "-b", BOARD, str(APP), "-d", str(BUILD_DIR)]
     if pristine:
         args += ["-p", "always"]
@@ -276,7 +286,8 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
         mbedtls = mbedtls_input.prepare(Path(tmp))
         mcuboot = mcuboot_input.prepare(NCS_DIR / "bootloader/mcuboot", Path(tmp))
         cmake.extend(f"-D{image}_EXTRA_ZEPHYR_MODULES={mbedtls};{mcuboot}" for image in ("app", "mcuboot"))
-        app_conf = [APP / "release.conf", APP / "pilot-tls.conf", APP / "hd-recovery.conf"] + ([APP / "approtect.conf"] if approtect else [])
+        app_conf = [APP / "release.conf", APP / "pilot-tls.conf",
+                    APP / ("spending.conf" if spending else "hd-recovery.conf")] + ([APP / "approtect.conf"] if approtect else [])
         if os.environ.get("NU54_LAB_WALLET_CHAINS") == "1":
             if official or not os.environ.get("NU54_RECOVERY_OVERLAY"):
                 sys.exit("Laboratory wallet chains require a custom build with the recovery accessory UART")
@@ -398,7 +409,7 @@ def main(argv: list[str]) -> int:
         if counter_flags and (len(counter_flags) != 1 or not re.fullmatch(r"[0-9]{1,5}", counter_flags[0])):
             sys.exit("Use --security-counter=N for exactly one decimal counter")
         options = ("--pristine" in argv, "--rental" in argv, "--release" in argv,
-                   "--approtect" in argv, "--official" in argv, int(counter_flags[0]) if counter_flags else None)
+                   "--approtect" in argv, "--official" in argv, int(counter_flags[0]) if counter_flags else None, "--spending" in argv)
         if "--test-capability-cache" in argv:
             if (not os.environ.get("P01_BUILD_DIR") or not BUILD_DIR.is_absolute()
                     or (BUILD_DIR.exists() and (not BUILD_DIR.is_dir() or any(BUILD_DIR.iterdir())))):

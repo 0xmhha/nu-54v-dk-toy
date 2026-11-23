@@ -28,13 +28,25 @@ int device_order_store(unsigned slot, const nu54_order_record *record)
 	return psa_its_set(ORDER_RECORD_UID + slot, sizeof(*record), record, PSA_STORAGE_FLAG_NONE) == PSA_SUCCESS ? 0 : -1;
 }
 
+static int load_total(nu54_order_spending *saved)
+{
+	size_t used;
+	*saved = (nu54_order_spending){0};
+	psa_status_t read = psa_its_get(ORDER_SPENDING_UID, 0, sizeof(*saved), saved, &used);
+	return read == PSA_ERROR_DOES_NOT_EXIST || (read == PSA_SUCCESS && used == sizeof(*saved)) ? 0 : -1;
+}
+
 static int next_total(uint64_t earliest, uint64_t amount, nu54_order_spending *next)
 {
-	nu54_order_spending saved = {0};
-	size_t used;
-	psa_status_t read = psa_its_get(ORDER_SPENDING_UID, 0, sizeof(saved), &saved, &used);
-	if (read != PSA_ERROR_DOES_NOT_EXIST && (read != PSA_SUCCESS || used != sizeof(saved))) return -1;
+	nu54_order_spending saved;
+	if (load_total(&saved)) return -1;
 	return nu54_order_charge(&saved, earliest, amount, CONFIG_NU54_SPENDING_DAILY_CAP, next);
+}
+
+uint64_t device_order_daily_left(uint64_t earliest)
+{
+	nu54_order_spending saved;
+	return load_total(&saved) ? 0 : nu54_order_daily_left(&saved, earliest, CONFIG_NU54_SPENDING_DAILY_CAP);
 }
 
 bool device_order_within_daily(uint64_t earliest, uint64_t amount)

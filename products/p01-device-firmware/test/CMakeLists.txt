@@ -189,6 +189,49 @@ target_link_libraries(test_spending_store PRIVATE nu54_crypto)
 target_compile_options(test_spending_store PRIVATE -Wall -Wextra -Werror)
 add_test(NAME spending_store COMMAND test_spending_store)
 
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c pilot_pin spending_button order_button device_pilot_button_reset
+    device_pilot_button
+  DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
+add_executable(test_spending_led test_spending_led.c ../app/src/status_led.c ../core/src/nu54_spending.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h)
+target_include_directories(test_spending_led PRIVATE ../app/src fakes-status-led ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_spending_led PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
+target_link_libraries(test_spending_led PRIVATE nu54_crypto)
+target_compile_options(test_spending_led PRIVATE -Wall -Wextra -Werror)
+add_test(NAME spending_led COMMAND test_spending_led)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_journal.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_journal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c journal_slots journal_new_session
+  DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
+add_custom_target(board_journal DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/board_journal.h)
+foreach(profile pilot spending)
+  add_executable(test_owner_journal_${profile} test_owner_journal.c ../../../packages/protocol/c/src/nu54_transport_v2.c)
+  target_include_directories(test_owner_journal_${profile} PRIVATE ../core/include ../../../packages/protocol/c/include
+    ${CMAKE_CURRENT_BINARY_DIR})
+  target_compile_options(test_owner_journal_${profile} PRIVATE -Wall -Wextra -Werror)
+  add_dependencies(test_owner_journal_${profile} board_journal)
+  add_test(NAME owner_journal_${profile} COMMAND test_owner_journal_${profile})
+endforeach()
+target_compile_definitions(test_owner_journal_spending PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
+target_compile_options(test_owner_journal_pilot PRIVATE -Wno-unused-function)
+
+# The operator's side of the spending profile: enroll_board.py against the board's own checks.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c hash import_public verify device_install_verify_authority
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c RESET_NONCE_MS reset_nonce_issue spending_request
+  DEPENDS extract_c.py ../app/src/device_install.c ../app/src/device_pilot.c VERBATIM)
+add_executable(spending_operator_host spending_operator_host.c ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
+  ../core/src/nu54_spending.c ../core/src/nu54_install.c ../core/src/nu54_owner.c ../core/src/nu54_vault.c
+  ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c
+  ../../../packages/protocol/c/src/nu54_transport_v2.c)
+target_include_directories(spending_operator_host PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(spending_operator_host PRIVATE nu54_crypto OpenSSL::Crypto)
+target_compile_options(spending_operator_host PRIVATE -Wall -Wextra -Werror)
+
 add_executable(test_evm test_evm.c ../core/src/nu54_evm_tx.c ../core/src/nu54_siwe.c)
 target_link_libraries(test_evm PRIVATE nu54_crypto)
 target_compile_options(test_evm PRIVATE -Wall -Wextra -Werror)

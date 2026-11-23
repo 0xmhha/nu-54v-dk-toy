@@ -25,6 +25,9 @@
 #define PAY_ALG PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256)
 #define PUBLIC_TYPE PSA_KEY_TYPE_ECC_PUBLIC_KEY(PSA_ECC_FAMILY_SECP_R1)
 #define OFFER_TTL_MS 60000
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+_Static_assert(OFFER_TTL_MS / 1000 < NU54_PILOT_BRIEF_SECONDS, "a slow grant outlasts a short request");
+#endif
 
 _Static_assert(sizeof(nu54_install_floor) <= 128, "P01 enrollment floor exceeds ITS limit");
 

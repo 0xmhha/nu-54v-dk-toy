@@ -129,6 +129,13 @@ int nu54_order_charge(const nu54_order_spending *saved, uint64_t earliest, uint6
 	return 0;
 }
 
+uint64_t nu54_order_daily_left(const nu54_order_spending *saved, uint64_t earliest, uint64_t daily_cap)
+{
+	if (!saved || !earliest) return 0;
+	uint64_t spent = earliest / 86400u > saved->day ? 0 : saved->spent;
+	return spent < daily_cap ? daily_cap - spent : 0;
+}
+
 int nu54_order_find(nu54_order_read read_slot, void *context, uint64_t earliest, const uint8_t request[16],
 		    const uint8_t digest[32], nu54_order_record *result, unsigned *free_slot)
 {

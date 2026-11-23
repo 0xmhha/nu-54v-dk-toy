@@ -101,7 +101,7 @@ static nu54_local_approval approval;
 static nu54_pilot_review_binding reviewed_quote;
 static unsigned refusal_slot;
 static nu54_owner_enrollment enrollment;
-static nu54_v2_journal_entry journal_slots[32];
+static nu54_v2_journal_entry journal_slots[128];
 static int hash(const uint8_t *data, size_t length, uint8_t digest[32])
 {
 	size_t used;
@@ -140,8 +140,11 @@ static bool display_confirmed;
 static unsigned order_slot;
 static uint64_t order_amount, order_expires;
 static nu54_spend_action spend_action;
+/* One at a time, in RAM, kept across sessions so that the operator has time to answer. */
+#define RESET_NONCE_MS (15 * 60 * 1000)
 static uint8_t reset_nonce[32];
-static bool reset_nonce_live;
+static uint64_t reset_nonce_generation;
+static int64_t reset_nonce_until; /* 0: none */
 #endif
 static uint8_t rental_review_hash[32];
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
@@ -246,7 +249,6 @@ static void reset_link(void)
 	order_amount = 0;
 	order_expires = 0;
 	memset(&spend_action, 0, sizeof(spend_action));
-	reset_nonce_live = false;
 #endif
 	memset(active_quote, 0, sizeof(active_quote));
 	memset(display_challenge, 0, sizeof(display_challenge));
@@ -314,6 +316,14 @@ static int pilot_pin(bool virgin, uint32_t prompt)
 {
 	bool guarded = owner_idle.generation != 0;
 	k_mutex_unlock(&pilot_lock);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	/* Show the taken press first. A press in between belongs to no digit. */
+	const int64_t shown = k_uptime_get() + STATUS_LED_PRESSED_MS;
+	for (int64_t left = STATUS_LED_PRESSED_MS; left > 0; left = shown - k_uptime_get()) {
+		board_button_event_t early;
+		(void)board_button_wait(&early, (int32_t)left);
+	}
+#endif
 	int result = guarded ? device_recovery_pin_guarded(virgin, owner_pin_live, &prompt) : device_recovery_pin(virgin);
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 	return guarded && !session_live(k_uptime_get()) ? -1 : result;
@@ -457,6 +467,25 @@ static void report_legacy_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE])
 }
 
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+static int reset_nonce_issue(uint64_t generation)
+{
+	reset_nonce_until = 0;
+	if (owner_random(reset_nonce, sizeof(reset_nonce))) return -1;
+	reset_nonce_generation = generation;
+	reset_nonce_until = k_uptime_get() + RESET_NONCE_MS;
+	return 0;
+}
+
+/* A new TLS session ends the old one's request records, because nothing of the old one can come
+ * back: each frame carries the epoch that only its own session has. A request id was never proof
+ * of a new request either, as the phone picks it. What must not happen twice is kept elsewhere:
+ * answered orders by request id, returns by their token nonce, the return address and the reset
+ * nonce once, registration by its random challenge. The time watermark stays. */
+static void journal_new_session(void)
+{
+	memset(journal_slots, 0, sizeof(journal_slots));
+}
+
 static int spending_request(const nu54_v2_request *request, uint64_t now, const nu54_vault *vault)
 {
 	uint8_t board[32], statement[NU54_SPEND_OPERATOR_STATEMENT_SIZE], known[20];
@@ -472,8 +501,8 @@ static int spending_request(const nu54_v2_request *request, uint64_t now, const 
 	if (op == NU54_SPEND_RETURN_OP && !device_spending_return_address(known)) return -1;
 	if (op == NU54_SPEND_SET_RETURN_OP && device_spending_return_address(known)) return -1;
 	if (operator_reset) {
-		bool live = reset_nonce_live;
-		reset_nonce_live = false; /* one try per nonce */
+		bool live = k_uptime_get() < reset_nonce_until && reset_nonce_generation == vault->record.generation;
+		reset_nonce_until = 0; /* one try per nonce */
 		if (!live || request->payload_length != 97 || memcmp(request->payload + 1, reset_nonce, 32) ||
 		    hash(vault->record.identity, sizeof(vault->record.identity), board)) return -1;
 		nu54_spend_operator_statement(board, vault->record.generation, reset_nonce, statement);
@@ -540,7 +569,9 @@ static int spending_button(uint32_t prompt, bool approved)
 		if (device_spending_sign(digest, raw) ||
 		    nu54_sig_finish(digest, raw, account, answer + 21) != NU54_SIG_OK) return -1;
 		reply.payload_length = sizeof(answer);
-		return nu54_v2_link_send(&link, &reply, send_frame, NULL);
+		if (nu54_v2_link_send(&link, &reply, send_frame, NULL)) return -1;
+		status_led_event(NU54_EVENT_SIGNED);
+		return 0;
 	}
 	reply.payload_length = 1; /* the phone learns that the reset starts; the board then restarts */
 	nu54_v2_link_send(&link, &reply, send_frame, NULL);
@@ -868,6 +899,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		sys_put_be64(CONFIG_NU54_SPENDING_DAILY_CAP, answer + 50);
 		sys_put_be32((uint32_t)wait, answer + 58);
 		answer[62] = device_order_open(device_install_earliest(), k_uptime_get());
+		sys_put_be64(device_order_daily_left(device_install_earliest()), answer + 63);
 		request->command = NU54_V2_REPLY;
 		request->payload = answer;
 		request->payload_length = sizeof(answer);
@@ -876,8 +908,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 	case NU54_SPEND_RESET_NONCE_OP: {
 		uint8_t answer[33] = {NU54_SPEND_RESET_NONCE_OP};
 		if (request->payload_length != 1 || enrollment.issued || !vault->record.generation ||
-		    owner_random(reset_nonce, sizeof(reset_nonce))) return -1;
-		reset_nonce_live = true;
+		    reset_nonce_issue(vault->record.generation)) return -1;
 		memcpy(answer + 1, reset_nonce, 32);
 		request->command = NU54_V2_REPLY;
 		request->payload = answer;
@@ -898,7 +929,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		    link.peer != NU54_V2_OWNER ||
 		    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
 		    !policy->allowlist.commercial_testnet || policy->payer_role != NU54_V2_OWNER_ROLE ||
-		    request->expires <= now || request->expires - now > 10 ||
+		    request->expires <= now || request->expires - now > NU54_PILOT_BRIEF_SECONDS ||
 		    !nu54_account_preimage(account, challenge, preimage)) return -1;
 		nu54_keccak256(preimage, sizeof(preimage), digest);
 		if (device_spending_sign(digest, raw) ||
@@ -918,7 +949,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		if (recovering || enrollment.issued || !vault->enabled ||
 		    (vault->record.flags & NU54_VAULT_REVOKED) || link.peer != NU54_V2_OWNER ||
 		    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
-		    request->expires <= now || request->expires - now > 10 ||
+		    request->expires <= now || request->expires - now > NU54_PILOT_BRIEF_SECONDS ||
 		    !nu54_running_firmware_request(request->payload, request->payload_length, generation)) return -1;
 		size_t size = device_install_running_firmware(generation, running) ? 1 : sizeof(running);
 		if (trusted_now() >= request->expires || !vault->enabled || vault->record.generation != generation ||
@@ -935,7 +966,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		if (recovering || enrollment.issued || !vault->enabled ||
 		    (vault->record.flags & NU54_VAULT_REVOKED) || link.peer != NU54_V2_OWNER ||
 		    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
-		    request->expires <= now || request->expires - now > 10 ||
+		    request->expires <= now || request->expires - now > NU54_PILOT_BRIEF_SECONDS ||
 		    !nu54_firmware_power_request(request->payload, request->payload_length, generation)) return -1;
 		enum nu54_firmware_vin vin = device_firmware_vin();
 		if (trusted_now() >= request->expires || !vault->enabled || vault->record.generation != generation ||
@@ -977,7 +1008,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 	case 0x71: /* Request a bounded LED indication */
 	case 0x72: { /* Stop only the locate indication */
 		const uint8_t op = request->payload[0];
-		if (request->payload_length != 1 || request->expires <= now || request->expires - now > 10 ||
+		if (request->payload_length != 1 || request->expires <= now || request->expires - now > NU54_PILOT_BRIEF_SECONDS ||
 		    recovering || enrollment.issued || !vault->enabled ||
 		    !vault->record.generation || link.peer != NU54_V2_OWNER ||
 		    (vault->record.flags & NU54_VAULT_REVOKED) || memcmp(vault->record.owner, link.peer_identity, 32))
@@ -1005,7 +1036,7 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		    (vault->record.flags & NU54_VAULT_REVOKED) ||
 		    !payment_generation_current(policy) || policy->payer_role != NU54_V2_OWNER_ROLE ||
 		    link.peer != NU54_V2_OWNER || memcmp(vault->record.owner, link.peer_identity, 32) ||
-		    link.approval_generation || request->expires <= now || request->expires - now > 10 ||
+		    link.approval_generation || request->expires <= now || request->expires - now > NU54_PILOT_BRIEF_SECONDS ||
 		    !nu54_v2_approval_progress_offer(request->payload, request->payload_length, generation))
 			return -1;
 		request->command = NU54_V2_REPLY;
@@ -1274,7 +1305,8 @@ static int order_request(nu54_v2_request *request, int state, uint64_t now, cons
 	return 0;
 }
 
-static int order_button(uint32_t prompt, bool approved)
+/* *approval_stored: the phone can read the signature back, so the lamp shows it as signed. */
+static int order_button(uint32_t prompt, bool approved, bool *approval_stored)
 {
 	nu54_order_record record = {.expires = order_expires};
 	nu54_v2_request reply = {.expires = link.pending_expiry};
@@ -1303,6 +1335,8 @@ static int order_button(uint32_t prompt, bool approved)
 				payer, sign, payer, record.signature)) return -1;
 	record.outcome = NU54_ORDER_APPROVED;
 	if (device_order_store(order_slot, &record)) return -1;
+	*approval_stored = true;
+	status_led_event(NU54_EVENT_SIGNED);
 	return send_receipt(&reply, record.signature, sizeof(record.signature));
 }
 #endif
@@ -1506,6 +1540,9 @@ static void poll_tls(struct k_work *ignored)
 			recovering = true;
 		} else if (device_tls_v2_bind(&tls, &link, profile, pin, &journal, trusted_now())) goto failed;
 		bound = true;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		journal_new_session();
+#endif
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
 		if (profile == NU54_V2_MANAGEMENT && !recovering && vault->record.generation &&
 		    (vault->record.flags & NU54_VAULT_PERSONAL) && device_owner_limits_platform_qualified())
@@ -1547,6 +1584,9 @@ static int sign(void *context, const uint8_t digest[32], uint8_t signature[64])
 void device_pilot_button(uint32_t prompt, bool approved)
 {
 	k_mutex_lock(&pilot_lock, K_FOREVER);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	bool done_well = false; /* the session ends, but nothing was refused */
+#endif
 	if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
 	if (owner_idle.generation) {
 		int64_t now = k_uptime_get();
@@ -1659,12 +1699,18 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		goto failed;
 	}
 #endif
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (approved) status_led_pressed();
+#endif
 	if (enrollment.proven) {
 		if (recovering && (!enrollment.independent || k_uptime_get() >= recovery_window)) goto failed;
 		if (approved) {
 			bool virgin = !recovering && (!device_vault_owner()->record.generation ||
 						      (device_vault_owner()->record.flags & NU54_VAULT_RELEASED));
 			int pin = pilot_pin(virgin, prompt);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+			if (pin) status_led_event(NU54_EVENT_REFUSED);
+#endif
 			if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
 			if (pin || !device_install_policy() || !enrollment.proven ||
 			    (recovering && (!enrollment.independent || k_uptime_get() >= recovery_window))) goto failed;
@@ -1686,10 +1732,12 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		if (recovering) {
 			recovery_window = 0;
 		}
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		done_well = true;
+#endif
 		goto failed; /* A changed generation retires the authenticated session. */
 	}
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-	if (approved) status_led_pressed();
 	if (spend_action.pending) {
 		if (spending_button(prompt, approved)) goto failed;
 		goto answered;
@@ -1697,7 +1745,7 @@ void device_pilot_button(uint32_t prompt, bool approved)
 #endif
 	if (!approval.pending) goto done;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-	if (order_button(prompt, approved)) goto failed;
+	if (order_button(prompt, approved, &done_well)) goto failed;
 	if (!approved) goto failed; /* a refusal ends the session, as on the other payment routes */
 	goto answered;
 #else
@@ -1756,6 +1804,9 @@ answered:
 	goto done;
 failed:
 	reset_link();
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (!done_well) status_led_event(NU54_EVENT_REFUSED);
+#endif
 done:
 	k_mutex_unlock(&pilot_lock);
 }

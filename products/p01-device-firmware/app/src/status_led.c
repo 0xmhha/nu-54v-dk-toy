@@ -86,6 +86,9 @@ static void tick(struct k_work *w)
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	if (playing && step >= 2 * playing->count) {
 		if (playing->repeat) {
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+			playing = ongoing(); /* the signed pattern ends by itself */
+#endif
 			step = 0;
 		} else {
 			oneshot = NULL; /* a one-off ends: hand back to the ongoing pattern */
@@ -160,6 +163,13 @@ void status_led_paired(bool ok)
 
 void status_led_waiting(bool on)
 {
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (on) { /* a new request: the last result must not come back after it */
+		k_spinlock_key_t key = k_spin_lock(&lock);
+		signed_wait = false;
+		k_spin_unlock(&lock, key);
+	}
+#endif
 	set(&waiting, on);
 }
 
@@ -175,6 +185,13 @@ void status_led_event(nu54_event_t event)
 	} else if (event == NU54_EVENT_REFUSED) {
 		k_spinlock_key_t key = k_spin_lock(&lock);
 		signed_wait = false;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		/* The PIN wait is the reason of this refusal and has its own pattern. */
+		if (oneshot == &P_LOCKED) {
+			k_spin_unlock(&lock, key);
+			return;
+		}
+#endif
 		k_spin_unlock(&lock, key);
 		play(&P_FAILED);
 	}

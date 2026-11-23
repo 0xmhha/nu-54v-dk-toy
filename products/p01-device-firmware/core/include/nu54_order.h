@@ -33,6 +33,8 @@ typedef struct {
 
 int nu54_order_charge(const nu54_order_spending *saved, uint64_t earliest, uint64_t amount,
 		      uint64_t daily_cap, nu54_order_spending *next);
+/* What nu54_order_charge would still accept today; zero without a trusted time. */
+uint64_t nu54_order_daily_left(const nu54_order_spending *saved, uint64_t earliest, uint64_t daily_cap);
 
 /* One record per answered order. A record may be overwritten only after its authorization can no
  * longer execute, so a repeated request gets the same answer for as long as it matters. */

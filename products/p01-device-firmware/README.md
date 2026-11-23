@@ -268,6 +268,91 @@ PostgreSQL fixture, the same P01 runner can test three quotes issued by P05's
 normal authenticated TLS API. Pass `NU54_P01_INSTALL_TEST` and run
 `TestPostgresLastStockAndSinglePayerWithRestart` in the P05 commerce package.
 
+### Operate the spending wallet profile
+
+This section follows the code and the host tests. Nobody has run it on a board. The profile is for the
+8283 test network only. Its rules are in [spending-wallet](../../docs/content/commercial/architecture/spending-wallet.md).
+The commands share the station key, ticket and fingerprints of the section above.
+
+**Build.** The profile takes the place of HD recovery in a custom release image. An official channel,
+the recovery overlay and the other wallet chains are refused.
+
+```sh
+export NU54_SIGNING_KEY=/secure/release.pem
+export NU54_INSTALL_AUTHORITY_HEX=$(python3 scripts/enroll_board.py authority-pin /secure/enrollment-authority.pub)
+P01_BUILD_DIR=/tmp/p01-spending python3 scripts/fw.py build --release --spending --pristine --security-counter=1
+```
+
+**First enrollment.** Write a policy with `payer_role` 1, `payer_generation` 1, `revision` 1, the
+OrderEscrow address as `contract`, the EIP-3009 test token as `token` and the phone's fingerprint as
+`owner`. `max_amount` is the cap of one payment, at most 30,000,000. `terminal` and the display key are
+not used, but the grant format still needs a fingerprint and a P-256 key that belong to nothing else.
+Keep the recovery key: the board refuses every later grant with another one. Then take the offer and:
+
+```sh
+python3 scripts/enroll_board.py issue --commercial-testnet --spending --offer offer.bin --policy policy.json \
+  --ca tls-ca.pem --board-certificate board.pem --display-public display.pub --recovery-public recovery.pub \
+  --board-pin "$board_spki_sha256" --device "$device_id" \
+  --authority /secure/enrollment-authority.pem --out grant.bin
+python3 scripts/enroll_board.py install "$board_address" grant.bin --station-key "$station_dir/station.key" \
+  --ticket "$station_dir/station.ticket" --board-pin "$board_spki_sha256" --device "$device_id"
+```
+
+The phone registers with SW1 and a new PIN entered twice. The board then has generation 1.
+
+**Grant per boot.** A grant lives in RAM, for at most 24 hours. After each restart open SW4 again, take a
+fresh ticket and offer, and issue with a new `not_after` and a higher `revision`. Keep `payer_generation`
+equal to the generation the phone shows. Only the same policy and certificates may keep their revision.
+
+The time between the offer and the installed grant, at most 60 seconds, is how far the board's latest
+possible time may run ahead until the next restart. A later grant in the same boot does not shorten it, so
+run the commands without a pause. The phone allows for it:
+
+| Request | Phone sends | Board limit, from its latest possible time |
+|---|---|---|
+| status (3, 7), 0x7d, 0x7f, receipt status | 90 s | transport 300 s |
+| 0x79, running firmware, power, 0x70 to 0x72, 0x76 | 90 s | 95 s (10 s outside this profile) |
+| registration, 0x7a, 0x7c, 0x7e | 150 s | transport 300 s, and the 120 s session |
+| 0x7b | `validBefore`, at most 540 s ahead and 300 s as a request | 600 s from the board's earliest possible time |
+| order | quote expiry, at most 120 s left | 180 s from the board's earliest possible time |
+
+Nothing is accepted past its end: that is still judged by the latest possible time. The phone's clock may be
+off by 5 seconds. A request record lasts for its TLS session (128 of them); a frame of an earlier session is
+refused by its epoch and counter, and answered orders stay in protected storage.
+
+**Reset.** The owner resets in the app (SW1 and PIN) or with the buttons: SW2 and SW3 for 5 seconds, the
+PIN, then SW1 long within 10 seconds. The operator signs a reset only for a forgotten PIN:
+
+1. The board needs a current grant. On the enrolled phone, open the reset screen. On another phone with an
+   owner certificate of the same CA, hold SW3 first. That window lasts 120 seconds and is needed again for
+   the answer.
+2. Compare the request's board id with `device` in the commissioning record, then sign it:
+
+   ```sh
+   python3 scripts/enroll_board.py operator-reset "$request" --device "$device_id" \
+     --authority /secure/enrollment-authority.pem
+   ```
+
+3. Give the `NU54-RESET1-OK:` text back to the phone and press SW1. No PIN is asked for.
+
+The one-time value lasts 15 minutes of board uptime and survives reconnections, so a remote operator can
+answer: the phone may disconnect and send the answer in a later session. The board holds one value for its
+current generation, in RAM. A new request replaces it, one attempt uses it up, and a restart drops it. The
+answer alone erases nothing: the board still checks the authority's signature over board, generation and
+value, and SW1 must be pressed. Within the 15 minutes any phone that can open an owner session may present
+it, so send the answer only to the owner. The board also refuses while a signed order can still execute,
+which takes up to 240 seconds and does not use the value up. The remaining balance is lost.
+
+**Re-enrollment.** The board restarts without a grant. A reset of generation G makes G+1, and the next
+registration makes G+2. Issue the next grant with `payer_generation` G+2, a higher `revision`, the new
+phone as `owner` and the same recovery key, then register the phone. Never go higher: the board keeps the
+largest value and refuses a smaller one later. The wallet key is new, so the account address changes.
+
+**Lamp.** The four LEDs are the board's display. The exact patterns per situation are in
+[`app/led-patterns.json`](app/led-patterns.json) (`situations`). A press shows 0.6 seconds of light before
+the PIN starts. A signed order or return blinks slowly for 30 seconds. SW2, a wrong PIN and any refusal
+after the button are three short flashes, and the PIN wait is five very short ones.
+
 ### Reclaim archived payment receipts
 
 The reconciliation authority exports a private JSON disposition for an

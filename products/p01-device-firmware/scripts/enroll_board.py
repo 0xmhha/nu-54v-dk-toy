@@ -9,7 +9,9 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import os
+import re
 import struct
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -25,6 +27,8 @@ MAX_TICKET = 768
 INSTALL_ALPN = b"nu54-install/1"
 INSTALL_EXPORTER = b"EXPORTER-NU54-INSTALL-1"
 INSTALL_PIN_GROUP = 0x5451
+RESET_DOMAIN = b"NU54 operator reset v1".ljust(24, b"\0")
+RESET_REQUEST = re.compile(r"NU54-RESET1:([0-9a-f]{64}):([1-9][0-9]{0,19}):([0-9a-f]{64})")
 
 
 def write_private(path, data):
@@ -234,6 +238,8 @@ def issue(args):
     if any(type(policy[name]) is not int or policy[name] <= 0 for name in settings):
         raise ValueError("Policy counters and limits must be positive integers")
     cap = 30_000_000 if args.commercial_testnet else 1_000_000
+    if getattr(args, "spending", False) and (not args.commercial_testnet or policy["payer_role"] != 1):
+        raise ValueError("The spending profile needs --commercial-testnet and payer_role 1")
     if not 0 < policy["not_after"] - now <= 86400 or policy["max_amount"] > cap or policy["payer_role"] not in (1, 2):
         raise ValueError("Invalid policy expiry, payer role, or profile cap")
     attributes = struct.pack(">6QB", *(policy[name] for name in settings), policy["payer_role"])
@@ -273,6 +279,38 @@ def issue(args):
                                   (json.dumps(publication, separators=(",", ":")) + chr(10)).encode())
     else:
         args.out.write_bytes(grant)
+
+
+def reset_request(text):
+    """Board id, generation and one-time value of a phone's reset request. Nothing else may be in it."""
+    found = RESET_REQUEST.fullmatch(text)
+    if not found:
+        raise ValueError("Expected NU54-RESET1:<board id>:<generation>:<nonce> in lowercase hexadecimal")
+    generation = int(found[2])
+    if generation >= 1 << 64:
+        raise ValueError("The generation does not fit the board's counter")
+    return exact_hex(found[1], 32), generation, exact_hex(found[3], 32)
+
+
+def reset_statement(board, generation, nonce):
+    """The bytes nu54_spend_operator_statement (core/src/nu54_spending.c) rebuilds on the board."""
+    return RESET_DOMAIN + board + struct.pack(">Q", generation) + nonce
+
+
+def operator_reset(args):
+    board, generation, nonce = reset_request(args.request)
+    if args.device and exact_hex(args.device, 32) != board:
+        raise ValueError("The request is for another board than --device")
+    if args.yes and not args.device:
+        raise ValueError("--yes needs --device, since nobody compares the board id")
+    if not args.yes:
+        print(f"Board id:   {board.hex()}\nGeneration: {generation}\n"
+              "The reset erases this board's wallet key, PIN, owner and records. Its remaining balance is lost.\n"
+              "Compare the board id with the commissioning record, then type RESET to sign: ",
+              end="", file=sys.stderr, flush=True)
+        if sys.stdin.readline().rstrip("\r\n") != "RESET":
+            raise ValueError("The operator did not confirm the reset")
+    print(f"NU54-RESET1-OK:{nonce.hex()}:{signed(args.authority, reset_statement(board, generation, nonce)).hex()}")
 
 
 def image_measurement(image):
@@ -494,6 +532,8 @@ def main():
     grant.add_argument("--device", required=True)
     grant.add_argument("--commercial-testnet", action="store_true",
                        help="enroll the exact StableNet 8283 TestUSDC2 contract/token and an explicit cap of at most 30 TestUSDC")
+    grant.add_argument("--spending", action="store_true",
+                       help="refuse a policy that the spending profile cannot use")
     grant.add_argument("--w10-manifest", help="explicit reviewed v2 manifest SHA-256 for a commercial renter board")
     grant.add_argument("--w10-out", type=Path, help="write the corresponding P05 commissioning publication separately")
     for argument in ("offer", "policy", "ca", "board-certificate", "display-public", "recovery-public", "authority", "out"):
@@ -506,6 +546,11 @@ def main():
     reclaim = sub.add_parser("issue-reclaim")
     for name in ("evidence", "quote", "authority", "out"):
         reclaim.add_argument("--" + name, type=Path, required=True)
+    reset = sub.add_parser("operator-reset", help="sign the reset of a spending wallet whose PIN is forgotten")
+    reset.add_argument("request", help="the text the phone shows: NU54-RESET1:<board id>:<generation>:<nonce>")
+    reset.add_argument("--authority", type=Path, required=True)
+    reset.add_argument("--device", help="board id from the commissioning record; the request must match it")
+    reset.add_argument("--yes", action="store_true", help="sign without asking; needs --device")
     args = cli.parse_args()
     if args.command == "authority-pin":
         print(point(public_file(args.public_key)).hex())
@@ -525,6 +570,8 @@ def main():
         issue_hd(args)
     elif args.command == "issue-reclaim":
         issue_reclaim(args)
+    elif args.command == "operator-reset":
+        operator_reset(args)
     else:
         asyncio.run(nearby(args))
 

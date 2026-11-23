@@ -8,6 +8,17 @@
 #define NU54_PILOT_LEGACY_CAP UINT64_C(1000000)
 #define NU54_PILOT_TESTUSDC2_CAP UINT64_C(30000000)
 
+/* How far ahead of the board's latest possible time a request may end that needs no button. A slow
+ * grant leaves the board up to 60 s unsure of the time (OFFER_TTL_MS), so a request must outlive
+ * that, and the phone's clock may lead by 5 s: 90 s from the app, 95 s at the board. The bound only
+ * limits staleness. TLS, the session epoch and the frame counter refuse a replay whatever it is,
+ * and a request that has passed the latest possible time is still refused. */
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+#define NU54_PILOT_BRIEF_SECONDS 95
+#else
+#define NU54_PILOT_BRIEF_SECONDS 10
+#endif
+
 typedef struct {
 	uint8_t contract[20], token[20], beneficiary[20];
 	uint64_t max_amount;

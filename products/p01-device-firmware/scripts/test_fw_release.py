@@ -44,6 +44,39 @@ class CapabilityCacheTest(unittest.TestCase):
                              for arg in toolchain.call_args.args))
 
 
+class SpendingBuildTest(unittest.TestCase):
+    environment = {"NU54_INSTALL_AUTHORITY_HEX": "04" + "Ab" * 64, "NU54_RECOVERY_OVERLAY": "",
+                   "NU54_LAB_WALLET_CHAINS": "", "NU54_COMMISSIONED_WALLET_CHAINS": ""}
+
+    def configured(self, *flags):
+        """The app configuration files of a release build, without running the toolchain."""
+        with TemporaryDirectory() as root, patch.dict("os.environ", self.environment), \
+                patch.object(fw, "BUILD_DIR", Path(root)), patch.object(fw, "signing_key", return_value=Path("key.pem")), \
+                patch.object(fw, "release_signer", return_value=(Path("public.pem"), "0")), \
+                patch.object(fw.mbedtls_input, "prepare", return_value=Path("mbedtls")), \
+                patch.object(fw.mcuboot_input, "prepare", return_value=Path("mcuboot")), \
+                patch.object(fw, "in_toolchain", return_value=1) as toolchain:
+            self.assertEqual(1, fw.main(["build", "--release", *flags]))
+        conf = next(arg for arg in toolchain.call_args.args if arg.startswith("-Dapp_EXTRA_CONF_FILE="))
+        return [Path(path).name for path in conf.split("=", 1)[1].split(";")]
+
+    def test_profile_replaces_hd_recovery(self):
+        self.assertEqual(["release.conf", "pilot-tls.conf", "spending.conf", "enrollment-pin.conf", "counted-update.conf"],
+                         self.configured("--spending", "--security-counter=1"))
+        self.assertEqual(["release.conf", "pilot-tls.conf", "hd-recovery.conf", "enrollment-pin.conf"], self.configured())
+
+    def test_refused_combinations(self):
+        for flags, changed in (([], {}), (["--release", "--rental"], {}), (["--release", "--approtect", "--official"], {}),
+                               (["--release"], {"NU54_INSTALL_AUTHORITY_HEX": ""}),
+                               (["--release"], {"NU54_RECOVERY_OVERLAY": "accessory.overlay"}),
+                               (["--release"], {"NU54_COMMISSIONED_WALLET_CHAINS": "1"})):
+            with self.subTest(flags=flags, changed=changed), \
+                    patch.dict("os.environ", {**self.environment, **changed}), \
+                    patch.object(fw, "in_toolchain", side_effect=AssertionError("must not build")), \
+                    self.assertRaises(SystemExit):
+                fw.main(["build", "--spending", *flags])
+
+
 class ReleaseDebugConfigurationTest(unittest.TestCase):
     def setUp(self):
         temporary = TemporaryDirectory()
