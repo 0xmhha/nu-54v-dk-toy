@@ -90,6 +90,42 @@ contract OrderLockVectorTest is Test {
         assertEq(token.balanceOf(ESCROW), 6_500_000);
     }
 
+    /// @notice The store's and the phone's signatures after payment. The Go and TypeScript libraries
+    /// check the same file. The delivery time is fixed so the digests never change.
+    function testActionVectorsMatchTheContract() public {
+        vm.chainId(8283);
+        vm.warp(1_800_000_000);
+        deployCodeTo("TestUSDC3009.sol:TestUSDC3009", abi.encode(address(this)), TOKEN);
+        deployCodeTo("OrderEscrow.sol:OrderEscrow", abi.encode(TOKEN, address(this), address(this)), ESCROW);
+        OrderEscrow escrow = OrderEscrow(ESCROW);
+        bytes32 merchantId = bytes32(uint256(7));
+        bytes32 orderId = bytes32(uint256(5));
+        uint64 claimableAt = 1_800_172_800;
+        assertEq(
+            vm.readFile("../../packages/protocol/v2/testdata/order-actions.vectors"),
+            string.concat(
+                line("delivered", escrow.actionDigest(escrow.DELIVERY_TYPEHASH(), merchantId, orderId)),
+                line("cancel", escrow.actionDigest(escrow.CANCEL_TYPEHASH(), merchantId, orderId)),
+                line("receipt", buyer(escrow, escrow.RECEIPT_TYPEHASH(), merchantId, orderId, claimableAt)),
+                line("dispute", buyer(escrow, escrow.DISPUTE_TYPEHASH(), merchantId, orderId, claimableAt)),
+                line("withdraw", buyer(escrow, escrow.WITHDRAW_DISPUTE_TYPEHASH(), merchantId, orderId, claimableAt))
+            ),
+            "regenerate the vector"
+        );
+    }
+
+    function buyer(OrderEscrow escrow, bytes32 typehash, bytes32 merchantId, bytes32 orderId, uint64 claimableAt)
+        private
+        view
+        returns (bytes32)
+    {
+        return Types.digest(escrow.domainSeparator(), keccak256(abi.encode(typehash, merchantId, orderId, claimableAt)));
+    }
+
+    function line(string memory name, bytes32 value) private pure returns (string memory) {
+        return string.concat(name, "=", vm.toString(value), "\n");
+    }
+
     function testBoardReturnVectorSendsTheMoneyHome() public {
         vm.chainId(8283);
         vm.warp(1_800_000_000);

@@ -117,7 +117,7 @@ contract OrderEscrowTest is Test {
     }
 
     function state(bytes32 order) internal view returns (OrderEscrow.State s) {
-        (,,,,,,, s) = escrow.orders(MERCHANT, order);
+        (,,,,,,,, s) = escrow.orders(MERCHANT, order);
     }
 
     function ids(bytes32 a, bytes32 b, bytes32 c) internal pure returns (bytes32[] memory list) {
@@ -367,7 +367,7 @@ contract OrderEscrowTest is Test {
         bytes32 order = lockOrder(1);
         deliver(order);
         escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
-        vm.warp(start + 30 days);
+        vm.warp(start + 14 days - 1);
         vm.expectRevert(OrderEscrow.InvalidState.selector);
         escrow.claim(MERCHANT, order);
         vm.expectRevert(OrderEscrow.Unauthorized.selector);
@@ -581,6 +581,43 @@ contract OrderEscrowTest is Test {
         token.setTrustedSender(address(escrow), true);
         escrow.cancel(MERCHANT, order, stop);
         assertEq(token.balanceOf(wallet), DEPOSIT);
+    }
+
+    function testAnUnsettledDisputeGoesBackToTheBuyer() public {
+        bytes32 order = lockOrder(1);
+        deliver(order);
+        vm.expectRevert(OrderEscrow.InvalidState.selector);
+        escrow.refundExpiredDispute(MERCHANT, order); // no dispute
+        vm.warp(start + 1 days);
+        escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+        vm.warp(start + 15 days - 1);
+        vm.expectRevert(OrderEscrow.InvalidTime.selector);
+        escrow.refundExpiredDispute(MERCHANT, order);
+        uint256 snapshot = vm.snapshotState();
+        vm.prank(arbiter);
+        escrow.resolve(MERCHANT, order, true); // the operator's last second
+        vm.revertToState(snapshot);
+        vm.warp(start + 15 days);
+        vm.prank(arbiter);
+        vm.expectRevert(OrderEscrow.InvalidTime.selector);
+        escrow.resolve(MERCHANT, order, true); // too late to pay the store
+        vm.expectEmit(address(escrow));
+        emit OrderCancelled(MERCHANT, order, wallet, PRICE, OrderEscrow.Refund.DisputeExpired);
+        vm.prank(relay);
+        escrow.refundExpiredDispute(MERCHANT, order);
+        assertEq(token.balanceOf(wallet), DEPOSIT);
+        assertBacked();
+        vm.expectRevert(OrderEscrow.InvalidState.selector);
+        escrow.refundExpiredDispute(MERCHANT, order);
+    }
+
+    function testALateDisputeCanStillBeWithdrawnByTheBuyer() public {
+        bytes32 order = lockOrder(1);
+        deliver(order);
+        escrow.dispute(MERCHANT, order, buyer(PHONE_KEY, escrow.DISPUTE_TYPEHASH(), order));
+        vm.warp(start + 20 days);
+        escrow.withdrawDispute(MERCHANT, order, buyer(PHONE_KEY, escrow.WITHDRAW_DISPUTE_TYPEHASH(), order));
+        assertEq(token.balanceOf(store), PRICE);
     }
 
     // ---- settings and the token ----

@@ -57,7 +57,8 @@ contract OrderEscrow {
     enum Refund {
         Store,
         Undelivered,
-        Arbiter
+        Arbiter,
+        DisputeExpired
     }
 
     struct Merchant {
@@ -79,6 +80,7 @@ contract OrderEscrow {
         uint256 amount;
         uint64 deliverBy;
         uint64 claimableAt; // 0 until delivered
+        uint64 resolveBy; // 0 until disputed
         uint32 confirmWindow;
         State state;
     }
@@ -86,6 +88,8 @@ contract OrderEscrow {
     uint256 public constant CHAIN_ID = 8283;
     uint32 public constant MIN_WINDOW = 1 hours;
     uint32 public constant MAX_WINDOW = 60 days;
+    /// @notice The operator has this long to settle a dispute; after it the buyer gets the money back.
+    uint32 public constant DISPUTE_WINDOW = 14 days;
     uint256 public constant MAX_BATCH = 100;
     uint8 private constant ESCROW = 1;
     uint256 private constant HALF_ORDER = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
@@ -134,7 +138,7 @@ contract OrderEscrow {
         bytes32 quoteDigest
     );
     event OrderDelivered(bytes32 indexed merchantId, bytes32 indexed orderId, uint64 claimableAt);
-    event OrderDisputed(bytes32 indexed merchantId, bytes32 indexed orderId);
+    event OrderDisputed(bytes32 indexed merchantId, bytes32 indexed orderId, uint64 resolveBy);
     event OrderReleased(
         bytes32 indexed merchantId, bytes32 indexed orderId, address beneficiary, uint256 amount, Payout reason
     );
@@ -267,6 +271,7 @@ contract OrderEscrow {
             amount: quote.amount,
             deliverBy: deliverBy,
             claimableAt: 0,
+            resolveBy: 0,
             confirmWindow: merchant.confirmWindow,
             state: State.Locked
         });
@@ -319,16 +324,26 @@ contract OrderEscrow {
         if (_now() >= order.claimableAt) revert InvalidTime();
         _checkBuyerAction(order, DISPUTE_TYPEHASH, merchantId, orderId, signature);
         order.state = State.Disputed;
-        emit OrderDisputed(merchantId, orderId);
+        order.resolveBy = _now() + DISPUTE_WINDOW;
+        emit OrderDisputed(merchantId, orderId, order.resolveBy);
     }
 
-    /// @notice The operator settles a disputed order.
+    /// @notice The operator settles a disputed order before its deadline.
     function resolve(bytes32 merchantId, bytes32 orderId, bool payMerchant) external guarded {
         if (msg.sender != arbiter) revert Unauthorized();
         Order storage order = orders[merchantId][orderId];
         if (order.state != State.Disputed) revert InvalidState();
+        if (_now() >= order.resolveBy) revert InvalidTime();
         if (payMerchant) _pay(order, merchantId, orderId, Payout.Arbiter);
         else _refund(order, merchantId, orderId, Refund.Arbiter);
+    }
+
+    /// @notice Returns the money of a dispute nobody settled in time. Anyone may send it.
+    function refundExpiredDispute(bytes32 merchantId, bytes32 orderId) external guarded {
+        Order storage order = orders[merchantId][orderId];
+        if (order.state != State.Disputed) revert InvalidState();
+        if (_now() < order.resolveBy) revert InvalidTime();
+        _refund(order, merchantId, orderId, Refund.DisputeExpired);
     }
 
     /// @notice The store gives the money back before the buyer confirmed.

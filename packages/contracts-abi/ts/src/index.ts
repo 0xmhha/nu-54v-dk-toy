@@ -5,3 +5,5 @@ export { paymentSettlementExtensionsAbi } from "./paymentSettlementExtensions.ts
 export { merchantRegistryExtensionsAbi } from "./merchantRegistryExtensions.ts";
 export { testUsdcAbi } from "./testUsdc.ts";
 export { settlementV2Abi } from "./settlementV2.ts";
+export { orderEscrowAbi } from "./orderEscrow.ts";
+export { testUsdc3009Abi } from "./testUsdc3009.ts";
