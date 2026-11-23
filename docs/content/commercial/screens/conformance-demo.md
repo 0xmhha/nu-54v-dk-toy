@@ -47,6 +47,10 @@
 ### 남은 문제
 
 - 체험 화면은 방문자에게 "SW3을 길게 눌러 페어링 모드"를 안내한다. 그런데 설치를 마친 상용 보드에서 SW3 길게 누르기는 페어링이 아니라 복구 창을 연다(`products/p01-device-firmware/app/src/main.c`의 SW3 처리, `device_pilot_active()`). 방문자 체험에 쓸 보드 구성과 연결 방법을 정해야 한다.
+  - `device_pilot_active()`는 빌드에 설치 기관 키가 들어 있는지로 정해지는 빌드 속성이다(`device_install.c`의 `sizeof(pin) > 1`). 상용 빌드는 부팅할 때 예전 본딩을 지운다(`device_pilot_init`). 체험 화면의 본딩·페어링 코드 흐름(`App.tsx`의 `Renter`, `setup/flow.ts`)은 대여 빌드(`app/rental.conf`)용이라 상용 이미지에서는 동작하지 않는다.
+  - 상용 대여 결제는 대여 역할 허가(`payer_role` 2, `--commercial-testnet`, W10 manifest)로 설치한 보드에서만 열린다. 실습 보드는 소유자 역할(`payer_role` 1, `commercial_testnet` 꺼짐)로 설치했다. 허가 하나에 역할 하나라서, 보드 한 대로 발표자 소유자 시연과 방문자 대여 결제를 동시에 할 수 없다.
+  - W10 대여 결제 인수(2026-11-22)는 C 보드 호스트와 루프백 전송을 썼다. 실물 보드의 BLE 대여 연결은 아직 시험하지 않았다(`scripts/android/w10-smoke/README.md`).
+  - 허가는 발급 후 24시간 안에 만료되고 부팅마다 새 허가가 필요하다(`products/p01-device-firmware/README.md`). 시연 당일 부팅 뒤 다시 설치해야 한다.
 - 여행·시장 화면은 아직 공통 부품을 쓰지 않는다.
 - 결제 탭의 등록 입력란은 iOS 장면 시험이 바로 입력하므로 첫 화면에 남아 있다.
 - 다크 테마는 남은 화면을 색 토큰으로 옮긴 뒤에 켠다.
