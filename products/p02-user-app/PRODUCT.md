@@ -10,7 +10,7 @@ android
 
 - **Pilot user** (primary): someone holding an NU54DK hardware wallet board for the first time. They set it up alone from the phone, from board enrollment to the first test payment, with no developer beside them.
 - **Demo audience**: investors and partners watching a presenter operate the app with a real board. They need to grasp what is happening at a glance: the amount, who is paid and the moment the board approves.
-- **Demo visitors**: several people at an event who try the payment themselves. Each installs the app from a QR code (APK download), connects to the shared demo board, receives testnet funds and pays a test merchant.
+- **Demo visitors**: people at an event who watch or try a payment. There is one board, so one person at a time uses it as its owner: set up, deposit, pay, return the balance and reset it for the next person.
 
 The design baseline is the pilot user; the demo path gets extra polish so it also reads well to an audience.
 
@@ -20,11 +20,11 @@ The owner mobile app is the screen of a screenless hardware wallet. The board ho
 
 ## Positioning
 
-The phone never decides what is approved. Every approval is bound to the board's physical buttons and PIN, and the content check belongs to an independent display; the phone guides the steps and shows progress. No other wallet app in this product line can claim that, because the board has no screen and the app is its only guide.
+The phone never decides what is approved. Every approval is bound to the board's physical buttons and PIN, and the board itself checks the store's signature and its limits. In the testnet spending profile the phone also shows the payment content, because the board has no screen (decided 2026-11-23); the board's LEDs and the phone together are the display.
 
 ## Operating Context
 
-- Navigation follows the IA: bottom tabs 지갑 · 결제 · 둘러보기 · 설정 (`docs/content/commercial/products/p02-user-app/ia.md`); the same board approval screen is used from every entry.
+- Navigation: bottom tabs 홈 · 결제 · 지갑 · 둘러보기, settings behind a gear on every tab, 내 보드 outside the tabs (`docs/content/commercial/products/p02-user-app/ia.md`); the same board approval screen is used from every entry.
 - The board is the NU54DK v2 (NU-54DK-C) with four buttons (SW1–SW4) and four LEDs. The app must show the board step, the sequence and the buttons whenever it waits on the board (`docs/content/commercial/screens/board.json`).
 - Demo flows that must work: board connection and enrollment (W04), shop payment and receipt (W09–W11), balance, receive and send (W01, W07, W08), travel and DApp browsing (W13, T01).
 - Networks are testnets (StableNet 8283 TestUSDC and others); nothing moves real money.
@@ -33,10 +33,9 @@ The phone never decides what is approved. Every approval is bound to the board's
 
 - React Native 0.87 app, Android first (Galaxy demo phone and emulator); iOS follows from the same code later.
 - Personal and rental wallets share the app; private screens block screen capture.
-- The verified wallet home needs a completed backup, which needs a second board and the HD build; the lab has one board, so this state cannot be reached on real hardware today.
+- The spending board has no backup: it makes its own key, a signing test proves the address before any deposit, and what is left is returned to the original wallet before a reset.
+- Decided 2026-11-23: the board works as a personal spending wallet (`docs/content/commercial/architecture/spending-wallet.md`). Deposits are plain transfers; only the amount of one order is locked in escrow; receipt is a tap in the app signed by the phone key. The earlier rental route for visitors is not used for this demo; its code stays.
 - Open decisions (not settled; do not design as if decided):
-  - **Testnet funds for visitors.** There is no faucet; TestUSDC can be minted only by its owner. With the rental route the operator funds one rental deposit; a per-visitor faucet is not planned.
-- Decided 2026-11-23: **visitors use the rental route.** The board keeps one owner (the presenter). A visitor installs the app, opens a rental from the operator's QR and pays from the operator-funded rental deposit; the operator closes the rental afterwards (O09). Visitors do not enroll as owners.
   - **APK distribution by QR.** Signing, hosting and update policy for visitor installs are undecided.
 
 ## Brand Commitments

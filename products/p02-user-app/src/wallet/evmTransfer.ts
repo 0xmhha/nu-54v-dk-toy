@@ -310,12 +310,12 @@ export function httpsEvmRpc(endpoint:string, exchange:(endpoint:string,packet:st
 }
 
 export async function readEvmReceiveBalance(rpc: EvmRpc, chain: EvmChain, genesis: string, account: string,
-  asset = '0x' + '0'.repeat(40), includeDecimals = false) {
+  asset = '0x' + '0'.repeat(40), includeDecimals = false, tag: 'finalized' | 'latest' = 'finalized') {
   await checkEvmNetwork(rpc, chain, genesis);
   const owner = normalizeEvmAddress(account);
   const native = '0x' + '0'.repeat(40);
   const token = asset === native ? native : normalizeEvmAddress(asset);
-  const block = object(await rpc('eth_getBlockByNumber', ['finalized', false]));
+  const block = object(await rpc('eth_getBlockByNumber', [tag, false]));
   if (typeof block.hash !== 'string' || !hashFormat.test(block.hash)) throw new Error('EVM_FINALIZED_BLOCK');
   const blockScope = {blockHash: block.hash, requireCanonical: true};
   const number = quantity(block.number);

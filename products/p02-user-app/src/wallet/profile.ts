@@ -34,11 +34,15 @@ export type PhoneReplacementCheckpoint = {
 export type PendingEvmTransfer = {chain:EvmChain; raw:string; hash:string; sender:string; expires:number; submitted:boolean; genesis?:string; profileRevision?:number; leaseRevision?:string; rpc?:string; evidence?:{board:string;generation:number;request:string;unsigned:string}};
 export type EvmRecipient = {name:string;genesis:string;address:string};
 export type StoredConnect={relay:string;seed:string;checkpoint:ConnectCheckpoint};
+/** The spending board behind `verified`: which registration passed the signing test, and what the board stored. */
+export type SpendingBoard = {device:string; account:string; generation:number; testedAt:number; returnAddress?:string;
+  /** An erase was asked for and its result is not known: the address must not take money until a new signing test. */
+  withheld?:true};
 export type SigningEvmContext={request:string;unsigned:string;chain:EvmChain;genesis:string;signer:string};
 export type SigningReservation = {kind: 'evm' | 'chain' | 'bip48'; digest: string; board: string; generation: number; expires: number; evm?:SigningEvmContext};
 export type WalletStorage = {
   version: 2; exercised: boolean; language?: 'ko' | 'en'; practice?: Practice; installation?: InstallCheckpoint; mode?: 'personal' | 'legacy'; verified?: PersonalMetadata;
-  pendingBip48?:StoredBip48; bitcoinWatch?:StoredBitcoinWatch; enrollment?: Enrollment; backupCheckpoint?: SourceBackupCheckpoint; phoneReplacement?: PhoneReplacementCheckpoint; pendingEvm?:PendingEvmTransfer; evmRegistry?:EvmRegistryEntry; evmRecipients?:EvmRecipient[]; pendingChain?:StoredChain; chainSelection?:ChainAccount; walletConnect?:StoredConnect; walletConnectSessions?:StoredConnect[]; walletRead?:ReadProfileState; signing?: SigningReservation;
+  spendingBoard?:SpendingBoard; pendingBip48?:StoredBip48; bitcoinWatch?:StoredBitcoinWatch; enrollment?: Enrollment; backupCheckpoint?: SourceBackupCheckpoint; phoneReplacement?: PhoneReplacementCheckpoint; pendingEvm?:PendingEvmTransfer; evmRegistry?:EvmRegistryEntry; evmRecipients?:EvmRecipient[]; pendingChain?:StoredChain; chainSelection?:ChainAccount; walletConnect?:StoredConnect; walletConnectSessions?:StoredConnect[]; walletRead?:ReadProfileState; signing?: SigningReservation;
 };
 
 const fingerprint = /^[a-f0-9]{64}$/;
@@ -115,6 +119,14 @@ function validSigning(value: SigningReservation) {
   return true;
 }
 
+function validSpendingBoard(value:SpendingBoard, owner:PersonalMetadata|undefined) {
+  return !!value && Object.keys(value).every(key=>['device','account','generation','testedAt','returnAddress','withheld'].includes(key)) && !!owner &&
+    (value.withheld===undefined || value.withheld===true) &&
+    value.device===owner.boardFingerprint && value.account===owner.address && value.generation===owner.generation &&
+    Number.isSafeInteger(value.testedAt) && value.testedAt>0 &&
+    (value.returnAddress===undefined || (evmAddress.test(value.returnAddress) && !/^0x0+$/.test(value.returnAddress)));
+}
+
 function validConnectOwner(value:StoredConnect, owner:PersonalMetadata|undefined) {
   return value && typeof value.relay==='string' && value.relay.length<=320 && fingerprint.test(value.seed) &&
     fingerprint.test(value.checkpoint?.topic) && owner &&
@@ -160,16 +172,34 @@ export function decodeWalletStorage(raw: string): WalletStorage {
       (value.chainSelection !== undefined && (value.mode !== 'personal' || !validChainSelection(value.chainSelection))) ||
       (value.signing !== undefined && (value.mode !== 'personal' || !validSigning(value.signing))) ||
       (value.walletRead !== undefined && (value.mode !== 'personal' || !isWalletReadState(value.walletRead))) ||
+      (value.spendingBoard !== undefined && !validSpendingBoard(value.spendingBoard, value.verified)) ||
       (value.walletConnect !== undefined && (value.mode!=='personal' || !validConnectOwner(value.walletConnect,value.verified))) ||
       (value.walletConnectSessions !== undefined && (value.mode!=='personal' || !Array.isArray(value.walletConnectSessions) ||
         value.walletConnectSessions.some(session=>!validConnectOwner(session,value.verified)))) ||
       (value.evmRecipients !== undefined && (!Array.isArray(value.evmRecipients) || value.evmRecipients.length > 12 ||
         value.evmRecipients.some(item=>!item || typeof item.name !== 'string' || item.name.length<1 || item.name.length>32 ||
           !/^0x[a-f0-9]{64}$/.test(item.genesis) || !evmAddress.test(item.address)))) ||
-      Object.keys(value).some(key => !['version', 'exercised', 'practice', 'language', 'installation', 'mode', 'verified', 'enrollment', 'backupCheckpoint', 'phoneReplacement', 'pendingEvm', 'pendingChain', 'chainSelection', 'bitcoinWatch', 'pendingBip48', 'evmRegistry', 'evmRecipients','walletConnect','walletConnectSessions','walletRead','signing'].includes(key))) {
+      Object.keys(value).some(key => !['version', 'exercised', 'practice', 'language', 'installation', 'mode', 'verified', 'enrollment', 'backupCheckpoint', 'phoneReplacement', 'pendingEvm', 'pendingChain', 'chainSelection', 'bitcoinWatch', 'pendingBip48', 'evmRegistry', 'evmRecipients','walletConnect','walletConnectSessions','walletRead','signing','spendingBoard'].includes(key))) {
     throw new Error('WALLET_STORAGE_CORRUPT');
   }
   return value;
+}
+
+/** The spending board of the current registration, when its signing test was passed and nothing put it in doubt. */
+export function testedBoard(value: WalletStorage): SpendingBoard | undefined {
+  const {spendingBoard: board, verified} = value;
+  return board && verified && !board.withheld && board.device===verified.boardFingerprint && board.account===verified.address &&
+    board.generation===verified.generation ? board : undefined;
+}
+
+/** Forgets the account of a board that was reset. The enrollment, the language and finished orders stay. */
+export function withoutBoardAccount(value: WalletStorage): WalletStorage {
+  const {walletRead, ...kept} = value;
+  for (const key of ['verified', 'spendingBoard', 'backupCheckpoint', 'evmRegistry', 'walletConnect', 'walletConnectSessions',
+    'bitcoinWatch', 'chainSelection'] as const) delete kept[key];
+  // Only the network addresses the owner entered are worth keeping; balances and names belong to the old account.
+  return walletRead ? {...kept, walletRead: {...walletRead, observations: [], accounts: undefined, assets: undefined, nonEvmAssets: undefined,
+    selection: {id: 'stable', account: 0, hidden: walletRead.selection.hidden}}} : kept;
 }
 
 export function beginWallet(legacy: DeviceRecord[], local: WalletStorage | null): WalletScreen {

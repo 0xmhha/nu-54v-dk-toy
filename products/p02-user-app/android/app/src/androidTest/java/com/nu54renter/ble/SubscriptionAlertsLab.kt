@@ -37,6 +37,18 @@ class SubscriptionAlertsLab : Instrumentation() {
                     check(notification.contentIntent != null)
                 }
                 "clear" -> schedule.remove(ref)
+                "order" -> {
+                    check(!showOrderReady(targetContext, "not-an-order"))
+                    check(showOrderReady(targetContext, ref))
+                    Thread.sleep(500)
+                    val notification = manager.activeNotifications.single { it.tag == ref && it.id == 2 }.notification
+                    check(notification.visibility == Notification.VISIBILITY_SECRET)
+                    check(notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString() == "주문한 상품이 준비되었습니다")
+                    check(notification.extras.getCharSequence(Notification.EXTRA_TEXT) == null)
+                    check(notification.contentIntent != null)
+                    manager.cancel(ref, 2)
+                }
+                "order-deny" -> check(!showOrderReady(targetContext, ref))
                 "deny" -> {
                     schedule.remove(ref)
                     check(!manager.areNotificationsEnabled())

@@ -5,6 +5,12 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 
 private func subscriptionRoute(_ response: UNNotificationResponse) -> URL? {
+  let ready = "nu54-order-"
+  if response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+     response.notification.request.identifier.hasPrefix(ready),
+     let order = UUID(uuidString: String(response.notification.request.identifier.dropFirst(ready.count))) {
+    return URL(string: "nu54://order/ready/\(order.uuidString.lowercased())")
+  }
   let prefix = "nu54-subscription-"
   let identifier = response.notification.request.identifier
   guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
@@ -30,6 +36,12 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationC
     self.launchOptions = launchOptions
     UNUserNotificationCenter.current().delegate = self
     return true
+  }
+
+  // An order can become ready while the app is open; the notice still shows.
+  func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                              withCompletionHandler completion: @escaping (UNNotificationPresentationOptions) -> Void) {
+    completion(notification.request.identifier.hasPrefix("nu54-order-") ? [.banner, .sound] : [])
   }
 
   func userNotificationCenter(_ center: UNUserNotificationCenter,

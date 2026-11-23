@@ -64,7 +64,8 @@ RCT_EXPORT_MODULE(ShopQr)
     NSArray<CIFeature *> *codes = [detector featuresInImage:image];
     if (codes.count == 1 && [codes[0] isKindOfClass:CIQRCodeFeature.class]) {
       value = ((CIQRCodeFeature *)codes[0]).messageString;
-      if (value.length > ([value hasPrefix:@"wc:"] ? 1200 : 96)) value = nil;
+      // 208 is the operator's answer to a reset request: prefix 15, nonce 64, colon, signature 128.
+      if (value.length > ([value hasPrefix:@"wc:"] ? 1200 : [value hasPrefix:@"NU54-RESET1-OK:"] ? 208 : 96)) value = nil;
     }
   }
   [self finish:picker value:value];

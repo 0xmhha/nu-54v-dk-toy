@@ -200,4 +200,18 @@ RCT_EXPORT_MODULE(SubscriptionAlerts)
   }
   resolve(nil);
 }
+
+// Names no order, store or amount; the app shows those after it opens.
+- (void)orderReady:(NSString *)order resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  if (order.length != 36 || ![[NSUUID alloc] initWithUUIDString:order]) { resolve(@NO); return; }
+  UNUserNotificationCenter *center = UNUserNotificationCenter.currentNotificationCenter;
+  [center getNotificationSettingsWithCompletionHandler:^(UNNotificationSettings *settings) {
+    if (!subscriptionAuthorizationAllowsScheduling(settings)) { resolve(@NO); return; }
+    UNMutableNotificationContent *content = [UNMutableNotificationContent new];
+    content.title = @"주문한 상품이 준비되었습니다";
+    UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:[@"nu54-order-" stringByAppendingString:order]
+                                                                          content:content trigger:nil];
+    [center addNotificationRequest:request withCompletionHandler:^(NSError *error) { resolve(@(error == nil)); }];
+  }];
+}
 @end

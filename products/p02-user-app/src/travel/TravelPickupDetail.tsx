@@ -50,7 +50,7 @@ export function TravelPickupDetail({branch, sale, policy, orderRevision}: {
     {item && <>
       <Text>픽업 시간 · {formatPickupTime(item.startsAt, item.timezone)}</Text>
       <Text>{pickupStateLabel[item.state]}</Text>
-      {item.pickupNo !== undefined && <Text>픽업 번호 {item.pickupNo}</Text>}
+      {item.pickupNo !== undefined && <Text>주문번호 {item.pickupNo}</Text>}
       {item.refund && <>
         <Text>{refundLabel[item.refund.state]}</Text>
         {item.refund.amount && <Text>환불 금액 {commerceAmount(item.refund.amount, item.asset, policy)}</Text>}

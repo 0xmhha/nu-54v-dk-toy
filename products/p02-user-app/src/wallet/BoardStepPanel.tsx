@@ -145,7 +145,7 @@ export function BoardStepPanel({wait, t}: {wait: BoardWait; t: (ko: string) => s
         {!!step.led && <Text style={styles.small}>{t('표시등') + ' · ' + t(step.led)}</Text>}
       </View>
     </View>
-    <Text style={styles.small}>{t(step.app)}</Text>
+    <Text style={styles.small}>{t(wait.note ?? step.app)}</Text>
     {!!step.pending && <Text style={styles.pending}>{t(step.pending)}</Text>}
     {!!ahead.length && <View style={styles.ahead}>
       <Text style={styles.caption}>{t('이어서 할 일')}</Text>

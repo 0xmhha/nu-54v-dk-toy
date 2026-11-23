@@ -144,11 +144,11 @@ test('normal app shows the bottom tabs on home and hides them during sensitive r
  Object.defineProperty(Platform,'OS',{value:'ios',configurable:true});mockStored=JSON.stringify(profile());let tree:Renderer.ReactTestRenderer;
  const tabs=()=>tree!.root.findAll(node=>node.props.accessibilityRole==='tab'&&typeof node.props.onPress==='function').map(node=>node.props.accessibilityLabel);
  try{await Renderer.act(async()=>{tree=Renderer.create(<App/>);});
-  expect([...new Set(tabs())]).toEqual(['지갑','결제','둘러보기','설정']);
-  // Backup and phone replacement live in the 설정 tab.
-  await openTab(tree!,'설정');await tap(tree!,'독립 백업 시작');expect(tabs()).toHaveLength(0);
+  expect([...new Set(tabs())]).toEqual(['홈','결제','지갑','둘러보기']);
+  // Backup and phone replacement live in settings, behind the gear of every tab root.
+  await tap(tree!,'설정');await tap(tree!,'독립 백업 시작');expect(tabs()).toHaveLength(0);
   await tap(tree!,'등록 상태로 돌아가기');expect(tabs()).not.toHaveLength(0);
-  await openTab(tree!,'설정');await tap(tree!,'원래 보드에서 분실한 휴대전화 교체');expect(tabs()).toHaveLength(0);
+  await tap(tree!,'설정');await tap(tree!,'원래 보드에서 분실한 휴대전화 교체');expect(tabs()).toHaveLength(0);
   await tap(tree!,'등록 상태로 돌아가기');expect(tabs()).not.toHaveLength(0);
  }finally{await Renderer.act(async()=>tree?.unmount());}
 });

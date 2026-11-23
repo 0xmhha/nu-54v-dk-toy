@@ -3,7 +3,7 @@ import Renderer from 'react-test-renderer';
 import {Text} from 'react-native';
 import {readFileSync} from 'fs';
 import {join} from 'path';
-import {DemoWalletHome, demoReadState} from '../src/wallet/DemoWalletHome';
+import {demoLife, demoOrders, demoPayments, DemoWalletHome, demoReadState} from '../src/wallet/DemoWalletHome';
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
@@ -19,10 +19,25 @@ test('the demo wallet home shows fixture data with a banner and no usable action
   const enabled = tree.root.findAll(node => typeof node.props.onPress === 'function' &&
     ['button', 'tab'].includes(node.props.accessibilityRole) && !node.props.accessibilityState?.disabled)
     .map(node => node.props.accessibilityLabel);
-  // Only showing or hiding the fake balance and leaving the demo remain usable.
-  expect([...new Set(enabled)].sort()).toEqual(['시연 화면 닫기', '잔액 숨기기'].sort());
+  // Only fixture pages, the fake balance and leaving the demo remain usable.
+  expect([...new Set(enabled)].sort()).toEqual(['시연 화면 닫기', '잔액 숨기기', '내 보드 연결됨, 보드 상태를 확인했습니다',
+    '그린 카페 주문번호 17 준비 중', ...demoPayments(0).map(([label]) => label), ...demoOrders(0).map(([label]) => label),
+    '운영자 허가 없음', ...demoLife(0).map(([label]) => label)].sort());
   await Renderer.act(async () => tree.root.findByProps({accessibilityLabel: '시연 화면 닫기'}).props.onPress());
   expect(close).toHaveBeenCalled();
+});
+
+test('the demo payment pages are fixtures without a board, kiosk or server behind them', async () => {
+  const source = readFileSync(join(__dirname, '../src/wallet/DemoWalletHome.tsx'), 'utf8');
+  expect(source).not.toMatch(/ownerSession|specs\/Native|customerClient|nearbyClient|signDigest/);
+  for (const [label] of [...demoPayments(0), ...demoOrders(0), ...demoLife(0)]) {
+    let tree!: Renderer.ReactTestRenderer;
+    await Renderer.act(async () => { tree = Renderer.create(<DemoWalletHome t={text => text} close={() => {}} />); });
+    await Renderer.act(async () => tree.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0].props.onPress());
+    expect(JSON.stringify(tree.toJSON())).toContain('시연용 화면');
+    expect(tree.root.findAll(node => ['order-payment', 'order-detail'].includes(node.props.testID) || String(node.props.testID).startsWith('board-life-')).length).toBeGreaterThan(0);
+    await Renderer.act(async () => tree.unmount());
+  }
 });
 
 test('fixture data is scoped to a fake board, never to a real one', () => {

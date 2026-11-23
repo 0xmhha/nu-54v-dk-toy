@@ -15,6 +15,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.nu54renter.MainActivity
 
 private const val channelId = "nu54_subscription_due"
+private const val orderChannelId = "nu54_order_ready"
 private val alertId = Regex("^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$")
 private const val day = 86_400_000L
 
@@ -115,6 +116,10 @@ class SubscriptionAlertsModule(private val context: ReactApplicationContext) : N
         schedule.remove(ref)
         promise.resolve(null)
     }
+
+    override fun orderReady(order: String, promise: Promise) {
+        promise.resolve(showOrderReady(context, order))
+    }
 }
 
 class SubscriptionAlertReceiver : BroadcastReceiver() {
@@ -126,25 +131,35 @@ class SubscriptionAlertReceiver : BroadcastReceiver() {
         }
         val ref = intent.data?.lastPathSegment ?: return
         if (!alertId.matches(ref) || !schedule.deliver(ref)) return
-        val manager = context.getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= 26) {
-            manager.createNotificationChannel(NotificationChannel(channelId, "구독 회차", NotificationManager.IMPORTANCE_DEFAULT))
-        }
-        val route = Intent(Intent.ACTION_VIEW, Uri.parse("nu54://subscriptions/$ref"), context, MainActivity::class.java)
-        val open = PendingIntent.getActivity(context, 0, route, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        @Suppress("DEPRECATION")
-        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(context, channelId) else Notification.Builder(context)
-        val message = builder
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("확인할 구독 회차가 있습니다")
-            .setContentIntent(open)
-            .setVisibility(Notification.VISIBILITY_SECRET)
-            .setAutoCancel(true)
-            .build()
-        try {
-            manager.notify(ref, 1, message)
-        } catch (_: SecurityException) {
-            // Permission was revoked after scheduling.
-        }
+        showAlert(context, ref, 1, channelId, "구독 회차", "확인할 구독 회차가 있습니다", "nu54://subscriptions/$ref")
+    }
+}
+
+internal fun showOrderReady(context: Context, order: String) = alertId.matches(order) &&
+    showAlert(context, order, 2, orderChannelId, "주문 준비", "주문한 상품이 준비되었습니다", "nu54://order/ready/$order")
+
+/** Posts a notice that names no order, store or amount; the app shows those after it opens. */
+private fun showAlert(context: Context, tag: String, id: Int, channel: String, channelName: String, title: String, route: String): Boolean {
+    val manager = context.getSystemService(NotificationManager::class.java)
+    if (!manager.areNotificationsEnabled()) return false
+    if (Build.VERSION.SDK_INT >= 26) {
+        manager.createNotificationChannel(NotificationChannel(channel, channelName, NotificationManager.IMPORTANCE_DEFAULT))
+    }
+    val target = Intent(Intent.ACTION_VIEW, Uri.parse(route), context, MainActivity::class.java)
+    val open = PendingIntent.getActivity(context, 0, target, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    @Suppress("DEPRECATION")
+    val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(context, channel) else Notification.Builder(context)
+    val message = builder
+        .setSmallIcon(android.R.drawable.ic_dialog_info)
+        .setContentTitle(title)
+        .setContentIntent(open)
+        .setVisibility(Notification.VISIBILITY_SECRET)
+        .setAutoCancel(true)
+        .build()
+    return try {
+        manager.notify(tag, id, message)
+        true
+    } catch (_: SecurityException) {
+        false // Permission was revoked after scheduling.
     }
 }

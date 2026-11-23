@@ -30,7 +30,9 @@ test('with no registered device the app offers guided profiles and keeps approva
     tree = ReactTestRenderer.create(<App />);
   });
   const text = JSON.stringify(tree!.toJSON());
-  expect(text).toContain('지갑 시작하기');
+  expect(text).toContain('내 하드월렛을 연결해 주세요');
+  expect(text).toContain('보드 연결 시작');
+  expect(text).not.toContain('클라우드 지갑');
   expect(text).toContain('결제 연습');
   expect(text).not.toContain('승인하기');
 });

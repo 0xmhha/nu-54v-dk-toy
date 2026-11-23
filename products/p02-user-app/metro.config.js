@@ -14,10 +14,8 @@ const config = {
     resolveRequest(context, moduleName, platform) {
       if (moduleName === 'react' || moduleName.startsWith('react/') ||
           moduleName === 'react-native' || moduleName.startsWith('react-native/')) {
-        const appModule = moduleName.startsWith('react-native/')
-          ? path.join(path.dirname(require.resolve('react-native/package.json', {paths: [__dirname]})), moduleName.slice('react-native/'.length))
-          : require.resolve(moduleName, {paths: [__dirname]});
-        return context.resolveRequest(context, appModule, platform);
+        // Resolve as if the app asked, so package exports (react-native/asset-registry) still apply.
+        return context.resolveRequest({...context, originModulePath: path.join(__dirname, 'index.js')}, moduleName, platform);
       }
       return context.resolveRequest(context, moduleName, platform);
     },

@@ -812,7 +812,7 @@ test('내 결제 discovers the current customer order without a link or a saved 
   });
   expect(mockRequests).toEqual(['order.list', 'invoice.list']);
   expect(JSON.stringify(tree.toJSON())).not.toContain('주문 등록 확인');
-  const open = tree.root.findAll(node => node.props.label === `매장 주문 ${mockSale}` &&
+  const open = tree.root.findAll(node => node.props.testID === `매장 주문 ${mockSale}` &&
     typeof node.props.run === 'function')[0];
   expect(open).toBeDefined();
   await Renderer.act(async () => { open.props.run(); });
@@ -931,14 +931,14 @@ test('W11 reopens the same paid receipt and shows kitchen ready, then collected'
         typeof node.props.onPress === 'function')[0].props.onPress();
     });
     async function tap(label: string) {
-      const node = tree.root.findAll(candidate => candidate.props.label === label &&
+      const node = tree.root.findAll(candidate => (candidate.props.label === label || candidate.props.testID === label) &&
         typeof candidate.props.run === 'function')[0];
       expect(node).toBeDefined();
       await Renderer.act(async () => node.props.run());
     }
     await tap(`매장 주문 ${mockSale}`);
     expect(JSON.stringify(tree.toJSON())).toContain('픽업 준비 완료');
-    expect(JSON.stringify(tree.toJSON())).toContain('매장 픽업대에서 같은 픽업 번호를 보여주세요.');
+    expect(JSON.stringify(tree.toJSON())).toContain('매장 픽업대에서 같은 주문번호를 보여주세요.');
     expect(JSON.stringify(tree.toJSON())).toContain(ref(17));
     mockPickupStage = 'collected';
     await tap('같은 주문의 지급 결과 확인');

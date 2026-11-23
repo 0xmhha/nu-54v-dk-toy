@@ -24,7 +24,12 @@ class ShopQrModule(private val context: ReactApplicationContext) : NativeShopQrS
             val image = data?.extras?.get("data") as? Bitmap
             try {
                 val value = OwnerPsbtQr.readBitmap(requireNotNull(image))
-                promise.resolve(if (value.startsWith("wc:")) value.takeIf { it.length <= 1200 }.orEmpty() else value.take(97))
+                promise.resolve(when {
+                    value.startsWith("wc:") -> value.takeIf { it.length <= 1200 }.orEmpty()
+                    // The operator's answer to a reset request: prefix 15, nonce 64, colon, signature 128.
+                    value.startsWith("NU54-RESET1-OK:") -> value.takeIf { it.length == 208 }.orEmpty()
+                    else -> value.take(97)
+                })
             } catch (_: Exception) {
                 unavailable(promise)
             } finally {

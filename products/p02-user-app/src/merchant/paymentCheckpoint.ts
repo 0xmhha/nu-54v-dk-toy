@@ -1,7 +1,10 @@
 import {
   preparePresentedPayment,
   type PresentationScope,
+  orderLock,
+  quoteV2Layout,
   verifyCommerceApproval,
+  verifyOrderLock,
   hexToBytes,
   type CommerceOrder,
   type CommercePaymentProfile,
@@ -29,6 +32,11 @@ export type PaymentCheckpoint = {
   relayKey?: string;
   quoteKey?: string;
   authoritative?: true;
+  /** Set only for an order paid through OrderEscrow: the phone key the board signature commits to. */
+  confirmer?: string;
+  store?: string;
+  /** The board signed this order, so it counts in today's total even when nothing was sent. */
+  boardSigned?: true;
 };
 
 export function paymentCheckpoint(
@@ -59,6 +67,9 @@ export function paymentCheckpoint(
     (item.boardStarted !== undefined && item.boardStarted !== true) ||
     (item.forwardAttempted !== undefined && (item.forwardAttempted !== true || item.authorization === undefined)) ||
     (item.forwardAccepted !== undefined && (item.forwardAccepted !== true || !item.forwardAttempted)) ||
+    (item.confirmer !== undefined && (!/^0x[0-9a-f]{40}$/.test(item.confirmer) || /^0x0+$/.test(item.confirmer))) ||
+    (item.boardSigned !== undefined && (item.boardSigned !== true || item.confirmer === undefined)) ||
+    (item.store !== undefined && (item.confirmer === undefined || typeof item.store !== 'string' || !item.store.length || item.store.length > 240)) ||
     (item.reviewStop !== undefined && (!stops.includes(item.reviewStop) || item.authorization !== undefined)) ||
     (item.authorization !== undefined &&
       !/^[0-9a-f]{128}(1b|1c)$/.test(item.authorization))
@@ -72,14 +83,22 @@ export function paymentReviewStop(
   now: number,
   waiting = false,
 ): PaymentReviewStop | undefined {
-  if (item.authorization) return undefined;
+  // An order signature that never left this phone cannot pay once its quote ends.
+  if (item.authorization)
+    return item.confirmer && !item.forwardAttempted && item.quote.expiresAt <= now ? 'expired' : undefined;
   if (item.reviewStop) return item.reviewStop;
   if (item.quote.expiresAt <= now) return 'expired';
-  if (item.boardStarted && !waiting) return 'interrupted';
+  // The board keeps the answer to an order, so a lost connection asks the same board again.
+  if (item.boardStarted && !waiting && !item.confirmer) return 'interrupted';
 }
 
+/** An order payment that has ended without its signature ever leaving the phone. */
+export const neverSent = (item: PaymentCheckpoint) => !!item.confirmer && !item.forwardAttempted && !item.forwardAccepted &&
+  (item.reviewStop !== undefined && item.reviewStop !== 'interrupted' || item.quote.expiresAt <= Math.floor(Date.now() / 1000));
+
 export function needsMerchantSponsorship(item: PaymentCheckpoint) {
-  return item.route === 'nearby' || item.order.cafeReview !== undefined;
+  // An order signature can only be used by the escrow; the store's server pays for sending it.
+  return !item.confirmer && (item.route === 'nearby' || item.order.cafeReview !== undefined);
 }
 
 export function matchesReviewedOrder(item: PaymentCheckpoint, live: CommerceOrder) {
@@ -116,4 +135,17 @@ export function approvalForForward(
       now,
     ),
   };
+}
+
+/** The escrow counterpart of approvalForForward: what the store's server needs to lock the order. */
+export function lockForSubmit(
+  entry: PaymentCheckpoint,
+  profile: CommercePaymentProfile,
+  now: number,
+) {
+  const payment = preparePresentedPayment(entry.quote, entry.order, profile, now, entry.scope);
+  if (!entry.authorization || !entry.confirmer) throw new Error('PAYMENT_APPROVAL_PENDING');
+  const signature = verifyOrderLock(payment, entry.confirmer, hexToBytes(entry.authorization), now);
+  const lockDigest = orderLock(payment.bytes.subarray(0, quoteV2Layout.unsignedSize), entry.confirmer).digest;
+  return {payment, confirmer: entry.confirmer, lockDigest, signature};
 }

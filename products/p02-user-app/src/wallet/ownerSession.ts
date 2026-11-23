@@ -2,6 +2,7 @@ import {p256} from '@noble/curves/p256';
 import {sha256} from '@noble/hashes/sha256';
 import {
   bigToBytes, bytesToBig, bytesToHex, concat, equalBytes, encodeV2StreamFrame, encodeApprovalProgressOffer, encodePaymentReview, readPaymentReview, fromBase64, hexToBytes, toBase64, V2Journal, V2Link, V2StreamDecoder,
+  orderBoardRequest, orderLock, quoteV2Layout, recoverSigner, verifyOrderLock, walletReturnDigest,
   verifyCommerceApproval, type VerifiedCommercePayment, type V2Request,
 } from '@nu54/protocol';
 import type {Spec as NativeTLS} from '../specs/NativeOwnerWallet.ts';
@@ -13,7 +14,7 @@ import {verifyChainSigned, type ChainTransfer} from './chainTransfer.ts';
 import type {PhoneReplacementCheckpoint, SigningReservation} from './profile.ts';
 import {validateRecovery, type RecoveryContext, type RecoveryTrust} from './recoveryProof.ts';
 import {readOwnerIdleLock, ownerIdleLockOperation, readOwnerLimits, ownerLimitChange, ownerLimitChangeApplied, ownerLimitInitialize, ownerFinalityReconcile, ownerFinalityReplacement, ownerFinalityEnrollment, ownerSetActivate, ownerSetCaps, ownerSetChange, ownerSetOps, readOwnerLimitSet, type OwnerLimits} from './ownerLimitsWire.ts';
-import {OWNER_GATT, ownerBegin, ownerProof, readOwnerAddress, readStatus, validateChallenge, type Enrollment, type OwnerStatus} from './ownerWire.ts';
+import {accountProofOperation, operatorResetOperation, OWNER_GATT, resetNonceOperation, resetOperation, returnOperation, setReturnOperation, ownerBegin, ownerProof, readAccountProof, readOwnerAddress, readSpendingStatus, readStatus, spendingStatusOperation, validateChallenge, type Enrollment, type OwnerStatus, type SpendingStatus} from './ownerWire.ts';
 
 import {checkLoginSignature,readIssuedLogin} from './dapp/loginWire.ts';
 import type {DappScope} from './dapp/gate.ts';
@@ -30,6 +31,12 @@ export type LostPhoneContext = {challenge:string; device:string; replacement:str
 const time = () => BigInt(Math.floor(Date.now() / 1000));
 
 /** One owner session on the native pinned TLS adapter. The BLE link grants no trust. */
+// The board's idea of the time can run up to 60 seconds ahead, so a request that moves no money lives well past that;
+// the session and the reply timeout still bound it. Money requests end with their quote or transfer deadline.
+const ownerTtl = 90, actionTtl = 150, returnTtl = 295;
+// Another firmware profile refuses these short requests when they live longer than 10 seconds.
+const briefTtl = 8;
+
 export class OwnerSession {
   private link?: V2Link;
   private epoch?: Uint8Array;
@@ -40,6 +47,9 @@ export class OwnerSession {
   private listeners: {remove(): void}[] = [];
   private decode = new V2StreamDecoder();
   private ended = false;
+  /** How far `connect` got. A board without a live operator permit accepts Bluetooth and ends the TLS handshake. */
+  reached: 'none' | 'bluetooth' | 'board' = 'none';
+  private opened = 0;
   private mtu = 20;
   // The board reads the route from the first BLE write of a link: C1 management is 1. The
   // payment route (C2) prefixes 2 the same way in the kiosk transport.
@@ -51,13 +61,17 @@ export class OwnerSession {
   };
   private approvalProgressGeneration?: bigint;
 
-  constructor(private readonly ble: NativeBLE, private readonly native: NativeTLS, private readonly profile: Enrollment) {}
+  constructor(private readonly ble: NativeBLE, private readonly native: NativeTLS, private readonly profile: Enrollment,
+    /** The phone knows this board as a spending wallet; a status reply of one settles it too. */
+    private spending = false) {}
 
   async connect(handle: string): Promise<void> {
     try {
       const mtu = await this.ble.connectOwner(handle, OWNER_GATT.service, OWNER_GATT.input, OWNER_GATT.output);
       if (!Number.isInteger(mtu) || mtu < 23 || mtu > 517) throw new Error('INVALID_MTU');
       this.mtu = Math.min(mtu - 3, 244);
+      this.reached = 'bluetooth';
+      this.opened = Date.now();
       this.listeners = [
         this.ble.onFragment(chunk => this.schedule(async () => this.accept(await this.native.feedTls(chunk)))),
         this.native.onTls(notice => this.schedule(() => this.accept(notice))),
@@ -68,6 +82,7 @@ export class OwnerSession {
       this.schedule(async () => this.accept(await this.native.startTls(this.profile.ca, this.profile.certificateChain, this.profile.boardSPKI)));
       try {
         await ready;
+        this.reached = 'board';
       } finally {
         clearTimeout(timer);
       }
@@ -176,7 +191,7 @@ export class OwnerSession {
     const status = await this.maintenanceStatus();
     const link = this.link;
     if (!link || this.ended || status.state !== 'active') throw new Error('OWNER_MISMATCH');
-    const {reply} = await this.invoke(encodeApprovalProgressOffer(status.generation), 8, 6);
+    const {reply} = await this.invoke(encodeApprovalProgressOffer(status.generation), this.brief(), 6);
     if (this.ended || this.link !== link) throw new Error('OWNER_DISCONNECTED');
     link.acceptApprovalProgressOffer(reply.payload, status.generation);
     this.approvalProgressGeneration = status.generation;
@@ -213,8 +228,139 @@ export class OwnerSession {
     return verifyCommerceApproval(payment,reply.payload,Number(time()));
   }
 
+  /** Limits and state of a spending wallet. A board without that profile ends the session. */
+  async spendingStatus(generation: bigint): Promise<SpendingStatus> {
+    const current=await this.status();
+    const own=await this.identity();
+    if(current.state!=='active'||current.owner!==own.fingerprint||current.generation!==generation)
+      throw new Error('PAYMENT_BOARD_BINDING');
+    const {reply}=await this.invoke(Uint8Array.of(spendingStatusOperation),ownerTtl,8);
+    const board=readSpendingStatus(reply.payload);
+    this.spending=true;
+    return board;
+  }
+
+  /** The account key signs a one-time value, so the app never shows an address the board cannot use. */
+  async spendingAccount(expected: OwnerStatus): Promise<string> {
+    const {account}=await this.spendingStatus(expected.generation);
+    const challenge=concat(fromBase64(await this.native.randomBytes(16)),fromBase64(await this.native.randomBytes(16)));
+    return (await this.proveAccount(account,challenge)).account;
+  }
+
+  /** The account key's signature over a challenge. Needs no button and signs nothing a token or escrow accepts. */
+  async proveAccount(account:string,challenge:Uint8Array) {
+    const {reply}=await this.invoke(concat(Uint8Array.of(accountProofOperation),challenge),ownerTtl,8);
+    const proof=readAccountProof(reply.payload,challenge);
+    if(proof.account!==account) throw new Error('ACCOUNT_PROOF');
+    return proof;
+  }
+
+  /** Seconds the board keeps this session: device_pilot.c ends it 120 seconds after the first byte. */
+  secondsLeft() {return Math.max(0,118-Math.ceil((Date.now()-this.opened)/1000));}
+
+  private brief() {return this.spending?ownerTtl:briefTtl;}
+
+  /** One action that needs SW1 and usually the PIN. */
+  private async spendingAction(payload:Uint8Array,onBoard:()=>void,ttl=actionTtl) {
+    const wait=Math.min(110,this.secondsLeft());
+    if(wait<20) throw new Error('BOARD_SESSION_SHORT');
+    onBoard();
+    const {reply}=await this.invoke(payload,ttl,wait);
+    if(reply.payload.length===1&&reply.payload[0]===0) throw new Error('BOARD_REFUSED');
+    if(reply.payload[0]!==payload[0]) throw new Error('BOARD_REPLY');
+    return reply.payload;
+  }
+
+  private async readyForAction(generation:bigint,account:string) {
+    const board=await this.spendingStatus(generation);
+    if(board.account!==account) throw new Error('ACCOUNT_CHANGED');
+    if(board.pinWait>0) throw new Error('ORDER_PIN_WAIT');
+    return board;
+  }
+
+  /** Stores where returned money goes. The board takes it once per wallet. */
+  async setReturnAddress(generation:bigint,account:string,address:string,onBoard:()=>void) {
+    const board=await this.readyForAction(generation,account);
+    if(board.returnAddress===address) return address;
+    if(board.returnAddress) throw new Error('RETURN_ADDRESS_SET');
+    if(address===account||!/^0x[0-9a-f]{40}$/.test(address)||/^0x0+$/.test(address)) throw new Error('RETURN_ADDRESS');
+    const reply=await this.spendingAction(concat(Uint8Array.of(setReturnOperation),hexToBytes(address)),onBoard);
+    if(reply.length!==21||bytesToHex(reply.subarray(1),true)!==address) throw new Error('BOARD_REPLY');
+    return address;
+  }
+
+  /** The board signs the transfer of `amount` to its stored return address, and to nothing else. */
+  async signReturn(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void) {
+    const board=await this.readyForAction(generation,transfer.payer);
+    if(board.returnAddress!==transfer.to) throw new Error('RETURN_ADDRESS');
+    if(board.orderOpen) throw new Error('BOARD_ORDER_OPEN');
+    const asked=Date.now();
+    const reply=await this.spendingAction(concat(Uint8Array.of(returnOperation),bigToBytes(transfer.amount,8),
+      bigToBytes(BigInt(transfer.validBefore),8),hexToBytes(transfer.nonce)),onBoard,Math.min(returnTtl,Math.max(1,transfer.validBefore-Number(time())))).catch(error=>{
+      // Ended at once: the board did not stage it, most likely because its clock does not fit the deadline.
+      if(error instanceof Error&&error.message==='OWNER_DISCONNECTED'&&Date.now()-asked<3000) throw new Error('RETURN_NOT_TAKEN');
+      throw error;
+    });
+    const digest=walletReturnDigest({token:transfer.token,from:transfer.payer,to:transfer.to,amount:transfer.amount,
+      validBefore:BigInt(transfer.validBefore),nonce:transfer.nonce});
+    if(reply.length!==86||bytesToHex(reply.subarray(1,21),true)!==transfer.to||
+        recoverSigner(digest,reply.subarray(21))!==transfer.payer) throw new Error('RETURN_SIGNATURE');
+    return bytesToHex(reply.subarray(21),false);
+  }
+
+  /** Erases the wallet key, the PIN, the owner and every record on the board. */
+  async resetBoard(generation:bigint,account:string,onBoard:()=>void) {
+    const board=await this.readyForAction(generation,account);
+    if(board.orderOpen) throw new Error('BOARD_ORDER_OPEN');
+    const reply=await this.spendingAction(Uint8Array.of(resetOperation),onBoard);
+    if(reply.length!==1) throw new Error('BOARD_REPLY');
+  }
+
+  /** A one-time value for the operator's reset. It outlives this session, but not a restart of the board. */
+  async operatorResetRequest() {
+    const {generation}=await this.status();
+    const {reply}=await this.invoke(Uint8Array.of(resetNonceOperation),ownerTtl,8);
+    if(reply.payload.length!==33||reply.payload[0]!==resetNonceOperation||!reply.payload.subarray(1).some(Boolean)) throw new Error('BOARD_REPLY');
+    return {device:this.profile.device,generation,nonce:bytesToHex(reply.payload.subarray(1),false)};
+  }
+
+  /** SW1 confirms; the PIN is not asked, because this is for a forgotten one. */
+  async operatorReset(nonce:string,signature:string,onBoard:()=>void) {
+    const reply=await this.spendingAction(concat(Uint8Array.of(operatorResetOperation),hexToBytes(nonce),hexToBytes(signature)),onBoard);
+    if(reply.length!==1) throw new Error('BOARD_REPLY');
+  }
+
+  /** The stored answer to this exact request (device_pilot.c receipt_status); undefined when there is none. */
+  async orderAnswer(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array):Promise<string|undefined> {
+    const lock=orderLock(payment.bytes.subarray(0,quoteV2Layout.unsignedSize),confirmer);
+    const {reply}=await this.invoke(concat(Uint8Array.of(1),request,sha256(lock.preimage)),ownerTtl,8,'status');
+    if(reply.payload.length===1&&reply.payload[0]===0) return undefined;
+    return verifyOrderLock(payment,confirmer,reply.payload,Number(time()));
+  }
+
+  /** Asks the board to sign one order. A lost reply is read back before the user is asked again. */
+  async approveOrder(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array,onBoard:()=>void) {
+    const original=request.slice();
+    const board=await this.spendingStatus(payment.generation);
+    const amount=bytesToBig(payment.bytes.subarray(quoteV2Layout.amountOffset,quoteV2Layout.amountOffset+32));
+    if(payment.payerRole!=='owner'||board.account!==payment.payer) throw new Error('PAYMENT_BOARD_BINDING');
+    const known=await this.orderAnswer(payment,confirmer,original);
+    if(known) return known;
+    if(board.pinWait>0) throw new Error('ORDER_PIN_WAIT');
+    if(amount>board.perPayment) throw new Error('ORDER_OVER_LIMIT');
+    if(amount>board.leftToday) throw new Error('ORDER_OVER_DAILY');
+    const remaining=payment.deadline-Number(time());
+    // The board refuses an order with more than this left.
+    if(remaining<=0||remaining>120) throw new Error('PAYMENT_BOARD_BINDING');
+    onBoard();
+    const {reply}=await this.invoke(orderBoardRequest(confirmer,payment.bytes),remaining,remaining,'pay.prepare',
+      {id:original,expires:BigInt(payment.deadline)});
+    if(reply.payload.length===1&&reply.payload[0]===0) throw new Error('PAYMENT_REFUSED');
+    return verifyOrderLock(payment,confirmer,reply.payload,Number(time()));
+  }
+
   async status(): Promise<OwnerStatus> {
-    const {reply} = await this.invoke(Uint8Array.of(3),60,10);
+    const {reply} = await this.invoke(Uint8Array.of(3),ownerTtl,10);
     return readStatus(reply.payload, this.profile.device);
   }
 
@@ -661,7 +807,7 @@ export class OwnerSession {
         current.owner!==expected.owner||current.generation!==expected.generation||this.ended)
       throw new Error('OWNER_MISMATCH');
     const op=operation==='read'?0x70:operation==='find'?0x71:0x72;
-    const {reply}=await this.invoke(Uint8Array.of(op),8,6);
+    const {reply}=await this.invoke(Uint8Array.of(op),this.brief(),6);
     if(this.ended||reply.payload.length!==2||reply.payload[0]!==op||reply.payload[1]>1)
       throw new Error('DEVICE_TOOL_REPLY');
     return reply.payload[1]===1;
@@ -677,7 +823,7 @@ export class OwnerSession {
 
   async runningFirmware(expected:OwnerStatus):Promise<RunningFirmware|undefined> {
     const before=await this.currentFirmwareOwner(expected);
-    const {reply}=await this.invoke(runningFirmwareRequest(before.generation),8,7);
+    const {reply}=await this.invoke(runningFirmwareRequest(before.generation),this.brief(),7);
     const firmware=readRunningFirmware(reply.payload,before.device,before.generation);
     await this.currentFirmwareOwner(expected);
     return firmware;
@@ -685,7 +831,7 @@ export class OwnerSession {
 
   async firmwareInputPower(expected:OwnerStatus):Promise<FirmwareInputPower> {
     const before=await this.currentFirmwareOwner(expected);
-    const {reply}=await this.invoke(firmwarePowerRequest(before.generation),8,7);
+    const {reply}=await this.invoke(firmwarePowerRequest(before.generation),this.brief(),7);
     const observation=readFirmwareInputPower(reply.payload,before.device,before.generation);
     await this.currentFirmwareOwner(expected);
     return observation;
@@ -728,7 +874,8 @@ export class OwnerSession {
     const own = await this.identity();
     const status = await this.status();
     if (status.state === 'active' && status.owner === own.fingerprint) return status;
-    if (status.state !== 'new' || status.generation !== 0n) throw new Error('OWNER_ALREADY_BOUND');
+    // A reset board keeps counting generations, so an answer of the former owner never fits again.
+    if (status.state !== 'released' && (status.state !== 'new' || status.generation !== 0n)) throw new Error('OWNER_ALREADY_BOUND');
     return this.proveOwner(1,own,status,onConfirm);
   }
 
@@ -740,7 +887,7 @@ export class OwnerSession {
   }
 
   private async proveOwner(operation: 1 | 3, own: OwnershipProof, previous: OwnerStatus, onConfirm: () => void) {
-    const {reply,id,expires} = await this.invoke(ownerBegin(operation,own.fingerprint),60);
+    const {reply,id,expires} = await this.invoke(ownerBegin(operation,own.fingerprint),actionTtl,60);
     validateChallenge(reply.payload, {operation, device:this.profile.device, owner:own.fingerprint,
       generation:previous.generation, id, expires, now:time()});
     const signed = fromBase64(await this.native.signChallenge(toBase64(reply.payload)));

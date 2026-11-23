@@ -11,9 +11,10 @@ export function AmountLine({amount, label = '금액'}: {amount: string; label?: 
   </Text>;
 }
 
-export function PickupTicket({number}: {number: string | number}) {
-  return <View style={styles.ticket} accessible accessibilityLabel={`픽업 번호 ${number}`}>
-    <Text style={styles.ticketLabel}>픽업 번호</Text>
+export function PickupTicket({number, store}: {number: string | number; store?: string}) {
+  return <View style={styles.ticket} accessible accessibilityLabel={`${store ? store + ' ' : ''}주문번호 ${number}`}>
+    {!!store && <Text style={styles.ticketStore}>{store}</Text>}
+    <Text style={styles.ticketLabel}>주문번호</Text>
     <Text style={styles.ticketNumber}>{number}</Text>
   </View>;
 }
@@ -23,6 +24,7 @@ const styles = StyleSheet.create({
   amountLabel: {fontFamily: font, fontSize: 15, color: color.mute},
   amount: {fontFamily: font, fontSize: 34, fontWeight: '800', letterSpacing: -1.2, color: color.ink},
   ticket: {backgroundColor: color.mint, borderRadius: radius.l, paddingHorizontal: 20, paddingVertical: 16, gap: 2},
+  ticketStore: {fontFamily: font, fontSize: 18, fontWeight: '800', color: color.deep, marginBottom: 4},
   ticketLabel: {fontFamily: font, fontSize: 15, fontWeight: '700', color: color.deep},
   ticketNumber: {fontFamily: font, fontSize: 56, fontWeight: '800', letterSpacing: -2, color: color.deep},
 });

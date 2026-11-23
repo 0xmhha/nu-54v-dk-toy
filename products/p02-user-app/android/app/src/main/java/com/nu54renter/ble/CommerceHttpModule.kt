@@ -25,7 +25,9 @@ class CommerceHttpModule(context: ReactApplicationContext) : NativeCommerceHttpS
             catch (error:Exception) {
                 val disconnected = catalogRead &&
                     (error is ConnectException || error is NoRouteToHostException || error is UnknownHostException)
-                promise.reject(if (disconnected) "COMMERCE_NETWORK_OFFLINE" else "COMMERCE_UNAVAILABLE",
+                // A failed check means nothing was sent, or the server answered outside the protocol (a plain 404).
+                val refused = error is IllegalArgumentException
+                promise.reject(if (disconnected) "COMMERCE_NETWORK_OFFLINE" else if (refused) "COMMERCE_REFUSED" else "COMMERCE_UNAVAILABLE",
                     "The enrolled commerce connection is unavailable")
             }
         }

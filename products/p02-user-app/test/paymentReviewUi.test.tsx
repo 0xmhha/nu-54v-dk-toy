@@ -275,7 +275,7 @@ async function open(bookingPayment?: TravelBookingPayment, originalSale = sale, 
 }
 async function press(label: string) {
   const button = tree?.root.findAll(node =>
-    (node.props.label === label && typeof node.props.run === 'function') ||
+    ((node.props.label === label || node.props.testID === label) && typeof node.props.run === 'function') ||
     (node.props.title === label && typeof node.props.onPress === 'function'))[0];
   expect(button).toBeDefined();
   expect(button?.props.disabled).toBeFalsy();
@@ -426,7 +426,7 @@ test.each(['active','removed','unconfigured','replaced-after-board','expired','r
       payment: {stage: 'received', chainId: 8283}};
     await press('지급 요청 제출');
     expect(screen()).toContain(`${sale} 지급 결과 확인 중`);
-    expect(screen()).not.toContain('픽업 번호');
+    expect(screen()).not.toContain('주문번호');
     expect(mockCalls).toContain('order.status');
     expect(mockNearbyRequests.filter(request => request.op === 'forward')).toEqual([]);
     expect(mockApprove).toHaveBeenCalledTimes(1);
@@ -641,7 +641,7 @@ test('W11 submits once, recovers the original hash after a lost reply and reopen
   await press('같은 주문의 지급 결과 확인');
   expect(screen()).toContain(relayTxHash);
   expect(screen()).not.toContain('영수증 번호');
-  expect(screen()).not.toContain('픽업 번호');
+  expect(screen()).not.toContain('주문번호');
   expect(mockForwardRequests).toHaveLength(1);
   const receiptRef = '0fbc54ef-2827-4ab5-bfcd-3a27611c39ec';
   const finalizedAt = new Date((now + 1) * 1000);
@@ -651,7 +651,7 @@ test('W11 submits once, recovers the original hash after a lost reply and reopen
       includedAt: new Date(now * 1000).toISOString(), finalizedAt: finalizedAt.toISOString()}};
   await press('같은 주문의 지급 결과 확인');
   expect(screen()).toContain(receiptRef);
-  expect(screen()).toContain('픽업 번호');
+  expect(screen()).toContain('주문번호');
   expect(screen()).not.toContain('픽업 가능 시각');
   mockOrder = {...mockOrder, payment: {...mockOrder.payment!, pickupStage: 'ready', pickupReadyAt: pickupReadyAt.toISOString()}};
   await Renderer.act(async () => {tree?.unmount();});
@@ -671,7 +671,7 @@ test('W11 submits once, recovers the original hash after a lost reply and reopen
   expect(screen()).toContain('픽업 준비 완료 시각');
   expect(screen()).toContain(pickupReadyAt.toLocaleString());
   expect(screen()).not.toContain('픽업 가능 시각');
-  expect(screen()).not.toContain('매장 픽업대에서 같은 픽업 번호를 보여주세요.');
+  expect(screen()).not.toContain('매장 픽업대에서 같은 주문번호를 보여주세요.');
   expect(mockForwardRequests).toHaveLength(1);
 });
 
@@ -754,7 +754,7 @@ test.each([true, false])('W11 pending reopens the original without another appro
   expect(screen()).not.toContain('같은 지급 요청 다시 제출');
   expect(screen()).not.toContain('지급 요청 제출');
   expect(screen()).not.toContain('검증한 보드 찾기');
-  expect(screen()).not.toContain('픽업 번호');
+  expect(screen()).not.toContain('주문번호');
   expect(screen()).not.toContain('최종 미지급');
   await press('내 결제');
   expect(paymentList).toHaveBeenCalledTimes(1);
@@ -778,7 +778,7 @@ test.each([true, false])('W11 pending reopens the original without another appro
     payment: {stage: 'finalized', chainId: 8283, relayTxHash, txHash: relayTxHash,
       includedAt: new Date(now * 1000).toISOString()}};
   await press('같은 주문의 지급 결과 확인');
-  expect(screen()).not.toContain('픽업 번호');
+  expect(screen()).not.toContain('주문번호');
   expect(screen()).not.toContain('확정 거래');
   expect([...mockJournals.values()].some(raw => raw.includes(authorization))).toBe(true);
   mockOrder = {...mockOrder, amount: originalAmount, revision: 3, state: 'paid', pickupNo: 4, receiptRef: branch,
@@ -787,7 +787,7 @@ test.each([true, false])('W11 pending reopens the original without another appro
   await press('같은 주문의 지급 결과 확인');
   expect(screen()).toContain('확정 거래 ');
   expect(screen()).toContain(relayTxHash);
-  expect(screen()).toContain('픽업 번호');
+  expect(screen()).toContain('주문번호');
   expect(screen()).not.toContain('중복 제출은 차단됩니다.');
   expect(mockForwardRequests).toHaveLength(0);
   expect(mockNearbyRequests).toHaveLength(0);
@@ -817,7 +817,7 @@ test('W11 nearby unpaid needs its original owner evidence and survives a fresh p
   await press('같은 주문의 지급 결과 확인');
   expect(screen()).toContain(`${sale} 미지급 확인`);
   expect(screen()).toContain('지급 0건');
-  expect(screen()).not.toContain('픽업 번호');
+  expect(screen()).not.toContain('주문번호');
   await press('내 결제');
   expect(paymentList).toHaveBeenCalledTimes(1);
   await Renderer.act(async () => {tree?.unmount();});
@@ -928,20 +928,20 @@ test('W09 opens the same paid travel pickup from history before and after mercha
   await press(`매장 주문 ${sale}`);
   expect(screen()).toContain('지급 확정 · 매장 접수 대기');
   expect(screen()).toContain(receipt);
-  expect(screen()).not.toContain('픽업 번호');
+  expect(screen()).not.toContain('주문번호');
   expect(screen()).not.toContain('지급 요청 제출');
 
   await Renderer.act(async () => {tree?.unmount();});
   await open();
   await press(`매장 주문 ${sale}`);
   expect(screen()).toContain('지급 확정 · 매장 접수 대기');
-  expect(screen()).not.toContain('픽업 번호');
+  expect(screen()).not.toContain('주문번호');
 
   mockOrder = {...mockOrder, receiptKind: undefined, pickupNo: 12};
   await press('같은 주문의 지급 결과 확인');
   expect(screen()).toContain(receipt);
   // The pickup number is shown as a ticket whose accessible name carries the number.
-  expect(screen()).toContain('"accessibilityLabel":"픽업 번호 12"');
+  expect(screen()).toContain('"accessibilityLabel":"주문번호 12"');
   expect(screen()).not.toContain('매장 접수 대기');
   expect(mockApprove).not.toHaveBeenCalled();
   expect(mockForwardRequests).toHaveLength(0);

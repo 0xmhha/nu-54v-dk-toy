@@ -24,7 +24,7 @@ test('reads the same pickup origin through acceptance and separate refund finali
   });
   const contents = () => JSON.stringify(tree.toJSON());
   expect(contents()).toContain('지급 확정 · 매장 접수 대기');
-  expect(contents()).not.toContain('픽업 번호');
+  expect(contents()).not.toContain('주문번호');
   const refresh = () => Renderer.act(async () => {
     tree.root.findAll(node => typeof node.props.onPress === 'function' &&
       node.props.accessibilityLabel === '이 주문의 픽업과 환불 상태 다시 조회')[0].props.onPress();

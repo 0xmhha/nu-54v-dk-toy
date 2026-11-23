@@ -1,4 +1,4 @@
-import {bigToBytes, bytesToBig, bytesToHex, concat, equalBytes, hexToBytes} from '@nu54/protocol';
+import {accountProofDigest, bigToBytes, bytesToBig, bytesToHex, concat, equalBytes, hexToBytes, recoverSigner} from '@nu54/protocol';
 
 export const OWNER_GATT = {
   service: '41ba05a0-e0dd-4fd7-901c-4c25d5010000',
@@ -7,7 +7,8 @@ export const OWNER_GATT = {
 } as const;
 
 export type OwnerStatus = {
-  state: 'new' | 'active' | 'pending' | 'revoked';
+  /** `released`: a factory reset removed the owner; the board takes a new registration. */
+  state: 'new' | 'active' | 'pending' | 'revoked' | 'released';
   generation: bigint;
   device: string;
   owner: string;
@@ -55,7 +56,7 @@ export function importEnrollment(raw: string, independentDevice: string, indepen
 }
 
 export function readStatus(payload: Uint8Array, device: string): OwnerStatus {
-  const states = ['new', 'active', 'pending', 'revoked'] as const;
+  const states = ['new', 'active', 'pending', 'revoked', 'released'] as const;
   if (payload.length !== 77 || payload[0] !== 3 || !states[payload[1]] || payload[4] > 3 ||
       bytesToHex(payload.subarray(13,45), false) !== device) throw new Error('OWNER_BINDING');
   return {
@@ -93,4 +94,35 @@ export function ownerProof(challenge: Uint8Array, key: Uint8Array, signature: Ui
 export function readOwnerAddress(payload: Uint8Array, device: string) {
   if (payload.length !== 97 || !payload.subarray(77).some(Boolean)) throw new Error('OWNER_ADDRESS_BINDING');
   return {status:readStatus(payload.subarray(0,77),device),address:bytesToHex(payload.subarray(77),true)};
+}
+
+/** Spending wallet status (board op 0x7f): what the board will sign for, without asking for a button. */
+export type SpendingStatus = {
+  account: string; returnAddress?: string; perPayment: bigint; daily: bigint; pinWait: number; orderOpen: boolean;
+  /** Left of today's total; 0 also while the board has no trusted time. */
+  leftToday: bigint;
+};
+export const spendingStatusOperation = 0x7f;
+export const accountProofOperation = 0x79;
+export const setReturnOperation = 0x7a, returnOperation = 0x7b, resetOperation = 0x7c, resetNonceOperation = 0x7d, operatorResetOperation = 0x7e;
+
+export function readSpendingStatus(payload: Uint8Array): SpendingStatus {
+  if (payload.length !== 71 || payload[0] !== spendingStatusOperation || payload[1] > 1 || payload[62] > 1 ||
+      !payload.subarray(2, 22).some(Boolean) || payload.subarray(22, 42).some(Boolean) !== (payload[1] === 1))
+    throw new Error('SPENDING_STATUS');
+  return {
+    account: bytesToHex(payload.subarray(2, 22), true),
+    ...(payload[1] ? {returnAddress: bytesToHex(payload.subarray(22, 42), true)} : {}),
+    perPayment: bytesToBig(payload.subarray(42, 50)), daily: bytesToBig(payload.subarray(50, 58)),
+    pinWait: Number(bytesToBig(payload.subarray(58, 62))), orderOpen: payload[62] === 1,
+    leftToday: bytesToBig(payload.subarray(63, 71)),
+  };
+}
+
+/** The board account signed this session's one-time value. The pinned TLS peer vouches for the board. */
+export function readAccountProof(payload: Uint8Array, challenge: Uint8Array): {account: string; signature: string} {
+  if (payload.length !== 150 || payload[0] !== accountProofOperation) throw new Error('ACCOUNT_PROOF');
+  const account = bytesToHex(payload.subarray(1, 21), true);
+  if (recoverSigner(accountProofDigest(account, challenge), payload.subarray(21, 86)) !== account) throw new Error('ACCOUNT_PROOF');
+  return {account, signature: bytesToHex(payload.subarray(21, 86), false)};
 }

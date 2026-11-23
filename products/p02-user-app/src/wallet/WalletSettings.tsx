@@ -8,7 +8,8 @@ import {KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
 import {color, font} from '../ui/theme.ts';
 import {stableTestUsdc} from './walletEducationRate.ts';
 
-export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvidence, assetNetworks, language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll}: {
+export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvidence, assetNetworks, language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll, boardPage}: {
+  boardPage?:()=>void;
   /** Inside the app tabs the 설정 tab replaces the back-to-wallet button. */
   tabbed?:boolean;
   /** Entries that live in the 설정 tab once the app has tabs: backup, phone replacement, network registry and developer evidence. */
@@ -133,6 +134,7 @@ export function WalletSettings({tabbed=false, backup, replacePhone, firmwareEvid
   // First page of the 설정 tab: grouped entries per the P02 IA (내 보드, 보안과 복구, 네트워크와 개인정보, 앱).
   if(section==='home')return <View style={styles.home}>
     <Section title={ko?'내 보드':'My board'} aside={boardStatus === 'active' ? (ko?'상태 확인됨':'Status verified')+(boardSuffix?' · '+boardSuffix:'') : (ko?'상태 미확인':'Status not checked')}>
+      {boardPage && button(ko?'보드 상태와 LED 신호':'Board state and LED signals',boardPage)}
       {button(ko?'기기·업데이트':'Device and updates',device)}
       {readPolicy && button(ko?'한도와 잠금':'Limits and auto-lock',readPolicy)}
       {checkIdleLock && button(ko?'기기 잠금 규칙 확인':'Verify device auto-lock',checkIdleLock)}
