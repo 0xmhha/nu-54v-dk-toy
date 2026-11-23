@@ -57,3 +57,19 @@ An ARM acceptance build on macOS can put the outer sysbuild cache in its private
 Run the lifecycle regression with `POSTGRES_BIN=/absolute/path/to/postgresql/bin python3 -B scripts/test_integration_workspace.py`. The real PostgreSQL cases require local Unix socket and process inspection access. The stub cases cover startup cancellation, timeout, escalation and safe retention after both stop methods fail.
 
 The terminal disconnect acceptance test sends SIGHUP after the owned cache has been created. It checks that the runner exits with the signal's shell status, that its subprocesses have stopped, and that the cache has disappeared. The same check covers disconnects during creation and a second signal during cleanup. A concurrently running invocation keeps its own workspace. An invocation deliberately launched with SIGHUP ignored keeps that policy. An ignored signal does not occupy the deferred-interruption slot. A normal exit restores the caller's handler. PostgreSQL's shutdown check still applies before removing a data directory.
+
+## Order scenario across the products
+
+`python3 scripts/test_order_flow.py` runs the spending-wallet order scenario from enrollment to the board reset on one machine, without a board, a phone or a real chain. It takes about five minutes and prints one `PASS` or `FAIL` line for each of sixteen flows, then one result line. The exit status is zero only when every flow passed. Output of a failed run goes to standard error. Add `--verbose` to see it as it comes, or `--only PATTERN` to run the flows whose names match, for example `--only 'enroll|deposit|duplicate'`. Flows share one phone, board, kiosk and store and run in order, so keep `enroll` and `deposit` in the pattern.
+
+The run needs Go, Node with the workspace dependencies, Foundry with the pinned compiler, CMake, OpenSSL 3, the Python `cryptography` package and PostgreSQL 15 (`--postgres-bin`, a Homebrew keg, or `PATH`). It owns a private PostgreSQL cluster, an Anvil chain 8283, the indexer, the server and the apps. All of them and the workspace under `/tmp/nu54-flow-*` are gone after success, failure, TERM, HUP or INT. Go's own build cache is the only shared directory.
+
+| Part | Runs as |
+|---|---|
+| Contracts | `TestUSDC3009` and `OrderEscrow` from P06 on Anvil |
+| Server and indexer | P05 handlers over mutual TLS, worker, dispatcher and receiver; the P07 `indexer` process. [order_flow_anvil_test.go](../products/p05-operations-backoffice/test/order-flow/testdata/order_flow_anvil_test.go) is compiled into the settlement package with `go test -overlay` and reuses the fixtures of `order_escrow_anvil_test.go` |
+| Board | Firmware core plus the request, button, return and reset functions taken out of `device_pilot.c` by `extract_c.py`, in [board_host.c](../products/p05-operations-backoffice/test/order-flow/board/board_host.c) |
+| Phone | The P02 screens `CustomerOrders` and `BoardLife`, `OwnerSession`, `CustomerNearby` and their records, under the P02 Jest setup |
+| Kiosk | P04 `NearbyRelay` and `MerchantInbox`, `CommerceClient` over HTTPS, and `NearbyCommerceLink` on both ends |
+
+Stood in for: the phone's native modules (storage, Bluetooth, key store, TLS to the board), the board's flash, PIN entry, buttons and lamp, the operator's grant, and the genesis hash the app pins. Retry delays of the server are shortened and the runner mines one block per second.

@@ -8,7 +8,7 @@
 | 어떤 모양과 관계로 저장하는가 | [물리 ERD와 필드 사전](erd.md) · [보드·앱 로컬 및 MPC](wallet.md) · [가맹점·체인 사전](ledger.md) · [시장·여행](experience.md) · [플랫폼](platform.md) | 키·금액 단위·제약·NULL·버전·원장과 투영·외부 참조의 경계 |
 | 누가 어떻게 상태를 바꾸는가 | 아래 기능별 처리표와 도메인 문서의 명령·예외·시퀀스 | 읽기/쓰기 권한, 원자 커밋, 비동기 경계, 재개 시 조회할 원본과 멱등 효과 |
 | 어떤 코드를 같이 쓰는가 | [원자 기능 → 도메인 모듈 → 배포 패키지](packages.md) | 스키마/ABI/벡터의 단일 출처, 언어별 import, 트랜잭션·장치 어댑터, 버전 호환 |
-| 무엇을 입증해야 하는가 | [무선·키·코드 경계](security.md) · [화면 없는 결제용 하드월렛](spending-wallet.md) · [행위자별 유즈케이스](spending-wallet-use-cases.md) · [개인정보 통제와 운영 증거](privacy.md) · [다른 모델의 감사 결과](audit.md) | 이번 설계에서 확인한 제약과 실제 제품에서 입증할 조건 |
+| 무엇을 입증해야 하는가 | [무선·키·코드 경계](security.md) · [화면 없는 결제용 하드월렛](spending-wallet.md) · [행위자별 유즈케이스](spending-wallet-use-cases.md) · [지출 지갑 공통 규격](spending-wallet-wire.md) · [개인정보 통제와 운영 증거](privacy.md) · [다른 모델의 감사 결과](audit.md) | 이번 설계에서 확인한 제약과 실제 제품에서 입증할 조건 |
 
 ## 값의 식별과 이동
 
