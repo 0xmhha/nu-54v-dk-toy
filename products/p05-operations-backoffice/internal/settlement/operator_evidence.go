@@ -12,7 +12,7 @@ import (
 
 func (h FinanceHTTP) operatorPaymentEvidence(ctx context.Context, actor service.Principal, branch, sale string, target Target, openPublic bool) (map[string]any, error) {
 	out := map[string]any{"status": "pending", "chain": 8283, "contract": lower(target.Contract),
-		"asset": lower(target.Asset), "manifest": target.Manifest, "abi": ABIHash, "runtimeCodeHash": target.CodeHash.Hex()}
+		"asset": lower(target.Asset), "manifest": target.Manifest, "abi": target.ABIHash(), "runtimeCodeHash": target.CodeHash.Hex()}
 	var state string
 	var cipher, digest, signer []byte
 	var relayState, relayHash, finalHash, finalBlock *string
@@ -60,7 +60,20 @@ func (h FinanceHTTP) operatorPaymentEvidence(ctx context.Context, actor service.
 			out["status"] = "reverted-attempt"
 		}
 	}
+	if target.Escrow() {
+		var item []byte
+		if err := h.Store.db.QueryRow(ctx, "SELECT ledger.finance_escrow_item($1,$2,$3,$4)", actor.Tenant, branch, actor.Subject, sale).Scan(&item); err != nil {
+			return nil, err
+		}
+		if item != nil {
+			out["escrow"] = json.RawMessage(item)
+		}
+	}
 	if h.Evidence == nil || finalHash == nil || finalBlock == nil || finalLog == nil {
+		return out, nil
+	}
+	if target.Escrow() {
+		h.escrowEvidence(ctx, target, quote, *finalHash, *finalBlock, *finalLog, out)
 		return out, nil
 	}
 	merchant := common.Hash(quote.Args.MerchantId).Hex()
@@ -74,7 +87,7 @@ func (h FinanceHTTP) operatorPaymentEvidence(ctx context.Context, actor service.
 			WHERE kind='paid' AND tx_hash=$4 AND log_index=$5
 			  AND quote_digest=$6 AND chain_ref='8283' AND contract_ref=$7 AND abi_hash=$8 AND policy_ref=$9 AND asset_ref=$10`,
 			target.Stream, merchant, common.Hash(quote.Args.OrderId).Hex(), *finalHash, *finalLog, common.Hash(quote.Digest).Hex(),
-			lower(target.Contract), ABIHash, target.Manifest, lower(target.Asset)).
+			lower(target.Contract), target.ABIHash(), target.Manifest, lower(target.Asset)).
 			Scan(&txHash, &blockHash, &logIndex, &anchor, &amount, &recipient, &included, &attested)
 		if err != nil {
 			return err

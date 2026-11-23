@@ -10,7 +10,7 @@
 | `P05_COMMERCE_DATABASE_URL` | 별도 런타임 연결. `nu54_p05_commerce`가 허용한 함수만 실행하고 원장 테이블을 직접 읽거나 쓰면 시작이 거절된다. |
 | `P05_COMMERCE_CA`, `P05_COMMERCE_CERT`, `P05_COMMERCE_KEY` | 클라이언트 CA와 서버 TLS 자격 파일. |
 | `P05_COMMERCE_GRANTS` | 인증서 DER SHA-256을 `tenantRef`·`subjectRef`·`role`·`expiresAt`의 선택된 인증 주체로 매핑한다. 각 요청의 지점·객체·명령 grant는 PostgreSQL에서 재확인한다. |
-| `P05_COMMERCE_PROFILES` | 지점 ID별 `chainId`, `contract`, `asset`, `beneficiary`, `signer`, `merchantId`, `keyVersion`, `beneficiaryVersion`의 운영 등록이다. `ledger.issuance_profile.authorized_digest`는 동일 검증 등록의 Go `Profile.Digest()`를 기록한다. |
+| `P05_COMMERCE_PROFILES` | 지점 ID별 `chainId`, `contract`, `asset`, `beneficiary`, `signer`, `merchantId`, `keyVersion`, `beneficiaryVersion`의 운영 등록이다. `ledger.issuance_profile.authorized_digest`는 동일 검증 등록의 Go `Profile.Digest()`를 기록한다. An optional `abiSha256` selects OrderEscrow for the branch ([order escrow branches](settlement-v2.md#order-escrow-branches)). |
 | `P05_QUOTE_COMMITMENT_KEY_FILE`, `P05_QUOTE_STORAGE_KEY_FILE` | 두 개의 독립 32바이트 암호 키 파일. 각각 quote commitment와 저장 암호문에 사용한다. |
 | `P05_QUOTE_SIGNER`, `P05_QUOTE_SIGNER_SHA256` | 승인된 독립 실행기의 절대 경로와 SHA-256. 읽어서 해시를 검증한 실행 바이트를 별도 실행 가능한 임시 경로에서 실행한다. stdin의 32바이트 digest hex에 대해 65바이트 canonical r/s/v hex를 반환한다. 역할 키와 방송 권한은 분리한다. |
 
@@ -59,3 +59,7 @@ P05_COMMERCE_TEST_DATABASE_URL="$SCRATCH_DSN" make -C products/p05-operations-ba
 ```
 
 실제 PostgreSQL 역할 및 mTLS loopback에서 마지막 재고 한 단위 경합, 같은 POS 주문, 반대 지급자·타 지점·일반 주문 번호 거절, 서명 대기 중 NOWAIT 잠금, 장애 뒤 동일 nonce/fence, 암호문·outbox 단일 커밋, 단말·폰 견적 동일성 및 미발급 재고 복구를 부하와 장애의 작은 합성 시험으로 재현한다.
+
+## Order escrow operations
+
+`order.lock` (terminal or customer) and `order.answer` (customer) carry a 65-byte signature in `approvalSignature`. `order.status` adds `escrow` for an escrow order. Pickup queue and detail rows carry `items`, and for an escrow order the confirmed `escrow.stage`. Errors of `order.answer`: wrong key or another delivery time `MISMATCHED_EVIDENCE`, a different answer in progress `REPLAY_CONFLICT`, an order that is not waiting for this answer `CHECKOUT_CONFLICT`, a late dispute `EXPIRED`. `payer.enroll`, `payer.status`, `wallet.return` and `wallet.return-status` name the customer itself as the object and work only on escrow branches. Wrong proof or another account `MISMATCHED_EVIDENCE`, an open order `CHECKOUT_CONFLICT`, another return in progress `REPLAY_CONFLICT`, three returns in a day `BUSY`, no gas commitment `UNSUPPORTED_CAPABILITY`. Details: [order escrow branches](settlement-v2.md#order-escrow-branches).

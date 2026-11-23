@@ -25,6 +25,7 @@ import (
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/settlement"
 )
 
 type processSigner struct {
@@ -143,6 +144,7 @@ type enrolledProfile struct {
 	Merchant           string `json:"merchantId"`
 	KeyVersion         uint64 `json:"keyVersion"`
 	BeneficiaryVersion uint64 `json:"beneficiaryVersion"`
+	ABI                string `json:"abiSha256,omitempty"` // empty: SettlementV2
 }
 
 func configJSON(key string, value any) error {
@@ -206,12 +208,14 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 		}
 		merchant, err := hex.DecodeString(p.Merchant)
 		if err != nil || len(merchant) != 32 || bytes.Equal(merchant, make([]byte, 32)) ||
-			p.Chain != 8283 || p.KeyVersion == 0 || p.BeneficiaryVersion == 0 {
+			p.Chain != 8283 || p.KeyVersion == 0 || p.BeneficiaryVersion == 0 ||
+			(p.ABI != "" && p.ABI != settlement.ABIHash && p.ABI != settlement.EscrowABIHash) {
 			return errors.New("invalid enrolled merchant profile")
 		}
 		profiles[branch] = commerce.Profile{Chain: p.Chain, Contract: common.HexToAddress(p.Contract), Asset: common.HexToAddress(p.Asset),
 			Beneficiary: common.HexToAddress(p.Beneficiary), Signer: common.HexToAddress(p.Signer), MerchantID: [32]byte(merchant),
-			KeyVersion: p.KeyVersion, BeneficiaryVersion: p.BeneficiaryVersion, CommitmentKey: commitment}
+			KeyVersion: p.KeyVersion, BeneficiaryVersion: p.BeneficiaryVersion, CommitmentKey: commitment,
+			Escrow: p.ABI == settlement.EscrowABIHash}
 	}
 	if len(profiles) == 0 {
 		return errors.New("no merchant issuance profile configured")
@@ -275,7 +279,7 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 		go func() { defer close(finished); tickWorker(poll, gate, worker.Step) }()
 		defer func() { stop(); <-finished; worker.Close() }()
 	}
-	forwarder, closeFinance, err := installSettlement(ctx, poll, database, cipher, profiles, mux, gate)
+	forwarder, closeFinance, err := installSettlement(ctx, poll, database, cipher, profiles, signer, mux, gate)
 	if err != nil {
 		return err
 	}

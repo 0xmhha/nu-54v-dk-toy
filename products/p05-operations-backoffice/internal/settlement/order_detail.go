@@ -58,7 +58,7 @@ func (h FinanceHTTP) financeOrder(ctx context.Context, actor service.Principal, 
 	err := h.Evidence.db.QueryRow(ctx, `SELECT * FROM chainview.finance_order_observation(
 		$1,$2,$3,$4,$5,$6,$7,$8,$9,$10::text::numeric,$11,$12)`,
 		target.Stream, merchant, scope.OrderKey, scope.QuoteDigest, tx,
-		lower(target.Contract), ABIHash, target.Manifest, lower(target.Asset), amount, scope.Block, scope.Log).
+		lower(target.Contract), target.ABIHash(), target.Manifest, lower(target.Asset), amount, scope.Block, scope.Log).
 		Scan(&observed, &confirmed)
 	if err != nil || observed == nil {
 		// The saved order remains available when the independent evidence reader is unavailable or held.

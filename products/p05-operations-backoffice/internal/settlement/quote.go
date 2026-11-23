@@ -19,6 +19,9 @@ import (
 
 const ABIHash = "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814"
 
+// EscrowABIHash is the OrderEscrow entry of packages/contracts-abi/abi/manifest.json.
+const EscrowABIHash = "e326762a55880c673cec09249bab8a76725183e812f3b3709dec2b92bd936c29"
+
 type Target struct {
 	Stream        string         `json:"streamId"`
 	Manifest      string         `json:"manifestSha256"`
@@ -27,13 +30,36 @@ type Target struct {
 	Asset         common.Address `json:"asset"`
 	RefundSigner  common.Address `json:"refundSigner"`
 	RefundVersion uint64         `json:"refundKeyVersion"`
+	// ABI selects the payment contract of the branch. Empty means SettlementV2.
+	ABI string `json:"abiSha256,omitempty"`
 }
+
+// ABIHash returns the ABI this target is enrolled with.
+func (t Target) ABIHash() string {
+	if t.ABI == "" {
+		return ABIHash
+	}
+	return t.ABI
+}
+
+// profileVersion is the P07 decoder generation that reads this contract.
+func (t Target) profileVersion() uint8 {
+	if t.Escrow() {
+		return 3
+	}
+	return 2
+}
+
+// Escrow reports whether the branch holds each order's money in OrderEscrow.
+func (t Target) Escrow() bool { return t.ABI == EscrowABIHash }
 
 type Quote struct {
 	Args         v2.PaymentTypesV2MerchantQuote
 	Digest       [32]byte
 	MerchantSig  []byte
 	ApprovalHash common.Hash
+	Unsigned     []byte
+	Signer       common.Address
 }
 
 func unpackQuote(signed, issuedDigest, signer []byte, target Target) (Quote, error) {
@@ -54,7 +80,7 @@ func unpackQuote(signed, issuedDigest, signer []byte, target Target) (Quote, err
 	q := *abi.ConvertType(fields[0], new(v2.PaymentTypesV2MerchantQuote)).(*v2.PaymentTypesV2MerchantQuote)
 	// Verify archive authenticity at its original issue timestamp. New submissions
 	// also enforce the live expiry with the owner lease inside PostgreSQL.
-	if q.Asset != target.Asset || q.Mode != 1 || q.ExpiresAt > math.MaxInt64 || quotev2.Verify(signed, quotev2.Policy{
+	if q.Asset != target.Asset || q.Mode != 1 || (target.Escrow() && q.PayerRole != 1) || q.ExpiresAt > math.MaxInt64 || quotev2.Verify(signed, quotev2.Policy{
 		Expected: unsigned, MerchantSigner: signer, Now: q.IssuedAt,
 	}) != 0 {
 		return Quote{}, errors.New("archived quote binding or signature differs")
@@ -62,7 +88,8 @@ func unpackQuote(signed, issuedDigest, signer []byte, target Target) (Quote, err
 	separator := domainHash(unsigned[:64])
 	approval := crypto.Keccak256Hash([]byte{0x19, 0x01}, separator[:],
 		crypto.Keccak256(crypto.Keccak256([]byte("PaymentApproval(bytes32 quoteDigest)")), digest[:]))
-	return Quote{Args: q, Digest: digest, MerchantSig: bytes.Clone(signed[672:]), ApprovalHash: approval}, nil
+	return Quote{Args: q, Digest: digest, MerchantSig: bytes.Clone(signed[672:]), ApprovalHash: approval,
+		Unsigned: bytes.Clone(unsigned), Signer: common.BytesToAddress(signer)}, nil
 }
 
 func domainHash(fields []byte) common.Hash {

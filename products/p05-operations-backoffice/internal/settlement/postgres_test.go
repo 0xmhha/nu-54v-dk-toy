@@ -340,6 +340,7 @@ type liveTestEvidence struct{}
 func (liveTestEvidence) reconciliation(context.Context, *Store, work, Target, Quote) (bool, error) {
 	return false, nil
 }
+func (liveTestEvidence) requestAbsence(context.Context, Target, Quote) error { return nil }
 func (liveTestEvidence) lock(_ context.Context, _ Target, _ Quote, f func(pgx.Tx) error) error {
 	return f(nil)
 }

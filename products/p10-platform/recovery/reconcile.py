@@ -52,7 +52,8 @@ SELECT
     WHERE (i.effect_key,i.payload_digest) IS DISTINCT FROM (a.effect_key,a.payload_digest)) AS inbox_receipt_differences,
   (SELECT count(*) FROM ledger.fulfillment_outbox WHERE state IN ('sending','unknown')) AS unresolved_deliveries,
   (SELECT count(*) FROM ledger.relay_attempt WHERE state IN ('signed','unknown','broadcast','observed')) AS unresolved_relays,
-  {entitlement_check} AS entitlement_differences
+  {entitlement_check} AS entitlement_differences,
+  {escrow_check} AS escrow_differences
 """
 
 DIGITAL_ENTITLEMENTS = """
@@ -71,12 +72,48 @@ SELECT c.stream_id, c.evidence_id, c.tx_hash, c.log_index, c.inclusion_hash, p.a
 FROM ledger.refund_confirmation c JOIN ledger.refund r ON r.id=c.refund_id JOIN ledger.payment p ON p.sale_id=r.sale_id
 """
 
+# Money of an escrow order enters with its lock and leaves once, to the merchant or back to the buyer.
+ESCROW_MOVES = """
+SELECT p.stream_id, p.evidence_id, p.tx_hash, p.log_index, p.inclusion_hash, p.asset_ref, p.principal::text AS amount,
+       CASE WHEN h.sale_id IS NULL THEN 'paid' ELSE 'locked' END AS kind
+FROM ledger.payment p LEFT JOIN ledger.order_escrow h USING (sale_id)
+UNION ALL
+SELECT c.stream_id, c.evidence_id, c.tx_hash, c.log_index, c.inclusion_hash, p.asset_ref, r.amount::text, 'refunded'
+FROM ledger.refund_confirmation c JOIN ledger.refund r ON r.id=c.refund_id JOIN ledger.payment p ON p.sale_id=r.sale_id
+UNION ALL
+SELECT p.stream_id, e.evidence_id, e.tx_hash, e.log_index, e.inclusion_hash, p.asset_ref, j.amount::text, e.kind
+FROM ledger.order_escrow_event e JOIN ledger.payment p USING (sale_id)
+LEFT JOIN ledger.escrow_journal j ON j.evidence_id=e.evidence_id AND j.debit_account='escrow_deposits'
+WHERE e.kind IN ('released','cancelled')
+"""
+
+ESCROW_CHECK = """
+(SELECT count(*) FROM ledger.order_escrow h
+ LEFT JOIN ledger.order_escrow_event e ON e.sale_id=h.sale_id AND e.kind IN ('released','cancelled')
+ LEFT JOIN ledger.escrow_journal income ON income.evidence_id=e.evidence_id AND income.credit_account='sales'
+ LEFT JOIN ledger.payment paid ON paid.sale_id=h.sale_id
+ WHERE h.settled<>(e.evidence_id IS NOT NULL) OR (income.evidence_id IS NOT NULL)<>(e.kind IS NOT DISTINCT FROM 'released')
+    OR (income.amount IS NOT NULL AND income.amount<>paid.principal))
+"""
+
 FINALIZED = """
 SELECT r.stream_id, r.id AS evidence_id, r.tx_hash, r.log_index, r.inclusion_hash, r.inclusion_height, r.contract_ref,
        r.asset_ref, r.amount::text, r.kind, r.anchor_hash, r.anchor_height, r.merchant_key, r.order_key, r.refund_key,
        r.payer_ref, profile.version
 FROM chainview.settlement_receipt r JOIN chainview.deployment_profile profile USING (stream_id)
 WHERE r.kind IN ('paid','refunded')
+"""
+
+FINALIZED_ESCROW = FINALIZED + """
+UNION ALL
+SELECT t.stream_id, e.id, e.tx_hash, e.log_index, e.log_block, b.height, s.contract_ref, log.asset_ref, log.amount::text,
+       e.kind, e.anchor_hash, e.anchor_height, e.merchant_key, e.order_key, NULL,
+       CASE WHEN e.kind='released' THEN log.recipient_ref ELSE log.payer_ref END, profile.version
+FROM chainview.current_evidence e JOIN chainview.read_target t ON t.generation_id=e.generation_id
+JOIN chainview.stream s ON s.id=t.stream_id JOIN chainview.deployment_profile profile ON profile.stream_id=t.stream_id
+JOIN chainview.observed_event log ON (log.generation_id,log.block_hash,log.tx_hash,log.log_index)=(e.generation_id,e.log_block,e.tx_hash,e.log_index)
+JOIN chainview.block b ON (b.generation_id,b.block_hash)=(log.generation_id,log.block_hash)
+WHERE e.kind IN ('locked','released','cancelled')
 """
 
 CHECKPOINTS = """
@@ -90,11 +127,14 @@ LEFT JOIN chainview.deployment_profile profile ON profile.stream_id=t.stream_id
 """
 
 
-# Event topic hashes from the versioned IPaymentSettlement and SettlementV2 ABI.
+# Event topic hashes from the versioned IPaymentSettlement, SettlementV2 and OrderEscrow ABI.
 V1_PAID = "0xeef4300dbd9217414481ce2ade0c4791c3b47c75b0c0d4b6bbe5fbb05260195f"
 V2_PAID = "0x8ef858e4a5aa54b21ac8e7de48a10ab47b1192319da9540a960cc449fd68757f"
 V2_REFUND = "0x5c026d6872cb44d83c4429c3604d56938b71b245f403a2555d7d6ddcf993aef7"
-SETTLEMENT_TOPICS = {1: [V1_PAID], 2: [V2_PAID, V2_REFUND]}
+ESCROW_LOCKED = "0xa700cf81ade0877ab0f11ee19c0cd98e7ba8a78111cbcdc94100c124849fb4c0"
+ESCROW_RELEASED = "0xed92ca5efe9422051b3694c2cd05344630aeb19fa3f92d98589f96b08dcec633"
+ESCROW_CANCELLED = "0x71b45f1e02b9464b2d614ecb13b4bc3847838603f206dcd62d20b1f4208366bb"
+SETTLEMENT_TOPICS = {1: [V1_PAID], 2: [V2_PAID, V2_REFUND], 3: [ESCROW_LOCKED, ESCROW_RELEASED, ESCROW_CANCELLED]}
 
 
 def amount(log_word):
@@ -107,9 +147,19 @@ def address(log_word):
 
 def log_matches(event, log):
     topics, data = log["topics"], log["data"]
-    if len(topics) != 4 or not re.fullmatch(r"0x(?:[a-f0-9]{64})+", data):
+    if len(topics) < 3 or not re.fullmatch(r"0x(?:[a-f0-9]{64})+", data):
         return False
     words = ["0x" + data[i:i + 64] for i in range(2, len(data), 64)]
+    if event["version"] == 3:
+        if topics[1:3] != [event["merchant_key"], event["order_key"]]:
+            return False
+        if event["kind"] == "locked" and topics[0] == ESCROW_LOCKED and len(topics) == 4 and len(words) == 6:
+            return (address(topics[3]), amount(words[2])) == (event["payer_ref"], event["amount"])
+        expected = {"released": ESCROW_RELEASED, "cancelled": ESCROW_CANCELLED}.get(event["kind"])
+        return topics[0] == expected and len(topics) == 3 and len(words) == 3 and \
+            (address(words[0]), amount(words[1])) == (event["payer_ref"], event["amount"])
+    if len(topics) != 4:
+        return False
     if event["version"] == 1 and event["kind"] == "paid" and topics[0] == V1_PAID and len(words) == 2:
         return (address(topics[1]), topics[2], address(topics[3]), amount(words[0])) == (
             event["merchant_key"], event["order_key"], event["payer_ref"], event["amount"])
@@ -202,14 +252,17 @@ class Chain:
 def reconcile(quarantine, reference, chain):
     db = quarantine.env
     digital = sql(db, "p05", "SELECT to_regclass('ledger.subscription_entitlement') IS NOT NULL;") == "t"
+    escrow = sql(db, "p05", "SELECT to_regclass('ledger.order_escrow_event') IS NOT NULL;") == "t"
+    chain_escrow = sql(db, "p07", "SELECT to_regclass('chainview.current_evidence') IS NOT NULL;") == "t"
     ledger_sql = LEDGER_CHECKS.format(
         digital="COALESCE(i.fulfillment_kind='digital',false)" if digital else "false",
         invoice_join="LEFT JOIN ledger.invoice i ON i.sale_id=payment.sale_id AND s.origin='subscription'" if digital else "",
         entitlement_check=DIGITAL_ENTITLEMENTS if digital else "0",
+        escrow_check=ESCROW_CHECK if escrow else "0",
     )
     ledger = sql_json(db, "p05", ledger_sql)[0]
-    p05 = sql_json(db, "p05", PAID_REFUNDED)
-    p07 = sql_json(db, "p07", FINALIZED)
+    p05 = sql_json(db, "p05", ESCROW_MOVES if escrow else PAID_REFUNDED)
+    p07 = sql_json(db, "p07", FINALIZED_ESCROW if chain_escrow else FINALIZED)
     checkpoints = sql_json(db, "p07", CHECKPOINTS)
     canonical = {row["evidence_id"]: row for row in p07}
     differences = 0
@@ -218,7 +271,7 @@ def reconcile(quarantine, reference, chain):
         if found is None or any(found[key] != value for key, value in row.items()):
             differences += 1
     used = {row["evidence_id"] for row in p05}
-    missing_ledger = sum(row["evidence_id"] not in used and row["version"] == 2 for row in p07)
+    missing_ledger = sum(row["evidence_id"] not in used and row["version"] in (2, 3) for row in p07)
     finalized = chain.block("finalized")
     chain_ref = int(chain.call("eth_chainId"), 16)
     checkpoint_differences = finality_differences = 0

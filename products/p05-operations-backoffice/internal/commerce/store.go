@@ -147,7 +147,44 @@ type Order struct {
 	Payment      *OrderPayment     `json:"payment,omitempty"`
 	MenuCheckout *MenuCheckout     `json:"menuCheckout,omitempty"`
 	CafeReview   *CafeReview       `json:"cafeReview,omitempty"`
+	Escrow       *OrderEscrow      `json:"escrow,omitempty"`
 	accessEndsAt *time.Time
+}
+
+// OrderEscrow is the escrow part of order.status (OrderEscrowStatus in packages/protocol).
+type OrderEscrow struct {
+	Stage      string  `json:"stage"`
+	Escrow     string  `json:"escrow"`
+	MerchantID string  `json:"merchantId"`
+	OrderKey   string  `json:"orderKey"`
+	Payer      string  `json:"payer"`
+	Confirmer  string  `json:"confirmer"`
+	LockTxHash *string `json:"lockTxHash,omitempty"`
+	DeliverBy  int64   `json:"deliverBy,omitempty"`
+
+	ClaimableAt   *int64  `json:"claimableAt,omitempty"`
+	ResolveBy     *int64  `json:"resolveBy,omitempty"`
+	Payout        string  `json:"payout,omitempty"`
+	Refund        string  `json:"refund,omitempty"`
+	SettledTxHash *string `json:"settledTxHash,omitempty"`
+	PendingAction string  `json:"pendingAction,omitempty"`
+}
+
+// PayerEnrollment is the board account a customer pays from in one branch.
+type PayerEnrollment struct {
+	Payer      string `json:"payer"`
+	Generation string `json:"generation"`
+	ExpiresAt  int64  `json:"expiresAt"`
+}
+
+// WalletReturn is the customer's latest transfer of the board's balance home.
+type WalletReturn struct {
+	Payer       string  `json:"payer"`
+	To          string  `json:"to"`
+	Amount      string  `json:"amount"`
+	ValidBefore int64   `json:"validBefore"`
+	State       string  `json:"state"`
+	TxHash      *string `json:"txHash,omitempty"`
 }
 
 type ShopIdentity struct {
@@ -315,6 +352,19 @@ func (s *Store) Status(ctx context.Context, auth service.Bound) (Order, error) {
 	return order, domainError(err)
 }
 
+// EscrowQuoteAllowed refuses orders OrderEscrow cannot serve: a rented payer, whose money never
+// sits in the account the board signs for, and travel or subscription orders, whose cancellation
+// uses the SettlementV2 refund.
+func (s *Store) EscrowQuoteAllowed(ctx context.Context, auth service.Bound, claim [32]byte) error {
+	var allowed bool
+	err := s.db.QueryRow(ctx, "SELECT ledger.order_escrow_allowed($1,$2,$3,$4,$5)",
+		auth.Tenant, auth.Request.Domain, auth.Subject, auth.Request.Object, claim[:]).Scan(&allowed)
+	if err == nil && !allowed {
+		return service.Capability
+	}
+	return domainError(err)
+}
+
 type Ready struct {
 	QuoteOrder
 	Fence                            int64
@@ -400,7 +450,7 @@ func domainError(err error) error {
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) {
 		switch pg.Code {
-		case "P0761":
+		case "P0761", "P1060":
 			return service.CheckoutConflict
 		case "P0501", "23505":
 			return service.Conflict

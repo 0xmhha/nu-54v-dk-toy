@@ -40,6 +40,9 @@ var settlementSettings = []string{
 	"P05_SETTLEMENT_DEPLOYMENT_PROFILES", "P05_SETTLEMENT_DEPLOYMENT_APPROVAL_KEY", "P05_SETTLEMENT_DEPLOYMENT_SIGNATURES", merchantGasPublication,
 }
 
+// The dispute account is optional. Without it nobody can settle a dispute before its deadline.
+var resolverSettings = []string{"P05_ESCROW_RESOLVER", "P05_ESCROW_RESOLVER_SIGNER", "P05_ESCROW_RESOLVER_SIGNER_SHA256"}
+
 var payoutSettings = []string{
 	"P05_PAYOUT_DATABASE_URL", "P05_PAYOUT_GOVERNOR", "P05_PAYOUT_SIGNER", "P05_PAYOUT_SIGNER_SHA256",
 }
@@ -55,7 +58,7 @@ func anySetting(keys []string) bool {
 
 func validateSettlementMode(commerceDSN string) error {
 	fulfillment := anySetting(fulfillmentSettings)
-	if !(anySetting(settlementSettings) || anySetting(payoutSettings)) && !anySetting(receiverSettings) && !anySetting(printSettings) && !fulfillment {
+	if !(anySetting(settlementSettings) || anySetting(payoutSettings) || anySetting(resolverSettings)) && !anySetting(receiverSettings) && !anySetting(printSettings) && !fulfillment {
 		return nil
 	}
 	if commerceDSN == "" {
@@ -73,7 +76,7 @@ func validateSettlementMode(commerceDSN string) error {
 	return nil
 }
 
-func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher cipher.AEAD, profiles map[string]commerce.Profile, mux *http.ServeMux, gate *service.RecoveryGate) (*settlement.Forwarder, func(), error) {
+func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher cipher.AEAD, profiles map[string]commerce.Profile, quoteSigner settlement.Signer, mux *http.ServeMux, gate *service.RecoveryGate) (*settlement.Forwarder, func(), error) {
 	nop := func() {}
 	if os.Getenv("P05_SETTLEMENT_TARGETS") == "" {
 		if os.Getenv(merchantGasPublication) != "" {
@@ -87,6 +90,9 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	}
 	if len(targets) == 0 || len(targets) > 128 {
 		return nil, nop, errors.New("missing enrolled settlement targets")
+	}
+	if err := matchContracts(profiles, targets); err != nil {
+		return nil, nop, err
 	}
 	financeGrants := map[string]service.Principal{}
 	if err := configJSON("P05_FINANCE_GRANTS", &financeGrants); err != nil {
@@ -157,6 +163,10 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	if err != nil {
 		return nil, nop, err
 	}
+	resolver, resolverSigner, err := loadResolver(ctx, client, common.HexToAddress(gasAddress), activeTargets)
+	if err != nil {
+		return nil, nop, err
+	}
 	open := func(dsn, role string) (*settlement.Store, error) {
 		if dsn == "" {
 			return nil, errors.New("all settlement role DSNs must be supplied")
@@ -174,6 +184,11 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	ledger, err := open(os.Getenv("P05_SETTLEMENT_DATABASE_URL"), "nu54_p05_settlement")
 	if err != nil {
 		return nil, nop, err
+	}
+	for branch, target := range activeTargets {
+		if err := ledger.CheckOpenContracts(ctx, branch, target, quoteCipher); err != nil {
+			return nil, nop, err
+		}
 	}
 	finance, err := open(os.Getenv("P05_FINANCE_DATABASE_URL"), "nu54_p05_finance")
 	if err != nil {
@@ -217,7 +232,7 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	h := settlement.FinanceHTTP{Store: finance, Credentials: financeGrants,
 		OperatorOrigin: os.Getenv("P05_OPERATOR_ORIGIN"), Targets: targets,
 		Merchants: merchants, Evidence: proof, CloseStore: ledger, Funds: settlement.LiveChain{Client: client}, QuoteCipher: quoteCipher,
-		Deployments: reviews, PublicExplorer: explorer, GasAccount: common.HexToAddress(gasAddress)}
+		Deployments: reviews, PublicExplorer: explorer, GasAccount: common.HexToAddress(gasAddress), Resolver: resolver}
 	h.Register(mux)
 	if path := os.Getenv("P05_QUOTE_BOUNDARY_READERS"); path != "" {
 		readers := service.ClientGrantFile[settlement.QuoteBoundaryReaderGrant](path)
@@ -232,7 +247,15 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	}
 	worker := &settlement.Worker{Store: ledger, Evidence: proof, Chain: settlement.LiveChain{Client: client},
 		Targets: activeTargets, QuoteCipher: quoteCipher, RelayCipher: relay, GasAccount: common.HexToAddress(gasAddress),
-		GasSigner: gasSigner, RefundSigner: refundSigner, MaxGasPrice: limit, Now: time.Now}
+		GasSigner: gasSigner, RefundSigner: refundSigner, MaxGasPrice: limit, Now: time.Now,
+		MerchantSigner: quoteSigner, MerchantSigners: map[string]common.Address{}, Resolver: resolver, ResolverSigner: resolverSigner}
+	merchantIDs := map[string]common.Hash{}
+	for branch := range activeTargets {
+		if profile, ok := profiles[branch]; ok {
+			worker.MerchantSigners[branch], merchantIDs[branch] = profile.Signer, profile.MerchantID
+		}
+	}
+	worker.MerchantIDs = merchantIDs
 	if anySetting(receiverSettings) {
 		grants := map[string]settlement.ReceiverGrant{}
 		if err := configJSON("P05_RECEIVER_GRANTS", &grants); err != nil {
@@ -310,7 +333,9 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 		}
 		eligible := map[string]commerce.Profile{}
 		for branch := range merchants {
-			eligible[branch] = profiles[branch]
+			if !targets[branch].Escrow() { // rotation uses SettlementV2
+				eligible[branch] = profiles[branch]
+			}
 		}
 		if len(eligible) == 0 && len(activeTargets) != 0 {
 			return nil, nop, errors.New("payout worker requires uniquely scoped settlement merchant")
@@ -333,8 +358,40 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 		go func() { defer workers.Done(); tickWorker(ctxWorker, gate, printer.Step) }()
 	}
 	ready = true
-	return &settlement.Forwarder{Store: forward, QuoteCipher: quoteCipher, RelayCipher: relay, Targets: activeTargets, GasSponsors: sponsors,
+	return &settlement.Forwarder{Store: forward, QuoteCipher: quoteCipher, RelayCipher: relay, Targets: activeTargets, GasSponsors: sponsors, MerchantIDs: merchantIDs,
 		RentalEscrow: settlement.RentalEscrow{Client: client, Targets: activeTargets, Reviews: reviews}}, closeAll, nil
+}
+
+// loadResolver enrolls the account that settles disputes. It must be the contract's arbiter and must
+// not be the gas account, whose key signs every other relay transaction.
+func loadResolver(ctx context.Context, client *ethclient.Client, gas common.Address, targets map[string]settlement.Target) (common.Address, settlement.Signer, error) {
+	if !anySetting(resolverSettings) {
+		return common.Address{}, nil, nil
+	}
+	configured := os.Getenv("P05_ESCROW_RESOLVER")
+	resolver := common.HexToAddress(configured)
+	if !common.IsHexAddress(configured) || resolver == (common.Address{}) || resolver == gas {
+		return common.Address{}, nil, errors.New("the dispute account must be enrolled separately from the gas account")
+	}
+	signer, err := verifiedSigner("P05_ESCROW_RESOLVER_SIGNER")
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+	if err := settlement.CheckArbiter(ctx, client, resolver, targets); err != nil {
+		return common.Address{}, nil, err
+	}
+	return resolver, signer, nil
+}
+
+// matchContracts refuses a branch whose issuance profile and relay target name different payment
+// contracts: its quotes could never be paid the way its relay pays.
+func matchContracts(profiles map[string]commerce.Profile, targets map[string]settlement.Target) error {
+	for branch, target := range targets {
+		if profile, enrolled := profiles[branch]; enrolled && profile.Escrow != target.Escrow() {
+			return errors.New("issuance profile and settlement target use different payment contracts")
+		}
+	}
+	return nil
 }
 
 func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, targets map[string]settlement.Target, gas common.Address) (
@@ -355,7 +412,8 @@ func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, t
 		view := settlement.DeploymentReview{Status: "invalid"}
 		manifest, err := hex.DecodeString(target.Manifest)
 		if targetUUID.MatchString(branch) && targetUUID.MatchString(target.Stream) && err == nil && len(manifest) == 32 &&
-			target.Asset != (common.Address{}) && target.RefundSigner != (common.Address{}) && target.RefundVersion > 0 {
+			target.Asset != (common.Address{}) && (target.Escrow() || (target.ABIHash() == settlement.ABIHash &&
+			target.RefundSigner != (common.Address{}) && target.RefundVersion > 0)) {
 			view = settlement.VerifyOperatorDeployment(ctx, client, target, gas, approvals, key, signatures, required)
 		}
 		reviews[branch] = view

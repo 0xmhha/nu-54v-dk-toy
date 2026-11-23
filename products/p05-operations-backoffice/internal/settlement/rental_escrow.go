@@ -23,7 +23,7 @@ type RentalEscrow struct {
 
 func (e RentalEscrow) Deployment(ctx context.Context, branch string) ([]byte, bool) {
 	target, ok := e.Targets[branch]
-	if !ok || e.Client == nil || !ReviewedDeploymentCurrent(ctx, e.Client, target, e.Reviews[branch]) {
+	if !ok || target.Escrow() || e.Client == nil || !ReviewedDeploymentCurrent(ctx, e.Client, target, e.Reviews[branch]) {
 		return nil, false
 	}
 	digest, err := hex.DecodeString(target.Manifest)

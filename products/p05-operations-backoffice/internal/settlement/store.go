@@ -13,6 +13,7 @@ import (
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -62,9 +63,10 @@ type Forwarder struct {
 	QuoteCipher  cipher.AEAD
 	RelayCipher  cipher.AEAD
 	Targets      map[string]Target
+	MerchantIDs  map[string]common.Hash
 }
 
-func (f Forwarder) verifiedQuote(ctx context.Context, req service.Request, tenant, actor string, signature []byte) (Quote, Target, string, error) {
+func (f Forwarder) verifiedQuote(ctx context.Context, req service.Request, tenant, actor string) (Quote, Target, string, error) {
 	var ciphertext, digest, signer []byte
 	var state string
 	err := f.Store.db.QueryRow(ctx, "SELECT * FROM ledger.forward_quote($1,$2,$3,$4)",
@@ -81,15 +83,29 @@ func (f Forwarder) verifiedQuote(ctx context.Context, req service.Request, tenan
 		return Quote{}, Target{}, "", service.Mismatch
 	}
 	quote, err := unpackQuote(raw, digest, signer, target)
-	if err != nil || rawHex(quote.Digest[:]) != req.Body["quoteDigest"] ||
-		rawHex(quote.ApprovalHash[:]) != req.Body["approvalDigest"] || !matchesSigner(quote.ApprovalHash, signature, quote.Args.Payer) {
+	if err != nil || rawHex(quote.Digest[:]) != req.Body["quoteDigest"] {
+		return Quote{}, Target{}, "", service.Mismatch
+	}
+	return quote, target, state, nil
+}
+
+func (f Forwarder) verifiedApproval(ctx context.Context, req service.Request, tenant, actor string, signature []byte) (Quote, Target, string, error) {
+	quote, target, state, err := f.verifiedQuote(ctx, req, tenant, actor)
+	if err != nil {
+		return Quote{}, Target{}, "", err
+	}
+	// An escrow branch takes only order.lock; a plain payment approval cannot pay it.
+	if target.Escrow() {
+		return Quote{}, Target{}, "", service.Capability
+	}
+	if rawHex(quote.ApprovalHash[:]) != req.Body["approvalDigest"] || !matchesSigner(quote.ApprovalHash, signature, quote.Args.Payer) {
 		return Quote{}, Target{}, "", service.Mismatch
 	}
 	return quote, target, state, nil
 }
 
 func (f Forwarder) AuthorizeForward(ctx context.Context, req service.Request, principal service.Principal, signature []byte) (*service.OrderApproval, error) {
-	quote, _, _, err := f.verifiedQuote(ctx, req, principal.Tenant, principal.Subject, signature)
+	quote, _, _, err := f.verifiedApproval(ctx, req, principal.Tenant, principal.Subject, signature)
 	if err != nil {
 		return nil, err
 	}
@@ -98,18 +114,24 @@ func (f Forwarder) AuthorizeForward(ctx context.Context, req service.Request, pr
 }
 
 func (f Forwarder) Forward(ctx context.Context, bound service.Bound, signature []byte) (string, error) {
-	req := bound.Request
-	quote, target, state, err := f.verifiedQuote(ctx, req, bound.Tenant, bound.Subject, signature)
+	quote, target, state, err := f.verifiedApproval(ctx, bound.Request, bound.Tenant, bound.Subject, signature)
 	if err != nil {
 		return "", err
 	}
+	return f.admit(ctx, bound, quote, target, state, quote.ApprovalHash, signature)
+}
+
+// admit stores one verified payer authorization for the relay worker, with its gas sponsorship.
+func (f Forwarder) admit(ctx context.Context, bound service.Bound, quote Quote, target Target, state string,
+	approval common.Hash, payload []byte) (string, error) {
+	req := bound.Request
 	intent, err := hex.DecodeString(bound.IntentDigest)
 	if err != nil || len(intent) != 32 {
 		return "", service.BadRequest
 	}
-	sealed := f.RelayCipher.Seal(nil, nil, signature, approvalAAD(req.Object))
+	sealed := f.RelayCipher.Seal(nil, nil, payload, approvalAAD(req.Object))
 	args := []any{bound.Tenant, req.Domain, bound.Subject, req.Object, req.IdempotencyKey, intent, quote.Digest[:],
-		quote.ApprovalHash[:], target.Stream, sealed}
+		approval[:], target.Stream, sealed}
 	statement := `SELECT ledger.store_forward($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)::text`
 	cafe := false
 	if bound.Role == "customer" && f.GasSponsors != nil {
@@ -195,6 +217,7 @@ type work struct {
 	nonce, hash, state    *string
 	expires               *time.Time
 	intent, raw           []byte
+	action                *escrowAction // set for a job after the lock
 }
 
 func (s *Store) claim(ctx context.Context) (work, error) {
@@ -253,6 +276,12 @@ func sqlError(err error) error {
 			return service.Capability
 		case "P1002":
 			return service.Expired
+		case "P1060":
+			return service.CheckoutConflict
+		case "P1061":
+			return service.Mismatch
+		case "P1062":
+			return service.BadRequest
 		case "P1003", "P1030":
 			return service.Conflict
 		case "P1004", "55P03":

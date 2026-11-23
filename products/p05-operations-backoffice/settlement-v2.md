@@ -5,7 +5,7 @@
 ## Interfaces and responsibilities
 
 - `POST /v2/commerce` accepts the existing authenticated C3 `payment.forward` command and a detached `approvalSignature` field with 65 RSV bytes in hex. The request binds the stored quote digest, payer approval digest, order, request ID, expiry and idempotency key. The handler reopens the original encrypted issuance bytes, verifies both signers and persists the approval once. New approvals require a live quote. A retry returns the recorded result without altering the original bytes.
-- The P05 relay worker resolves the configured deployment and gas account. It reserves one chain/account nonce, constructs only the prescribed SettlementV2 call and asks the isolated relay signer to sign. It encrypts and commits the exact signed raw transaction and its EVM hash before broadcasting. A lost response becomes unknown. Recovery checks the recorded hash and may retransmit those same bytes. A revert is an attempt outcome. It does not close the order. P07 verified absence at a post-expiry finalized anchor can close the order and release held stock.
+- The P05 relay worker resolves the configured deployment and gas account. It reserves one chain/account nonce, constructs only the prescribed SettlementV2 call and asks the isolated relay signer to sign. It encrypts and commits the exact signed raw transaction and its EVM hash before broadcasting. A lost response becomes unknown. Recovery checks the recorded hash and may retransmit those same bytes. The first price is twice the suggested one, up to `P05_RELAY_MAX_GAS_PRICE`. When the node later asks for more than the signed price, the worker signs the same nonce and call again at least an eighth higher, stores it and sends it; every stored version stays on record and the one the chain includes becomes the attempt. A nonce is reused only after the stored transaction can no longer act: its authorization expired and the order is decided, or it expired more than five minutes ago, and the chain has not used the nonce. A revert is an attempt outcome. It does not close the order. P07 verified absence at a post-expiry finalized anchor can close the order and release held stock.
 - The reconciliation worker connects to P07 with the scoped SQL reader. In a P07 transaction it takes the shared stream incident lock, checks the active finalized view and matches chain, ABI, deployment, merchant/order, asset, exact amount, payer, beneficiary, nonce, authority generation, escrow mode, quote digest and inclusion interval. The P07 stream lock stays held through the short P05 commit. A conflict, missing proof or a different fact produces no payment or fulfillment entry. Finality after expiry is accepted when inclusion met the signed interval.
 - Confirmation locks the sale. Payment, one balanced debit/credit journal record, branch/day pickup sequence, sale state and outbox event commit together. Event and transaction/log identities are unique and retry-safe. Each refund journal reverses the appropriate payment accounts; gas is outside the sales/refunds totals.
 - Refund request and approval are independent branch roles tied to separately authenticated actors. The locked payment tracks reserved plus in-flight plus finalized refund amounts below principal. Identical request keys return the existing refund. The request cannot supply a new payout address. Refund routing is derived from the matched original payer, escrow generation and mode. The worker verifies the merchant's on-chain reserve, obtains the separately enrolled refund authorization and records the exact signed transaction before submission. A refund finalizes only from the scoped original-order/refund evidence. Failed transport leaves the reservation intact until authoritative reconciliation.
@@ -42,6 +42,51 @@ Day close uses the location's timezone and local cutoff on the recorded chain in
 Explicit settlement or dispatcher configuration requires commerce enrollment. Incomplete enrollment stops startup before the listener opens. With all finance and fulfillment settings absent, the legacy probe-only mode remains available.
 
 The local integration exercises payment and refund using the production handlers and worker on loopback mTLS. It also launches the built opsd binary, verifies that incomplete settings exit and legacy probe-only mode starts, and closes the same day through the finance mTLS endpoint using the configured role and signer files. The fixture runs the P07 indexer as a separate process and uses a disposable PostgreSQL database with the owner migrations and restricted runtime logins. Run `test/settlement/anvil.sh` from this product with `P05_SETTLEMENT_TEST_DATABASE_URL` configured for a disposable `nu54_settlement_*` database and pinned Foundry 1.5.1 on the path.
+
+### Order escrow branches
+
+A branch pays either through SettlementV2 or through OrderEscrow ([wire agreement](../../docs/content/commercial/architecture/spending-wallet-wire.md)). The optional `abiSha256` field selects the contract. It appears in the branch entry of `P05_COMMERCE_PROFILES` and of `P05_SETTLEMENT_TARGETS`, and both must name the same contract or `opsd` does not start. An empty field means SettlementV2, so existing files keep their meaning. The escrow value is the `OrderEscrow` entry of `packages/contracts-abi/abi/manifest.json`. A signed deployment profile for an escrow branch uses `version` 3 and the same ABI hash.
+
+```json
+// P05_COMMERCE_PROFILES
+{"<branch uuid>": {"chainId": 8283, "contract": "0x<OrderEscrow>", "asset": "0x<TestUSDC3009>", "beneficiary": "0x<payout>",
+  "signer": "0x<quote key>", "merchantId": "<64 hex>", "keyVersion": 1, "beneficiaryVersion": 1,
+  "abiSha256": "e326762a55880c673cec09249bab8a76725183e812f3b3709dec2b92bd936c29"}}
+// P05_SETTLEMENT_TARGETS (refundSigner and refundKeyVersion are not used by an escrow branch)
+{"<branch uuid>": {"streamId": "<uuid>", "manifestSha256": "<64 hex>", "contract": "0x<OrderEscrow>", "codeHash": "0x<64 hex>",
+  "asset": "0x<TestUSDC3009>", "abiSha256": "e326762a55880c673cec09249bab8a76725183e812f3b3709dec2b92bd936c29"}}
+```
+
+- **Before switching a branch**: register the merchant with `OrderEscrow.configureMerchant` and call the token's `setTrustedSender(escrow, true)`.
+- **Quote lifetime**: `ledger.issuance_profile.quote_lifetime_seconds` already allows at most 120 seconds. The board refuses an order that expires more than 180 seconds after its own earliest possible time, so the board may lag this server by up to 60 seconds.
+- **Payment**: `order.lock` is accepted from the terminal or the paying customer. The 65-byte board signature and the phone key are sealed together in `ledger.settlement_submission`. The relay worker signs, stores and sends `OrderEscrow.lock` with the same nonce, lease and recovery rules as `settle`. It first asks the node whether the lock would run, and leaves it unsent if not. `payment.forward` on an escrow branch and `order.lock` on a SettlementV2 branch answer `UNSUPPORTED_CAPABILITY`.
+- **Orders that are not offered**: rented payers, POS, travel and subscription orders get `UNSUPPORTED_CAPABILITY` at `quote.issue`.
+- **After the lock**: kitchen `collected` queues `markDelivered` and `unfulfillable` queues `cancel`, signed by the branch quote signer. `order.answer` queues `release`, `dispute` or `withdrawDispute` with the phone signature. The server itself queues `refundUndelivered` after `deliverBy` and `refundExpiredDispute` after `resolveBy`. Every one is a `ledger.settlement_work` job with an `action_id`, so it uses the same lease, nonce, sealing and recovery as a payment. These calls have no deadline, so the same bytes are sent until a finalized block contains them. If another transaction takes the nonce for good, the job signs again. A call that would revert is not sent. A late delivered mark, a late dispute, a late decision and a claim that cannot run for an hour end as `failed`; the rest are judged again.
+- **Facts**: the worker reads `chainview.escrow_receipt` after each action and once a minute (five minutes after delivery) for orders nobody here acted on, so a direct claim or a buyer's own call is booked too. A claim batch is settled from `chainview.escrow_transaction`.
+- **Expired orders**: for an issued or checking order whose quote expired without a payment fact, on either contract, the worker calls `chainview.request_absence` (P07 migration 019) and closes the order when the proof appears. Without that migration the worker runs as before and the operator's `prove-absence` command gives the proof. The same lock sent over the kiosk and over the customer's phone returns the same order; a different lock conflicts.
+- **Accounts**: a lock posts `order_escrow` / `escrow_deposits`. `released` ends the deposit and posts `settlement_clearing` / `sales` on the day it was confirmed on chain; `cancelled` only ends the deposit. Gross counts releases, refunds never count returned deposits. A day with escrow postings also reports `escrowLocked` and `escrowReturned`, and its CSV gains two columns. Day close compares the released, locked and returned totals and the digest with `chainview.finance_day_evidence`. The SettlementV2 refund path and payout rotation refuse escrow orders.
+- **Disputes**: set `P05_ESCROW_RESOLVER`, `P05_ESCROW_RESOLVER_SIGNER` and `P05_ESCROW_RESOLVER_SIGNER_SHA256`. The account must be the contract's arbiter, must not be the relay account and needs its own gas. Without these settings the decision operations answer 404 and undecided disputes return to the buyer. Grants `escrow_dispute_request`, `escrow_dispute_approve` and `escrow_claim` live in `ledger.finance_grant`; the proposer can neither approve nor reject.
+- **Switching contracts**: `opsd` does not start while a branch has an open order, an open refund or held money of another payment contract. After the switch the refund console offers nothing for the old orders.
+- **The customer's account**: `payer.enroll` records the board account after its proof for this tenant, branch, customer and request. The newest proof of an account ends other customers' enrollment of it in the same tenant, unless one of them still has something open on it. It lasts as long as the customer's branch access, at most 30 days, and can be renewed. It cannot change while the old account has an open order or return. `wallet.return` queues the board's signed `transferWithAuthorization`, sent by the relay account with the store's gas commitment for that payer: one at a time per account, three a day per customer, valid for at most ten minutes, and never beside an open order. While it is queued no quote is issued for the account. It is `final` when a finalized block contains the transfer and `failed` when a finalized block after `validBefore` shows the authorization unused. The transfer is searched for in the hour before `validBefore`, in log ranges the node accepts, however late the worker looks. If the authorization is used and no log shows its transaction an hour after the deadline, the account is freed and the status keeps its last `queued` or `submitted` value, because `final` needs a transaction hash; the worker reports it.
+
+```sh
+export P05_ESCROW_RESOLVER=0x<arbiter> P05_ESCROW_RESOLVER_SIGNER=/opt/nu54/resolver-signer P05_ESCROW_RESOLVER_SIGNER_SHA256=<64 hex>
+```
+
+```json
+// POST /v2/finance/escrow-claim
+{"branchId": "<uuid>", "idempotencyKey": "<uuid>", "saleIds": ["<uuid>", "<uuid>"]}
+// POST /v2/finance/escrow-resolve, then another person: POST /v2/finance/escrow-resolve-approve
+{"branchId": "<uuid>", "idempotencyKey": "<uuid>", "saleId": "<uuid>", "outcome": "refund-buyer", "reason": "not_delivered"}
+{"branchId": "<uuid>", "idempotencyKey": "<uuid>", "decisionId": "<uuid>"}
+```
+
+`TestLoopbackOrderEscrow` runs the whole path on Anvil with the real indexer. It needs a database with the P05 and P07 migrations.
+
+```sh
+P05_SETTLEMENT_TEST_DATABASE_URL="host=<socket dir> dbname=nu54_settlement_escrow" \
+  sh test/settlement/anvil.sh -run TestLoopbackOrderEscrow -v
+```
 
 ### Original quote read for the expiry investigation
 

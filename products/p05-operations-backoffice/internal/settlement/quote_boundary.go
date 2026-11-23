@@ -82,7 +82,7 @@ func (h FinanceHTTP) RegisterQuoteBoundary(mux *http.ServeMux, readers func(stri
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(service.QuoteBoundaryOrigin{QuoteBoundaryLookup: in,
 			Chain: "8283", Contract: lower(target.Contract), Asset: lower(target.Asset), Manifest: target.Manifest,
-			ABI: ABIHash, CodeHash: target.CodeHash.Hex(), Digest: common.Hash(quote.Digest).Hex(),
+			ABI: target.ABIHash(), CodeHash: target.CodeHash.Hex(), Digest: common.Hash(quote.Digest).Hex(),
 			IssuedAt: issued.Unix(), ExpiresAt: expires.Unix()})
 	})
 }

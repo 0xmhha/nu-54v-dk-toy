@@ -29,7 +29,7 @@ func (h FinanceHTTP) consoleRefund(ctx context.Context, actor service.Principal,
 
 func (h FinanceHTTP) currentRefundFunds(ctx context.Context, branch, merchant string) (*big.Int, error) {
 	target, ok := h.Targets[branch]
-	if !ok || merchant == "" || h.Merchants[branch] != merchant || h.Funds == nil {
+	if !ok || target.Escrow() || merchant == "" || h.Merchants[branch] != merchant || h.Funds == nil {
 		return nil, service.Forbidden
 	}
 	deadline, stop := context.WithTimeout(ctx, 2*time.Second)

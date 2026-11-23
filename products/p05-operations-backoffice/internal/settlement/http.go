@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
@@ -32,6 +33,7 @@ type FinanceHTTP struct {
 	Deployments    map[string]DeploymentReview
 	PublicExplorer *PublicExplorer
 	GasAccount     common.Address
+	Resolver       common.Address // settles disputes; zero turns those operations off
 }
 
 var financeCapabilities = map[string][]string{
@@ -43,6 +45,9 @@ var financeCapabilities = map[string][]string{
 	"refund-status": {"refund_request", "refund_approve", "refund_submit"},
 	"refund-queue":  {"refund_request", "refund_approve", "refund_submit"},
 	"refund-submit": {"refund_submit"},
+	"escrow-orders": {"report_read"}, "escrow-claims": {"report_read"}, "escrow-claim": {"escrow_claim"},
+	"escrow-resolve":         {"escrow_dispute_request"},
+	"escrow-resolve-approve": {"escrow_dispute_approve"}, "escrow-resolve-reject": {"escrow_dispute_approve"},
 }
 
 var financeRef = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -104,8 +109,13 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 		Returns        string `json:"refunds,omitempty"`
 		Evidence       string `json:"evidenceRef,omitempty"`
 		ReviewRevision int64  `json:"reviewRevision,omitempty"`
+		escrowInput
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	limit := int64(4096)
+	if r.PathValue("operation") == "escrow-claim" {
+		limit = 8192 // 100 order references
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&in) != nil || decoder.Decode(new(any)) != io.EOF || !financeRef.MatchString(in.Branch) {
 		http.Error(w, "invalid finance command", http.StatusBadRequest)
@@ -130,12 +140,29 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		if _, configured := h.Targets[in.Branch]; !configured {
+		target, configured := h.Targets[in.Branch]
+		if !configured {
 			http.NotFound(w, r)
+			return
+		}
+		if target.Escrow() && (operation == "refund-reserve" || operation == "refund-approve" || operation == "refund-submit") {
+			h.refundBlocked(ctx, w, "REFUND_DESTINATION_HELD")
 			return
 		}
 	}
 	switch r.PathValue("operation") {
+	case "escrow-orders", "escrow-claims", "escrow-claim", "escrow-resolve", "escrow-resolve-approve", "escrow-resolve-reject":
+		if h.OperatorOrigin == "" || r.Header.Get("Origin") != h.OperatorOrigin || r.Header.Get("Content-Type") != "application/json" ||
+			!h.Targets[in.Branch].Escrow() || (strings.HasPrefix(operation, "escrow-resolve") && h.Resolver == (common.Address{})) {
+			http.NotFound(w, r)
+			return
+		}
+		var valid bool
+		output, valid, err = h.escrow(ctx, principal, operation, fp, in.Branch, in.Cursor, in.Sale, in.Key, in.Reason, in.escrowInput)
+		if !valid {
+			http.Error(w, "invalid escrow request", http.StatusBadRequest)
+			return
+		}
 	case "report", "report-export", "order", "reconciliation", "report-close", "fulfillment-retry", "fulfillment-review":
 		if h.OperatorOrigin == "" || r.Header.Get("Origin") != h.OperatorOrigin || r.Header.Get("Content-Type") != "application/json" {
 			http.NotFound(w, r)
@@ -310,6 +337,17 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 		delete(status, "payerGeneration")
 		delete(status, "fundsCommitted")
 		status["funds"] = "unknown"
+		if h.Targets[in.Branch].Escrow() {
+			// An escrow branch has no SettlementV2 relay, so nothing it records could be sent.
+			status["canRequest"] = false
+			if refunds, ok := status["refunds"].([]any); ok {
+				for _, refund := range refunds {
+					if row, ok := refund.(map[string]any); ok {
+						row["canDecide"], row["canSubmit"] = false, false
+					}
+				}
+			}
+		}
 		if status["canManageFunds"] == true {
 			if available, err := h.currentRefundFunds(ctx, in.Branch, merchant); err == nil && available != nil {
 				status["funds"] = "observed"

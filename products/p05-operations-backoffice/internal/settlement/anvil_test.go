@@ -84,6 +84,12 @@ func settlementEndpoint(t *testing.T) string {
 
 func freshSettlementChain(t *testing.T) string {
 	t.Helper()
+	return settlementChainSince(t, 65*time.Second)
+}
+
+// settlementChainSince starts a chain whose first block is age old.
+func settlementChainSince(t *testing.T, age time.Duration) string {
+	t.Helper()
 	binary := os.Getenv("ANVIL")
 	if binary == "" {
 		binary = "anvil"
@@ -101,7 +107,7 @@ func freshSettlementChain(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	start := time.Now().Add(-65 * time.Second).Unix()
+	start := time.Now().Add(-age).Unix()
 	node := exec.Command(binary, "--host", "127.0.0.1", "--port", port, "--chain-id", "8283",
 		"--timestamp", strconv.FormatInt(start, 10), "--slots-in-an-epoch", "1", "--silent")
 	node.Stdout, node.Stderr = log, log
@@ -854,7 +860,6 @@ func loopbackSettlement(t *testing.T, endpoint string, onlyCustomerReceipt, near
 					t.Fatal(err)
 				}
 				waitUntil(t, func() bool { return indexerTip() >= checkpoint.Number.Int64()-2 })
-				proveUnpaid(t, original)
 				if remaining := time.Until(original.Order.Expires); remaining > 0 {
 					select {
 					case <-ctx.Done():
@@ -862,9 +867,7 @@ func loopbackSettlement(t *testing.T, endpoint string, onlyCustomerReceipt, near
 					case <-time.After(remaining):
 					}
 				}
-				if err := step(original.Sale); err != nil {
-					t.Fatal(err)
-				}
+				closeExpired(t, db, original, func() error { return step(original.Sale) })
 				list := func(identity int, subject string, expected int) []byte {
 					request := service.Request{Version: 2, Contract: "C3", Operation: "order.list", Domain: original.Branch,
 						Object: subject, RequestID: fixtureUUID(t, db), ExpiresAt: time.Now().Unix() + 20, Body: map[string]string{"afterSale": subject}}
@@ -1557,23 +1560,7 @@ func deployFixtureWithOperator(t *testing.T, ctx context.Context, client *ethcli
 	}
 	deploy := func(name string, args ...any) (common.Address, *types.Receipt) {
 		t.Helper()
-		path := filepath.Join(cmp.Or(os.Getenv("FOUNDRY_OUT"), "../../../../products/p06-stablenet-contracts/out"), name+".sol", name+".json")
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var artifact struct {
-			ABI      json.RawMessage
-			Bytecode struct{ Object hexutil.Bytes }
-		}
-		if err := json.Unmarshal(raw, &artifact); err != nil {
-			t.Fatal(err)
-		}
-		abi, err := abi.JSON(bytes.NewReader(artifact.ABI))
-		if err != nil {
-			t.Fatal(err)
-		}
-		address, tx, _, err := bind.DeployContract(operator, abi, artifact.Bytecode.Object, client, args...)
+		address, tx, err := deployArtifact(t, operator, client, name, args...)
 		return address, mined(tx, err)
 	}
 	asset, _ := deploy("TestUSDC", operator.From)
@@ -1636,6 +1623,28 @@ func deployFixtureWithOperator(t *testing.T, ctx context.Context, client *ethcli
 		Asset: asset, RefundSigner: fixtureSigner(103).Address(), RefundVersion: 1}, deployment, token, contract, checkLegacy
 }
 
+func deployArtifact(t *testing.T, operator *bind.TransactOpts, client *ethclient.Client, name string, args ...any) (common.Address, *types.Transaction, error) {
+	t.Helper()
+	path := filepath.Join(cmp.Or(os.Getenv("FOUNDRY_OUT"), "../../../../products/p06-stablenet-contracts/out"), name+".sol", name+".json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var artifact struct {
+		ABI      json.RawMessage
+		Bytecode struct{ Object hexutil.Bytes }
+	}
+	if err := json.Unmarshal(raw, &artifact); err != nil {
+		t.Fatal(err)
+	}
+	abi, err := abi.JSON(bytes.NewReader(artifact.ABI))
+	if err != nil {
+		t.Fatal(err)
+	}
+	address, tx, _, err := bind.DeployContract(operator, abi, artifact.Bytecode.Object, client, args...)
+	return address, tx, err
+}
+
 func refundReserveFixture(t *testing.T) int64 {
 	t.Helper()
 	if os.Getenv("NU54_REFUND_LOW_TEST") != "" {
@@ -1658,8 +1667,8 @@ func startFixtureIndexer(t *testing.T, ctx context.Context, db *pgxpool.Pool, ds
 	_, ingestDSN := testLogin(t, db, dsn, "nu54_p07_ingest")
 	generation := fixtureUUID(t, db)
 	file := filepath.Join(t.TempDir(), "profiles.json")
-	profile := deployment.Profile{StreamID: target.Stream, GenerationID: generation, Version: 2, ChainID: 8283, Contract: target.Contract,
-		Asset: target.Asset, ABIHash: ABIHash, Manifest: target.Manifest, CodeHash: target.CodeHash,
+	profile := deployment.Profile{StreamID: target.Stream, GenerationID: generation, Version: target.profileVersion(), ChainID: 8283, Contract: target.Contract,
+		Asset: target.Asset, ABIHash: target.ABIHash(), Manifest: target.Manifest, CodeHash: target.CodeHash,
 		StartHash: deployed.BlockHash, StartHeight: deployed.BlockNumber.Int64()}
 	raw, _ := json.Marshal([]deployment.Profile{profile})
 	if err := os.WriteFile(file, raw, 0o600); err != nil {
@@ -1879,7 +1888,8 @@ type fixtureIndexerProxy struct {
 func restartFixtureProxy(t *testing.T, endpoint string) *fixtureIndexerProxy {
 	t.Helper()
 	proxy := &fixtureIndexerProxy{}
-	client := &http.Client{Timeout: 8 * time.Second}
+	// Reuse connections: a fast poll over many blocks otherwise uses up the local ports.
+	client := &http.Client{Timeout: 8 * time.Second, Transport: &http.Transport{MaxIdleConnsPerHost: 64}}
 	proxy.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		raw, err := io.ReadAll(io.LimitReader(req.Body, 2<<20))
 		if err != nil {
@@ -1919,6 +1929,24 @@ func restartFixtureProxy(t *testing.T, endpoint string) *fixtureIndexerProxy {
 	}))
 	t.Cleanup(proxy.Close)
 	return proxy
+}
+
+// closeExpired lets the worker ask for the proof that an expired order was never paid, and close it.
+func closeExpired(t *testing.T, db *pgxpool.Pool, order seededOrder, step func() error) {
+	t.Helper()
+	waitUntil(t, func() bool {
+		var state string
+		if err := db.QueryRow(context.Background(), "SELECT state FROM ledger.sale WHERE id=$1", order.Sale).Scan(&state); err != nil {
+			t.Fatal(err)
+		}
+		if state == "closed" {
+			return true
+		}
+		if err := step(); err != nil {
+			t.Log(err)
+		}
+		return false
+	})
 }
 
 func waitUntil(t *testing.T, condition func() bool) {

@@ -6,8 +6,11 @@ import (
 	"encoding/hex"
 	"math/big"
 
+	escrowabi "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/orderescrow"
 	v2 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlementv2"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/testusdc"
+	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/testusdc3009"
+	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/orderescrow"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p07-indexer/pkg/deployment"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,7 +35,7 @@ type DeploymentReview struct {
 
 func deploymentIdentity(target Target, gas common.Address) DeploymentReview {
 	view := DeploymentReview{Status: "unverified", Chain: 8283, Contract: lower(target.Contract), Asset: lower(target.Asset),
-		Manifest: target.Manifest, ABI: ABIHash, RuntimeCodeHash: target.CodeHash.Hex()}
+		Manifest: target.Manifest, ABI: target.ABIHash(), RuntimeCodeHash: target.CodeHash.Hex()}
 	if gas != (common.Address{}) {
 		view.GasPayer = lower(gas)
 	}
@@ -84,9 +87,9 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 		}
 		signed = &profile
 	}
-	if signed == nil || signed.Version != 2 || signed.ChainID != view.Chain || signed.Contract != target.Contract ||
+	if signed == nil || signed.Version != target.profileVersion() || signed.ChainID != view.Chain || signed.Contract != target.Contract ||
 		signed.Asset != target.Asset || signed.Manifest != target.Manifest || signed.CodeHash != target.CodeHash ||
-		signed.ABIHash != ABIHash || !financeRef.MatchString(signed.GenerationID) || signed.StartHeight <= 0 ||
+		signed.ABIHash != target.ABIHash() || !financeRef.MatchString(signed.GenerationID) || signed.StartHeight <= 0 ||
 		signed.StartHash == (common.Hash{}) || (signed.AssetDecimals != nil && *signed.AssetDecimals != 6) {
 		return invalid
 	}
@@ -126,8 +129,25 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 	if err != nil || units != 6 {
 		return invalid
 	}
+	if target.Escrow() && !lockToken(at, asset, client) {
+		return invalid
+	}
 	view.Status, view.StartHeight, view.StartHash = "verified", signed.StartHeight, signed.StartHash.Hex()
 	return view
+}
+
+// lockToken checks that the token signs the domain the board and orderescrow.NewLock use.
+func lockToken(at *bind.CallOpts, asset common.Address, client *ethclient.Client) bool {
+	token, err := testusdc3009.NewTestusdc3009Caller(asset, client)
+	if err != nil {
+		return false
+	}
+	domain, err := token.DOMAINSEPARATOR(at)
+	text := func(value string) []byte { return crypto.Keccak256([]byte(value)) }
+	return err == nil && common.Hash(domain) == crypto.Keccak256Hash(
+		text("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+		text(orderescrow.TokenName), text(orderescrow.TokenVersion),
+		common.LeftPadBytes(big.NewInt(orderescrow.ChainID).Bytes(), 32), common.LeftPadBytes(asset.Bytes(), 32))
 }
 
 func (h FinanceHTTP) deploymentReview(ctx context.Context, branch string, target Target) DeploymentReview {
@@ -139,12 +159,20 @@ func (h FinanceHTTP) deploymentReview(ctx context.Context, branch string, target
 	if !ok || view.Status != "verified" || h.Merchants[branch] == "" {
 		return view
 	}
+	block := &bind.CallOpts{Context: ctx, BlockNumber: big.NewInt(int64(rpc.FinalizedBlockNumber))}
+	merchant := common.HexToHash(h.Merchants[branch])
+	if target.Escrow() {
+		if contract, err := escrowabi.NewOrderescrowCaller(target.Contract, chain.Client); err == nil {
+			if entry, err := contract.Merchants(block, merchant); err == nil && entry.Active && entry.BeneficiaryVersion > 0 {
+				view.BeneficiaryVersion = &entry.BeneficiaryVersion
+			}
+		}
+		return view
+	}
 	contract, err := v2.NewSettlementv2Caller(target.Contract, chain.Client)
 	if err != nil {
 		return view
 	}
-	block := &bind.CallOpts{Context: ctx, BlockNumber: big.NewInt(int64(rpc.FinalizedBlockNumber))}
-	merchant := common.HexToHash(h.Merchants[branch])
 	entry, err := contract.Merchants(block, merchant)
 	if err == nil && entry.Active && entry.BeneficiaryVersion > 0 {
 		view.BeneficiaryVersion = &entry.BeneficiaryVersion

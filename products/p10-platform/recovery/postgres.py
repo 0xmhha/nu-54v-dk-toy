@@ -84,6 +84,14 @@ def owner_inventory(env, database, owner, snapshot=None):
     tables = TABLES[owner]
     if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.subscription_entitlement') IS NOT NULL;", snapshot) == "t":
         tables += ("ledger.subscription_entitlement",)
+    # Backups made before the order escrow have none of its tables.
+    if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.order_escrow') IS NOT NULL;", snapshot) == "t":
+        tables += ("ledger.order_escrow",)
+    if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.escrow_action') IS NOT NULL;", snapshot) == "t":
+        tables += ("ledger.order_escrow_event", "ledger.escrow_journal", "ledger.escrow_action",
+                   "ledger.escrow_claim_order", "ledger.escrow_decision")
+    if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.wallet_return') IS NOT NULL;", snapshot) == "t":
+        tables += ("ledger.relay_version", "ledger.payer_enrollment_request", "ledger.wallet_return")
     for table in tables:
         counts[table] = row_inventory(env, database, table, snapshot)
     return counts

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -82,6 +83,11 @@ func (e *EvidenceStore) deliveryEpoch(ctx context.Context, stream, merchant stri
 func (e *EvidenceStore) reconciliation(ctx context.Context, worker *Store, w work, target Target, quote Quote) (bool, error) {
 	var committed bool
 	err := e.lock(ctx, target, quote, func(tx pgx.Tx) error {
+		if target.Escrow() {
+			var err error
+			committed, err = lockReconciliation(ctx, tx, worker, w, target, quote)
+			return err
+		}
 		merchant, order := common.Hash(quote.Args.MerchantId).Hex(), common.Hash(quote.Args.OrderId).Hex()
 		kind := "paid"
 		refundKey := ""
@@ -136,6 +142,18 @@ func (e *EvidenceStore) reconciliation(ctx context.Context, worker *Store, w wor
 		return err
 	})
 	return committed, err
+}
+
+// requestAbsence asks the indexer to prove that nothing paid an expired order. The indexer keeps one
+// request per order. Before its migration the operator's prove-absence command is the only way.
+func (e *EvidenceStore) requestAbsence(ctx context.Context, target Target, quote Quote) error {
+	_, err := e.db.Exec(ctx, "SELECT chainview.request_absence($1,$2,$3,$4)", target.Stream,
+		common.Hash(quote.Args.MerchantId).Hex(), common.Hash(quote.Args.OrderId).Hex(), quote.expiry().Unix())
+	var pg *pgconn.PgError
+	if errors.As(err, &pg) && pg.Code == "42883" {
+		return nil
+	}
+	return err
 }
 
 func applyAbsence(ctx context.Context, tx pgx.Tx, worker *Store, w work, target Target, quote Quote) (bool, error) {

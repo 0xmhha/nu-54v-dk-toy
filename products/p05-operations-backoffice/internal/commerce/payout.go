@@ -108,6 +108,9 @@ func (h HTTP) operatePayout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		profile, err := h.currentProfile(ctx, branch)
+		if err == nil && profile.Escrow {
+			err = service.Capability // the payout worker speaks only to SettlementV2
+		}
 		if err != nil {
 			operatorResponse(w, nil, err)
 			return

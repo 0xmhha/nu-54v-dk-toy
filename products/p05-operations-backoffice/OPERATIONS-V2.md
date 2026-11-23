@@ -220,3 +220,7 @@ Playwright의 별도 설치 경로는 기존 `NU54_PLAYWRIGHT_MODULE`로 지정�
 이 시험은 기존 반납과 보호 세대의 미결 2·1·0건, 유효 기한 만료, 같은 지점의
 v1 대사 왕복, 같은 세대 반납·인출을 실제 mTLS, PostgreSQL과 Anvil에서 확인한다.
 보호 세대의 등록·증거 입력은 시험 fixture에서 구성한다.
+
+### Order escrow claims and disputes
+
+Finance operations `escrow-orders`, `escrow-claim`, `escrow-claims`, `escrow-resolve`, `escrow-resolve-approve` and `escrow-resolve-reject` follow section 7 of the [wire agreement](../../docs/content/commercial/architecture/spending-wallet-wire.md). Grant `escrow_claim`, `escrow_dispute_request` and `escrow_dispute_approve` per branch, the last two to different people. One claim holds up to 100 orders; orders already in an unfinished claim are skipped as `in-another-batch`. An order whose delivered mark came too late shows `deliveryFailed` and is returned to the buyer after its delivery deadline. An unfulfilled order whose refund the buyer's token account keeps refusing shows `cancelRefused`; the server tries again, at most hourly, until the buyer accepts transfers. Setup and accounts: [order escrow branches](settlement-v2.md#order-escrow-branches).

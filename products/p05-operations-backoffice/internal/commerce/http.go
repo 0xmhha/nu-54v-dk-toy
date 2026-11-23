@@ -29,6 +29,23 @@ type PaymentForwarder interface {
 	Forward(context.Context, service.Bound, []byte) (string, error)
 }
 
+// OrderLocker pays an order into OrderEscrow. A PaymentForwarder may provide it.
+type OrderLocker interface {
+	AuthorizeLock(context.Context, service.Request, service.Principal, []byte) (*service.OrderApproval, error)
+	Lock(context.Context, service.Bound, []byte) (string, error)
+	EscrowStatus(context.Context, service.Bound, Order) (*OrderEscrow, error)
+	// Answer stores the buyer's receipt, dispute or its withdrawal.
+	Answer(context.Context, service.Bound, []byte) (string, error)
+}
+
+// PayerAccounts enrolls the customer's board account and returns its balance. A PaymentForwarder may provide it.
+type PayerAccounts interface {
+	EnrollPayer(context.Context, service.Bound, []byte) error
+	EnrolledPayer(context.Context, service.Bound) (*PayerEnrollment, error)
+	ReturnWallet(context.Context, service.Bound, []byte) error
+	WalletReturnStatus(context.Context, service.Bound) (*WalletReturn, error)
+}
+
 type HTTP struct {
 	QuoteAdmission            chan struct{}
 	Store                     *Store
@@ -81,6 +98,8 @@ type result struct {
 	Invoices         []Invoice              `json:"invoices,omitempty"`
 	ReservationFound bool                   `json:"reservationFound,omitempty"`
 	Unavailable      []Item                 `json:"unavailable,omitempty"`
+	Payer            *PayerEnrollment       `json:"payer,omitempty"`
+	WalletReturn     *WalletReturn          `json:"walletReturn,omitempty"`
 }
 
 type quoteReply struct {
@@ -203,7 +222,8 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req, err := service.DecodeRequest(bytes.NewReader(outer.Command))
-	if err != nil || req.Contract != "C3" || (outer.Cart != nil && req.Operation != "order.create") || (outer.ApprovalSignature != "" && req.Operation != "payment.forward") {
+	if err != nil || req.Contract != "C3" || (outer.Cart != nil && req.Operation != "order.create") || (outer.ApprovalSignature != "" &&
+		!slices.Contains([]string{"payment.forward", "order.lock", "order.answer", "payer.enroll", "wallet.return"}, req.Operation)) {
 		errorResponse(w, service.BadRequest, nil)
 		return
 	}
@@ -220,8 +240,35 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	// confirms it against the branch/catalog/order/claim at the owner.
 	principal.Grants = []service.Grant{{Domain: req.Domain, Object: req.Object, Operations: []string{"C3/" + req.Operation}}}
 	var approvalSignature []byte
-	if req.Operation == "payment.forward" {
-		if h.Payment == nil {
+	locker, _ := h.Payment.(OrderLocker)
+	accounts, _ := h.Payment.(PayerAccounts)
+	if strings.HasPrefix(req.Operation, "payer.") || strings.HasPrefix(req.Operation, "wallet.") {
+		if accounts == nil {
+			errorResponse(w, service.Capability, nil)
+			return
+		}
+	}
+	if slices.Contains([]string{"order.answer", "payer.enroll", "wallet.return"}, req.Operation) {
+		if req.Operation == "order.answer" && locker == nil {
+			errorResponse(w, service.Capability, nil)
+			return
+		}
+		approvalSignature, err = hex.DecodeString(outer.ApprovalSignature)
+		if err != nil || len(approvalSignature) != 65 || hex.EncodeToString(approvalSignature) != outer.ApprovalSignature {
+			errorResponse(w, service.BadRequest, nil)
+			return
+		}
+	}
+	if req.Operation == "payment.forward" || req.Operation == "order.lock" {
+		authorize := func(ctx context.Context) (*service.OrderApproval, error) {
+			return h.Payment.AuthorizeForward(ctx, req, principal, approvalSignature)
+		}
+		if req.Operation == "order.lock" {
+			authorize = func(ctx context.Context) (*service.OrderApproval, error) {
+				return locker.AuthorizeLock(ctx, req, principal, approvalSignature)
+			}
+		}
+		if h.Payment == nil || (req.Operation == "order.lock" && locker == nil) {
 			errorResponse(w, service.Capability, nil)
 			return
 		}
@@ -233,7 +280,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		// Order authority comes from the issuer's archived bytes and current
 		// branch scope, never from copying the two request digest strings.
 		verify, cancel := context.WithTimeout(authority.Scope(r.Context(), principal, req.Domain), 4*time.Second)
-		principal.Order, err = h.Payment.AuthorizeForward(verify, req, principal, approvalSignature)
+		principal.Order, err = authorize(verify)
 		cancel()
 		if err != nil {
 			errorResponse(w, err, nil)
@@ -350,7 +397,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		out.ResultRef = bound.Subject
 	case "order.status":
 		var order Order
-		order, err = h.Store.Status(ctx, bound)
+		order, err = h.status(ctx, bound, locker)
 		out.Order = &order
 	case "checkout.request":
 		var item Comparison
@@ -377,13 +424,26 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		err = h.Store.subscription(ctx, bound, &out)
 	case "payment.forward":
 		out.ResultRef, err = h.Payment.Forward(ctx, bound, approvalSignature)
+	case "order.lock":
+		out.ResultRef, err = locker.Lock(ctx, bound, approvalSignature)
+	case "payer.enroll":
+		err = accounts.EnrollPayer(ctx, bound, approvalSignature)
+	case "payer.status":
+		out.Payer, err = accounts.EnrolledPayer(ctx, bound)
+	case "wallet.return":
+		err = accounts.ReturnWallet(ctx, bound, approvalSignature)
+	case "wallet.return-status":
+		out.WalletReturn, err = accounts.WalletReturnStatus(ctx, bound)
+	case "order.answer":
+		out.ResultRef, err = locker.Answer(ctx, bound, approvalSignature)
 	default:
 		err = service.Capability
 	}
 	if err == nil && time.Now().Unix() >= req.ExpiresAt {
 		err = service.Unknown
 	}
-	if err == nil && slices.Contains([]string{"catalog.read", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list"}, req.Operation) {
+	if err == nil && slices.Contains([]string{"catalog.read", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list",
+		"payer.status", "wallet.return-status"}, req.Operation) {
 		err = h.Store.db.CheckRead(ctx)
 	}
 	if err == nil && req.Operation == "order.list" {
@@ -416,6 +476,22 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// status reads the order and, when it is paid through OrderEscrow, its escrow part. Both come
+// from the same order revision.
+func (h HTTP) status(ctx context.Context, bound service.Bound, locker OrderLocker) (Order, error) {
+	for attempt := 0; ; attempt++ {
+		order, err := h.Store.Status(ctx, bound)
+		if err != nil || locker == nil || (bound.Role != "customer" && bound.Role != "terminal") {
+			return order, err
+		}
+		order.Escrow, err = locker.EscrowStatus(ctx, bound, order)
+		if errors.Is(err, service.Busy) && attempt < 2 {
+			continue
+		}
+		return order, err
+	}
 }
 
 func currentOrderPage(rows []CustomerOrderSummary, now time.Time) error {
@@ -462,6 +538,11 @@ func (h HTTP) issueWithReview(ctx context.Context, bound service.Bound, review *
 	revision, err := strconv.ParseInt(bound.Request.Body["orderRevision"], 10, 64)
 	if err != nil {
 		return nil, service.BadRequest
+	}
+	if profile.Escrow {
+		if err = h.Store.EscrowQuoteAllowed(ctx, bound, [32]byte(rawClaim)); err != nil {
+			return nil, err
+		}
 	}
 	ready, err := h.Store.BeginQuote(ctx, bound, [32]byte(rawClaim), revision, profile)
 	if err != nil {
