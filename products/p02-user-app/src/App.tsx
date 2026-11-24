@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Keyboard, Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
@@ -413,7 +413,20 @@ function Button({ label, onPress, disabled, variant = 'primary' }: { label: stri
   return <View style={styles.buttonGap}><KitButton label={label} run={onPress} disabled={disabled} variant={variant} /></View>;
 }
 
+/** Height the on-screen keyboard covers. The edge-to-edge window is not resized for it on Android. */
+function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const shown = Keyboard.addListener('keyboardDidShow', event => setHeight(event.endCoordinates.height));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setHeight(0));
+    return () => { shown.remove(); hidden.remove(); };
+  }, []);
+  return height;
+}
+
 export default function App() {
+  const keyboard = useKeyboardHeight();
   const [renting, setRenting] = useState(false);
   const [commissioningPins, setCommissioningPins] = useState<CommissioningPins>();
   const [shopping, setShopping] = useState(false);
@@ -601,7 +614,7 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
-        <View style={styles.page}>
+        <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
         {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openSettings={openSettings} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
@@ -638,7 +651,7 @@ export default function App() {
             commissioningPins={commissioningPins} dismissCommissioningPins={()=>setCommissioningPins(undefined)} />
         </View>}
         </View>
-        {showTabs && <TabBar current={currentTab} disabled={false} tabs={[
+        {showTabs && !keyboard && <TabBar current={currentTab} disabled={false} tabs={[
           {key: 'home', label: '홈', run: () => { closeOverlays(); requestWallet('home'); }},
           {key: 'pay', label: '결제', run: () => { closeOverlays(); setShownOrder(''); setShopping(true); }},
           {key: 'wallet', label: '지갑', run: () => { closeOverlays(); requestWallet('owner'); }},

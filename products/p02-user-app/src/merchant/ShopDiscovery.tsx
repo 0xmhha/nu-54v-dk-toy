@@ -1,7 +1,9 @@
-import {inputPlaceholder} from '../ui/theme.ts';
+import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text as Plain, TextInput, View, type TextProps } from 'react-native';
 import { readEntranceQr, type ShopIdentity } from '@nu54/protocol';
+
+import { KitButton } from '../ui/kit.tsx';
 
 export { readEntranceQr, readShopIdentity } from '@nu54/protocol';
 
@@ -23,6 +25,13 @@ type Props = {
   recover?: () => Promise<void>;
   wallet: () => void;
 };
+
+function Button({ title, disabled, onPress }: { title: string; disabled?: boolean; onPress: () => void }) {
+  return <KitButton label={title} disabled={disabled} run={onPress} variant="secondary" />;
+}
+function Text({ style, ...props }: TextProps) {
+  return <Plain {...props} style={[type.body, style]} />;
+}
 
 const compare = (value: string) => value.trim().normalize('NFC');
 
@@ -330,6 +339,6 @@ export function ShopDiscovery({
 
 const styles = StyleSheet.create({
   block: { gap: 10, marginVertical: 12 },
-  title: { fontSize: 19, fontWeight: '600' },
-  input: { borderWidth: 1, borderColor: '#999', padding: 10, color: '#151515' },
+  title: { ...type.section },
+  input: { fontFamily: font, fontSize: 16, borderWidth: 1, borderColor: '#8fa497', borderRadius: radius.m, padding: 12, minHeight: 50, color: color.ink, backgroundColor: color.sheet },
 });

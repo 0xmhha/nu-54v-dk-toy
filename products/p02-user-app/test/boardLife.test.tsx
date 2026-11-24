@@ -5,7 +5,7 @@ import {
   bindServiceRequestV2 as mockBind, signDigest, toBase64 as mockBase64, walletReturnDigest, bytesToHex, type ServiceRequestV2, type WalletReturn,
 } from '@nu54/protocol';
 import {orderRecords} from '../src/merchant/orderRecords';
-import {BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLife';
+import {BoardBalance, BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLife';
 import {followReturn, newReturn, pendingReset, readResetAnswer, renewReturn, resetRequestText, settleReturn, returnRecord, returnStale, verifyReturn, type ReturnRecord} from '../src/wallet/boardReturn';
 import {defaultReadState} from '../src/wallet/readProfiles';
 import {decodeWalletStorage, withoutBoardAccount, type WalletStorage} from '../src/wallet/profile';
@@ -129,6 +129,7 @@ describe('what is remembered', () => {
   test('setup resumes at the first step not done, and the store can wait', () => {
     const at = (value: WalletStorage, enrolled = true, payerNow?: typeof mockPayer) => setupSteps(value, enrolled, payerNow).map(step => step.state);
     expect(at({version: 2, exercised: false}, false)).toEqual(['now', 'later', 'later', 'later', 'later']);
+    expect(setupSteps({version: 2, exercised: false}, true, undefined, true).map(step => step.state)).toEqual(['done', 'now', 'later', 'later', 'later']);
     expect(at({...base, spendingBoard: undefined})).toEqual(['done', 'now', 'later', 'later', 'later']);
     expect(at({...base, spendingBoard: {...base.spendingBoard!, returnAddress: undefined}})).toEqual(['done', 'done', 'now', 'now', 'later']);
     expect(at(base)).toEqual(['done', 'done', 'done', 'now', 'now']);
@@ -164,6 +165,24 @@ describe('what is remembered', () => {
 });
 
 describe('deposit and return address', () => {
+  test('home shows what the board account holds, and hides it when asked', async () => {
+    const show = (value: WalletStorage) => Renderer.act(async () => {
+      const next = <BoardBalance t={ko => ko} stored={value} native={{evmRpc: async () => ''} as never} active orders={0} hide={() => { went.push('hide'); }} deposit={() => {}} network={() => { went.push('network'); }} />;
+      if (tree) tree.update(next); else tree = Renderer.create(next);
+    });
+    await show(stored); await flush();
+    expect(text()).toContain('42.00 TestUSDC');
+    await show({...stored, walletRead: {...stored.walletRead!, selection: {...stored.walletRead!.selection, hidden: true}}});
+    expect(text()).not.toContain('42.00');
+    mockBalance = undefined;
+    await Renderer.act(async () => { tree!.unmount(); });
+    tree = undefined;
+    await show(stored); await flush();
+    expect(text()).toContain('확인 안 됨');
+    button('네트워크 주소 설정').props.run();
+    expect(went).toEqual(['network']);
+  });
+
   test('the address appears only after the signing test of this registration', async () => {
     stored = {...base, spendingBoard: undefined};
     await open('deposit');

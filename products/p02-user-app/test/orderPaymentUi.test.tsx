@@ -2,7 +2,7 @@ import React from 'react';
 import {AppState} from 'react-native';
 import Renderer from 'react-test-renderer';
 import {
-  bindServiceRequestV2 as mockBind, decodeNearbyRequest as mockDecode, hexToBytes,
+  bindServiceRequestV2 as mockBind, decodeNearbyRequest as mockDecode, encodeOrderLocator, hexToBytes,
   packNearbyPresentation as mockPack, toBase64 as mockBase64, utf8Encode as mockUtf8, type CommerceOrder, type NearbyReply,
   type NearbyRequest, type ServiceRequestV2,
 } from '@nu54/protocol';
@@ -29,6 +29,7 @@ const mockLocks: (ServiceRequestV2 & {approvalSignature?: string})[] = [];
 const mockNearby: NearbyRequest[] = [];
 let mockOrder: CommerceOrder = order;
 let mockOffline = false;
+let mockClaimed = true;
 let mockList: object[] = [];
 let mockQuoteRefused = false;
 let mockQuotes = 0;
@@ -54,7 +55,8 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     if (command.operation === 'order.list') return JSON.stringify({...ok, orders: mockList});
     if (command.operation === 'invoice.list') return JSON.stringify({...ok, invoices: []});
     if (command.operation === 'order.status') return JSON.stringify({...ok, order: mockOrder});
-    if (command.operation === 'checkout.claim') return JSON.stringify({...ok, claim: {claimDigest: 'a'.repeat(64), expiresAt: Math.floor(Date.now() / 1000) + 60}});
+    if (command.operation === 'checkout.claim') return JSON.stringify(!mockClaimed ? ok : {...ok, claim: {claimDigest: 'a'.repeat(64), expiresAt: Math.floor(Date.now() / 1000) + 60}});
+    if (command.operation === 'checkout.request') return JSON.stringify({...ok, comparison: {code: '37ea19cd', expiresAt: Math.floor(Date.now() / 1000) + 60}});
     if (command.operation === 'quote.issue') {
       mockQuotes++;
       return JSON.stringify(mockQuoteRefused ? {...ok, status: 'error', error: 'UNSUPPORTED_CAPABILITY', resultRef: undefined} : {...ok, quote: mockQuoteFor()});
@@ -63,6 +65,8 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     throw new Error('unexpected ' + command.operation);
   },
 }}));
+let mockScan = '';
+jest.mock('../src/specs/NativeShopQr.ts', () => ({__esModule: true, default: {scan: async () => mockScan}}));
 const mockAsk = jest.fn(async (_ask: boolean) => true);
 jest.mock('../src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: {permission: (ask: boolean) => mockAsk(ask), clear: async () => {}, orderReady: async () => true}}));
 jest.mock('../src/specs/NativeNearby.ts', () => ({__esModule: true, default: {}}));
@@ -143,7 +147,7 @@ beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
   jest.spyOn(AppState, 'addEventListener').mockReturnValue({remove() {}});
   mockJournals.clear(); mockLocks.length = 0; mockNearby.length = 0; mockWrites = [];
-  mockOrder = order; mockOffline = false; mockRelay = undefined; mockList = []; mockQuoteRefused = false; mockQuotes = 0; mockLockError = '';
+  mockOrder = order; mockOffline = false; mockClaimed = true; mockRelay = undefined; mockList = []; mockQuoteRefused = false; mockQuotes = 0; mockLockError = '';
   mockLockReply = () => ({status: 'ok', value: {submitted: mockSale}});
   mockWallet = {mode: 'personal', enrollment: {device: 'pinned'}, verified: {network: '8283', address: payer, generation: generation.toString(), boardFingerprint: 'pinned'}};
   mockStatus.mockReset().mockResolvedValue({account: payer, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: false, leftToday: 95_500_000n});
@@ -523,6 +527,48 @@ describe('after a restart', () => {
     expect(saved().forwardAttempted).toBe(true);
     await press('진행 중인 결제 이어서 보기');
     expect(screen()).toContain('다시 결제하지 마세요');
+  });
+});
+
+describe('the code on the kiosk', () => {
+  const locator = () => encodeOrderLocator({branchRef: mockBranch, orderRef: mockSale, expiresAt: now + 50}, now);
+  test('the camera tells an order from a store entrance', async () => {
+    const openPayments = jest.fn(), openShopQr = jest.fn();
+    await open({openPayments, openShopQr, tabbed: true, openSettings() {}});
+    mockScan = locator();
+    await press('키오스크 QR 스캔');
+    expect(openPayments).toHaveBeenCalledWith(mockScan);
+    mockScan = 'nu54://shop/' + mockBranch;
+    await press('키오스크 QR 스캔');
+    expect(openShopQr).toHaveBeenCalledWith(mockScan);
+  });
+
+  test('the review opens by itself once the store confirms the number, and the link is forgotten when it is done', async () => {
+    mockOrder = {...order, cafeReview: {branchLabel: '그린 카페', payerBound: true}};
+    mockClaimed = false;
+    await open({initialCounterQr: locator(), openPayments() {}, tabbed: true, openSettings() {}});
+    await press('QR 주문 연결');
+    expect(screen()).toContain('37ea19cd');
+    await tick(3100);
+    expect(screen()).not.toContain('결제 내용을 확인하세요');
+    mockClaimed = true;
+    await tick(3100);
+    expect(screen()).toContain('결제 내용을 확인하세요');
+    const kept = () => [...mockJournals].filter(([name, value]) => /^customer-qr-/.test(name) && value && value !== 'null');
+    expect(kept()).toHaveLength(1);
+    await tick(200_000);
+    await press('결제 화면 닫기');
+    await tick(0);
+    expect(kept()).toHaveLength(0);
+  });
+
+  test('a link whose order is already over is dropped without opening it', async () => {
+    mockOrder = {...order, state: 'closed', quoteDigest: undefined, orderKey: undefined};
+    mockJournals.set('customer-qr-v2', JSON.stringify({order: mockSale, key: mockSale, code: '37ea19cd', branch: mockBranch, subject: mockCustomer}));
+    await open({openPayments() {}, tabbed: true, openSettings() {}});
+    await tick(3100);
+    expect(button('연결 화면 닫기')).toBeUndefined();
+    expect(button('키오스크 QR 스캔')).toBeDefined();
   });
 });
 

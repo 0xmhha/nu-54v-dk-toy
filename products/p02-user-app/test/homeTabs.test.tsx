@@ -1,6 +1,6 @@
 import React from 'react';
 import Renderer from 'react-test-renderer';
-import {Platform} from 'react-native';
+import {BackHandler, Keyboard, Platform} from 'react-native';
 import App from '../src/App';
 import {OrderPayment, type OrderPaymentView} from '../src/merchant/OrderPayment';
 import {demoPayments} from '../src/wallet/DemoWalletHome';
@@ -64,6 +64,40 @@ test('travel, booking, market, shops and wallet pages stay reachable', async () 
   await tap('둘러보기', 'tab');
   for (const label of ['여행지 찾기', '가까운 매장에서 주문', 'DApp 둘러보기', '외부 DApp 연결', '온체인 토큰 권한', '테스트 시장 학습'])
     expect(pick(label, 'button')).toBeDefined();
+});
+
+test('system Back leaves an inner wallet page for the page that opened it, never the app', async () => {
+  Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
+  const handlers: Parameters<typeof BackHandler.addEventListener>[1][] = [];
+  const spy = jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_name, run) => {
+    handlers.push(run);
+    return {remove: () => { if (handlers.includes(run)) handlers.splice(handlers.indexOf(run), 1); }} as never;
+  });
+  mockStored = personal;
+  await open();
+  for (const label of ['개인 전송', '지급 기록 관리']) {
+    await tap('지갑', 'tab');
+    await tap(label, 'button');
+    expect(selected()).toEqual(['지갑']);
+    let taken = false;
+    await Renderer.act(async () => { taken = [...handlers].reverse().some(run => run({} as never)); });
+    expect([label, taken, !!pick(label, 'button')]).toEqual([label, true, true]);
+  }
+  spy.mockRestore();
+});
+
+test('the keyboard makes room for itself and hides the tabs on Android', async () => {
+  Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
+  const listeners: Record<string, (event: {endCoordinates: {height: number}}) => void> = {};
+  const spy = jest.spyOn(Keyboard, 'addListener').mockImplementation(((name: string, run: never) => { listeners[name] = run; return {remove() {}}; }) as never);
+  mockStored = personal;
+  await open();
+  await Renderer.act(async () => { listeners.keyboardDidShow({endCoordinates: {height: 320}}); });
+  expect(selected()).toEqual([]);
+  expect(text()).toContain('"paddingBottom":320');
+  await Renderer.act(async () => { listeners.keyboardDidHide({endCoordinates: {height: 0}}); });
+  expect(selected()).toEqual(['홈']);
+  spy.mockRestore();
 });
 
 test('before a board is connected home explains the three steps and hides the cloud wallet', async () => {

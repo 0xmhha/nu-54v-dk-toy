@@ -26,7 +26,7 @@ import {receiveQr} from './receivePresentation.ts';
 
 export type BoardLifeScreen = 'setup' | 'return-address' | 'deposit' | 'return' | 'reset' | 'operator-reset';
 export type BoardLifeProps = {
-  screen: BoardLifeScreen; stored: WalletStorage; native: NativeWallet | null | undefined; hasEnrollment: boolean; spending?: SpendingStatus;
+  screen: BoardLifeScreen; stored: WalletStorage; native: NativeWallet | null | undefined; hasEnrollment: boolean; registered?: boolean; spending?: SpendingStatus;
   found: {address: string; name: string}[]; busy: boolean;
   scan: () => void; go: (screen: BoardLifeScreen | 'owner' | 'board' | 'read-profiles') => void; orders: () => void;
   /** One exclusive step; its message replaces the last one. */
@@ -94,6 +94,29 @@ function useBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'fixture'>
   return {balance, read};
 }
 
+/** What the board account can spend, on the home page. Read again when an order starts or ends. */
+export function BoardBalance({t, stored, native, active, orders, hide, deposit, network}: Pick<BoardLifeProps, 'stored' | 'native'> & {
+  t: (ko: string) => string; active: boolean; orders: number; hide: () => void; deposit: () => void; network: () => void;
+}) {
+  const {balance, read} = useBalance({stored, native});
+  const hidden = !!stored.walletRead?.selection.hidden;
+  useEffect(() => {
+    if (!active) return;
+    read().catch(() => {});
+    const timer = setInterval(() => { read().catch(() => {}); }, 30_000);
+    return () => clearInterval(timer);
+  }, [active, orders, read]);
+  return <Card>
+    <Text accessibilityRole="header" style={type.section}>{t('보드 계정 잔액')}</Text>
+    {hidden || !active ? <Text style={type.body}>{t('잔액 숨김')}</Text>
+      : balance ? <AmountLine label={t('금액')} amount={balance.text} />
+      : <Text style={type.body}>{t(balance === undefined ? '확인하는 중' : '확인 안 됨')}</Text>}
+    {!hidden && balance === null && <KitButton label={t('네트워크 주소 설정')} run={network} variant="secondary" />}
+    <KitButton label={t('입금')} run={deposit} variant="secondary" />
+    <KitButton label={t(hidden ? '잔액 표시' : '잔액 숨기기')} run={hide} variant="secondary" />
+  </Card>;
+}
+
 function Chooser({props, label, run, disabled = false}: {props: BoardLifeProps; label: string; run: (handle: string) => void; disabled?: boolean}) {
   return <View style={styles.group}>
     {props.found.map((item, index) => <KitButton key={item.address} disabled={props.busy || disabled}
@@ -112,10 +135,10 @@ function Notice({title, body, tone = 'wait', children}: {title?: string; body: s
 
 export type SetupStep = {label: string; detail: string; state: 'done' | 'now' | 'later'; optional?: true};
 /** The one line of first use. Every step is read from what is stored or reported, so it resumes anywhere. */
-export function setupSteps(stored: WalletStorage, hasEnrollment: boolean, payer?: PayerEnrollment | null): SetupStep[] {
+export function setupSteps(stored: WalletStorage, hasEnrollment: boolean, payer?: PayerEnrollment | null, registered = false): SetupStep[] {
   const board = testedBoard(stored);
   const enrolled = !!board && payer?.payer === board.account && payer.generation === String(board.generation) && payer.expiresAt > now();
-  const done = [hasEnrollment && !!stored.verified, !!board, !!board?.returnAddress, enrolled, false];
+  const done = [hasEnrollment && (!!stored.verified || registered), !!board, !!board?.returnAddress, enrolled, false];
   const rows: [string, string][] = [
     ['보드 연결과 PIN', '보드 버튼으로 이 휴대전화를 승인하고 PIN을 정합니다'],
     ['서명 시험', '보드 계정의 서명을 확인합니다. 버튼은 누르지 않습니다'],
@@ -140,28 +163,31 @@ export function SetupList({steps}: {steps: SetupStep[]}) {
 
 /** `undefined` while asking, null when there is none or it cannot be read. */
 export function usePayer(active: boolean) {
-  const [payer, setPayer] = useState<PayerEnrollment | null>();
+  const [payer, setPayer] = useState<PayerEnrollment | null>(), [unregistered, setUnregistered] = useState(false);
   const read = useCallback(async () => {
-    const value = await credential().then(({client}) => client.enrolledPayer()).catch(() => undefined);
+    let missing = false;
+    const value = await credential().then(({client}) => client.enrolledPayer())
+      .catch(error => { missing = error instanceof Error && error.message === 'NO_CREDENTIAL'; return undefined; });
+    setUnregistered(missing);
     setPayer(value ?? null);
     return value;
   }, []);
   useEffect(() => { if (active) read().catch(() => {}); }, [active, read]);
-  return {payer, read};
+  return {payer, read, unregistered};
 }
 
 /** Setup progress on 내 보드. */
-export function SetupStatus({stored, hasEnrollment, open, live = true}: {stored: WalletStorage; hasEnrollment: boolean; open: () => void; live?: boolean}) {
+export function SetupStatus({stored, hasEnrollment, registered, open, live = true}: {stored: WalletStorage; hasEnrollment: boolean; registered?: boolean; open: () => void; live?: boolean}) {
   const {payer} = usePayer(live && !!testedBoard(stored));
   return <View style={styles.group}><Text accessibilityRole="header" style={type.section}>보드 설정</Text>
-    <SetupList steps={setupSteps(stored, hasEnrollment, payer)} />
+    <SetupList steps={setupSteps(stored, hasEnrollment, payer, registered)} />
     <KitButton label="설정 열기" run={open} variant="secondary" /></View>;
 }
 
 function SetupPage(props: BoardLifeProps) {
   const {stored, work, withBoard, commit, say} = props;
-  const {payer, read} = usePayer(!props.fixture);
-  const steps = setupSteps(stored, props.hasEnrollment, payer);
+  const {payer, read, unregistered} = usePayer(!props.fixture);
+  const steps = setupSteps(stored, props.hasEnrollment, payer, props.registered);
   const board = testedBoard(stored), verified = stored.verified;
   const test = (handle: string) => work(async () => {
     await withBoard(handle, async session => {
@@ -211,7 +237,7 @@ function SetupPage(props: BoardLifeProps) {
     {board && steps[3].state !== 'done' && <>
       <Text style={type.section}>매장 등록</Text>
       <Text style={type.body}>이 휴대전화의 주문 등록을 쓰는 매장에 보드 계정을 알립니다. 보드 버튼은 누르지 않습니다.</Text>
-      {payer === null && <KitButton label="결제 탭에서 주문 등록하기" run={props.orders} disabled={props.busy} variant="secondary" />}
+      {unregistered && <KitButton label="결제 탭에서 주문 등록하기" run={props.orders} disabled={props.busy} variant="secondary" />}
       <Chooser props={props} label="이 매장에 보드 등록" run={enroll} />
     </>}
   </>;
@@ -234,7 +260,7 @@ function ReturnAddressPage(props: BoardLifeProps) {
   };
   const store = (handle: string) => props.work(async () => {
     await props.withBoard(handle, session => session.setReturnAddress(BigInt(board.generation), board.account, checked,
-      () => props.wait({flow: 'order', step: 'approve', note: pinNote})));
+      () => props.wait({flow: 'address', step: 'approve', note: pinNote})));
     await props.commit(head => head.spendingBoard ? {...head, spendingBoard: {...head.spendingBoard, returnAddress: checked}} : head);
     props.say('보드에 반납받을 주소를 저장했습니다.');
   }, boardFailure);
@@ -455,7 +481,7 @@ function ReturnPage(props: BoardLifeProps) {
         const asked = renewReturn(record, now());
         await keep(asked);
         const signature = await session.signReturn(BigInt(asked.generation), {...asked, amount: BigInt(asked.amount)},
-          () => props.wait({flow: 'order', step: 'approve', note: pinNote}));
+          () => props.wait({flow: 'return', step: 'approve', note: pinNote}));
         const next = verifyReturn(asked, signature);
         await keep(next);
         return next;
@@ -493,7 +519,7 @@ function ReturnPage(props: BoardLifeProps) {
     if (resetUnknown(fresh)) throw new Error('RESET_UNKNOWN');
     await keep({...record, stage: 'resetting'});
     await erase(props, () => withBoard(handle, session => session.resetBoard(BigInt(record.generation), record.payer,
-      () => props.wait({flow: 'order', step: 'approve', note: pinNote})))).catch(async error => {
+      () => props.wait({flow: 'reset', step: 'approve', note: pinNote})))).catch(async error => {
       if (error instanceof Error && notErased.includes(error.message)) await keep({...record, stage: 'final'});
       throw error;
     });
@@ -537,7 +563,7 @@ function ResetPage(props: BoardLifeProps) {
       <Chooser props={props} label="보드 초기화" run={handle => work(async () => {
         await verify();
         await erase(props, () => withBoard(handle, session => session.resetBoard(BigInt(verified.generation), verified.address,
-          () => props.wait({flow: 'order', step: 'approve', note: pinNote}))));
+          () => props.wait({flow: 'reset', step: 'approve', note: pinNote}))));
         await finishReset(props);
       }, resetFailure)} />
       <KitButton label="초기화하지 않기" run={() => setSure(false)} disabled={props.busy} variant="secondary" /></>)}
@@ -593,7 +619,7 @@ function OperatorResetPage(props: BoardLifeProps) {
       waitKnown = !!board;
       await erase(props, () => session.operatorReset(request!.nonce, signature, () => {
         asked = true;
-        props.wait({flow: 'order', step: 'approve', note: '운영자 초기화를 승인하려면 SW1을 짧게 누르세요. PIN은 묻지 않습니다.'});
+        props.wait({flow: 'reset', step: 'approve', note: '운영자 초기화를 승인하려면 SW1을 짧게 누르세요. PIN은 묻지 않습니다.'});
       }));
     }).catch(async error => {
       // The board takes one try per request. A dropped link could also be its wait for an approved payment, which takes none.

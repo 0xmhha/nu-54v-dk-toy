@@ -348,6 +348,7 @@ export function CustomerOrders({
   const [orderOutcome, setOrderOutcome] = useState<OrderOutcome>();
   const [orderSilent, setOrderSilent] = useState(false);
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
+  const page = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [detailSale, setDetailSale] = useState(initialOrder ?? '');
   const [stranded, setStranded] = useState<OpenOrder[]>([]);
   const [boardAccount, setBoardAccount] = useState<{address: string; generation: number} | null>();
@@ -672,6 +673,23 @@ export function CustomerOrders({
       Math.max(0, expiresIn));
     return () => clearTimeout(timer);
   }, [approvalProgress]);
+
+  useEffect(() => {
+    // Messages are drawn above the page; a button far below must bring them into view.
+    if (message) page.current?.scrollTo({y: 0, animated: true});
+  }, [message]);
+
+  const closeDetail = () => { setDetailSale(''); setOrder(undefined); setLookupOrder(undefined); setMessage(''); };
+  const detailShown = useRef(false);
+  detailShown.current = false;
+  useEffect(() => {
+    if (!detailSale && !order) return;
+    const backAction = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (detailShown.current) closeDetail();
+      return detailShown.current;
+    });
+    return () => backAction.remove();
+  }, [detailSale, order]);
 
   useEffect(() => {
     if (!showApprovalMaintenance) return;
@@ -1066,6 +1084,7 @@ export function CustomerOrders({
     try {
       const raw = await ShopQr.scan();
       if (raw.startsWith('wc:')) throw new Error('SHOP_CAMERA');
+      if (raw.startsWith('nu54://order') && openPayments) { openPayments(raw.slice(0, 133)); return ''; }
       if (!raw || !openShopQr) return raw;
       // The Android camera activity can suspend the order view while it captures.
       openShopQr(raw);
@@ -1073,6 +1092,12 @@ export function CustomerOrders({
     } catch {
       throw new Error('SHOP_CAMERA');
     }
+  }
+
+  /** The kiosk's code; a store's entrance code opens its menu instead. */
+  async function scanOrderQr() {
+    const raw = await scanShopQr();
+    if (raw) throw new Error('SHOP_CAMERA');
   }
 
   async function recoverOriginal() {
@@ -2074,6 +2099,9 @@ export function CustomerOrders({
     setOrderBlocked(undefined);
     setOrder(undefined);
     setMessage('');
+    // The connection to the kiosk's order has done its work.
+    const finished = outcome?.sale ?? (approved?.confirmer && paymentReviewStop(approved, now()) ? approved.order.id : undefined);
+    if (ticket && ticket.order === finished) await keepTicket();
     if (outcome) {
       if (point?.order === outcome.sale) { await save(); setCart({}); }
       // Asked here, once: the system dialog would end a kiosk connection that is still needed.
@@ -2312,8 +2340,16 @@ export function CustomerOrders({
     if (claim) {
       const result = await client.status(current.order);
       if (!mounted.current || revision !== loadRevision.current) return;
+      if (result.escrow || ['paid', 'closed'].includes(result.state)) {
+        // Nothing is left to connect; the order itself is in the list.
+        await keepTicket();
+        return;
+      }
       setOrder(result);
       setMessage('매장 단말에서 이 휴대전화의 연결을 확인했습니다.');
+      // The review button below still works if this attempt does not.
+      if (policy && paysThroughEscrow(policy) && canReplaceReview(result.id) && ['preview', 'issued'].includes(result.state))
+        await preparePayment(result).catch(() => {});
       return;
     }
     if (!initiate) {
@@ -2330,6 +2366,17 @@ export function CustomerOrders({
       '이 확인 번호를 매장 단말의 번호와 대조하고 같은 번호를 확인하세요.',
     );
   }
+
+  // The store confirms the number on its own screen, so the phone asks for the result by itself.
+  const awaited = useRef<() => void>(undefined);
+  awaited.current = () => { if (ticket) work(() => checkTicket(ticket, false), '연결 결과가 아직 확인되지 않았습니다.'); };
+  const awaiting = phase === 'active' && !!ticket?.code && !order && !approved && !shopEntry && !pickupMode;
+  useEffect(() => {
+    if (!awaiting) return;
+    let left = 40; // the kiosk shows its number for a minute
+    const timer = setInterval(() => { if (left-- > 0) awaited.current?.(); else clearInterval(timer); }, 3000);
+    return () => clearInterval(timer);
+  }, [awaiting]);
 
   async function fromQr(raw: string) {
     if (!client) throw new Error('CLIENT_REQUIRED');
@@ -2363,6 +2410,8 @@ export function CustomerOrders({
   const nearbyClosed = approved?.route === 'nearby' && order?.id === approved.order.id && order.state === 'closed';
   const pendingReadOnly = nearbyClosed || (!!pendingNearby && pendingNearby.order.id === (order?.id ?? lookupOrder));
   const stoppedReview = approved && paymentReviewStop(approved, Math.max(reviewClock, now()), reviewWaiting);
+  const reviewExpired = stoppedReview === 'expired';
+  useEffect(() => { if (reviewExpired) setMessage(''); }, [reviewExpired]);
   const visibleReview = approved && (!order || approved.order.id === order.id) &&
     (!travelPayment || approved.route === 'direct' && matchesTravelOrder(approved.order) && !!order);
   const verifiedReview = useMemo(() => {
@@ -2420,7 +2469,8 @@ export function CustomerOrders({
   </View>;
   if (orderView && !protection.on) return protectionNotice;
   if (orderView) {
-    return <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+    // Each step of the payment starts at its top, whatever was scrolled before.
+    return <ScrollView key={orderView.kind} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
       <OrderPayment view={orderView} busy={busy} message={message}
         t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text}
         actions={{
@@ -2457,6 +2507,7 @@ export function CustomerOrders({
   const otherDetail = !recordedDetail && order?.escrow && !travelBranch && !pickupMode ? order : undefined;
   if (phase === 'active' && client && !travelBranch && !showSubscriptions && (recordedDetail && (detailSale || order) || otherDetail)) {
     if (!protection.on) return protectionNotice;
+    detailShown.current = true;
     const shown: OpenOrder = recordedDetail ?? {...otherDetail!.escrow!, sale: otherDetail!.id, branch: client.profile.branchRef, customer: client.profile.subjectRef,
       generation: '', asset: otherDetail!.asset, amount: otherDetail!.amount, sentAt: Math.floor(Date.parse(otherDetail!.payment?.includedAt ?? otherDetail!.expiresAt) / 1000),
       pickupNo: otherDetail!.pickupNo, pickup: otherDetail!.payment?.pickupStage};
@@ -2465,14 +2516,85 @@ export function CustomerOrders({
         busy={busy} message={message} now={now()} actions={{
           answer: action => work(() => answerOrder(action), '답을 보내지 못했습니다. 상태를 다시 확인하세요.'),
           refresh: () => work(() => openOrderDetail(shown.sale), orderOffline),
-          back: () => { setDetailSale(''); setOrder(undefined); setLookupOrder(undefined); setMessage(''); },
+          back: closeDetail,
         }} />
     </ScrollView>;
   }
+  const pairView = pair && (
+            <>
+              {pair.code && <Text style={s.text}>확인 번호 {pair.code}</Text>}
+              <Button
+                label="단말 연결 상태 확인"
+                disabled={busy}
+                run={() =>
+                  work(
+                    () => nearbyCheckout(pair),
+                    '단말의 공개 주문과 연결할 수 없습니다.',
+                  )
+                }
+              />
+            </>
+          );
+  const qrView = <View style={s.scroll}>
+          {pairView}
+          {ShopQr && openPayments && <Button label="키오스크 QR 스캔" disabled={busy}
+            run={() => work(scanOrderQr, '카메라를 사용할 수 없습니다. QR 내용을 입력하거나 다시 시도하세요.')} />}
+          <TextInput placeholderTextColor={inputPlaceholder}
+            accessibilityLabel="매장 주문 QR 내용"
+            placeholder="카메라를 사용할 수 없으면 QR 내용 입력"
+            autoCapitalize="none"
+            maxLength={132}
+            style={s.input}
+            value={locator}
+            onChangeText={setLocator}
+          />
+          <Button
+            label="QR 주문 연결"
+            variant={locator ? 'primary' : 'secondary'}
+            disabled={busy || !locator}
+            run={() =>
+              work(
+                () => fromQr(locator),
+                ticket ? '먼저 연결한 주문이 남아 있습니다. 그 주문을 확인하거나 연결 화면을 닫은 뒤 다시 시도하세요.'
+                  : 'QR이 만료되었거나 등록 지점과 다릅니다. 키오스크에 새로 나온 QR로 다시 시도하세요.',
+              )
+            }
+          />
+          {ticket && (
+            <>
+              {ticket.code && (
+                <Text style={s.text}>매장 확인 번호 {ticket.code}</Text>
+              )}
+              <Button
+                label="같은 주문 연결 확인"
+                disabled={busy}
+                run={() =>
+                  work(
+                    () => checkTicket(ticket, false),
+                    '연결 결과가 아직 확인되지 않았습니다.',
+                  )
+                }
+              />
+              {!approved && (
+                <Button
+                  label="연결 화면 닫기"
+                  disabled={busy}
+                  run={() =>
+                    work(async () => {
+                      await keepTicket();
+                      setOrder(undefined);
+                    }, '저장된 상태를 닫을 수 없습니다.')
+                  }
+                />
+              )}
+            </>
+          )}
+  </View>;
   const title = invoiceDetail && !showSubscriptions ? '구독 회차 청구서' : travelPayment ? '원예약 지급 주문'
     : travelBranch || initialLocator || shopEntry ? '내 매장 주문' : '내 결제와 미결 청구';
   return (
     <ScrollView
+      ref={page}
       key={showSubscriptions ? 'subscriptions' : invoiceDetail ? 'invoice' : 'orders'}
       contentContainerStyle={s.scroll}
       keyboardShouldPersistTaps="handled"
@@ -2604,9 +2726,11 @@ export function CustomerOrders({
           />
         </>
       )}
+      {phase === 'active' && client && !deniedLink && !showSubscriptions && !pickupMode && !travelPayment && !invoiceDetail && !initialLocator && !shopEntry && qrView}
       {phase === 'active' && client && !pickupMode && !travelPayment && !shopEntry && (
         <Button
           label={showSubscriptions ? '매장 주문으로' : invoiceDetail ? '구독 일정' : '구독 관리'}
+          variant="secondary"
           disabled={busy}
           run={() => {
             if (showSubscriptions && invoiceDetail) {
@@ -2632,7 +2756,7 @@ export function CustomerOrders({
       )}
       {phase === 'active' && deniedLink && (
         <>
-          <Text style={s.text}>이 계정에서 열 수 없는 주문입니다.</Text>
+          <Text style={s.text}>이 휴대전화에 아직 연결하지 않았거나 이 계정에서 열 수 없는 주문입니다. 매장 단말의 QR이 맞으면 대조해 연결하세요.</Text>
           {openPayments && <Button variant="secondary" label="내 결제로" run={() => openPayments()} />}
           {openPayments && counterQrAllowed && (
             <Button label="매장 QR 대조하기" run={() => openPayments(initialLocator)} />
@@ -2708,71 +2832,7 @@ export function CustomerOrders({
               <Button label="매장 다시 선택" disabled={busy} run={resetShop} />
             </>
           )}
-          {pair && (
-            <>
-              {pair.code && <Text style={s.text}>확인 번호 {pair.code}</Text>}
-              <Button
-                label="단말 연결 상태 확인"
-                disabled={busy}
-                run={() =>
-                  work(
-                    () => nearbyCheckout(pair),
-                    '단말의 공개 주문과 연결할 수 없습니다.',
-                  )
-                }
-              />
-            </>
-          )}
-          {!pickupMode && !shopEntry && <>
-          <TextInput placeholderTextColor={inputPlaceholder}
-            accessibilityLabel="매장 주문 QR 내용"
-            placeholder="카메라를 사용할 수 없으면 QR 내용 입력"
-            autoCapitalize="none"
-            maxLength={132}
-            style={s.input}
-            value={locator}
-            onChangeText={setLocator}
-          />
-          <Button
-            label="QR 주문 연결"
-            disabled={busy || !locator}
-            run={() =>
-              work(
-                () => fromQr(locator),
-                'QR이 만료되었거나 등록 지점과 다릅니다. 같은 주문을 이미 연결했는지 확인하세요.',
-              )
-            }
-          />
-          </>}
-          {ticket && !pickupMode && !shopEntry && (
-            <>
-              {ticket.code && (
-                <Text style={s.text}>매장 확인 번호 {ticket.code}</Text>
-              )}
-              <Button
-                label="같은 주문 연결 확인"
-                disabled={busy}
-                run={() =>
-                  work(
-                    () => checkTicket(ticket, false),
-                    '연결 결과가 아직 확인되지 않았습니다.',
-                  )
-                }
-              />
-              {!approved && (
-                <Button
-                  label="연결 화면 닫기"
-                  disabled={busy}
-                  run={() =>
-                    work(async () => {
-                      await keepTicket();
-                      setOrder(undefined);
-                    }, '저장된 상태를 닫을 수 없습니다.')
-                  }
-                />
-              )}
-            </>
-          )}
+          {(shopEntry || pickupMode) && pairView}
           {!point && pickupMode && pickupChoice && (
             <Button
               label="지점 메뉴 보기"
