@@ -1,5 +1,8 @@
-import { validOrderEscrowStatus, validPayerEnrollment, validWalletReturn, type OrderBuyerAction, type OrderEscrowStatus,
-  type PayerEnrollment, type WalletReturn } from "./order-escrow.ts";
+import { validOrderEscrowStatus, validPayerEnrollment, validWalletReturn, validWalletSends, type OrderBuyerAction, type OrderEscrowStatus,
+  type PayerEnrollment, type WalletReturn, type WalletSends } from "./order-escrow.ts";
+import { validFaucetStatus, type FaucetStatus } from "./faucet.ts";
+import { validTerminalDevice, validTerminalDeviceValue, type TerminalDevice, type TerminalDeviceName } from "./terminal-device.ts";
+import { networkListLimit } from "./network-list.ts";
 import {readShopIdentity, type ShopIdentity} from "./shop-identity.ts";
 import { validRentalReviewChallenge, type PrivatePresentation, type RentalReviewChallenge } from "./private-presentation.ts";
 import { sha256 } from "@noble/hashes/sha256";
@@ -396,6 +399,10 @@ type Response = ServiceReplyV2 & {
   orders?: CustomerOrderRow[];
   payer?: PayerEnrollment;
   walletReturn?: WalletReturn;
+  walletSends?: WalletSends;
+  faucet?: FaucetStatus;
+  networkList?: { payload: string; signature: string };
+  terminalDevice?: TerminalDevice;
   claim?: CommerceClaim;
   offers?: SubscriptionOffer[];
   subscriptions?: SubscriptionRecord[];
@@ -583,6 +590,7 @@ export class CommerceClient {
       cart?: CommerceCart;
       approvalSignature?: string;
       rentalReview?: RentalReviewChallenge;
+      terminalValue?: string;
     }
   ) {
     const requestId = await this.newId();
@@ -613,6 +621,7 @@ export class CommerceClient {
         cart: extra?.cart,
         approvalSignature: extra?.approvalSignature,
         rentalReview: extra?.rentalReview,
+        terminalValue: extra?.terminalValue,
       })
     );
     if (raw.length > 32768) throw new Error("BAD_RESPONSE");
@@ -1201,6 +1210,67 @@ export class CommerceClient {
     const { walletReturn } = await this.call("wallet.return-status", this.profile.subjectRef, {});
     if (walletReturn !== undefined && !validWalletReturn(walletReturn)) throw new Error("BAD_RESPONSE");
     return walletReturn;
+  }
+
+  /** Sends the board's signed transfer to any address. The store relays it and pays the gas. Repeat with the same key. */
+  async sendWallet(
+    transfer: { payer: string; to: string; token: string; amount: string; validBefore: number; nonce: string },
+    boardSignature: string,
+    idempotencyKey: string
+  ) {
+    if (!/^[0-9a-f]{128}(1b|1c)$/.test(boardSignature)) throw new Error("BAD_REQUEST");
+    await this.call("wallet.send", this.profile.subjectRef, { ...transfer, validBefore: String(transfer.validBefore) },
+      { idempotencyKey, approvalSignature: boardSignature });
+  }
+
+  async walletSends(): Promise<WalletSends> {
+    const { walletSends } = await this.call("wallet.send-status", this.profile.subjectRef, {});
+    if (!validWalletSends(walletSends)) throw new Error("BAD_RESPONSE");
+    return walletSends;
+  }
+
+  /** Asks for one claim of a listed test token. It goes to the enrolled payer, never elsewhere. Repeat with the same key. */
+  async claimFaucet(token: string, idempotencyKey: string): Promise<void> {
+    await this.call("faucet.claim", this.profile.subjectRef, { token }, { idempotencyKey });
+  }
+
+  async faucetStatus(): Promise<FaucetStatus> {
+    const { faucet } = await this.call("faucet.status", this.profile.subjectRef, {});
+    if (!validFaucetStatus(faucet)) throw new Error("BAD_RESPONSE");
+    return faucet;
+  }
+
+  /** The operator-signed network list, unread. Pass it to readNetworkList. */
+  async networkList(): Promise<string> {
+    const { networkList } = await this.call("network.list", this.profile.subjectRef, {});
+    if (!networkList || typeof networkList.payload !== "string" || typeof networkList.signature !== "string")
+      throw new Error("BAD_RESPONSE");
+    const raw = JSON.stringify({ payload: networkList.payload, signature: networkList.signature });
+    if (raw.length > networkListLimit) throw new Error("BAD_RESPONSE");
+    return raw;
+  }
+
+  async terminalDevice(target = this.profile.subjectRef): Promise<TerminalDevice> {
+    const { terminalDevice } = await this.call("terminal.device", target, {});
+    if (!validTerminalDevice(terminalDevice, this.profile.role)) throw new Error("BAD_RESPONSE");
+    return terminalDevice;
+  }
+
+  /** Changes one setting of a kiosk. The server records who changed it, when, and both values. */
+  async changeTerminalDevice(
+    target: string,
+    name: TerminalDeviceName,
+    value: string,
+    expectedRevision: number,
+    idempotencyKey: string
+  ): Promise<TerminalDevice> {
+    if (!validTerminalDeviceValue(name, value)) throw new Error("BAD_REQUEST");
+    const valueDigest = bytesToHex(sha256(utf8Encode(value)), false);
+    const { terminalDevice } = await this.call("terminal.device-change", target,
+      { name, valueDigest, expectedRevision: String(expectedRevision) }, { idempotencyKey, terminalValue: value });
+    if (!validTerminalDevice(terminalDevice, this.profile.role) || terminalDevice.revision <= expectedRevision)
+      throw new Error("MISMATCHED_EVIDENCE");
+    return terminalDevice;
   }
 
   /** The buyer's answer after delivery, signed by the phone key that the order is locked to. */

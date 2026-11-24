@@ -48,7 +48,7 @@ export type VerifiedCommercePayment = {
 const hash = (value: string) => keccak_256(utf8Encode(value));
 
 /** An HTTPS address without credentials, query or fragment, as the app accepts one from its owner. */
-function readServer(value: unknown): boolean {
+export function readServer(value: unknown): value is string {
   return typeof value === "string" && value.length <= 512 &&
     /^https:\/\/[A-Za-z0-9.[\]:_-]+(?:\/[A-Za-z0-9/_.-]*)?$/.test(value);
 }

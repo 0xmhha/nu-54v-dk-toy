@@ -240,6 +240,20 @@ export type WalletReturn = {
   payer: string; to: string; amount: string; validBefore: number;
   state: "queued" | "submitted" | "final" | "failed"; txHash?: string;
 };
+/** A transfer to any address, newest first. `perDay` is how many the store relays in any 24 hours. */
+export type WalletSend = WalletReturn & { token: string; nonce: string; createdAt: number };
+export type WalletSends = { perDay: number; remaining: number; sends: WalletSend[] };
+export function validWalletSends(value: unknown): value is WalletSends {
+  const v = value as WalletSends;
+  return !!v && typeof v === "object" && Object.keys(v).sort().join() === "perDay,remaining,sends" &&
+    Number.isInteger(v.perDay) && v.perDay > 0 && Number.isInteger(v.remaining) && v.remaining >= 0 && v.remaining <= v.perDay &&
+    Array.isArray(v.sends) && v.sends.length <= 20 && v.sends.every((send) => {
+      if (!send || typeof send !== "object") return false;
+      const { token, nonce, createdAt, ...transfer } = send;
+      return typeof token === "string" && address20.test(token) && typeof nonce === "string" && /^[0-9a-f]{64}$/.test(nonce) &&
+        Number.isSafeInteger(createdAt) && createdAt > 0 && validWalletReturn(transfer);
+    });
+}
 export function validPayerEnrollment(value: unknown): value is PayerEnrollment {
   const v = value as PayerEnrollment;
   return !!v && typeof v === "object" && Object.keys(v).sort().join() === "expiresAt,generation,payer" &&

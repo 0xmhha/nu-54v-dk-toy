@@ -99,6 +99,26 @@ export const SERVICE_V2_RULES = {
       ],
       "ttlSeconds": 60
     },
+    "C3/faucet.claim": {
+      "fields": {
+        "token": "address"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/faucet.status": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
     "C3/invoice.list": {
       "fields": {},
       "mode": "read",
@@ -114,6 +134,17 @@ export const SERVICE_V2_RULES = {
       "response": "result",
       "roles": [
         "customer"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/network.list": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "customer",
+        "terminal",
+        "operator"
       ],
       "ttlSeconds": 60
     },
@@ -344,6 +375,29 @@ export const SERVICE_V2_RULES = {
       ],
       "ttlSeconds": 60
     },
+    "C3/terminal.device": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "terminal",
+        "operator"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/terminal.device-change": {
+      "fields": {
+        "expectedRevision": "uint64",
+        "name": "read-server|language|idle-seconds",
+        "valueDigest": "digest"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "operator"
+      ],
+      "ttlSeconds": 60
+    },
     "C3/terminal.handoff": {
       "fields": {
         "targetRevision": "positive64",
@@ -408,6 +462,31 @@ export const SERVICE_V2_RULES = {
       "ttlSeconds": 60
     },
     "C3/wallet.return-status": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/wallet.send": {
+      "fields": {
+        "amount": "positive256",
+        "nonce": "digest",
+        "payer": "address",
+        "to": "address",
+        "token": "address",
+        "validBefore": "time"
+      },
+      "mode": "command",
+      "response": "result",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60
+    },
+    "C3/wallet.send-status": {
       "fields": {},
       "mode": "read",
       "response": "result",

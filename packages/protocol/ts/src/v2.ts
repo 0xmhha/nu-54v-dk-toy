@@ -10,5 +10,8 @@ export * from "./commerce-cart-review.ts";
 export * from "./nearby-commerce.ts";
 export * from "./commerce-payment.ts";
 export * from "./order-escrow.ts";
+export * from "./faucet.ts";
+export * from "./terminal-device.ts";
+export * from "./network-list.ts";
 export * from "./private-presentation.ts";
 export * from "./commerce-pickup.ts";

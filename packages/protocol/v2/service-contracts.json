@@ -122,6 +122,23 @@
       "response": "result"
     },
     "C3/wallet.return-status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/wallet.send": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"payer": "address", "to": "address", "token": "address", "amount": "positive256", "validBefore": "time", "nonce": "digest"},
+      "response": "result"
+    },
+    "C3/wallet.send-status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/faucet.claim": {"mode": "command", "roles": ["customer"], "ttlSeconds": 60, "fields": {"token": "address"}, "response": "result"},
+    "C3/faucet.status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/network.list": {"mode": "read", "roles": ["customer", "terminal", "operator"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/terminal.device": {"mode": "read", "roles": ["terminal", "operator"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/terminal.device-change": {
+      "mode": "command", "roles": ["operator"], "ttlSeconds": 60,
+      "fields": {"name": "read-server|language|idle-seconds", "valueDigest": "digest", "expectedRevision": "uint64"},
+      "response": "result"
+    },
     "C4/mpc.sign": {
       "mode": "command",
       "roles": [

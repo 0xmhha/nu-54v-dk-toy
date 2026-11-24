@@ -1,0 +1,4 @@
+payload={"v":1,"issuedAt":1799999000,"expiresAt":1802592000,"sequence":7,"networks":[{"chainId":8283,"name":"StableNet Testnet","rpc":"https://api.test.stablenet.network/","explorer":"https://explorer.stablenet.network","gasCoinUrl":"https://faucet.stablenet.network/claim","tokens":[{"address":"0x00000000000000000000000000000000000000a1","symbol":"tUSDC","name":"NU54 Test USD","decimals":6}]},{"id":"bitcoin-signet","name":"Bitcoin Signet","rpc":"https://signet.example/bitcoin"}]}
+digest=0x0e53c43bd621580b83abe413b81d47b39fc92a478609192429af7064ac159c86
+operator=0x58053041ff31585A7B60F5a43e50Ea67849fE661
+signature=0x5668c8d87f3f1feaaaf97766d541c4a365cf0dc0d44448d34862e0e56b2515d352eb12184d59e7bc65285f4db851ca686818711092553f959db3e9c0410abf501b
