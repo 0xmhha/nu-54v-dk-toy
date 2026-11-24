@@ -534,7 +534,7 @@ describe('the code on the kiosk', () => {
   const locator = () => encodeOrderLocator({branchRef: mockBranch, orderRef: mockSale, expiresAt: now + 50}, now);
   test('the camera tells an order from a store entrance', async () => {
     const openPayments = jest.fn(), openShopQr = jest.fn();
-    await open({openPayments, openShopQr, tabbed: true, openSettings() {}});
+    await open({openPayments, openShopQr, tabbed: true});
     mockScan = locator();
     await press('키오스크 QR 스캔');
     expect(openPayments).toHaveBeenCalledWith(mockScan);
@@ -546,7 +546,7 @@ describe('the code on the kiosk', () => {
   test('the review opens by itself once the store confirms the number, and the link is forgotten when it is done', async () => {
     mockOrder = {...order, cafeReview: {branchLabel: '그린 카페', payerBound: true}};
     mockClaimed = false;
-    await open({initialCounterQr: locator(), openPayments() {}, tabbed: true, openSettings() {}});
+    await open({initialCounterQr: locator(), openPayments() {}, tabbed: true});
     await press('QR 주문 연결');
     expect(screen()).toContain('37ea19cd');
     await tick(3100);
@@ -565,7 +565,7 @@ describe('the code on the kiosk', () => {
   test('a link whose order is already over is dropped without opening it', async () => {
     mockOrder = {...order, state: 'closed', quoteDigest: undefined, orderKey: undefined};
     mockJournals.set('customer-qr-v2', JSON.stringify({order: mockSale, key: mockSale, code: '37ea19cd', branch: mockBranch, subject: mockCustomer}));
-    await open({openPayments() {}, tabbed: true, openSettings() {}});
+    await open({openPayments() {}, tabbed: true});
     await tick(3100);
     expect(button('연결 화면 닫기')).toBeUndefined();
     expect(button('키오스크 QR 스캔')).toBeDefined();

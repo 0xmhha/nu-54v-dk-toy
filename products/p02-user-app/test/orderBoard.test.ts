@@ -24,7 +24,7 @@ const request = new Uint8Array(16).fill(0xc);
 const stableToken = '0x' + '5'.repeat(40), home = '0x' + 'ab'.repeat(20);
 type Board = {
   press: 'approve' | 'refuse' | 'ignore' | 'other-phone'; loseReply?: boolean; cap: bigint; daily: bigint; spent: bigint; clock: boolean; blindDaily?: boolean; wait: number; account: string; state: number;
-  prompts: number; spending: boolean; home?: string; far?: boolean; orderOpen?: boolean; nonce?: Uint8Array; records: {request: Uint8Array; digest: Uint8Array; expires: bigint; answer?: Uint8Array}[]; seen: V2Request[]; journal: V2Journal;
+  prompts: number; spending: boolean; home?: string; far?: boolean; sends?: boolean; otherSend?: boolean; orderOpen?: boolean; nonce?: Uint8Array; records: {request: Uint8Array; digest: Uint8Array; expires: bigint; answer?: Uint8Array}[]; seen: V2Request[]; journal: V2Journal;
 };
 const board = (change: Partial<Board> = {}): Board => ({press: 'approve', cap: 30_000_000n, daily: 100_000_000n, spent: 0n, clock: true, wait: 0, account: payer, state: 1, prompts: 0,
   spending: true, records: [], seen: [], journal: new V2Journal(32), ...change});
@@ -90,7 +90,16 @@ async function connect(b: Board, spending = false) {
     if (body[0] === 0x7d) { b.nonce = new Uint8Array(32).fill(0x3c); return concat(Uint8Array.of(0x7d), b.nonce); }
     if (body[0] === 0x7f) return concat(Uint8Array.of(0x7f, b.home ? 1 : 0), hexToBytes(b.account), b.home ? hexToBytes(b.home) : new Uint8Array(20),
       bigToBytes(b.cap, 8), bigToBytes(b.daily, 8), bigToBytes(BigInt(b.wait), 4), Uint8Array.of(b.orderOpen ? 1 : 0),
-      bigToBytes(b.blindDaily ? b.daily : left(), 8));
+      bigToBytes(b.blindDaily ? b.daily : left(), 8), b.sends ? Uint8Array.of(1) : new Uint8Array(0));
+    // The firmware to come: a transfer to the address in the request, within the payment limits.
+    if (body[0] === 0x80) {
+      if (!b.sends || body.length !== 89) return 'drop';
+      b.prompts++;
+      if (b.press !== 'approve') return Uint8Array.of(0);
+      const transfer = {token: bytesToHex(body.subarray(1, 21)), from: b.account, to: bytesToHex(body.subarray(21, 41)), amount: bytesToBig(body.subarray(41, 49)),
+        validBefore: bytesToBig(body.subarray(49, 57)), nonce: bytesToHex(body.subarray(57), false)};
+      return concat(Uint8Array.of(0x80), hexToBytes(transfer.to), signDigest(walletReturnDigest(b.otherSend ? {...transfer, amount: 1n} : transfer), payerKey));
+    }
     if (body[0] === 0x79) return concat(Uint8Array.of(0x79), hexToBytes(b.account),
       signDigest(accountProofDigest(b.account, body.subarray(1)), payerKey), new Uint8Array(64));
     return 'drop';
@@ -264,7 +273,9 @@ test('the board account is accepted only with its own signature over a fresh val
 test('spending status is strict about its 71 bytes', () => {
   const good = concat(Uint8Array.of(0x7f, 1), hexToBytes(payer), new Uint8Array(20).fill(6), bigToBytes(5n, 8), bigToBytes(9n, 8),
     bigToBytes(61n, 4), Uint8Array.of(1), bigToBytes(7n, 8));
-  expect(readSpendingStatus(good)).toEqual({account: payer, returnAddress: '0x' + '06'.repeat(20), perPayment: 5n, daily: 9n, pinWait: 61, orderOpen: true, leftToday: 7n});
+  expect(readSpendingStatus(good)).toEqual({account: payer, returnAddress: '0x' + '06'.repeat(20), perPayment: 5n, daily: 9n, pinWait: 61, orderOpen: true, leftToday: 7n, sends: false});
+  expect(readSpendingStatus(concat(good, Uint8Array.of(1))).sends).toBe(true);
+  for (const extra of [[0], [2], [1, 0]]) expect(() => readSpendingStatus(concat(good, Uint8Array.from(extra)))).toThrow('SPENDING_STATUS');
   for (const bad of [good.slice(1), good.slice(0, 63), concat(good, Uint8Array.of(0)), good.map((byte, i) => i === 0 ? 0x7e : byte),
     good.map((byte, i) => i === 1 ? 0 : byte), good.map((byte, i) => i > 1 && i < 22 ? 0 : byte), good.map((byte, i) => i === 62 ? 2 : byte)])
     expect(() => readSpendingStatus(bad)).toThrow('SPENDING_STATUS');
@@ -306,6 +317,20 @@ describe('setup, return and reset on the board', () => {
       await expect(on(stopped, session => session.signReturn(generation, transfer, () => {}))).rejects.toThrow(code);
       expect(stopped.prompts).toBe(0);
     }
+  });
+  test('a transfer goes to the address in the request, within the limits, and only from a board that can', async () => {
+    const friend = '0x' + 'f1'.repeat(20), send = {...transfer, to: friend, amount: 12_000_000n};
+    const b = board({home, sends: true});
+    const signature = await on(b, session => session.signSend(generation, send, () => {}));
+    expect(recoverSigner(walletReturnDigest({...send, from: payer, validBefore: BigInt(send.validBefore)}), hexToBytes(signature))).toBe(payer);
+    for (const [change, code] of [[{sends: false}, 'BOARD_NO_SEND'], [{cap: send.amount - 1n}, 'SEND_LIMIT'], [{daily: send.amount - 1n}, 'SEND_LIMIT'],
+      [{wait: 60}, 'ORDER_PIN_WAIT'], [{account: '0x' + '1'.repeat(40)}, 'ACCOUNT_CHANGED']] as const) {
+      const stopped = board({home, sends: true, ...change});
+      await expect(on(stopped, session => session.signSend(generation, send, () => {}))).rejects.toThrow(code);
+      expect(stopped.prompts).toBe(0);
+    }
+    await expect(on(board({home, sends: true, press: 'refuse'}), session => session.signSend(generation, send, () => {}))).rejects.toThrow('BOARD_REFUSED');
+    await expect(on(board({home, sends: true, otherSend: true}), session => session.signSend(generation, send, () => {}))).rejects.toThrow('SEND_SIGNATURE');
   });
   test('a board whose clock does not fit the deadline gets its own error', async () => {
     const b = board({home, far: true});

@@ -126,7 +126,7 @@ test('personal settings is reachable and language preference survives return to 
   expect(mockProtection).toHaveBeenLastCalledWith(true);
   expect(JSON.stringify(tree!.toJSON())).toContain('접근성');
   expect(JSON.stringify(tree!.toJSON())).toContain('도움말·진단');
-  await press(tree!, '접근성');
+  await press(tree!, '알림과 접근성');
   await press(tree!, 'English 선택');
   expect(JSON.parse(mockSaved).language).toBe('en');
   await press(tree!, 'Return to Settings');
@@ -149,7 +149,7 @@ test('W27 decline opens W02 and the same local outcome survives restart without 
   try {
     await mount();
     await press(tree!,'설정');
-    await press(tree!,'접근성');
+    await press(tree!,'알림과 접근성');
     await press(tree!,'화면 읽기 순서');
     await press(tree!,'거절 연습');
     expect(JSON.parse(mockSaved).practice).toEqual({scenario:'matching',state:'reject'});

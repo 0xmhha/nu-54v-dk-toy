@@ -25,33 +25,33 @@ afterEach(async () => { await Renderer.act(async () => tree.unmount()); });
 const personal = JSON.stringify({version: 2, exercised: true, mode: 'personal',
   verified: {boardFingerprint: 'ab'.repeat(32), address: '0x' + '12'.repeat(20), generation: 3, network: '8283'}});
 
-test('four tabs, and settings behind the gear on every tab root', async () => {
+test('five tabs, and no second way into settings', async () => {
   Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
   mockStored = personal;
   await open();
   expect([...new Set(tree.root.findAll(node => node.props.accessibilityRole === 'tab').map(node => node.props.accessibilityLabel))])
-    .toEqual(['홈', '결제', '지갑', '둘러보기']);
+    .toEqual(['홈', '결제', '지갑', '둘러보기', '설정']);
   expect(selected()).toEqual(['홈']);
   expect(mockProtect).toHaveBeenLastCalledWith(true);
   for (const tab of ['홈', '결제', '지갑', '둘러보기']) {
     await tap(tab, 'tab');
     expect(selected()).toEqual([tab]);
-    expect([tab, !!pick('설정', 'button')]).toEqual([tab, true]);
+    expect([tab, !!pick('설정', 'button')]).toEqual([tab, false]);
   }
-  await tap('설정', 'button');
-  expect(text()).toContain('보안과 복구');
-  expect(selected()).toEqual([]);
+  await tap('설정', 'tab');
+  for (const entry of ['내 보드', '네트워크', '언어', '알림과 접근성', '법적 고지']) expect([entry, !!pick(entry, 'button')]).toEqual([entry, true]);
+  expect(selected()).toEqual(['설정']);
 });
 
-test('내 보드 opens from the home card and from settings, outside the tabs', async () => {
+test('내 보드 opens from the home card and from settings, and belongs to settings', async () => {
   mockStored = personal;
   await open();
   await tap('내 보드, 보드 상태를 아직 확인하지 않았습니다', 'button');
   expect(text()).toContain('LED 신호 보는 법');
-  expect(selected()).toEqual([]);
+  expect(selected()).toEqual(['설정']);
   await tap('홈', 'tab');
-  await tap('설정', 'button');
-  await tap('보드 상태와 LED 신호', 'button');
+  await tap('설정', 'tab');
+  await tap('내 보드', 'button');
   expect(text()).toContain('LED 신호 보는 법');
 });
 

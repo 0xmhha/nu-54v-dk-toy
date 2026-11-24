@@ -14,7 +14,7 @@ import {verifyChainSigned, type ChainTransfer} from './chainTransfer.ts';
 import type {PhoneReplacementCheckpoint, SigningReservation} from './profile.ts';
 import {validateRecovery, type RecoveryContext, type RecoveryTrust} from './recoveryProof.ts';
 import {readOwnerIdleLock, ownerIdleLockOperation, readOwnerLimits, ownerLimitChange, ownerLimitChangeApplied, ownerLimitInitialize, ownerFinalityReconcile, ownerFinalityReplacement, ownerFinalityEnrollment, ownerSetActivate, ownerSetCaps, ownerSetChange, ownerSetOps, readOwnerLimitSet, type OwnerLimits} from './ownerLimitsWire.ts';
-import {accountProofOperation, operatorResetOperation, OWNER_GATT, resetNonceOperation, resetOperation, returnOperation, setReturnOperation, ownerBegin, ownerProof, readAccountProof, readOwnerAddress, readSpendingStatus, readStatus, spendingStatusOperation, validateChallenge, type Enrollment, type OwnerStatus, type SpendingStatus} from './ownerWire.ts';
+import {accountProofOperation, operatorResetOperation, OWNER_GATT, resetNonceOperation, resetOperation, returnOperation, sendOperation, setReturnOperation, ownerBegin, ownerProof, readAccountProof, readOwnerAddress, readSpendingStatus, readStatus, spendingStatusOperation, validateChallenge, type Enrollment, type OwnerStatus, type SpendingStatus} from './ownerWire.ts';
 
 import {checkLoginSignature,readIssuedLogin} from './dapp/loginWire.ts';
 import type {DappScope} from './dapp/gate.ts';
@@ -287,6 +287,24 @@ export class OwnerSession {
     const reply=await this.spendingAction(concat(Uint8Array.of(setReturnOperation),hexToBytes(address)),onBoard);
     if(reply.length!==21||bytesToHex(reply.subarray(1),true)!==address) throw new Error('BOARD_REPLY');
     return address;
+  }
+
+  /** The board signs a transfer to an address the owner chose, within the limits it also keeps for payments. */
+  async signSend(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void) {
+    const board=await this.readyForAction(generation,transfer.payer);
+    if(!board.sends) throw new Error('BOARD_NO_SEND');
+    if(transfer.amount>board.perPayment||transfer.amount>board.leftToday) throw new Error('SEND_LIMIT');
+    const asked=Date.now();
+    const reply=await this.spendingAction(concat(Uint8Array.of(sendOperation),hexToBytes(transfer.token),hexToBytes(transfer.to),bigToBytes(transfer.amount,8),
+      bigToBytes(BigInt(transfer.validBefore),8),hexToBytes(transfer.nonce)),onBoard,Math.min(returnTtl,Math.max(1,transfer.validBefore-Number(time())))).catch(error=>{
+      if(error instanceof Error&&error.message==='OWNER_DISCONNECTED'&&Date.now()-asked<3000) throw new Error('RETURN_NOT_TAKEN');
+      throw error;
+    });
+    const digest=walletReturnDigest({token:transfer.token,from:transfer.payer,to:transfer.to,amount:transfer.amount,
+      validBefore:BigInt(transfer.validBefore),nonce:transfer.nonce});
+    if(reply.length!==86||bytesToHex(reply.subarray(1,21),true)!==transfer.to||
+        recoverSigner(digest,reply.subarray(21))!==transfer.payer) throw new Error('SEND_SIGNATURE');
+    return bytesToHex(reply.subarray(21),false);
   }
 
   /** The board signs the transfer of `amount` to its stored return address, and to nothing else. */

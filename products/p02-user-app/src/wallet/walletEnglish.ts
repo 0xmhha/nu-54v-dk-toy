@@ -1,4 +1,7 @@
+import {walletTabEnglish} from './walletTabEnglish.ts';
+
 export const english: Record<string,string> = {
+  ...walletTabEnglish,
   "내 보드":"My board",
   "서명 시험":"Signing test",
   "반납받을 주소 등록":"Set the return address",

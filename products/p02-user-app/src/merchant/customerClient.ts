@@ -1,6 +1,7 @@
 import {PermissionsAndroid, Platform} from 'react-native';
 import {CommerceClient, commerceProfile, commerceRequestId, fromBase64, orderBuyerActions, type CommerceOrder, type OrderBuyerAction} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
+import {orderAlertsOff} from '../legal/consent.ts';
 import Alerts from '../specs/NativeSubscriptionAlerts.ts';
 import {customerDigest} from './customerJournal.ts';
 import {isOpenOrder, orderRecords, type OpenOrder, type OrderProgress} from './orderRecords.ts';
@@ -44,7 +45,7 @@ export async function recordOrder(order: OpenOrder, view: CommerceOrder): Promis
   const progress = orderProgress(order, view);
   const next = progress && await records.update(order.sale, progress) || order;
   // The notice names no store, number or amount. A closed app shows it when it is opened again.
-  await records.announceReady(order.sale, async () => await Alerts?.orderReady?.(order.sale).catch(() => false) === true);
+  await records.announceReady(order.sale, async () => orderAlertsOff() || await Alerts?.orderReady?.(order.sale).catch(() => false) === true);
   return next;
 }
 
@@ -104,6 +105,7 @@ export async function sendOrderAnswer(client: CommerceClient, order: OpenOrder, 
 
 /** Asked once, after the first escrow order, as the subscription reminders do. */
 export async function askOrderNotices() {
+  if (orderAlertsOff()) return false;
   const allowed = Platform.OS !== 'android' || Number(Platform.Version) < 33 ||
     (await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)) === PermissionsAndroid.RESULTS.GRANTED;
   return allowed && await Alerts?.permission(true) === true;

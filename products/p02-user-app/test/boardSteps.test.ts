@@ -13,9 +13,9 @@ test('board steps match the design book', () => {
       .toEqual({label: step.label, do: step.do, buttons: step.buttons, led: step.led, app: step.app, pending: step.pending});
   }
   // The flows of the spending profile are not in the book yet; they only reuse the book's steps.
-  const {order, address, return: giveBack, reset, ...reviewed} = boardFlows;
+  const {order, address, send, return: giveBack, reset, ...reviewed} = boardFlows;
   expect(reviewed).toEqual(book.flows);
-  for (const flow of [order, address, giveBack, reset]) expect(flow.steps).toEqual(['approve', 'pin', 'done']);
+  for (const flow of [order, address, send, giveBack, reset]) expect(flow.steps).toEqual(['approve', 'pin', 'done']);
 });
 
 test('approval copy never makes the phone the reference', () => {

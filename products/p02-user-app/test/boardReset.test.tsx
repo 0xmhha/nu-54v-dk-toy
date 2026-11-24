@@ -35,6 +35,8 @@ const text = () => JSON.stringify(tree.toJSON());
 const flush = () => Renderer.act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
 const show = (screen: 'owner' | 'board') => <WalletHome permission={async () => true} honorExistingRental={false} rental={() => {}} orders={() => {}} tabbed
   requestScreen={{screen, nonce: ++nonce}} />;
+/** The connection page of a spending board is part of 내 보드. */
+const connect = async () => { await go('board'); await tap('보드 연결·상태 확인'); };
 const go = async (screen: 'owner' | 'board') => { await Renderer.act(async () => { const next = show(screen); if (tree) tree.update(next); else tree = Renderer.create(next); }); await flush(); };
 const tap = async (label: string) => {
   const found = tree.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
@@ -54,7 +56,7 @@ beforeEach(async () => {
 afterEach(async () => { await Renderer.act(async () => { tree.unmount(); }); });
 
 test('a released board makes the phone forget the destroyed account', async () => {
-  await go('owner');
+  await connect();
   await tap('개인 기기 찾기');
   await tap('등록 상태 확인');
   expect([saved().verified, saved().spendingBoard]).toEqual([undefined, undefined]);
@@ -63,7 +65,7 @@ test('a released board makes the phone forget the destroyed account', async () =
 
 test('another generation of the same board replaces the account and asks for the signing test again', async () => {
   mockBoard = {state: 'active', generation: 2n};
-  await go('owner');
+  await connect();
   await tap('개인 기기 찾기');
   await tap('등록 상태 확인');
   expect(saved().verified).toMatchObject({address: mockNewAccount, generation: 2});
@@ -71,7 +73,7 @@ test('another generation of the same board replaces the account and asks for the
 });
 
 test('registration forgets the old account before it starts and needs a new signing test', async () => {
-  await go('owner');
+  await connect();
   await tap('개인 기기 찾기');
   await tap('기기 등록 시작');
   expect([mockAtRegister?.verified, mockAtRegister?.spendingBoard]).toEqual([undefined, undefined]);
@@ -80,7 +82,7 @@ test('registration forgets the old account before it starts and needs a new sign
 
 test('the same registration keeps its account', async () => {
   mockBoard = {state: 'active', generation: 1n};
-  await go('owner');
+  await connect();
   await tap('개인 기기 찾기');
   await tap('등록 상태 확인');
   expect(saved()).toMatchObject({verified: {address: oldAccount, generation: 1}, spendingBoard: {account: oldAccount}});
@@ -88,7 +90,7 @@ test('the same registration keeps its account', async () => {
 
 test('the deposit address needs a board seen just now, and says so after it was reset', async () => {
   await go('board');
-  await tap('입금');
+  await tap('받기');
   expect(text()).not.toContain(oldAccount);
   expect(text()).toContain('보드를 다시 연결해 확인하세요');
   await tap('내 보드 찾기');
@@ -102,7 +104,7 @@ test('the deposit address appears for ten minutes after the board proved itself'
   try {
     mockBoard = {state: 'active', generation: 1n};
     await go('board');
-    await tap('입금');
+    await tap('받기');
     await tap('내 보드 찾기');
     await tap('보드 연결해 확인');
     expect(text()).toContain(oldAccount);

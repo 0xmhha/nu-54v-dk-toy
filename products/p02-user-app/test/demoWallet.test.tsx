@@ -20,7 +20,7 @@ test('the demo wallet home shows fixture data with a banner and no usable action
     ['button', 'tab'].includes(node.props.accessibilityRole) && !node.props.accessibilityState?.disabled)
     .map(node => node.props.accessibilityLabel);
   // Only fixture pages, the fake balance and leaving the demo remain usable.
-  expect([...new Set(enabled)].sort()).toEqual(['시연 화면 닫기', '잔액 숨기기', '내 보드 연결됨, 보드 상태를 확인했습니다',
+  expect([...new Set(enabled)].sort()).toEqual(['시연 화면 닫기', '잔액 숨기기', '내 보드 연결됨, 오늘 더 승인할 수 있는 금액 92.00 TestUSDC',
     '그린 카페 주문번호 17 준비 중', ...demoPayments(0).map(([label]) => label), ...demoOrders(0).map(([label]) => label),
     '운영자 허가 없음', ...demoLife(0).map(([label]) => label)].sort());
   await Renderer.act(async () => tree.root.findByProps({accessibilityLabel: '시연 화면 닫기'}).props.onPress());

@@ -32,18 +32,10 @@ export function Brand({chip, onChip}: {chip?: {label: string; tone: 'ok' | 'wait
   </View>;
 }
 
-/** Title of a tab's first page with the way into settings, as on every tab root. */
-export function TabHeader({title, settings, label = '설정', headingRef}: {
-  title: string; settings: () => void; label?: string; headingRef?: React.Ref<React.ComponentRef<typeof Text>>;
-}) {
+/** Title of a tab's first page. */
+export function TabHeader({title, headingRef}: {title: string; headingRef?: React.Ref<React.ComponentRef<typeof Text>>}) {
   return <View style={styles.tabHeader}>
     <Text ref={headingRef} accessibilityRole="header" style={[type.title, styles.tabTitle]}>{title}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={settings} style={({pressed}) => [styles.gear, pressed && styles.pressed]}>
-      <View style={iconStyles.gear}>
-        {[0, 45, 90, 135].map(turn => <View key={turn} style={[iconStyles.spoke, {transform: [{rotate: `${turn}deg`}]}]} />)}
-        <View style={iconStyles.hub} />
-      </View>
-    </Pressable>
   </View>;
 }
 
@@ -89,7 +81,7 @@ function TabIcon({name, active}: {name: string; active: boolean}) {
       <View style={[iconStyles.knob, {left: x, borderColor: tint, backgroundColor: active ? color.mint : color.sheet}]} /></View>)}</View>;
 }
 
-/** Bottom navigation of the mobile app: 홈 · 결제 · 지갑 · 둘러보기. Settings open from the gear on each tab root. */
+/** Bottom navigation of the mobile app: 홈 · 결제 · 지갑 · 둘러보기 · 설정. */
 export function TabBar({tabs, current, disabled}: {tabs: Tab[]; current: string; disabled?: boolean}) {
   return <View style={[styles.tabs, disabled && styles.tabsOff]} accessibilityRole="tablist">
     {tabs.map(tab => {
@@ -119,9 +111,8 @@ const styles = StyleSheet.create({
   rowLabel: {color: color.ink, fontWeight: '600', textAlign: 'left'},
   detail: {fontFamily: font, fontSize: 13, color: color.mute},
   chevron: {width: 9, height: 9, borderTopWidth: 2, borderRightWidth: 2, borderColor: color.mute, transform: [{rotate: '45deg'}], marginRight: 4},
-  tabHeader: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s},
+  tabHeader: {flexDirection: 'row', alignItems: 'center', minHeight: 48},
   tabTitle: {flexShrink: 1},
-  gear: {width: 48, height: 48, alignItems: 'center', justifyContent: 'center'},
   brandRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s},
   brand: {flexDirection: 'row', alignItems: 'center', gap: space.s},
   mark: {width: 34, height: 34, borderRadius: 10, backgroundColor: color.green, alignItems: 'center', justifyContent: 'center'},
@@ -160,10 +151,6 @@ const iconStyles = StyleSheet.create({
   house: {width: 22, height: 20, alignItems: 'center', justifyContent: 'flex-end'},
   roof: {position: 'absolute', top: 3, width: 14, height: 14, borderTopWidth: 2, borderLeftWidth: 2, transform: [{rotate: '45deg'}]},
   walls: {width: 15, height: 10, borderWidth: 2, borderTopWidth: 0, borderRadius: 1},
-  // Eight short teeth around a ring: four bars cross behind a ring that hides their middle.
-  gear: {width: 24, height: 24, alignItems: 'center', justifyContent: 'center'},
-  spoke: {position: 'absolute', width: 5, height: 22, borderRadius: 1.5, backgroundColor: color.ink},
-  hub: {width: 16, height: 16, borderRadius: 8, borderWidth: 4.5, borderColor: color.ink, backgroundColor: color.ground},
   circle: {width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center'},
   needle: {width: 4, height: 10, borderRadius: 2, transform: [{rotate: '40deg'}]},
   sliders: {width: 22, height: 18, justifyContent: 'space-between'},

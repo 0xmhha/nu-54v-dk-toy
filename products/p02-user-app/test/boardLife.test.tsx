@@ -2,11 +2,14 @@ import React from 'react';
 import Renderer from 'react-test-renderer';
 import {Platform} from 'react-native';
 import {
-  bindServiceRequestV2 as mockBind, signDigest, toBase64 as mockBase64, walletReturnDigest, bytesToHex, type ServiceRequestV2, type WalletReturn,
+  bindServiceRequestV2 as mockBind, signDigest, toBase64 as mockBase64, walletReturnDigest, bytesToHex, type ServiceRequestV2, type WalletReturn, type WalletSend,
 } from '@nu54/protocol';
 import {orderRecords} from '../src/merchant/orderRecords';
-import {BoardBalance, BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLife';
+import {BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLife';
 import {followReturn, newReturn, pendingReset, readResetAnswer, renewReturn, resetRequestText, settleReturn, returnRecord, returnStale, verifyReturn, type ReturnRecord} from '../src/wallet/boardReturn';
+import {builtInServers, serverFor} from '../src/wallet/networks';
+import {sendRecord, type SendRecord} from '../src/wallet/boardSend';
+import {readRecipient} from '../src/wallet/SendPage';
 import {defaultReadState} from '../src/wallet/readProfiles';
 import {decodeWalletStorage, withoutBoardAccount, type WalletStorage} from '../src/wallet/profile';
 import {branch as mockBranch, customer as mockCustomer, escrowStatus, generation, now, order, order as mockOrderBase, orderKey, payer, payerKey, policy as mockPolicy, sale,
@@ -26,9 +29,13 @@ let mockLatest: string | undefined; // what the newest block says, when it diffe
 const mockTokens: string[] = [];
 let mockOrders: {id: string; state: string; escrow?: unknown}[] = [];
 let mockServerDown = false;
+let mockSends: WalletSend[] = [], mockPerDay = 3, mockSendError = '', mockSendLost = false, mockRelays = true;
+let mockOther: Record<string, string> = {}; // balances of assets the board cannot return
 jest.mock('../src/wallet/evmTransfer.ts', () => ({...jest.requireActual('../src/wallet/evmTransfer.ts'),
-  readEvmReceiveBalance: async (_rpc: unknown, _chain: string, _genesis: string, _account: string, asset: string, _decimals?: boolean, tag = 'finalized') => {
+  readEvmReceiveBalance: async (_rpc: unknown, _chain: string, _genesis: string, _account: string, asset: string, _decimals?: boolean, tag?: string) => {
     if (mockBalance === undefined) throw new Error('offline');
+    // The account's own coin and the tokens the owner added are read without a tag.
+    if (!tag) return {amount: mockOther[asset ?? 'coin'] ?? '0', block: '1'};
     mockTokens.push(asset);
     return {amount: tag === 'latest' ? mockLatest ?? mockBalance : mockBalance, block: '1'};
   }}));
@@ -54,6 +61,14 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
         payment: {stage: 'finalized', chainId: 8283, txHash: '0x' + '1'.repeat(64), includedAt: new Date(1_800_000_000_000).toISOString()}}});
     }
     if (command.operation === 'wallet.return-status') return JSON.stringify({...ok, ...(mockHeld ? {walletReturn: mockHeld} : {})});
+    if (command.operation === 'wallet.send-status') return JSON.stringify(mockRelays
+      ? {...ok, walletSends: {perDay: mockPerDay, remaining: Math.max(0, mockPerDay - mockSends.length), sends: mockSends}}
+      : {...ok, status: 'error', error: 'UNSUPPORTED_CAPABILITY', resultRef: undefined});
+    if (command.operation === 'wallet.send') {
+      mockSent.push({...command, approvalSignature});
+      if (mockSendLost) throw new Error('lost');
+      return JSON.stringify(mockSendError ? {...ok, status: 'error', error: mockSendError, resultRef: undefined} : ok);
+    }
     if (command.operation === 'payer.enrolled' || command.operation === 'payer.status') return JSON.stringify({...ok, ...(mockPayer ? {payer: mockPayer} : {})});
     if (command.operation === 'wallet.return' || command.operation === 'payer.enroll') {
       mockSent.push({...command, approvalSignature});
@@ -106,10 +121,11 @@ beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
   Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
   mockJournals.clear(); mockCalls.length = 0; mockSent.length = 0; went.length = 0;
-  mockLatest = undefined; mockTokens.length = 0; mockOrders = []; mockServerDown = false; mockBalance = '42000000'; mockHeld = undefined; mockReturnError = ''; mockReturnLost = false; mockEnrolled = true;
+  mockLatest = undefined; mockOther = {}; mockSends = []; mockPerDay = 3; mockSendError = ''; mockSendLost = false; mockRelays = true; mockTokens.length = 0; mockOrders = []; mockServerDown = false; mockBalance = '42000000'; mockHeld = undefined; mockReturnError = ''; mockReturnLost = false; mockEnrolled = true;
   mockPayer = {...account, expiresAt: now + 9999};
   stored = base;
   session = {
+    signSend: jest.fn(async (_generation: bigint, transfer: SendRecord, shown: () => void) => { shown(); return signed({...transfer, amount: String(transfer.amount)} as never); }),
     signReturn: jest.fn(async (_generation: bigint, transfer: ReturnRecord, shown: () => void) => { shown(); return signed({...transfer, amount: String(transfer.amount)}); }),
     resetBoard: jest.fn(async () => {}), spendingStatus: jest.fn(async () => ({account: payer, orderOpen: false})), status: jest.fn(async () => ({state: 'released'})),
     operatorResetRequest: jest.fn(async () => ({device, generation, nonce: '3c'.repeat(32)})), operatorReset: jest.fn(async (_nonce: string, _signature: string, shown: () => void) => { shown(); }),
@@ -165,33 +181,12 @@ describe('what is remembered', () => {
 });
 
 describe('deposit and return address', () => {
-  test('home shows what the board account holds, and hides it when asked', async () => {
-    const show = (value: WalletStorage) => Renderer.act(async () => {
-      const next = <BoardBalance t={ko => ko} stored={value} native={{evmRpc: async () => ''} as never} active orders={0} hide={() => { went.push('hide'); }} deposit={() => {}} network={() => { went.push('network'); }} />;
-      if (tree) tree.update(next); else tree = Renderer.create(next);
-    });
-    await show(stored); await flush();
-    expect(text()).toContain('42.00 TestUSDC');
-    await show({...stored, walletRead: {...stored.walletRead!, selection: {...stored.walletRead!.selection, hidden: true}}});
-    expect(text()).not.toContain('42.00');
-    mockBalance = undefined;
-    await Renderer.act(async () => { tree!.unmount(); });
-    tree = undefined;
-    await show(stored); await flush();
-    expect(text()).toContain('확인 안 됨');
-    button('네트워크 주소 설정').props.run();
-    expect(went).toEqual(['network']);
-    // Without a server chosen by the owner, the one in the store registration is read.
-    mockBalance = '42000000';
-    const unset = {...stored, walletRead: defaultReadState};
-    for (const [rpc, shown] of [[undefined, '확인 안 됨'], ['https://rpc.store.example', '42.00 TestUSDC']] as const) {
-      (mockPolicy as {rpc?: string}).rpc = rpc;
-      await Renderer.act(async () => { tree!.unmount(); });
-      tree = undefined;
-      await show(unset); await flush();
-      expect(text()).toContain(shown);
-    }
-    delete (mockPolicy as {rpc?: string}).rpc;
+  test('a balance is read from the chosen server, then the store\'s, then the built-in one', () => {
+    const own = {...defaultReadState, endpoints: {stable: 'https://rpc.own.example/'}};
+    expect(serverFor('stable', own, {store: 'https://rpc.store.example/'})).toEqual({server: 'https://rpc.own.example/', source: 'own'});
+    expect(serverFor('stable', defaultReadState, {store: 'https://rpc.store.example/', operator: {stable: 'https://rpc.list.example/'}}).source).toBe('store');
+    expect(serverFor('eth', defaultReadState, {store: 'https://rpc.store.example/', operator: {eth: 'https://rpc.list.example/'}}).source).toBe('operator');
+    expect(serverFor('stable').server).toBe(builtInServers.stable);
   });
 
   test('the address appears only after the signing test of this registration', async () => {
@@ -322,8 +317,49 @@ describe('return and reset', () => {
     mockBalance = undefined;
     await returnRecord(Http).save({...verifyReturn(fresh(), signed(fresh())), stage: 'final', sentAt: now});
     await open('return');
+    expect(button('보드 초기화')).toBeUndefined(); // nothing can be said about other assets either
+    await press('다른 자산을 잃을 수 있음을 알고 계속');
     await press('보드 초기화');
     expect(session.resetBoard).not.toHaveBeenCalled();
+  });
+  test('assets the board cannot return have to be given up by name before a reset', async () => {
+    const added = '0x' + '99'.repeat(20);
+    stored = {...base, walletRead: {...base.walletRead!, assets: [{board: device, generation: Number(generation), id: 'stable', account: 0, contract: added, decimals: 6, symbol: 'tUSDT',
+      block: '0x' + '1'.repeat(64), height: '1', favorite: false, hidden: false}]}};
+    mockOther = {[added]: '20000000'};
+    await returnRecord(Http).save({...verifyReturn(fresh(), signed(fresh())), stage: 'final', sentAt: now});
+    mockBalance = '0';
+    await open('return');
+    expect(text()).toContain('보드가 보낼 수 없는 자산이 있습니다');
+    expect(button('보드 초기화')).toBeUndefined();
+    await press('20.00 tUSDT · 잃어도 됩니다');
+    mockOther = {[added]: '21000000'}; // more arrived after the owner agreed
+    await press('보드 초기화');
+    expect(session.resetBoard).not.toHaveBeenCalled();
+    expect(message).toContain('다른 자산');
+    await press('21.00 tUSDT · 잃어도 됩니다');
+    await press('보드 초기화');
+    expect(session.resetBoard).toHaveBeenCalledTimes(1);
+  });
+  test('a token the store used before counts as another asset', async () => {
+    await returnRecord(Http).save({...fresh(0n), token: '0x' + '77'.repeat(20)});
+    mockBalance = '0';
+    mockOther = {[mockPolicy.asset]: '1500000'};
+    await open('return');
+    expect(text()).toContain('1.50 TestUSDC · 잃어도 됩니다');
+    expect(button('보드 초기화')).toBeUndefined();
+  });
+  test('the factory reset page asks for other assets too, and for what cannot be read', async () => {
+    mockOther = {coin: '1000000000000000000'};
+    await open('reset');
+    expect(button('앱에서 초기화 계속')).toBeUndefined();
+    await press('1.00 WKRC · 잃어도 됩니다');
+    expect(button('앱에서 초기화 계속')).toBeDefined();
+    mockBalance = undefined;
+    await open('reset');
+    expect(button('앱에서 초기화 계속')).toBeUndefined();
+    await press('다른 자산을 잃을 수 있음을 알고 계속');
+    expect(button('앱에서 초기화 계속')).toBeDefined();
   });
   test('an empty wallet skips the transfer', async () => {
     mockBalance = '0';
@@ -546,5 +582,124 @@ describe('return and reset', () => {
     await Renderer.act(async () => { await jest.advanceTimersByTimeAsync(841_000); });
     expect(text()).toContain('시간이 끝났습니다');
     expect(button('이 답으로 보드 초기화')).toBeUndefined();
+  });
+});
+
+describe('sending to another address', () => {
+  const friend = '0x' + 'f1'.repeat(20);
+  const fill = async (label: string, value: string) => {
+    await Renderer.act(async () => { tree!.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onChangeText === 'function')[0].props.onChangeText(value); });
+    await render();
+  };
+  const start = async (to = friend, amount = '5') => { await open('send'); await fill('받는 주소', to); await fill('금액', amount); await press('다음'); };
+  const kept = () => sendRecord(Http).load();
+  const seen = (record: SendRecord, state: WalletSend['state']): WalletSend => ({payer: record.payer, to: record.to, token: record.token, amount: record.amount,
+    validBefore: record.validBefore, nonce: record.nonce, createdAt: now, state, ...(state === 'queued' || state === 'failed' ? {} : {txHash: '0x' + '1'.repeat(64)})});
+
+  test('runs to the end: review, board, store, confirmation', async () => {
+    await start();
+    expect(text()).toContain('처음 보내는 주소입니다');
+    expect(text()).toContain('37.00 TestUSDC'); // what stays
+    await press('이 내용으로 보내기');
+    const record = (await kept())!;
+    expect(record).toMatchObject({to: friend, amount: '5000000', token: mockPolicy.asset, stage: 'signing'});
+    await press('보드로 승인');
+    const sent = mockSent.at(-1)!;
+    expect(sent.operation).toBe('wallet.send');
+    expect(sent.body).toMatchObject({payer, to: friend, token: mockPolicy.asset, amount: '5000000', nonce: record.nonce});
+    expect((await kept())?.stage).toBe('sent');
+    mockSends = [seen((await kept())!, 'final')];
+    await press('지금 확인');
+    expect(text()).toContain('거래가 확정되었습니다');
+    await press('확인');
+    expect(await kept()).toBeUndefined();
+  });
+  test('what cannot be sent is refused before the board is asked', async () => {
+    for (const [to, amount, words] of [['0x12', '5', '받는 주소가 맞지 않습니다'], [payer, '5', '보드 계정 자신에게는'], [friend, '42.000001', '잔액보다 큰 금액'], [friend, '1.2345678', '소수점 아래 여섯 자리'],
+      [friend, '0', '금액이 맞지 않습니다']] as const) {
+      await start(to, amount);
+      expect(message).toContain(words);
+      expect(button('이 내용으로 보내기')).toBeUndefined();
+    }
+    mockLatest = '3000000'; // an order took the rest, not final yet
+    await start();
+    expect(message).toContain('잔액보다 큰 금액');
+    expect([readRecipient(' ethereum:' + friend + '@8283 '), readRecipient(friend)]).toEqual([friend, friend]);
+    for (const bad of ['ethereum:' + friend + '@1', 'ethereum:' + friend + '/transfer?uint256=1', 'nu54://x']) expect(() => readRecipient(bad)).toThrow('EVM_RECIPIENT');
+  });
+  test('a store without it, a spent daily number and another enrolled account are said at once', async () => {
+    mockRelays = false;
+    await open('send');
+    expect(text()).toContain('이 매장은 보내기를 중계하지 않습니다');
+    mockRelays = true; mockPerDay = 1;
+    mockSends = [{payer, to: friend, token: mockPolicy.asset, amount: '1', validBefore: now, nonce: '9'.repeat(64), createdAt: now, state: 'final', txHash: '0x' + '1'.repeat(64)}];
+    await open('send');
+    expect(text()).toContain('오늘 보낼 수 있는 횟수를 다 썼습니다');
+    mockPerDay = 3;
+    mockPayer = undefined;
+    await start();
+    await press('이 내용으로 보내기');
+    expect(message).toContain('등록된 보드 계정이 아니거나');
+    expect(await kept()).toBeUndefined();
+  });
+  test('a lost reply is followed under the same signature and never signed again', async () => {
+    mockSendLost = true;
+    await start();
+    await press('이 내용으로 보내기');
+    await press('보드로 승인');
+    const first = (await kept())!;
+    expect(first.stage).toBe('sent');
+    mockSendLost = false;
+    await press('같은 거래 다시 보내기');
+    expect(mockSent.map(item => item.approvalSignature)).toEqual([first.signature, first.signature]);
+    expect(new Set(mockSent.map(item => item.idempotencyKey)).size).toBe(1);
+    expect(session.signSend).toHaveBeenCalledTimes(1);
+    jest.setSystemTime((first.validBefore + 121) * 1000); // the server never got it and it can no longer run
+    await press('지금 확인');
+    expect(text()).toContain('거래가 실행되지 않은 것을 확인했습니다');
+  });
+  test('a refusal leaves nothing behind, and a refusal on the board sends nothing', async () => {
+    mockSendError = 'BUSY';
+    await start();
+    await press('이 내용으로 보내기');
+    await press('보드로 승인');
+    expect(message).toContain('횟수를 다 썼거나');
+    expect((await kept())?.stage).toBe('signed');
+    await press('보내기 취소');
+    expect(await kept()).toBeUndefined();
+    session.signSend.mockRejectedValue(new Error('BOARD_REFUSED'));
+    await start();
+    await press('이 내용으로 보내기');
+    await press('보드로 승인');
+    expect(message).toContain('보드에서 거절했습니다');
+    expect(mockSent).toHaveLength(1);
+  });
+  test('a board without it says so, before and after it is connected', async () => {
+    session.signSend.mockRejectedValue(new Error('BOARD_NO_SEND'));
+    await start();
+    await press('이 내용으로 보내기');
+    await press('보드로 승인');
+    expect(message).toContain('아직 보내기를 지원하지 않습니다');
+    await sendRecord(Http).save(undefined);
+    await open('send');
+    props = {...props, spending: {account: payer, perPayment: 30000000n, daily: 100000000n, leftToday: 100000000n, pinWait: 0, orderOpen: false, sends: false}};
+    await render();
+    expect(text()).toContain('아직 보낼 수 없습니다');
+    props = {...props, spending: {...props.spending!, sends: true, leftToday: 4000000n}};
+    await render();
+    await fill('받는 주소', friend); await fill('금액', '5'); await press('다음');
+    expect(message).toContain('보드 한도를 넘는 금액');
+  });
+  test('an address can be kept by name and chosen again', async () => {
+    await start();
+    await fill('주소록 이름', '지영');
+    await press('주소록에 저장');
+    expect(stored.walletRead!.contacts).toEqual([{id: 'stable', name: '지영', address: friend}]);
+    await open('send');
+    await press('지영');
+    await fill('금액', '1');
+    await press('다음');
+    expect(text()).not.toContain('처음 보내는 주소입니다');
+    expect(text()).toContain('지영');
   });
 });

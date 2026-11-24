@@ -5,7 +5,7 @@ type Owner = {boardFingerprint: string; generation: number};
 type Scope = {board: string; generation: number; id: ReadProfileId; account: number};
 export type AccountPreference = Scope & {name?: string; hidden: boolean};
 export type ReviewedAsset = Scope & {endpoint: string; contract: string; decimals: number; block: string; height: string};
-export type AssetPreference = Omit<ReviewedAsset, 'endpoint'> & {favorite: boolean; hidden: boolean};
+export type AssetPreference = Omit<ReviewedAsset, 'endpoint'> & {favorite: boolean; hidden: boolean; symbol?: string};
 const hash = /^0x[a-f0-9]{64}$/;
 const validName = (value: string) => value.length >= 1 && value.length <= 32 &&
   ![...value].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
@@ -87,7 +87,8 @@ export function validAccountPreference(value: unknown): value is AccountPreferen
 export function validAssetPreference(value: unknown): value is AssetPreference {
   if (!validCatalogScope(value)) return false;
   const item = value as AssetPreference;
-  return 'evm' in readProfiles[item.id] && Object.keys(item).length === 10 &&
+  return 'evm' in readProfiles[item.id] && Object.keys(item).length === (Object.hasOwn(item, 'symbol') ? 11 : 10) &&
+    (item.symbol === undefined || (typeof item.symbol === 'string' && /^[A-Za-z0-9.-]{1,12}$/.test(item.symbol))) &&
     typeof item.contract === 'string' && /^0x[a-f0-9]{40}$/.test(item.contract) && !/^0x0{40}$/.test(item.contract) &&
     Number.isInteger(item.decimals) && item.decimals >= 0 && item.decimals <= 36 &&
     typeof item.block === 'string' && hash.test(item.block) &&

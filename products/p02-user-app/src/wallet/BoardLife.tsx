@@ -13,22 +13,26 @@ import {
   boardFailure, forgetReturn, newReturn, pendingReset, readResetAnswer, readResetBlock, renewReturn, resetBlocked, resetLifetime, resetRequestText, resetUnknown,
   returnRecord, returnStale, serverFailure, settleReturn, submitReturn, verifyReturn, type PendingReset, type ResetBlock, type ReturnRecord,
 } from './boardReturn.ts';
+import {forgetSend, type SendRecord} from './boardSend.ts';
 import type {BoardWait} from './boardSteps.ts';
 import {normalizeEvmAddress, readEvmReceiveBalance} from './evmTransfer.ts';
 import type {OwnerSession} from './ownerSession.ts';
 import type {SpendingStatus} from './ownerWire.ts';
+import {SendPage} from './SendPage.tsx';
 import {testedBoard, withoutBoardAccount, type WalletStorage} from './profile.ts';
 import {formatReadAmount, readProfiles, walletReadRpc} from './readProfiles.ts';
+import {networkRows, serverFor} from './networks.ts';
 import {receiveQr} from './receivePresentation.ts';
+import {readToken, storeSymbol, tokensOf, type ListedToken} from './tokens.ts';
 
 // Setting up, filling, returning and resetting a spending board. WalletHome owns the board link,
 // the protected profile and the busy state; these pages only run one step at a time over them.
 
-export type BoardLifeScreen = 'setup' | 'return-address' | 'deposit' | 'return' | 'reset' | 'operator-reset';
+export type BoardLifeScreen = 'setup' | 'return-address' | 'deposit' | 'send' | 'return' | 'reset' | 'operator-reset';
 export type BoardLifeProps = {
   screen: BoardLifeScreen; stored: WalletStorage; native: NativeWallet | null | undefined; hasEnrollment: boolean; registered?: boolean; spending?: SpendingStatus;
   found: {address: string; name: string}[]; busy: boolean;
-  scan: () => void; go: (screen: BoardLifeScreen | 'owner' | 'board' | 'read-profiles') => void; orders: () => void;
+  scan: () => void; go: (screen: BoardLifeScreen | 'owner' | 'board' | 'networks') => void; orders: () => void;
   /** One exclusive step; its message replaces the last one. */
   work: (run: () => Promise<void>, failure: (error: unknown) => string) => void;
   say: (message: string) => void;
@@ -38,9 +42,11 @@ export type BoardLifeProps = {
   copy: (text: string) => void;
   /** The last time the board account proved itself over a connection, and how to note it. */
   seenBoard?: {account: string; generation: number; at: number};
-  seen: (account: string, generation: number) => void;
+  seen: (account: string, generation: number, limits?: SpendingStatus) => void;
   /** Shown instead of anything read from a server, a chain or the phone's records (design review only). */
-  fixture?: {balance?: Balance; open?: number; record?: ReturnRecord; request?: PendingReset};
+  fixture?: {balance?: Balance; open?: number; record?: ReturnRecord; request?: PendingReset; send?: SendRecord; others?: OtherAsset[]};
+  /** Tokens the operator lists for StableNet. */
+  listed?: ListedToken[];
 };
 
 const pinNote = 'SW1을 짧게 누른 뒤 보드 버튼으로 PIN을 입력하세요. 거절하려면 SW2를 누르세요.';
@@ -53,7 +59,7 @@ const onlyEscrow = (raw: string) => {
 };
 
 /** The store credential of this phone, when there is one for an escrow store. */
-async function credential() {
+export async function credential() {
   const raw = Http ? await Http.loadProfile('customer') : '';
   if (!raw) throw new Error('NO_CREDENTIAL');
   return {client: customerClient(raw), policy: onlyEscrow(raw)};
@@ -70,11 +76,10 @@ async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native'>, to
   const {verified, walletRead} = props.stored, native = props.native;
   if (!verified || !native) return undefined;
   try {
-    const chosen = walletRead?.endpoints.stable;
-    const policy = token && chosen ? undefined : (await credential()).policy;
-    const asset = token ?? policy!.asset, endpoint = chosen ?? policy?.rpc;
-    if (!endpoint) return undefined;
-    const rpc = walletReadRpc(endpoint, (url, packet) => native.evmRpc(url, packet));
+    const policy = token && walletRead?.endpoints.stable ? undefined
+      : await credential().then(value => value.policy, error => { if (token) return undefined; throw error; });
+    const asset = token ?? policy!.asset;
+    const rpc = walletReadRpc(serverFor('stable', walletRead, {store: policy?.rpc}).server, (url, packet) => native.evmRpc(url, packet));
     const read = async (tag: 'finalized' | 'latest') => BigInt((await readEvmReceiveBalance(rpc, '8283', readProfiles.stable.anchor,
       verified.address, asset, false, tag)).amount);
     const units = await read('finalized'), latest = await read('latest');
@@ -83,7 +88,7 @@ async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native'>, to
     return undefined;
   }
 }
-function useBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'fixture'>) {
+export function useBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'fixture'>) {
   const [balance, setBalance] = useState<Balance | null | undefined>(props.fixture ? props.fixture.balance ?? null : undefined);
   const latest = useRef(props);
   latest.current = props;
@@ -97,30 +102,7 @@ function useBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'fixture'>
   return {balance, read};
 }
 
-/** What the board account can spend, on the home page. Read again when an order starts or ends. */
-export function BoardBalance({t, stored, native, active, orders, hide, deposit, network}: Pick<BoardLifeProps, 'stored' | 'native'> & {
-  t: (ko: string) => string; active: boolean; orders: number; hide: () => void; deposit: () => void; network: () => void;
-}) {
-  const {balance, read} = useBalance({stored, native});
-  const hidden = !!stored.walletRead?.selection.hidden;
-  useEffect(() => {
-    if (!active) return;
-    read().catch(() => {});
-    const timer = setInterval(() => { read().catch(() => {}); }, 30_000);
-    return () => clearInterval(timer);
-  }, [active, orders, read]);
-  return <Card>
-    <Text accessibilityRole="header" style={type.section}>{t('보드 계정 잔액')}</Text>
-    {hidden || !active ? <Text style={type.body}>{t('잔액 숨김')}</Text>
-      : balance ? <AmountLine label={t('금액')} amount={balance.text} />
-      : <Text style={type.body}>{t(balance === undefined ? '확인하는 중' : '확인 안 됨')}</Text>}
-    {!hidden && balance === null && <KitButton label={t('네트워크 주소 설정')} run={network} variant="secondary" />}
-    <KitButton label={t('입금')} run={deposit} variant="secondary" />
-    <KitButton label={t(hidden ? '잔액 표시' : '잔액 숨기기')} run={hide} variant="secondary" />
-  </Card>;
-}
-
-function Chooser({props, label, run, disabled = false}: {props: BoardLifeProps; label: string; run: (handle: string) => void; disabled?: boolean}) {
+export function Chooser({props, label, run, disabled = false}: {props: BoardLifeProps; label: string; run: (handle: string) => void; disabled?: boolean}) {
   return <View style={styles.group}>
     {props.found.map((item, index) => <KitButton key={item.address} disabled={props.busy || disabled}
       label={`${label}${props.found.length > 1 ? ` · ${item.name || '이름 없는 보드'} ${index + 1}` : ''}`} run={() => run(item.address)} />)}
@@ -129,8 +111,8 @@ function Chooser({props, label, run, disabled = false}: {props: BoardLifeProps; 
   </View>;
 }
 
-function Notice({title, body, tone = 'wait', children}: {title?: string; body: string; tone?: 'wait' | 'stop'; children?: React.ReactNode}) {
-  return <View style={[styles.notice, tone === 'stop' && styles.noticeStop]}>
+export function Notice({title, body, tone = 'wait', children}: {title?: string; body: string; tone?: 'wait' | 'stop' | 'done'; children?: React.ReactNode}) {
+  return <View style={[styles.notice, tone === 'stop' && styles.noticeStop, tone === 'done' && styles.noticeDone]}>
     {!!title && <Text accessibilityRole="header" style={[styles.noticeTitle, tone === 'stop' && styles.stop]}>{title}</Text>}
     <Text style={styles.noticeBody}>{body}</Text>{children}
   </View>;
@@ -205,7 +187,7 @@ function SetupPage(props: BoardLifeProps) {
       await commit(head => ({...(head.verified && head.verified.generation !== generation ? withoutBoardAccount(head) : head),
         verified: {boardFingerprint: status.device, address: account, generation, network: '8283'},
         spendingBoard: {device: status.device, account, generation, testedAt: now(), ...(limits.returnAddress ? {returnAddress: limits.returnAddress} : {})}}));
-      props.seen(account, generation);
+      props.seen(account, generation, limits);
     });
     say('보드 서명을 확인했습니다. 이제 입금 주소를 볼 수 있습니다.');
   }, boardFailure);
@@ -317,7 +299,7 @@ function DepositPage(props: BoardLifeProps) {
     <Card><Row label="보드 계정 잔액" value={balance === undefined ? '확인하는 중' : balance?.text ?? '확인 안 됨'} />
       {balance === null && <Text style={type.small}>네트워크 주소나 매장 등록이 없어 잔액을 읽지 못했습니다. 보낸 돈은 원래 지갑의 거래 기록에서 확인하세요.</Text>}</Card>
     <KitButton label="잔액 다시 확인" run={() => props.work(async () => { await read(); }, () => '잔액을 확인하지 못했습니다.')} disabled={props.busy} variant="secondary" />
-    {balance === null && <KitButton label="네트워크 주소 설정" run={() => props.go('read-profiles')} disabled={props.busy} variant="secondary" />}
+    {balance === null && <KitButton label="네트워크 주소 설정" run={() => props.go('networks')} disabled={props.busy} variant="secondary" />}
     {!board.returnAddress && <Notice body="반납받을 주소를 아직 저장하지 않았습니다. 입금하기 전에 저장하는 것을 권장합니다.">
       <KitButton label="반납받을 주소 등록" run={() => props.go('return-address')} variant="secondary" /></Notice>}
   </>;
@@ -369,7 +351,7 @@ async function erase(props: BoardLifeProps, run: () => Promise<void>) {
 
 /** Clears what the phone kept for the account of a board that was reset. Orders stay, under their former account. */
 async function finishReset(props: BoardLifeProps) {
-  if (Http) { await forgetReturn(Http); await pendingReset(Http).save(undefined); }
+  if (Http) { await forgetReturn(Http); await forgetSend(Http); await pendingReset(Http).save(undefined); }
   await props.commit(withoutBoardAccount);
   props.go('setup');
   props.say('보드를 초기화했습니다. 다시 쓰려면 운영자 허가를 받은 뒤 처음부터 등록하세요.');
@@ -377,7 +359,7 @@ async function finishReset(props: BoardLifeProps) {
 
 const unsettled = '아직 확정되지 않은 입출금이 있습니다. 잠시 뒤 다시 시도하세요.';
 const blockedText = '끝나지 않은 주문이나 진행 중인 반납이 있거나, 있는지 확인하지 못했습니다. 주문과 반납을 먼저 확인하세요.';
-const resetFailure = (error: unknown) => error instanceof Error && ['RESET_BLOCKED', 'RESET_UNKNOWN'].includes(error.message) ? blockedText : boardFailure(error);
+const resetFailure = (error: unknown) => error instanceof Error && error.message === 'ASSETS_LEFT' ? assetsLeft : error instanceof Error && ['RESET_BLOCKED', 'RESET_UNKNOWN'].includes(error.message) ? blockedText : boardFailure(error);
 
 function OpenOrderNotice({props, orders}: {props: BoardLifeProps; orders: number}) {
   return <Notice tone="stop" title="끝나지 않은 주문이 있습니다" body={`주문 ${orders}건을 먼저 끝내세요. 보드의 키를 지우면 그 주문의 환불금을 받을 수 없습니다.`}>
@@ -409,6 +391,55 @@ function useResetGate(props: BoardLifeProps) {
   return {open, gate, verify};
 }
 
+export type OtherAsset = {key: string; symbol: string; text: string};
+/** What the board account holds besides the token it can return. `null` when a balance could not be read. */
+async function otherAssets(props: BoardLifeProps, returned?: string): Promise<OtherAsset[] | null> {
+  const {stored, native} = props, {verified, walletRead} = stored;
+  if (!verified || !native) return [];
+  const policy = await credential().then(value => value.policy, () => undefined);
+  const row = networkRows(walletRead, {store: policy?.rpc}).find(item => item.key === 'stable')!;
+  // Without a return in progress the store's token counts as money the reset page warns of by itself.
+  const kept = (returned ?? policy?.asset)?.toLowerCase();
+  const tokens = tokensOf(row, verified, walletRead, policy ? [{address: policy.asset, symbol: storeSymbol, decimals: 6}] : [], props.listed).filter(token => !token.contract || token.contract !== kept);
+  const found = await Promise.all(tokens.map(async token => ({token, amount: await readToken(row, token, verified.address, (url, packet) => native.evmRpc(url, packet))})))
+    .catch(() => null);
+  return found && found.filter(({amount}) => amount.units !== '0').map(({token, amount}) => ({key: token.key, symbol: token.symbol, text: `${amount.text} ${token.symbol}`}));
+}
+
+/** Assets that go with the key when the board is reset. Each one has to be given up by name. */
+function useLossGate(props: BoardLifeProps, returned?: string) {
+  const {fixture} = props;
+  const [others, setOthers] = useState<OtherAsset[] | null | undefined>(fixture ? fixture.others ?? [] : undefined);
+  const [given, setGiven] = useState<string[]>([]);
+  const latest = useRef(props);
+  latest.current = props;
+  const read = useCallback(async () => {
+    const value = await otherAssets(latest.current, returned);
+    setOthers(value);
+    return value;
+  }, [returned]);
+  useEffect(() => { if (!fixture) read().catch(() => setOthers(null)); }, [fixture, read]);
+  const unknown = others === null;
+  const left = (others ?? []).filter(item => !given.includes(item.text));
+  const open = others !== undefined && (unknown ? given.includes('unknown') : !left.length);
+  const gate = others === undefined ? <Text style={type.body}>보드 계정의 다른 자산을 확인하고 있습니다.</Text>
+    : unknown ? <Notice tone="stop" title="다른 자산이 있는지 확인하지 못했습니다" body="보드 계정에 다른 토큰이나 코인이 있으면 초기화할 때 잃습니다.">
+      <KitButton label="다른 자산 다시 확인" run={() => { read().catch(() => {}); }} variant="secondary" disabled={props.busy} />
+      {!open && <KitButton label="다른 자산을 잃을 수 있음을 알고 계속" run={() => setGiven(['unknown'])} variant="secondary" disabled={props.busy} />}</Notice>
+    : others.length ? <Notice tone="stop" title="보드가 보낼 수 없는 자산이 있습니다" body="초기화하면 되찾을 수 없습니다. 잃어도 되는지 자산마다 확인하세요.">
+      {others.map(item => given.includes(item.text) ? <Text key={item.key} style={styles.risk}>{`잃게 될 자산: ${item.text}`}</Text>
+        : <KitButton key={item.key} label={`${item.text} · 잃어도 됩니다`} run={() => setGiven([...given, item.text])} variant="secondary" disabled={props.busy} />)}</Notice>
+    : null;
+  /** Asked again right before the board is: something may have arrived meanwhile. */
+  const verify = async () => {
+    if (fixture) return;
+    const fresh = await read();
+    if (fresh ? fresh.some(item => !given.includes(item.text)) : !given.includes('unknown')) throw new Error('ASSETS_LEFT');
+  };
+  return {open, gate, verify};
+}
+const assetsLeft = '보드 계정에 남은 다른 자산이 있거나 확인하지 못했습니다. 위 내용을 확인한 뒤 다시 시도하세요.';
+
 function ReturnPage(props: BoardLifeProps) {
   const {stored, work, withBoard, say} = props;
   const {verified} = stored, board = testedBoard(stored);
@@ -429,6 +460,7 @@ function ReturnPage(props: BoardLifeProps) {
     setRecord(next ?? null);
     if (!next) say('반납이 실행되지 않은 것을 확인했습니다. 돈은 보드 계정에 그대로 있습니다. 다시 시작할 수 있습니다.');
   }, [say]);
+  const loss = useLossGate(props, record?.token);
   const waiting = record?.stage === 'sent' && !props.fixture;
   useEffect(() => {
     if (!waiting) return;
@@ -520,6 +552,7 @@ function ReturnPage(props: BoardLifeProps) {
     const fresh = await askResetBlock(stored);
     if (resetBlocked(fresh)) throw new Error('RESET_BLOCKED');
     if (resetUnknown(fresh)) throw new Error('RESET_UNKNOWN');
+    await loss.verify();
     await keep({...record, stage: 'resetting'});
     await erase(props, () => withBoard(handle, session => session.resetBoard(BigInt(record.generation), record.payer,
       () => props.wait({flow: 'reset', step: 'approve', note: pinNote})))).catch(async error => {
@@ -531,7 +564,8 @@ function ReturnPage(props: BoardLifeProps) {
   if (record.stage === 'final') return <>
     {summary}
     <Notice title={record.amount === '0' ? '보낼 돈이 없습니다' : '반납이 확정되었습니다'} body="이제 보드를 초기화하면 끝납니다. 보드의 키, PIN, 등록이 지워집니다. 끝난 주문 기록은 이 휴대전화에 남습니다." />
-    <Chooser props={props} label="보드 초기화" run={reset} /></>;
+    {loss.gate}
+    {loss.open && <Chooser props={props} label="보드 초기화" run={reset} />}</>;
   return <>
     <Notice title="초기화 결과를 확인하고 있습니다" body="보드의 LED가 1.5초씩 두 번 켜졌다면 초기화가 끝난 것입니다. 보드는 운영자 허가를 다시 받을 때까지 연결되지 않습니다." />
     <Chooser props={props} label="보드 상태 확인" run={handle => work(async () => {
@@ -548,7 +582,9 @@ function ResetPage(props: BoardLifeProps) {
   const {stored, work, withBoard} = props;
   const {verified} = stored;
   const {balance} = useBalance(props);
-  const {open, gate, verify} = useResetGate(props);
+  const {open: ordersDone, gate, verify} = useResetGate(props);
+  const loss = useLossGate(props);
+  const open = ordersDone && loss.open;
   const [sure, setSure] = useState(false);
   const wait = props.spending?.pinWait ?? 0;
   const risk = [
@@ -561,10 +597,12 @@ function ResetPage(props: BoardLifeProps) {
       <KitButton label="먼저 반납하기" run={() => props.go('return')} variant="secondary" disabled={props.busy} /></Notice>
     {wait > 0 && <Notice title="PIN 입력을 기다려야 합니다" body={`약 ${Math.ceil(wait / 60)}분 뒤에 다시 입력할 수 있습니다. 전원을 껐다 켜면 처음부터 다시 기다립니다.`} />}
     {gate}
+    {verified && loss.gate}
     {verified && open && (!sure ? <KitButton label="앱에서 초기화 계속" run={() => setSure(true)} disabled={props.busy || balance === undefined} variant="secondary" /> : <>
       <Text style={styles.risk}>{risk.length ? '위 내용을 모두 알고 초기화합니다.' : '보드를 초기화합니다.'}</Text>
       <Chooser props={props} label="보드 초기화" run={handle => work(async () => {
         await verify();
+        await loss.verify();
         await erase(props, () => withBoard(handle, session => session.resetBoard(BigInt(verified.generation), verified.address,
           () => props.wait({flow: 'reset', step: 'approve', note: pinNote}))));
         await finishReset(props);
@@ -581,7 +619,11 @@ function ResetPage(props: BoardLifeProps) {
 /** The board keeps a request for 15 minutes and over reconnects; the phone keeps the same one, and only one. */
 function OperatorResetPage(props: BoardLifeProps) {
   const {work, withBoard, fixture} = props;
-  const {open, gate, verify} = useResetGate(props);
+  const {open: ordersDone, gate: ordersGate, verify: ordersVerify} = useResetGate(props);
+  const loss = useLossGate(props);
+  const known = !!props.stored.verified;
+  const open = ordersDone && (!known || loss.open), gate = <>{ordersGate}{known && loss.gate}</>;
+  const verify = async () => { await ordersVerify(); if (known) await loss.verify(); };
   const [request, setRequest] = useState<PendingReset | null | undefined>(fixture ? fixture.request ?? null : undefined);
   const [answer, setAnswer] = useState('');
   const [left, setLeft] = useState(0);
@@ -664,11 +706,11 @@ function OperatorResetPage(props: BoardLifeProps) {
 const remainingTime = (seconds: number) => seconds >= 60 ? `${Math.floor(seconds / 60)}분 ${seconds % 60}초` : `${seconds}초`;
 
 export const boardLifeTitles: Record<BoardLifeScreen, string> = {
-  setup: '보드 설정', 'return-address': '반납받을 주소', deposit: '입금', return: '반납', reset: '공장 초기화', 'operator-reset': '운영자 초기화',
+  setup: '보드 설정', 'return-address': '반납받을 주소', deposit: '받기', send: '보내기', return: '반납', reset: '공장 초기화', 'operator-reset': '운영자 초기화',
 };
 
 export function BoardLife(props: BoardLifeProps) {
-  const Page = {setup: SetupPage, 'return-address': ReturnAddressPage, deposit: DepositPage, return: ReturnPage, reset: ResetPage, 'operator-reset': OperatorResetPage}[props.screen];
+  const Page = {setup: SetupPage, 'return-address': ReturnAddressPage, deposit: DepositPage, send: SendPage, return: ReturnPage, reset: ResetPage, 'operator-reset': OperatorResetPage}[props.screen];
   return <View style={styles.page} testID={'board-life-' + props.screen}>
     <Page {...props} />
     <KitButton label={props.screen === 'operator-reset' ? '초기화 안내로' : '돌아가기'} run={() => props.go(props.screen === 'operator-reset' ? 'reset' : props.screen === 'return-address' ? 'setup' : 'board')} variant="secondary" />
@@ -682,7 +724,7 @@ const styles = StyleSheet.create({
   numberDone: {backgroundColor: '#2f7a55'}, numberNow: {backgroundColor: color.green},
   numberText: {fontFamily: font, fontSize: 14, fontWeight: '800', color: color.ink}, numberTextOn: {color: color.onGreen},
   words: {flex: 1, gap: 2},
-  notice: {gap: 8, borderRadius: radius.m, padding: 14, backgroundColor: color.amberBg}, noticeStop: {backgroundColor: color.dangerBg},
+  notice: {gap: 8, borderRadius: radius.m, padding: 14, backgroundColor: color.amberBg}, noticeStop: {backgroundColor: color.dangerBg}, noticeDone: {backgroundColor: color.mintSoft},
   noticeTitle: {fontFamily: font, fontSize: 17, fontWeight: '800', color: '#5a3b05'}, stop: {color: color.danger},
   noticeBody: {fontFamily: font, fontSize: 15, lineHeight: 22, color: color.ink},
   risk: {fontFamily: font, fontSize: 15, lineHeight: 22, fontWeight: '700', color: color.danger},

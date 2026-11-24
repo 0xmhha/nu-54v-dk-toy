@@ -1,6 +1,6 @@
 import {useWalletConnectivity, type ReadProof} from './walletConnectivity.ts';
 import {useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ComponentRef} from 'react';
-import {AccessibilityInfo, Alert, AppState, BackHandler, findNodeHandle, Image, Keyboard, Linking, Platform, ScrollView, Share, StyleSheet, Text, TextInput, View} from 'react-native';
+import {AccessibilityInfo, Alert, AppState, BackHandler, findNodeHandle, Image, Keyboard, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View} from 'react-native';
 import NativeCloudWalletProfile from '../specs/NativeCloudWalletProfile.ts';
 import {CloudWalletScreen} from './cloud/CloudWalletScreen.tsx';
 import {readCloudProfile, type CloudProfile} from './cloud/client.ts';
@@ -10,7 +10,7 @@ import NativeWallet from '../specs/NativeOwnerWallet.ts';
 import {english} from './walletEnglish.ts';
 import {receiveQr} from './receivePresentation.ts';
 import {ChainWalletScreen} from './ChainWalletScreen.tsx';
-import {builtInEvmEnabled, defaultReadState, formatReadAmount, readProfiles} from './readProfiles.ts';
+import {builtInEvmEnabled, defaultReadState, readProfiles, type ReadProfileState} from './readProfiles.ts';
 import {WalletHomeSummary} from './WalletHomeSummary.tsx';
 import {WalletSettings} from './WalletSettings.tsx';
 import {candidateTrustForInstallation} from './firmwareCandidate.ts';
@@ -36,10 +36,18 @@ import {persistWalletSignature, WalletProfileStore} from './walletStorage.ts';
 import {importRecoveryTrust} from './recoveryProof.ts';
 import {BoardStepPanel} from './BoardStepPanel.tsx';
 import {boardFailure, forgetReturn, pendingReset} from './boardReturn.ts';
+import {forgetSend} from './boardSend.ts';
 import {DemoWalletHome} from './DemoWalletHome.tsx';
 import type {OpenOrder} from '../merchant/orderRecords.ts';
-import {BoardBalance, BoardLife, boardLifeTitles, SetupStatus, type BoardLifeScreen} from './BoardLife.tsx';
-import {BoardCard, BoardPage, FirstSteps, HomeOrders} from './HomeParts.tsx';
+import {BoardLife, boardLifeTitles, SetupStatus, type BoardLifeScreen} from './BoardLife.tsx';
+import {BoardCard, BoardPage, FirstSteps, HomeTasks} from './HomeParts.tsx';
+import {NetworksScreen} from './NetworksScreen.tsx';
+import {amountText, storeSymbol} from './tokens.ts';
+import {useActivity, WalletTab} from './WalletTab.tsx';
+import {useBoardServer, useWalletAdvice} from './walletAdvice.ts';
+import {noteConsents, withConsent} from '../legal/consent.ts';
+import {LegalHome} from '../legal/LegalScreens.tsx';
+import {openOrderLabel} from '../merchant/customerClient.ts';
 import {Brand, Card, Chip, KitButton, Section, TabBar, TabHeader, type ButtonVariant} from '../ui/kit.tsx';
 import {useScreenProtection} from '../ui/screenProtection.ts';
 import {color, font} from '../ui/theme.ts';
@@ -58,7 +66,9 @@ function Action({title, run, disabled = false, testID, variant = 'primary', deta
   return <KitButton testID={testID} label={title} run={run} disabled={disabled} variant={variant} detail={detail} />;
 }
 
-const innerPages: string[] = ['transfer', 'receipts', 'receive-evm', 'receive-chain', 'send-chain', 'read-profiles', 'evm-registry', 'firmware'];
+const innerPages: string[] = ['transfer', 'receipts', 'receive-evm', 'receive-chain', 'send-chain', 'read-profiles', 'evm-registry', 'firmware', 'networks'];
+
+const walletExchange = (url: string, packet: string) => NativeWallet!.evmRpc(url, packet);
 
 function savedEnrollment(store: WalletStorage): Enrollment | undefined {
   const profile = store.enrollment;
@@ -100,7 +110,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const [allowanceRead, setAllowanceRead] = useState<{scope:string; value?:bigint; activeHash?:string; result?:string}>();
   const [ownerPermissionDenied,setOwnerPermissionDenied]=useState(false);
   const [ownerScanComplete,setOwnerScanComplete]=useState(false);
-  const [screen, setScreen] = useState<BoardLifeScreen | 'demo' | 'home' | 'board' | 'profiles' | 'cloud' | 'practice' | 'install' | 'settings' | 'settings-access' | 'settings-diagnostics' | 'settings-device' | 'policy-picker' | 'lock-picker' | 'credentials' | 'travel-privacy' | 'policy' | 'policy-applied' | 'policy-device' | 'owner' | 'recovery-options' | 'recovery-cloud-info' | 'recovery-cloud' | 'recovery' | 'backup' | 'replace-phone' | 'transfer' | 'allowance' | 'receipts' | 'receive-evm' | 'receive-chain' | 'send-chain' | 'read-profiles' | 'evm-registry' | 'dapp' | 'walletconnect' | 'firmware' | 'rental-maintenance' | 'rental-original-payment'>('profiles');
+  const [screen, setScreen] = useState<BoardLifeScreen | 'demo' | 'home' | 'board' | 'wallet' | 'networks' | 'legal' | 'profiles' | 'cloud' | 'practice' | 'install' | 'settings' | 'settings-access' | 'settings-diagnostics' | 'settings-device' | 'policy-picker' | 'lock-picker' | 'credentials' | 'travel-privacy' | 'policy' | 'policy-applied' | 'policy-device' | 'owner' | 'recovery-options' | 'recovery-cloud-info' | 'recovery-cloud' | 'recovery' | 'backup' | 'replace-phone' | 'transfer' | 'allowance' | 'receipts' | 'receive-evm' | 'receive-chain' | 'send-chain' | 'read-profiles' | 'evm-registry' | 'dapp' | 'walletconnect' | 'firmware' | 'rental-maintenance' | 'rental-original-payment'>('profiles');
   const navigateRentalOriginal=useCallback((detail:boolean)=>setScreen(detail?'rental-original-payment':'rental-maintenance'),[]);
   const [cloudProfile,setCloudProfile] = useState<CloudProfile>();
   useEffect(()=>{
@@ -170,6 +180,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const previousSecure=useRef(false);
   const storedMode=stored?.mode;
   const storedVerified=!!stored?.verified;
+  const hasSpendingBoard=!!stored?.spendingBoard;
   useEffect(() => {
     const secure=['backup','replace-phone','recovery','recovery-options','recovery-cloud-info','recovery-cloud'].includes(screen);
     // Navigation hides only in practice, installation and the secure recovery flows; the tabs stay
@@ -207,17 +218,20 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   });
   // Pages without their own way back return to the page that opened them.
   const innerFrom = useRef<typeof screen>('owner');
+  // 내 보드 opens from home and settings; its steps also open from the wallet tab.
+  const boardFrom = useRef<'home' | 'settings'>('home'), lifeFrom = useRef<'board' | 'wallet' | 'home' | 'settings'>('board');
   useEffect(() => { if (!innerPages.includes(screen)) innerFrom.current = screen; }, [screen]);
   useEffect(() => {
-    const home = tabbed && (screen === 'board' || (screen === 'owner' && storedMode === 'personal' && !fromInstall));
+    const home = tabbed && (screen === 'board' || screen === 'wallet' || (screen === 'owner' && storedMode === 'personal' && !fromInstall));
     const life = screen in boardLifeTitles;
     if (screen !== 'demo' && !home && !life) return;
     const listener = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (life) { setScreen(screen === 'operator-reset' ? 'reset' : 'board'); return true; }
+      if (life) { setScreen(screen === 'operator-reset' ? 'reset' : lifeFrom.current); return true; }
+      if (screen === 'board' || (screen === 'owner' && hasSpendingBoard)) { setScreen(screen === 'owner' ? 'board' : storedMode !== 'personal' ? 'profiles' : boardFrom.current); return true; }
       setScreen(!home ? 'owner' : storedMode === 'personal' ? 'home' : 'profiles'); return true;
     });
     return () => listener.remove();
-  }, [screen, tabbed, storedMode, fromInstall]);
+  }, [screen, tabbed, storedMode, fromInstall, hasSpendingBoard]);
   useEffect(() => {
     if (screen==='dapp'||screen==='walletconnect'||screen==='evm-registry'&&exploreBack.current===screen) {
       const listener=BackHandler.addEventListener('hardwareBackPress',()=>{
@@ -248,7 +262,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       });
       return ()=>listener.remove();
     }
-    if (['settings','settings-access','settings-diagnostics','settings-device','policy-picker','lock-picker','credentials','travel-privacy','policy','policy-applied','policy-device','allowance'].includes(screen)) {
+    if (['settings','legal','settings-access','settings-diagnostics','settings-device','policy-picker','lock-picker','credentials','travel-privacy','policy','policy-applied','policy-device','allowance'].includes(screen)) {
       const listener = BackHandler.addEventListener('hardwareBackPress', () => {
         if (screen==='allowance') closeAllowance();
         else if(screen==='policy-device') returnToPolicyFromHardware();
@@ -292,11 +306,13 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     if (requestScreen.screen === 'allowance') { openAllowance(); return; }
     if (requestScreen.screen === 'walletconnect') { openExternalConnection(connections[0]); return; }
     if (requestScreen.screen === 'dapp') dappSigned.current = undefined;
-    setScreen(requestScreen.screen);
+    setScreen(requestScreen.screen === 'owner' && stored.spendingBoard ? 'wallet' : requestScreen.screen);
     // Only a new nonce, or the profile arriving, can apply a request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestScreen?.nonce, !!stored]);
-  useEffect(() => { onScreenChange?.(screen); }, [screen, onScreenChange]);
+  // With a spending board the connection page belongs to 내 보드, not to the wallet tab.
+  const tabScreen = screen === 'owner' && hasSpendingBoard ? 'board' : screen;
+  useEffect(() => { onScreenChange?.(tabScreen); }, [tabScreen, onScreenChange]);
   // QA builds made with the demo switch can show the verified home with fixture data.
   const [demoAllowed, setDemoAllowed] = useState(false);
   const waitOnBoard = (wait: BoardWait, text: string) => {setMessage(text); setBoardWait(wait);};
@@ -370,6 +386,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   }, [native]);
   const connectivity = useWalletConnectivity(native, stored?.mode === 'personal');
   const [readProof, setReadProof] = useState<ReadProof>();
+  const advice = useWalletAdvice(homeActive && !!stored, screen, stored?.walletRead?.listSequence ?? 0, value => {
+    commit(head => ({...head, walletRead: {...(head.walletRead ?? defaultReadState), listSequence: Math.max(value, head.walletRead?.listSequence ?? 0)}})).catch(() => {});
+  });
+  const storeServer = useBoardServer(homeActive && screen === 'home' && !!stored?.verified && !!advice && connectivity.link !== 'offline', stored?.walletRead, advice, native ? walletExchange : undefined);
+  const activity = useActivity(stored?.verified?.address);
   // The demo screen renders fixture data only, so it stays capturable for design review.
   const needsHomeProtection = stored?.mode === 'personal' && !['demo','profiles','cloud','practice','install','rental-maintenance','rental-original-payment'].includes(screen);
   const {on: homeProtected, failed: protectionError, retry: retryProtection} = useScreenProtection(needsHomeProtection, native);
@@ -555,7 +576,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   }
 
   async function forgetBoardAccount() {
-    if (Http) { await forgetReturn(Http); await pendingReset(Http).save(undefined); }
+    if (Http) { await forgetReturn(Http); await forgetSend(Http); await pendingReset(Http).save(undefined); }
     await commit(withoutBoardAccount);
     setSeenBoard(undefined); setSpending(undefined); setVerifiedIdleLock(undefined); setPolicyHandle('');
   }
@@ -1667,7 +1688,14 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
     work(() => save({...stored, walletRead:{...walletRead, selection:{...walletRead.selection, hidden:!walletRead.selection.hidden}}}),
       language === 'ko' ? '잔액 설정을 저장할 수 없습니다.' : 'Could not save balance visibility.');
   };
-  const openLife = (next: BoardLifeScreen) => {setMessage(''); setFound([]); setScreen(next);};
+  const openLife = (next: BoardLifeScreen) => {
+    if (screen === 'board' || screen === 'wallet' || screen === 'home' || screen === 'settings') lifeFrom.current = screen;
+    setMessage(''); setFound([]); setScreen(next);
+  };
+  const openBoardPage = () => { boardFrom.current = screen === 'settings' ? 'settings' : 'home'; setScreen('board'); };
+  const saveNetworks = (change: (state: ReadProfileState) => ReadProfileState) => commit(head => ({...head, walletRead: change(head.walletRead ?? defaultReadState)}));
+  const exchange = native ? walletExchange : undefined;
+  const boardAmount = (units: bigint) => `${amountText(units.toString(), 6)} ${storeSymbol}`;
   const boardRegistered = status?.state === 'active' && status.device === profile?.device;
   const boardAccount = stored ? stored.verified ?? null : undefined;
   const connectInstalledBoard = () => {setFromInstall(false); setScreen('owner');};
@@ -1699,7 +1727,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const backToRecovery = language==='ko'?'복구 방법으로 돌아가기':'Back to recovery choices';
   // The personal wallet home carries the bottom tabs of the design book (지갑 · 결제 · 둘러보기 · 설정).
   const homeTabs = screen === 'owner' && isPersonal && !!stored?.verified && !boardWait;
-  const pageTitle = t(screen === 'home' || (tabbed && !stored) ? 'NU Wallet' : screen === 'board' ? '내 보드' : screen in boardLifeTitles ? boardLifeTitles[screen as BoardLifeScreen] : screen === 'profiles' && tabbed ? '내 하드월렛을 연결해 주세요' : isOwner ? '개인 지갑' : screen === 'practice' ? '결제 연습' : settingsScreen ? (language === 'ko' ? ({'settings-access':'접근성','settings-diagnostics':'도움말·진단','settings-device':'기기·업데이트','credentials':'인증수단','travel-privacy':'개인정보와 여행 동의'} as Record<string,string>)[screen] ?? '설정'
+  const pageTitle = t(screen === 'home' || (tabbed && !stored) ? '홈' : screen === 'wallet' ? '지갑' : screen === 'networks' ? '네트워크' : screen === 'legal' ? '법적 고지' : screen === 'board' ? '내 보드' : screen in boardLifeTitles ? boardLifeTitles[screen as BoardLifeScreen] : screen === 'profiles' && tabbed ? '내 하드월렛을 연결해 주세요' : isOwner ? '개인 지갑' : screen === 'practice' ? '결제 연습' : settingsScreen ? (language === 'ko' ? ({'settings-access':'알림과 접근성','settings-diagnostics':'도움말·진단','settings-device':'기기·업데이트','credentials':'인증수단','travel-privacy':'개인정보와 여행 동의'} as Record<string,string>)[screen] ?? '설정'
         : ({'settings-access':'Accessibility','settings-diagnostics':'Help and diagnostics','settings-device':'Device and updates','credentials':'Sign-in methods','travel-privacy':'Privacy and travel consent'} as Record<string,string>)[screen] ?? 'Settings') : screen === 'install' ? '새 보드 설치' : screen === 'evm-registry' ? '네트워크 및 자산 설정' : screen === 'read-profiles' ? '6개 체인 · 읽기 전용' : screen === 'receive-chain' ? '다른 체인 받기' : screen === 'send-chain' ? '다른 체인 보내기' : screen === 'receive-evm' ? 'EVM 수신' : screen === 'transfer' ? '개인 전송' : screen === 'settings-device' || screen === 'policy-device' ? '기기·업데이트' : screen === 'policy-picker' ? '한도와 잠금' : screen === 'lock-picker' ? '기기 잠금 규칙 확인' : screen === 'firmware' ? '펌웨어 적용 증거 확인' : screen === 'dapp' ? 'DApp 둘러보기' : screen === 'walletconnect' ? '외부 DApp 연결' : screen === 'allowance' ? '온체인 토큰 권한' : screen === 'receipts' ? '지급 기록 관리' : screen === 'recovery-options' ? (language==='ko'?'어떤 기기를 교체하나요?':'Which device are you replacing?') : screen.startsWith('recovery-cloud') ? (language==='ko'?'클라우드 휴대전화 복구':'Cloud phone recovery') : screen === 'replace-phone' ? '분실한 휴대전화 교체' : screen === 'recovery' ? '지갑 복구' : screen === 'backup' ? '독립 백업' : '지갑 시작하기');
   const content=(
     <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
@@ -1709,13 +1737,12 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       {isOwner && <Brand chip={stored?.verified ? {label:t('보드 연결'),tone:status?.state==='active'?'ok':'off'}
         : status?.state==='active' ? {label:t(status.root===2 ? '백업 확인 필요' : '서명 시험 필요'),tone:'wait'}
         : profile ? {label:t('보드 상태 미확인'),tone:'off'} : {label:t('보드 미등록'),tone:'wait'}} />}
-      {tabbed && (isOwner || screen === 'home' || screen === 'profiles') ? <TabHeader title={pageTitle} settings={openSettings}
-        label={language === 'ko' ? '설정' : 'Settings'} headingRef={sectionHeading} />
+      {tabbed && (isOwner || screen === 'home' || screen === 'wallet' || screen === 'profiles' || screen === 'settings') ? <TabHeader title={pageTitle} headingRef={sectionHeading} />
         : <Text ref={sectionHeading} accessibilityRole="header" style={styles.title}>{pageTitle}</Text>}
-      <View style={styles.languageRow}><Chip label={language === 'ko' ? 'English' : '한국어'} onPress={busy || !stored || !native ? undefined : () => {
+      {(!tabbed || screen === 'profiles' || !stored?.verified) && <View style={styles.languageRow}><Chip label={language === 'ko' ? 'English' : '한국어'} onPress={busy || !stored || !native ? undefined : () => {
         const next = language === 'ko' ? 'en' : 'ko';
         if (stored) work(async () => { await save({...stored, language: next}); setLanguage(next); }, '언어 설정을 저장할 수 없습니다.');
-      }} /></View>
+      }} /></View>}
       {!!message && <Text style={styles.body} accessibilityLiveRegion="polite">{t(message)}</Text>}
       {boardWait && <BoardStepPanel wait={boardWait} t={t} />}
       {displayBinding && <View>
@@ -1737,36 +1764,47 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
       {tabbed && stored && screen === 'owner' && isPersonal && boardRegistered && !stored.verified && status?.root !== 2 &&
         <Action title={t('보드 설정 이어서 하기')} disabled={busy} run={() => openLife('setup')} />}
       {stored && screen === 'home' && <>
-        <BoardCard t={t} open={() => setScreen('board')}
+        <BoardCard t={t} open={openBoardPage} limits={stored.spendingBoard ? spending : undefined} amount={boardAmount}
           state={!stored.verified ? 'unverified' : boardStatusVerified ? 'active' : 'unchecked'} />
-        {stored.spendingBoard ? <BoardBalance t={t} stored={stored} native={native} active={homeActive} orders={openOrders.length} hide={toggleBalance}
-          deposit={() => openLife('deposit')} network={() => setScreen('read-profiles')} />
-        : stored.verified && <WalletHomeSummary owner={stored.verified} state={stored.walletRead} language={language} active={homeActive}
-          connectivity={connectivity} proof={readProof} onHide={toggleBalance}
-          onAccounts={() => setScreen('read-profiles')} onReceive={() => setScreen('receive-chain')} />}
-        {isPersonal && (stored.spendingBoard ? !testedBoard(stored)?.returnAddress : !stored.verified) &&
-          <KitButton label={t('보드 설정 이어서 하기')} run={() => openLife('setup')} variant="secondary" />}
-        <HomeOrders t={t} orders={openOrders} open={openOrder ?? orders} account={boardAccount} />
+        <HomeTasks t={t} orders={openOrders} open={openOrder ?? orders} account={boardAccount} tasks={[
+          ...(isPersonal && stored.spendingBoard && !testedBoard(stored)?.returnAddress
+            ? [{key: 'return', label: t('반납 주소를 아직 저장하지 않았습니다'), detail: t('남은 돈을 돌려받을 주소입니다. 보드를 쓰기 전에 저장하세요'), run: () => openLife('setup')}]
+            : isPersonal && !stored.verified ? [{key: 'setup', label: t('보드 설정 이어서 하기'), detail: t('보드 계정을 확인하면 결제할 수 있어요'), run: () => openLife('setup')}] : []),
+        ]} />
+        {stored.verified && <Section title={t('상태')}>
+          <Action variant="row" title={readProfiles.stable.label} detail={t(connectivity.link === 'offline' ? '인터넷에 연결되어 있지 않습니다'
+            : storeServer === 'ok' ? '연결됨' : storeServer === 'failed' ? '서버에 연결하지 못했습니다' : '확인하는 중')} run={() => setScreen('networks')} />
+          {activity[0] && <Action variant="row" title={t('최근 활동')} detail={`${activity[0].store ?? t('매장 주문')} · ${t(openOrderLabel(activity[0]))} · ${new Date(activity[0].sentAt * 1000).toLocaleString(language === 'ko' ? 'ko-KR' : 'en-US')}`}
+            run={() => setScreen(stored.spendingBoard ? 'wallet' : 'owner')} />}
+        </Section>}
       </>}
+      {stored && screen === 'wallet' && <WalletTab t={t} stored={stored} advice={advice} exchange={exchange} active={homeActive} busy={busy} hide={toggleBalance}
+        receive={() => openLife('deposit')} send={() => openLife('send')} giveBack={() => openLife('return')} board={() => openLife('setup')} networks={() => setScreen('networks')} top={showTop}
+        save={saveNetworks} openOrder={openOrder ?? orders} />}
+      {stored && screen === 'networks' && <NetworksScreen t={t} state={stored.walletRead} advice={advice} exchange={exchange} offline={connectivity.link === 'offline'}
+        save={saveNetworks} top={showTop} back={() => { setMessage(''); setScreen(innerFrom.current); }} />}
+      {stored && screen === 'legal' && <LegalHome language={language} consents={stored.consents} busy={busy} back={() => setScreen('settings')} top={showTop}
+        setAlerts={on => work(async () => { const next = await commit(head => ({...head, consents: withConsent(head.consents, 'alerts', on, Date.now())})); noteConsents(next.consents); },
+          t('동의를 저장하지 못했습니다. 다시 시도하세요.'))} />}
       {stored && screen === 'board' && <BoardPage t={t} connected={status?.state === 'active'} spending={spending} permitNeeded={permitNeeded}
         setup={isPersonal && <SetupStatus stored={stored} hasEnrollment={!!profile} registered={boardRegistered} open={() => openLife('setup')} />}
-        amount={units => formatReadAmount(units.toString(), 6) + ' TestUSDC'} back={() => setScreen(isPersonal ? 'home' : 'profiles')} actions={[
+        amount={boardAmount} back={() => setScreen(isPersonal ? boardFrom.current : 'profiles')} actions={[
           {label: t('보드 연결·상태 확인'), detail: t('가까이 있는 내 보드를 찾아 상태를 읽습니다'), run: () => setScreen('owner')},
           ...(isPersonal ? [
-            {label: t('입금'), detail: t('보드 계정의 주소와 QR을 봅니다'), run: () => openLife('deposit')},
+            {label: t('받기'), detail: t('보드 계정의 주소와 QR을 봅니다'), run: () => openLife('deposit')},
             {label: t('반납'), detail: t('남은 돈을 원래 지갑으로 보내고 초기화합니다'), run: () => openLife('return')},
             {label: t('공장 초기화'), detail: t('PIN을 잊었을 때의 운영자 초기화도 여기 있습니다'), run: () => openLife('reset')},
           ] : []),
           {label: t('기기·업데이트'), run: () => { setMessage(''); setScreen('settings-device'); }},
-          {label: t('원래 보드에서 분실한 휴대전화 교체'), run: () => setScreen('replace-phone')},
+          ...(stored.spendingBoard ? [] : [{label: t('원래 보드에서 분실한 휴대전화 교체'), run: () => setScreen('replace-phone')}]),
         ]} />}
       {stored && screen in boardLifeTitles && <BoardLife screen={screen as BoardLifeScreen} stored={stored} native={native} spending={spending}
-        hasEnrollment={!!profile} registered={boardRegistered} found={found} busy={busy} scan={() => scan(!!stored.verified)} go={next => { setMessage(''); setScreen(next); }} orders={orders} work={work} say={sayLife}
+        hasEnrollment={!!profile} registered={boardRegistered} found={found} busy={busy} scan={() => scan(!!stored.verified)} go={next => { setMessage(''); setScreen(next === 'board' ? lifeFrom.current : next); }} orders={orders} listed={advice?.listed?.stable} work={work} say={sayLife}
         withBoard={boardRequest} wait={setBoardWait} copy={text => { Share.share({message: text}).catch(() => {}); }}
         commit={async change => {
           const next = await commit(change);
           if (!next.verified) { setStatus(undefined); setSeenBoard(undefined); setSpending(undefined); setVerifiedIdleLock(undefined); setPolicyHandle(''); }
-        }} seenBoard={seenBoard} seen={(account, generation) => setSeenBoard({account, generation, at: Date.now()})} />}
+        }} seenBoard={seenBoard} seen={(account, generation, limits) => { setSeenBoard({account, generation, at: Date.now()}); if (limits) setSpending(limits); }} />}
       {stored && screen === 'profiles' && <>
         {tabbed && <FirstSteps t={t} connect={connectInstalledBoard} disabled={!native} />}
         {/* Event visitors try a payment on the operator's rental board without creating their own wallet. */}
@@ -1903,11 +1941,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Action variant="secondary" title={language === 'ko' ? '지갑 선택으로' : 'Back to wallet selection'} run={() => setScreen('profiles')} />
       </>}
       {stored && isOwner && <>
-        {isPersonal && stored.verified && <WalletHomeSummary owner={stored.verified} state={stored.walletRead} language={language} active={homeActive}
+        {isPersonal && stored.verified && !stored.spendingBoard && <WalletHomeSummary owner={stored.verified} state={stored.walletRead} language={language} active={homeActive}
           connectivity={connectivity} proof={readProof}
           onHide={toggleBalance}
           onAccounts={() => setScreen('read-profiles')} onReceive={() => setScreen('receive-chain')} />}
-        {isPersonal && stored.verified && <View style={styles.pair}>
+        {isPersonal && stored.verified && !stored.spendingBoard && <View style={styles.pair}>
           <View style={styles.pairItem}><Action title={t('다른 체인 받기')} disabled={busy} variant="secondary" run={() => setScreen('receive-chain')} /></View>
           <View style={styles.pairItem}><Action title={t('다른 체인 보내기')} disabled={busy} variant="secondary" run={() => setScreen('send-chain')} /></View>
         </View>}
@@ -1997,7 +2035,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
               await save({...stored, signing:undefined});
             }, language === 'ko' ? '원래 보드가 승인 요청 만료를 확인하지 못했습니다.' : 'The original board could not verify expiry.')} />)}
         </>}
-        {tabbed ? stored.verified && <>
+        {tabbed ? stored.verified && !stored.spendingBoard && <>
         <Section title={t('자산과 계정')}>
           <Action variant="row" detail={t('비트코인·이더리움 등 여러 네트워크의 잔액을 봅니다')} title={t('6개 체인 · 읽기 전용')} disabled={busy || !stored.verified}
           run={() => {setTransfer(undefined); setTransferWire(''); setScreen('read-profiles');}} />
@@ -2036,14 +2074,17 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         policyRoute={screen==='policy'||screen==='policy-applied'} applied={screen==='policy-applied'}
         section={screen==='settings'?'home':screen==='settings-access'?'access':screen==='settings-diagnostics'?'diagnostics':undefined}
         accessibility={()=>setScreen('settings-access')} diagnostics={()=>setScreen('settings-diagnostics')}
-        boardPage={tabbed&&screen==='settings'?()=>setScreen('board'):undefined}
+        spendingBoard={!!stored.spendingBoard} legal={tabbed&&screen==='settings'?()=>setScreen('legal'):undefined}
+        giveBack={tabbed&&screen==='settings'&&stored.spendingBoard?()=>openLife('return'):undefined}
+        registration={tabbed&&screen==='settings'&&isPersonal?()=>openLife('setup'):undefined}
+        boardPage={tabbed&&screen==='settings'?openBoardPage:undefined}
         recover={screen==='settings'?()=>openRecoveryOptions('settings'):undefined}
         backup={tabbed&&screen==='settings'&&profile?()=>setScreen('backup'):undefined}
         replacePhone={tabbed&&screen==='settings'?()=>setScreen('replace-phone'):undefined}
         firmwareEvidence={tabbed&&screen==='settings'&&profile?()=>setScreen('firmware'):undefined}
         assetNetworks={tabbed&&screen==='settings'&&stored.verified?()=>setScreen('evm-registry'):undefined}
         credentials={screen==='settings'?()=>setScreen('credentials'):undefined}
-        networks={screen==='settings'&&stored.verified?()=>setScreen('read-profiles'):undefined}
+        networks={screen!=='settings'?undefined:tabbed&&stored.mode!=='legacy'?()=>setScreen('networks'):stored.verified?()=>setScreen('read-profiles'):undefined}
         privacy={screen==='settings'?()=>setScreen('travel-privacy'):undefined}
         idleLock={verifiedIdleLock?.board===stored.verified?.boardFingerprint && verifiedIdleLock?.generation===stored.verified?.generation ? verifiedIdleLock?.rule : undefined}
         checkIdleLock={stored.verified&&(screen==='settings'||screen==='policy') ? ()=>openDeviceVerification('lock') : undefined}
@@ -2510,7 +2551,11 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
         <Action testID={recoveryOrigin?'w06-recovery-back':undefined} title={recoveryOrigin?backToRecovery:t('등록 상태로 돌아가기')}
           disabled={busy} run={recoveryOrigin ? returnToRecoveryOptions : ()=>{endRecovery();setScreen('owner');}} />
       </>}
-      {(stored || !tabbed) && (screen==='profiles'||screen===(tabbed?'home':'owner')) && !!services.length && <Section title={t(tabbed?'바로 가기':'서비스')}>
+      {stored && tabbed && screen==='home' && !!services.length && <View style={styles.quick}>
+        {services.map(service => <Pressable key={service.label} accessibilityRole="button" accessibilityLabel={t(service.label)} disabled={busy} onPress={service.run}
+          style={({pressed}) => [styles.quickItem, pressed && styles.quickPressed]}><Text style={styles.quickText}>{t(service.label)}</Text></Pressable>)}
+      </View>}
+      {(stored || !tabbed) && (screen==='profiles'||!tabbed&&screen==='owner') && !!services.length && <Section title={t(tabbed?'바로 가기':'서비스')}>
         {services.map(service => <Action key={service.label} title={t(service.label)} run={service.run} disabled={busy} variant="row" />)}
       </Section>}
     </ScrollView>
@@ -2537,6 +2582,10 @@ const styles = StyleSheet.create({
   recoveryDocument:{minHeight:80,maxHeight:160,textAlignVertical:'top'},
   content: {paddingBottom: 24, gap: 12},
   tabbed: {flex: 1},
+  quick: {flexDirection: 'row', gap: 10},
+  quickItem: {flex: 1, minHeight: 64, borderRadius: 16, borderWidth: 1, borderColor: color.line, backgroundColor: color.sheet, alignItems: 'center', justifyContent: 'center', padding: 8},
+  quickPressed: {opacity: 0.6},
+  quickText: {fontFamily: font, fontSize: 15, fontWeight: '700', color: color.ink, textAlign: 'center'},
   trialTitle: {fontFamily: font, fontSize: 20, fontWeight: '800', color: color.mint},
   trialBody: {fontFamily: font, fontSize: 15, lineHeight: 22, color: color.onGreen},
   languageRow: {flexDirection: 'row', justifyContent: 'flex-end'},

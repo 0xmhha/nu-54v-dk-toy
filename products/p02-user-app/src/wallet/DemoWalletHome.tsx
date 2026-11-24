@@ -7,6 +7,7 @@ import {OrderPayment, type OrderPaymentView} from '../merchant/OrderPayment.tsx'
 import {OpenOrderCard, OrderDetail} from '../merchant/OpenOrders.tsx';
 import type {OpenOrder} from '../merchant/orderRecords.ts';
 import {BoardLife, boardLifeTitles, SetupStatus, type BoardLifeProps, type BoardLifeScreen} from './BoardLife.tsx';
+import {amountText} from './tokens.ts';
 import {BoardCard, BoardPage} from './HomeParts.tsx';
 import {WalletHomeSummary} from './WalletHomeSummary.tsx';
 
@@ -86,14 +87,14 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
       <Text style={styles.ribbon}>{t('시연용 화면')}</Text>
       {typeof shown === 'object' && 'fixture' in shown ? <><Text accessibilityRole="header" style={styles.title}>{boardLifeTitles[shown.screen]}</Text>
         <BoardLife screen={shown.screen} stored={shown.stored} fixture={shown.fixture} found={shown.found ?? []} native={null} hasEnrollment={!!shown.stored.verified} busy={false}
-          spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 300, orderOpen: false, leftToday: 95_500_000n}}
+          spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 300, orderOpen: false, sends: true, leftToday: 95_500_000n}}
           scan={off} go={leave} orders={off} work={off} say={off} withBoard={() => Promise.reject(new Error('DEMO'))} wait={off} commit={async () => {}} copy={off} seen={off}
           seenBoard={shown.seen ? {account: demoOwner.address, generation: 1, at: Date.now()} : undefined} /></> :
         shown === 'permit' ? <><Text accessibilityRole="header" style={styles.title}>{t('내 보드')}</Text>
         <BoardPage t={t} connected={false} permitNeeded amount={String} actions={[]} back={leave} /></> :
         shown === 'board' ? <><Text accessibilityRole="header" style={styles.title}>{t('내 보드')}</Text>
         <BoardPage t={t} connected setup={<SetupStatus stored={demoLife(0)[1][1].stored} hasEnrollment live={false} open={off} />} amount={units => `${(Number(units) / 1e6).toFixed(2)} TestUSDC`} actions={[]} back={leave}
-          spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: true, leftToday: 95_500_000n}} /></> :
+          spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: true, sends: true, leftToday: 95_500_000n}} /></> :
         'sentAt' in shown ? <OrderDetail order={shown} amount="4.50 TestUSDC" fresh now={Math.floor(Date.now() / 1000)}
           actions={{answer: off, refresh: off, back: leave}} /> :
         <OrderPayment view={shown} t={t} actions={{findBoard: off, checkBoard: off, approve: off, again: off, openBoard: off, check: off, resend: off, startNew: off,
@@ -113,7 +114,8 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
       <Text accessibilityRole="header" style={styles.title}>{t('개인 지갑')}</Text>
       <WalletHomeSummary owner={demoOwner} state={state} language="ko" active
         onHide={() => setHidden(value => !value)} onAccounts={off} onReceive={off} inert />
-      <BoardCard t={t} state="active" open={() => setShown('board')} />
+      <BoardCard t={t} state="active" open={() => setShown('board')} limits={{perPayment: 30000000n, daily: 100000000n, leftToday: 92000000n}}
+        amount={units => `${amountText(units.toString(), 6)} TestUSDC`} />
       <OpenOrderCard open={off} order={demoOrders(0)[1][1]} />
       <Section title={t('주문 화면 예시')}>{demoOrders(0).map(([label], index) =>
         <KitButton key={label} label={t(label)} variant="row" run={() => setShown(demoOrders(Math.floor(Date.now() / 1000))[index][1])} />)}</Section>

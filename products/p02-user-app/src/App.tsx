@@ -15,6 +15,7 @@ import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from
 import { bodyLink } from './setup/channel.ts';
 import { SetupFlow, type DeviceRecord, type FoundDevice, type PinEntry, type SetupPlatform, type SetupState } from './setup/flow.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
+import {ConsentGate} from './legal/ConsentGate.tsx';
 import { WalletHome } from './wallet/WalletHome.tsx';
 import {readCommissioningQr, type CommissioningPins} from './wallet/ownerWire.ts';
 import { CustomerOrders } from './merchant/CustomerOrders.tsx';
@@ -425,7 +426,12 @@ function useKeyboardHeight(): number {
   return height;
 }
 
+/** The required agreements come first; nothing behind them is started before. */
 export default function App() {
+  return <ConsentGate><Shell /></ConsentGate>;
+}
+
+function Shell() {
   const keyboard = useKeyboardHeight();
   const [renting, setRenting] = useState(false);
   const [commissioningPins, setCommissioningPins] = useState<CommissioningPins>();
@@ -438,7 +444,7 @@ export default function App() {
   const [exploreService,setExploreService]=useState<'travel'|'market'>();
   const resumeExplore=useRef(false);
   const [practicing, setPracticing] = useState(false);
-  // App-level bottom tabs (홈 · 결제 · 지갑 · 둘러보기). Settings and 내 보드 open over them.
+  // App-level bottom tabs (홈 · 결제 · 지갑 · 둘러보기 · 설정).
   const [exploring, setExploring] = useState(false);
   const [walletScreen, setWalletScreen] = useState('');
   const [walletRequest, setWalletRequest] = useState<{screen:'home'|'board'|'owner'|'settings'|'dapp'|'allowance'|'walletconnect'; nonce:number}>();
@@ -576,10 +582,10 @@ export default function App() {
     return ()=>listener.remove();
   },[exploreService, marketTravel, shopping, renting, closeTravel,closeMarket]);
   const closeOverlays = () => { setShopping(false); setTravel(false); setMarketLab(false); setMarketTravel(false); setExploring(false); };
-  const settingsScreens = ['settings', 'settings-access', 'settings-diagnostics', 'settings-device', 'policy-picker', 'lock-picker',
+  const settingsScreens = ['settings', 'networks', 'legal', 'board', 'setup', 'return-address', 'reset', 'operator-reset', 'settings-access', 'settings-diagnostics', 'settings-device', 'policy-picker', 'lock-picker',
     'credentials', 'travel-privacy', 'policy', 'policy-applied', 'policy-device'];
   const currentTab = shopping ? 'pay' : travel || marketLab || exploring || ['dapp', 'walletconnect', 'allowance'].includes(walletScreen) ? 'explore'
-    : settingsScreens.includes(walletScreen) || walletScreen === 'board' ? ''
+    : settingsScreens.includes(walletScreen) ? 'settings'
     : ['', 'home', 'profiles', 'practice', 'install'].includes(walletScreen) ? 'home' : 'wallet';
   const openSettings = () => { closeOverlays(); requestWallet('settings'); };
   const openBoard = () => { closeOverlays(); requestWallet('board'); };
@@ -615,7 +621,7 @@ export default function App() {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
-        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openSettings={openSettings} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
           <Button label="지갑 프로필 선택" onPress={profiles} variant="secondary" />
@@ -627,7 +633,7 @@ export default function App() {
           </View>
           {marketTravel && <TravelHome back={() => setMarketTravel(false)} backLabel="학습 시장으로 돌아가기"
             permission={bluetoothPermission} />}
-        </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : exploring ? <ExploreHome settings={openSettings}
+        </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : exploring ? <ExploreHome
           places={[
             {label: '여행지 찾기', detail: '지도와 목록에서 장소를 찾고 예약합니다', run: () => { setExploring(false); setTravel(true); }},
             {label: '가까운 매장에서 주문', detail: '근처 매장의 메뉴를 보고 주문합니다', run: () => { setExploring(false); openNearbyOrders(); }},
@@ -656,6 +662,7 @@ export default function App() {
           {key: 'pay', label: '결제', run: () => { closeOverlays(); setShownOrder(''); setShopping(true); }},
           {key: 'wallet', label: '지갑', run: () => { closeOverlays(); requestWallet('owner'); }},
           {key: 'explore', label: '둘러보기', run: () => { closeOverlays(); setExploring(true); }},
+          {key: 'settings', label: '설정', run: openSettings},
         ]} />}
       </SafeAreaView>
     </SafeAreaProvider>

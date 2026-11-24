@@ -89,6 +89,7 @@ import Ble from '../specs/NativeRenterBle.ts';
 import { OwnerSession, type OwnerApprovalProgress } from '../wallet/ownerSession.ts';
 import { decodeWalletStorage } from '../wallet/profile.ts';
 import { readEvmReceiveBalance } from '../wallet/evmTransfer.ts';
+import { serverFor } from '../wallet/networks.ts';
 import { readProfiles, walletReadRpc } from '../wallet/readProfiles.ts';
 import { OWNER_GATT, type Enrollment, type OwnerStatus } from '../wallet/ownerWire.ts';
 import { WalletMaintenance } from '../wallet/WalletMaintenance.tsx';
@@ -249,7 +250,6 @@ type OrderOutcome = {sale: string; store: string; amount: string} & ({kind: 'don
 export function CustomerOrders({
   back,
   tabbed = false,
-  openSettings,
   openBoard,
   initialOrder,
   openTravel,
@@ -265,7 +265,6 @@ export function CustomerOrders({
 }: {
   /** Inside the app tabs the 결제 tab replaces the separate back button. */
   tabbed?: boolean;
-  openSettings?: () => void;
   openBoard?: () => void;
   /** An order in progress to open first. */
   initialOrder?: string;
@@ -1611,12 +1610,12 @@ export function CustomerOrders({
       session.close();
       if (ownerConnection.current === session) ownerConnection.current = undefined;
     }
-    const endpoint = local.walletRead?.endpoints.stable ?? policy.rpc;
+    const endpoint = serverFor('stable', local.walletRead, {store: policy.rpc}).server;
     const wallet = OwnerWallet;
-    const balance = endpoint ? await readEvmReceiveBalance(
+    const balance = await readEvmReceiveBalance(
       walletReadRpc(endpoint, (url, packet) => wallet.evmRpc(url, packet)), '8283', readProfiles.stable.anchor,
       payment.payer, policy.asset,
-    ).then(result => BigInt(result.amount)).catch(() => undefined) : undefined;
+    ).then(result => BigInt(result.amount)).catch(() => undefined);
     if (!mounted.current || revision !== loadRevision.current) return;
     const amount = BigInt(entry.order.amount);
     const show = (value: bigint) => commerceAmount(value.toString(), policy.asset, policy);
@@ -2600,7 +2599,7 @@ export function CustomerOrders({
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
     >
-      {tabbed && openSettings ? <TabHeader title={title} settings={openSettings} />
+      {tabbed ? <TabHeader title={title} />
         : <Text style={s.title} accessibilityRole="header">{title}</Text>}
       {boardWaiting && <BoardStepPanel wait={{flow: 'sign', step: 'display'}}
         t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text} />}

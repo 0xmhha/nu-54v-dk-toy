@@ -8,6 +8,7 @@ import {readStoredChain, type StoredChain} from './chainTransfer.ts';
 import {isHttpsEndpoint,readRegistryEntry,type EvmRegistryEntry} from './evmRegistry.ts';
 import type {Enrollment} from './ownerWire.ts';
 import {evmProfiles,unsignedEvmDigest,verifyPendingOriginal,type EvmChain} from './evmTransfer.ts';
+import {validConsents, type Consent} from '../legal/consent.ts';
 import type {DeviceRecord} from '../setup/flow.ts';
 
 export type PersonalMetadata = {
@@ -42,7 +43,7 @@ export type SigningEvmContext={request:string;unsigned:string;chain:EvmChain;gen
 export type SigningReservation = {kind: 'evm' | 'chain' | 'bip48'; digest: string; board: string; generation: number; expires: number; evm?:SigningEvmContext};
 export type WalletStorage = {
   version: 2; exercised: boolean; language?: 'ko' | 'en'; practice?: Practice; installation?: InstallCheckpoint; mode?: 'personal' | 'legacy'; verified?: PersonalMetadata;
-  spendingBoard?:SpendingBoard; pendingBip48?:StoredBip48; bitcoinWatch?:StoredBitcoinWatch; enrollment?: Enrollment; backupCheckpoint?: SourceBackupCheckpoint; phoneReplacement?: PhoneReplacementCheckpoint; pendingEvm?:PendingEvmTransfer; evmRegistry?:EvmRegistryEntry; evmRecipients?:EvmRecipient[]; pendingChain?:StoredChain; chainSelection?:ChainAccount; walletConnect?:StoredConnect; walletConnectSessions?:StoredConnect[]; walletRead?:ReadProfileState; signing?: SigningReservation;
+  spendingBoard?:SpendingBoard; pendingBip48?:StoredBip48; bitcoinWatch?:StoredBitcoinWatch; enrollment?: Enrollment; backupCheckpoint?: SourceBackupCheckpoint; phoneReplacement?: PhoneReplacementCheckpoint; pendingEvm?:PendingEvmTransfer; evmRegistry?:EvmRegistryEntry; evmRecipients?:EvmRecipient[]; pendingChain?:StoredChain; chainSelection?:ChainAccount; walletConnect?:StoredConnect; walletConnectSessions?:StoredConnect[]; walletRead?:ReadProfileState; signing?: SigningReservation; consents?: Consent[];
 };
 
 const fingerprint = /^[a-f0-9]{64}$/;
@@ -171,7 +172,8 @@ export function decodeWalletStorage(raw: string): WalletStorage {
       (value.bitcoinWatch !== undefined && (value.mode !== 'personal' || !readStoredBitcoinWatch(value.bitcoinWatch))) ||
       (value.chainSelection !== undefined && (value.mode !== 'personal' || !validChainSelection(value.chainSelection))) ||
       (value.signing !== undefined && (value.mode !== 'personal' || !validSigning(value.signing))) ||
-      (value.walletRead !== undefined && (value.mode !== 'personal' || !isWalletReadState(value.walletRead))) ||
+      (value.walletRead !== undefined && (value.mode === 'legacy' || !isWalletReadState(value.walletRead))) ||
+      (value.consents !== undefined && !validConsents(value.consents)) ||
       (value.spendingBoard !== undefined && !validSpendingBoard(value.spendingBoard, value.verified)) ||
       (value.walletConnect !== undefined && (value.mode!=='personal' || !validConnectOwner(value.walletConnect,value.verified))) ||
       (value.walletConnectSessions !== undefined && (value.mode!=='personal' || !Array.isArray(value.walletConnectSessions) ||
@@ -179,7 +181,7 @@ export function decodeWalletStorage(raw: string): WalletStorage {
       (value.evmRecipients !== undefined && (!Array.isArray(value.evmRecipients) || value.evmRecipients.length > 12 ||
         value.evmRecipients.some(item=>!item || typeof item.name !== 'string' || item.name.length<1 || item.name.length>32 ||
           !/^0x[a-f0-9]{64}$/.test(item.genesis) || !evmAddress.test(item.address)))) ||
-      Object.keys(value).some(key => !['version', 'exercised', 'practice', 'language', 'installation', 'mode', 'verified', 'enrollment', 'backupCheckpoint', 'phoneReplacement', 'pendingEvm', 'pendingChain', 'chainSelection', 'bitcoinWatch', 'pendingBip48', 'evmRegistry', 'evmRecipients','walletConnect','walletConnectSessions','walletRead','signing','spendingBoard'].includes(key))) {
+      Object.keys(value).some(key => !['version', 'exercised', 'practice', 'language', 'installation', 'mode', 'verified', 'enrollment', 'backupCheckpoint', 'phoneReplacement', 'pendingEvm', 'pendingChain', 'chainSelection', 'bitcoinWatch', 'pendingBip48', 'evmRegistry', 'evmRecipients','walletConnect','walletConnectSessions','walletRead','signing','spendingBoard','consents'].includes(key))) {
     throw new Error('WALLET_STORAGE_CORRUPT');
   }
   return value;

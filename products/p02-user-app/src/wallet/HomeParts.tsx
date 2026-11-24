@@ -24,26 +24,41 @@ export function FirstSteps({t, connect, disabled}: {t: Say; connect: () => void;
   </>;
 }
 
-/** The board's row on the home page; opens 내 보드. */
-export function BoardCard({t, state, open}: {t: Say; state: 'active' | 'unchecked' | 'unverified'; open: () => void}) {
+/** The board on the dashboard: its state and what it may still approve today. Opens 내 보드. */
+export function BoardCard({t, state, open, limits, amount}: {
+  t: Say; state: 'active' | 'unchecked' | 'unverified'; open: () => void;
+  /** What the board reported in this session. */
+  limits?: Pick<SpendingStatus, 'perPayment' | 'daily' | 'leftToday'>; amount: (units: bigint) => string;
+}) {
   const [title, detail] = {
     active: ['내 보드 연결됨', '보드 상태를 확인했습니다'],
     unchecked: ['내 보드', '보드 상태를 아직 확인하지 않았습니다'],
     unverified: ['보드 연결이 필요합니다', '보드 계정을 확인하면 결제할 수 있어요'],
   }[state];
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${t(title)}, ${t(detail)}`} onPress={open}
+  const shown = state === 'active' ? limits : undefined;
+  const used = shown && shown.daily > 0n ? Number((shown.daily - shown.leftToday) * 100n / shown.daily) : 0;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${t(title)}, ${shown ? `${t('오늘 더 승인할 수 있는 금액')} ${amount(shown.leftToday)}` : t(detail)}`} onPress={open}
     style={({pressed}) => [styles.board, pressed && styles.pressed]}>
-    <View style={[styles.dot, state === 'active' && styles.dotOn]} />
-    <View style={styles.words}><Text style={type.label}>{t(title)}</Text><Text style={type.small}>{t(detail)}</Text></View>
-    <Text style={styles.manage}>{t('관리')}</Text>
+    <View style={styles.boardHead}><View style={[styles.dot, state === 'active' && styles.dotOn]} /><Text style={styles.boardTitle}>{t(title)}</Text>
+      <Text style={styles.manage}>{t('관리')}</Text></View>
+    {shown ? <>
+      <Text style={styles.boardText}>{t('오늘 더 승인할 수 있는 금액')}</Text>
+      <Text style={styles.left}>{amount(shown.leftToday)}</Text>
+      <View style={styles.bar}><View style={[styles.barUsed, {width: `${Math.max(0, Math.min(100, used))}%`}]} /></View>
+      <Text style={styles.boardText}>{`${t('하루에')} ${amount(shown.daily)} · ${t('한 번에')} ${amount(shown.perPayment)}`}</Text>
+    </> : <Text style={styles.boardText}>{`${t(detail)}${state === 'unchecked' ? ` · ${t('연결하면 오늘 남은 한도를 볼 수 있습니다')}` : ''}`}</Text>}
   </Pressable>;
 }
 
-export function HomeOrders({t, orders, open, account}: {t: Say; orders: OpenOrder[]; open: (sale: string) => void; account?: OrderPayer}) {
-  if (!orders.length) return null;
+export type HomeTask = {key: string; label: string; detail: string; run: () => void};
+/** What needs the owner now: orders first, then what the board still lacks. */
+export function HomeTasks({t, orders, open, account, tasks}: {t: Say; orders: OpenOrder[]; open: (sale: string) => void; account?: OrderPayer; tasks: HomeTask[]}) {
   return <View style={styles.orders}>
-    <Text accessibilityRole="header" style={type.section}>{t('결제 진행 중')}</Text>
+    <Text accessibilityRole="header" style={type.section}>{t('할 일')}</Text>
     {orders.map(order => <OpenOrderCard key={order.sale} order={order} former={isFormerBoard(order, account)} open={() => open(order.sale)} />)}
+    {!!tasks.length && <View style={styles.tasks}>{tasks.map(task =>
+      <KitButton key={task.key} label={task.label} detail={task.detail} run={task.run} variant="row" />)}</View>}
+    {!orders.length && !tasks.length && <Text style={type.small}>{t('지금 할 일이 없습니다.')}</Text>}
   </View>;
 }
 
@@ -88,10 +103,16 @@ const styles = StyleSheet.create({
   numberNow: {backgroundColor: color.green},
   numberText: {fontFamily: font, fontSize: 14, fontWeight: '800', color: color.deep}, numberTextNow: {color: color.onGreen},
   words: {flex: 1, gap: 2},
-  board: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radius.l, borderWidth: 1, borderColor: color.line, backgroundColor: color.sheet},
+  board: {gap: 6, padding: 18, borderRadius: radius.l, backgroundColor: color.green},
+  boardHead: {flexDirection: 'row', alignItems: 'center', gap: 10},
+  boardTitle: {flex: 1, fontFamily: font, fontSize: 16, fontWeight: '700', color: color.onGreen},
+  boardText: {fontFamily: font, fontSize: 13, lineHeight: 19, color: color.onGreenSoft},
+  left: {fontFamily: font, fontSize: 30, fontWeight: '800', letterSpacing: -1, color: '#ffffff'},
+  bar: {height: 8, borderRadius: 4, backgroundColor: '#2c5c47', overflow: 'hidden', marginVertical: 4}, barUsed: {height: 8, backgroundColor: color.mint},
   pressed: {opacity: 0.82},
-  dot: {width: 10, height: 10, borderRadius: 5, backgroundColor: color.line}, dotOn: {backgroundColor: '#2f8f5b'},
-  manage: {fontFamily: font, fontSize: 14, fontWeight: '700', color: color.green},
+  dot: {width: 10, height: 10, borderRadius: 5, backgroundColor: color.onGreenSoft}, dotOn: {backgroundColor: color.mint},
+  manage: {fontFamily: font, fontSize: 14, fontWeight: '700', color: color.mint},
+  tasks: {borderRadius: radius.m, overflow: 'hidden', borderWidth: 1, borderColor: color.line, gap: 1, backgroundColor: color.line},
   orders: {gap: 10},
   wait: {fontFamily: font, fontSize: 15, fontWeight: '700', color: color.amber},
   signal: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 48, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: color.sheet},

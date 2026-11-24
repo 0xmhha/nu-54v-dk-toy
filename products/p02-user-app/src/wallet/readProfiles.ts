@@ -26,7 +26,13 @@ export type ReadContact = {id: ReadProfileId; name: string; address: string; tag
 export type ReadSelection = {id: ReadProfileId; account: number; hidden: boolean; automatic?: boolean; asset?: string; tag?: string; index?: number};
 export type ReadObservation = {address: string; scope: string; time: number; point: string; amount?: string; unit: string; decimals?: number; inactive?: boolean; unconfigured?: boolean; issued?: string; used?: boolean};
 export type ReadProfileState = {selection: ReadSelection; endpoints: Partial<Record<ReadProfileId, string>>;
-  contacts: ReadContact[]; observations: ReadObservation[]; disabled?: ReadProfileId[]; custom?: CustomEvmDescriptor[]; accounts?: AccountPreference[]; assets?: AssetPreference[]; nonEvmAssets?: NonEvmAssetPreference[]};
+  contacts: ReadContact[]; observations: ReadObservation[]; disabled?: ReadProfileId[]; custom?: CustomEvmDescriptor[]; accounts?: AccountPreference[]; assets?: AssetPreference[]; nonEvmAssets?: NonEvmAssetPreference[];
+  /** The network the wallet tab shows: a profile id, or evm:<chain id> for one the owner added. */
+  shown?: string;
+  /** Pages the owner set for a network. */
+  links?: Partial<Record<ReadProfileId, {explorer?: string; gasCoin?: string}>>;
+  /** The newest operator list this phone has seen; an older one is refused. */
+  listSequence?: number};
 
 const methods = new Set(['eth_chainId', 'eth_getBlockByNumber', 'eth_getBalance', 'eth_call',
   'getblockchaininfo', 'getblockhash', 'gettxout', 'getaddressinfo', 'getreceivedbyaddress', 'listunspent', 'getGenesisHash', 'getBalance',
@@ -114,6 +120,15 @@ export function isWalletReadState(value: unknown): value is ReadProfileState {
           ('evm' in readProfiles[selected.id] ? !/^0x[a-f0-9]{40}$/.test(selected.asset) :
             !isNonEvmAssetId(selected.id,selected.asset)))) ||
         (selected.tag !== undefined && (selected.id !== 'xrp' || !isXrpTag(selected.tag)))) return false;
+    if (value.shown !== undefined && (typeof value.shown !== 'string' || !(isId(value.shown) || /^evm:[1-9][0-9]{0,19}$/.test(value.shown)))) return false;
+    if (value.listSequence !== undefined && (!Number.isSafeInteger(value.listSequence) || Number(value.listSequence) < 0)) return false;
+    if (value.links !== undefined) {
+      if (!isRecord(value.links)) return false;
+      for (const [id, pages] of Object.entries(value.links)) {
+        if (!isId(id) || !isRecord(pages) || Object.keys(pages).some(key => key !== 'explorer' && key !== 'gasCoin')) return false;
+        for (const page of Object.values(pages)) if (typeof page !== 'string' || readEndpoint(page) !== page) return false;
+      }
+    }
     for (const [id, endpoint] of Object.entries(value.endpoints)) {
       if (!isId(id) || typeof endpoint !== 'string') return false;
       readEndpoint(endpoint);
@@ -161,7 +176,7 @@ export function readCustomEvmDescriptor(input: unknown): CustomEvmDescriptor {
       typeof feeCap !== 'string' || !/^[1-9][0-9]{0,29}$/.test(feeCap) ||
       typeof confirmations !== 'number' || !Number.isInteger(confirmations) || confirmations < 0 || confirmations > 10000)
     throw new Error('WALLET_CUSTOM_SCHEMA');
-  return {engine: 'evm', capability: 'read-only', name, chainId, genesis, rpc: readEndpoint(rpc), explorer: readEndpoint(explorer),
+  return {engine: 'evm', capability: 'read-only', name, chainId, genesis, rpc: readEndpoint(rpc), explorer: explorer === '' ? '' : readEndpoint(explorer),
     currency, decimals, feeCap, confirmations};
 }
 

@@ -6,7 +6,7 @@
 export type BoardButton = 'SW1' | 'SW2' | 'SW3' | 'SW4' | 'SW1+SW2';
 export type BoardStepId = 'window' | 'display' | 'approve' | 'pin' | 'recovery' | 'recoveryproof' | 'hold' |
   'update' | 'confirm' | 'working' | 'locate' | 'done' | 'failed';
-export type BoardFlowId = 'register' | 'sign' | 'order' | 'address' | 'return' | 'reset' | 'replace' | 'backup' | 'install' | 'update' | 'locate' | 'erase';
+export type BoardFlowId = 'register' | 'sign' | 'order' | 'address' | 'return' | 'send' | 'reset' | 'replace' | 'backup' | 'install' | 'update' | 'locate' | 'erase';
 
 export type BoardStep = {label: string; do: string; buttons: [BoardButton, string][]; led?: string; app: string; pending?: string};
 export type BoardWait = {flow: BoardFlowId; step: BoardStepId; /** Replaces the step's own note. */ note?: string};
@@ -53,6 +53,7 @@ export const boardFlows: Record<BoardFlowId, {label: string; steps: BoardStepId[
   // Not in the design book yet: in the spending profile the phone shows the request, so no display step.
   order: {label: '주문 결제', steps: ['approve', 'pin', 'done']},
   address: {label: '반납 주소 저장', steps: ['approve', 'pin', 'done']},
+  send: {label: '보내기', steps: ['approve', 'pin', 'done']},
   return: {label: '반납', steps: ['approve', 'pin', 'done']},
   reset: {label: '보드 초기화', steps: ['approve', 'pin', 'done']},
   replace: {label: '휴대전화 교체', steps: ['recovery', 'recoveryproof', 'approve', 'pin', 'done']},

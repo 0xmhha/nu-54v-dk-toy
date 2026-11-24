@@ -101,13 +101,18 @@ export type SpendingStatus = {
   account: string; returnAddress?: string; perPayment: bigint; daily: bigint; pinWait: number; orderOpen: boolean;
   /** Left of today's total; 0 also while the board has no trusted time. */
   leftToday: bigint;
+  /** The firmware signs transfers to an address the owner chose. */
+  sends: boolean;
 };
 export const spendingStatusOperation = 0x7f;
 export const accountProofOperation = 0x79;
 export const setReturnOperation = 0x7a, returnOperation = 0x7b, resetOperation = 0x7c, resetNonceOperation = 0x7d, operatorResetOperation = 0x7e;
+/** op, token(20), to(20), amount(8), validBefore(8), nonce(32). Boards without it never get one: see `sends`. */
+export const sendOperation = 0x80;
 
 export function readSpendingStatus(payload: Uint8Array): SpendingStatus {
-  if (payload.length !== 71 || payload[0] !== spendingStatusOperation || payload[1] > 1 || payload[62] > 1 ||
+  // One more byte of capabilities, when the firmware has any: 1 is sending.
+  if ((payload.length !== 71 && payload.length !== 72) || (payload.length === 72 && payload[71] !== 1) || payload[0] !== spendingStatusOperation || payload[1] > 1 || payload[62] > 1 ||
       !payload.subarray(2, 22).some(Boolean) || payload.subarray(22, 42).some(Boolean) !== (payload[1] === 1))
     throw new Error('SPENDING_STATUS');
   return {
@@ -115,7 +120,7 @@ export function readSpendingStatus(payload: Uint8Array): SpendingStatus {
     ...(payload[1] ? {returnAddress: bytesToHex(payload.subarray(22, 42), true)} : {}),
     perPayment: bytesToBig(payload.subarray(42, 50)), daily: bytesToBig(payload.subarray(50, 58)),
     pinWait: Number(bytesToBig(payload.subarray(58, 62))), orderOpen: payload[62] === 1,
-    leftToday: bytesToBig(payload.subarray(63, 71)),
+    leftToday: bytesToBig(payload.subarray(63, 71)), sends: payload[71] === 1,
   };
 }
 
