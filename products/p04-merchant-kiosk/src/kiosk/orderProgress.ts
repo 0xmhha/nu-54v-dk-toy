@@ -46,10 +46,10 @@ export function holdOrder(sale: CommerceOrder, now: number, quoteUntil?: number,
 }
 
 /** How long the screen may stay without a touch. */
-export function screenMs(progress: OrderProgress, holdUntil: number | undefined, nowMs: number) {
+export function screenMs(progress: OrderProgress, holdUntil: number | undefined, nowMs: number, idle = idleMs) {
   if (progress === 'paid') return paidScreenMs;
-  if (orderFinished(progress) || holdUntil === undefined) return idleMs;
-  return Math.max(0, holdUntil * 1000 - nowMs) + idleMs;
+  if (orderFinished(progress) || holdUntil === undefined) return idle;
+  return Math.max(0, holdUntil * 1000 - nowMs) + idle;
 }
 
 /** Bounded backoff for reading one order while somebody waits for it. */

@@ -38,6 +38,7 @@ import {
   commerceMenuLabels,
   commerceMenuDisclosure,
   commerceRequestId,
+  defaultTerminalDevice,
   encodeOrderLocator,
   makeEntranceQr,
   fromBase64,
@@ -58,6 +59,7 @@ import {
   type CommerceSelection,
   type StaffAccess,
   type TerminalMode,
+  type TerminalDevice,
   type TerminalSettings,
   type TerminalTransition,
   type CheckoutComparison,
@@ -70,6 +72,7 @@ import { NearbyJournals } from './nearbyJournals.ts';
 import { NearbyRelay } from './nearbyRelay.ts';
 import { PickupKitchen } from './PickupKitchen.tsx';
 import { ReceiptPrint } from './ReceiptPrint.tsx';
+import { SettingsScreen } from './SettingsScreen.tsx';
 import { pickupHash, pickupJournalName } from './pickupJournal.ts';
 import { QrCode } from '../DigitalReceiptView.tsx';
 import { boardPayment, findPaymentBoards, reviewRentalBoard } from './boardPayment.ts';
@@ -271,6 +274,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const [screen, setScreen] = useState<PublicScreen>();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [device, setDevice] = useState<TerminalDevice>(defaultTerminalDevice);
+  const deviceRef = useRef(device);
   const [clock, setClock] = useState(now);
   const { width, height } = useWindowDimensions();
   const wide = width >= 840 && width > height;
@@ -322,6 +328,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       setStaff(undefined);
       setStaffView(next);
       setPickupOpen(false);
+      setSettingsOpen(false);
       closePrint();
       setPickupJournal(undefined);
       setTarget('');
@@ -415,8 +422,22 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     if (!current || current.connectionEnded) return;
     if (screenExpiry.current) clearTimeout(screenExpiry.current);
     screenExpiry.current = setTimeout(clearPublic,
-      screenMs(orderProgress(current, now()), current.holdUntil, Date.now()));
+      screenMs(orderProgress(current, now()), current.holdUntil, Date.now(), deviceRef.current.idleSeconds * 1000));
   }
+
+  /** The settings that an operator recorded for this kiosk. Without an answer the last ones stay. */
+  const readDevice = useCallback(async (from: CommerceClient) => {
+    try {
+      deviceRef.current = await from.terminalDevice();
+      setDevice(deviceRef.current);
+    } catch {
+      // An older server, or no connection. Payments do not depend on these settings.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (client && setup === 'terminal') readDevice(client);
+  }, [client, setup, readDevice]);
 
   const progress = screen ? orderProgress(screen, clock) : undefined;
   const orderBound = !!screen?.sale && (screen.sale.state !== 'preview' ||
@@ -847,6 +868,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       );
       return;
     }
+    readDevice(client);
     const handle = await id();
     if (
       generation !== staffEpoch.current ||
@@ -858,6 +880,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     setMode(current);
     setMenuBranchLabel(shop?.branchLabel);
     setStock(menu);
+    setMenuLocale(deviceRef.current.language);
     show({ session: handle });
     keepPublicActive();
   }
@@ -1873,6 +1896,29 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       </>
   );
 
+  // Never beside an order or an unresolved payment: those keep the screen.
+  const settingsAllowed = !!client && !screen && !pendingPayment &&
+    (setup === 'terminal' ? staffView === 'public' && !offlineMenu : staffView === 'public' || staffView === 'work');
+  useEffect(() => {
+    if (settingsOpen && !settingsAllowed) setSettingsOpen(false);
+  }, [settingsOpen, settingsAllowed]);
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  if (settingsOpen && settingsAllowed)
+    return (
+      <SettingsScreen
+        client={client}
+        terminal={setup === 'terminal'}
+        policy={policy}
+        shopLabel={menuBranchLabel}
+        device={device}
+        staff={staffView === 'work' && !!staff?.permissions.includes('terminal_settings')}
+        target={target.trim()}
+        locale={setup === 'terminal' ? device.language : 'ko'}
+        requestId={id}
+        close={closeSettings}
+      />
+    );
+
   return (
     <SafeAreaView style={s.root}>
       <View style={s.body}>
@@ -2361,6 +2407,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
               disabled={busy}
             />
           )}
+        {settingsAllowed && !kitchenOpen && !printView && (
+          <Button label="설정" disabled={busy} run={() => setSettingsOpen(true)} />
+        )}
         {setup==='terminal' && staffView==='public' && offlineMenu && (
           <OfflineMenu cached={offlineMenu} policy={policy} busy={busy}
             retry={()=>work(retryMenuConnection,'인증된 메뉴 연결을 확인할 수 없습니다.')} />
@@ -2882,7 +2931,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 </Text>
               ) : (
                 <Text style={s.hint}>
-                  1분 동안 사용하지 않으면 이 주문 화면을 비웁니다. 주문을 더
+                  {device.idleSeconds === 60 ? '1분' : `${device.idleSeconds}초`} 동안 사용하지 않으면 이 주문 화면을 비웁니다. 주문을 더
                   살펴보려면 시간을 연장하세요.
                 </Text>
               )}

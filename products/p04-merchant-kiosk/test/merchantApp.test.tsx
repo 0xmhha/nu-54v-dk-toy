@@ -33,6 +33,9 @@ let mockRole: 'terminal' | 'operator' | 'finance' = 'terminal';
 let mockStaffPermissions: string[] = ['terminal_settings'];
 let mockStaffBranch = mockShop;
 let mockStaffDenied = false;
+let mockDevice: import('@nu54/protocol').TerminalDevice = { revision: 0, language: 'ko', idleSeconds: 60 };
+let mockDeviceOffline = false;
+const mockDeviceChanges: [string, string, string, string][] = [];
 let mockDedicatedPickup = false;
 let mockLosePickupReply = false;
 let mockPickupState = 'accepted';
@@ -195,7 +198,8 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
         });
       }
       const { command } = wire;
-      mockDialed.push(command.operation);
+      // The settings are read beside every step; they are no part of an order.
+      if (!command.operation.startsWith('terminal.device')) mockDialed.push(command.operation);
       if (mockMenuFailure && (!mockMenuFailureAt || mockMenuFailureAt===command.operation) &&
           ['terminal.state','catalog.read'].includes(command.operation)) {
         throw Object.assign(new Error('transport failed'), {code: mockMenuFailure==='offline' ?
@@ -221,6 +225,31 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
         status: 'ok',
         resultRef: command.objectRef,
       };
+      if (command.operation.startsWith('terminal.device')) {
+        if (mockDeviceOffline) throw new Error('COMMERCE_UNAVAILABLE');
+        if (command.operation === 'terminal.device-change') {
+          const next = (wire as { terminalValue?: string }).terminalValue!;
+          mockDeviceChanges.push([command.objectRef, command.body.name, next, command.body.expectedRevision]);
+          mockDevice = {
+            ...mockDevice,
+            revision: mockDevice.revision + 1,
+            ...(command.body.name === 'language' ? { language: next as 'ko' | 'en' }
+              : command.body.name === 'idle-seconds' ? { idleSeconds: Number(next) } : { readServer: next || undefined }),
+          };
+        }
+        return JSON.stringify({
+          ...response,
+          terminalDevice: {
+            ...mockDevice,
+            ...(mockRole === 'operator' ? {
+              changes: mockDeviceChanges.map(([, name, to]) => ({ name, from: name === 'language' ? 'ko' : name === 'idle-seconds' ? '60' : '', to,
+                actor: mockActor, at: mockClock() })).reverse(),
+              payment: { chainId: 8283, asset: mockAsset, beneficiary: '0x' + '2'.repeat(40), contract: '0x' + '1'.repeat(40), escrow: true,
+                gasSponsor: '0x' + '4'.repeat(40), gasAccount: '0x' + '5'.repeat(40), registrationExpiresAt: mockClock() + 86400 },
+            } : {}),
+          },
+        });
+      }
       if (command.operation === 'staff.access') {
         await mockStaffGate;
         if (mockStaffDenied) throw new Error('NOT_AUTHORIZED');
@@ -497,6 +526,9 @@ beforeEach(() => {
   mockMenuPrice = '9';
   mockTeaAvailable = 2;
   mockStaffPermissions = ['terminal_settings'];
+  mockDevice = { revision: 0, language: 'ko', idleSeconds: 60 };
+  mockDeviceOffline = false;
+  mockDeviceChanges.length = 0;
   mockStaffBranch = mockShop;
   mockStaffDenied = false;
   mockDedicatedPickup = false;
@@ -1756,4 +1788,224 @@ test.each(['refused by the server', 'known from the enrollment'] as const)('K11 
   } finally {
     await Renderer.act(async () => tree.unmount());
   }
+});
+
+describe('kiosk settings', () => {
+  const genesis = '0x2bdf79b3d3cc49f9e6638ff81f3bb85065c79945a8fe4556cd0ff47bbfc02490';
+  const asked: string[] = [];
+  let served: { chain: string; hash: string } | undefined;
+  const network = global.fetch;
+  beforeEach(() => {
+    asked.length = 0;
+    served = { chain: '0x205b', hash: genesis };
+    global.fetch = (async (url: string, init: { body: string }) => {
+      asked.push(url);
+      if (!served) throw new Error('no route');
+      const { id, method } = JSON.parse(init.body);
+      const result = method === 'eth_chainId' ? served.chain : method === 'eth_blockNumber' ? '0x10' : { number: '0x0', hash: served.hash };
+      return { ok: true, json: async () => ({ jsonrpc: '2.0', id, result }) };
+    }) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = network;
+  });
+  async function open() {
+    let tree: Renderer.ReactTestRenderer;
+    await Renderer.act(async () => {
+      tree = Renderer.create(<App />);
+    });
+    return tree!;
+  }
+  async function type(tree: Renderer.ReactTestRenderer, label: string, value: string) {
+    const input = tree.root.findAll(n => n.props.accessibilityLabel === label && typeof n.props.onChangeText === 'function')[0];
+    await Renderer.act(async () => input.props.onChangeText(value));
+  }
+  async function staffSettings() {
+    mockRole = 'operator';
+    const tree = await open();
+    await press(tree, '직원 권한 확인');
+    await press(tree, '설정');
+    return tree;
+  }
+
+  test('anyone reads the store, the notices and a licence without a code in sight', async () => {
+    mockRole = 'terminal';
+    mockMenuCheckout = true;
+    mockAbi = orderEscrowAbiSha256;
+    const tree = await open();
+    try {
+      await press(tree, '설정');
+      await Renderer.act(async () => undefined);
+      expect(view(tree)).toContain('여울 커피 성수점');
+      expect(view(tree)).toContain('주문 보호 계약이 보관합니다');
+      expect(view(tree)).toContain('"1.0"');
+      expect(view(tree)).not.toMatch(/\b[KW][0-9]{2}\b/);
+      await press(tree, '이용약관');
+      expect(view(tree)).toContain('검토 중인 초안입니다.');
+      await press(tree, '뒤로');
+      for (const name of ['개인정보 처리방침', '시험용 자산 안내']) {
+        await press(tree, name);
+        await press(tree, '뒤로');
+      }
+      await press(tree, '오픈소스 라이선스');
+      // A long list renders only what is near the screen.
+      const rows = tree.root.findAll(n => /^\S+ [0-9]+\.[0-9]\S* /.test(n.props.accessibilityLabel ?? '') && typeof n.props.onPress === 'function');
+      expect(rows.length).toBeGreaterThan(5);
+      expect(new Set(rows.map(n => n.props.accessibilityLabel)).size).toBeLessThan(60);
+      await Renderer.act(async () => rows[0].props.onPress());
+      expect(view(tree)).toMatch(/Permission is hereby granted|Licensed under|license/i);
+      await press(tree, '뒤로');
+      expect(tree.root.findAll(n => n.props.testID === 'license-list').length).toBeGreaterThan(0);
+      await press(tree, '뒤로');
+      await press(tree, 'English');
+      expect(view(tree)).toContain('Terms of use');
+      await press(tree, 'Close settings');
+      expect(view(tree)).toContain('새 고객 주문');
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('the customer terminal shows no staff setting and no payment value', async () => {
+    mockRole = 'terminal';
+    const tree = await open();
+    try {
+      await press(tree, '설정');
+      await press(tree, '기기');
+      expect(view(tree)).toContain('직원 등록 기기에서');
+      expect(view(tree)).not.toContain('설정할 단말 식별값');
+      await press(tree, '결제');
+      expect(view(tree)).toContain('직원 등록 기기에서');
+      expect(view(tree)).not.toContain('매장 수령 주소');
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('settings close after a minute without a touch and never cover an order', async () => {
+    mockRole = 'terminal';
+    const tree = await open();
+    fakeSessionTimers();
+    try {
+      await press(tree, '설정');
+      const body = () => tree.root.findAll(n => n.props.testID === 'kiosk-settings' && typeof n.props.onStartShouldSetResponderCapture === 'function')[0];
+      await Renderer.act(async () => jest.advanceTimersByTime(59_000));
+      await Renderer.act(async () => body().props.onStartShouldSetResponderCapture());
+      await Renderer.act(async () => jest.advanceTimersByTime(59_000));
+      expect(body()).toBeDefined();
+      await Renderer.act(async () => jest.advanceTimersByTime(1_000));
+      expect(body()).toBeUndefined();
+      await press(tree, '새 고객 주문');
+      expect(tree.root.findAll(n => n.props.label === '설정')).toHaveLength(0);
+      mockJournal.clear();
+    } finally {
+      jest.useRealTimers();
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('an unresolved payment keeps settings unreachable', async () => {
+    mockRole = 'terminal';
+    mockJournal.set('terminal-payment-v2', JSON.stringify({ branch: mockShop, terminal: mockTerminal, request: 'a'.repeat(32) }));
+    const tree = await open();
+    try {
+      expect(view(tree)).toContain('보류 지급 상태 확인');
+      expect(tree.root.findAll(n => n.props.label === '설정')).toHaveLength(0);
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('staff change the language and idle time through the server, which records them', async () => {
+    const tree = await staffSettings();
+    try {
+      await press(tree, '기기');
+      await type(tree, '설정할 단말 식별값', mockTerminal);
+      await press(tree, '단말 설정 조회');
+      await press(tree, 'English');
+      await press(tree, '120초');
+      expect(mockDeviceChanges).toEqual([[mockTerminal, 'language', 'en', '0'], [mockTerminal, 'idle-seconds', '120', '1']]);
+      expect(view(tree)).toContain('운영 서버에 기록했습니다');
+      expect(view(tree)).toContain('첫 화면 언어 · 한국어 → English');
+      mockDeviceOffline = true;
+      await press(tree, '30초');
+      expect(mockDeviceChanges).toHaveLength(2);
+      expect(view(tree)).toContain('확인하지 못했습니다');
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('a read server is saved only after it shows the payment chain', async () => {
+    const tree = await staffSettings();
+    try {
+      await press(tree, '기기');
+      await type(tree, '설정할 단말 식별값', mockTerminal);
+      await press(tree, '단말 설정 조회');
+      const attempt = async (address: string) => {
+        await type(tree, '읽기 서버 주소', address);
+        await press(tree, '확인하고 저장');
+      };
+      await attempt('http://rpc.example');
+      expect(asked).toEqual([]);
+      expect(view(tree)).toContain('https로 시작하고');
+      served = { chain: '0x1', hash: genesis };
+      await attempt('https://rpc.example/');
+      expect(view(tree)).toContain('결제 네트워크가 아닙니다');
+      served = { chain: '0x205b', hash: '0x' + '1'.repeat(64) };
+      await attempt('https://rpc.example/');
+      expect(view(tree)).toContain('결제 네트워크가 아닙니다');
+      served = undefined;
+      await attempt('https://rpc.example/');
+      expect(view(tree)).toContain('응답하지 않습니다');
+      expect(mockDeviceChanges).toEqual([]);
+      served = { chain: '0x205b', hash: genesis };
+      await attempt('https://rpc.example/');
+      expect(mockDeviceChanges).toEqual([[mockTerminal, 'read-server', 'https://rpc.example/', '0']]);
+      await press(tree, '운영 서버 주소로 되돌리기');
+      expect(mockDeviceChanges[1]).toEqual([mockTerminal, 'read-server', '', '1']);
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('payment values are shown and cannot be edited', async () => {
+    const tree = await staffSettings();
+    try {
+      await press(tree, '결제');
+      await type(tree, '설정할 단말 식별값', mockTerminal);
+      await press(tree, '단말 설정 조회');
+      for (const value of [mockAsset, '0x' + '2'.repeat(40), '0x' + '1'.repeat(40), '0x' + '4'.repeat(40), '0x' + '5'.repeat(40), 'StableNet 테스트넷 (8283)'])
+        expect(view(tree)).toContain(value);
+      expect(tree.root.findAll(n => typeof n.props.onChangeText === 'function' && n.props.accessibilityLabel !== '설정할 단말 식별값')).toHaveLength(0);
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('an operator without the permission cannot open the staff sections', async () => {
+    mockStaffPermissions = ['pickup'];
+    const tree = await staffSettings();
+    try {
+      await press(tree, '기기');
+      expect(view(tree)).toContain('권한이 있는 직원만');
+      await press(tree, '결제');
+      expect(view(tree)).toContain('권한이 있는 직원만');
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
+
+  test('the terminal starts each order with the recorded language and idle time', async () => {
+    mockRole = 'terminal';
+    mockDevice = { revision: 2, language: 'en', idleSeconds: 120 };
+    const tree = await open();
+    try {
+      await press(tree, '새 고객 주문');
+      expect(view(tree)).toContain('Menu language 한국어');
+      expect(view(tree)).toContain('120초');
+    } finally {
+      await Renderer.act(async () => tree.unmount());
+    }
+  });
 });
