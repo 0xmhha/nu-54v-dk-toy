@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -158,6 +159,22 @@ func configJSON(key string, value any) error {
 		return fmt.Errorf("invalid %s", key)
 	}
 	return nil
+}
+
+// loadNetworkList enrolls the signed network list. Without the settings no customer gets one.
+func loadNetworkList() (*commerce.NetworkList, error) {
+	path, operator := os.Getenv("P05_NETWORK_LIST_FILE"), os.Getenv("P05_NETWORK_LIST_OPERATOR")
+	if path == "" && operator == "" {
+		return nil, nil
+	}
+	list := &commerce.NetworkList{Path: path, Operator: common.HexToAddress(operator)}
+	if !filepath.IsAbs(path) || !common.IsHexAddress(operator) || list.Operator == (common.Address{}) {
+		return nil, errors.New("set P05_NETWORK_LIST_FILE to an absolute path and P05_NETWORK_LIST_OPERATOR to its signer")
+	}
+	if _, err := list.Read(time.Now()); err != nil {
+		log.Printf("network list withheld until a valid one is published: %v", err)
+	}
+	return list, nil
 }
 
 func keyFile(key string) ([32]byte, error) {
@@ -465,7 +482,11 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	if err != nil {
 		return err
 	}
-	commerce.HTTP{QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
+	networks, err := loadNetworkList()
+	if err != nil {
+		return err
+	}
+	commerce.HTTP{NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}.Register(mux)
 	server := &http.Server{Addr: addr, Handler: gate.Handler(mux), BaseContext: func(net.Listener) context.Context { return lifetime }, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second,
 		WriteTimeout: 10 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert,

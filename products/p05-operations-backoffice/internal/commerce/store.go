@@ -187,6 +187,51 @@ type WalletReturn struct {
 	TxHash      *string `json:"txHash,omitempty"`
 }
 
+// WalletSends lists a customer's newest transfers and what the store still relays in 24 hours.
+type WalletSends struct {
+	PerDay    int32        `json:"perDay"`
+	Remaining int32        `json:"remaining"`
+	Sends     []WalletSend `json:"sends"`
+}
+
+type WalletSend struct {
+	Payer       string `json:"payer"`
+	To          string `json:"to"`
+	Token       string `json:"token"`
+	Amount      string `json:"amount"`
+	ValidBefore int64  `json:"validBefore"`
+	Nonce       string `json:"nonce"`
+	CreatedAt   int64  `json:"createdAt"`
+	State       string `json:"state"`
+	TxHash      string `json:"txHash,omitempty"`
+}
+
+// FaucetStatus lists the test tokens a customer may ask for, and what would happen now.
+type FaucetStatus struct {
+	Payer  string        `json:"payer,omitempty"`
+	Tokens []FaucetToken `json:"tokens"`
+}
+
+type FaucetToken struct {
+	Token       string       `json:"token"`
+	Symbol      string       `json:"symbol"`
+	Decimals    uint8        `json:"decimals"`
+	Amount      string       `json:"amount"`
+	PerDay      int32        `json:"perDay"`
+	Remaining   int32        `json:"remaining"`
+	State       string       `json:"state"`
+	AvailableAt int64        `json:"availableAt,omitempty"`
+	Claim       *FaucetClaim `json:"claim,omitempty"`
+}
+
+type FaucetClaim struct {
+	Amount    string `json:"amount"`
+	To        string `json:"to"`
+	CreatedAt int64  `json:"createdAt"`
+	State     string `json:"state"`
+	TxHash    string `json:"txHash,omitempty"`
+}
+
 type ShopIdentity struct {
 	Branch      string `json:"branch"`
 	BranchLabel string `json:"branchLabel"`

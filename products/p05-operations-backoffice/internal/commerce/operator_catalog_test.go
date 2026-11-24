@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1219,6 +1220,39 @@ func exerciseKioskStaffRealTLS(t *testing.T, ctx context.Context, base string, a
 	}
 	send(clerk, map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: "terminal.state",
 		Domain: branch, Object: kioskID, RequestID: other, ExpiresAt: time.Now().Unix() + 20, Body: map[string]string{}}}, 404)
+	device := func(client *http.Client, expected int) *TerminalDevice {
+		return send(client, map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: "terminal.device",
+			Domain: branch, Object: kioskID, RequestID: other, ExpiresAt: time.Now().Unix() + 20, Body: map[string]string{}}}, expected).TerminalDevice
+	}
+	configure := func(client *http.Client, key, value, signed string, revision, expected int) *TerminalDevice {
+		digest := sha256.Sum256([]byte(signed))
+		return send(client, map[string]any{"terminalValue": value, "command": service.Request{Version: 2, Contract: "C3", Operation: "terminal.device-change",
+			Domain: branch, Object: kioskID, RequestID: other, IdempotencyKey: key, ExpiresAt: time.Now().Unix() + 20,
+			Body: map[string]string{"name": "read-server", "valueDigest": hex.EncodeToString(digest[:]), "expectedRevision": strconv.Itoa(revision)}}}, expected).TerminalDevice
+	}
+	const settingKey, readServer = "f4c14a7b-3110-4c2b-89b7-726995a12eaf", "https://rpc.example/stable"
+	if got := device(kiosk, 200); got == nil || got.Revision != 0 || got.Payment != nil || got.Changes != nil {
+		t.Fatalf("kiosk settings %+v", got)
+	}
+	device(clerk, 404)
+	device(maker, 404)
+	for _, client := range []*http.Client{kiosk, clerk, maker} {
+		configure(client, settingKey, readServer, readServer, 0, 404)
+	}
+	configure(admin, settingKey, "https://evil.example/", readServer, 0, 400)
+	configure(admin, settingKey, "http://rpc.example/", "http://rpc.example/", 0, 400)
+	for range 2 {
+		if got := configure(admin, settingKey, readServer, readServer, 0, 200); got.Revision != 1 || got.ReadServer != readServer ||
+			len(got.Changes) != 1 || got.Changes[0].Actor != adminID || got.Payment == nil || got.Payment.ChainID != 8283 || got.Payment.RegistrationExpiresAt == 0 {
+			t.Fatalf("recorded setting %+v", got)
+		}
+	}
+	configure(admin, "f5c14a7b-3110-4c2b-89b7-726995a12eaf", "", "", 0, 409)
+	if got := device(kiosk, 200); got.Revision != 1 || got.ReadServer != readServer || got.Payment != nil || got.Changes != nil {
+		t.Fatalf("kiosk settings %+v", got)
+	}
+	send(kiosk, map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: "network.list",
+		Domain: branch, Object: kioskID, RequestID: other, ExpiresAt: time.Now().Unix() + 20, Body: map[string]string{}}}, 400)
 	execute("UPDATE ledger.finance_grant SET valid_until=clock_timestamp() WHERE branch_id=$1 AND actor_id=$2", branch, clerkID)
 	access(clerk, branch, clerkID, 404)
 	queue(clerk, branch, 404)

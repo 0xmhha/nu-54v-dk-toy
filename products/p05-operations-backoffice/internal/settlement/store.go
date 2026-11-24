@@ -64,6 +64,9 @@ type Forwarder struct {
 	RelayCipher  cipher.AEAD
 	Targets      map[string]Target
 	MerchantIDs  map[string]common.Hash
+	// Faucet is nil where no store offers test tokens. GasAccount is shown to an operator.
+	Faucet     *Faucet
+	GasAccount common.Address
 }
 
 func (f Forwarder) verifiedQuote(ctx context.Context, req service.Request, tenant, actor string) (Quote, Target, string, error) {
@@ -278,6 +281,8 @@ func sqlError(err error) error {
 			return service.Expired
 		case "P1060":
 			return service.CheckoutConflict
+		case "P1063":
+			return service.OutOfStock
 		case "P1061":
 			return service.Mismatch
 		case "P1062":

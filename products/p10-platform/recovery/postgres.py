@@ -92,6 +92,12 @@ def owner_inventory(env, database, owner, snapshot=None):
                    "ledger.escrow_claim_order", "ledger.escrow_decision")
     if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.wallet_return') IS NOT NULL;", snapshot) == "t":
         tables += ("ledger.relay_version", "ledger.payer_enrollment_request", "ledger.wallet_return")
+    if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.faucet_claim') IS NOT NULL;", snapshot) == "t":
+        tables += ("ledger.faucet_claim",)
+    if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.wallet_send') IS NOT NULL;", snapshot) == "t":
+        tables += ("ledger.wallet_send",)
+    if owner == "p05" and sql(env, database, "SELECT to_regclass('ledger.terminal_device') IS NOT NULL;", snapshot) == "t":
+        tables += ("ledger.terminal_device", "ledger.terminal_device_change")
     for table in tables:
         counts[table] = row_inventory(env, database, table, snapshot)
     return counts

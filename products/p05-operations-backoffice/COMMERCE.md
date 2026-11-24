@@ -63,3 +63,16 @@ P05_COMMERCE_TEST_DATABASE_URL="$SCRATCH_DSN" make -C products/p05-operations-ba
 ## Order escrow operations
 
 `order.lock` (terminal or customer) and `order.answer` (customer) carry a 65-byte signature in `approvalSignature`. `order.status` adds `escrow` for an escrow order. Pickup queue and detail rows carry `items`, and for an escrow order the confirmed `escrow.stage`. Errors of `order.answer`: wrong key or another delivery time `MISMATCHED_EVIDENCE`, a different answer in progress `REPLAY_CONFLICT`, an order that is not waiting for this answer `CHECKOUT_CONFLICT`, a late dispute `EXPIRED`. `payer.enroll`, `payer.status`, `wallet.return` and `wallet.return-status` name the customer itself as the object and work only on escrow branches. Wrong proof or another account `MISMATCHED_EVIDENCE`, an open order `CHECKOUT_CONFLICT`, another return in progress `REPLAY_CONFLICT`, three returns in a day `BUSY`, no gas commitment `UNSUPPORTED_CAPABILITY`. Details: [order escrow branches](settlement-v2.md#order-escrow-branches).
+
+## Kiosk device settings
+
+`terminal.device` and `terminal.device-change` ([wire agreement](../../docs/content/commercial/architecture/spending-wallet-wire.md#12-키오스크-기기-설정)) keep the first language, idle time and chain read server of one terminal in `ledger.terminal_device`. A change needs a live operator with `terminal_settings`, the current revision and the SHA-256 of its value; `ledger.terminal_device_change` keeps the operator, the time and both values (migration 111). A terminal reads only its own row.
+
+## Signed network list
+
+Set `P05_NETWORK_LIST_FILE` (absolute path) and `P05_NETWORK_LIST_OPERATOR` (address of the operator key that signs merchant attestations). The server reads the file on every `network.list`, checks signer, text and time, and answers `UNSUPPORTED_CAPABILITY` when there is no valid list. Publish with an atomic rename.
+
+```sh
+# list.json: {"v":1,"issuedAt":...,"expiresAt":...,"sequence":8,"networks":[{"chainId":8283,"name":"StableNet Testnet","rpc":"https://..."}]}
+bin/opsctl network-list sign --in list.json --last-sequence 7 > network-list.json
+```

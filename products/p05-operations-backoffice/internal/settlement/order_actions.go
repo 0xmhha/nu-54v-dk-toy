@@ -42,13 +42,20 @@ type escrowAction struct {
 	quotes                []Quote
 	approval              []byte
 	ciphers, sums, signed [][]byte
-	transfer              *walletTransfer // a wallet return
+	transfer              *walletTransfer // a wallet return or send
+	faucet                *faucetTransfer // a test token claim
 }
+
+// moves reports a board-signed transfer of the token: a return home or a send.
+func (a *escrowAction) moves() bool { return a.kind == "return" || a.kind == "send" }
 
 // destination is the contract a job calls.
 func destination(job work, target Target) common.Address {
-	if job.action != nil && job.action.kind == "return" {
+	if job.action != nil && job.action.moves() {
 		return target.Asset
+	}
+	if job.action != nil && job.action.faucet != nil {
+		return job.action.faucet.token
 	}
 	return target.Contract
 }
@@ -61,6 +68,9 @@ var escrowCalls = map[string]string{"deliver": "markDelivered", "cancel": "cance
 func gasFor(job work) uint64 {
 	if job.action != nil && job.action.kind == "claim" {
 		return 200_000 + 30_000*uint64(len(job.action.sales))
+	}
+	if job.action != nil && job.action.faucet != nil {
+		return faucetGas
 	}
 	return relayGasLimit
 }
@@ -122,8 +132,11 @@ func text(value string) *string { return &value }
 func (w *Worker) processAction(ctx context.Context, job work) (actionResult, error) {
 	retry := actionResult{delay: 2 * time.Second}
 	target, exists := w.Targets[job.branch]
-	if exists && target.Escrow() && job.action.kind == "return" {
+	if exists && target.Escrow() && job.action.moves() {
 		return w.processReturn(ctx, job, target, retry)
+	}
+	if exists && target.Escrow() && job.action.kind == "faucet" {
+		return w.processFaucet(ctx, job, target, retry)
 	}
 	if !exists || !target.Escrow() || job.stream == nil || *job.stream != target.Stream || len(job.action.sales) == 0 {
 		return actionResult{delay: time.Minute}, errors.New("unbound escrow action")
@@ -316,6 +329,9 @@ func (w *Worker) actionCall(ctx context.Context, job work, target Target, now ti
 	if job.action.transfer != nil {
 		return job.action.transfer.call(job.id)
 	}
+	if job.action.faucet != nil {
+		return job.action.faucet.call(job.id, job.expires, now)
+	}
 	method, args, digest, signer, err := w.actionArgs(job, target)
 	if err != nil {
 		return relayCall{}, err
@@ -352,6 +368,9 @@ func (w *Worker) validateAction(job work, target Target, data []byte) error {
 			return errors.New("stored transaction does not match wallet return")
 		}
 		return nil
+	}
+	if job.action.faucet != nil {
+		return w.validateFaucet(job, data)
 	}
 	method, args, digest, signer, err := w.actionArgs(job, target)
 	if err != nil {

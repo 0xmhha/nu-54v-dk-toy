@@ -20,6 +20,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/networklist"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/quotev2"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 )
@@ -44,6 +45,14 @@ type PayerAccounts interface {
 	EnrolledPayer(context.Context, service.Bound) (*PayerEnrollment, error)
 	ReturnWallet(context.Context, service.Bound, []byte) error
 	WalletReturnStatus(context.Context, service.Bound) (*WalletReturn, error)
+	SendWallet(context.Context, service.Bound, []byte) error
+	WalletSends(context.Context, service.Bound) (*WalletSends, error)
+}
+
+// Faucet sends test tokens to the enrolled account. A PaymentForwarder may provide it.
+type Faucet interface {
+	ClaimFaucet(context.Context, service.Bound) error
+	FaucetStatus(context.Context, service.Bound) (*FaucetStatus, error)
 }
 
 type HTTP struct {
@@ -68,6 +77,7 @@ type HTTP struct {
 	RenterV1Origins           *RenterV1Origins
 	Legacy                    LegacyConsole
 	Firmware                  map[string]FirmwareRelease
+	NetworkList               *NetworkList
 }
 
 type request struct {
@@ -77,6 +87,7 @@ type request struct {
 	Cart              *Cart                  `json:"cart,omitempty"`
 	ApprovalSignature string                 `json:"approvalSignature,omitempty"`
 	RentalReview      *RentalReviewChallenge `json:"rentalReview,omitempty"`
+	TerminalValue     *string                `json:"terminalValue,omitempty"`
 }
 
 type result struct {
@@ -100,6 +111,10 @@ type result struct {
 	Unavailable      []Item                 `json:"unavailable,omitempty"`
 	Payer            *PayerEnrollment       `json:"payer,omitempty"`
 	WalletReturn     *WalletReturn          `json:"walletReturn,omitempty"`
+	WalletSends      *WalletSends           `json:"walletSends,omitempty"`
+	Faucet           *FaucetStatus          `json:"faucet,omitempty"`
+	NetworkList      *networklist.Envelope  `json:"networkList,omitempty"`
+	TerminalDevice   *TerminalDevice        `json:"terminalDevice,omitempty"`
 }
 
 type quoteReply struct {
@@ -206,7 +221,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if outer.POS != nil {
-		if outer.Command != nil || outer.Cart != nil || outer.Travel != nil || outer.ApprovalSignature != "" || outer.RentalReview != nil {
+		if outer.Command != nil || outer.Cart != nil || outer.Travel != nil || outer.ApprovalSignature != "" || outer.RentalReview != nil || outer.TerminalValue != nil {
 			errorResponse(w, service.BadRequest, nil)
 			return
 		}
@@ -214,7 +229,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if outer.Travel != nil {
-		if outer.Command != nil || outer.Cart != nil || outer.ApprovalSignature != "" || outer.RentalReview != nil {
+		if outer.Command != nil || outer.Cart != nil || outer.ApprovalSignature != "" || outer.RentalReview != nil || outer.TerminalValue != nil {
 			travelFailure(w, http.StatusNotFound, "booking_unavailable")
 			return
 		}
@@ -223,7 +238,11 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	req, err := service.DecodeRequest(bytes.NewReader(outer.Command))
 	if err != nil || req.Contract != "C3" || (outer.Cart != nil && req.Operation != "order.create") || (outer.ApprovalSignature != "" &&
-		!slices.Contains([]string{"payment.forward", "order.lock", "order.answer", "payer.enroll", "wallet.return"}, req.Operation)) {
+		!slices.Contains([]string{"payment.forward", "order.lock", "order.answer", "payer.enroll", "wallet.return", "wallet.send"}, req.Operation)) {
+		errorResponse(w, service.BadRequest, nil)
+		return
+	}
+	if (outer.TerminalValue != nil) != (req.Operation == "terminal.device-change") {
 		errorResponse(w, service.BadRequest, nil)
 		return
 	}
@@ -242,13 +261,18 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	var approvalSignature []byte
 	locker, _ := h.Payment.(OrderLocker)
 	accounts, _ := h.Payment.(PayerAccounts)
+	faucet, _ := h.Payment.(Faucet)
+	if strings.HasPrefix(req.Operation, "faucet.") && faucet == nil {
+		errorResponse(w, service.Capability, nil)
+		return
+	}
 	if strings.HasPrefix(req.Operation, "payer.") || strings.HasPrefix(req.Operation, "wallet.") {
 		if accounts == nil {
 			errorResponse(w, service.Capability, nil)
 			return
 		}
 	}
-	if slices.Contains([]string{"order.answer", "payer.enroll", "wallet.return"}, req.Operation) {
+	if slices.Contains([]string{"order.answer", "payer.enroll", "wallet.return", "wallet.send"}, req.Operation) {
 		if req.Operation == "order.answer" && locker == nil {
 			errorResponse(w, service.Capability, nil)
 			return
@@ -360,6 +384,12 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		var terminal TerminalSettings
 		terminal, err = h.Store.ConfirmTerminalTransition(ctx, bound, revision)
 		out.Terminal = &terminal
+	case "terminal.device":
+		out.TerminalDevice, err = h.terminalDevice(ctx, bound)
+	case "terminal.device-change":
+		out.TerminalDevice, err = h.changeTerminalDevice(ctx, bound, *outer.TerminalValue)
+	case "network.list":
+		out.NetworkList, err = h.networkList(ctx, bound)
 	case "catalog.read":
 		var page int64
 		page, err = strconv.ParseInt(req.Body["page"], 10, 32)
@@ -434,6 +464,14 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		err = accounts.ReturnWallet(ctx, bound, approvalSignature)
 	case "wallet.return-status":
 		out.WalletReturn, err = accounts.WalletReturnStatus(ctx, bound)
+	case "wallet.send":
+		err = accounts.SendWallet(ctx, bound, approvalSignature)
+	case "wallet.send-status":
+		out.WalletSends, err = accounts.WalletSends(ctx, bound)
+	case "faucet.claim":
+		err = faucet.ClaimFaucet(ctx, bound)
+	case "faucet.status":
+		out.Faucet, err = faucet.FaucetStatus(ctx, bound)
 	case "order.answer":
 		out.ResultRef, err = locker.Answer(ctx, bound, approvalSignature)
 	default:
@@ -443,7 +481,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		err = service.Unknown
 	}
 	if err == nil && slices.Contains([]string{"catalog.read", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list",
-		"payer.status", "wallet.return-status"}, req.Operation) {
+		"payer.status", "wallet.return-status", "wallet.send-status", "faucet.status", "network.list", "terminal.device"}, req.Operation) {
 		err = h.Store.db.CheckRead(ctx)
 	}
 	if err == nil && req.Operation == "order.list" {

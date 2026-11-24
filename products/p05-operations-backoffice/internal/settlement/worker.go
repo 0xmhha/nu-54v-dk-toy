@@ -72,7 +72,9 @@ type Worker struct {
 	Resolver        common.Address
 	ResolverSigner  Signer
 	MerchantIDs     map[string]common.Hash
-	turn            int
+	// Faucet is nil where no store offers test tokens.
+	Faucet *Faucet
+	turn   int
 }
 
 // account is the sender of the job's transaction.
@@ -82,6 +84,12 @@ func (w *Worker) account(job work) (common.Address, Signer, error) {
 			return common.Address{}, nil, errors.New("dispute account is not enrolled")
 		}
 		return w.Resolver, w.ResolverSigner, nil
+	}
+	if job.action != nil && job.action.kind == "faucet" {
+		if w.Faucet == nil || job.action.faucet == nil || w.Faucet.Account != job.action.faucet.sender {
+			return common.Address{}, nil, errors.New("faucet account is not enrolled")
+		}
+		return w.Faucet.Account, w.Faucet.Signer, nil
 	}
 	return w.GasAccount, w.GasSigner, nil
 }
@@ -477,6 +485,9 @@ func (w *Worker) resume(ctx context.Context, job work, target Target, quote Quot
 			}
 			if _, err := w.Chain.TransactionReceipt(ctx, common.HexToHash(*job.hash)); !errors.Is(err, ethereum.NotFound) {
 				return nil, false, err
+			}
+			if job.action != nil && job.action.faucet != nil {
+				return nil, false, errFaucetSpent
 			}
 			return nil, false, w.Store.releaseSpent(ctx, job)
 		}

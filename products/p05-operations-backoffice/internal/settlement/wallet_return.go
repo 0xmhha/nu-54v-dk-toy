@@ -3,6 +3,7 @@ package settlement
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
@@ -19,7 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// walletTransfer is the board's signed transfer of its balance home. Its own deadline ends it.
+// walletTransfer is the board's signed transfer of its balance home or to another address. Its own deadline ends it.
 type walletTransfer struct {
 	payer, to   common.Address
 	amount      *big.Int
@@ -101,6 +102,59 @@ func (f Forwarder) ReturnWallet(ctx context.Context, bound service.Bound, signat
 	if err != nil {
 		return err
 	}
+	return f.storeTransfer(ctx, bound, target, signature, func(args []any) error {
+		_, err := f.Store.db.Exec(ctx, `SELECT ledger.store_wallet_return($1,$2,$3,$4,$5,$6,$7,$8,$9::text::numeric,$10,$11,$12,$13)`, args...)
+		return err
+	})
+}
+
+// SendWallet stores the board's transfer to any address for the relay worker.
+func (f Forwarder) SendWallet(ctx context.Context, bound service.Bound, signature []byte) error {
+	req := bound.Request
+	target, err := f.escrowTarget(req, bound.Subject)
+	if err != nil {
+		return err
+	}
+	// The board signs the store's token only, and no other token may spend the store's gas.
+	if target.SendsPerDay < 1 || common.HexToAddress(req.Body["token"]) != target.Asset {
+		return service.Capability
+	}
+	if to := common.HexToAddress(req.Body["to"]); to == (common.Address{}) || (target.Sponsor != (common.Address{}) && to == target.Sponsor) {
+		return service.BadRequest
+	}
+	return f.storeTransfer(ctx, bound, target, signature, func(args []any) error {
+		_, err := f.Store.db.Exec(ctx, `SELECT ledger.store_wallet_send($1,$2,$3,$4,$5,$6,$7,$8,$9::text::numeric,$10,$11,$12,$13,$14)`,
+			append(args, target.SendsPerDay)...)
+		return err
+	})
+}
+
+// WalletSends lists the customer's transfers at a store that relays them.
+func (f Forwarder) WalletSends(ctx context.Context, bound service.Bound) (*commerce.WalletSends, error) {
+	target, err := f.escrowTarget(bound.Request, bound.Subject)
+	if err != nil {
+		return nil, err
+	}
+	if target.SendsPerDay < 1 {
+		return nil, service.Capability
+	}
+	var raw []byte
+	if err := f.Store.db.QueryRow(ctx, "SELECT ledger.wallet_send_status($1,$2,$3)", bound.Tenant, bound.Request.Domain, bound.Subject).Scan(&raw); err != nil {
+		return nil, sqlError(err)
+	}
+	var held struct {
+		Used  int32
+		Sends []commerce.WalletSend
+	}
+	if err := json.Unmarshal(raw, &held); err != nil {
+		return nil, err
+	}
+	return &commerce.WalletSends{PerDay: target.SendsPerDay, Remaining: max(0, target.SendsPerDay-held.Used), Sends: held.Sends}, nil
+}
+
+// storeTransfer checks a board-signed transfer and hands it to the ledger.
+func (f Forwarder) storeTransfer(ctx context.Context, bound service.Bound, target Target, signature []byte, store func([]any) error) error {
+	req := bound.Request
 	payer, to := common.HexToAddress(req.Body["payer"]), common.HexToAddress(req.Body["to"])
 	amount, ok := new(big.Int).SetString(req.Body["amount"], 10)
 	validBefore, err := strconv.ParseInt(req.Body["validBefore"], 10, 64)
@@ -129,10 +183,8 @@ func (f Forwarder) ReturnWallet(ctx context.Context, bound service.Bound, signat
 			until = time.Unix(witness.ExpiresAt, 0)
 		}
 	}
-	_, err = f.Store.db.Exec(ctx, `SELECT ledger.store_wallet_return($1,$2,$3,$4,$5,$6,$7,$8,$9::text::numeric,$10,$11,$12,$13)`,
-		bound.Tenant, req.Domain, bound.Subject, req.IdempotencyKey, intent, payer[:], to[:], lower(target.Asset), amount.String(), validBefore,
-		nonce[:], f.RelayCipher.Seal(nil, nil, signature, returnAAD(payer, nonce)), until)
-	return sqlError(err)
+	return sqlError(store([]any{bound.Tenant, req.Domain, bound.Subject, req.IdempotencyKey, intent, payer[:], to[:], lower(target.Asset), amount.String(), validBefore,
+		nonce[:], f.RelayCipher.Seal(nil, nil, signature, returnAAD(payer, nonce)), until}))
 }
 
 func (f Forwarder) WalletReturnStatus(ctx context.Context, bound service.Bound) (*commerce.WalletReturn, error) {

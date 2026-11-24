@@ -12,8 +12,9 @@ func TestSponsoredRelay(t *testing.T) {
 	target := Target{Contract: common.Address{19: 1}, Asset: common.Address{19: 2}, Sponsor: common.Address{19: 3}, ABI: EscrowABIHash}
 	lock, call := work{}, []byte{1, 2, 3, 4, 5}
 	returned := work{action: &escrowAction{kind: "return"}}
+	sent := work{action: &escrowAction{kind: "send"}}
 	resolve := work{action: &escrowAction{kind: "resolve"}}
-	for name, job := range map[string]work{"lock": lock, "return": returned} {
+	for name, job := range map[string]work{"lock": lock, "return": returned, "send": sent} {
 		to, data, err := relayTo(job, target, call)
 		if err != nil || to != target.Sponsor || bytes.Equal(data, call) {
 			t.Fatalf("%s is not sponsored: %v %v", name, to, err)

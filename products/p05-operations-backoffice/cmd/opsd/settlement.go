@@ -43,6 +43,9 @@ var settlementSettings = []string{
 // The dispute account is optional. Without it nobody can settle a dispute before its deadline.
 var resolverSettings = []string{"P05_ESCROW_RESOLVER", "P05_ESCROW_RESOLVER_SIGNER", "P05_ESCROW_RESOLVER_SIGNER_SHA256"}
 
+// The faucet is optional. Without it no store offers test tokens.
+var faucetSettings = []string{"P05_FAUCET_TOKENS", "P05_FAUCET_ADDRESS", "P05_FAUCET_SIGNER", "P05_FAUCET_SIGNER_SHA256"}
+
 var payoutSettings = []string{
 	"P05_PAYOUT_DATABASE_URL", "P05_PAYOUT_GOVERNOR", "P05_PAYOUT_SIGNER", "P05_PAYOUT_SIGNER_SHA256",
 }
@@ -58,7 +61,7 @@ func anySetting(keys []string) bool {
 
 func validateSettlementMode(commerceDSN string) error {
 	fulfillment := anySetting(fulfillmentSettings)
-	if !(anySetting(settlementSettings) || anySetting(payoutSettings) || anySetting(resolverSettings)) && !anySetting(receiverSettings) && !anySetting(printSettings) && !fulfillment {
+	if !(anySetting(settlementSettings) || anySetting(payoutSettings) || anySetting(resolverSettings) || anySetting(faucetSettings)) && !anySetting(receiverSettings) && !anySetting(printSettings) && !fulfillment {
 		return nil
 	}
 	if commerceDSN == "" {
@@ -167,6 +170,10 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	if err != nil {
 		return nil, nop, err
 	}
+	faucet, err := loadFaucet(ctx, client, limit, targets, activeTargets, common.HexToAddress(gasAddress), resolver)
+	if err != nil {
+		return nil, nop, err
+	}
 	open := func(dsn, role string) (*settlement.Store, error) {
 		if dsn == "" {
 			return nil, errors.New("all settlement role DSNs must be supplied")
@@ -248,7 +255,7 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	worker := &settlement.Worker{Store: ledger, Evidence: proof, Chain: settlement.LiveChain{Client: client},
 		Targets: activeTargets, QuoteCipher: quoteCipher, RelayCipher: relay, GasAccount: common.HexToAddress(gasAddress),
 		GasSigner: gasSigner, RefundSigner: refundSigner, MaxGasPrice: limit, Now: time.Now,
-		MerchantSigner: quoteSigner, MerchantSigners: map[string]common.Address{}, Resolver: resolver, ResolverSigner: resolverSigner}
+		MerchantSigner: quoteSigner, MerchantSigners: map[string]common.Address{}, Resolver: resolver, ResolverSigner: resolverSigner, Faucet: faucet}
 	merchantIDs := map[string]common.Hash{}
 	for branch := range activeTargets {
 		if profile, ok := profiles[branch]; ok {
@@ -359,6 +366,7 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	}
 	ready = true
 	return &settlement.Forwarder{Store: forward, QuoteCipher: quoteCipher, RelayCipher: relay, Targets: activeTargets, GasSponsors: sponsors, MerchantIDs: merchantIDs,
+		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress),
 		RentalEscrow: settlement.RentalEscrow{Client: client, Targets: activeTargets, Reviews: reviews}}, closeAll, nil
 }
 
@@ -381,6 +389,43 @@ func loadResolver(ctx context.Context, client *ethclient.Client, gas common.Addr
 		return common.Address{}, nil, err
 	}
 	return resolver, signer, nil
+}
+
+// loadFaucet enrolls the account that sends test tokens. It holds pre-minted tokens and its own gas money,
+// cannot mint, and is none of the server's other accounts.
+func loadFaucet(ctx context.Context, client *ethclient.Client, limit *big.Int, targets, active map[string]settlement.Target, gas, resolver common.Address) (*settlement.Faucet, error) {
+	if !anySetting(faucetSettings) {
+		return nil, nil
+	}
+	faucet := settlement.Faucet{Account: common.HexToAddress(os.Getenv("P05_FAUCET_ADDRESS")), Tokens: map[string][]settlement.FaucetToken{}}
+	if err := configJSON("P05_FAUCET_TOKENS", &faucet.Tokens); err != nil {
+		return nil, err
+	}
+	signer, err := verifiedSigner("P05_FAUCET_SIGNER")
+	if err != nil {
+		return nil, err
+	}
+	faucet.Signer = signer
+	if !common.IsHexAddress(os.Getenv("P05_FAUCET_ADDRESS")) {
+		return nil, errors.New("P05_FAUCET_ADDRESS must be an address")
+	}
+	other := []common.Address{gas, resolver}
+	for _, target := range targets {
+		other = append(other, target.RefundSigner)
+	}
+	if err := settlement.CheckFaucet(faucet, targets, other...); err != nil {
+		return nil, err
+	}
+	for branch := range faucet.Tokens {
+		if _, ok := active[branch]; !ok { // its deployment is not approved, so its other requests are off too
+			delete(faucet.Tokens, branch)
+		}
+	}
+	if err := settlement.CheckFaucetTokens(ctx, client, faucet); err != nil {
+		return nil, err
+	}
+	faucet.Funds = settlement.FaucetFunds(client, faucet.Account, limit)
+	return &faucet, nil
 }
 
 // matchContracts refuses a branch whose issuance profile and relay target name different payment
@@ -412,7 +457,7 @@ func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, t
 		view := settlement.DeploymentReview{Status: "invalid"}
 		manifest, err := hex.DecodeString(target.Manifest)
 		if targetUUID.MatchString(branch) && targetUUID.MatchString(target.Stream) && err == nil && len(manifest) == 32 &&
-			target.Asset != (common.Address{}) && (target.Escrow() || (target.ABIHash() == settlement.ABIHash &&
+			target.Asset != (common.Address{}) && target.SendsPerDay >= 0 && target.SendsPerDay <= 100 && (target.Escrow() || (target.ABIHash() == settlement.ABIHash &&
 			target.RefundSigner != (common.Address{}) && target.RefundVersion > 0)) {
 			view = settlement.VerifyOperatorDeployment(ctx, client, target, gas, approvals, key, signatures, required)
 			if !settlement.SponsorReady(ctx, client, target, gas) {

@@ -88,6 +88,25 @@ P05_SETTLEMENT_TEST_DATABASE_URL="host=<socket dir> dbname=nu54_settlement_escro
   sh test/settlement/anvil.sh -run TestLoopbackOrderEscrow -v
 ```
 
+### Transfers to any address
+
+Optional. `walletSendsPerDay` (1 to 100) in a branch's target lets its enrolled customers send the store's token to any address ([wire agreement](../../docs/content/commercial/architecture/spending-wallet-wire.md#11-다른-주소로-보내기)). The board signs an EIP-3009 authorization, the relay account sends it as it sends a return (through `gasSponsor` when there is one) and the store pays the gas. Without the setting `wallet.send` and `wallet.send-status` answer `UNSUPPORTED_CAPABILITY`. The number counts every accepted transfer of an account or customer in 24 hours, also failed ones. Migration 112 keeps them in `ledger.wallet_send`.
+
+### Test-token faucet
+
+Optional. With none of the settings no store has a faucet and `faucet.claim` and `faucet.status` answer `UNSUPPORTED_CAPABILITY` ([wire agreement](../../docs/content/commercial/architecture/spending-wallet-wire.md#9-시험용-토큰-받기)).
+
+- `P05_FAUCET_ADDRESS`, `P05_FAUCET_SIGNER`, `P05_FAUCET_SIGNER_SHA256`: a dedicated account and its enrolled signer executable, as for the relay account. The account holds pre-minted tokens and its own gas money. `opsd` does not start if it is the relay, dispute or refund account or owns a listed token.
+- `P05_FAUCET_TOKENS`: path of a JSON map from branch UUID to its tokens. Every field is required; amounts are base units. `perDay` bounds the claims of one account and of one customer, `dailyTotal` all claims of a token, each in any 24 hours and over every branch. A token has the same `dailyTotal` everywhere. Symbol and decimals must match the chain.
+
+```json
+{"<branch uuid>": [{"address": "0x<token>", "symbol": "tUSDC", "decimals": 6, "amount": "<base units>", "perDay": 1, "dailyTotal": "<base units>"}]}
+```
+
+A claim is an `escrow_action` of kind `faucet` (migration 110), so it has the relay worker's lease, nonce, sealed bytes and replacement rules, and goes to the token directly, not through GasSponsor. A transfer has no deadline of its own, so it is signed once: if the chain uses its nonce for another transaction, the claim waits an hour for the node to show it and then ends as `unknown` without a second signature. An unsigned claim ends as `failed` after an hour or when its token is withdrawn, and gives its place in the limits back. Do not change `P05_FAUCET_ADDRESS` while a signed claim is open; the worker reports it and waits.
+
+`TestLoopbackOrderEscrow/TestTokenFaucet` covers the empty account, the limits, a lost reply with a restart and a spent nonce on Anvil.
+
 ### Original quote read for the expiry investigation
 
 Migration 044 grants the existing finance role a read of the original encrypted quote scoped by tenant, branch, finance actor, sale and `reconcile_read`. The P05 issuer projection revalidates the stored signature and exact signed order and quote identifiers, then returns the public digest, signed time limits and deployment identity to an enrolled explorer over mutual TLS. The operator's finance credential and live branch grant authorize the read. The endpoint adds no ledger data and cannot release a reservation or produce chain evidence. Setup and verification are documented in the [protected explorer guide](../p07-indexer/chainview-v2.md#x06-original-quote-and-contiguous-coverage).

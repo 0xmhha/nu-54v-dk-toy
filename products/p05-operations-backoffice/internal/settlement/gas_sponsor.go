@@ -16,9 +16,9 @@ import (
 const sponsorGas = 100_000
 
 // sponsored reports whether a job goes through the branch's GasSponsor. A dispute decision does not:
-// the contract asks for the arbiter itself.
+// the contract asks for the arbiter itself. A faucet claim does not: the faucet account moves its own tokens.
 func (t Target) sponsored(job work) bool {
-	return t.Sponsor != (common.Address{}) && t.Escrow() && (job.action == nil || job.action.kind != "resolve")
+	return t.Sponsor != (common.Address{}) && t.Escrow() && (job.action == nil || (job.action.kind != "resolve" && job.action.kind != "faucet"))
 }
 
 // relayTo is where the transaction of a job goes, and the calldata it carries.
@@ -128,4 +128,13 @@ func sponsoredSelectors() (selectorLists, error) {
 	}
 	out.token = append(out.token, [4]byte(token.Methods["transferWithAuthorization"].ID))
 	return out, nil
+}
+
+// BranchGas names the gas contract and the account that send a branch's transactions.
+func (f Forwarder) BranchGas(branch string) (sponsor, account common.Address) {
+	target, ok := f.Targets[branch]
+	if !ok {
+		return common.Address{}, common.Address{}
+	}
+	return target.Sponsor, f.GasAccount
 }

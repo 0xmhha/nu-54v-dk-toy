@@ -34,6 +34,8 @@ type Target struct {
 	ABI string `json:"abiSha256,omitempty"`
 	// Sponsor is the branch's GasSponsor. Empty means the relay calls the contracts directly.
 	Sponsor common.Address `json:"gasSponsor,omitzero"`
+	// SendsPerDay is how many transfers of one customer the store relays in 24 hours. Zero offers none.
+	SendsPerDay int32 `json:"walletSendsPerDay,omitempty"`
 }
 
 // ABIHash returns the ABI this target is enrolled with.

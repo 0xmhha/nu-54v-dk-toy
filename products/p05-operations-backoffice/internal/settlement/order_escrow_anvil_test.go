@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -242,9 +243,14 @@ func TestLoopbackOrderEscrow(t *testing.T) {
 		return commerce.GasSponsorship{Account: escrow.gas, Grant: grant, ExpiresAt: until.Unix(),
 			CurrentPublication: func(at time.Time) bool { return at.Before(until) }}, branch == base.Branch && p.Contract == target.Contract && payer != escrow.gas
 	}
+	target.SendsPerDay = 3
 	targets := map[string]Target{base.Branch: target}
 	merchants := map[string]string{base.Branch: common.Hash{31: 50}.Hex()}
-	forwarder := Forwarder{Store: open("nu54_p05_commerce"), QuoteCipher: qCipher, RelayCipher: relayCipher, Targets: targets, GasSponsors: sponsors, MerchantIDs: map[string]common.Hash{base.Branch: profile.MerchantID}}
+	faucet := &Faucet{Account: fixtureSigner(160).Address(), Signer: fixtureSigner(160), Tokens: map[string][]FaucetToken{base.Branch: {
+		{Address: target.Asset, Symbol: "tUSDC", Decimals: 6, Amount: "5000000", PerDay: 2, DailyTotal: "12000000"}}},
+		Funds: FaucetFunds(client, fixtureSigner(160).Address(), big.NewInt(100_000_000_000))}
+	forwarder := Forwarder{Store: open("nu54_p05_commerce"), QuoteCipher: qCipher, RelayCipher: relayCipher, Targets: targets, GasSponsors: sponsors,
+		MerchantIDs: map[string]common.Hash{base.Branch: profile.MerchantID}, Faucet: faucet, GasAccount: escrow.gas}
 	mux := http.NewServeMux()
 	commerce.HTTP{Store: commerceStore, Payment: forwarder, GasSponsors: sponsors, Credentials: credentials, Signer: fixtureSigner(101), Cipher: qCipher,
 		Profiles: map[string]commerce.Profile{base.Branch: profile}, PresentationKey: ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32))}.Register(mux)
@@ -367,7 +373,7 @@ func TestLoopbackOrderEscrow(t *testing.T) {
 			GasAccount: escrow.gas, GasSigner: escrow.gasKey, MaxGasPrice: big.NewInt(100_000_000_000), Now: time.Now,
 			MerchantSigner: fixtureSigner(101), MerchantSigners: map[string]common.Address{base.Branch: profile.Signer},
 			Resolver: fixtureSigner(106).Address(), ResolverSigner: fixtureSigner(106),
-			MerchantIDs: map[string]common.Hash{base.Branch: profile.MerchantID}}
+			MerchantIDs: map[string]common.Hash{base.Branch: profile.MerchantID}, Faucet: faucet}
 	}
 	w := worker()
 	step := func(order seededOrder) error {
@@ -1497,6 +1503,272 @@ func TestLoopbackOrderEscrow(t *testing.T) {
 		}
 	})
 
+	t.Run("BoardSendsToAnyAddress", func(t *testing.T) {
+		board, friend := payers[newcomer], common.HexToAddress("0x00000000000000000000000000000000000f0001")
+		held := func() commerce.WalletSends {
+			t.Helper()
+			raw := post(newcomer, "/v2/commerce", map[string]any{"command": newPilotCommand(t, db, base.Branch, actors[newcomer], "wallet.send-status", map[string]string{}, false)}, 200)
+			validateEscrowWire(t, ctx, raw)
+			var out struct{ WalletSends commerce.WalletSends }
+			if err := json.Unmarshal(raw, &out); err != nil {
+				t.Fatal(err)
+			}
+			return out.WalletSends
+		}
+		signed := func(operation string, to common.Address, amount int64, valid time.Duration, signer fixtureSigner, nonce common.Hash) (service.Request, map[string]any) {
+			t.Helper()
+			before := time.Now().Add(valid).Unix()
+			digest, err := orderescrow.ReturnDigest(target.Asset, board.Address(), to, big.NewInt(amount), uint64(before), nonce)
+			if err != nil {
+				t.Fatal(err)
+			}
+			signature, _ := signer.SignDigest(ctx, digest)
+			body := map[string]string{"payer": lower(board.Address()), "to": lower(to), "amount": fmt.Sprint(amount), "validBefore": fmt.Sprint(before), "nonce": rawHex(nonce[:])}
+			if operation == "wallet.send" {
+				body["token"] = lower(target.Asset)
+			}
+			return newPilotCommand(t, db, base.Branch, actors[newcomer], operation, body, true), map[string]any{"approvalSignature": rawHex(signature)}
+		}
+		fresh := func() common.Hash { return crypto.Keccak256Hash([]byte(fixtureUUID(t, db))) }
+		if tx, err := escrow.token.Mint(escrow.operator, board.Address(), big.NewInt(20_000_000)); err != nil {
+			t.Fatal(err)
+		} else if _, err := bind.WaitMined(ctx, client, tx); err != nil {
+			t.Fatal(err)
+		}
+		if got := held(); got.PerDay != 3 || got.Remaining != 3 || len(got.Sends) != 0 {
+			t.Fatalf("no transfer yet: %+v", got)
+		}
+		// The returns of the subtest before do not count against the ones refused here.
+		fixtureExec(t, db, "UPDATE ledger.escrow_action SET created_at=now()-interval '2 days' WHERE kind='return' AND branch_id=$1", base.Branch)
+		// What the board did not sign, or the store does not relay.
+		cmd, body := signed("wallet.send", friend, 4_000_000, 5*time.Minute, fixtureSigner(152), fresh())
+		refused(newcomer, cmd, body, 400, service.Mismatch)
+		cmd, body = signed("wallet.send", friend, 4_000_000, 20*time.Minute, board, fresh())
+		refused(newcomer, cmd, body, 400, service.BadRequest)
+		cmd, body = signed("wallet.send", target.Asset, 4_000_000, 5*time.Minute, board, fresh())
+		refused(newcomer, cmd, body, 400, service.BadRequest)
+		cmd, body = signed("wallet.send", friend, 4_000_000, 5*time.Minute, board, fresh())
+		other := cmd
+		other.Body = maps.Clone(cmd.Body)
+		other.Body["token"] = lower(friend)
+		refused(newcomer, other, body, 400, service.Capability)
+		changed := cmd
+		changed.Body = maps.Clone(cmd.Body)
+		changed.Body["to"] = lower(fixtureSigner(152).Address())
+		refused(newcomer, changed, body, 400, service.Mismatch)
+		refused(customer, cmd, body, 404, "")
+		offered := targets[base.Branch]
+		off := offered
+		off.SendsPerDay = 0
+		targets[base.Branch] = off
+		refused(newcomer, cmd, body, 400, service.Capability)
+		refused(newcomer, newPilotCommand(t, db, base.Branch, actors[newcomer], "wallet.send-status", map[string]string{}, false), nil, 400, service.Capability)
+		targets[base.Branch] = offered
+
+		spent := fresh()
+		cmd, body = signed("wallet.send", friend, 4_000_000, 5*time.Minute, board, spent)
+		for range 2 { // a repeated request is the same transfer
+			cmd.RequestID = fixtureUUID(t, db)
+			call(newcomer, cmd, body)
+		}
+		second, secondBody := signed("wallet.send", friend, 1, 5*time.Minute, board, fresh())
+		refused(newcomer, second, secondBody, 409, service.Conflict)
+		home, homeBody := signed("wallet.return", fixtureSigner(151).Address(), 1, 5*time.Minute, board, fresh())
+		refused(newcomer, home, homeBody, 409, service.CheckoutConflict)
+		settleActions(func() bool { got := held(); return len(got.Sends) == 1 && got.Sends[0].State == "final" })
+		got := held()
+		receipt, err := client.TransactionReceipt(ctx, common.HexToHash(got.Sends[0].TxHash))
+		if err != nil || receipt.Status != 1 || balance(friend).Int64() != 4_000_000 || got.Remaining != 2 || got.Sends[0].To != lower(friend) ||
+			got.Sends[0].Nonce != rawHex(spent[:]) {
+			t.Fatalf("transfer: %v %s %+v", err, balance(friend), got)
+		}
+		// One authorization is one transfer, whatever it is called.
+		home, homeBody = signed("wallet.return", fixtureSigner(151).Address(), 1, 5*time.Minute, board, spent)
+		refused(newcomer, home, homeBody, 409, service.Conflict)
+		again, againBody := signed("wallet.send", friend, 1, 5*time.Minute, board, spent)
+		refused(newcomer, again, againBody, 409, service.Conflict)
+		// More than the account holds: never sent, and failed once its deadline is final.
+		cmd, body = signed("wallet.send", friend, 900_000_000, 4*time.Second, board, fresh())
+		call(newcomer, cmd, body)
+		time.Sleep(5 * time.Second)
+		reach(time.Now().Unix() + 1)
+		mine(t, ctx, client, 4)
+		settleActions(func() bool { return held().Sends[0].State == "failed" })
+		// The daily number holds for failed transfers too, and one day later it is free again.
+		cmd, body = signed("wallet.send", friend, 1_000_000, 5*time.Minute, board, fresh())
+		call(newcomer, cmd, body)
+		settleActions(func() bool { return held().Sends[0].State == "final" })
+		cmd, body = signed("wallet.send", friend, 1_000_000, 5*time.Minute, board, fresh())
+		refused(newcomer, cmd, body, 503, service.Busy)
+		if held().Remaining != 0 {
+			t.Fatal("a transfer over the limit is offered")
+		}
+		fixtureExec(t, db, "UPDATE ledger.escrow_action SET created_at=now()-interval '2 days' WHERE kind='send'")
+		call(newcomer, cmd, body)
+		settleActions(func() bool { return held().Sends[0].State == "final" })
+		if balance(friend).Int64() != 6_000_000 {
+			t.Fatalf("friend holds %s", balance(friend))
+		}
+	})
+
+	t.Run("TestTokenFaucet", func(t *testing.T) {
+		account := faucet.Account
+		claim := func() service.Request {
+			return newPilotCommand(t, db, base.Branch, actors[newcomer], "faucet.claim", map[string]string{"token": lower(target.Asset)}, true)
+		}
+		state := func(identity int) commerce.FaucetToken {
+			t.Helper()
+			raw := post(identity, "/v2/commerce", map[string]any{"command": newPilotCommand(t, db, base.Branch, actors[identity], "faucet.status", map[string]string{}, false)}, 200)
+			validateEscrowWire(t, ctx, raw)
+			var out struct{ Faucet commerce.FaucetStatus }
+			if err := json.Unmarshal(raw, &out); err != nil || len(out.Faucet.Tokens) != 1 || out.Faucet.Payer != lower(payers[identity].Address()) {
+				t.Fatalf("faucet: %s %v", raw, err)
+			}
+			return out.Faucet.Tokens[0]
+		}
+		want := func(identity int, stage string, remaining int32, last string) {
+			t.Helper()
+			got := state(identity)
+			if got.State != stage || got.Remaining != remaining || (got.Claim == nil) != (last == "") || (got.Claim != nil && got.Claim.State != last) {
+				t.Fatalf("faucet shows %+v %+v", got, got.Claim)
+			}
+		}
+		drain := func() { // earlier jobs of this account and everyone else's
+			settleActions(func() bool {
+				var open int
+				_ = db.QueryRow(ctx, `SELECT count(*) FROM ledger.settlement_work w JOIN ledger.escrow_action a ON a.id=w.action_id
+					WHERE a.branch_id=$1 AND NOT w.finished AND a.kind='faucet'`, base.Branch).Scan(&open)
+				return open == 0
+			})
+		}
+		// Finished returns still close their jobs; let them go first.
+		fixtureExec(t, db, "UPDATE ledger.settlement_work SET lease_until=NULL WHERE NOT finished")
+		want(newcomer, "empty", 2, "")
+		refused(newcomer, claim(), nil, 409, service.OutOfStock) // neither tokens nor gas money
+		if err := client.Client().CallContext(ctx, nil, "anvil_setBalance", account, "0x56BC75E2D63100000"); err != nil {
+			t.Fatal(err)
+		}
+		mint := func(amount int64) {
+			t.Helper()
+			tx, err := escrow.token.Mint(escrow.operator, account, big.NewInt(amount))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := bind.WaitMined(ctx, client, tx); err != nil {
+				t.Fatal(err)
+			}
+		}
+		mint(4_999_999)
+		want(newcomer, "empty", 2, "")
+		mint(15_000_001)
+		want(newcomer, "ready", 2, "")
+		// Only the customer itself, only a listed token, and never an account that the request names.
+		refused(terminal, claim(), nil, 404, "")
+		foreign := claim()
+		foreign.Object = actors[customer]
+		refused(newcomer, foreign, nil, 404, "")
+		unlisted := claim()
+		unlisted.Body = map[string]string{"token": lower(common.HexToAddress("0xbad"))}
+		refused(newcomer, unlisted, nil, 400, service.Capability)
+		named := claim()
+		named.Body = map[string]string{"token": lower(target.Asset), "to": lower(account)}
+		refused(newcomer, named, nil, 400, service.BadRequest)
+		board := payers[newcomer].Address()
+		before := balance(board)
+		first := claim()
+		for range 2 {
+			first.RequestID = fixtureUUID(t, db)
+			call(newcomer, first, nil)
+		}
+		want(newcomer, "open", 1, "queued")
+		refused(newcomer, claim(), nil, 409, service.Conflict)
+		// The answer to the first send is lost and the process starts again: the same bytes are found or sent again.
+		chain.sends = 0
+		signed := func() (hash *string) {
+			t.Helper()
+			if err := db.QueryRow(ctx, `SELECT (SELECT r.tx_hash FROM ledger.relay_attempt r JOIN ledger.escrow_action a ON a.id=r.work_id
+				WHERE a.kind='faucet' AND a.branch_id=$1 AND a.state='queued')`, base.Branch).Scan(&hash); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		for pass := 0; pass < 8 && signed() == nil; pass++ {
+			_ = act()
+		}
+		kept := signed()
+		if kept == nil || balance(board).Cmp(before) != 0 {
+			t.Fatal("the claim was not stored before it was sent")
+		}
+		w = worker()
+		drain()
+		got := state(newcomer)
+		if got.Claim == nil || got.Claim.State != "final" || got.Claim.TxHash != *kept || got.Claim.To != lower(board) ||
+			new(big.Int).Sub(balance(board), before).Int64() != 5_000_000 {
+			t.Fatalf("claim: %+v paid %s", got.Claim, new(big.Int).Sub(balance(board), before))
+		}
+		sent, err := client.NonceAt(ctx, account, nil)
+		if err != nil || sent != 1 {
+			t.Fatalf("the faucet sent %d transactions: %v", sent, err)
+		}
+		call(newcomer, first, nil) // the accepted request still answers, and pays nothing
+		call(newcomer, claim(), nil)
+		drain()
+		want(newcomer, "limit", 0, "final")
+		if at := state(newcomer).AvailableAt; at < time.Now().Add(23*time.Hour).Unix() || at > time.Now().Add(25*time.Hour).Unix() {
+			t.Fatalf("next claim at %d", at)
+		}
+		refused(newcomer, claim(), nil, 503, service.Busy)
+		// 10 of 12 are gone today; another customer's claim does not fit either.
+		want(customer, "limit", 2, "")
+		total := newPilotCommand(t, db, base.Branch, actors[customer], "faucet.claim", map[string]string{"token": lower(target.Asset)}, true)
+		refused(customer, total, nil, 503, service.Busy)
+		// The nonce of a signed claim is taken by another transaction of the same key. Nothing proves that
+		// the claim did not run, so it is never signed again and keeps its place in the limit.
+		fixtureExec(t, db, "UPDATE ledger.faucet_claim SET claimed_at=now()-interval '2 days'")
+		before = balance(board)
+		call(newcomer, claim(), nil)
+		for pass := 0; pass < 8 && signed() == nil; pass++ {
+			_ = act()
+		}
+		key, _ := crypto.ToECDSA(append(make([]byte, 31), byte(160)))
+		price, err := client.SuggestGasPrice(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rival, err := types.SignNewTx(key, types.LatestSignerForChainID(big.NewInt(8283)), &types.LegacyTx{Nonce: 2, To: &account, Gas: 21_000, GasPrice: price.Lsh(price, 1)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := client.SendTransaction(ctx, rival); err != nil {
+			t.Fatal(err)
+		}
+		mine(t, ctx, client, 4)
+		for range 4 {
+			if err := act(); err != nil && !errors.Is(err, errFaucetSpent) && !errors.Is(err, errLostResponse) {
+				t.Fatal(err)
+			}
+		}
+		if got := state(newcomer); got.State != "open" {
+			t.Fatalf("a claim with a spent nonce ended early: %+v", got.Claim)
+		}
+		fixtureExec(t, db, "UPDATE ledger.escrow_action SET created_at=now()-interval '2 hours' WHERE kind='faucet' AND state='queued'")
+		drain()
+		want(newcomer, "ready", 1, "unknown")
+		if balance(board).Cmp(before) != 0 {
+			t.Fatal("a claim was signed for a second nonce")
+		}
+		// A claim that is never signed ends and gives its place back.
+		call(newcomer, claim(), nil)
+		fixtureExec(t, db, "UPDATE ledger.escrow_action SET created_at=now()-interval '2 hours' WHERE kind='faucet' AND state='queued'")
+		drain()
+		want(newcomer, "ready", 1, "failed")
+		// A withdrawn list turns the faucet off.
+		tokens := faucet.Tokens
+		faucet.Tokens = map[string][]FaucetToken{}
+		refused(newcomer, claim(), nil, 400, service.Capability)
+		faucet.Tokens = tokens
+	})
+
 	t.Run("OrdersForLater", func(t *testing.T) {
 		claimable, contested, late, undelivered, missed = lockOrder(customer), lockOrder(customer), lockOrder(customer), lockOrder(customer), lockOrder(customer)
 		deliver(claimable, customer)
@@ -1723,10 +1995,13 @@ func validateEscrowWire(t *testing.T, ctx context.Context, raw []byte) {
 	t.Helper()
 	command := exec.CommandContext(ctx, "node", "--experimental-strip-types", "--input-type=module", "-e", `
 import {readFileSync} from "node:fs";
-import {validOrderEscrowStatus, validPayerEnrollment, validWalletReturn} from "../../../../packages/protocol/ts/src/order-escrow.ts";
-const {order = {}, payer, walletReturn} = JSON.parse(readFileSync(0, "utf8"));
+import {validOrderEscrowStatus, validPayerEnrollment, validWalletReturn, validWalletSends} from "../../../../packages/protocol/ts/src/order-escrow.ts";
+import {validFaucetStatus} from "../../../../packages/protocol/ts/src/faucet.ts";
+const {order = {}, payer, walletReturn, walletSends, faucet} = JSON.parse(readFileSync(0, "utf8"));
+if (faucet !== undefined && !validFaucetStatus(faucet)) { console.error(JSON.stringify(faucet)); process.exit(1); }
 if (payer !== undefined && !validPayerEnrollment(payer)) { console.error(JSON.stringify(payer)); process.exit(1); }
 if (walletReturn !== undefined && !validWalletReturn(walletReturn)) { console.error(JSON.stringify(walletReturn)); process.exit(1); }
+if (walletSends !== undefined && !validWalletSends(walletSends)) { console.error(JSON.stringify(walletSends)); process.exit(1); }
 if (order.escrow !== undefined && !validOrderEscrowStatus(order.escrow)) { console.error(JSON.stringify(order.escrow)); process.exit(1); }`)
 	command.Stdin = bytes.NewReader(raw)
 	if output, err := command.CombinedOutput(); err != nil {
