@@ -38,6 +38,7 @@ TARGETS = [
     ("SettlementV2", "settlementv2", "settlementV2", False),
     ("OrderEscrow", "orderescrow", "orderEscrow", False),
     ("TestUSDC3009", "testusdc3009", "testUsdc3009", False),
+    ("GasSponsor", "gassponsor", "gasSponsor", False),
 ]
 
 

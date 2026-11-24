@@ -1,5 +1,9 @@
 {
   "abis": {
+    "GasSponsor": {
+      "frozenAtW6": false,
+      "sha256": "1d665bae7e68f5fcd9dd066a14292fa771ad515045f214b311c9aeff1b3f2b40"
+    },
     "IMerchantRegistry": {
       "frozenAtW6": true,
       "sha256": "8c7171ee96c74a4e13249122f56bd7b8ae8a8d865ddfeec2d60943a202ad7da4"
