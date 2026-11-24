@@ -23,13 +23,14 @@ import {orderRecords} from '../../../../p02-user-app/src/merchant/orderRecords';
 import {lockForSubmit, type PaymentCheckpoint} from '../../../../p02-user-app/src/merchant/paymentCheckpoint';
 import {BoardLife, type BoardLifeScreen} from '../../../../p02-user-app/src/wallet/BoardLife';
 import {returnRecord} from '../../../../p02-user-app/src/wallet/boardReturn';
+import {sendRecord} from '../../../../p02-user-app/src/wallet/boardSend';
 import {OwnerSession} from '../../../../p02-user-app/src/wallet/ownerSession';
 import {readEvmReceiveBalance} from '../../../../p02-user-app/src/wallet/evmTransfer';
 import {decodeWalletStorage} from '../../../../p02-user-app/src/wallet/profile';
 import {defaultReadState, readProfiles, walletReadRpc} from '../../../../p02-user-app/src/wallet/readProfiles';
 import {orderProgress} from '../../../../p04-merchant-kiosk/src/kiosk/orderProgress';
 import {
-  anchor, balance, board, boardSPKI, commerceHttp, control, customerProfile, dropNearby, fixture, id, journals, kiosk, nearby, notices, now, ownerWallet,
+  anchor, balance, board, boardSPKI, commerceHttp, control, customerProfile, dropNearby, fixture, id, journals, kiosk, nearby, notices, now, offline, ownerWallet,
   pause, phoneCalls, post, radio, renterBle, startBoard, startKiosk, stopWorld, until, wallet,
 } from './world';
 
@@ -225,7 +226,7 @@ async function withBoard<T>(handle: string, run: (session: OwnerSession) => Prom
 }
 function page() {
   return <BoardLife screen={screen} stored={stored()} native={ownerWallet as never} hasEnrollment found={life.found} busy={life.busy}
-    scan={() => { life.found = [{address: 'board-1', name: 'NU54DK'}]; draw(); }} go={next => { life.went.push(next); if (['setup', 'return-address', 'deposit', 'return', 'reset', 'operator-reset'].includes(next)) { screen = next as BoardLifeScreen; draw(); } }}
+    scan={() => { life.found = [{address: 'board-1', name: 'NU54DK'}]; draw(); }} go={next => { life.went.push(next); if (['setup', 'return-address', 'deposit', 'send', 'return', 'reset', 'operator-reset'].includes(next)) { screen = next as BoardLifeScreen; draw(); } }}
     orders={() => { life.went.push('orders'); }} say={text => { life.message = text; }} wait={() => {}} copy={text => { life.copied = text; }}
     work={(run, failure) => {
       if (life.busy) return;
@@ -254,7 +255,7 @@ const says = (text: string, seconds = 30) => until(`"${text}" (message: ${life.m
 async function register() {
   wallet.raw = JSON.stringify({version: 2, exercised: false, mode: 'personal',
     enrollment: {version: 2, device: board.device, boardSPKI, ca: 'AAAA', certificateChain: ['AAAA']},
-    walletRead: {...defaultReadState, endpoints: {stable: 'https://rpc.test'}}});
+    walletRead: defaultReadState});
   board.generation = (await withBoard('board-1', session => session.register(() => {}))).generation;
 }
 async function enroll() {
@@ -576,6 +577,42 @@ flow('dispute, two people, refund to the board', async () => {
   const done = await stage(sale, 'refunded');
   same('refund', done.refund, 'arbiter');
   same('money back on the board account', await balance(board.account), before);
+});
+
+flow('send to another address, refused on the board, then a lost answer', async () => {
+  const friend = '0x' + 'f1'.repeat(20), before = await balance(board.account);
+  const fill = async (amount: string) => {
+    await openLife('send');
+    await type('받는 주소', friend);
+    await type('금액', amount);
+    await press('다음');
+    await press('이 내용으로 보내기');
+  };
+  board.answer = 'refuse';
+  await fill('3');
+  await onBoard('보드로 승인');
+  await says('보드에서 거절했습니다');
+  board.answer = 'press';
+  await press('보내기 취소');
+  await says('보내지 않았습니다');
+  same('nothing left the account', await balance(board.account), before);
+  const asked = board.prompts;
+  await fill('3');
+  offline.phone = true; // the board signs, the store cannot be reached
+  await onBoard('보드로 승인');
+  await until('a transfer on its way', async () => (await sendRecord(commerceHttp).load())?.stage === 'sent');
+  await until('a quiet page', () => !life.busy);
+  offline.phone = false;
+  await press('같은 거래 다시 보내기');
+  await until('the transfer to be final', async () => (await sendRecord(commerceHttp).load())?.stage === 'final' || (button('지금 확인') && !life.busy && (button('지금 확인')!.props.run(), false)), 60);
+  same('board prompts', board.prompts - asked, 1);
+  same('received', await balance(friend), 3_000_000n);
+  same('left on the board account', await balance(board.account), before - 3_000_000n);
+  await openLife('send');
+  await press('확인');
+  const held = await phone().walletSends();
+  same('transfers left today', held.remaining, held.perDay - 1);
+  await leave();
 });
 
 flow('return, blocked while an order is open, then final; owner reset', async () => {

@@ -8,6 +8,7 @@ import {join} from 'node:path';
 import {encodeOrderLocator, readPickupKitchen, type PickupTarget} from '@nu54/protocol';
 import {readProfiles} from '../../../../p02-user-app/src/wallet/readProfiles';
 import * as world from '../app/world';
+import {addedServer, answerElsewhere, madeUpToken, network, wrongServer} from './networks';
 
 const port = 8790, life = Number(process.env.NU54_ORDER_FLOW_MINUTES) * 60_000;
 /** What the phone can reach, and what its camera sees. */
@@ -18,6 +19,7 @@ const modules: Record<string, object> = {
   Nearby: {...world.nearby, async scan() { return around.kiosk ? world.nearby.scan() : '[]'; }},
   OwnerWallet: {
     ...world.ownerWallet,
+    async evmRpc(endpoint: string, packet: string) { return answerElsewhere(endpoint, packet) ?? world.ownerWallet.evmRpc(endpoint, packet); },
     async compareAndSaveProfile(expected: string, value: string) {
       if (world.wallet.raw !== expected) return false;
       world.wallet.raw = value;
@@ -63,6 +65,8 @@ const steps: Record<string, (input: Input) => unknown> = {
   grant: () => world.board.grant(),
   // The network.
   offline: ({change}) => { Object.assign(world.offline, change); },
+  // Servers of other networks that stop answering, and what the networks and token pages can be tried with.
+  servers: ({change}) => { Object.assign(network, change); return {addedServer, wrongServer, madeUpToken}; },
   lose: ({request}) => { world.radio.loseReplyTo = request; },
   walkAway: () => { world.dropNearby(); },
   // The operator.

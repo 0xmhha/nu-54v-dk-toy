@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/gassponsor"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -33,6 +34,45 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
+
+// deploySponsor puts a GasSponsor before the escrow and the token, for the store's gas account.
+func deploySponsor(t *testing.T, ctx context.Context, client *ethclient.Client, escrow escrowDeployment) common.Address {
+	t.Helper()
+	address, tx, err := deployArtifact(t, escrow.operator, client, "GasSponsor", escrow.operator.From)
+	mined := func(tx *types.Transaction, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if receipt, err := bind.WaitMined(ctx, client, tx); err != nil || receipt.Status != 1 {
+			t.Fatalf("sponsor fixture reverted: %v", err)
+		}
+	}
+	mined(tx, err)
+	sponsor, err := gassponsor.NewGassponsor(address, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ready := escrow.target
+	ready.Sponsor = address
+	if SponsorReady(ctx, client, ready, escrow.gas) {
+		t.Fatal("a sponsor that knows no relay is ready")
+	}
+	mined(sponsor.SetRelay(escrow.operator, escrow.gas, true))
+	lists, err := sponsoredSelectors()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mined(sponsor.SetActions(escrow.operator, escrow.target.Contract, lists.escrow, signedAction))
+	if SponsorReady(ctx, client, ready, escrow.gas) {
+		t.Fatal("a sponsor without the token is ready")
+	}
+	mined(sponsor.SetActions(escrow.operator, escrow.target.Asset, lists.token, signedAction))
+	if !SponsorReady(ctx, client, ready, escrow.gas) || SponsorReady(ctx, client, ready, escrow.operator.From) {
+		t.Fatal("sponsor readiness")
+	}
+	return address
+}
 
 func TestOrderFlow(t *testing.T) {
 	settlementEndpoint(t)
@@ -51,6 +91,8 @@ func TestOrderFlow(t *testing.T) {
 	defer client.Close()
 	escrow := deployEscrow(t, ctx, client, db)
 	target := escrow.target
+	target.Sponsor = deploySponsor(t, ctx, client, escrow)
+	target.SendsPerDay = 5
 
 	// Identities. The customer starts without a board account: it enrolls its own.
 	const customer, finance1, kitchen, dispatcher, terminal, finance2 = 0, 1, 3, 2, 7, 8
@@ -79,6 +121,35 @@ func TestOrderFlow(t *testing.T) {
 		Signer: fixtureSigner(101).Address(), MerchantID: [32]byte{31: 50}, KeyVersion: 1, BeneficiaryVersion: 1, CommitmentKey: [32]byte{31: 9}, Escrow: true}
 	digest := profile.Digest()
 	fixtureExec(t, db, "INSERT INTO ledger.issuance_profile VALUES($1,1,$2,120,true)", branch, digest[:])
+
+	// The faucet has test tokens of its own: the store's, and one the board cannot send yet.
+	faucetKey := fixtureSigner(160)
+	if err := client.Client().CallContext(ctx, nil, "anvil_setBalance", faucetKey.Address(), "0x56BC75E2D63100000"); err != nil {
+		t.Fatal(err)
+	}
+	mined := func(tx *types.Transaction, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if receipt, err := bind.WaitMined(ctx, client, tx); err != nil || receipt.Status != 1 {
+			t.Fatalf("faucet fixture reverted: %v", err)
+		}
+	}
+	mined(escrow.token.Mint(escrow.operator, faucetKey.Address(), big.NewInt(1_000_000_000)))
+	won, tx, err := deployArtifact(t, escrow.operator, client, "TestToken3009", escrow.operator.From, "NU54 Test KRW", "tKRWC", uint8(18))
+	mined(tx, err)
+	symbol, err := escrow.token.Symbol(&bind.CallOpts{Context: ctx})
+	if err != nil {
+		t.Fatal(err)
+	}
+	faucet := &Faucet{Account: faucetKey.Address(), Signer: faucetKey, Funds: FaucetFunds(client, faucetKey.Address(), big.NewInt(100_000_000_000)),
+		Tokens: map[string][]FaucetToken{branch: {
+			{Address: target.Asset, Symbol: symbol, Decimals: 6, Amount: "5000000", PerDay: 1, DailyTotal: "50000000"},
+			{Address: won, Symbol: "tKRWC", Decimals: 18, Amount: "1000000000000000000000", PerDay: 1, DailyTotal: "10000000000000000000000"}}}}
+	if err := CheckFaucet(*faucet, map[string]Target{branch: target}, escrow.gas); err != nil {
+		t.Fatal(err)
+	}
 
 	// The services, as cmd/opsd composes them.
 	qCipher, _ := commerce.NewCipher(bytes.Repeat([]byte{0x35}, 32))
@@ -120,7 +191,7 @@ func TestOrderFlow(t *testing.T) {
 	mux := http.NewServeMux()
 	commerce.HTTP{Store: commerceStore, GasSponsors: sponsors, Credentials: credentials, Signer: fixtureSigner(101), Cipher: qCipher,
 		Payment: Forwarder{Store: open("nu54_p05_commerce"), QuoteCipher: qCipher, RelayCipher: relayCipher, Targets: targets,
-			GasSponsors: sponsors, MerchantIDs: merchantIDs},
+			GasSponsors: sponsors, MerchantIDs: merchantIDs, Faucet: faucet, GasAccount: escrow.gas},
 		Profiles: map[string]commerce.Profile{branch: profile}, PresentationKey: ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32))}.Register(mux)
 	(FinanceHTTP{Store: open("nu54_p05_finance"), Funds: LiveChain{client}, Targets: targets, Merchants: map[string]string{branch: common.Hash{31: 50}.Hex()},
 		Evidence: proof, CloseStore: open("nu54_p05_settlement"), QuoteCipher: qCipher, OperatorOrigin: "https://ops.test",
@@ -148,7 +219,7 @@ func TestOrderFlow(t *testing.T) {
 	worker := &Worker{Store: open("nu54_p05_settlement"), Evidence: proof, Chain: LiveChain{client}, Targets: targets, QuoteCipher: qCipher,
 		RelayCipher: relayCipher, GasAccount: escrow.gas, GasSigner: escrow.gasKey, MaxGasPrice: big.NewInt(100_000_000_000), Now: time.Now,
 		MerchantSigner: fixtureSigner(101), MerchantSigners: map[string]common.Address{branch: profile.Signer},
-		Resolver: fixtureSigner(106).Address(), ResolverSigner: fixtureSigner(106), MerchantIDs: merchantIDs}
+		Resolver: fixtureSigner(106).Address(), ResolverSigner: fixtureSigner(106), MerchantIDs: merchantIDs, Faucet: faucet}
 
 	// Background work: opsd's loops, a block every second, and the retry delays cut short.
 	var background sync.WaitGroup
@@ -320,6 +391,7 @@ func TestOrderFlow(t *testing.T) {
 		"payment": map[string]any{"chain": 8283, "contract": lower(target.Contract), "asset": lower(target.Asset), "beneficiary": lower(profile.Beneficiary),
 			"merchantId": rawHex(profile.MerchantID[:]), "signer": lower(profile.Signer), "keyVersion": 1, "beneficiaryVersion": 1, "maxBaseUnits": "30000000",
 			"abiSha256":       strings.TrimPrefix(target.ABIHash(), "0x"),
+			"rpc":             "https://rpc.test", // the phone's stand-in answers for it
 			"presentationKey": rawHex(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32)).Public().(ed25519.PublicKey))},
 		"customer": identity(customer, actors[customer]), "terminal": identity(terminal, actors[terminal]), "kitchen": identity(kitchen, actors[kitchen]),
 		"finance1": identity(finance1, actors[finance1]), "finance2": identity(finance2, actors[finance2]),
@@ -348,4 +420,26 @@ func TestOrderFlow(t *testing.T) {
 		}
 	}
 	stopped()
+	// Every payment went through the sponsor, sent by the store's gas account.
+	locked, err := escrow.contract.FilterOrderLocked(&bind.FilterOpts{Context: ctx}, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer locked.Close()
+	payments := 0
+	for locked.Next() {
+		tx, _, err := client.TransactionByHash(ctx, locked.Event.Raw.TxHash)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sender, err := types.Sender(types.LatestSignerForChainID(big.NewInt(8283)), tx)
+		if err != nil || sender != escrow.gas || tx.To() == nil || *tx.To() != target.Sponsor {
+			t.Fatalf("payment %s was not sponsored: %v %v", tx.Hash(), sender, tx.To())
+		}
+		payments++
+	}
+	if payments == 0 && os.Getenv("NU54_ORDER_FLOW_ONLY") == "" && os.Getenv("NU54_ORDER_FLOW_MINUTES") == "" {
+		t.Fatal("no payment was sponsored")
+	}
+	t.Logf("%d sponsored payments", payments)
 }

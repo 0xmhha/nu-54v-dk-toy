@@ -6,7 +6,7 @@ import re
 import time
 
 PACKAGE = "com.nu54renter"
-TABS = ("홈", "결제", "지갑", "둘러보기")
+TABS = ("홈", "결제", "지갑", "둘러보기", "설정")
 
 
 class Walk:
@@ -116,9 +116,9 @@ class Walk:
         time.sleep(5)
         self.wait_for_app()
 
-    def wait_for_app(self):
+    def wait_for_app(self, words=TABS):
         deadline = time.monotonic() + 150
-        while not set(TABS) <= set(self.words()):
+        while not set(words) <= set(self.words()):
             if time.monotonic() > deadline:
                 raise AssertionError("the app did not start")
             time.sleep(2)
@@ -134,7 +134,41 @@ class Walk:
         self.step("press")
         self.step("board", change={"answer": "press"})
 
+    def labelled(self, start):
+        """The whole label of the first button that starts with these words."""
+        for _ in range(12):
+            found = next((word for node in self.nodes() for word in node["words"] if word.startswith(start)), None)
+            if found:
+                return found
+            self.swipe()
+        raise AssertionError(f"nothing starts with {start}")
+
+    def clear(self, label):
+        node = self.find(label)
+        self.touch(node)
+        self.shell("input", "keyevent", "123")
+        for _ in range(8):
+            self.shell("input", "keyevent", *["67"] * 10)
+        if b"mInputShown=true" in self.shell("dumpsys", "input_method"):
+            self.back()
+
     # ---- the flows ----
+    def agree(self):
+        """Nothing of the app opens before the required agreements."""
+        self.shot("00-consent")
+        assert not set(TABS) & set(self.words()), "the app opened without agreement"
+        names = [word for word in self.words() if word.endswith("(필수)")]
+        assert len(dict.fromkeys(names)) == 3, names
+        read = next(word for word in self.words() if word.endswith("(필수) 보기"))
+        self.tap(read)
+        self.sees("초안")
+        self.back()
+        for name in dict.fromkeys(names):
+            self.tap(name)
+        self.tap("주문 준비 알림 (선택)")
+        self.tap("동의하고 시작")
+        self.wait_for_app()
+
     def set_up(self):
         document, home = self.step("enrollment"), self.step("state")["home"]
         self.tap("보드 연결 시작")
@@ -161,15 +195,153 @@ class Walk:
     def deposit(self):
         self.step("deposit", amount="90000000")
         self.tap("입금 안내 보기")
-        self.tap("네트워크 주소 설정")
-        self.type("검증된 HTTPS RPC 주소", "https://rpc.test")
-        self.tap("지문 확인 후 읽기 전용 RPC 저장")
-        self.sees("서버를 저장했습니다")
-        self.back()
         self.sees("입금 주소 QR")
         self.tap("홈")
-        self.sees("90.00 TestUSDC")
+        self.sees("지금 할 일이 없습니다")
+        assert not any("90.00" in word for word in self.words()), "the balance belongs to the wallet tab"
         self.shot("03-home")
+        self.tap("지갑")
+        self.sees("TestUSDC 90.00")
+        self.shot("03-wallet")
+
+    def tokens(self):
+        extra = self.step("servers", change={})
+        self.tap("지갑")
+        self.tap("토큰 추가")
+        self.type("토큰 계약 주소", extra["madeUpToken"])
+        self.tap("토큰 정보 확인")
+        self.sees("체인에서 읽은 정보")
+        self.shot("12-add-token")
+        self.tap("토큰 추가")
+        self.sees("tUSDT 20.00")
+        self.tap(self.labelled("tUSDT 20.00"))
+        self.sees("이 자산을 보드 계정으로 보내지 마세요")
+        self.shot("13-token")
+        self.back()
+        self.tap("잔액 숨기기")
+        self.sees("••••")
+        self.tap("잔액 표시")
+        self.tap(self.labelled("네트워크 StableNet"))
+        self.sees("보기만")
+        self.shot("14-choose-network")
+        self.tap(self.labelled("Ethereum Sepolia"))
+        self.sees("ETH 0.50")
+        assert "받기" not in self.words(), "a network the board cannot send on offers an address"
+        self.shot("15-other-network")
+        self.tap(self.labelled("네트워크 Ethereum"))
+        self.tap(self.labelled("StableNet Testnet"))
+        self.sees("TestUSDC 90.00")
+
+    def faucet(self):
+        before = int(self.step("state")["balance"])
+        self.tap("지갑")
+        self.tap("시험 토큰")
+        self.sees("보드가 아직 이 토큰을 보낼 수 없어 받지 않습니다")
+        self.shot("12-faucet")
+        button = self.labelled("받기") if "받기" in self.words() else next(word for word in self.words() if word.endswith(" 받기") and word != "시험 토큰 받기")
+        assert "tKRWC 받기" not in self.words(), "a token the board cannot send is offered"
+        self.tap(button)
+        self.sees("보내 달라고 했습니다")
+        deadline = time.monotonic() + 60
+        while int(self.step("state")["balance"]) != before + 5000000:
+            assert time.monotonic() < deadline, "the faucet paid nothing"
+            time.sleep(1)
+        self.sees("이후 다시 받을 수 있습니다", 60)
+        self.shot("12-faucet-done")
+        self.back()
+        self.sees("TestUSDC 95.00", 60)
+
+    def send(self):
+        before = int(self.step("state")["balance"])
+        self.tap("지갑")
+        self.tap("보내기")
+        self.sees("오늘 남은 횟수")
+        self.type("받는 주소", "0x" + "f1" * 20)
+        self.type("금액", "5")
+        self.tap("다음")
+        self.sees("처음 보내는 주소입니다")
+        self.shot("24-send-review")
+        self.tap("이 내용으로 보내기")
+        self.sees("보드에는 화면이 없습니다")
+        if not self.find("보드로 승인"):
+            self.tap("내 보드 찾기")
+        self.pressed_late("보드로 승인", "25-send-approve")
+        self.sees("거래가 확정되었습니다", 90)
+        assert int(self.step("state")["balance"]) == before - 5000000, "the transfer moved another amount"
+        self.shot("26-sent")
+        self.tap("확인")
+        self.back()
+        self.tap("지갑")
+        assert self.find("활동")
+        assert any(word.startswith("보냄") for word in self.words()), "the transfer is not in the activity"
+
+    def network_settings(self):
+        extra = self.step("servers", change={})
+        self.tap("설정")
+        self.shot("16-settings")
+        self.tap("네트워크")
+        self.sees("정상")
+        self.shot("17-networks")
+        self.tap("네트워크 추가")
+        for label, value in (("네트워크 이름", "Added Sepolia"), ("서버 주소 (https)", extra["wrongServer"]), ("체인 ID", "421614"), ("코인 기호", "ETH")):
+            self.type(label, value.replace(" ", "%s"))
+        self.tap("확인하고 저장")
+        self.sees("다른 네트워크의 서버")
+        self.shot("18-wrong-server")
+        self.clear("서버 주소 (https)")
+        self.type("서버 주소 (https)", extra["addedServer"])
+        self.tap("확인하고 저장")
+        self.sees("네트워크를 추가했습니다")
+        self.tap("지갑")
+        self.tap(self.labelled("네트워크 StableNet"))
+        self.tap(self.labelled("Added Sepolia"))
+        self.sees("ETH 1.25")
+        self.tap("설정")
+        self.tap("네트워크")
+        self.tap(self.labelled("Added Sepolia"))
+        self.tap("네트워크 삭제")
+        self.sees("지워지지 않는 것")
+        self.shot("19-remove-network")
+        self.tap("네트워크 삭제")
+        self.sees("네트워크를 삭제했습니다")
+        self.tap(self.labelled("Base Sepolia"))
+        self.tap("목록에서 숨기기")
+        self.sees("네트워크를 숨겼습니다")
+        self.tap(self.labelled("Base Sepolia"))
+        self.tap("목록에 다시 보이기")
+        self.step("servers", change={"down": ["https://ethereum-sepolia"]})
+        self.tap("다시 확인")
+        self.sees("연결 안 됨")
+        self.step("servers", change={"down": []})
+        # A removed network is not shown any more.
+        self.tap("지갑")
+        self.sees("TestUSDC 95.00")
+
+    def settings(self):
+        self.tap("설정")
+        self.tap("법적 고지")
+        self.sees("내 동의 기록")
+        self.shot("20-legal")
+        self.tap("오픈소스 라이선스")
+        self.sees("앱에 들어간 패키지")
+        self.shot("21-licences")
+        self.back()
+        self.back()
+        self.tap("내 보드")
+        self.sees("LED 신호 보는 법")
+        self.back()
+        assert self.find("앱 버전"), "Back from the board left settings"
+        self.tap("언어")
+        self.sees("Language")
+        self.shot("22-english")
+        self.tap("Language")
+        self.sees("언어")
+        for label in ("기기·업데이트", "알림과 접근성", "도움말·진단", "등록과 매장", "반납과 초기화"):
+            self.tap("설정")
+            self.tap(label)
+            time.sleep(1)
+            self.back()
+            assert set(TABS) <= set(self.words()), f"Back from {label} left the app"
 
     def leave_payment(self):
         self.tap("결제")
@@ -265,7 +437,7 @@ class Walk:
         self.step("cook", sale=sale, targets=["preparing", "unfulfillable"])
 
     def inner_pages(self):
-        for tab, labels in (("지갑", ("6개 체인 · 읽기 전용", "EVM 수신", "개인 전송", "지급 기록 관리", "다른 체인 받기", "다른 체인 보내기")),
+        for tab, labels in (("지갑", ("받기", "반납", "토큰 추가")),
                             ("둘러보기", ("DApp 둘러보기", "외부 DApp 연결", "온체인 토큰 권한", "여행지 찾기", "테스트 시장 학습"))):
             for label in labels:
                 self.tap(tab)
@@ -278,7 +450,7 @@ class Walk:
         # The kitchen's refund of the last order has to be final first, and the board waits for its last quote.
         deadline = time.monotonic() + 150
         while True:
-            self.tap("관리")
+            self.tap("지갑")
             self.tap("반납")
             time.sleep(4)
             if "반납 시작" in self.words():
@@ -296,6 +468,10 @@ class Walk:
         self.sees("반납이 확정되었습니다", 90)
         assert self.step("state")["balance"] == "0", "money left on the board account"
         self.shot("11-returned")
+        # The added token cannot be returned, so it has to be given up by name before the key is erased.
+        self.sees("보드가 보낼 수 없는 자산이 있습니다")
+        assert not self.find("보드 초기화"), "a reset is offered over assets that would be lost"
+        self.tap("20.00 tUSDT · 잃어도 됩니다")
         if not self.find("보드 초기화"):
             self.tap("내 보드 찾기")
         self.tap("보드 초기화")
@@ -310,8 +486,8 @@ class Walk:
         for name in scales:
             self.shell("settings", "put", "global", name, "0")
         try:
-            self.wait_for_app()
-            flows = (self.set_up, self.deposit, self.pay, self.refuse, self.over_limit, self.no_board, self.lost_connection, self.inner_pages, self.give_back)
+            self.wait_for_app(("동의하고 시작",))
+            flows = (self.agree, self.set_up, self.deposit, self.tokens, self.faucet, self.network_settings, self.settings, self.send, self.pay, self.refuse, self.over_limit, self.no_board, self.lost_connection, self.inner_pages, self.give_back)
             for flow in flows:
                 name, at = flow.__name__.replace("_", " "), time.monotonic()
                 try:
@@ -323,7 +499,7 @@ class Walk:
                     self.failed += 1
                     self.shot("FAILED-" + flow.__name__)
                     print(f"FAIL {name}: {error}", flush=True)
-                    if flow in flows[:2]:
+                    if flow in flows[:3]:
                         break  # the rest needs a board with money
             log = self.adb("logcat", "-d", "-v", "brief").stdout.decode(errors="replace")
             crashes = [line for line in log.splitlines() if re.search(r"AndroidRuntime.*FATAL|ANR in " + PACKAGE + r"|E/ReactNativeJS", line)]

@@ -24,7 +24,7 @@ P05 = "products/p05-operations-backoffice"
 FLOW = ROOT / P05 / "test/order-flow"
 USER = "nu54_order_flow"
 DATABASE = "nu54_settlement_order_flow"
-FLOWS = 16
+FLOWS = 17
 LIMIT = 600
 
 

@@ -11,6 +11,8 @@
  *   data HEX                     bytes the phone wrote; the first one of a session is the route
  *   close                        the Bluetooth link ended
  *   press | refuse | wrongpin    SW1 and the PIN, SW2, SW1 and a wrong PIN
+ *   digest HEX                   the wallet key's signature; only for requests the firmware does not
+ *                                know yet, which ../app/board.ts plays ("signature HEX")
  *   boot                         power cycle
  * Answers: "out HEX" bytes to the phone, "prompt" a button is awaited, "lamp N" an event,
  * "ended" the board left the session, "erased", "booted DEVICE ACCOUNT GENERATION", "ok". */
@@ -487,6 +489,14 @@ static void command(char *line)
 	else if (!strcmp(word, "press")) button(true, true);
 	else if (!strcmp(word, "wrongpin")) button(true, false);
 	else if (!strcmp(word, "refuse")) button(false, true);
+	else if (!strcmp(word, "digest")) {
+		uint8_t digest[32], signature[64];
+		size_t length;
+		exact(arguments[0], digest, sizeof(digest));
+		assert(psa_sign_hash(wallet_attributes.id, wallet_attributes.algorithm, digest, 32, signature, 64, &length) == PSA_SUCCESS);
+		say_bytes("signature", signature, 64);
+		return;
+	}
 	else if (!strcmp(word, "boot")) { boot(); return; }
 	else assert(!"unknown command");
 	say("ok");
