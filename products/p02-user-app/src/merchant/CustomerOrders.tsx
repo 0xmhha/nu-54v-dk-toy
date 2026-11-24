@@ -1611,7 +1611,7 @@ export function CustomerOrders({
       session.close();
       if (ownerConnection.current === session) ownerConnection.current = undefined;
     }
-    const endpoint = local.walletRead?.endpoints.stable;
+    const endpoint = local.walletRead?.endpoints.stable ?? policy.rpc;
     const wallet = OwnerWallet;
     const balance = endpoint ? await readEvmReceiveBalance(
       walletReadRpc(endpoint, (url, packet) => wallet.evmRpc(url, packet)), '8283', readProfiles.stable.anchor,

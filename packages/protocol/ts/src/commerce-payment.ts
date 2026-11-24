@@ -23,6 +23,8 @@ export type CommercePaymentProfile = {
   presentationKey?: string;
   /** The store's contract, as P05 names it in its payment profile. Absent means SettlementV2. */
   abiSha256?: string;
+  /** Where the app reads this chain unless its owner chose another server. The app checks the genesis block before use. */
+  rpc?: string;
 };
 // packages/contracts-abi/abi/manifest.json; test/order-escrow.test.ts keeps these in sync.
 export const settlementAbiSha256 = "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814";
@@ -44,6 +46,12 @@ export type VerifiedCommercePayment = {
   deadline: number;
 };
 const hash = (value: string) => keccak_256(utf8Encode(value));
+
+/** An HTTPS address without credentials, query or fragment, as the app accepts one from its owner. */
+function readServer(value: unknown): boolean {
+  return typeof value === "string" && value.length <= 512 &&
+    /^https:\/\/[A-Za-z0-9.[\]:_-]+(?:\/[A-Za-z0-9/_.-]*)?$/.test(value);
+}
 
 export function paymentProfile(
   raw: string
@@ -69,6 +77,7 @@ export function paymentProfile(
     BigInt(payment.maxBaseUnits) > 30_000_000n
   )
     throw new Error("PAYMENT_PROFILE");
+  if (payment.rpc !== undefined && !readServer(payment.rpc)) throw new Error("PAYMENT_PROFILE");
   paysThroughEscrow(payment); // refuses a contract this version does not know
   return payment;
 }

@@ -4,7 +4,7 @@ import test from "node:test";
 import { keccak_256 } from "@noble/hashes/sha3";
 import { bytesToHex, hexToBytes } from "../src/bytes.ts";
 import { addressOfPrivateKey, recoverSigner } from "../src/signature.ts";
-import { orderEscrowAbiSha256, paysThroughEscrow, settlementAbiSha256 } from "../src/commerce-payment.ts";
+import { orderEscrowAbiSha256, paymentProfile, paysThroughEscrow, settlementAbiSha256 } from "../src/commerce-payment.ts";
 import { decodeNearbyRequest } from "../src/nearby-commerce.ts";
 import {
   accountProofDigest, payerEnrollChallenge, validPayerEnrollment, validWalletReturn, walletReturnDigest, orderBoardRequest, orderBuyerActions, orderBuyerDigest, orderLock, orderMerchantDigest,
@@ -108,6 +108,17 @@ test("a store profile names a known contract", () => {
   assert.equal(paysThroughEscrow({ abiSha256: settlementAbiSha256 }), false);
   assert.equal(paysThroughEscrow({ abiSha256: orderEscrowAbiSha256 }), true);
   assert.throws(() => paysThroughEscrow({ abiSha256: "f".repeat(64) }), /PAYMENT_PROFILE/);
+});
+
+test("a store profile may name the server the app reads the chain from", () => {
+  const address = "0x" + "a".repeat(40);
+  const payment = { chain: 8283, contract: address, asset: address, beneficiary: address, signer: address, merchantId: "7".repeat(64),
+    keyVersion: 1, beneficiaryVersion: 1, maxBaseUnits: "30000000" };
+  const read = (rpc?: unknown) => paymentProfile(JSON.stringify({ payment: { ...payment, rpc } }));
+  assert.equal(read()?.rpc, undefined);
+  assert.equal(read("https://api.test.stablenet.network/")?.rpc, "https://api.test.stablenet.network/");
+  for (const bad of ["http://rpc.example", "https://user@rpc.example", "https://rpc.example/?key=1", "https://rpc.example/#a", "", 7, "https://" + "a".repeat(512)])
+    assert.throws(() => read(bad), /PAYMENT_PROFILE/);
 });
 
 test("board return and enrollment match the board and the server", () => {

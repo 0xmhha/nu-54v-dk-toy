@@ -181,6 +181,17 @@ describe('deposit and return address', () => {
     expect(text()).toContain('확인 안 됨');
     button('네트워크 주소 설정').props.run();
     expect(went).toEqual(['network']);
+    // Without a server chosen by the owner, the one in the store registration is read.
+    mockBalance = '42000000';
+    const unset = {...stored, walletRead: defaultReadState};
+    for (const [rpc, shown] of [[undefined, '확인 안 됨'], ['https://rpc.store.example', '42.00 TestUSDC']] as const) {
+      (mockPolicy as {rpc?: string}).rpc = rpc;
+      await Renderer.act(async () => { tree!.unmount(); });
+      tree = undefined;
+      await show(unset); await flush();
+      expect(text()).toContain(shown);
+    }
+    delete (mockPolicy as {rpc?: string}).rpc;
   });
 
   test('the address appears only after the signing test of this registration', async () => {

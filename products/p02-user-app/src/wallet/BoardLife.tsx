@@ -67,10 +67,13 @@ const tokenText = (units: bigint) => formatReadAmount(units.toString(), 6).repla
 /** Finalized and newest balance of one token (the store's unless named), or undefined when either cannot be read. */
 type Balance = {units: bigint; latest: bigint; text: string};
 async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native'>, token?: string): Promise<Balance | undefined> {
-  const {verified, walletRead} = props.stored, endpoint = walletRead?.endpoints.stable, native = props.native;
-  if (!verified || !endpoint || !native) return undefined;
+  const {verified, walletRead} = props.stored, native = props.native;
+  if (!verified || !native) return undefined;
   try {
-    const asset = token ?? (await credential()).policy.asset;
+    const chosen = walletRead?.endpoints.stable;
+    const policy = token && chosen ? undefined : (await credential()).policy;
+    const asset = token ?? policy!.asset, endpoint = chosen ?? policy?.rpc;
+    if (!endpoint) return undefined;
     const rpc = walletReadRpc(endpoint, (url, packet) => native.evmRpc(url, packet));
     const read = async (tag: 'finalized' | 'latest') => BigInt((await readEvmReceiveBalance(rpc, '8283', readProfiles.stable.anchor,
       verified.address, asset, false, tag)).amount);
