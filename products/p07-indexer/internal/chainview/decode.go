@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/gassponsor"
 	escrow "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/orderescrow"
 	v1 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlement"
 	v2 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlementv2"
@@ -172,13 +173,47 @@ func (d *Decoder) Decode(log types.Log, status uint64) (Event, error) {
 
 // bindQuoteWindow verifies that the canonical direct transaction's quote
 // calldata hashes to the same digest the settlement contract accepted.
-// An order lock sent through another contract keeps its event without the window.
+// An order lock sent through a GasSponsor is read from the call inside. Anyone can name any call there, so one
+// that does not fit the event leaves it without the window, as a lock sent through another contract does.
 func (d *Decoder) bindQuoteWindow(event *Event, tx *types.Transaction, included time.Time) error {
-	if !(d.modern != nil && event.Kind == "paid" || d.escrow != nil && event.Kind == "locked") ||
-		tx.To() == nil || *tx.To() != d.profile.Contract {
+	if !(d.modern != nil && event.Kind == "paid" || d.escrow != nil && event.Kind == "locked") || tx.To() == nil {
 		return nil
 	}
-	data := tx.Data()
+	if *tx.To() == d.profile.Contract {
+		return d.bindQuoteCall(event, tx.Data(), included)
+	}
+	if call := sponsoredCall(tx.Data(), d.profile.Contract); d.escrow != nil && call != nil {
+		read := *event
+		if d.bindQuoteCall(&read, call, included) == nil {
+			event.IssuedAt, event.ExpiresAt = read.IssuedAt, read.ExpiresAt
+		}
+	}
+	return nil
+}
+
+// sponsoredCall returns the calldata inside GasSponsor.sponsor(address,bytes) to one contract.
+func sponsoredCall(data []byte, contract common.Address) []byte {
+	sponsor, err := gassponsor.GassponsorMetaData.GetAbi()
+	if err != nil {
+		return nil
+	}
+	method := sponsor.Methods["sponsor"]
+	if len(data) < 4 || !bytes.Equal(data[:4], method.ID) {
+		return nil
+	}
+	args, err := method.Inputs.Unpack(data[4:])
+	if err != nil || len(args) != 2 {
+		return nil
+	}
+	to, ok := args[0].(common.Address)
+	call, valid := args[1].([]byte)
+	if !ok || !valid || to != contract {
+		return nil
+	}
+	return call
+}
+
+func (d *Decoder) bindQuoteCall(event *Event, data []byte, included time.Time) error {
 	if len(data) < 4 || !bytes.Equal(data[:4], d.settle.ID) {
 		return nil
 	}

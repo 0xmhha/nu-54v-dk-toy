@@ -202,10 +202,17 @@ func (w *Worker) prepare(ctx context.Context, job work, target Target, quote Quo
 		return false, err
 	}
 	gas := gasFor(job)
+	if target.sponsored(job) {
+		gas += sponsorGas
+	}
+	to, data, err := relayTo(job, target, candidate.data)
+	if err != nil {
+		return false, err
+	}
 	if target.Escrow() {
 		// Before any nonce is held: a call that would revert stays unsent.
 		if source, ok := w.Chain.(escrowSimulator); ok && job.nonce == nil {
-			if err := source.simulate(ctx, account, destination(job, target), gas, candidate.data); err != nil {
+			if err := source.simulate(ctx, account, to, gas, data); err != nil {
 				return false, fmt.Errorf("%w: %w", errWouldRevert, err)
 			}
 		}
@@ -225,9 +232,8 @@ func (w *Worker) prepare(ctx context.Context, job work, target Target, quote Quo
 	if price == nil || price.Sign() <= 0 || price.Cmp(w.MaxGasPrice) > 0 {
 		return false, errors.New("gas quote outside configured limits")
 	}
-	to := destination(job, target)
 	_, hash, sealed, err := w.signRelay(ctx, job.id, account, gasSigner, &types.LegacyTx{Nonce: nonce, GasPrice: w.roomyPrice(price), Gas: gas,
-		To: &to, Value: new(big.Int), Data: candidate.data})
+		To: &to, Value: new(big.Int), Data: data})
 	if err != nil {
 		return false, err
 	}
@@ -407,7 +413,7 @@ func (w *Worker) resume(ctx context.Context, job work, target Target, quote Quot
 	}
 	sender, err := types.Sender(types.LatestSignerForChainID(big.NewInt(8283)), &tx)
 	account, gasSigner, accountErr := w.account(job)
-	if err != nil || accountErr != nil || sender != account || tx.To() == nil || *tx.To() != destination(job, target) ||
+	if err != nil || accountErr != nil || sender != account || tx.To() == nil ||
 		tx.Value().Sign() != 0 || tx.Hash().Hex() != *job.hash || job.nonce == nil ||
 		strconv.FormatUint(tx.Nonce(), 10) != *job.nonce || job.expires == nil {
 		return nil, false, errors.New("sealed relay transaction metadata differs")
@@ -416,7 +422,11 @@ func (w *Worker) resume(ctx context.Context, job work, target Target, quote Quot
 	if err != nil || !bytes.Equal(canonical, raw) {
 		return nil, false, errors.New("sealed relay bytes not canonical")
 	}
-	if err := w.validateCall(job, target, quote, tx.Data()); err != nil {
+	call, err := relayed(job, target, *tx.To(), tx.Data())
+	if err != nil {
+		return nil, false, err
+	}
+	if err := w.validateCall(job, target, quote, call); err != nil {
 		return nil, false, err
 	}
 	receipt, err := w.Chain.TransactionReceipt(ctx, tx.Hash())

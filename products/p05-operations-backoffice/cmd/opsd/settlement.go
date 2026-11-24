@@ -415,6 +415,9 @@ func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, t
 			target.Asset != (common.Address{}) && (target.Escrow() || (target.ABIHash() == settlement.ABIHash &&
 			target.RefundSigner != (common.Address{}) && target.RefundVersion > 0)) {
 			view = settlement.VerifyOperatorDeployment(ctx, client, target, gas, approvals, key, signatures, required)
+			if !settlement.SponsorReady(ctx, client, target, gas) {
+				view.Status = "invalid"
+			}
 		}
 		reviews[branch] = view
 		if view.Status != "invalid" {

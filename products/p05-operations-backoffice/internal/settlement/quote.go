@@ -32,6 +32,8 @@ type Target struct {
 	RefundVersion uint64         `json:"refundKeyVersion"`
 	// ABI selects the payment contract of the branch. Empty means SettlementV2.
 	ABI string `json:"abiSha256,omitempty"`
+	// Sponsor is the branch's GasSponsor. Empty means the relay calls the contracts directly.
+	Sponsor common.Address `json:"gasSponsor,omitzero"`
 }
 
 // ABIHash returns the ABI this target is enrolled with.

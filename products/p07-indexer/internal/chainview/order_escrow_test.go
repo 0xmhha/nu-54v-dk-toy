@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/gassponsor"
 	escrow "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/orderescrow"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -201,6 +202,34 @@ func TestOrderLockQuoteWindow(t *testing.T) {
 	}
 	if event, err := bind(quote, common.HexToAddress("0x9999"), 1100, digest); err != nil || event.IssuedAt != nil {
 		t.Fatalf("lock through another contract: %+v %v", event, err)
+	}
+	sponsored := func(to common.Address, at int64, digest string) Event {
+		t.Helper()
+		data, err := contract.Pack("lock", quote, orderConfirmer, make([]byte, 65), make([]byte, 65))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sponsor, err := gassponsor.GassponsorMetaData.GetAbi()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if data, err = sponsor.Pack("sponsor", to, data); err != nil {
+			t.Fatal(err)
+		}
+		event, relay := Event{Kind: "locked", QuoteDigest: digest}, common.HexToAddress("0x9999")
+		if err := decoder.bindQuoteWindow(&event, types.NewTx(&types.LegacyTx{To: &relay, Data: data}), time.Unix(at, 0)); err != nil {
+			t.Fatalf("sponsored lock stopped the stream: %v", err)
+		}
+		return event
+	}
+	if event := sponsored(profile.Contract, 1119, digest); event.IssuedAt == nil || event.ExpiresAt.Unix() != 1120 {
+		t.Fatalf("sponsored lock window: %+v", event)
+	}
+	for name, event := range map[string]Event{"another digest": sponsored(profile.Contract, 1119, (common.Hash{31: 1}).Hex()),
+		"outside its quote": sponsored(profile.Contract, 1120, digest), "another contract": sponsored(common.HexToAddress("0x8888"), 1119, digest)} {
+		if event.IssuedAt != nil || event.ExpiresAt != nil {
+			t.Fatalf("%s kept a window: %+v", name, event)
+		}
 	}
 	odd := quote
 	odd.PayerRole = 9 // the contract does not check it
