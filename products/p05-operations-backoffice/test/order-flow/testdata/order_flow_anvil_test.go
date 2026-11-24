@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -37,7 +38,11 @@ func TestOrderFlow(t *testing.T) {
 	settlementEndpoint(t)
 	endpoint := settlementChainSince(t, 65*time.Second)
 	db, dsn := scratchDB(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	life := 8 * time.Minute
+	if minutes, err := strconv.Atoi(os.Getenv("NU54_ORDER_FLOW_MINUTES")); err == nil { // scripts/simulate_user_app.py
+		life = time.Duration(minutes) * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), life)
 	defer cancel()
 	client, err := ethclient.DialContext(ctx, endpoint)
 	if err != nil {
@@ -67,7 +72,7 @@ func TestOrderFlow(t *testing.T) {
 			fixtureExec(t, db, "INSERT INTO ledger.finance_grant VALUES($1,$2,$3,now()+interval '1 hour')", branch, actors[actor], capability)
 		}
 	}
-	fixtureExec(t, db, "INSERT INTO ledger.menu_release VALUES($1,1,now()-interval '1 minute',now()+interval '15 minutes')", branch)
+	fixtureExec(t, db, "INSERT INTO ledger.menu_release VALUES($1,1,now()-interval '1 minute',now()+$2*interval '1 second')", branch, max(15*time.Minute, life).Seconds())
 	fixtureExec(t, db, "INSERT INTO ledger.price VALUES($1,1,'escrow-cafe','plain','Escrow cafe',$2,$3::text::numeric)", branch, lower(target.Asset), escrowAmount)
 	fixtureExec(t, db, "INSERT INTO ledger.stock VALUES($1,'escrow-cafe',60)", branch)
 	profile := commerce.Profile{Chain: 8283, Contract: target.Contract, Asset: target.Asset, Beneficiary: fixtureSigner(104).Address(),

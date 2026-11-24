@@ -73,3 +73,12 @@ The run needs Go, Node with the workspace dependencies, Foundry with the pinned 
 | Kiosk | P04 `NearbyRelay` and `MerchantInbox`, `CommerceClient` over HTTPS, and `NearbyCommerceLink` on both ends |
 
 Stood in for: the phone's native modules (storage, Bluetooth, key store, TLS to the board), the board's flash, PIN entry, buttons and lamp, the operator's grant, and the genesis hash the app pins. Retry delays of the server are shortened and the runner mines one block per second.
+
+## User app on an emulator
+
+`python3 scripts/simulate_user_app.py emulator-5554` opens the user app on an Android emulator in the same world as the order flow: the board, the kiosk and the store answer as they should. Use it to tell a fault of the app from a fault of the hardware. Install the debug app first with `./gradlew :app:installDebug` in `products/p02-user-app/android`.
+
+- `--walk NEW_DIRECTORY` taps through nine flows in about fifteen minutes, prints one `PASS` or `FAIL` line for each and keeps screenshots: setup, deposit, payment to receipt, refusal, limit, missing board, a connection lost after signing, the inner pages and the return with reset.
+- Without it the app stays open for 43 minutes. `--step NAME JSON` takes the steps of the owner, kiosk, store or operator from another terminal, for example `--step order '{"quantity":2}'` puts an order on the kiosk and before the phone's camera, and `--step board '{"change":{"answer":"refuse"}}'` makes the owner refuse. [host.test.ts](../products/p05-operations-backoffice/test/order-flow/simulator/host.test.ts) lists them.
+
+The app's screens and logic, its notifications, the firmware core, server, indexer and contracts are real. Bluetooth, TLS, the phone's protected storage and keys, the camera and the board's buttons and PIN are stood in for, and one-second countdowns tick every three seconds so that the screen can be read. Only the bundler configuration in that directory replaces the native modules, so no build of the app contains them. It runs on emulators only. The bundler listens on port 8785 and the stand-ins on 8790, both on this machine.
