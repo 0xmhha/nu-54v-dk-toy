@@ -1,0 +1,44 @@
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+
+// The release variant is the officially signed app, the only one given to the public. It is not built
+// while a legal document is a draft, the publisher is unknown or the notices differ from what is built.
+// Debug and custom builds are for tests and are not checked.
+def repository = rootProject.file("../../..")
+def product = rootProject.projectDir.parentFile.name
+
+def legalGate = tasks.register("validateReleaseLegalNotices") {
+    mustRunAfter tasks.matching { it.name == "validateReleaseIdentity" }
+    doLast {
+        if (project.findProperty("nu54P03Libs") != null) {
+            throw new GradleException("nu54P03Libs adds native code whose licences are not in the legal notices")
+        }
+        def selection = configurations.getByName("releaseRuntimeClasspath").incoming.resolutionResult
+        if (selection.allDependencies.any { it instanceof UnresolvedDependencyResult }) {
+            throw new GradleException("The release runtime has unresolved dependencies")
+        }
+        def rows = selection.allComponents.collect { it.id }.findAll { it instanceof ModuleComponentIdentifier }
+            .collect { it.group + ":" + it.module + ":" + it.version + "=releaseRuntimeClasspath" }.sort()
+        def resolved = new File(temporaryDir, "release-runtime.txt")
+        resolved.text = rows.join("\n") + "\n"
+        def run = ["python3", "-B", new File(repository, "scripts/legal_notices.py").path,
+                   "--release", "--app", product, "--resolved-runtime", resolved.path].execute()
+        def output = new StringBuffer(), errors = new StringBuffer()
+        run.waitForProcessOutput(output, errors)
+        if (run.exitValue() != 0) {
+            throw new GradleException("External distribution is blocked.\n" + errors + output)
+        }
+        logger.lifecycle(output.toString().trim())
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn legalGate
+}
+
+// Leaving the check out with -x stops the build as well.
+gradle.taskGraph.whenReady { graph ->
+    def packages = ["assembleRelease", "bundleRelease", "packageRelease", "packageReleaseBundle", "signReleaseBundle", "packageReleaseUniversalApk"]
+    if (graph.allTasks.any { it.project == project && it.name in packages } && !graph.hasTask(legalGate.get())) {
+        throw new GradleException("A release build needs validateReleaseLegalNotices")
+    }
+}

@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import subprocess
 import unittest
+from unittest.mock import patch
 
+import release
 from release import identity, verify_owner_registration_isolation, verify_profile, workspace
 
 
@@ -78,6 +81,17 @@ class ReleaseProfileTest(unittest.TestCase):
                     executable.write_bytes(b"release\0" + marker + b"\0")
                     with self.assertRaisesRegex(ValueError, "simulator registration adapter"):
                         verify_owner_registration_isolation(executable)
+
+    def test_official_archive_stops_at_unfinished_legal_notices(self):
+        policy = {**identity("custom", "p02"), "team": self.team}
+        refused = subprocess.CompletedProcess([], 1, "p02-user-app is not ready for distribution")
+        with TemporaryDirectory() as temp, patch.dict("os.environ", {"NU54_P02_IOS_OFFICIAL_PROFILE": "profile"}), \
+                patch.object(release, "call", return_value=b""), patch.object(release.subprocess, "run", return_value=refused) as run:
+            with self.assertRaisesRegex(ValueError, "External distribution is blocked"):
+                release.archive("official", Path(temp) / "app.xcarchive", policy, "p02")
+            (command,), _ = run.call_args
+            self.assertEqual(["--release", "--app", "p02-user-app"], command[3:])
+            self.assertEqual(1, run.call_count)
 
 
 if __name__ == "__main__":

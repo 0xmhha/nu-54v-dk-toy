@@ -8,10 +8,12 @@ build:
 	pnpm --filter @nu54/p02-renter typecheck
 
 test:
+	python3 -B ../../scripts/test_legal_notices.py
 	node --test ../../scripts/test-jest-isolation.test.cjs
 	node ../../scripts/test-jest.cjs --runInBand
 
 lint:
+	python3 -B ../../scripts/legal_notices.py --check --app p02-user-app
 	pnpm --filter @nu54/p02-renter typecheck
 	pnpm exec eslint src test
 

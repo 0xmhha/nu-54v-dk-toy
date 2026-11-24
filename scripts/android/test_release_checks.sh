@@ -3,8 +3,8 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 case "${1:-}" in
-  p02) android="$repo/products/p02-user-app/android"; package=com.nu54renter; prefix=NU54_P02 ;;
-  p04) android="$repo/products/p04-merchant-kiosk/android"; package=com.nu54kiosk; prefix=NU54_P04 ;;
+  p02) app=p02-user-app; android="$repo/products/$app/android"; package=com.nu54renter; prefix=NU54_P02 ;;
+  p04) app=p04-merchant-kiosk; android="$repo/products/$app/android"; package=com.nu54kiosk; prefix=NU54_P04 ;;
   *) echo "Usage: bash scripts/android/test_release.sh p02|p04" >&2; exit 2 ;;
 esac
 temp="$(mktemp -d)"
@@ -25,6 +25,21 @@ if ! grep -E 'Official Android upload certificate is not enrolled|keystore input
   exit 1
 fi
 
+# The Gradle check blocks the release variant exactly while the legal notices are not ready.
+legal_ready=true
+python3 -B "$repo/scripts/legal_notices.py" --release --app "$app" > "$temp/legal.log" 2>&1 || legal_ready=false
+legal_gradle=true
+./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process :app:validateReleaseLegalNotices > "$temp/legal-gradle.log" 2>&1 || legal_gradle=false
+if [[ "$legal_ready" != "$legal_gradle" ]] || { ! $legal_ready && ! grep 'External distribution is blocked' "$temp/legal-gradle.log"; }; then
+  cat "$temp/legal.log" "$temp/legal-gradle.log" >&2
+  exit 1
+fi
+if ./gradlew --no-daemon :app:assembleRelease -x :app:validateReleaseLegalNotices > "$temp/legal-skipped.log" 2>&1 ||
+    ! grep 'A release build needs validateReleaseLegalNotices' "$temp/legal-skipped.log"; then
+  cat "$temp/legal-skipped.log" >&2
+  exit 1
+fi
+
 export "${prefix}_CUSTOM_KEYSTORE=$temp/custom.p12"
 export "${prefix}_CUSTOM_STORE_PASSWORD=android-test-only"
 export "${prefix}_CUSTOM_KEY_ALIAS=signer"
@@ -38,6 +53,7 @@ python3 "$repo/scripts/android/check_runtime_graph.py" "$evidence_dir/custom-gra
 NU54_SCAN_VARIANT=releaseRuntimeClasspath NU54_SCAN_LOCK="$evidence_dir/release-gradle.lockfile" \
   ./gradlew --no-daemon -Pkotlin.compiler.execution.strategy=in-process -I "$repo/scripts/android/runtime_graph.init.gradle" :app:nu54PrintResolvedRuntime
 python3 "$repo/scripts/android/check_runtime_graph.py" --variant releaseRuntimeClasspath "$evidence_dir/release-gradle.lockfile"
+python3 -B "$repo/scripts/legal_notices.py" --check --app "$app" --resolved-runtime "$evidence_dir/release-gradle.lockfile"
 
 verify=(python3 "$repo/scripts/android/verify_release.py" "$package" custom)
 apk=app/build/outputs/apk/custom/app-custom.apk

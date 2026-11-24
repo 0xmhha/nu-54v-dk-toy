@@ -118,6 +118,7 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "NU54Kiosk" */;
 			buildPhases = (
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
+				4E5534C0A11CE00000000001 /* Check legal notices of the official app */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
@@ -249,6 +250,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-NU54Kiosk/Pods-NU54Kiosk-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		4E5534C0A11CE00000000001 /* Check legal notices of the official app */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Check legal notices of the official app";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n# Only the official bundle is given to the public; custom, debug and simulator test bundles are not checked.\nif [ \"$PRODUCT_BUNDLE_IDENTIFIER\" = \"com.nu54kiosk\" ]; then\n  python3 -B \"$SRCROOT/../../../scripts/legal_notices.py\" --release --app p04-merchant-kiosk\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

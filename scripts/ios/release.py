@@ -132,6 +132,14 @@ def verify(channel: str, app: Path, policy: dict) -> dict:
     }
 
 
+def require_legal_notices(product: str) -> None:
+    """The official app is given to the public, so its legal notices must be complete."""
+    app = PRODUCTS[product][0]
+    run = subprocess.run([sys.executable, "-B", REPO / "scripts/legal_notices.py", "--release", "--app", app],
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    require(run.returncode == 0, f"External distribution is blocked.\n{run.stdout.strip()}")
+
+
 def archive(channel: str, destination: Path, policy: dict, product: str = "p04") -> dict:
     project, scheme = workspace(product)
     require(not destination.exists() and destination.suffix == ".xcarchive", "Use a new .xcarchive path")
@@ -143,6 +151,7 @@ def archive(channel: str, destination: Path, policy: dict, product: str = "p04")
     dirty = bool(call("git", "-C", REPO, "status", "--porcelain"))
     if channel == "official":
         require(not dirty, "Official iOS builds require a clean source tree")
+        require_legal_notices(product)
     bundle = policy["bundle" if channel == "official" else "customBundle"]
     subprocess.run([
         "xcodebuild", "-workspace", project, "-scheme", scheme, "-configuration", "Release",

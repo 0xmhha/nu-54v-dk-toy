@@ -18,7 +18,7 @@ class AndroidReleaseWorkspace(unittest.TestCase):
         self.project = self.root / "products/p02-user-app"
         for folder in ("node_modules/cli/build", "node_modules/fast-glob/out",
                        "node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/build",
-                       "packages", "scripts/android", "docs/content/specifications",
+                       "packages", "scripts/android", "docs/content/specifications", "docs/content/commercial/legal",
                        "products/p01-device-firmware", "products/p02-user-app/android/app/build",
                        "products/p02-user-app/android/app/.cxx", "products/p02-user-app/android/gradle/wrapper"):
             (self.root / folder).mkdir(parents=True)

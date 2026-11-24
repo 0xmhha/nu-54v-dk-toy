@@ -48,7 +48,7 @@ def mirror_product(root, project, mirror):
         path = source_path(source)
         if path.is_file():
             shutil.copy2(path, mirror / source)
-    for source in ("node_modules", "packages", "scripts", "docs/content/specifications",
+    for source in ("node_modules", "packages", "scripts", "docs/content/specifications", "docs/content/commercial/legal",
                    "products/p01-device-firmware", f"products/{project}"):
         shutil.copytree(source_path(source), mirror / source, symlinks=True, ignore=source_ignores)
     mirror_root = mirror.resolve()

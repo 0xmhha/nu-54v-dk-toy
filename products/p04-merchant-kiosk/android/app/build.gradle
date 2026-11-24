@@ -112,6 +112,7 @@ android {
 }
 
 apply from: rootProject.file("../../../scripts/android/release-signing.gradle")
+apply from: rootProject.file("../../../scripts/android/legal-notices.gradle")
 apply from: rootProject.file("../../../scripts/android/runtime-constraints.gradle")
 
 dependencies {

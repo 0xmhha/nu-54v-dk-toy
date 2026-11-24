@@ -11,6 +11,7 @@ test:
 	node ../../scripts/test-jest.cjs --runInBand
 
 lint:
+	python3 -B ../../scripts/legal_notices.py --check --app p04-merchant-kiosk
 	pnpm --filter @nu54/p04-kiosk typecheck
 	npx eslint src test
 
