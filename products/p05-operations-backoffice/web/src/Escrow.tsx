@@ -38,7 +38,7 @@ export type EscrowItem = {
   transaction?: string;
   deliveryFailed?: true;
   cancelRefused?: true;
-  items?: { label: string; option: string; quantity: number }[];
+  items?: { label: string; option: string; optionLabel?: string; quantity: number }[];
   decision?: DisputeDecision;
 };
 export type EscrowPage = {

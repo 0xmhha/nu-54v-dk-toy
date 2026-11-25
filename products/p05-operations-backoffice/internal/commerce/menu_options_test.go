@@ -342,6 +342,17 @@ func TestPostgresMenuOptions(t *testing.T) {
 	if err := order("hot-oat"); err != nil {
 		t.Fatal(err)
 	}
+	// Staff read the name of a combination, not its code.
+	var name string
+	if err := admin.QueryRow(ctx, "SELECT ledger.order_option_label($1,1,'latte','ice-oat')", branch).Scan(&name); err != nil || name != "차가움 · 귀리" {
+		t.Fatal(name, err)
+	}
+	for _, function := range []string{"kiosk_pickup_queue(uuid,uuid,uuid,uuid,text,boolean)", "escrow_order_page(uuid,uuid,text,uuid,uuid)"} {
+		var body string
+		if err := admin.QueryRow(ctx, "SELECT pg_get_functiondef('ledger."+function+"'::regprocedure)").Scan(&body); err != nil || !strings.Contains(body, "'optionLabel',ledger.order_option_label(") {
+			t.Fatal(function, err)
+		}
+	}
 	var amounts string
 	if err := admin.QueryRow(ctx, "SELECT string_agg(amount::text,',' ORDER BY amount) FROM ledger.sale WHERE branch_id=$1", branch).Scan(&amounts); err != nil || amounts != "550000,600000" {
 		t.Fatal(amounts, err)

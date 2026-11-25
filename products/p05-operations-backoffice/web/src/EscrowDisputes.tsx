@@ -365,7 +365,7 @@ function Dispute({
           {item.items.map((line, index) => (
             <li key={index}>
               {line.label}
-              {line.option && line.option !== "standard" && ` · ${line.option}`} ·{" "}
+              {line.option && line.option !== "standard" && ` · ${line.optionLabel ?? line.option}`} ·{" "}
               {line.quantity}개
             </li>
           ))}

@@ -438,7 +438,7 @@ export function PickupKitchen({
             {commerceCartAmount(item.settlement.amount, item.settlement.asset, paymentProfile)}
           </Text>}
           {!!item.items?.length && <Text style={styles.text}>
-            {item.items.map(line => `${line.label}${line.option === 'standard' ? '' : ` ${line.option}`} ${line.quantity}`).join(' · ')}
+            {item.items.map(line => `${line.label}${line.option === 'standard' ? '' : ` ${line.optionLabel ?? line.option}`} ${line.quantity}`).join(' · ')}
           </Text>}
         </Pressable>
         {actions(item, false)}
@@ -527,7 +527,7 @@ export function PickupKitchen({
           )}
           {selected.items?.map((item, index) => (
             <Text key={index} style={styles.text}>
-              {item.label} · {item.option} ×{item.quantity}
+              {item.label} · {item.optionLabel ?? item.option} ×{item.quantity}
             </Text>
           ))}
           {actions(list?.find(item => item.saleRef === selected.saleRef && item.revision >= selected.revision) ?? selected, true)}

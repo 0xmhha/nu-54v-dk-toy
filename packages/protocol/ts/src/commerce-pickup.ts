@@ -34,7 +34,8 @@ export type PickupKitchenOrder = {
   pickupNo?: number;
   settlement?: PickupKitchenSettlement;
   revision: number;
-  items?: {label: string; option: string; quantity: number}[];
+  /** `optionLabel` names the choices; `option` is then a code nobody reads. */
+  items?: {label: string; option: string; optionLabel?: string; quantity: number}[];
   /** Present only for an order paid through OrderEscrow. Absent rows keep the earlier refund flow. */
   escrow?: {stage: PickupEscrowStage};
 };
@@ -115,7 +116,9 @@ export function readPickupKitchen(raw: string): PickupKitchenOrder[] {
           !escrowStages.includes(order.escrow.stage))) ||
         (order.items !== undefined && (!Array.isArray(order.items) || order.items.length > 20 ||
           order.items.some(item => !item || typeof item.label !== "string" || item.label.length > 120 ||
-            typeof item.option !== "string" || item.option.length > 32 || !positiveNumber(item.quantity)))))
+            typeof item.option !== "string" || item.option.length > 32 ||
+            (item.optionLabel !== undefined && (typeof item.optionLabel !== "string" || !item.optionLabel || item.optionLabel.length > 160)) ||
+            !positiveNumber(item.quantity)))))
       throw new Error("PICKUP_UNAVAILABLE");
   }
   return list.map(({saleRef, startsAt, timezone, state, kind, eventRef, pickupNo, revision, items, settlement, escrow}) => ({
@@ -128,7 +131,8 @@ export function readPickupKitchen(raw: string): PickupKitchenOrder[] {
       finalizedAt: settlement.finalizedAt, pickupReadyAt: settlement.pickupReadyAt,
     }}),
     ...(escrow === undefined ? {} : {escrow: {stage: escrow.stage}}),
-    ...(items === undefined ? {} : {items: items.map(({label, option, quantity}) => ({label, option, quantity}))}),
+    ...(items === undefined ? {} : {items: items.map(({label, option, optionLabel, quantity}) =>
+      ({label, option, ...(optionLabel === undefined ? {} : {optionLabel}), quantity}))}),
   }));
 }
 
