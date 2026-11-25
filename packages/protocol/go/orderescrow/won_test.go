@@ -60,3 +60,19 @@ func TestTokenNameIsChecked(t *testing.T) {
 		}
 	}
 }
+
+// StableNet's own coin: the signed amount has 18 decimals, whatever a board counts in.
+func TestCoinMatchesTheContract(t *testing.T) {
+	v := vectors(t, "order-lock-coin.vectors")
+	lock, err := NewLockFor("WKRC", v["unsigned"], common.BytesToAddress(v["confirmer"]))
+	if err != nil || !bytes.Equal(lock.Preimage, v["preimage"]) || !SignedBy(lock.Digest, v["payerSignature"], common.BytesToAddress(v["unsigned"][payerOffset:payerOffset+32])) {
+		t.Fatalf("preimage differs: %v", err)
+	}
+	r := vectors(t, "wallet-return-coin.vectors")
+	amount := new(big.Int).Mul(big.NewInt(3_420_000), big.NewInt(10_000_000_000_000_000))
+	digest, err := ReturnDigestFor("WKRC", common.BytesToAddress(r["token"]), common.BytesToAddress(r["from"]),
+		common.BytesToAddress(r["to"]), amount, 1_800_000_500, common.BytesToHash(r["nonce"]))
+	if err != nil || digest != crypto.Keccak256Hash(r["preimage"]) {
+		t.Fatalf("return digest differs: %x %v", digest, err)
+	}
+}

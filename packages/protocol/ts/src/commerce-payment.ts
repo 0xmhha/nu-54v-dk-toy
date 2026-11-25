@@ -11,9 +11,26 @@ import { orderTokenName, validTokenName } from "./order-escrow.ts";
 import { recoverSigner } from "./signature.ts";
 import type { CommerceOrder, CommerceQuote } from "./commerce-v2.ts";
 
-/** How a store's token signs and is shown. `name` is in its signing domain, `symbol` on chain, `label` on screens. */
-export type PaymentToken = { name: string; symbol: string; label: string; decimals: number };
+/**
+ * How a store's token signs and is shown. `name` is in its signing domain, `symbol` on chain, `label` on screens.
+ * A board counts in 8 bytes, so a token with more than 8 decimals names the fewer decimals its board counts in.
+ */
+export type PaymentToken = { name: string; symbol: string; label: string; decimals: number; boardDecimals?: number };
 export const dollarToken: PaymentToken = { name: orderTokenName, symbol: "tUSDC", label: "TestUSDC", decimals: 6 };
+
+/** StableNet's own coin as a token. It is at this address on every StableNet, and no other token is. */
+export const stableNetCoin = { asset: "0x" + "1000".padStart(40, "0"), symbol: "WKRC" };
+/** Base units in one unit of a board: 1 unless the token names the decimals its board counts in. */
+export const boardUnit = (token: Pick<PaymentToken, "decimals" | "boardDecimals">): bigint =>
+  10n ** BigInt(token.decimals - (token.boardDecimals ?? token.decimals));
+/** An amount a board reports, in base units. */
+export const fromBoard = (units: bigint, token: Pick<PaymentToken, "decimals" | "boardDecimals">): bigint => units * boardUnit(token);
+/** An amount for a board. It refuses one the board cannot count, because the board would sign another. */
+export function toBoard(baseUnits: bigint, token: Pick<PaymentToken, "decimals" | "boardDecimals">): bigint {
+  const unit = boardUnit(token);
+  if (baseUnits < 0n || baseUnits % unit !== 0n || baseUnits / unit >= 1n << 64n) throw new Error("BOARD_AMOUNT");
+  return baseUnits / unit;
+}
 
 export type CommercePaymentProfile = {
   chain: 8283;
@@ -63,9 +80,12 @@ const hash = (value: string) => keccak_256(utf8Encode(value));
 const tokenWord = /^[A-Za-z][A-Za-z0-9]{0,15}$/;
 export function validPaymentToken(value: unknown): value is PaymentToken {
   const token = value as PaymentToken;
-  return !!token && typeof token === "object" && Object.keys(token).sort().join() === "decimals,label,name,symbol" &&
+  if (!token || typeof token !== "object") return false;
+  const { boardDecimals: board, ...plain } = token;
+  return Object.keys(plain).sort().join() === "decimals,label,name,symbol" &&
     validTokenName(token.name) && tokenWord.test(token.symbol) && tokenWord.test(token.label) &&
-    Number.isInteger(token.decimals) && token.decimals >= 1 && token.decimals <= 18;
+    Number.isInteger(token.decimals) && token.decimals >= 1 && token.decimals <= 18 &&
+    (token.decimals > 8 ? Number.isInteger(board) && board! >= 2 && board! <= 8 : !("boardDecimals" in token));
 }
 
 /** The token a store's orders are paid in. */
@@ -81,21 +101,23 @@ export function dollarText(baseUnits: string | bigint, decimals: number): string
   return `${sign}${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
 }
 
+/** A store token that is won. Another token may call itself the same, so this is asked only of a store's token. */
+export const isWon = (token: Pick<PaymentToken, "symbol">): boolean => token.symbol === "tKRW" || token.symbol === stableNetCoin.symbol;
+
 /**
- * An amount as the screens show it. Won is exact: "12,500원" in Korean and "₩12,500" in English.
- * Any other store token is a dollar token and keeps two decimals.
+ * An amount as the screens show it: "12,500원" in Korean and "₩12,500" in English, with the rest of a won only when
+ * there is any. Any other store token is a dollar token and keeps two decimals. Nothing is ever rounded up.
  */
 export function tokenAmount(baseUnits: string | bigint, token: PaymentToken, language: "ko" | "en" = "ko"): string {
-  if (token.symbol !== wonSymbol) return `${dollarText(baseUnits, token.decimals)} ${token.label}`;
+  if (!isWon(token)) return `${dollarText(baseUnits, token.decimals)} ${token.label}`;
   const units = BigInt(baseUnits);
   const absolute = units < 0n ? -units : units;
   const scale = 10n ** BigInt(token.decimals);
-  const fraction = (absolute % scale).toString().padStart(token.decimals, "0").replace(/0+$/, "");
-  const sign = units < 0n ? "-" : "";
+  const fraction = (absolute % scale).toString().padStart(token.decimals, "0").slice(0, 2).replace(/0+$/, "");
+  const sign = units < 0n && absolute * 100n >= scale ? "-" : "";
   const amount = (absolute / scale).toString().replace(/\B(?=(\d{3})+$)/g, ",") + (fraction ? `.${fraction.padEnd(2, "0")}` : "");
   return language === "ko" ? `${sign}${amount}원` : `${sign}₩${amount}`;
 }
-const wonSymbol = "tKRW";
 
 /** An HTTPS address without credentials, query or fragment, as the app accepts one from its owner. */
 export function readServer(value: unknown): value is string {
@@ -123,14 +145,17 @@ export function paymentProfile(
     payment.keyVersion < 1 ||
     !Number.isSafeInteger(payment.beneficiaryVersion) ||
     payment.beneficiaryVersion < 1 ||
-    !/^[1-9][0-9]{0,7}$/.test(payment.maxBaseUnits) ||
-    BigInt(payment.maxBaseUnits) > 30_000_000n
+    !/^[1-9][0-9]{0,31}$/.test(payment.maxBaseUnits)
   )
     throw new Error("PAYMENT_PROFILE");
   if (payment.rpc !== undefined && !readServer(payment.rpc)) throw new Error("PAYMENT_PROFILE");
   paysThroughEscrow(payment); // refuses a contract this version does not know
   if ((payment.token !== undefined) !== (payment.abiSha256 === namedTokenAbiSha256)) throw new Error("PAYMENT_PROFILE");
   if (payment.token !== undefined && !validPaymentToken(payment.token)) throw new Error("PAYMENT_PROFILE");
+  const token = paymentToken(payment);
+  if ((token.symbol === stableNetCoin.symbol) !== (payment.asset === stableNetCoin.asset)) throw new Error("PAYMENT_PROFILE");
+  // The firmware's own cap for one payment.
+  if (BigInt(payment.maxBaseUnits) > fromBoard(30_000_000n, token)) throw new Error("PAYMENT_PROFILE");
   return payment;
 }
 

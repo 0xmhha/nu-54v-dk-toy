@@ -18,7 +18,7 @@ const owner = sha256(spki);
 const confirmer = addressOfPrivateKey(new Uint8Array(32).fill(9));
 const request = new Uint8Array(16).fill(0xc);
 
-let boardName = 'NU54 Test KRW';
+let boardName = 'NU54 Test KRW', unit = 1n;
 const stableToken = '0x' + '5'.repeat(40), home = '0x' + 'ab'.repeat(20);
 type Board = {
   press: 'approve' | 'refuse' | 'ignore' | 'other-phone'; loseReply?: boolean; cap: bigint; daily: bigint; spent: bigint; clock: boolean; blindDaily?: boolean; wait: number; account: string; state: number;
@@ -55,7 +55,8 @@ async function connect(b: Board, spending = false) {
       const known = find(message.id, digest);
       if (known === 'drop') return 'drop';
       if (known) return known.answer ?? Uint8Array.of(0);
-      const amount = bytesToBig(body.subarray(24 + q.amountOffset, 24 + q.amountOffset + 32));
+      const word = bytesToBig(body.subarray(24 + q.amountOffset, 24 + q.amountOffset + 32)), amount = word / unit;
+      if (word % unit) return 'drop'; // the board cannot count it
       if (amount > left()) return 'drop'; // device_order_within_daily, before the prompt
       b.prompts++;
       if (b.press === 'ignore') return 'wait';
@@ -79,7 +80,7 @@ async function connect(b: Board, spending = false) {
       if (b.press !== 'approve') return Uint8Array.of(0);
       if (body[0] === 0x7a) { b.home = bytesToHex(body.subarray(1)); return body; }
       if (body[0] === 0x7b) {
-        const transfer = {token: stableToken, from: b.account, to: b.home!, amount: bytesToBig(body.subarray(1, 9)), validBefore: bytesToBig(body.subarray(9, 17)), nonce: bytesToHex(body.subarray(17), false)};
+        const transfer = {token: stableToken, from: b.account, to: b.home!, amount: bytesToBig(body.subarray(1, 9)) * unit, validBefore: bytesToBig(body.subarray(9, 17)), nonce: bytesToHex(body.subarray(17), false)};
         return concat(Uint8Array.of(0x7b), hexToBytes(b.home!), signDigest(walletReturnDigestFor(boardName, transfer), payerKey));
       }
       b.state = 4;
@@ -94,7 +95,7 @@ async function connect(b: Board, spending = false) {
       if (!b.sends || body.length !== 89) return 'drop';
       b.prompts++;
       if (b.press !== 'approve') return Uint8Array.of(0);
-      const transfer = {token: bytesToHex(body.subarray(1, 21)), from: b.account, to: bytesToHex(body.subarray(21, 41)), amount: bytesToBig(body.subarray(41, 49)),
+      const transfer = {token: bytesToHex(body.subarray(1, 21)), from: b.account, to: bytesToHex(body.subarray(21, 41)), amount: bytesToBig(body.subarray(41, 49)) * unit,
         validBefore: bytesToBig(body.subarray(49, 57)), nonce: bytesToHex(body.subarray(57), false)};
       return concat(Uint8Array.of(0x80), hexToBytes(transfer.to), signDigest(walletReturnDigestFor(boardName, b.otherSend ? {...transfer, amount: 1n} : transfer), payerKey));
     }
@@ -131,7 +132,7 @@ const approve = async (b: Board, name?: string) => {
   try { return await session.approveOrder(payment, confirmer, request, () => {}, name); } finally { session.close(); }
 };
 
-beforeEach(() => { boardName = 'NU54 Test KRW'; });
+beforeEach(() => { boardName = 'NU54 Test KRW'; unit = 1n; });
 beforeEach(() => jest.spyOn(Date, 'now').mockReturnValue(now * 1000));
 afterEach(() => jest.restoreAllMocks());
 
@@ -157,6 +158,56 @@ test('returns and transfers are accepted as the named token only', async () => {
     const results = [await back.signReturn(generation, transfer, () => {}, asked).then(() => 'ok', error => error.message),
       await send.signSend(generation, transfer, () => {}, asked).then(() => 'ok', error => error.message)];
     expect(results).toEqual(ok ? ['ok', 'ok'] : ['RETURN_SIGNATURE', 'SEND_SIGNATURE']);
+    back.close(); send.close();
+  }
+});
+
+// StableNet's own coin: 18 decimals, and a board that counts in hundredths of a won.
+const coin = {name: 'WKRC', symbol: 'WKRC', label: 'KRWC', decimals: 18, boardDecimals: 2}, wei = 10n ** 18n;
+const ofCoin = (amount: bigint) => {
+  const bytes = payment.bytes.slice();
+  bytes.set(bigToBytes(amount, 32), q.amountOffset);
+  return {...payment, bytes};
+};
+async function pay(b: Board, amount: bigint) {
+  const session = await connect(b);
+  try { return await session.approveOrder(ofCoin(amount), confirmer, request, () => {}, coin.name, coin); } finally { session.close(); }
+}
+test('the limits of a board are read in the units it counts in', async () => {
+  boardName = coin.name; unit = 10n ** 16n;
+  for (const [left, amount, says] of [[100_000_000n, 300_000n * wei, 'ok'], [100_000_000n, 300_000n * wei + unit, 'ORDER_OVER_LIMIT'],
+    [650_000n, 6_500n * wei, 'ok'], [649_999n, 6_500n * wei, 'ORDER_OVER_DAILY']] as const) {
+    const b = board({daily: left});
+    expect(await pay(b, amount).then(() => 'ok', error => error.message)).toBe(says);
+    expect(b.prompts).toBe(says === 'ok' ? 1 : 0);
+  }
+});
+test('a return and a transfer of the coin reach the board in its units', async () => {
+  boardName = coin.name; unit = 10n ** 16n;
+  const transfer = {token: stableToken, payer, to: home, amount: 34_200n * wei, validBefore: now + 170, nonce: '7'.repeat(64)};
+  const ask = async (amount: bigint, counts = coin) => {
+    const back = await connect(board({home}), true), send = await connect(board({sends: true}), true);
+    const results = [await back.signReturn(generation, {...transfer, amount}, () => {}, coin.name, counts).then(() => 'ok', error => error.message),
+      await send.signSend(generation, {...transfer, amount}, () => {}, coin.name, counts).then(() => 'ok', error => error.message)];
+    back.close(); send.close();
+    return results;
+  };
+  expect(await ask(transfer.amount)).toEqual(['ok', 'ok']);
+  // Less than the board can count, and an amount over its limit for one transfer.
+  expect(await ask(transfer.amount + 1n)).toEqual(['BOARD_AMOUNT', 'BOARD_AMOUNT']);
+  expect(await ask(300_000n * wei + unit)).toEqual(['ok', 'SEND_LIMIT']);
+  // A phone and a board that count in different units never agree on a signature.
+  unit = 10n ** 15n;
+  expect(await ask(transfer.amount)).toEqual(['RETURN_SIGNATURE', 'SEND_SIGNATURE']);
+});
+test('a board that signed another name is refused, whatever the amount', async () => {
+  for (const name of ['KRWC', won, dollar]) {
+    boardName = name; unit = 10n ** 16n;
+    await expect(pay(board(), 6_500n * wei)).rejects.toThrow('ORDER_LOCK_MISMATCH');
+    const transfer = {token: stableToken, payer, to: home, amount: 34_200n * wei, validBefore: now + 170, nonce: '7'.repeat(64)};
+    const back = await connect(board({home}), true), send = await connect(board({sends: true}), true);
+    await expect(back.signReturn(generation, transfer, () => {}, coin.name, coin)).rejects.toThrow('RETURN_SIGNATURE');
+    await expect(send.signSend(generation, transfer, () => {}, coin.name, coin)).rejects.toThrow('SEND_SIGNATURE');
     back.close(); send.close();
   }
 });

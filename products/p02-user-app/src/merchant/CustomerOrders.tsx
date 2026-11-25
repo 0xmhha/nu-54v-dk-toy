@@ -28,7 +28,7 @@ import {
   hexToBytes,
   commerceProfile,
   commerceAmount,
-  paymentToken,
+  fromBoard, paymentToken,
   commerceCartTotals,
   commerceLineKey,
   commerceLineCapacity,
@@ -1621,11 +1621,12 @@ export function CustomerOrders({
     if (!mounted.current || revision !== loadRevision.current) return;
     const amount = BigInt(entry.order.amount);
     const show = (value: bigint) => commerceAmount(value.toString(), policy.asset, policy);
+    const perPayment = fromBoard(board.perPayment, paymentToken(policy)), left = fromBoard(board.leftToday, paymentToken(policy));
     setOrderBoard({
       request: entry.request, handle, pinWait: board.pinWait,
-      view: {perPayment: show(board.perPayment), left: show(board.leftToday), balance: balance === undefined ? undefined : show(balance)},
-      block: board.account !== payment.payer ? 'wrong-account' : policy.token && held && held.decimals !== policy.token.decimals ? 'token' : amount > board.perPayment ? 'over-limit' :
-        amount > board.leftToday ? 'over-daily' : board.pinWait > 0 ? 'pin-wait' : balance !== undefined && balance < amount ? 'balance' : undefined,
+      view: {perPayment: show(perPayment), left: show(left), balance: balance === undefined ? undefined : show(balance)},
+      block: board.account !== payment.payer ? 'wrong-account' : policy.token && held && held.decimals !== policy.token.decimals ? 'token' : amount > perPayment ? 'over-limit' :
+        amount > left ? 'over-daily' : board.pinWait > 0 ? 'pin-wait' : balance !== undefined && balance < amount ? 'balance' : undefined,
     });
   }
 
@@ -1747,7 +1748,7 @@ export function CustomerOrders({
       let activeProgress: OwnerApprovalProgress | undefined;
       const {confirmer} = reviewed;
       const signed = confirmer ? await (async () => { try { return await session.approveOrder(
-        payment, confirmer, hexToBytes(reviewed.request), () => { if (currentReview()) setBoardWaiting(true); }, paymentToken(policy).name,
+        payment, confirmer, hexToBytes(reviewed.request), () => { if (currentReview()) setBoardWaiting(true); }, paymentToken(policy).name, paymentToken(policy),
       ); } finally { setBoardWaiting(false); } })() : await (async () => { try { return await session.approvePayment(
         payment,
         hexToBytes(reviewed.request),

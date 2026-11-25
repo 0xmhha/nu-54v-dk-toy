@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Image, StyleSheet, Text, TextInput, View} from 'react-native';
 import {
-  bytesToHex, dollarToken, fromBase64, payerEnrollChallenge, paymentProfile, paymentToken, paysThroughEscrow, tokenAmount, type PayerEnrollment, type PaymentToken,
+  boardUnit, bytesToHex, dollarToken, fromBase64, payerEnrollChallenge, paymentProfile, paymentToken, paysThroughEscrow, stableNetCoin, tokenAmount, type PayerEnrollment, type PaymentToken,
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
@@ -100,7 +100,7 @@ export const tokenFailures: Record<string, string> = {
 };
 
 /** Finalized and newest balance of one token (the store's unless named), or undefined when either cannot be read. */
-type Balance = {units: bigint; latest: bigint; text: string};
+type Balance = {units: bigint; latest: bigint; text: string; /** There is also less than the board can count, which it cannot send. */ dust?: boolean};
 async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'store'>, token?: string): Promise<Balance | undefined> {
   const {verified, walletRead} = props.stored, native = props.native;
   if (!verified || !native) return undefined;
@@ -111,8 +111,10 @@ async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 's
     const rpc = walletReadRpc(serverFor('stable', walletRead, {store: policy?.rpc}).server, (url, packet) => native.evmRpc(url, packet));
     const read = async (tag: 'finalized' | 'latest') => BigInt((await readEvmReceiveBalance(rpc, '8283', readProfiles.stable.anchor,
       verified.address, asset, false, tag)).amount);
-    const units = await read('finalized'), latest = await read('latest');
-    return {units, latest, text: assetText(units, asset, policy ? storeOf(policy) : props.store)};
+    const store = policy ? storeOf(policy) : props.store, unit = store?.asset === asset.toLowerCase() ? boardUnit(store.token) : 1n;
+    const held = await read('finalized'), newest = await read('latest');
+    const units = held - held % unit;
+    return {units, latest: newest - newest % unit, text: assetText(units, asset, store), ...(held % unit || newest % unit ? {dust: true} : {})};
   } catch {
     return undefined;
   }
@@ -437,10 +439,10 @@ async function otherAssets(props: BoardLifeProps, returned?: string): Promise<Ot
   const row = networkRows(walletRead, {store: policy?.rpc}).find(item => item.key === 'stable')!;
   // Without a return in progress the store's token counts as money the reset page warns of by itself.
   const kept = (returned ?? policy?.asset)?.toLowerCase();
-  const tokens = tokensOf(row, verified, walletRead, policy ? [storeToken(policy)] : [], props.listed).filter(token => !token.contract || token.contract !== kept);
+  const tokens = tokensOf(row, verified, walletRead, policy ? [storeToken(policy)] : [], props.listed).filter(token => (token.contract ?? (kept === stableNetCoin.asset ? kept : undefined)) !== kept || kept === undefined);
   const found = await Promise.all(tokens.map(async token => ({token, amount: await readToken(row, token, verified.address, (url, packet) => native.evmRpc(url, packet))})))
     .catch(() => null);
-  return found && found.filter(({amount}) => amount.units !== '0').map(({token, amount}) => ({key: token.key, symbol: token.symbol, text: `${amount.text} ${token.symbol}`}));
+  return found && found.filter(({amount}) => amount.units !== '0').map(({token, amount}) => ({key: token.key, symbol: token.symbol, text: token.won ? amount.text : `${amount.text} ${token.symbol}`}));
 }
 
 /** Assets that go with the key when the board is reset. Each one has to be given up by name. */
@@ -533,6 +535,7 @@ function ReturnPage(props: BoardLifeProps) {
     return <>
       <Text style={type.body}>남은 돈을 모두 원래 지갑으로 보내고, 확정된 뒤에 보드를 초기화합니다.</Text>
       <Card><AmountLine amount={balance === undefined ? '확인하는 중' : balance?.text ?? '확인 안 됨'} label="돌려받을 금액" />
+        {balance?.dust && <Text style={type.small}>보드가 셀 수 있는 가장 작은 금액보다 작은 나머지는 보내지 못하고 남습니다.</Text>}
         <Text style={type.small}>받는 주소 (보드에 저장된 원래 지갑)</Text><Text selectable style={styles.address}>{board.returnAddress}</Text></Card>
       {balance === null && <Notice body="보드 계정의 잔액을 확인할 수 없습니다. 네트워크 주소와 매장 등록을 확인하세요.">
         <KitButton label="잔액 다시 확인" run={() => work(async () => { await read(); }, () => '잔액을 확인하지 못했습니다.')} variant="secondary" /></Notice>}
@@ -550,12 +553,12 @@ function ReturnPage(props: BoardLifeProps) {
   if (record.stage === 'signing') return <>{summary}
     <Text style={type.body}>보드에서 위 금액과 주소의 송금을 승인하세요.</Text>
     <Chooser props={props} label="보드로 승인" run={handle => work(async () => {
-      const {name} = await shownToken(record.token, props.store);
+      const token = await shownToken(record.token, props.store), {name} = token;
       const signed = await withBoard(handle, async session => {
         const asked = renewReturn(record, now());
         await keep(asked);
         const signature = await session.signReturn(BigInt(asked.generation), {...asked, amount: BigInt(asked.amount)},
-          () => props.wait({flow: 'return', step: 'approve', note: pinNote}), name);
+          () => props.wait({flow: 'return', step: 'approve', note: pinNote}), name, token);
         const next = verifyReturn(asked, signature, name);
         await keep(next);
         return next;

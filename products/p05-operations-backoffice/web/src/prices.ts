@@ -1,4 +1,4 @@
-import { tokenMoney, type BranchToken } from "./money.ts";
+import { isWon, tokenMoney, type BranchToken } from "./money.ts";
 
 /** The branch asset as the catalog names it. `token` is present only for a branch that names its own. */
 export type CatalogAsset = { symbol: string; decimals: number; token?: BranchToken };
@@ -37,11 +37,11 @@ export const shownTotal = (row: PriceRow, asset: CatalogAsset) => {
 
 /** Decimals an operator may type: won is whole, dollars have cents, and the screens show no more. */
 const typed = (asset: CatalogAsset) =>
-  assetToken(asset).symbol === "tKRW" ? 0 : Math.min(2, asset.decimals);
+  isWon(assetToken(asset)) ? 0 : Math.min(2, asset.decimals);
 
 /** Why these rows cannot be published. The server checks the same. */
 export function priceProblem(rows: PriceRow[], asset: CatalogAsset): string | undefined {
-  const won = assetToken(asset).symbol === "tKRW";
+  const won = isWon(assetToken(asset));
   const unit = 10n ** BigInt(asset.decimals - typed(asset));
   const whole = (amount: string) => units(amount, asset.decimals) % unit === 0n;
   for (const row of rows) {

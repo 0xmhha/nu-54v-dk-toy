@@ -16,7 +16,7 @@ const home = '0x' + 'ab'.repeat(20), key = '0fbc54ef-2827-4ab5-bfcd-3a27611c39ea
 
 test('the wallet lists and words the store token', () => {
   expect(storeToken(policy)).toEqual({address: policy.asset, symbol: 'TestUSDC', decimals: 6});
-  expect(storeToken(wonPolicy)).toEqual({address: policy.asset, symbol: 'tKRW', decimals: 2});
+  expect(storeToken(wonPolicy)).toEqual({address: policy.asset, symbol: 'tKRW', decimals: 2, won: true});
   expect(storeMoney(1_234_500_000n, dollarToken)).toBe('1,234.50 TestUSDC');
   expect(storeMoney('1250000', undefined)).toBe('확인 안 됨');
   expect(storeMoney('1250000', undefined, 'en')).toBe('Not confirmed');

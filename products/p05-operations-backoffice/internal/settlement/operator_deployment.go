@@ -149,7 +149,7 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 // must also have its symbol, because won prices and amounts are recognised by it.
 func tokenMatches(at *bind.CallOpts, target Target, client *ethclient.Client) bool {
 	asset, want := target.Asset, target.Token.OrDollar()
-	if !target.Token.Valid() {
+	if !target.Token.Valid() || want.IsCoin() != (asset == commerce.StableNetCoin) {
 		return false
 	}
 	token, err := testusdc3009.NewTestusdc3009Caller(asset, client)

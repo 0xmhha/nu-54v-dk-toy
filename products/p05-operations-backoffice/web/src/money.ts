@@ -14,6 +14,9 @@ export const replyToken = (reply: Branded | undefined, asset?: string): BranchTo
       ? baseUnits
       : reply.token;
 
+/** A branch token that is won: the test won, or StableNet's own coin. */
+export const isWon = (token: Pick<BranchToken, "symbol">) => token.symbol === "tKRW" || token.symbol === "WKRC";
+
 const dollar: BranchToken = { name: "NU54 Test USD", symbol: "tUSDC", label: "TestUSDC", decimals: 6 };
 
 /** Dollars and cents. The rest is cut off, never rounded. */
@@ -25,22 +28,20 @@ export function dollarText(units: string, decimals: number) {
   return `${sign}${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
 }
 
-/** An amount as the pages show it: exact "12,500원" for won, dollars with two decimals for any other token. */
+/** An amount as the pages show it: "12,500원" for won, dollars with two decimals for any other token. Never rounded up. */
 export function tokenMoney(
   units: string,
   token: Pick<BranchToken, "symbol" | "label" | "decimals"> = dollar
 ) {
   if (token.decimals === 0)
     return `${BigInt(units).toLocaleString("ko-KR")} 기본 단위`;
-  if (token.symbol !== "tKRW")
+  if (!isWon(token))
     return `${dollarText(units, token.decimals)} ${token.label}`;
   const value = BigInt(units);
   const absolute = value < 0n ? -value : value;
   const scale = 10n ** BigInt(token.decimals);
-  const sign = value < 0n ? "-" : "";
-  const fraction = token.decimals
-    ? (absolute % scale).toString().padStart(token.decimals, "0").replace(/0+$/, "")
-    : "";
+  const sign = value < 0n && absolute * 100n >= scale ? "-" : "";
+  const fraction = (absolute % scale).toString().padStart(token.decimals, "0").slice(0, 2).replace(/0+$/, "");
   const grouped = (absolute / scale).toString().replace(/\B(?=(\d{3})+$)/g, ",");
   return `${sign}${grouped}${fraction ? `.${fraction.padEnd(2, "0")}` : ""}원`;
 }

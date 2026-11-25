@@ -23,7 +23,7 @@ const name = `customer-order-${customerDigest('nu54-wallet-return-v1')}`;
 export function validReturn(value: ReturnRecord) {
   return !!value && Object.keys(value).every(key => fields.includes(key)) &&
     [value.payer, value.to].every(entry => address.test(entry) && nonzero(entry)) && address.test(value.token) && value.payer !== value.to &&
-    /^[1-9][0-9]{0,19}$/.test(value.generation) && hash.test(value.device) && /^(0|[1-9][0-9]{0,19})$/.test(value.amount) &&
+    /^[1-9][0-9]{0,19}$/.test(value.generation) && hash.test(value.device) && /^(0|[1-9][0-9]{0,77})$/.test(value.amount) &&
     Number.isSafeInteger(value.validBefore) && value.validBefore > 0 && hash.test(value.nonce) && nonzero(value.nonce) &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.key) && stages.includes(value.stage) &&
     (value.signature === undefined || /^[0-9a-f]{128}(1b|1c)$/.test(value.signature)) &&

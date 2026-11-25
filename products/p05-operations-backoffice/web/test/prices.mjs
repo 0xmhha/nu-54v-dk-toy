@@ -28,3 +28,10 @@ for (const bad of [row("6.500001"), row("6.5", "0.001"), row("6.5", "", "0.001")
   assert.match(priceProblem([row("1.00"), bad], usd), /둘째 자리/);
 assert.equal(priceProblem([row("6500", "0", "500")], won), undefined);
 assert.equal(priceProblem([row("6.50", "0.01", "0.02")], usd), undefined);
+
+// StableNet's own coin: whole won, kept exactly in 18 decimals.
+const coin = { symbol: "KRWC", decimals: 18, token: { name: "WKRC", symbol: "WKRC", label: "KRWC", decimals: 18 } };
+assert.equal(priceProblem([row("6500", "0", "500")], coin), undefined);
+assert.match(priceProblem([row("6500.5")], coin), /원 단위/);
+assert.equal(shownTotal(row("6500", "0", "500"), coin), "6,000원");
+assert.equal(String(rowTotal(row("6500"), coin)), "6500" + "0".repeat(18));

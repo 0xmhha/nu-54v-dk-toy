@@ -26,19 +26,19 @@ export function faucetFailure(error: unknown) {
   }
 }
 
-function state(t: Say, token: FaucetToken) {
+function state(t: Say, token: FaucetToken, won?: true) {
   if (token.state === 'open') return t('보내는 중 · 확정되면 지갑에 보입니다');
   if (token.state === 'limit') return token.availableAt ? `${new Date(token.availableAt * 1000).toLocaleString('ko-KR')} ${t('이후 다시 받을 수 있습니다')}` : t('오늘 받을 수 있는 만큼 받았습니다');
   if (token.state === 'empty') return t('줄 수 있는 시험 토큰이 모자랍니다. 운영자에게 알려 주세요.');
   const last = token.claim?.state === 'failed' ? ` · ${t('지난번은 보내지 못했습니다')}` : token.claim?.state === 'unknown' ? ` · ${t('지난번 결과를 확인하지 못했습니다')}` : '';
-  return `${t('한 번에')} ${tokenText(token.amount, token)} · ${t('남은 횟수')} ${token.remaining}${last}`;
+  return `${t('한 번에')} ${tokenText(token.amount, {...token, won})} · ${t('남은 횟수')} ${token.remaining}${last}`;
 }
 
 /** 시험 토큰 받기: what the store's faucet gives, sent to the board account enrolled there. */
-export function FaucetPage({t, account, sends, gasCoin}: {
+export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
   t: Say; account: string;
   /** Token contracts the board can send. Others are not taken: they would be stuck on the board account. */
-  sends: string[]; gasCoin?: string;
+  sends: string[]; /** The store's won and its name in the wallet. */ won?: Record<string, string>; gasCoin?: string;
 }) {
   const [status, setStatus] = useState<FaucetStatus>(), [problem, setProblem] = useState(''), [busy, setBusy] = useState(false), [said, setSaid] = useState('');
   // A request whose reply was lost is asked again under the same key, so it is never paid twice.
@@ -69,7 +69,7 @@ export function FaucetPage({t, account, sends, gasCoin}: {
       keys.current.set(token.token, key);
       await client.claimFaucet(token.token, key);
       keys.current.delete(token.token);
-      setSaid(`${token.symbol} · ${t('보내 달라고 했습니다. 확정되면 지갑에 보입니다.')}`);
+      setSaid(`${won[token.token] ?? token.symbol} · ${t('보내 달라고 했습니다. 확정되면 지갑에 보입니다.')}`);
     } catch (error) {
       // Anything the server named is an answer; only silence leaves the request open.
       if (faucetFailure(error) !== faucetFailure(new Error())) keys.current.delete(token.token);
@@ -90,9 +90,9 @@ export function FaucetPage({t, account, sends, gasCoin}: {
       <View style={styles.list}>{status.tokens.map(token => {
         const taken = sends.includes(token.token);
         return <View key={token.token} style={styles.line}>
-          <View style={styles.words}><Text style={type.label}>{token.symbol}</Text>
-            <Text style={type.small}>{taken ? state(t, token) : t('보드가 아직 이 토큰을 보낼 수 없어 받지 않습니다')}</Text></View>
-          {taken && token.state === 'ready' && !other ? <View style={styles.claim}><KitButton label={`${token.symbol} ${t('받기')}`} run={() => { claim(token).catch(() => {}); }} disabled={busy} /></View>
+          <View style={styles.words}><Text style={type.label}>{won[token.token] ?? token.symbol}</Text>
+            <Text style={type.small}>{taken ? state(t, token, won[token.token] ? true : undefined) : t('보드가 아직 이 토큰을 보낼 수 없어 받지 않습니다')}</Text></View>
+          {taken && token.state === 'ready' && !other ? <View style={styles.claim}><KitButton label={`${won[token.token] ?? token.symbol} ${t('받기')}`} run={() => { claim(token).catch(() => {}); }} disabled={busy} /></View>
             : <Chip label={t(!taken ? '사용 안 함' : token.state === 'open' ? '보내는 중' : token.state === 'limit' ? '받음' : token.state === 'empty' ? '모자람' : '확인 필요')} tone={token.state === 'open' ? 'wait' : 'off'} />}
         </View>;
       })}</View>

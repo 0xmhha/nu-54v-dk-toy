@@ -14,7 +14,9 @@ import {branch as mockBranch, customer as mockCustomer, generation, now, order a
   terminal as mockTerminal} from './fixtures/order';
 
 const mockWonPolicy = {...mockPolicy, abiSha256: mockNamed, token: {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2}};
-let mockStore: 'won' | 'usd' | 'other' | 'v2' = 'won', mockBroken = false, mockShop = mockBranch;
+const mockCoinPolicy = {...mockPolicy, abiSha256: mockNamed, asset: '0x' + '1000'.padStart(40, '0'), maxBaseUnits: (300_000n * 10n ** 18n).toString(),
+  token: {name: 'WKRC', symbol: 'WKRC', label: 'KRWC', decimals: 18, boardDecimals: 2}};
+let mockStore: 'won' | 'usd' | 'other' | 'v2' | 'coin' = 'won', mockBroken = false, mockShop = mockBranch;
 const mockJournals = new Map<string, string>();
 const mockCalls: string[] = [];
 const mockSent: (ServiceRequestV2 & {approvalSignature?: string})[] = [];
@@ -43,7 +45,7 @@ jest.mock('../src/specs/NativeShopQr.ts', () => ({__esModule: true, default: nul
 jest.mock('../src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: null}));
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: {
   loadProfile: async () => mockBroken ? Promise.reject(new Error('keystore')) : mockEnrolled ? JSON.stringify({scope: {role: 'customer', branchRef: mockShop, subjectRef: mockCustomer, tenantRef: mockBranch, expiresAt: 4_000_000_000},
-    pin: 'a'.repeat(64), payment: mockStore === 'usd' ? mockPolicy : mockStore === 'v2' ? {...mockPolicy, abiSha256: undefined} : mockStore === 'other' ? {...mockWonPolicy, asset: '0x' + '7'.repeat(40)} : mockWonPolicy}) : '',
+    pin: 'a'.repeat(64), payment: mockStore === 'coin' ? mockCoinPolicy : mockStore === 'usd' ? mockPolicy : mockStore === 'v2' ? {...mockPolicy, abiSha256: undefined} : mockStore === 'other' ? {...mockWonPolicy, asset: '0x' + '7'.repeat(40)} : mockWonPolicy}) : '',
   loadJournal: async (name: string) => mockJournals.get(name) ?? '',
   saveJournal: async (name: string, value: string) => { mockJournals.set(name, value); },
   randomBytes: async (length: number) => mockBase64(new Uint8Array(length).fill(mockSeed++ % 250 + 1)),
@@ -338,4 +340,70 @@ test('without a registration no amount is guessed and nothing can be sent', asyn
   await press('확인했습니다. 주소 보기');
   expect(text()).toContain('확인 안 됨');
   expect(text()).not.toContain('TestUSDC');
+});
+
+// StableNet's own coin: 18 decimals, and a board that counts in hundredths of a won.
+const wei = 10n ** 18n;
+describe('the coin', () => {
+  beforeEach(() => { mockStore = 'coin'; boardName = 'WKRC'; mockBalance = (420_000n * wei).toString(); });
+  test('a return leaves only what the board cannot count, and says so', async () => {
+    mockBalance = (420_000n * wei + 7n).toString();
+    await open('return');
+    expect(text()).toContain('420,000원');
+    expect(text()).toContain('보내지 못하고 남습니다');
+    await press('반납 시작');
+    expect((await record())?.amount).toBe((420_000n * wei).toString());
+    await press('보드로 승인');
+    expect(session.signReturn.mock.calls[0].slice(3)).toEqual(['WKRC', mockCoinPolicy.token]);
+    expect(mockSent[0].body.amount).toBe((420_000n * wei).toString());
+    // Once it is final, the rest does not stop the reset, and nothing more is asked about it.
+    await returnRecord(Http).save({...(await record())!, stage: 'final', txHash: '0x' + '1'.repeat(64)});
+    mockBalance = '7';
+    await open('return');
+    expect(text()).not.toContain('보드가 보낼 수 없는 자산');
+    await press('보드 초기화');
+    expect(session.resetBoard).toHaveBeenCalledTimes(1);
+  });
+  test('a whole unit that arrived late does stop the reset', async () => {
+    await returnRecord(Http).save({...verifyReturn(newReturn({...account, device, token: mockCoinPolicy.asset, to: home}, 420_000n * wei, '7'.repeat(64), 'dededede-dede-4ede-9ede-dededededede', now),
+      bytesToHex(signDigest(walletReturnDigestFor('WKRC', {token: mockCoinPolicy.asset, from: payer, to: home, amount: 420_000n * wei, validBefore: BigInt(fresh().validBefore), nonce: '7'.repeat(64)}), payerKey), false), 'WKRC'),
+      stage: 'final', txHash: '0x' + '1'.repeat(64)} as ReturnRecord);
+    mockBalance = (10n ** 16n).toString();
+    await open('return');
+    await press('보드 초기화');
+    expect(message).toContain('새로 들어온 돈이 있어');
+    expect(session.resetBoard).not.toHaveBeenCalled();
+  });
+  test('a returned coin is not asked about again as the gas coin of another store', async () => {
+    const {validBefore} = fresh(), nonce = '7'.repeat(64), sentCoin = newReturn({...account, device, token: mockCoinPolicy.asset, to: home}, 420_000n * wei, nonce, 'dededede-dede-4ede-9ede-dededededede', now);
+    const signature = bytesToHex(signDigest(walletReturnDigestFor('WKRC', {token: mockCoinPolicy.asset, from: payer, to: home, amount: 420_000n * wei, validBefore: BigInt(validBefore), nonce}), payerKey), false);
+    await returnRecord(Http).save({...verifyReturn(sentCoin, signature, 'WKRC'), stage: 'final', txHash: '0x' + '1'.repeat(64)} as ReturnRecord);
+    mockStore = 'won';
+    mockBalance = '0';
+    mockOther = {coin: '7'};
+    await open('return');
+    expect(text()).not.toContain('7 WKRC');
+    expect(text()).not.toContain('0.000000000000000007');
+    expect(!!button('보드 초기화')).toBe(true);
+  });
+  test('a transfer takes hundredths of a won and stays within the board\'s limits', async () => {
+    const limits = {account: payer, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: false, sends: true, leftToday: 40_000_000n};
+    const ask = async (amount: string) => {
+      await open('send');
+      props = {...props, spending: limits};
+      await render();
+      for (const limit of ['300,000원', '400,000원']) expect(text()).toContain(limit);
+      await fill('받는 주소', friend); await fill('금액', amount); await press('다음');
+    };
+    await ask('300000.01');
+    expect(message).toContain('보드 한도를 넘는 금액입니다');
+    await ask('0.005');
+    expect(message).toContain('소수점 아래 두 자리');
+    await ask('300000');
+    expect(text()).toContain('300,000원');
+    await press('이 내용으로 보내기');
+    await press('보드로 승인');
+    expect(session.signSend.mock.calls[0].slice(3)).toEqual(['WKRC', mockCoinPolicy.token]);
+    expect(mockSent[0].body.amount).toBe((300_000n * wei).toString());
+  });
 });

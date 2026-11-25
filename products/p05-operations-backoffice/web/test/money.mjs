@@ -9,6 +9,10 @@ for (const [units, text] of [["6500001", "6.50"], ["6509999", "6.50"], ["6599999
 assert.equal(tokenMoney("6500000", won), "65,000원");
 assert.equal(tokenMoney("-1250050", won), "-12,500.50원");
 assert.equal(tokenMoney("0", won), "0원");
+// StableNet's own coin is won with 18 decimals; what is less than a hundredth is cut off.
+const coin = { name: "WKRC", symbol: "WKRC", label: "KRWC", decimals: 18, boardDecimals: 2 };
+for (const [units, text] of [["6500" + "0".repeat(18), "6,500원"], ["6500" + "9".repeat(18), "6,500.99원"], ["6499" + "9".repeat(18), "6,499.99원"], ["1", "0원"], ["-1", "0원"], ["-6500" + "0".repeat(18), "-6,500원"]])
+  assert.equal(tokenMoney(units, coin), text);
 assert.equal(namedToken("0xA1"), undefined);
 rememberTokens([{ asset: "0xa1", token: won }, { asset: "0xa2" }, {}]);
 assert.deepEqual(namedToken("0xA1"), won);

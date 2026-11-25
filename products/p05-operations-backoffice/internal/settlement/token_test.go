@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+var testCoin = commerce.Token{Name: "WKRC", Symbol: "WKRC", Label: "KRWC", Decimals: 18, BoardDecimals: 2}
 var testWon = commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW", Decimals: 2}
 
 var tokenBlock = &types.Header{Number: big.NewInt(9), Difficulty: new(big.Int), Time: 1_800_000_000, UncleHash: types.EmptyUncleHash}
@@ -138,6 +139,20 @@ func TestDeploymentNeedsTheTokenItNames(t *testing.T) {
 		view := VerifyOperatorDeployment(context.Background(), tokenNode(t, c.name, symbolOf(c.name, c.symbol), c.decimals, code), c.target, common.Address{}, nil, nil, nil, false)
 		if (view.Status != "invalid") != c.ok {
 			t.Errorf("%s: %s", c.label, view.Status)
+		}
+	}
+	// The chain's own coin is a token at one address only.
+	coin := target
+	coin.Asset, coin.Token = commerce.StableNetCoin, testCoin
+	elsewhere, unnamed, other := coin, coin, coin
+	elsewhere.Asset, unnamed.Token, other.Token = target.Asset, commerce.Token{}, testWon
+	for label, c := range map[string]struct {
+		target Target
+		ok     bool
+	}{"the coin": {coin, true}, "a token that calls itself the coin": {elsewhere, false}, "the coin without a name": {unnamed, false}, "the coin as another won": {other, false}} {
+		view := VerifyOperatorDeployment(context.Background(), tokenNode(t, "WKRC", "WKRC", 18, code), c.target, common.Address{}, nil, nil, nil, false)
+		if (view.Status != "invalid") != c.ok {
+			t.Errorf("%s: %s", label, view.Status)
 		}
 	}
 	half := won
@@ -382,5 +397,37 @@ func TestApprovedBlockIsChecked(t *testing.T) {
 	moved.StartHash = common.HexToHash("0x1")
 	if got := review(moved, nil); got != "invalid" {
 		t.Errorf("another start block: %s", got)
+	}
+}
+
+// The faucet account pays gas with the same coin that it gives.
+func TestFaucetKeepsGasOfTheCoin(t *testing.T) {
+	answers := map[string]string{"eth_gasPrice": "0x3b9aca00", "eth_getBalance": "0x1bc16d674ec80000", "eth_call": "0x" + strings.Repeat("0", 62) + "07"}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var call struct {
+			ID     json.RawMessage
+			Method string
+		}
+		_ = json.NewDecoder(r.Body).Decode(&call)
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": call.ID, "result": answers[call.Method]})
+	}))
+	t.Cleanup(server.Close)
+	client, err := ethclient.Dial(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	funds := FaucetFunds(client, common.HexToAddress("0xfa"), big.NewInt(100_000_000_000))
+	price := big.NewInt(2 * 1_000_000_000 * faucetGas)
+	want := new(big.Int).Sub(big.NewInt(2_000_000_000_000_000_000), price)
+	if got, err := funds(context.Background(), commerce.StableNetCoin); err != nil || got.Cmp(want) != 0 {
+		t.Fatalf("coin funds %v %v, want %v", got, err, want)
+	}
+	if got, err := funds(context.Background(), common.HexToAddress("0xa1")); err != nil || got.Int64() != 7 {
+		t.Fatalf("token funds %v %v", got, err)
+	}
+	answers["eth_getBalance"] = hexutil.EncodeBig(new(big.Int).Sub(price, big.NewInt(1)))
+	if got, err := funds(context.Background(), commerce.StableNetCoin); err != nil || got.Sign() != 0 {
+		t.Fatalf("funds without gas %v %v", got, err)
 	}
 }

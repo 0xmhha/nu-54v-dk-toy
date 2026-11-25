@@ -201,3 +201,32 @@ func TestPausedBranchRefusesRequests(t *testing.T) {
 		t.Errorf("order at a paused branch: %d %s", w.Code, w.Body)
 	}
 }
+
+func TestCoinCountsForItsBoard(t *testing.T) {
+	coin := Token{Name: "WKRC", Symbol: "WKRC", Label: "KRWC", Decimals: 18, BoardDecimals: 2}
+	if !coin.Valid() || !coin.IsCoin() || testWon.IsCoin() || DollarToken.IsCoin() {
+		t.Fatal("the coin")
+	}
+	for _, change := range []func(*Token){
+		func(v *Token) { v.BoardDecimals = 0 }, func(v *Token) { v.BoardDecimals = 1 }, func(v *Token) { v.BoardDecimals = 9 }, func(v *Token) { v.Decimals = 8 },
+	} {
+		bad := coin
+		change(&bad)
+		if bad.Valid() {
+			t.Errorf("%+v accepted", bad)
+		}
+	}
+	for price, ok := range map[string]bool{"6500": true, "6500.00": true, "6500.5": false, "6500.000000000000000001": false, "0": false} {
+		row := operatorRow{DisplayPrice: price}
+		err := row.resolvePrice(18)
+		if got := err == nil && row.shownPrices(coin); got != ok {
+			t.Errorf("%s: %v %v", price, got, err)
+		}
+		if ok && row.Price != "6500000000000000000000" {
+			t.Errorf("%s: %s", price, row.Price)
+		}
+	}
+	if (operatorRow{Price: "6500000000000000000001"}).shownPrices(coin) || !(operatorRow{Price: "6500000000000000000000"}).shownPrices(coin) {
+		t.Error("a price in base units")
+	}
+}

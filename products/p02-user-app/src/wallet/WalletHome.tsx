@@ -25,7 +25,7 @@ import {WalletConnectScreen,notifyStoredDisconnect,reviewAllowancePrompt,reviewP
 import {verifyPeer,type VerifiedPeer} from './dapp/walletConnectPolicy.ts';
 import {validateConnectCheckpoint,viewAllowanceConnection,type SessionOptions} from './dapp/walletConnectSession.ts';
 import {OwnerSession, type LostPhoneContext, type OwnerDisplayBinding} from './ownerSession.ts';
-import {bytesToHex,hexToBytes} from '@nu54/protocol';
+import {bytesToHex,fromBoard,hexToBytes} from '@nu54/protocol';
 import {fromBase64} from '@nu54/protocol';
 import {authenticateRegistry,formatEvmTokenAmount,parseHumanAmount,readRegistryEntry} from './evmRegistry.ts';
 import {checkEvmNetwork,finalizedAllowance,finalityMatchesPending,finalityMatchesSigning,storedAllowanceChange,evmProfiles,httpsEvmRpc,normalizeEvmAddress,queryEvmAllowanceChange,queryEvmTransfer,readDirectTransfer,readEvmReceiveBalance,verifyStoredEvmWire,verifyTransferAuthority,type ExternalSpendContext,type EvmChain} from './evmTransfer.ts';
@@ -1695,7 +1695,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const openBoardPage = () => { boardFrom.current = screen === 'settings' ? 'settings' : 'home'; setScreen('board'); };
   const saveNetworks = (change: (state: ReadProfileState) => ReadProfileState) => commit(head => ({...head, walletRead: change(head.walletRead ?? defaultReadState)}));
   const exchange = native ? walletExchange : undefined;
-  const boardAmount = (units: bigint) => storeMoney(units, advice?.registered?.token, language);
+  const boardAmount = (units: bigint) => { const token = advice?.registered?.token; return storeMoney(token ? fromBoard(units, token) : units, token, language); };
   const boardRegistered = status?.state === 'active' && status.device === profile?.device;
   const boardAccount = stored ? stored.verified ?? null : undefined;
   const connectInstalledBoard = () => {setFromInstall(false); setScreen('owner');};

@@ -12,7 +12,7 @@ import {FaucetPage} from './FaucetPage.tsx';
 import {boardNetwork, networkRows, shownNetwork, type Exchange, type NetworkAdvice, type NetworkRow} from './networks.ts';
 import {testedBoard, type WalletStorage} from './profile.ts';
 import {defaultReadState, type ReadProfileState} from './readProfiles.ts';
-import {addToken, assetMoney, isEvmRow, readToken, removeToken, reviewToken, tokenFailure, tokensOf, type ListedToken, type Store, type TokenAmount, type TokenReview, type WalletToken} from './tokens.ts';
+import {addToken, assetMoney, isEvmRow, readToken, removeToken, reviewToken, tokenFailure, tokensOf, tokenText, type ListedToken, type Store, type TokenAmount, type TokenReview, type WalletToken} from './tokens.ts';
 
 type Say = (ko: string) => string;
 /** What others told this phone: servers, tokens the board signs (the store's), tokens the operator lists. */
@@ -89,8 +89,8 @@ function useAmounts(row: NetworkRow, tokens: WalletToken[], account: string | un
 const label = (token: WalletToken) => token.symbol;
 /** The name without the test prefix, as it fits a badge. */
 const shortSymbol = (symbol: string) => (symbol.replace(/^(?:Test|t)(?=[A-Z])/, '') || symbol).slice(0, 4);
-function shownAmount(t: Say, amount: TokenAmount | null | undefined, hidden: boolean) {
-  return hidden ? '••••' : amount ? amount.text : t(amount === undefined ? '확인하는 중' : '확인 안 됨');
+function shownAmount(t: Say, token: WalletToken, amount: TokenAmount | null | undefined, hidden: boolean, language?: 'ko' | 'en') {
+  return hidden ? '••••' : amount ? token.won ? tokenText(amount.units, token, language) : amount.text : t(amount === undefined ? '확인하는 중' : '확인 안 됨');
 }
 const note = (t: Say, row: NetworkRow, token: WalletToken) => t(token.sends ? '매장 결제에 씀' : token.contract ? (token.added ? '직접 추가함 · 보기만' : '보기만')
   : row.key === boardNetwork ? '체인 수수료용 코인 · 보기만' : '보기만');
@@ -115,14 +115,14 @@ function NetworkPage({t, rows, shown, choose, networks}: {t: Say; rows: NetworkR
   </View>;
 }
 
-function TokenPage({t, row, token, amount, hidden, busy, receive, send, forget}: {
-  t: Say; row: NetworkRow; token: WalletToken; amount?: TokenAmount | null; hidden: boolean; busy?: boolean; receive: () => void; send: () => void; forget?: () => void;
+function TokenPage({t, row, token, amount, hidden, language, busy, receive, send, forget}: {
+  t: Say; language?: 'ko' | 'en'; row: NetworkRow; token: WalletToken; amount?: TokenAmount | null; hidden: boolean; busy?: boolean; receive: () => void; send: () => void; forget?: () => void;
 }) {
   return <View style={styles.page}>
     <Text accessibilityRole="header" style={type.title}>{label(token)}</Text>
     <Card tone="green">
       <Text style={styles.onGreen}>{row.label}</Text>
-      <Text style={styles.balance}>{shownAmount(t, amount, hidden)} <Text style={styles.unit}>{label(token)}</Text></Text>
+      <Text style={styles.balance}>{shownAmount(t, token, amount, hidden, language)}{!token.won && <> <Text style={styles.unit}>{label(token)}</Text></>}</Text>
     </Card>
     <Card>
       <Row label={t('보드')} value={t(token.sends ? '받기·보내기' : '보기만')} />
@@ -194,10 +194,11 @@ export function WalletTab(props: Props) {
   if (page === 'networks') return <><NetworkPage t={t} rows={rows} shown={row} networks={props.networks}
     choose={next => { save(now => ({...now, shown: next.key})).then(close, () => {}); }} />{back}</>;
   if (page === 'faucet' && account) return <><FaucetPage t={t} account={account} gasCoin={row.gasCoin}
-    sends={tokens.filter(item => item.sends && item.contract).map(item => item.contract!)} />{back}</>;
+    sends={tokens.filter(item => item.sends && item.contract).map(item => item.contract!)}
+    won={Object.fromEntries(tokens.filter(item => item.won).map(item => [item.contract!, item.symbol]))} />{back}</>;
   if (page === 'add' && account && exchange) return <><AddPage t={t} row={row} account={account} tokens={tokens} exchange={exchange}
     add={async review => { await save(now => addToken(now, stored.verified!, row, review)); close(); }} />{back}</>;
-  if (token) return <><TokenPage t={t} row={row} token={token} amount={amounts[token.key]} hidden={hidden} busy={busy} receive={props.receive} send={props.send}
+  if (token) return <><TokenPage t={t} row={row} token={token} amount={amounts[token.key]} hidden={hidden} language={props.language} busy={busy} receive={props.receive} send={props.send}
     forget={token.added ? () => { save(now => removeToken(now, token.added!)).then(close, () => {}); } : undefined} />{back}</>;
   const failed = tokens.length > 0 && tokens.every(item => amounts[item.key] === null);
   const line = (at: number, state: string, units: string, asset: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : assetMoney(units, asset, advice?.registered, props.language)}`;
@@ -222,10 +223,10 @@ export function WalletTab(props: Props) {
         <Pressable accessibilityRole="button" accessibilityLabel={t(state.selection.hidden ? '잔액 표시' : '잔액 숨기기')} onPress={props.hide} disabled={busy} style={styles.small}>
           <Text style={styles.link}>{t(state.selection.hidden ? '잔액 표시' : '잔액 숨기기')}</Text></Pressable></View>
       <View style={styles.list}>{tokens.map(item => <Pressable key={item.key} accessibilityRole="button" onPress={() => setPage(item.key)}
-        accessibilityLabel={`${label(item)} ${shownAmount(t, amounts[item.key], hidden)}, ${note(t, row, item)}`} style={({pressed}) => [styles.line, pressed && styles.pressed]}>
+        accessibilityLabel={`${label(item)} ${shownAmount(t, item, amounts[item.key], hidden, props.language)}, ${note(t, row, item)}`} style={({pressed}) => [styles.line, pressed && styles.pressed]}>
         <View style={styles.badge}><Text style={styles.badgeText}>{shortSymbol(item.symbol)}</Text></View>
         <View style={styles.words}><Text style={type.label}>{label(item)}</Text><Text style={type.small}>{note(t, row, item)}</Text></View>
-        <Text style={styles.amount}>{shownAmount(t, amounts[item.key], hidden)}</Text>
+        <Text style={styles.amount}>{shownAmount(t, item, amounts[item.key], hidden, props.language)}</Text>
       </Pressable>)}</View>
       {failed && <View style={styles.warnBox}><Text style={styles.warnText}>{t('서버에서 잔액을 읽지 못했습니다.')}</Text>
         <KitButton label={t('다시 확인')} run={() => { read().catch(() => {}); }} variant="secondary" />

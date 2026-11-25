@@ -1,6 +1,7 @@
 import {p256} from '@noble/curves/p256';
 import {sha256} from '@noble/hashes/sha256';
 import {
+  dollarToken, fromBoard, toBoard, type PaymentToken,
   bigToBytes, bytesToBig, bytesToHex, concat, equalBytes, encodeV2StreamFrame, encodeApprovalProgressOffer, encodePaymentReview, readPaymentReview, fromBase64, hexToBytes, toBase64, V2Journal, V2Link, V2StreamDecoder,
   orderBoardRequest, orderLockFor, orderTokenName, quoteV2Layout, recoverSigner, verifyOrderLockFor, walletReturnDigestFor,
   verifyCommerceApproval, type VerifiedCommercePayment, type V2Request,
@@ -36,6 +37,9 @@ const time = () => BigInt(Math.floor(Date.now() / 1000));
 const ownerTtl = 90, actionTtl = 150, returnTtl = 295;
 // Another firmware profile refuses these short requests when they live longer than 10 seconds.
 const briefTtl = 8;
+
+/** What a board counts in (a store's token); its wire and limits are in these units. */
+type Counts = Pick<PaymentToken,'decimals'|'boardDecimals'>;
 
 export class OwnerSession {
   private link?: V2Link;
@@ -290,12 +294,13 @@ export class OwnerSession {
   }
 
   /** The board signs a transfer to an address the owner chose, within the limits it also keeps for payments. */
-  async signSend(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void,tokenName=orderTokenName) {
+  async signSend(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void,tokenName=orderTokenName,counts:Counts=dollarToken) {
     const board=await this.readyForAction(generation,transfer.payer);
     if(!board.sends) throw new Error('BOARD_NO_SEND');
-    if(transfer.amount>board.perPayment||transfer.amount>board.leftToday) throw new Error('SEND_LIMIT');
+    const units=toBoard(transfer.amount,counts);
+    if(units>board.perPayment||units>board.leftToday) throw new Error('SEND_LIMIT');
     const asked=Date.now();
-    const reply=await this.spendingAction(concat(Uint8Array.of(sendOperation),hexToBytes(transfer.token),hexToBytes(transfer.to),bigToBytes(transfer.amount,8),
+    const reply=await this.spendingAction(concat(Uint8Array.of(sendOperation),hexToBytes(transfer.token),hexToBytes(transfer.to),bigToBytes(units,8),
       bigToBytes(BigInt(transfer.validBefore),8),hexToBytes(transfer.nonce)),onBoard,Math.min(returnTtl,Math.max(1,transfer.validBefore-Number(time())))).catch(error=>{
       if(error instanceof Error&&error.message==='OWNER_DISCONNECTED'&&Date.now()-asked<3000) throw new Error('RETURN_NOT_TAKEN');
       throw error;
@@ -308,12 +313,12 @@ export class OwnerSession {
   }
 
   /** The board signs the transfer of `amount` to its stored return address, and to nothing else. */
-  async signReturn(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void,tokenName=orderTokenName) {
+  async signReturn(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void,tokenName=orderTokenName,counts:Counts=dollarToken) {
     const board=await this.readyForAction(generation,transfer.payer);
     if(board.returnAddress!==transfer.to) throw new Error('RETURN_ADDRESS');
     if(board.orderOpen) throw new Error('BOARD_ORDER_OPEN');
     const asked=Date.now();
-    const reply=await this.spendingAction(concat(Uint8Array.of(returnOperation),bigToBytes(transfer.amount,8),
+    const reply=await this.spendingAction(concat(Uint8Array.of(returnOperation),bigToBytes(toBoard(transfer.amount,counts),8),
       bigToBytes(BigInt(transfer.validBefore),8),hexToBytes(transfer.nonce)),onBoard,Math.min(returnTtl,Math.max(1,transfer.validBefore-Number(time())))).catch(error=>{
       // Ended at once: the board did not stage it, most likely because its clock does not fit the deadline.
       if(error instanceof Error&&error.message==='OWNER_DISCONNECTED'&&Date.now()-asked<3000) throw new Error('RETURN_NOT_TAKEN');
@@ -357,7 +362,7 @@ export class OwnerSession {
   }
 
   /** Asks the board to sign one order. A lost reply is read back before the user is asked again. */
-  async approveOrder(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array,onBoard:()=>void,tokenName=orderTokenName) {
+  async approveOrder(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array,onBoard:()=>void,tokenName=orderTokenName,counts:Counts=dollarToken) {
     const original=request.slice();
     const board=await this.spendingStatus(payment.generation);
     const amount=bytesToBig(payment.bytes.subarray(quoteV2Layout.amountOffset,quoteV2Layout.amountOffset+32));
@@ -365,8 +370,8 @@ export class OwnerSession {
     const known=await this.orderAnswer(payment,confirmer,original,tokenName);
     if(known) return known;
     if(board.pinWait>0) throw new Error('ORDER_PIN_WAIT');
-    if(amount>board.perPayment) throw new Error('ORDER_OVER_LIMIT');
-    if(amount>board.leftToday) throw new Error('ORDER_OVER_DAILY');
+    if(amount>fromBoard(board.perPayment,counts)) throw new Error('ORDER_OVER_LIMIT');
+    if(amount>fromBoard(board.leftToday,counts)) throw new Error('ORDER_OVER_DAILY');
     const remaining=payment.deadline-Number(time());
     // The board refuses an order with more than this left.
     if(remaining<=0||remaining>120) throw new Error('PAYMENT_BOARD_BINDING');

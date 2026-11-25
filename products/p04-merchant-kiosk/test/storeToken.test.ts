@@ -52,6 +52,10 @@ test.each([
   ['dollar at a won store', won, orderTokenName, 'denied'],
   ['won at a dollar store', undefined, won, 'denied'],
   ['dollar at a dollar store', undefined, orderTokenName, 'ok'],
+  ['the coin at a coin store', 'WKRC', 'WKRC', 'ok'],
+  ['its screen name at a coin store', 'WKRC', 'KRWC', 'denied'],
+  ['the test won at a coin store', 'WKRC', won, 'denied'],
+  ['the coin at a won store', won, 'WKRC', 'denied'],
 ] as const)('%s', async (_label, store, signed, status) => {
   const { relay, locks } = await relayFor(store);
   expect((await relay.handle(request(signed), peer)).status).toBe(status);

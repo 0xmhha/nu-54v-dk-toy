@@ -103,6 +103,9 @@ func CheckFaucetTokens(ctx context.Context, client *ethclient.Client, faucet Fau
 			if decimals, err := caller.Decimals(opts); err != nil || decimals != token.Decimals {
 				return errors.New("faucet token has other decimals on chain")
 			}
+			if token.Address == commerce.StableNetCoin {
+				continue // the chain's governance mints it
+			}
 			if owner, err := caller.Owner(opts); err != nil || owner == faucet.Account {
 				return errors.New("the faucet account must not own its token")
 			}
@@ -128,6 +131,9 @@ func FaucetFunds(client *ethclient.Client, account common.Address, maxGasPrice *
 		}
 		if gas.Cmp(price.Mul(price, big.NewInt(faucetGas))) < 0 {
 			return new(big.Int), nil
+		}
+		if token == commerce.StableNetCoin { // what it sends is also what it pays gas with
+			return gas.Sub(gas, price), nil
 		}
 		caller, err := testusdc3009.NewTestusdc3009Caller(token, client)
 		if err != nil {

@@ -20,6 +20,9 @@ import (
 
 func TestBranchUsesOneToken(t *testing.T) {
 	won := commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW", Decimals: 2}
+	coin := commerce.Token{Name: "WKRC", Symbol: "WKRC", Label: "KRWC", Decimals: 18, BoardDecimals: 2}
+	otherUnit := coin
+	otherUnit.BoardDecimals = 3
 	other, otherName, otherSymbol := won, won, won
 	other.Decimals, otherName.Name, otherSymbol.Symbol = 18, "NU54 Test KRWC", "TKRW"
 	for _, c := range []struct {
@@ -34,6 +37,9 @@ func TestBranchUsesOneToken(t *testing.T) {
 		{won, other, false},
 		{won, otherName, false},
 		{won, otherSymbol, false},
+		{coin, coin, true},
+		{coin, won, false},
+		{coin, otherUnit, false},
 	} {
 		err := matchContracts(map[string]commerce.Profile{"b": {Escrow: true, Token: c.profile}},
 			map[string]settlement.Target{"b": {ABI: settlement.EscrowABIHash, Token: c.target}})
@@ -46,7 +52,9 @@ func TestBranchUsesOneToken(t *testing.T) {
 func TestTokenSettingsAreStrict(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "targets.json")
 	for text, ok := range map[string]bool{
-		`{"b":{"token":{"name":"NU54 Test KRW","symbol":"tKRW","label":"tKRW","decimals":2}}}`: true,
+		`{"b":{"token":{"name":"NU54 Test KRW","symbol":"tKRW","label":"tKRW","decimals":2}}}`:            true,
+		`{"b":{"token":{"name":"WKRC","symbol":"WKRC","label":"KRWC","decimals":18,"boardDecimals":2}}}`:  true,
+		`{"b":{"token":{"name":"WKRC","symbol":"WKRC","label":"KRWC","decimals":18,"boardDecimals":-2}}}`: false,
 		`{"b":{}}`: true,
 		`{"b":{"token":{"name":"NU54 Test KRW","symbol":"tKRW","label":"tKRW","decimals":2,"extra":true}}}`: false,
 		`{"b":{"token":{"name":"NU54 Test KRW","symbol":"tKRW","label":"tKRW","decimals":-2}}}`:             false,

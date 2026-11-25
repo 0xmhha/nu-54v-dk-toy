@@ -1,5 +1,5 @@
 // The tokens of the wallet tab. Where a token comes from decides whether the board can send it; its symbol does not.
-import {dollarText, dollarToken, paymentToken, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
+import {dollarText, dollarToken, isWon, paymentToken, stableNetCoin, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
 import {normalizeEvmAddress, readEvmReceiveBalance, type EvmChain} from './evmTransfer.ts';
 import {boardNetwork, isReadProfile, type Exchange, type NetworkRow} from './networks.ts';
 import {formatReadAmount, readCustomEvmBalance, readProfiles, walletReadRpc, type ReadProfileState} from './readProfiles.ts';
@@ -13,14 +13,16 @@ export type WalletToken = {
   sends: boolean;
   /** Added by the owner on this phone. */
   added?: AssetPreference;
+  /** The store's own token, and it is won. Another token with the same symbol is not shown as won. */
+  won?: true;
 };
-export type ListedToken = {address: string; symbol: string; decimals: number};
+export type ListedToken = {address: string; symbol: string; decimals: number; won?: true};
 
 const coins: Record<EvmChain, string> = {'8283': 'WKRC', '11155111': 'ETH', '84532': 'ETH'};
 /** The token of the store this phone is registered with, as the wallet lists it. */
 export const storeToken = (policy: CommercePaymentProfile): ListedToken => {
-  const {label, decimals} = paymentToken(policy);
-  return {address: policy.asset, symbol: label, decimals};
+  const token = paymentToken(policy), {label, decimals} = token;
+  return {address: policy.asset, symbol: label, decimals, ...(isWon(token) ? {won: true as const} : {})};
 };
 
 /**
@@ -36,14 +38,16 @@ export function tokensOf(row: NetworkRow, owner: {boardFingerprint: string; gene
   const out = new Map<string, WalletToken>();
   const put = (item: ListedToken, more: Partial<WalletToken> = {}) => {
     const contract = item.address.toLowerCase();
-    if (!out.has(contract)) out.set(contract, {key: contract, contract, symbol: item.symbol, decimals: item.decimals, sends: false, ...more});
+    if (!out.has(contract)) out.set(contract, {key: contract, contract, symbol: item.symbol, decimals: item.decimals, sends: false, ...more, ...(item.won && more.sends ? {won: true as const} : {})});
   };
   if (row.key === boardNetwork) for (const item of signed) put(item, {sends: true});
   for (const item of listed) put(item);
   if (owner) for (const item of assetsForAccount(state?.assets, owner, {id: row.key, account: 0, hidden: false})) {
     if (!item.hidden) put({address: item.contract, symbol: item.symbol ?? 'ERC-20', decimals: item.decimals}, {added: item});
   }
-  return [...out.values(), {key: 'coin', symbol: coins[profile.evm], decimals: 18, sends: false}];
+  // StableNet's coin is also a token: one balance, so it is listed once.
+  const listedCoin = row.key === boardNetwork && out.has(stableNetCoin.asset);
+  return [...out.values(), ...(listedCoin ? [] : [{key: 'coin', symbol: coins[profile.evm], decimals: 18, sends: false}])];
 }
 
 export type TokenAmount = {units: string; text: string};
@@ -52,9 +56,11 @@ export const amountText = (units: string, decimals: number) => {
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + fraction.padEnd(2, '0');
 };
 
+const wonText = (units: string, decimals: number, language: 'ko' | 'en') => tokenAmount(units, {name: '', symbol: stableNetCoin.symbol, label: '', decimals}, language);
 const dollarSymbols = ['TestUSDC', 'tUSDC', 'tUSDT', 'USDC', 'USDT'];
 /** A token's amount in a list: dollars cut off after two decimals, anything else in full. */
-export const tokenText = (units: string, token: Pick<ListedToken, 'symbol' | 'decimals'>) => dollarSymbols.includes(token.symbol)
+export const tokenText = (units: string, token: Pick<ListedToken, 'symbol' | 'decimals' | 'won'>, language: 'ko' | 'en' = 'ko') => token.won
+  ? wonText(units, token.decimals, language) : dollarSymbols.includes(token.symbol)
   ? dollarText(units, token.decimals).replace(/\B(?=(\d{3})+\.)/g, ',') : amountText(units, token.decimals);
 
 /** The store this phone is registered with: its token's address and how that token signs and is shown. */

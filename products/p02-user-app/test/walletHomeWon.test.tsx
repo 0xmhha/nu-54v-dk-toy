@@ -10,12 +10,13 @@ import {branch as mockBranch, customer as mockCustomer, orderKey, policy as mock
 const mockDevice = '34'.repeat(32), mockOwner = 'ab'.repeat(32), oldAccount = '0x' + '12'.repeat(20);
 let mockStored = '';
 const mockWonPolicy = {...mockPolicy, abiSha256: mockNamed, token: {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2}};
-let mockEnrolled = true;
+let mockEnrolled = true, mockCoin = false;
+const mockCoinPolicy = {...mockWonPolicy, asset: '0x' + '1000'.padStart(40, '0'), maxBaseUnits: '1', token: {name: 'WKRC', symbol: 'WKRC', label: 'KRWC', decimals: 18, boardDecimals: 2}};
 const mockJournals = new Map<string, string>();
 jest.mock('../src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: null}));
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: {
   loadProfile: async () => mockEnrolled ? JSON.stringify({scope: {role: 'customer', branchRef: mockBranch, subjectRef: mockCustomer, tenantRef: mockBranch, expiresAt: 4_000_000_000},
-    pin: 'a'.repeat(64), payment: mockWonPolicy}) : '', loadJournal: async (name: string) => mockJournals.get(name) ?? '', saveJournal: async (name: string, value: string) => { mockJournals.set(name, value); }, randomBytes: async () => 'AAAA',
+    pin: 'a'.repeat(64), payment: mockCoin ? mockCoinPolicy : mockWonPolicy}) : '', loadJournal: async (name: string) => mockJournals.get(name) ?? '', saveJournal: async (name: string, value: string) => { mockJournals.set(name, value); }, randomBytes: async () => 'AAAA',
   exchange: async () => { throw new Error('offline'); }}}));
 let mockBoard = {state: 'released', generation: 1n};
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
@@ -59,6 +60,7 @@ beforeEach(async () => {
   mockStored = profile();
   mockBoard = {state: 'active', generation: 1n};
   mockEnrolled = true;
+  mockCoin = false;
   tree = undefined as never;
 });
 afterEach(async () => { await Renderer.act(async () => { tree.unmount(); }); });
@@ -103,4 +105,9 @@ test('the wallet tab follows the language of the home', async () => {
   await go('wallet');
   expect(text()).toContain('₩45,000');
   expect(text()).not.toContain('45,000원');
+});
+test('the limits of a board that counts the coin are in won as well', async () => {
+  mockCoin = true;
+  await limits();
+  for (const shown of ['300,000원', '1,000,000원', '955,000원']) expect(text()).toContain(shown);
 });
