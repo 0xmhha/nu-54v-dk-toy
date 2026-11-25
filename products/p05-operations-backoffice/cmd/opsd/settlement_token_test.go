@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +12,10 @@ import (
 
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/settlement"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func TestBranchUsesOneToken(t *testing.T) {
@@ -78,5 +86,72 @@ func TestIssuanceProfileChecksItsToken(t *testing.T) {
 		if _, err := bad.issuance([32]byte{1}); err == nil {
 			t.Errorf("%s accepted", label)
 		}
+	}
+}
+
+func TestLabelIsOnlyShown(t *testing.T) {
+	won := commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW", Decimals: 2}
+	shown := won
+	shown.Label = "KRW"
+	if err := matchContracts(map[string]commerce.Profile{"b": {Escrow: true, Token: won}},
+		map[string]settlement.Target{"b": {ABI: settlement.EscrowABIHash, Token: shown}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Two branches on one chain: the one whose token differs is turned off, the other keeps running.
+func TestOnlyTheWrongBranchIsTurnedOff(t *testing.T) {
+	const right, wrong = "00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"
+	code := []byte{0xfe}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var call struct {
+			ID     json.RawMessage
+			Method string
+			Params []json.RawMessage
+		}
+		_ = json.NewDecoder(r.Body).Decode(&call)
+		var result any
+		switch call.Method {
+		case "eth_chainId":
+			result = "0x205b"
+		case "eth_getCode":
+			result = hexutil.Encode(code)
+		case "eth_call":
+			var tx struct {
+				To    common.Address
+				Input hexutil.Bytes
+			}
+			_ = json.Unmarshal(call.Params[0], &tx)
+			switch hexutil.Encode(tx.Input[:4]) {
+			case "0x313ce567":
+				result = hexutil.Encode(common.LeftPadBytes([]byte{6}, 32))
+			case "0x3644e515":
+				hash := func(text string) []byte { return crypto.Keccak256([]byte(text)) }
+				result = hexutil.Encode(crypto.Keccak256(hash("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+					hash("NU54 Test USD"), hash("1"), common.LeftPadBytes([]byte{0x20, 0x5b}, 32), common.LeftPadBytes(tx.To.Bytes(), 32)))
+			}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": call.ID, "result": result})
+	}))
+	defer server.Close()
+	client, err := ethclient.Dial(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	for _, key := range []string{"P05_SETTLEMENT_DEPLOYMENT_APPROVAL_KEY", "P05_SETTLEMENT_DEPLOYMENT_PROFILES", "P05_SETTLEMENT_DEPLOYMENT_SIGNATURES"} {
+		t.Setenv(key, "")
+	}
+	target := settlement.Target{Stream: "00000000-0000-4000-8000-000000000003", Manifest: strings.Repeat("11", 32), Contract: common.HexToAddress("0xc0"),
+		Asset: common.HexToAddress("0xa1"), CodeHash: crypto.Keccak256Hash(code), ABI: settlement.EscrowABIHash}
+	won := target
+	won.Token = commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW", Decimals: 2}
+	targets := map[string]settlement.Target{right: target, wrong: won}
+	active, reviews := checkSettlementDeployments(context.Background(), client, targets, common.Address{})
+	if _, ok := active[right]; !ok || len(active) != 1 || reviews[wrong].Status != "invalid" {
+		t.Fatalf("active %v, reviews %+v", active, reviews)
+	}
+	if paused := pausedBranches(targets, active); len(paused) != 1 || !paused[wrong] {
+		t.Fatalf("paused %v", paused)
 	}
 }

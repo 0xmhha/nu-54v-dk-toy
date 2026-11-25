@@ -60,6 +60,7 @@ type HTTP struct {
 	Store                     *Store
 	Credentials               map[string]service.Principal // authorized certificate DER SHA-256 to authenticated authority
 	Profiles                  map[string]Profile           // enrolled opaque branch reference to verified deployment profile
+	Paused                    map[string]bool              // branches whose settlement did not start: no order, quote or price is taken
 	Signer                    Signer
 	Cipher                    cipher.AEAD
 	Payment                   PaymentForwarder
@@ -403,6 +404,10 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	case "order.create":
 		if err = checkCart(bound, outer.Cart); err == nil {
+			if h.Paused[bound.Request.Domain] {
+				err = service.Capability
+				break
+			}
 			out.ResultRef, err = h.Store.Reserve(ctx, bound, *outer.Cart)
 		}
 	case "order.nearby-result":
@@ -546,6 +551,9 @@ func (h HTTP) issue(ctx context.Context, bound service.Bound) (*quoteReply, erro
 }
 
 func (h HTTP) issueWithReview(ctx context.Context, bound service.Bound, review *RentalReviewChallenge) (*quoteReply, error) {
+	if h.Paused[bound.Request.Domain] {
+		return nil, service.Capability
+	}
 	if h.QuoteAdmission != nil {
 		// Reserve issuer capacity before acquiring a quote's five-second signing lease.
 		wait, cancel := context.WithTimeout(ctx, 5*time.Second)

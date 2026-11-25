@@ -26,8 +26,19 @@ var testWon = commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW
 
 var tokenBlock = &types.Header{Number: big.NewInt(9), Difficulty: new(big.Int), Time: 1_800_000_000, UncleHash: types.EmptyUncleHash}
 
+// symbolOf is the symbol of a real token with this name unless a case says another.
+func symbolOf(name, other string) string {
+	if other != "" {
+		return other
+	}
+	if name == testWon.Name {
+		return testWon.Symbol
+	}
+	return "tUSDC"
+}
+
 // tokenNode answers as a chain with one payment contract and one token.
-func tokenNode(t *testing.T, name string, decimals int64, code []byte) *ethclient.Client {
+func tokenNode(t *testing.T, name, symbol string, decimals int64, code []byte) *ethclient.Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var call struct {
@@ -61,6 +72,9 @@ func tokenNode(t *testing.T, name string, decimals int64, code []byte) *ethclien
 				result = hexutil.Encode(common.LeftPadBytes(common.HexToAddress("0xa1").Bytes(), 32))
 			case "0x313ce567": // decimals()
 				result = hexutil.Encode(common.LeftPadBytes(big.NewInt(decimals).Bytes(), 32))
+			case "0x95d89b41": // symbol()
+				text := common.RightPadBytes([]byte(symbol), 32)
+				result = hexutil.Encode(append(append(common.LeftPadBytes([]byte{32}, 32), common.LeftPadBytes([]byte{byte(len(symbol))}, 32)...), text...))
 			case "0x3644e515": // DOMAIN_SEPARATOR()
 				domain := crypto.Keccak256(
 					crypto.Keccak256([]byte("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")),
@@ -92,28 +106,36 @@ func TestDeploymentNeedsTheTokenItNames(t *testing.T) {
 		name     string
 		decimals int64
 		ok       bool
+		symbol   string
 	}{
-		{"dollar branch, dollar token", target, dollarName, 6, true},
-		{"won branch, won token", won, wonName, 2, true},
-		{"dollar branch, won token", target, wonName, 2, false},
-		{"won branch, dollar token", won, dollarName, 6, false},
-		{"won branch, same decimals, other name", won, "NU54 Test KRWC", 2, false},
-		{"won branch, right name, 18 decimals", won, wonName, 18, false},
-		{"dollar branch, right name, 18 decimals", target, dollarName, 18, false},
+		{"dollar branch, dollar token", target, dollarName, 6, true, ""},
+		{"won branch, won token", won, wonName, 2, true, ""},
+		{"dollar branch, won token", target, wonName, 2, false, ""},
+		{"won branch, dollar token", won, dollarName, 6, false, ""},
+		{"won branch, same decimals, other name", won, "NU54 Test KRWC", 2, false, ""},
+		{"won branch, right name, 18 decimals", won, wonName, 18, false, ""},
+		{"won branch, other symbol", won, wonName, 2, false, "TKRW"},
+		{"dollar branch, any symbol", target, dollarName, 6, true, "other"},
+		{"dollar branch, right name, 18 decimals", target, dollarName, 18, false, ""},
 	} {
-		view := VerifyOperatorDeployment(context.Background(), tokenNode(t, c.name, c.decimals, code), c.target, common.Address{}, nil, nil, nil, false)
+		view := VerifyOperatorDeployment(context.Background(), tokenNode(t, c.name, symbolOf(c.name, c.symbol), c.decimals, code), c.target, common.Address{}, nil, nil, nil, false)
 		if (view.Status != "invalid") != c.ok {
 			t.Errorf("%s: %s", c.label, view.Status)
 		}
 	}
+	half := won
+	half.Token.Label = ""
+	if view := VerifyOperatorDeployment(context.Background(), tokenNode(t, wonName, "tKRW", 2, code), half, common.Address{}, nil, nil, nil, false); view.Status != "invalid" {
+		t.Errorf("half a token: %s", view.Status)
+	}
 	// A settlement branch keeps its old rules and cannot name a token.
 	old := target
 	old.ABI = ""
-	if view := VerifyOperatorDeployment(context.Background(), tokenNode(t, "", 0, code), old, common.Address{}, nil, nil, nil, false); view.Status != "unverified" {
+	if view := VerifyOperatorDeployment(context.Background(), tokenNode(t, "", "", 0, code), old, common.Address{}, nil, nil, nil, false); view.Status != "unverified" {
 		t.Errorf("settlement branch: %s", view.Status)
 	}
 	old.Token = testWon
-	if view := VerifyOperatorDeployment(context.Background(), tokenNode(t, wonName, 2, code), old, common.Address{}, nil, nil, nil, false); view.Status != "invalid" {
+	if view := VerifyOperatorDeployment(context.Background(), tokenNode(t, wonName, "tKRW", 2, code), old, common.Address{}, nil, nil, nil, false); view.Status != "invalid" {
 		t.Errorf("settlement branch with a token: %s", view.Status)
 	}
 }
@@ -175,20 +197,21 @@ func TestApprovedDeploymentUsesTheBranchUnits(t *testing.T) {
 		decimals int64
 		approved *uint8
 		ok       bool
+		symbol   string
 	}{
-		{"dollar", dollar, "NU54 Test USD", 6, units(6), true},
-		{"dollar without approved units", dollar, "NU54 Test USD", 6, nil, true},
-		{"won", won, testWon.Name, 2, units(2), true},
-		{"won without approved units", won, testWon.Name, 2, nil, true},
-		{"won approved as six", won, testWon.Name, 2, units(6), false},
-		{"dollar approved as two", dollar, "NU54 Test USD", 6, units(2), false},
+		{"dollar", dollar, "NU54 Test USD", 6, units(6), true, ""},
+		{"dollar without approved units", dollar, "NU54 Test USD", 6, nil, true, ""},
+		{"won", won, testWon.Name, 2, units(2), true, ""},
+		{"won without approved units", won, testWon.Name, 2, nil, true, ""},
+		{"won approved as six", won, testWon.Name, 2, units(6), false, ""},
+		{"dollar approved as two", dollar, "NU54 Test USD", 6, units(2), false, ""},
 	} {
 		signed := deployment.Profile{StreamID: stream, GenerationID: generation, Version: 3, ChainID: 8283, Contract: c.target.Contract,
 			Asset: c.target.Asset, AssetDecimals: c.approved, ABIHash: c.target.ABIHash(), Manifest: c.target.Manifest,
 			CodeHash: c.target.CodeHash, StartHeight: 9, StartHash: tokenBlock.Hash()}
 		body, _ := json.Marshal(signed)
 		signature := ed25519.Sign(private, append([]byte("NU54-chainview-profile-v1\x00"), body...))
-		view := VerifyOperatorDeployment(context.Background(), tokenNode(t, c.name, c.decimals, code), c.target, common.Address{},
+		view := VerifyOperatorDeployment(context.Background(), tokenNode(t, c.name, symbolOf(c.name, c.symbol), c.decimals, code), c.target, common.Address{},
 			[]deployment.Profile{signed}, public, map[string]string{generation: rawHex(signature)}, true)
 		if (view.Status == "verified") != c.ok {
 			t.Errorf("%s: %s", c.label, view.Status)
@@ -251,16 +274,37 @@ func TestFinancePagesLearnTheBranchToken(t *testing.T) {
 		rows[0].Asset != lower(won.Asset) || rows[1].Token != nil || rows[1].Asset != "" {
 		t.Fatalf("%s %v", mixed, err)
 	}
-	if body, _ := json.Marshal(withToken(map[string]any{"amount": "1"}, Target{})); string(body) != `{"amount":"1"}` {
-		t.Fatalf("dollar view changed: %s", body)
+	replies := map[string]any{
+		"report": dayReport{Gross: "1"}, "order": map[string]json.RawMessage{"amount": json.RawMessage(`"1"`)}, "reconciliation": map[string]any{"chainGross": "1"},
+		"fulfillment-review": map[string]any{"ledgerAmount": "1"}, "payment-evidence": map[string]any{"amount": "1"},
+		"refund-queue": json.RawMessage(`{"items":[],"nextCursor":null}`), "refund-status": map[string]any{"principal": "1"},
+		"escrow-orders": map[string]any{"items": []any{}}, "escrow-claims": map[string]any{"batches": []any{}},
 	}
-	if body, _ := json.Marshal(withToken(map[string]any{"amount": "1"}, won)); !strings.Contains(string(body), `"token":{"name":"NU54 Test KRW"`) {
-		t.Fatalf("won view has no token: %s", body)
+	for operation, reply := range replies {
+		before, _ := json.Marshal(reply)
+		if same, err := brandReply(operation, reply, commerce.Token{}); err != nil {
+			t.Fatal(err)
+		} else if body, _ := json.Marshal(same); !bytes.Equal(body, before) {
+			t.Errorf("%s of a dollar branch changed: %s", operation, body)
+		}
+		branded, err := brandReply(operation, reply, testWon)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var fields map[string]json.RawMessage
+		body, _ := json.Marshal(branded)
+		if json.Unmarshal(body, &fields) != nil || !strings.Contains(string(fields["token"]), `"name":"NU54 Test KRW"`) {
+			t.Errorf("%s of a won branch has no token: %s", operation, body)
+		}
+		var plain map[string]json.RawMessage
+		_ = json.Unmarshal(before, &plain)
+		for key, value := range plain {
+			if !bytes.Equal(fields[key], value) {
+				t.Errorf("%s lost %s: %s", operation, key, body)
+			}
+		}
 	}
-	if body, _ := json.Marshal(dayReport{}); strings.Contains(string(body), "token") {
-		t.Fatalf("dollar report changed: %s", body)
-	}
-	if body, _ := json.Marshal(dayReport{Token: testWon}); !strings.Contains(string(body), `"decimals":2`) {
-		t.Fatalf("won report has no token: %s", body)
+	if same, err := brandReply("refund-approve", map[string]string{"state": "approved"}, testWon); err != nil || len(same.(map[string]string)) != 1 {
+		t.Errorf("a reply without amounts changed: %v %v", same, err)
 	}
 }

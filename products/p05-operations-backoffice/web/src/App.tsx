@@ -2,6 +2,13 @@ import { DeploymentConsole } from "./DeploymentConsole";
 import { OperatorHome } from "./OperatorHome";
 import { BranchPicker, useAuthorizedBranches } from "./BranchPicker";
 import { tokenMoney } from "./money";
+import {
+  assetToken,
+  humanAmount,
+  priceProblem,
+  shownTotal,
+  type CatalogAsset,
+} from "./prices";
 import { localScheduleValue, scheduleCandidates } from "./localSchedule";
 import type { CommerceMenuMetadata } from "@nu54/protocol";
 import { CatalogCategories, CategoryReview, type CategoryDraft } from "./CatalogCategories";
@@ -41,10 +48,8 @@ type Catalog = Partial<CategoryDraft> & {
     metadata?: CommerceMenuMetadata;
   }>;
 };
-type Asset = {
+type Asset = CatalogAsset & {
   address: string;
-  symbol: string;
-  decimals: number;
   chainId: number;
 };
 type Site = {
@@ -148,15 +153,6 @@ function localDeadline(value: string, zone: string) {
   }
 }
 
-function humanAmount(units: string, decimals: number) {
-  const padded = units.padStart(decimals + 1, "0");
-  if (!decimals) return padded;
-  return `${padded.slice(0, -decimals)}.${padded
-    .slice(-decimals)
-    .replace(/0+$/, "")
-    .padEnd(2, "0")}`;
-}
-
 function catalogChanges(before: Draft[], after: Draft[]) {
   const key = (row: Draft) => `${row.sku}/${row.option}`;
   const current = new Map(before.map((row) => [key(row), row]));
@@ -182,19 +178,8 @@ const defaultHours: Hours = {
   closes: "19:00",
   zone: "Asia/Seoul",
 };
-const decimal = /^(0|[1-9][0-9]{0,77})(\.[0-9]{1,6})?$/;
-function units(amount: string): bigint {
-  const [whole, fraction = ""] = amount.split(".");
-  return BigInt(whole + fraction.padEnd(6, "0"));
-}
-function rowTotal(row: Draft) {
-  return units(row.price) + units(row.tax || "0") - units(row.discount || "0");
-}
-function priceDescription(row: Draft, symbol: string) {
-  const amount = decimal.test(row.price)
-    ? tokenMoney(rowTotal(row).toString(), { symbol, label: symbol, decimals: 6 })
-    : row.price;
-  return `${row.label} ${amount} · 기본 ${row.price}, 세금 ${
+function priceDescription(row: Draft, asset?: Asset) {
+  return `${row.label} ${asset ? shownTotal(row, asset) : row.price} · 기본 ${row.price}, 세금 ${
     row.tax || "0"
   }, 할인 ${row.discount || "0"}${row.required ? " · 선택 필수" : ""}`;
 }
@@ -430,19 +415,13 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
         setNotice("가격 행과 RFC 3339 만료 시간을 확인하세요.");
         return;
       }
-      if (
-        draft.some(
-          (row) =>
-            !decimal.test(row.price) ||
-            !decimal.test(row.tax || "0") ||
-            !decimal.test(row.discount || "0") ||
-            row.asset !== site.asset?.address ||
-            rowTotal(row) <= 0n
-        )
-      ) {
-        setNotice(
-          "가격과 세금·할인은 소수점 여섯 자리까지 입력하고, 최종 가격은 0보다 커야 합니다."
-        );
+      if (draft.some((row) => row.asset !== site.asset?.address)) {
+        setNotice("가격 행의 결제 자산을 확인하세요.");
+        return;
+      }
+      const problem = priceProblem(draft, site.asset);
+      if (problem) {
+        setNotice(problem);
         return;
       }
       const { categories, categoryBindings } = categoryDraft;
@@ -587,11 +566,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                     <strong>{row.label}</strong> <span>{row.option}</span>{" "}
                     <span>
                       {site.asset?.address === row.asset
-                        ? tokenMoney(row.price, {
-                            symbol: site.asset.symbol,
-                            label: site.asset.symbol,
-                            decimals: site.asset.decimals,
-                          })
+                        ? tokenMoney(row.price, assetToken(site.asset))
                         : `${row.price} 기준 단위`}
                     </span>{" "}
                     <span>
@@ -686,14 +661,14 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                           {previous
                             ? priceDescription(
                                 previous,
-                                site.asset?.symbol ?? ""
+                                site.asset
                               )
                             : "새 옵션"}{" "}
                           →{" "}
                           {updated
                             ? priceDescription(
                                 updated,
-                                site.asset?.symbol ?? ""
+                                site.asset
                               )
                             : "제거"}
                         </li>

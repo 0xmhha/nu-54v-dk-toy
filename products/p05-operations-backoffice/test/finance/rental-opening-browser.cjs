@@ -292,6 +292,8 @@ async function exercise() {
     for (const value of [account, "0.00 TestUSDC", attestedText]) {
       await review.getByText(value, { exact: true }).first().waitFor();
     }
+    // The deposit and both limits are below a cent, so their rows are told apart by number, not by amount.
+    assert.equal(await review.getByText("0.00 TestUSDC", { exact: true }).count(), 3);
     await review.getByText(new RegExp("17 · " + destination, "i")).waitFor();
     await button("닫기").click();
     assert.equal(writes, 0);

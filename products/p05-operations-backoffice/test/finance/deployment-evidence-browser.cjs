@@ -21,7 +21,7 @@ async function exercise() {
       await page.getByRole("button", { name: "배포 프로필 검증" }).click();
       const profile = page.getByRole("region", { name: "배포 프로필", exact: true });
       if (phase === "profile") {
-        for (const label of ["서명된 배포 프로필 확인", "허용 TestUSDC", "ABI 해시",
+        for (const label of ["서명된 배포 프로필 확인", "허용 결제 토큰", "ABI 해시",
           "배포 기준 블록", "등록 수취 주소 버전", "가맹점 릴레이 가스 부담자"]) {
           await profile.getByText(label, { exact: true }).waitFor();
         }

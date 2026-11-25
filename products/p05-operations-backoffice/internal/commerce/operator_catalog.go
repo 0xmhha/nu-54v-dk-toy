@@ -76,6 +76,8 @@ type operatorAsset struct {
 	Symbol   string `json:"symbol"`
 	Decimals int    `json:"decimals"`
 	Chain    uint64 `json:"chainId"`
+	// Present only for a branch that names its token.
+	Token Token `json:"token,omitzero"`
 }
 
 var displayAmount = regexp.MustCompile(`^(0|[1-9][0-9]{0,77})(\.[0-9]{1,18})?$`)
@@ -128,6 +130,9 @@ func (row *operatorRow) resolvePrice(decimals int) error {
 
 // resolveRow turns the operator's amounts into base units of the branch token and checks them.
 func (h HTTP) resolveRow(branch string, row *operatorRow) error {
+	if h.Paused[branch] {
+		return service.Capability
+	}
 	if row.DisplayPrice != "" {
 		asset := h.assetForOperations(branch)
 		if asset == nil || row.resolvePrice(asset.Decimals) != nil {
@@ -156,7 +161,7 @@ func (h HTTP) assetForOperations(branch string) *operatorAsset {
 		return nil
 	}
 	token := profile.Token.OrDollar()
-	return &operatorAsset{strings.ToLower(profile.Asset.Hex()), token.Label, int(token.Decimals), profile.Chain}
+	return &operatorAsset{strings.ToLower(profile.Asset.Hex()), token.Label, int(token.Decimals), profile.Chain, profile.Token}
 }
 
 func (h HTTP) registerOperators(mux *http.ServeMux) {

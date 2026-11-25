@@ -13,6 +13,7 @@ build:
 
 test:
 	go test ./...
+	pnpm --filter @nu54/p05-backoffice-web test
 
 lint:
 	test -z "$$(gofmt -l cmd internal)"

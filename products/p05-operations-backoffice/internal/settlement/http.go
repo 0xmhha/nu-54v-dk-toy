@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -92,18 +93,26 @@ func (h FinanceHTTP) scopes(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(scopes)
 }
 
-// withToken adds the token of a branch that names one, so a page never shows its amounts as dollars.
-func withToken[V any](view map[string]V, target Target) any {
-	if view == nil || target.Token == (commerce.Token{}) {
-		return view
+// brandReply adds the token of a branch that names one to every reply with amounts, so a page never shows
+// them as dollars. Replies of other branches are not touched.
+func brandReply(operation string, reply any, token commerce.Token) (any, error) {
+	if token == (commerce.Token{}) || reply == nil || !slices.Contains(amountReplies, operation) {
+		return reply, nil
 	}
-	out := make(map[string]any, len(view)+1)
-	for key, value := range view {
-		out[key] = value
+	raw, err := json.Marshal(reply)
+	if err != nil {
+		return nil, err
 	}
-	out["token"] = target.Token
-	return out
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
+		return reply, err
+	}
+	fields["token"], err = json.Marshal(token)
+	return fields, err
 }
+
+var amountReplies = []string{"report", "order", "reconciliation", "fulfillment-review", "payment-evidence", "refund-queue", "refund-status",
+	"escrow-orders", "escrow-claims"}
 
 // scopesWithTokens adds the asset and token of every listed branch that names one. Other rows stay as they are.
 func scopesWithTokens(raw []byte, targets map[string]Target) ([]byte, error) {
@@ -231,9 +240,7 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "invalid order reference", http.StatusBadRequest)
 				return
 			}
-			var detail map[string]json.RawMessage
-			detail, err = h.financeOrder(ctx, principal, in.Branch, in.Sale, target)
-			output = withToken(detail, target)
+			output, err = h.financeOrder(ctx, principal, in.Branch, in.Sale, target)
 			break
 		}
 		day, parseErr := time.Parse("2006-01-02", in.Day)
@@ -254,16 +261,13 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 			}
 			scope := sha256.Sum256([]byte("nu54-finance-console-v1:" + hex.EncodeToString(fp[:]) + ":" + in.Branch + ":" + in.Day))
 			report.ReceiptScope = hex.EncodeToString(scope[:])
-			report.Token = target.Token
 			output = report
 		case "fulfillment-review":
 			if !financeRef.MatchString(in.Event) {
 				http.Error(w, "invalid event reference", http.StatusBadRequest)
 				return
 			}
-			var review map[string]any
-			review, err = h.notificationReview(ctx, principal, in.Branch, in.Asset, in.Event, in.Key, day, target)
-			output = withToken(review, target)
+			output, err = h.notificationReview(ctx, principal, in.Branch, in.Asset, in.Event, in.Key, day, target)
 		case "reconciliation":
 			var raw, receipts json.RawMessage
 			err = h.Store.db.QueryRow(ctx, "SELECT ledger.finance_cases($1,$2,$3,$4,$5),ledger.finance_notification_history($1,$2,$3,$4,$5)",
@@ -532,6 +536,9 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == nil {
 		err = h.Store.db.CheckRead(ctx)
+	}
+	if err == nil {
+		output, err = brandReply(operation, output, h.Targets[in.Branch].Token)
 	}
 	if err != nil {
 		var dbError *pgconn.PgError

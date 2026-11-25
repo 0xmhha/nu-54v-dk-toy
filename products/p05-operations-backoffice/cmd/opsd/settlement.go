@@ -366,7 +366,7 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	}
 	ready = true
 	return &settlement.Forwarder{Store: forward, QuoteCipher: quoteCipher, RelayCipher: relay, Targets: activeTargets, GasSponsors: sponsors, MerchantIDs: merchantIDs,
-		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress),
+		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress), Paused: pausedBranches(targets, activeTargets),
 		RentalEscrow: settlement.RentalEscrow{Client: client, Targets: activeTargets, Reviews: reviews}}, closeAll, nil
 }
 
@@ -435,11 +435,28 @@ func matchContracts(profiles map[string]commerce.Profile, targets map[string]set
 		if profile, enrolled := profiles[branch]; enrolled && profile.Escrow != target.Escrow() {
 			return errors.New("issuance profile and settlement target use different payment contracts")
 		}
-		if profile, enrolled := profiles[branch]; enrolled && profile.Token.OrDollar() != target.Token.OrDollar() {
+		if profile, enrolled := profiles[branch]; enrolled && !sameToken(profile.Token.OrDollar(), target.Token.OrDollar()) {
 			return errors.New("issuance profile and settlement target use different payment tokens")
 		}
 	}
 	return nil
+}
+
+// sameToken compares what signs and counts; the label is only shown.
+func sameToken(a, b commerce.Token) bool {
+	a.Label, b.Label = "", ""
+	return a == b
+}
+
+func pausedBranches(targets, active map[string]settlement.Target) map[string]bool {
+	paused := map[string]bool{}
+	for branch := range targets {
+		if _, ok := active[branch]; !ok {
+			paused[branch] = true
+			log.Printf("settlement of branch %s did not start: its deployment or token was refused", branch)
+		}
+	}
+	return paused
 }
 
 func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, targets map[string]settlement.Target, gas common.Address) (
@@ -456,22 +473,34 @@ func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, t
 		approvals = nil // Fail closed for the deployments that need this publication.
 	}
 	active, reviews := make(map[string]settlement.Target), make(map[string]settlement.DeploymentReview)
+	// Side by side, so many branches still fit the time a start is given.
+	var lock sync.Mutex
+	var checks sync.WaitGroup
+	slots := make(chan struct{}, 8)
 	for branch, target := range targets {
-		view := settlement.DeploymentReview{Status: "invalid"}
-		manifest, err := hex.DecodeString(target.Manifest)
-		if targetUUID.MatchString(branch) && targetUUID.MatchString(target.Stream) && err == nil && len(manifest) == 32 &&
-			target.Asset != (common.Address{}) && target.SendsPerDay >= 0 && target.SendsPerDay <= 100 && (target.Escrow() || (target.ABIHash() == settlement.ABIHash &&
-			target.RefundSigner != (common.Address{}) && target.RefundVersion > 0)) {
-			view = settlement.VerifyOperatorDeployment(ctx, client, target, gas, approvals, key, signatures, required)
-			if !settlement.SponsorReady(ctx, client, target, gas) {
-				view.Status = "invalid"
+		checks.Add(1)
+		slots <- struct{}{}
+		go func() {
+			defer func() { <-slots; checks.Done() }()
+			view := settlement.DeploymentReview{Status: "invalid"}
+			manifest, err := hex.DecodeString(target.Manifest)
+			if targetUUID.MatchString(branch) && targetUUID.MatchString(target.Stream) && err == nil && len(manifest) == 32 &&
+				target.Asset != (common.Address{}) && target.SendsPerDay >= 0 && target.SendsPerDay <= 100 && (target.Escrow() || (target.ABIHash() == settlement.ABIHash &&
+				target.RefundSigner != (common.Address{}) && target.RefundVersion > 0)) {
+				view = settlement.VerifyOperatorDeployment(ctx, client, target, gas, approvals, key, signatures, required)
+				if !settlement.SponsorReady(ctx, client, target, gas) {
+					view.Status = "invalid"
+				}
 			}
-		}
-		reviews[branch] = view
-		if view.Status != "invalid" {
-			active[branch] = target
-		}
+			lock.Lock()
+			defer lock.Unlock()
+			reviews[branch] = view
+			if view.Status != "invalid" {
+				active[branch] = target
+			}
+		}()
 	}
+	checks.Wait()
 	return active, reviews
 }
 

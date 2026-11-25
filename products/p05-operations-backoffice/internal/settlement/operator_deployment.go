@@ -145,7 +145,8 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 }
 
 // tokenMatches checks that the asset has the units and the signing domain its branch expects, so a
-// board's signature for another token never reaches a relay. Symbols are only shown and not compared.
+// board's signature for another token never reaches a relay. A token a branch names
+// must also have its symbol, because won prices and amounts are recognised by it.
 func tokenMatches(at *bind.CallOpts, target Target, client *ethclient.Client) bool {
 	asset, want := target.Asset, target.Token.OrDollar()
 	if !target.Token.Valid() {
@@ -157,6 +158,11 @@ func tokenMatches(at *bind.CallOpts, target Target, client *ethclient.Client) bo
 	}
 	if decimals, err := token.Decimals(at); err != nil || decimals != want.Decimals {
 		return false
+	}
+	if target.Token != (commerce.Token{}) {
+		if symbol, err := token.Symbol(at); err != nil || symbol != want.Symbol {
+			return false
+		}
 	}
 	domain, err := token.DOMAINSEPARATOR(at)
 	text := func(value string) []byte { return crypto.Keccak256([]byte(value)) }

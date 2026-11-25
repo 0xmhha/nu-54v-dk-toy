@@ -315,7 +315,9 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	var payment commerce.PaymentForwarder
 	var sponsors commerce.GasSponsorLookup
 	var rentalEscrow commerce.RentalEscrowAuthority
+	var paused map[string]bool
 	if forwarder != nil {
+		paused = forwarder.Paused
 		payment = forwarder
 		sponsors = forwarder.GasSponsors
 		rentalEscrow = forwarder.RentalEscrow
@@ -497,7 +499,7 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	if err != nil {
 		return err
 	}
-	commerce.HTTP{NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
+	commerce.HTTP{NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Paused: paused, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}.Register(mux)
 	server := &http.Server{Addr: addr, Handler: gate.Handler(mux), BaseContext: func(net.Listener) context.Context { return lifetime }, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second,
 		WriteTimeout: 10 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert,

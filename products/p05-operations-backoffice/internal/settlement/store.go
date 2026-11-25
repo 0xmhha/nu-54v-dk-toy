@@ -67,6 +67,8 @@ type Forwarder struct {
 	// Faucet is nil where no store offers test tokens. GasAccount is shown to an operator.
 	Faucet     *Faucet
 	GasAccount common.Address
+	// Paused are the branches whose deployment or token was refused at start.
+	Paused map[string]bool
 }
 
 func (f Forwarder) verifiedQuote(ctx context.Context, req service.Request, tenant, actor string) (Quote, Target, string, error) {

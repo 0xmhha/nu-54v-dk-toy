@@ -4,6 +4,7 @@ import {
   financeRequest,
   formatFinanceAmount,
 } from "./Finance";
+import type { BranchToken } from "./money";
 
 type Adjustment = {
   id: string;
@@ -36,6 +37,8 @@ type Review = {
   funds: string;
   fundsAvailable?: string;
   refunds: Adjustment[];
+  // Present only for a branch that names its token.
+  token?: BranchToken;
 };
 type QueueItem = Pick<Adjustment, "state" | "amount"> & {
   refundId: string;
@@ -46,6 +49,7 @@ type QueueItem = Pick<Adjustment, "state" | "amount"> & {
 type QueuePage = {
   items: QueueItem[];
   nextCursor: string | null;
+  token?: BranchToken;
 };
 
 const nextSteps: Record<string, string> = {
@@ -81,7 +85,6 @@ const states: Record<string, string> = {
   final: "환불 확정",
   cancelled: "거절 · 예약 원금 해제",
 };
-const format = formatFinanceAmount;
 const uuid = /^[0-9a-f-]{36}$/;
 
 function toUnits(amount: string) {
@@ -109,6 +112,8 @@ export function RefundConsole({ branchId }: { branchId: string }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const active = useRef(false);
+  const format = (units: string) =>
+    formatFinanceAmount(units, (review ?? queue)?.token);
 
   function run(task: () => Promise<unknown>) {
     if (active.current) return;

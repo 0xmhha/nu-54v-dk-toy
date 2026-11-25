@@ -1,8 +1,11 @@
 package commerce
 
 import (
+	"context"
+	"errors"
 	"testing"
 
+	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -109,5 +112,32 @@ func TestCatalogRowsFollowTheBranch(t *testing.T) {
 		if err := h.resolveRow(c.branch, &row); (err == nil) != c.ok || (c.ok && row.Price != c.price) {
 			t.Errorf("%s %+v: %s %v", c.branch, c.row, row.Price, err)
 		}
+	}
+}
+
+func TestPausedBranchTakesNothing(t *testing.T) {
+	h := HTTP{Profiles: map[string]Profile{"won": {Chain: 8283, Asset: common.HexToAddress("0xa1"), Token: testWon}}, Paused: map[string]bool{"won": true}}
+	bound := service.Bound{Request: service.Request{Domain: "won", Body: map[string]string{}}}
+	if _, err := h.issueWithReview(context.Background(), bound, nil); !errors.Is(err, service.Capability) {
+		t.Errorf("quote: %v", err)
+	}
+	row := operatorRow{DisplayPrice: "6500"}
+	if err := h.resolveRow("won", &row); !errors.Is(err, service.Capability) {
+		t.Errorf("price: %v", err)
+	}
+}
+
+func TestForgottenDecimalsAreRefused(t *testing.T) {
+	token := testWon
+	token.Decimals = 0
+	if token.Valid() {
+		t.Fatal("a token without decimals was accepted")
+	}
+}
+
+func TestPartsThatCancelOutAreStillRefused(t *testing.T) {
+	row := operatorRow{DisplayPrice: "6500", Tax: "0.50", Discount: "0.50"}
+	if err := row.resolvePrice(2); err != nil || row.Price != "650000" || row.wholePrices(testWon) {
+		t.Fatalf("tax and discount of half a won: %+v %v", row, err)
 	}
 }

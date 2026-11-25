@@ -29,10 +29,10 @@ func (t Token) OrDollar() Token {
 	return t
 }
 
-// Valid accepts no token or a complete one.
+// Valid accepts no token or a complete one. Zero decimals is what a forgotten field reads as, so it is refused.
 func (t Token) Valid() bool {
 	return t == (Token{}) || (orderescrow.ValidTokenName(t.Name) && tokenSymbol.MatchString(t.Symbol) &&
-		tokenSymbol.MatchString(t.Label) && t.Decimals <= 18)
+		tokenSymbol.MatchString(t.Label) && t.Decimals >= 1 && t.Decimals <= 18)
 }
 
 // wholePrice accepts an operator's price only in units the token is spent in: whole won, or any dollar amount.

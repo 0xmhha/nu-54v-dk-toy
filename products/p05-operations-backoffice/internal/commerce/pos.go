@@ -109,6 +109,10 @@ func (h HTTP) pos(w http.ResponseWriter, r *http.Request, actor service.Principa
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "POS_ASSET_UNSUPPORTED"})
 			return
 		}
+		if h.Paused[in.Branch] || !profile.Token.wholePrice(in.Amount) {
+			errorResponse(w, service.BadRequest, nil)
+			return
+		}
 		if h.Store == nil {
 			posError(w, r, service.Unknown)
 			return
