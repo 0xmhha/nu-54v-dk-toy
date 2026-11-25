@@ -12,7 +12,7 @@ import {Board, epochOf} from './board';
 
 type Identity = {subject: string; cert: string; key: string};
 export const fixture = JSON.parse(readFileSync(process.env.NU54_ORDER_FLOW_FIXTURE!, 'utf8')) as {
-  shop: 'usd' | 'won' | 'refused'; /** Stores that run at once on this server. */ shops: number;
+  shop: 'usd' | 'won' | 'krwc' | 'refused'; /** Base units in one unit of the board. */ unit: string; /** Stores that run at once on this server. */ shops: number;
   endpoint: string; ca: string; expiresAt: number; tenant: string; branch: string; rpc: string; control: string; secret: string; home: string;
   amount: string; directory: string; payment: CommercePaymentProfile; customer: Identity; terminal: Identity; kitchen: Identity; finance1: Identity; finance2: Identity;
 };
@@ -78,7 +78,7 @@ const phoneKey = generateKeyPairSync('ec', {namedCurve: 'prime256v1'});
 const phonePublic = phoneKey.publicKey.export({type: 'spki', format: 'der'});
 const phoneFingerprint = createHash('sha256').update(phonePublic).digest('hex');
 export const boardSPKI = createHash('sha256').update('order-flow board').digest('hex');
-export const board = new Board(process.env.NU54_ORDER_FLOW_BOARD!, token.name);
+export const board = new Board(process.env.NU54_ORDER_FLOW_BOARD!, token);
 
 export const journals = new Map<string, string>();
 // The names CommerceHttp.kt seals.

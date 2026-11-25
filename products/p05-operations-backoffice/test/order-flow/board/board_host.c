@@ -362,6 +362,9 @@ static bool payment_address(const nu54_install_policy *policy, uint8_t address[2
 static int sign(void *context, const uint8_t digest[32], uint8_t signature[64]);
 void device_pilot_button(uint32_t prompt, bool approved);
 int device_install_verify_authority(const uint8_t *data, size_t length, const uint8_t signature[64]);
+#ifdef NU54_TOKEN_UNIT
+#include "token_unit.h"
+#endif
 #include "board_pilot.h"
 
 /* ---- commands ---- */

@@ -31,6 +31,7 @@ import (
 	"github.com/0xmhha/nu-54v-dk-toy/products/p07-indexer/pkg/deployment"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -139,8 +140,23 @@ func deployEscrowFor(t *testing.T, ctx context.Context, client *ethclient.Client
 		}
 		return receipt
 	}
-	asset, tx, err := deployArtifact(t, operator, client, artifact, operator.From)
-	mined(tx, err)
+	var asset common.Address
+	if artifact == "NativeCoinStandIn" { // the chain's own coin has an address of its own
+		deployed, tx, err := deployArtifact(t, operator, client, artifact)
+		mined(tx, err)
+		code, err := client.CodeAt(ctx, deployed, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		asset = commerce.StableNetCoin
+		if err := client.Client().CallContext(ctx, nil, "anvil_setCode", asset, hexutil.Bytes(code)); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		deployed, tx, err := deployArtifact(t, operator, client, artifact, operator.From)
+		mined(tx, err)
+		asset = deployed
+	}
 	address, tx, err := deployArtifact(t, operator, client, "OrderEscrow", asset, operator.From, fixtureSigner(106).Address())
 	deployed := mined(tx, err)
 	token, err := testusdc3009.NewTestusdc3009(asset, client)
@@ -154,7 +170,9 @@ func deployEscrowFor(t *testing.T, ctx context.Context, client *ethclient.Client
 	if artifact == "TestUSDC3009" { // the other test tokens hold nothing back
 		mined(token.SetTrustedSender(operator, address, true))
 	}
-	mined(token.Mint(operator, fixtureSigner(102).Address(), big.NewInt(300_000_000)))
+	if artifact == "TestUSDC3009" {
+		mined(token.Mint(operator, fixtureSigner(102).Address(), big.NewInt(300_000_000)))
+	}
 	mined(contract.ConfigureMerchant(operator, [32]byte{31: 50}, fixtureSigner(101).Address(), fixtureSigner(104).Address(), 2*86400, 7*86400))
 	code, err := client.CodeAt(ctx, address, nil)
 	if err != nil {

@@ -7,7 +7,7 @@ import {join} from 'node:path';
 import React from 'react';
 import {AppState, Platform} from 'react-native';
 import Renderer from 'react-test-renderer';
-import {encodeOrderLocator, hexToBytes, readPickupKitchen, type PickupTarget} from '@nu54/protocol';
+import {encodeOrderLocator, hexToBytes, isWon, readPickupKitchen, type PickupTarget} from '@nu54/protocol';
 
 jest.mock('../../../../p02-user-app/src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: jest.requireActual('./world').commerceHttp}));
 jest.mock('../../../../p02-user-app/src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: jest.requireActual('./world').alerts}));
@@ -39,8 +39,10 @@ const quoteLife = 40;
 let lastQuote = 0;
 const price = BigInt(fixture.amount);
 const store = fixture.payment.beneficiary;
-const won = token.symbol === 'tKRW';
-/** What an owner types and sees. The amounts in base units are the same for both tokens. */
+const won = isWon(token);
+/** Amounts of these flows are the same for every token in the units its board counts. */
+const unit = BigInt(fixture.unit);
+/** What an owner types and sees. */
 const shown = won ? {deposit: '900,000원', send: '30000', price: '80,000원'} : {deposit: '90.00 TestUSDC', send: '3', price: '8.00 TestUSDC'};
 const check = (what: string, value: unknown) => { if (!value) throw new Error('expected ' + what); };
 const same = (what: string, seen: unknown, wanted: unknown) => {
@@ -362,11 +364,11 @@ flow('enroll the board account', async () => {
 });
 
 flow('deposit to the board account', async () => {
-  await deposit(90_000_000n);
+  await deposit(90_000_000n * unit);
   await openLife('deposit');
   // A token that other networks may also have is named before any address.
   if (won) {
-    await sees('tKRW는 StableNet 테스트넷에만 있습니다');
+    await sees(`${token.label}는 StableNet 테스트넷에만 있습니다`);
     check('no address before the confirmation', !texts().includes(board.account));
     await press('확인했습니다. 주소 보기');
   }
@@ -651,8 +653,8 @@ flow('send to another address, refused on the board, then a lost answer', async 
   await press('같은 거래 다시 보내기');
   await until('the transfer to be final', async () => (await sendRecord(commerceHttp).load())?.stage === 'final' || (button('지금 확인') && !life.busy && (button('지금 확인')!.props.run(), false)), 60);
   same('board prompts', board.prompts - asked, 1);
-  same('received', await balance(friend), 3_000_000n);
-  same('left on the board account', await balance(board.account), before - 3_000_000n);
+  same('received', await balance(friend), 3_000_000n * unit);
+  same('left on the board account', await balance(board.account), before - 3_000_000n * unit);
   await openLife('send');
   await press('확인');
   const held = await phone().walletSends();
@@ -660,15 +662,18 @@ flow('send to another address, refused on the board, then a lost answer', async 
   await leave();
 });
 
+/** What the server would say at a start whose settings for this store name another contract, or no token. */
+const takeBack = () => control<{anotherContract: string; withoutToken: string}>('take-back');
 flow('return, blocked while an order is open, then final; owner reset', async () => {
   const entry = await paidOrder(), sale = entry.order.id;
   await openLife('return');
   await sees('끝나지 않은 주문이 있습니다');
+  check('no start with another contract', /has \d+ open orders of another payment contract/.test((await takeBack()).anotherContract));
   // The server refuses it as well, whatever the phone thinks. The board signs once the payment it approved has run out.
   const before = await balance(board.account);
   await quotesOver();
   const transfer = {payer: board.account, to: fixture.home, amount: before, validBefore: now() + 300, nonce: '7'.repeat(64)};
-  const signature = await withBoard('board-1', session => session.signReturn(board.generation, {...transfer, token: fixture.payment.asset}, () => {}, token.name));
+  const signature = await withBoard('board-1', session => session.signReturn(board.generation, {...transfer, token: fixture.payment.asset}, () => {}, token.name, token));
   const refusal = await phone().returnWallet({...transfer, amount: before.toString()}, signature, id()).then(() => 'accepted', error => (error as Error).message);
   same('the server with an open order', refusal, 'CHECKOUT_CONFLICT');
   await leave();
@@ -682,6 +687,9 @@ flow('return, blocked while an order is open, then final; owner reset', async ()
   await until('the return to be final', async () => (await returnRecord(commerceHttp).load())?.stage === 'final' || (button('지금 확인') && !life.busy && (button('지금 확인')!.props.run(), false)), 60);
   same('returned to the ordinary wallet', await balance(fixture.home) - home, before);
   same('left on the board account', await balance(board.account), 0);
+  // With every order over the store can be taken back, but never by removing only its token: it would sign as dollars.
+  await until('a store that can be taken back', async () => !(await takeBack()).anotherContract);
+  same('the same contract without its token', (await takeBack()).withoutToken, fixture.payment.token ? 'invalid' : 'unverified');
   const account = board.account, generation = board.generation;
   await openLife('return');
   await onBoard('보드 초기화');
@@ -695,7 +703,7 @@ flow('no answer, claim batch', async () => {
   await board.grant(); // the reset restarted the board, so the operator permits it again
   await register();
   await enroll();
-  await deposit(20_000_000n);
+  await deposit(20_000_000n * unit);
   const entry = await paidOrder(), sale = entry.order.id;
   await deliver(sale);
   const before = await balance(store);

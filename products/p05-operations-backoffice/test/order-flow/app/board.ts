@@ -1,6 +1,7 @@
 // The board process (../board/board_host.c) and the phone's radio to it.
 import {spawn, type ChildProcess} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
+import type {PaymentToken} from '@nu54/protocol';
 import {SendStandIn} from './boardSend';
 
 type Answer = 'press' | 'refuse' | 'wrongpin' | 'ignore';
@@ -26,8 +27,8 @@ export class Board {
   readonly sends: SendStandIn;
   readonly sounds = {fragment: new Set<(chunk: string) => void>(), lost: new Set<() => void>()};
 
-  constructor(binary: string, tokenName: string) {
-    this.sends = new SendStandIn(tokenName);
+  constructor(binary: string, token: PaymentToken) {
+    this.sends = new SendStandIn(token);
     this.child = spawn(binary, [], {stdio: ['pipe', 'pipe', 'inherit']});
     this.child.stdout!.setEncoding('utf8').on('data', (text: string) => {
       this.buffer += text;

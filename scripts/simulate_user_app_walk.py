@@ -15,9 +15,10 @@ class Walk:
         size = re.search(rb"(\d+)x(\d+)", self.shell("wm", "size"))
         self.width, self.height = int(size[1]), int(size[2])
         self.failed = 0
-        self.won = token == "won"
-        # The wallet list names the token; every other page shows won as won.
-        self.wallet = (lambda dollars: f"tKRW {dollars * 10000:,}.00") if self.won else (lambda dollars: f"TestUSDC {dollars}.00")
+        self.won = token != "usd"
+        self.unit = 10 ** 16 if token == "krwc" else 1  # base units in one unit of the board
+        self.label = {"usd": "TestUSDC", "won": "tKRW", "krwc": "KRWC"}[token]
+        self.wallet = (lambda dollars: f"{self.label} {dollars * 10000:,}원") if self.won else (lambda dollars: f"TestUSDC {dollars}.00")
         self.money = (lambda dollars: f"{dollars * 10000:,}원") if self.won else (lambda dollars: f"{dollars}.00 TestUSDC")
 
     # ---- the screen ----
@@ -197,10 +198,10 @@ class Walk:
         self.sees("이 매장에 보드 계정을 등록했습니다")
 
     def deposit(self):
-        self.step("deposit", amount="90000000")
+        self.step("deposit", amount=str(90000000 * self.unit))
         self.tap("입금 안내 보기")
         if self.won:
-            self.sees("tKRW는 StableNet 테스트넷에만 있습니다")
+            self.sees(self.label + "는 StableNet 테스트넷에만 있습니다")
             self.shot("02-network-first")
             self.tap("확인했습니다. 주소 보기")
         self.sees("입금 주소 QR")
@@ -251,7 +252,7 @@ class Walk:
         self.tap(button)
         self.sees("보내 달라고 했습니다")
         deadline = time.monotonic() + 60
-        while int(self.step("state")["balance"]) != before + 5000000:
+        while int(self.step("state")["balance"]) != before + 5000000 * self.unit:
             assert time.monotonic() < deadline, "the faucet paid nothing"
             time.sleep(1)
         self.sees("이후 다시 받을 수 있습니다", 60)
@@ -276,7 +277,7 @@ class Walk:
             self.tap("내 보드 찾기")
         self.pressed_late("보드로 승인", "25-send-approve")
         self.sees("거래가 확정되었습니다", 90)
-        assert int(self.step("state")["balance"]) == before - 5000000, "the transfer moved another amount"
+        assert int(self.step("state")["balance"]) == before - 5000000 * self.unit, "the transfer moved another amount"
         self.shot("26-sent")
         self.tap("확인")
         self.back()

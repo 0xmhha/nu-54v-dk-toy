@@ -59,10 +59,23 @@ const namedTokenABI = "6627cf1b4142565d31cb1fc786a43c3aca301a107eb19a97eb3093e5a
 // wonToken is what opsd reads from the settings of a won branch.
 var wonToken = commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW", Decimals: 2}
 
-// shopsOf names the stores of a run. "both" adds a third one whose settings do not match its chain.
+// coinToken is the same for a branch that takes StableNet's own coin, which its board counts in hundredths of a won.
+var coinToken = commerce.Token{Name: "WKRC", Symbol: "WKRC", Label: "KRWC", Decimals: 18, BoardDecimals: 2}
+
+// units is an amount of the shop's token from what its board counts.
+func (s *shop) units(board int64) *big.Int {
+	token := s.target.Token.OrDollar()
+	unit := big.NewInt(1)
+	if token.BoardDecimals != 0 {
+		unit.Exp(big.NewInt(10), big.NewInt(int64(token.Decimals-token.BoardDecimals)), nil)
+	}
+	return unit.Mul(unit, big.NewInt(board))
+}
+
+// shopsOf names the stores of a run. "all" adds one more whose settings do not match its chain.
 func shopsOf(t *testing.T, ctx context.Context, client *ethclient.Client, db *pgxpool.Pool) []*shop {
 	t.Helper()
-	usdBoard, wonBoard := os.Getenv("NU54_ORDER_FLOW_BOARD"), os.Getenv("NU54_ORDER_FLOW_BOARD_WON")
+	usdBoard, wonBoard, coinBoard := os.Getenv("NU54_ORDER_FLOW_BOARD"), os.Getenv("NU54_ORDER_FLOW_BOARD_WON"), os.Getenv("NU54_ORDER_FLOW_BOARD_KRWC")
 	open := func(name, artifact, board string, token commerce.Token) *shop {
 		escrow := deployEscrowFor(t, ctx, client, db, artifact)
 		escrow.target.Token, escrow.target.SendsPerDay = token, 5
@@ -74,10 +87,12 @@ func shopsOf(t *testing.T, ctx context.Context, client *ethclient.Client, db *pg
 		shops = []*shop{open("usd", "TestUSDC3009", usdBoard, commerce.Token{})}
 	case "won":
 		shops = []*shop{open("won", "TestKRW3009", wonBoard, wonToken)}
-	case "both":
+	case "krwc":
+		shops = []*shop{open("krwc", "NativeCoinStandIn", coinBoard, coinToken)}
+	case "all":
 		refused := open("refused", "TestUSDC3009", usdBoard, wonToken)
 		refused.only = "a branch refused at the start"
-		shops = []*shop{open("usd", "TestUSDC3009", usdBoard, commerce.Token{}), open("won", "TestKRW3009", wonBoard, wonToken), refused}
+		shops = []*shop{open("usd", "TestUSDC3009", usdBoard, commerce.Token{}), open("won", "TestKRW3009", wonBoard, wonToken), open("krwc", "NativeCoinStandIn", coinBoard, coinToken), refused}
 	default:
 		t.Fatal("NU54_ORDER_FLOW_TOKEN")
 	}
@@ -108,7 +123,7 @@ func (s *shop) seed(t *testing.T, db *pgxpool.Pool, tenant string, life time.Dur
 		}
 	}
 	fixtureExec(t, db, "INSERT INTO ledger.menu_release VALUES($1,1,now()-interval '1 minute',now()+$2*interval '1 second')", s.branch, max(15*time.Minute, life).Seconds())
-	fixtureExec(t, db, "INSERT INTO ledger.price VALUES($1,1,'escrow-cafe','plain','Escrow cafe',$2,$3::text::numeric)", s.branch, lower(s.target.Asset), escrowAmount)
+	fixtureExec(t, db, "INSERT INTO ledger.price VALUES($1,1,'escrow-cafe','plain','Escrow cafe',$2,$3::text::numeric)", s.branch, lower(s.target.Asset), s.units(8_000_000).String())
 	fixtureExec(t, db, "INSERT INTO ledger.stock VALUES($1,'escrow-cafe',60)", s.branch)
 	s.profile = commerce.Profile{Chain: 8283, Contract: s.target.Contract, Asset: s.target.Asset, Beneficiary: fixtureSigner(104).Address(),
 		Signer: fixtureSigner(101).Address(), MerchantID: [32]byte{31: 50}, KeyVersion: 1, BeneficiaryVersion: 1, CommitmentKey: [32]byte{31: 9}, Escrow: true, Token: s.target.Token}
@@ -336,7 +351,8 @@ func TestOrderFlow(t *testing.T) {
 
 	// The faucet has test tokens of its own: each store's, and one the board cannot send yet.
 	faucetKey := fixtureSigner(160)
-	if err := client.Client().CallContext(ctx, nil, "anvil_setBalance", faucetKey.Address(), "0x56BC75E2D63100000"); err != nil {
+	// Ten million: of the chain's own coin it gives what it pays gas with.
+	if err := client.Client().CallContext(ctx, nil, "anvil_setBalance", faucetKey.Address(), "0x84595161401484A000000"); err != nil {
 		t.Fatal(err)
 	}
 	mined := func(tx *types.Transaction, err error) {
@@ -353,13 +369,13 @@ func TestOrderFlow(t *testing.T) {
 	faucet := &Faucet{Account: faucetKey.Address(), Signer: faucetKey, Funds: FaucetFunds(client, faucetKey.Address(), big.NewInt(100_000_000_000)),
 		Tokens: map[string][]FaucetToken{}}
 	for _, s := range open {
-		mined(s.escrow.token.Mint(s.escrow.operator, faucetKey.Address(), big.NewInt(1_000_000_000)))
+		mined(s.escrow.token.Mint(s.escrow.operator, faucetKey.Address(), s.units(1_000_000_000)))
 		symbol, err := s.escrow.token.Symbol(&bind.CallOpts{Context: ctx})
 		if err != nil {
 			t.Fatal(err)
 		}
 		faucet.Tokens[s.branch] = []FaucetToken{
-			{Address: s.target.Asset, Symbol: symbol, Decimals: s.target.Token.OrDollar().Decimals, Amount: "5000000", PerDay: 1, DailyTotal: "50000000"},
+			{Address: s.target.Asset, Symbol: symbol, Decimals: s.target.Token.OrDollar().Decimals, Amount: s.units(5_000_000).String(), PerDay: 1, DailyTotal: s.units(50_000_000).String()},
 			{Address: unsendable, Symbol: "tKRWC", Decimals: 18, Amount: "1000000000000000000000", PerDay: 1, DailyTotal: "10000000000000000000000"}}
 	}
 	if err := CheckFaucet(*faucet, active, gas); err != nil {
@@ -443,7 +459,8 @@ func TestOrderFlow(t *testing.T) {
 	if err := client.Client().CallContext(ctx, nil, "anvil_setBalance", fixtureSigner(106).Address(), "0x56BC75E2D63100000"); err != nil {
 		t.Fatal(err)
 	}
-	worker := &Worker{Store: login("nu54_p05_settlement"), Evidence: proof, Chain: LiveChain{client}, Targets: active, QuoteCipher: qCipher,
+	ledger := login("nu54_p05_settlement")
+	worker := &Worker{Store: ledger, Evidence: proof, Chain: LiveChain{client}, Targets: active, QuoteCipher: qCipher,
 		RelayCipher: relayCipher, GasAccount: gas, GasSigner: gasKey, MaxGasPrice: big.NewInt(100_000_000_000), Now: time.Now,
 		MerchantSigner: fixtureSigner(101), MerchantSigners: signers,
 		Resolver: fixtureSigner(106).Address(), ResolverSigner: fixtureSigner(106), MerchantIDs: merchantIDs, Faucet: faucet}
@@ -599,6 +616,16 @@ func TestOrderFlow(t *testing.T) {
 					var rows int
 					err := db.QueryRow(ctx, "SELECT count(*) FROM ledger.settlement_submission WHERE stream_id=$1", s.target.Stream).Scan(&rows)
 					return map[string]int{"count": rows}, err
+				case "take-back": // what a start with other settings for this branch would say
+					other, dollar := s.target, s.target
+					other.Contract[0] ^= 1
+					dollar.Token = commerce.Token{}
+					said := ""
+					if err := ledger.CheckOpenContracts(ctx, s.branch, other, qCipher); err != nil {
+						said = err.Error()
+					}
+					return map[string]string{"anotherContract": said,
+						"withoutToken": VerifyOperatorDeployment(ctx, client, dollar, gas, nil, nil, nil, false).Status}, nil
 				case "quote-lifetime":
 					_, err := db.Exec(ctx, "UPDATE ledger.issuance_profile SET quote_lifetime_seconds=$2 WHERE branch_id=$1", s.branch, in.Seconds)
 					return map[string]bool{"ok": true}, err
@@ -621,7 +648,7 @@ func TestOrderFlow(t *testing.T) {
 		}))
 		t.Cleanup(control.Close)
 		payment := map[string]any{"chain": 8283, "contract": lower(s.target.Contract), "asset": lower(s.target.Asset), "beneficiary": lower(s.profile.Beneficiary),
-			"merchantId": rawHex(s.profile.MerchantID[:]), "signer": lower(s.profile.Signer), "keyVersion": 1, "beneficiaryVersion": 1, "maxBaseUnits": "30000000",
+			"merchantId": rawHex(s.profile.MerchantID[:]), "signer": lower(s.profile.Signer), "keyVersion": 1, "beneficiaryVersion": 1, "maxBaseUnits": s.units(30_000_000).String(),
 			"abiSha256":       strings.TrimPrefix(s.target.ABIHash(), "0x"),
 			"rpc":             "https://rpc.test", // the phone's stand-in answers for it
 			"presentationKey": rawHex(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32)).Public().(ed25519.PublicKey))}
@@ -631,7 +658,7 @@ func TestOrderFlow(t *testing.T) {
 		fixture, _ := json.Marshal(map[string]any{
 			"endpoint": server.URL, "ca": write("ca.crt", encode("CERTIFICATE", server.Certificate().Raw)), "expiresAt": expires,
 			"shop": s.name, "shops": len(shops), "tenant": tenant, "branch": s.branch, "rpc": endpoint, "control": control.URL, "secret": rawHex(secret), "home": lower(home.From),
-			"amount": escrowAmount, "directory": dir,
+			"amount": s.units(8_000_000).String(), "unit": s.units(1).String(), "directory": dir,
 			"payment":  payment,
 			"customer": identity(s, customer), "terminal": identity(s, terminal), "kitchen": identity(s, kitchen),
 			"finance1": identity(s, finance1), "finance2": identity(s, finance2),
