@@ -8,10 +8,11 @@ import {
   unpackNearbyPresentation,
   fromBase64,
   toBase64,
-  orderLock,
+  orderLockFor,
+  orderTokenName,
   quoteOrderRevision,
   quoteV2Layout,
-  verifyOrderLock,
+  verifyOrderLockFor,
   preparePresentedPayment,
   verifyRentalReviewAuthority,
   verifyRentalPaymentDecision,
@@ -88,6 +89,7 @@ export class NearbyRelay {
   private readonly publicPOS?: () => string | undefined;
   private readonly rental?: RentalReviewRoute;
   private readonly progress?: (event: RelayProgress) => void;
+  private readonly tokenName: string;
   private readonly issued = new Map<string, IssuedQuote>();
   private readonly activeLinks = new Set<string>();
   private readonly quotes = new Map<string, RentalReviewSource>();
@@ -103,6 +105,7 @@ export class NearbyRelay {
     publicPOS?: () => string | undefined,
     rental?: RentalReviewRoute,
     progress?: (event: RelayProgress) => void,
+    tokenName = orderTokenName,
   ) {
     this.api = api;
     this.inbox = inbox;
@@ -112,6 +115,7 @@ export class NearbyRelay {
     this.publicPOS = publicPOS;
     this.rental = rental;
     this.progress = progress;
+    this.tokenName = tokenName;
   }
 
   clearPublic() {
@@ -457,9 +461,9 @@ export class NearbyRelay {
       const payer = bytesToHex(unsigned.subarray(quoteV2Layout.payerOffset + 12, quoteV2Layout.payerOffset + 32));
       const payment = { bytes, payer, deadline: quote.expiresAt };
       try {
-        if (orderLock(unsigned, req.confirmer).digest !== req.lockDigest) return { status: 'denied' };
+        if (orderLockFor(this.tokenName, unsigned, req.confirmer).digest !== req.lockDigest) return { status: 'denied' };
         // Check the signature apart from the clock: a retry of a lock already sent may arrive late.
-        verifyOrderLock(payment, req.confirmer, hexToBytes(req.signature), quote.expiresAt - 1);
+        verifyOrderLockFor(this.tokenName, payment, req.confirmer, hexToBytes(req.signature), quote.expiresAt - 1);
       } catch {
         return { status: 'denied' };
       }

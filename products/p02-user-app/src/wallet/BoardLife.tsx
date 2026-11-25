@@ -1,6 +1,8 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Image, StyleSheet, Text, TextInput, View} from 'react-native';
-import {bytesToHex, fromBase64, payerEnrollChallenge, paymentProfile, paysThroughEscrow, type PayerEnrollment} from '@nu54/protocol';
+import {
+  bytesToHex, dollarToken, fromBase64, payerEnrollChallenge, paymentProfile, paymentToken, paysThroughEscrow, tokenAmount, type PayerEnrollment, type PaymentToken,
+} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import type {Spec as NativeWallet} from '../specs/NativeOwnerWallet.ts';
@@ -20,10 +22,10 @@ import type {OwnerSession} from './ownerSession.ts';
 import type {SpendingStatus} from './ownerWire.ts';
 import {SendPage} from './SendPage.tsx';
 import {testedBoard, withoutBoardAccount, type WalletStorage} from './profile.ts';
-import {formatReadAmount, readProfiles, walletReadRpc} from './readProfiles.ts';
+import {readProfiles, walletReadRpc} from './readProfiles.ts';
 import {networkRows, serverFor} from './networks.ts';
 import {receiveQr} from './receivePresentation.ts';
-import {readToken, storeSymbol, tokensOf, type ListedToken} from './tokens.ts';
+import {readToken, storeToken, tokensOf, type ListedToken} from './tokens.ts';
 
 // Setting up, filling, returning and resetting a spending board. WalletHome owns the board link,
 // the protected profile and the busy state; these pages only run one step at a time over them.
@@ -45,6 +47,8 @@ export type BoardLifeProps = {
   seen: (account: string, generation: number, limits?: SpendingStatus) => void;
   /** Shown instead of anything read from a server, a chain or the phone's records (design review only). */
   fixture?: {balance?: Balance; open?: number; record?: ReturnRecord; request?: PendingReset; send?: SendRecord; others?: OtherAsset[]};
+  /** The store's token, or the dollar token when no registration names one. */
+  token?: PaymentToken;
   /** Tokens the operator lists for StableNet. */
   listed?: ListedToken[];
 };
@@ -68,11 +72,18 @@ const noCredential = '먼저 매장 주문 등록이 필요합니다. 결제 탭
 const explain = (error: unknown, other: (error: unknown) => string) =>
   error instanceof Error && error.message === 'NO_CREDENTIAL' ? noCredential : other(error);
 
-const tokenText = (units: bigint) => formatReadAmount(units.toString(), 6).replace(/^(\d+)$/, '$1.00').replace(/(\.\d)$/, '$10') + ' TestUSDC';
+const tokenText = (units: bigint, token: PaymentToken = dollarToken) => tokenAmount(units, token);
+
+/** The token a transfer of this phone signs for. A registration with another store cannot name it. */
+export async function signingToken(asset: string): Promise<PaymentToken> {
+  const {policy} = await credential();
+  if (policy.asset.toLowerCase() !== asset.toLowerCase()) throw new Error('NO_CREDENTIAL');
+  return paymentToken(policy);
+}
 
 /** Finalized and newest balance of one token (the store's unless named), or undefined when either cannot be read. */
 type Balance = {units: bigint; latest: bigint; text: string};
-async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native'>, token?: string): Promise<Balance | undefined> {
+async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'token'>, token?: string): Promise<Balance | undefined> {
   const {verified, walletRead} = props.stored, native = props.native;
   if (!verified || !native) return undefined;
   try {
@@ -83,12 +94,12 @@ async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native'>, to
     const read = async (tag: 'finalized' | 'latest') => BigInt((await readEvmReceiveBalance(rpc, '8283', readProfiles.stable.anchor,
       verified.address, asset, false, tag)).amount);
     const units = await read('finalized'), latest = await read('latest');
-    return {units, latest, text: tokenText(units)};
+    return {units, latest, text: tokenText(units, policy ? paymentToken(policy) : props.token)};
   } catch {
     return undefined;
   }
 }
-export function useBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'fixture'>) {
+export function useBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 'fixture' | 'token'>) {
   const [balance, setBalance] = useState<Balance | null | undefined>(props.fixture ? props.fixture.balance ?? null : undefined);
   const latest = useRef(props);
   latest.current = props;
@@ -272,6 +283,7 @@ function DepositPage(props: BoardLifeProps) {
     const timer = setInterval(() => setClock(Date.now()), 5000);
     return () => clearInterval(timer);
   }, []);
+  const [networkSeen, setNetworkSeen] = useState(false);
   if (!board) return <Notice title="아직 입금하지 마세요" body="이 등록에서 서명 시험을 통과해야 입금 주소를 보여 줍니다.">
     <KitButton label="설정 이어서 하기" run={() => props.go('setup')} variant="secondary" /></Notice>;
   const age = props.seenBoard && props.seenBoard.account === board.account && props.seenBoard.generation === board.generation
@@ -289,10 +301,15 @@ function DepositPage(props: BoardLifeProps) {
       });
       setClock(Date.now());
     }, boardFailure)} /></>;
+  // The same address exists on every EVM network, and what arrives there on another one cannot be moved.
+  if (props.token && props.token.symbol !== dollarToken.symbol && !networkSeen) return <>
+    {warning}
+    <Notice tone="stop" title="StableNet 테스트넷으로만 보내세요" body={`${props.token.label}는 StableNet 테스트넷에만 있습니다. 다른 네트워크나 다른 토큰으로 보낸 것은 이 보드가 다시 보낼 수 없습니다. 시험용이며 실제 돈이 아닙니다.`} />
+    <KitButton label="확인했습니다. 주소 보기" run={() => setNetworkSeen(true)} disabled={props.busy} /></>;
   return <>
     {warning}
-    <Text style={type.body}>원래 지갑에서 아래 주소로 TestUSDC만 보내세요. 다른 토큰이나 코인은 쓸 수 없습니다. 보통 송금이면 되고, 다른 승인이나 등록은 필요 없습니다. 쓸 만큼만 보내세요. 보드를 잃어버리면 남은 돈을 되찾을 수 없습니다.</Text>
-    <Card><Row label="네트워크" value="StableNet 테스트넷" /><Row label="토큰" value="TestUSDC" /></Card>
+    <Text style={type.body}>원래 지갑에서 아래 주소로 {(props.token ?? dollarToken).label}만 보내세요. 다른 토큰이나 코인은 쓸 수 없습니다. 보통 송금이면 되고, 다른 승인이나 등록은 필요 없습니다. 쓸 만큼만 보내세요. 보드를 잃어버리면 남은 돈을 되찾을 수 없습니다.</Text>
+    <Card><Row label="네트워크" value="StableNet 테스트넷" /><Row label="토큰" value={(props.token ?? dollarToken).label} /></Card>
     <View style={styles.qr}><Image accessibilityLabel="입금 주소 QR" source={{uri: receiveQr(board.account)}} style={styles.qrImage} /></View>
     <Text selectable style={styles.address}>{board.account}</Text>
     <KitButton label="주소 공유" run={() => props.copy(board.account)} variant="secondary" disabled={props.busy} />
@@ -400,7 +417,7 @@ async function otherAssets(props: BoardLifeProps, returned?: string): Promise<Ot
   const row = networkRows(walletRead, {store: policy?.rpc}).find(item => item.key === 'stable')!;
   // Without a return in progress the store's token counts as money the reset page warns of by itself.
   const kept = (returned ?? policy?.asset)?.toLowerCase();
-  const tokens = tokensOf(row, verified, walletRead, policy ? [{address: policy.asset, symbol: storeSymbol, decimals: 6}] : [], props.listed).filter(token => !token.contract || token.contract !== kept);
+  const tokens = tokensOf(row, verified, walletRead, policy ? [storeToken(policy)] : [], props.listed).filter(token => !token.contract || token.contract !== kept);
   const found = await Promise.all(tokens.map(async token => ({token, amount: await readToken(row, token, verified.address, (url, packet) => native.evmRpc(url, packet))})))
     .catch(() => null);
   return found && found.filter(({amount}) => amount.units !== '0').map(({token, amount}) => ({key: token.key, symbol: token.symbol, text: `${amount.text} ${token.symbol}`}));
@@ -501,7 +518,7 @@ function ReturnPage(props: BoardLifeProps) {
       <KitButton label={balance?.units === 0n ? '잔액 없이 초기화로 진행' : '반납 시작'} run={start} disabled={props.busy || !balance} />
     </>;
   }
-  const summary = record.amount !== '0' && <Card><AmountLine amount={tokenText(BigInt(record.amount))} label="돌려받을 금액" />
+  const summary = record.amount !== '0' && <Card><AmountLine amount={tokenText(BigInt(record.amount), props.token)} label="돌려받을 금액" />
     <Text style={type.small}>받는 주소</Text><Text selectable style={styles.address}>{record.to}</Text></Card>;
   const restart = () => work(async () => { await keep(undefined); await read(); say('반납을 처음부터 다시 시작합니다. 빠져나간 돈은 없습니다.'); }, () => '반납 기록을 바꾸지 못했습니다.');
   const former = !verified || verified.address !== record.payer || String(verified.generation) !== record.generation;
@@ -513,17 +530,17 @@ function ReturnPage(props: BoardLifeProps) {
     <Text style={type.body}>보드에서 위 금액과 주소의 송금을 승인하세요.</Text>
     <Chooser props={props} label="보드로 승인" run={handle => work(async () => {
       const signed = await withBoard(handle, async session => {
-        const asked = renewReturn(record, now());
+        const asked = renewReturn(record, now()), name = (await signingToken(record.token)).name;
         await keep(asked);
         const signature = await session.signReturn(BigInt(asked.generation), {...asked, amount: BigInt(asked.amount)},
-          () => props.wait({flow: 'return', step: 'approve', note: pinNote}));
-        const next = verifyReturn(asked, signature);
+          () => props.wait({flow: 'return', step: 'approve', note: pinNote}), name);
+        const next = verifyReturn(asked, signature, name);
         await keep(next);
         return next;
       }).catch(error => { throw new Error(boardFailure(error)); });
       // The signature is written down and lives for minutes only, so it is sent at once.
       const {client} = await credential();
-      await submitReturn(client, signed, async next => keep(next), now());
+      await submitReturn(client, signed, async next => keep(next), now(), (await signingToken(record.token)).name);
       await check();
     }, error => error instanceof Error && /[가-힣]/.test(error.message) ? error.message : explain(error, serverFailure))} />
     <KitButton label="반납 취소" run={restart} disabled={props.busy} variant="secondary" /></>;
@@ -531,7 +548,7 @@ function ReturnPage(props: BoardLifeProps) {
     <Text style={type.body}>보드가 승인한 반납을 아직 보내지 않았습니다. 수수료는 매장이 냅니다.</Text>
     <KitButton label="반납 보내기" disabled={props.busy} run={() => work(async () => {
       const {client} = await credential();
-      await submitReturn(client, record, async next => keep(next), now());
+      await submitReturn(client, record, async next => keep(next), now(), (await signingToken(record.token)).name);
       await check();
     }, error => explain(error, serverFailure))} />
     {record.sentAt === undefined && <KitButton label="반납 취소" run={restart} disabled={props.busy} variant="secondary" />}</>;
@@ -540,7 +557,7 @@ function ReturnPage(props: BoardLifeProps) {
     <KitButton label="지금 확인" run={() => work(check, error => explain(error, serverFailure))} disabled={props.busy} />
     <KitButton label="같은 반납 다시 보내기" variant="secondary" disabled={props.busy || record.validBefore <= now()} run={() => work(async () => {
       const {client} = await credential();
-      await submitReturn(client, record, async next => keep(next), now());
+      await submitReturn(client, record, async next => keep(next), now(), (await signingToken(record.token)).name);
       await check();
     }, error => explain(error, serverFailure))} /></>;
   const reset = (handle: string) => work(async () => {
@@ -588,7 +605,7 @@ function ResetPage(props: BoardLifeProps) {
   const [sure, setSure] = useState(false);
   const wait = props.spending?.pinWait ?? 0;
   const risk = [
-    balance && (balance.units > 0n || balance.latest > 0n) ? `남은 돈 ${tokenText(balance.units > balance.latest ? balance.units : balance.latest)}을 잃습니다.` : balance === null ? '남은 돈이 있는지 확인하지 못했습니다. 있으면 잃습니다.' : '',
+    balance && (balance.units > 0n || balance.latest > 0n) ? `남은 돈 ${tokenText(balance.units > balance.latest ? balance.units : balance.latest, props.token)}을 잃습니다.` : balance === null ? '남은 돈이 있는지 확인하지 못했습니다. 있으면 잃습니다.' : '',
     unfinished(stored) ? '결과를 모르는 다른 전송이나 서명이 있습니다.' : '',
   ].filter(Boolean);
   return <>

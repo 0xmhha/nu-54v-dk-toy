@@ -1,10 +1,10 @@
 import {useEffect, useRef, useState} from 'react';
-import {readNetworkList, type NetworkList} from '@nu54/protocol';
+import {paymentToken, readNetworkList, type NetworkList} from '@nu54/protocol';
 import {NETWORK} from '../setup/network.ts';
 import {credential} from './BoardLife.tsx';
 import {checkServer, networkRows, type Exchange} from './networks.ts';
 import {readEndpoint, readProfiles, type ReadProfileId, type ReadProfileState} from './readProfiles.ts';
-import {storeSymbol} from './tokens.ts';
+import {storeToken} from './tokens.ts';
 import type {WalletAdvice} from './WalletTab.tsx';
 
 /** The operator's names of the networks that have no EVM chain ID. */
@@ -43,7 +43,7 @@ export function useWalletAdvice(active: boolean, round: unknown, sequence: numbe
     let live = true;
     const same = (next: WalletAdvice) => (old?: WalletAdvice) => JSON.stringify(old) === JSON.stringify(next) ? old : next;
     credential().then(async ({client, policy}) => {
-      if (live) setStore(same({...(policy.rpc ? {store: policy.rpc} : {}), signed: [{address: policy.asset, symbol: storeSymbol, decimals: 6}]}));
+      if (live) setStore(same({...(policy.rpc ? {store: policy.rpc} : {}), signed: [storeToken(policy)], token: paymentToken(policy)}));
       if (Date.now() - asked.current < 600_000) return;
       asked.current = Date.now();
       // A list that is missing, unsigned, expired or older than one seen before leaves the other servers in use.

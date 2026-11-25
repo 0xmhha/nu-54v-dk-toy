@@ -6,17 +6,17 @@ import {onOrdersChanged, orderRecords, type OpenOrder} from '../merchant/orderRe
 import {Card, Chip, KitButton, Row, Section} from '../ui/kit.tsx';
 import {useInnerBack, usePageTop} from '../ui/innerBack.ts';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
-import type {WalletSend} from '@nu54/protocol';
+import type {PaymentToken, WalletSend} from '@nu54/protocol';
 import {credential} from './BoardLife.tsx';
 import {FaucetPage} from './FaucetPage.tsx';
 import {boardNetwork, networkRows, shownNetwork, type Exchange, type NetworkAdvice, type NetworkRow} from './networks.ts';
 import {testedBoard, type WalletStorage} from './profile.ts';
 import {defaultReadState, type ReadProfileState} from './readProfiles.ts';
-import {addToken, amountText, isEvmRow, readToken, removeToken, reviewToken, storeSymbol, tokenFailure, tokensOf, type ListedToken, type TokenAmount, type TokenReview, type WalletToken} from './tokens.ts';
+import {addToken, isEvmRow, readToken, removeToken, reviewToken, storeMoney, tokenFailure, tokensOf, type ListedToken, type TokenAmount, type TokenReview, type WalletToken} from './tokens.ts';
 
 type Say = (ko: string) => string;
 /** What others told this phone: servers, tokens the board signs (the store's), tokens the operator lists. */
-export type WalletAdvice = NetworkAdvice & {signed?: ListedToken[]; listed?: Partial<Record<string, ListedToken[]>>};
+export type WalletAdvice = NetworkAdvice & {/** The store's token, when its registration names one. */ token?: PaymentToken; signed?: ListedToken[]; listed?: Partial<Record<string, ListedToken[]>>};
 type Props = {
   t: Say; stored: WalletStorage; advice?: WalletAdvice; exchange?: Exchange; active: boolean; busy?: boolean;
   hide: () => void; receive: () => void; send: () => void; giveBack: () => void; networks: () => void; board: () => void; top?: () => void;
@@ -200,7 +200,7 @@ export function WalletTab(props: Props) {
   if (token) return <><TokenPage t={t} row={row} token={token} amount={amounts[token.key]} hidden={hidden} busy={busy} receive={props.receive} send={props.send}
     forget={token.added ? () => { save(now => removeToken(now, token.added!)).then(close, () => {}); } : undefined} />{back}</>;
   const failed = tokens.length > 0 && tokens.every(item => amounts[item.key] === null);
-  const line = (at: number, state: string, units: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : amountText(units, 6)} ${storeSymbol}`;
+  const line = (at: number, state: string, units: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : storeMoney(units, advice?.token)}`;
   const canAdd = !row.custom && isEvmRow(row) && !!account && !!exchange;
   return <View style={styles.page} testID="wallet-tab">
     <Pressable accessibilityRole="button" accessibilityLabel={`${t('네트워크')} ${row.label}, ${t('바꾸기')}`} onPress={() => setPage('networks')}

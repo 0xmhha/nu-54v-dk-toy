@@ -1,5 +1,5 @@
 // One transfer to another address: written down before every step, like a return, and followed by its nonce.
-import {type CommerceClient, hexToBytes, recoverSigner, walletReturnDigest, type WalletSend} from '@nu54/protocol';
+import {type CommerceClient, hexToBytes, recoverSigner, orderTokenName, walletReturnDigestFor, type WalletSend} from '@nu54/protocol';
 import {customerDigest} from '../merchant/customerJournal.ts';
 import type {OrderAccount} from '../merchant/orderRecords.ts';
 import {returnRefusals} from './boardReturn.ts';
@@ -59,8 +59,8 @@ export const renewSend = (record: SendRecord, now: number): SendRecord => ({...r
 export const sendStale = (record: SendRecord, now: number) => record.stage === 'signed' && record.sentAt === undefined && record.validBefore - now < 20;
 
 /** The signature must be the board account's, over exactly this transfer. */
-export function verifySend(record: SendRecord, signature: string): SendRecord {
-  const digest = walletReturnDigest({token: record.token, from: record.payer, to: record.to, amount: BigInt(record.amount),
+export function verifySend(record: SendRecord, signature: string, tokenName = orderTokenName): SendRecord {
+  const digest = walletReturnDigestFor(tokenName, {token: record.token, from: record.payer, to: record.to, amount: BigInt(record.amount),
     validBefore: BigInt(record.validBefore), nonce: record.nonce});
   if (recoverSigner(digest, hexToBytes(signature)) !== record.payer) throw new Error('SEND_SIGNATURE');
   return {...record, signature, stage: 'signed'};
@@ -88,8 +88,8 @@ export async function settleSend(storage: Storage, client: CommerceClient, now: 
 }
 
 /** Sends the signed transfer once it is written down. A first refusal that left nothing behind is thrown. */
-export async function submitSend(client: CommerceClient, record: SendRecord, save: (next?: SendRecord) => Promise<void>, now: number): Promise<SendRecord> {
-  if (!record.signature || verifySend(record, record.signature).signature !== record.signature) throw new Error('SEND_SIGNATURE');
+export async function submitSend(client: CommerceClient, record: SendRecord, save: (next?: SendRecord) => Promise<void>, now: number, tokenName = orderTokenName): Promise<SendRecord> {
+  if (!record.signature || verifySend(record, record.signature, tokenName).signature !== record.signature) throw new Error('SEND_SIGNATURE');
   if (record.validBefore <= now) throw new Error('SEND_EXPIRED');
   const first = record.sentAt === undefined;
   const sent: SendRecord = {...record, stage: 'sent', sentAt: now};

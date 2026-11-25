@@ -106,7 +106,7 @@ export function OfflineMenu({cached, busy, retry, policy}: {cached: CachedMenu; 
     {cached.rows.map(row=>{
       if (selected && row.category?.key !== selected) return null;
       const label=commerceMenuLabels(row,locale);
-      const price=commerceAmount(row.unitPrice,row.asset,policy);
+      const price=commerceAmount(row.unitPrice,row.asset,policy,locale);
       return <Text key={row.sku + '/' + row.optionKey}>
         {label.product} · {label.option} · {ko ? price : price.replace('기준 단위','base units')}
         {row.available===0 ? (ko?' · 품절':' · Sold out') : ''}

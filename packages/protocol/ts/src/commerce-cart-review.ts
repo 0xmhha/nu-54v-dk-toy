@@ -90,8 +90,9 @@ export function commerceReservationRejected(error: unknown) {
 export function commerceCartAmount(
   amount: string,
   asset: string,
-  profile?: CommercePaymentProfile
+  profile?: CommercePaymentProfile,
+  language: "ko" | "en" = "ko"
 ) {
-  const text = commerceAmount(amount, asset, profile);
+  const text = commerceAmount(amount, asset, profile, language);
   return profile?.asset === asset ? text : `${text} · ${asset}`;
 }

@@ -42,7 +42,7 @@ import type {OpenOrder} from '../merchant/orderRecords.ts';
 import {BoardLife, boardLifeTitles, SetupStatus, type BoardLifeScreen} from './BoardLife.tsx';
 import {BoardCard, BoardPage, FirstSteps, HomeTasks} from './HomeParts.tsx';
 import {NetworksScreen} from './NetworksScreen.tsx';
-import {amountText, storeSymbol} from './tokens.ts';
+import {storeMoney} from './tokens.ts';
 import {useActivity, WalletTab} from './WalletTab.tsx';
 import {useBoardServer, useWalletAdvice} from './walletAdvice.ts';
 import {noteConsents, withConsent} from '../legal/consent.ts';
@@ -1695,7 +1695,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const openBoardPage = () => { boardFrom.current = screen === 'settings' ? 'settings' : 'home'; setScreen('board'); };
   const saveNetworks = (change: (state: ReadProfileState) => ReadProfileState) => commit(head => ({...head, walletRead: change(head.walletRead ?? defaultReadState)}));
   const exchange = native ? walletExchange : undefined;
-  const boardAmount = (units: bigint) => `${amountText(units.toString(), 6)} ${storeSymbol}`;
+  const boardAmount = (units: bigint) => storeMoney(units, advice?.token, language === 'en' ? 'en' : 'ko');
   const boardRegistered = status?.state === 'active' && status.device === profile?.device;
   const boardAccount = stored ? stored.verified ?? null : undefined;
   const connectInstalledBoard = () => {setFromInstall(false); setScreen('owner');};
@@ -1799,7 +1799,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           ...(stored.spendingBoard ? [] : [{label: t('원래 보드에서 분실한 휴대전화 교체'), run: () => setScreen('replace-phone')}]),
         ]} />}
       {stored && screen in boardLifeTitles && <BoardLife screen={screen as BoardLifeScreen} stored={stored} native={native} spending={spending}
-        hasEnrollment={!!profile} registered={boardRegistered} found={found} busy={busy} scan={() => scan(!!stored.verified)} go={next => { setMessage(''); setScreen(next === 'board' ? lifeFrom.current : next); }} orders={orders} listed={advice?.listed?.stable} work={work} say={sayLife}
+        hasEnrollment={!!profile} registered={boardRegistered} found={found} busy={busy} scan={() => scan(!!stored.verified)} go={next => { setMessage(''); setScreen(next === 'board' ? lifeFrom.current : next); }} orders={orders} listed={advice?.listed?.stable} token={advice?.token} work={work} say={sayLife}
         withBoard={boardRequest} wait={setBoardWait} copy={text => { Share.share({message: text}).catch(() => {}); }}
         commit={async change => {
           const next = await commit(change);

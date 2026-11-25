@@ -2,7 +2,7 @@ import {p256} from '@noble/curves/p256';
 import {sha256} from '@noble/hashes/sha256';
 import {
   bigToBytes, bytesToBig, bytesToHex, concat, equalBytes, encodeV2StreamFrame, encodeApprovalProgressOffer, encodePaymentReview, readPaymentReview, fromBase64, hexToBytes, toBase64, V2Journal, V2Link, V2StreamDecoder,
-  orderBoardRequest, orderLock, quoteV2Layout, recoverSigner, verifyOrderLock, walletReturnDigest,
+  orderBoardRequest, orderLockFor, orderTokenName, quoteV2Layout, recoverSigner, verifyOrderLockFor, walletReturnDigestFor,
   verifyCommerceApproval, type VerifiedCommercePayment, type V2Request,
 } from '@nu54/protocol';
 import type {Spec as NativeTLS} from '../specs/NativeOwnerWallet.ts';
@@ -290,7 +290,7 @@ export class OwnerSession {
   }
 
   /** The board signs a transfer to an address the owner chose, within the limits it also keeps for payments. */
-  async signSend(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void) {
+  async signSend(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void,tokenName=orderTokenName) {
     const board=await this.readyForAction(generation,transfer.payer);
     if(!board.sends) throw new Error('BOARD_NO_SEND');
     if(transfer.amount>board.perPayment||transfer.amount>board.leftToday) throw new Error('SEND_LIMIT');
@@ -300,7 +300,7 @@ export class OwnerSession {
       if(error instanceof Error&&error.message==='OWNER_DISCONNECTED'&&Date.now()-asked<3000) throw new Error('RETURN_NOT_TAKEN');
       throw error;
     });
-    const digest=walletReturnDigest({token:transfer.token,from:transfer.payer,to:transfer.to,amount:transfer.amount,
+    const digest=walletReturnDigestFor(tokenName,{token:transfer.token,from:transfer.payer,to:transfer.to,amount:transfer.amount,
       validBefore:BigInt(transfer.validBefore),nonce:transfer.nonce});
     if(reply.length!==86||bytesToHex(reply.subarray(1,21),true)!==transfer.to||
         recoverSigner(digest,reply.subarray(21))!==transfer.payer) throw new Error('SEND_SIGNATURE');
@@ -308,7 +308,7 @@ export class OwnerSession {
   }
 
   /** The board signs the transfer of `amount` to its stored return address, and to nothing else. */
-  async signReturn(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void) {
+  async signReturn(generation:bigint,transfer:{token:string;payer:string;to:string;amount:bigint;validBefore:number;nonce:string},onBoard:()=>void,tokenName=orderTokenName) {
     const board=await this.readyForAction(generation,transfer.payer);
     if(board.returnAddress!==transfer.to) throw new Error('RETURN_ADDRESS');
     if(board.orderOpen) throw new Error('BOARD_ORDER_OPEN');
@@ -319,7 +319,7 @@ export class OwnerSession {
       if(error instanceof Error&&error.message==='OWNER_DISCONNECTED'&&Date.now()-asked<3000) throw new Error('RETURN_NOT_TAKEN');
       throw error;
     });
-    const digest=walletReturnDigest({token:transfer.token,from:transfer.payer,to:transfer.to,amount:transfer.amount,
+    const digest=walletReturnDigestFor(tokenName,{token:transfer.token,from:transfer.payer,to:transfer.to,amount:transfer.amount,
       validBefore:BigInt(transfer.validBefore),nonce:transfer.nonce});
     if(reply.length!==86||bytesToHex(reply.subarray(1,21),true)!==transfer.to||
         recoverSigner(digest,reply.subarray(21))!==transfer.payer) throw new Error('RETURN_SIGNATURE');
@@ -349,20 +349,20 @@ export class OwnerSession {
   }
 
   /** The stored answer to this exact request (device_pilot.c receipt_status); undefined when there is none. */
-  async orderAnswer(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array):Promise<string|undefined> {
-    const lock=orderLock(payment.bytes.subarray(0,quoteV2Layout.unsignedSize),confirmer);
+  async orderAnswer(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array,tokenName=orderTokenName):Promise<string|undefined> {
+    const lock=orderLockFor(tokenName,payment.bytes.subarray(0,quoteV2Layout.unsignedSize),confirmer);
     const {reply}=await this.invoke(concat(Uint8Array.of(1),request,sha256(lock.preimage)),ownerTtl,8,'status');
     if(reply.payload.length===1&&reply.payload[0]===0) return undefined;
-    return verifyOrderLock(payment,confirmer,reply.payload,Number(time()));
+    return verifyOrderLockFor(tokenName,payment,confirmer,reply.payload,Number(time()));
   }
 
   /** Asks the board to sign one order. A lost reply is read back before the user is asked again. */
-  async approveOrder(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array,onBoard:()=>void) {
+  async approveOrder(payment:VerifiedCommercePayment,confirmer:string,request:Uint8Array,onBoard:()=>void,tokenName=orderTokenName) {
     const original=request.slice();
     const board=await this.spendingStatus(payment.generation);
     const amount=bytesToBig(payment.bytes.subarray(quoteV2Layout.amountOffset,quoteV2Layout.amountOffset+32));
     if(payment.payerRole!=='owner'||board.account!==payment.payer) throw new Error('PAYMENT_BOARD_BINDING');
-    const known=await this.orderAnswer(payment,confirmer,original);
+    const known=await this.orderAnswer(payment,confirmer,original,tokenName);
     if(known) return known;
     if(board.pinWait>0) throw new Error('ORDER_PIN_WAIT');
     if(amount>board.perPayment) throw new Error('ORDER_OVER_LIMIT');
@@ -374,7 +374,7 @@ export class OwnerSession {
     const {reply}=await this.invoke(orderBoardRequest(confirmer,payment.bytes),remaining,remaining,'pay.prepare',
       {id:original,expires:BigInt(payment.deadline)});
     if(reply.payload.length===1&&reply.payload[0]===0) throw new Error('PAYMENT_REFUSED');
-    return verifyOrderLock(payment,confirmer,reply.payload,Number(time()));
+    return verifyOrderLockFor(tokenName,payment,confirmer,reply.payload,Number(time()));
   }
 
   async status(): Promise<OwnerStatus> {

@@ -28,6 +28,7 @@ import {
   readNearbyReady,
   commerceProfile,
   commerceAmount,
+  paymentToken,
   commerceCartTotals,
   commerceLineKey,
   commerceLineCapacity,
@@ -663,6 +664,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         show({...current, quoteUntil: event.until, holdUntil: event.until, disconnected: undefined,
           ...(event.stage === 'submitting' ? {submitting: true as const} : {})});
       },
+      paymentToken(policy).name,
     );
     relayRef.current = relay;
     const links = new Map<string, NearbyCommerceLink>();
@@ -2531,7 +2533,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       <Text style={s.cardTitle}>
                         {required ? names.product : `${names.product} · ${names.option}`}
                       </Text>
-                      {!required && <Text style={s.price}>{commerceAmount(row.unitPrice, row.asset, policy)}</Text>}
+                      {!required && <Text style={s.price}>{commerceAmount(row.unitPrice, row.asset, policy, menuLocale)}</Text>}
                       {!required && <Text style={s.hint}>{commerceMenuDisclosure(row, menuLocale)}</Text>}
                       <Label>
                         {available === 0
@@ -2602,7 +2604,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                             const option = commerceMenuLabels(row, menuLocale).option;
                             return (
                               <View key={row.optionKey}>
-                                <Label>{`${option} · ${commerceAmount(row.unitPrice, row.asset, policy)}`}</Label>
+                                <Label>{`${option} · ${commerceAmount(row.unitPrice, row.asset, policy, menuLocale)}`}</Label>
                                 <Button
                                   label={ko ? `${option} 선택` : `Select ${option}`}
                                   disabled={commerceLineCapacity(row, choice) === 0 || row === selected}
@@ -2629,9 +2631,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                             <Label>{ko ? '알레르기가 있으면 주문 전에 직원에게 제조 환경을 확인하세요.' :
                               'If you have an allergy, ask staff about preparation before ordering.'}</Label>
                           )}
-                          <Label>{`${ko ? '가격' : 'Price'} · ${commerceAmount(selected.unitPrice, selected.asset, policy)}`}</Label>
+                          <Label>{`${ko ? '가격' : 'Price'} · ${commerceAmount(selected.unitPrice, selected.asset, policy, menuLocale)}`}</Label>
                           <Label>{`${ko ? '소계' : 'Subtotal'} · ${commerceCartAmount(
-                            (BigInt(selected.unitPrice) * BigInt(menuDetail.quantity)).toString(), selected.asset, policy,
+                            (BigInt(selected.unitPrice) * BigInt(menuDetail.quantity)).toString(), selected.asset, policy, menuLocale,
                           )}`}</Label>
                         </>
                       )}
@@ -2664,7 +2666,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   const ko = menuLocale === 'ko';
                   const line = ({ row, quantity }: CommerceSelection[string]) => {
                     const names = commerceMenuLabels(row, menuLocale);
-                    const amount = commerceCartAmount((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy);
+                    const amount = commerceCartAmount((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy, menuLocale);
                     return `${names.product} · ${names.option} ×${quantity} · ${amount}`;
                   };
                   return (
@@ -2723,7 +2725,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 )}
                 {(screen.pos ||
                   (screen.sale && policy?.asset === screen.sale.asset)) && (
-                  <Label>StableNet 테스트넷 8283 · TestUSDC</Label>
+                  <Label>StableNet 테스트넷 8283 · {screen.pos ? 'TestUSDC' : paymentToken(policy).label}</Label>
                 )}
                 {screen.posSelection?.state === 'locking' && (
                   <Label>{`선택한 표식 · ${screen.posSelection.code}`}</Label>
@@ -2969,7 +2971,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
               {menuLocale === 'ko' ? `담은 수량 ${basketUnits}` : `Items in your basket: ${basketUnits}`}
             </Text>
             {basketTotals.map(({ asset, amount }) => <Text style={s.label} key={asset}>
-              {menuLocale === 'ko' ? '합계 · ' : 'Total · '}{commerceCartAmount(amount, asset, policy)}
+              {menuLocale === 'ko' ? '합계 · ' : 'Total · '}{commerceCartAmount(amount, asset, policy, menuLocale)}
             </Text>)}
           </View>
           <Button label={menuLocale === 'ko' ? '내 장바구니' : 'My basket'}

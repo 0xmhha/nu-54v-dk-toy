@@ -1,24 +1,25 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
-import {bytesToHex, fromBase64, type WalletSends} from '@nu54/protocol';
+import {bytesToHex, dollarToken, fromBase64, type WalletSends} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
-import {Chooser, credential, Notice, useBalance, type BoardLifeProps} from './BoardLife.tsx';
+import {Chooser, credential, Notice, signingToken, useBalance, type BoardLifeProps} from './BoardLife.tsx';
 import {boardFailure, serverFailure} from './boardReturn.ts';
 import {newSend, renewSend, sendRecord, sendStale, settleSend, submitSend, verifySend, type SendRecord} from './boardSend.ts';
 import {parseHumanAmount} from './evmRegistry.ts';
 import {normalizeEvmAddress} from './evmTransfer.ts';
 import {testedBoard} from './profile.ts';
 import {defaultReadState, readContact} from './readProfiles.ts';
-import {amountText, storeSymbol} from './tokens.ts';
+import {storeMoney} from './tokens.ts';
 
 const now = () => Math.floor(Date.now() / 1000);
 const pinNote = '위 금액과 받는 주소를 확인한 뒤 SW1을 짧게 누르고 보드 버튼으로 PIN을 입력하세요. 거절하려면 SW2를 누르세요.';
-const money = (units: string | bigint) => `${amountText(units.toString(), 6)} ${storeSymbol}`;
+
+const decimalWords = (decimals: number) => ['없음', '한', '두', '세', '네', '다섯', '여섯'][decimals] ?? String(decimals);
 
 /** What the server's refusal of a transfer means. The rest is worded as for a return. */
 export function sendFailure(error: unknown): string {
@@ -47,6 +48,7 @@ export function readRecipient(text: string) {
 
 /** 보내기: the store token to any address. The board signs it, the store relays it and pays the gas. */
 export function SendPage(props: BoardLifeProps) {
+  const token = props.token ?? dollarToken, money = (units: string | bigint) => storeMoney(units, token);
   const {stored, work, withBoard, say} = props;
   const {verified} = stored, board = testedBoard(stored);
   const {balance, read} = useBalance(props);
@@ -106,7 +108,7 @@ export function SendPage(props: BoardLifeProps) {
       <KitButton label="지금 확인" run={() => work(check, sendFailure)} disabled={props.busy} />
       <KitButton label="같은 거래 다시 보내기" variant="secondary" disabled={props.busy || record.validBefore <= now()} run={() => work(async () => {
         const {client} = await credential();
-        await submitSend(client, record, async next => keep(next), now());
+        await submitSend(client, record, async next => keep(next), now(), (await signingToken(record.token)).name);
         await check();
       }, sendFailure)} /></>;
     if (other || sendStale(record, clock)) return <>{summary}<Notice body={other ? '다른 보드 계정의 보내기입니다. 보내지 않았고 빠져나간 돈도 없습니다.' : '승인한 시간이 지났습니다. 보내지 않았고 빠져나간 돈도 없습니다.'} />
@@ -115,7 +117,7 @@ export function SendPage(props: BoardLifeProps) {
       <Text style={type.body}>보드가 승인한 거래를 아직 보내지 않았습니다.</Text>
       <KitButton label="보내기" disabled={props.busy} run={() => work(async () => {
         const {client} = await credential();
-        setRecord(await submitSend(client, record, async next => keep(next), now()));
+        setRecord(await submitSend(client, record, async next => keep(next), now(), (await signingToken(record.token)).name));
         await check();
       }, sendFailure)} />
       {record.sentAt === undefined && <KitButton label="보내기 취소" run={() => drop('보내지 않았습니다.')} disabled={props.busy} variant="secondary" />}</>;
@@ -123,17 +125,17 @@ export function SendPage(props: BoardLifeProps) {
       <Text style={type.body}>보드에는 화면이 없습니다. 위 금액과 주소를 확인하고 보드에서 승인하세요.</Text>
       <Chooser props={props} label="보드로 승인" run={handle => work(async () => {
         const signed = await withBoard(handle, async session => {
-          const asked = renewSend(record, now());
+          const asked = renewSend(record, now()), name = (await signingToken(record.token)).name;
           await keep(asked);
           const signature = await session.signSend(BigInt(asked.generation), {...asked, amount: BigInt(asked.amount)},
-            () => props.wait({flow: 'send', step: 'approve', note: pinNote}));
-          const next = verifySend(asked, signature);
+            () => props.wait({flow: 'send', step: 'approve', note: pinNote}), name);
+          const next = verifySend(asked, signature, name);
           await keep(next);
           return next;
         }).catch(error => { throw new Error(boardWords(error)); });
         // The signature is written down and lives for minutes only, so it is sent at once.
         const {client} = await credential();
-        await submitSend(client, signed, async next => keep(next), now());
+        await submitSend(client, signed, async next => keep(next), now(), (await signingToken(record.token)).name);
         await check();
       }, error => error instanceof Error && /[가-힣]/.test(error.message) ? error.message : sendFailure(error))} />
       <KitButton label="보내기 취소" run={() => drop('보내지 않았습니다.')} disabled={props.busy} variant="secondary" /></>;
@@ -149,14 +151,14 @@ export function SendPage(props: BoardLifeProps) {
     try {
       const target = readRecipient(to);
       if (target === board.account) { say('보드 계정 자신에게는 보낼 수 없습니다.'); return; }
-      const units = parseHumanAmount(amount.trim(), 6);
+      const units = parseHumanAmount(amount.trim(), token.decimals);
       if (!balance) { say('보드 계정의 잔액을 확인하지 못했습니다. 잠시 뒤 다시 시도하세요.'); return; }
       if (units > balance.latest || units > balance.units) { say(`잔액보다 큰 금액입니다. 확정된 잔액은 ${money(balance.units)}입니다.`); return; }
       if (props.spending && (units > props.spending.perPayment || units > props.spending.leftToday)) { say('보드 한도를 넘는 금액입니다. 내 보드에서 한도를 확인하세요.'); return; }
       say('');
       setReview({to: target, units});
     } catch (error) {
-      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 여섯 자리까지 입력할 수 있습니다.');
+      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(token.decimals) + ' 자리까지 입력할 수 있습니다.');
     }
   };
   const scan = async () => {
@@ -201,7 +203,7 @@ export function SendPage(props: BoardLifeProps) {
     </>;
   }
   return <>
-    <Card><Row label="토큰" value={`${storeSymbol} · StableNet 테스트넷`} /><Row label="가진 금액" value={balance === undefined ? '확인하는 중' : balance ? money(balance.units) : '확인 안 됨'} />
+    <Card><Row label="토큰" value={`${token.label} · StableNet 테스트넷`} /><Row label="가진 금액" value={balance === undefined ? '확인하는 중' : balance ? money(balance.units) : '확인 안 됨'} />
       {props.spending && <><Row label="한 번에" value={money(props.spending.perPayment)} /><Row label="오늘 남은 한도" value={money(props.spending.leftToday)} /></>}
       {held && <Row label="오늘 남은 횟수" value={`${held.remaining} / ${held.perDay}`} />}</Card>
     {balance === null && <KitButton label="잔액 다시 확인" run={() => work(async () => { await read(); }, () => '잔액을 확인하지 못했습니다.')} variant="secondary" disabled={props.busy} />}

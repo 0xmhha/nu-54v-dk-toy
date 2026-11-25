@@ -1,6 +1,6 @@
 // What the phone decides and remembers while a spending board is set up, returned and reset.
 // The board and the server have the last word; this file only keeps their steps in order.
-import {type CommerceClient, type CommerceOrder, hexToBytes, recoverSigner, walletReturnDigest, type WalletReturn} from '@nu54/protocol';
+import {type CommerceClient, type CommerceOrder, hexToBytes, recoverSigner, orderTokenName, walletReturnDigestFor, type WalletReturn} from '@nu54/protocol';
 import {customerDigest} from '../merchant/customerJournal.ts';
 import {isOpenOrder, type OpenOrder, type OrderAccount} from '../merchant/orderRecords.ts';
 
@@ -72,8 +72,8 @@ export function newReturn(base: Pick<ReturnRecord, 'payer' | 'generation' | 'dev
 }
 
 /** The signature must be the board account's, over exactly this transfer. */
-export function verifyReturn(record: ReturnRecord, signature: string): ReturnRecord {
-  const digest = walletReturnDigest({token: record.token, from: record.payer, to: record.to, amount: BigInt(record.amount),
+export function verifyReturn(record: ReturnRecord, signature: string, tokenName = orderTokenName): ReturnRecord {
+  const digest = walletReturnDigestFor(tokenName, {token: record.token, from: record.payer, to: record.to, amount: BigInt(record.amount),
     validBefore: BigInt(record.validBefore), nonce: record.nonce});
   if (recoverSigner(digest, hexToBytes(signature)) !== record.payer) throw new Error('RETURN_SIGNATURE');
   return {...record, signature, stage: 'signed'};
@@ -151,8 +151,8 @@ export async function readResetBlock(storage: Storage, records: {list(): Promise
 export const returnRefusals = ['CHECKOUT_CONFLICT', 'MISMATCHED_EVIDENCE', 'EXPIRED', 'BAD_REQUEST', 'NOT_AUTHORIZED', 'UNSUPPORTED_CAPABILITY', 'REPLAY_CONFLICT', 'BUSY'];
 
 /** Sends the signed transfer once it is written down, and reads what the server holds. */
-export async function submitReturn(client: CommerceClient, record: ReturnRecord, save: (next?: ReturnRecord) => Promise<void>, now: number) {
-  if (!record.signature || verifyReturn(record, record.signature).signature !== record.signature) throw new Error('RETURN_SIGNATURE');
+export async function submitReturn(client: CommerceClient, record: ReturnRecord, save: (next?: ReturnRecord) => Promise<void>, now: number, tokenName = orderTokenName) {
+  if (!record.signature || verifyReturn(record, record.signature, tokenName).signature !== record.signature) throw new Error('RETURN_SIGNATURE');
   if (record.validBefore <= now) throw new Error('RETURN_EXPIRED');
   const first = record.sentAt === undefined;
   const sent: ReturnRecord = {...record, stage: 'sent', sentAt: now};

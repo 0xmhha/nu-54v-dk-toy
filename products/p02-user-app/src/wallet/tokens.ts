@@ -1,4 +1,5 @@
 // The tokens of the wallet tab. Where a token comes from decides whether the board can send it; its symbol does not.
+import {dollarToken, paymentToken, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
 import {normalizeEvmAddress, readEvmReceiveBalance, type EvmChain} from './evmTransfer.ts';
 import {boardNetwork, isReadProfile, type Exchange, type NetworkRow} from './networks.ts';
 import {formatReadAmount, readCustomEvmBalance, readProfiles, walletReadRpc, type ReadProfileState} from './readProfiles.ts';
@@ -16,8 +17,11 @@ export type WalletToken = {
 export type ListedToken = {address: string; symbol: string; decimals: number};
 
 const coins: Record<EvmChain, string> = {'8283': 'WKRC', '11155111': 'ETH', '84532': 'ETH'};
-/** The store token of the pilot; the board's firmware signs its name. */
-export const storeSymbol = 'TestUSDC';
+/** The token of the store this phone is registered with, as the wallet lists it. */
+export const storeToken = (policy: CommercePaymentProfile): ListedToken => {
+  const {label, decimals} = paymentToken(policy);
+  return {address: policy.asset, symbol: label, decimals};
+};
 
 /**
  * The tokens one network shows: what the board signs, then the operator's list, the owner's own, and the coin.
@@ -47,6 +51,10 @@ export const amountText = (units: string, decimals: number) => {
   const [whole, fraction = ''] = formatReadAmount(units, decimals).split('.');
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + fraction.padEnd(2, '0');
 };
+
+/** An amount of the store's token. Without a registration that names one it is the dollar token. */
+export const storeMoney = (units: string | bigint, token: PaymentToken = dollarToken, language: 'ko' | 'en' = 'ko') =>
+  token.symbol === dollarToken.symbol ? `${amountText(units.toString(), token.decimals)} ${token.label}` : tokenAmount(units, token, language);
 
 export async function readToken(row: NetworkRow, token: WalletToken, account: string, exchange: Exchange): Promise<TokenAmount> {
   const rpc = walletReadRpc(row.server, exchange);

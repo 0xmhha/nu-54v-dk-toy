@@ -1,10 +1,11 @@
 import {
   preparePresentedPayment,
   type PresentationScope,
-  orderLock,
+  orderLockFor,
+  paymentToken,
   quoteV2Layout,
   verifyCommerceApproval,
-  verifyOrderLock,
+  verifyOrderLockFor,
   hexToBytes,
   type CommerceOrder,
   type CommercePaymentProfile,
@@ -145,7 +146,8 @@ export function lockForSubmit(
 ) {
   const payment = preparePresentedPayment(entry.quote, entry.order, profile, now, entry.scope);
   if (!entry.authorization || !entry.confirmer) throw new Error('PAYMENT_APPROVAL_PENDING');
-  const signature = verifyOrderLock(payment, entry.confirmer, hexToBytes(entry.authorization), now);
-  const lockDigest = orderLock(payment.bytes.subarray(0, quoteV2Layout.unsignedSize), entry.confirmer).digest;
+  const tokenName = paymentToken(profile).name;
+  const signature = verifyOrderLockFor(tokenName, payment, entry.confirmer, hexToBytes(entry.authorization), now);
+  const lockDigest = orderLockFor(tokenName, payment.bytes.subarray(0, quoteV2Layout.unsignedSize), entry.confirmer).digest;
   return {payment, confirmer: entry.confirmer, lockDigest, signature};
 }

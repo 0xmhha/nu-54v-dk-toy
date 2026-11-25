@@ -8,7 +8,7 @@ import {AmountLine, PickupTicket} from './paymentParts.tsx';
 // States of an order paid with the owner's board into the escrow. CustomerOrders decides the state;
 // this file only draws it, so the fixture demo and the tests show the same screens.
 
-export type OrderBlock = 'no-board' | 'wrong-account' | 'unsupported' | 'answered' | 'board-unready' | 'over-limit' | 'over-daily' | 'pin-wait' | 'balance' | 'expired' | 'key-lost';
+export type OrderBlock = 'no-board' | 'wrong-account' | 'unsupported' | 'answered' | 'board-unready' | 'over-limit' | 'over-daily' | 'pin-wait' | 'token' | 'balance' | 'expired' | 'key-lost';
 export type OrderBoard = {perPayment: string; left: string; balance?: string};
 export type OrderPaymentView = {store: string; amount: string} & (
   | {kind: 'confirm'; deadline?: number; spent?: boolean; items: {label: string; amount: string}[]; block?: OrderBlock; pinWait?: number;
@@ -35,6 +35,7 @@ const blocks: Record<OrderBlock, {title: string; detail: string; next?: [string,
   'answered': {title: '보드가 이미 답한 결제입니다', detail: '보드는 같은 결제를 다시 묻지 않습니다. 남은 시간이 지나면 새 결제 내용이 있는지 확인하고, 없으면 키오스크에서 새로 주문하세요.'},
   'over-daily': {title: '오늘 남은 한도를 넘는 금액입니다', detail: '보드가 오늘 더 승인할 수 있는 금액보다 큽니다. 주문을 줄이거나 내일 다시 결제하세요.'},
   'over-limit': {title: '보드 한도를 넘는 금액입니다', detail: '보드는 한 번에 정해진 금액까지만 승인합니다. 키오스크에서 주문을 줄여 주세요.'},
+  token: {title: '이 매장의 토큰이 등록된 내용과 다릅니다', detail: '체인의 소수 자릿수가 등록서와 달라 금액을 믿을 수 없습니다. 결제하지 말고 매장 직원에게 알려 주세요. 빠져나간 돈은 없습니다.', next: ['보드 다시 확인', 'findBoard']},
   'pin-wait': {title: 'PIN 입력을 기다려야 합니다', detail: 'PIN을 여러 번 틀려 보드가 잠시 입력을 막았습니다. 시간이 지난 뒤 다시 확인하세요.', next: ['보드 다시 확인', 'findBoard']},
   balance: {title: '보드 계정의 잔액이 부족합니다', detail: '원래 지갑에서 보드 계정으로 입금하거나 키오스크에서 주문을 줄여 주세요.', next: ['보드 계정 보기', 'openBoard']},
   expired: {title: '결제 기한이 지났습니다', detail: '빠져나간 돈은 없습니다. 새 결제 내용이 있는지 확인하고, 없으면 키오스크에서 새로 주문하세요.', next: ['결제 내용 다시 받기', 'again']},
