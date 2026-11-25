@@ -37,11 +37,22 @@ export type OrderLock = {
   nonce: string;
 };
 
-/** `unsigned` is the 672-byte quote; `confirmer` is the phone key address. */
-export function orderLock(unsigned: Uint8Array, confirmer: string): OrderLock {
+/** The token's signing name: 1 to 64 printable ASCII characters without spaces at either end. */
+export const validTokenName = (name: unknown): name is string =>
+  typeof name === "string" && /^[\x21-\x7e](?:[\x20-\x7e]{0,62}[\x21-\x7e])?$/.test(name);
+const tokenNameHash = (name: string) => {
+  if (!validTokenName(name)) throw new Error("ORDER_TOKEN_NAME");
+  return text(name);
+};
+
+/** orderLockFor with the dollar token. */
+export const orderLock = (unsigned: Uint8Array, confirmer: string): OrderLock => orderLockFor(orderTokenName, unsigned, confirmer);
+
+/** `unsigned` is the 672-byte quote; `confirmer` is the phone key address; `tokenName` is the asset's signing name. */
+export function orderLockFor(tokenName: string, unsigned: Uint8Array, confirmer: string): OrderLock {
   const nonce = keccak_256(concat(lockType, quoteDigest(unsigned), addressWord(confirmer)));
   const at = (offset: number) => unsigned.subarray(offset, offset + 32);
-  const token = keccak_256(concat(domainType, text(orderTokenName), text(orderTokenVersion), at(q.chainIdOffset), at(q.assetOffset)));
+  const token = keccak_256(concat(domainType, tokenNameHash(tokenName), text(orderTokenVersion), at(q.chainIdOffset), at(q.assetOffset)));
   const authorization = keccak_256(
     concat(
       receiveType,
@@ -57,14 +68,21 @@ export function orderLock(unsigned: Uint8Array, confirmer: string): OrderLock {
   return { preimage, digest: bytesToHex(keccak_256(preimage), false), nonce: bytesToHex(nonce, false) };
 }
 
-/** Accepts only the paying board's signature over this exact quote and phone key. */
-export function verifyOrderLock(
-  payment: Pick<VerifiedCommercePayment, "bytes" | "payer" | "deadline">,
+type LockedPayment = Pick<VerifiedCommercePayment, "bytes" | "payer" | "deadline">;
+
+/** verifyOrderLockFor with the dollar token. */
+export const verifyOrderLock = (payment: LockedPayment, confirmer: string, signature: Uint8Array, now: number): string =>
+  verifyOrderLockFor(orderTokenName, payment, confirmer, signature, now);
+
+/** Accepts only the paying board's signature over this exact quote, token name and phone key. */
+export function verifyOrderLockFor(
+  tokenName: string,
+  payment: LockedPayment,
   confirmer: string,
   signature: Uint8Array,
   now: number
 ): string {
-  const lock = orderLock(payment.bytes.subarray(0, q.unsignedSize), confirmer);
+  const lock = orderLockFor(tokenName, payment.bytes.subarray(0, q.unsignedSize), confirmer);
   if (
     now >= payment.deadline ||
     signature.length !== 65 ||
@@ -223,11 +241,14 @@ export function payerEnrollChallenge(scope: {
     scope.generation.toString(), scope.idempotencyKey].join("\n")));
 }
 
+export type TokenTransfer = { token: string; from: string; to: string; amount: bigint; validBefore: bigint; nonce: string };
+
+/** walletReturnDigestFor with the dollar token. */
+export const walletReturnDigest = (transfer: TokenTransfer): Uint8Array => walletReturnDigestFor(orderTokenName, transfer);
+
 /** EIP-3009 TransferWithAuthorization the board signs to send its balance home. */
-export function walletReturnDigest(transfer: {
-  token: string; from: string; to: string; amount: bigint; validBefore: bigint; nonce: string;
-}): Uint8Array {
-  const domain = keccak_256(concat(domainType, text(orderTokenName), text(orderTokenVersion),
+export function walletReturnDigestFor(tokenName: string, transfer: TokenTransfer): Uint8Array {
+  const domain = keccak_256(concat(domainType, tokenNameHash(tokenName), text(orderTokenVersion),
     bigToBytes(BigInt(q.pilotChain), 32), addressWord(transfer.token)));
   return keccak_256(concat(Uint8Array.of(0x19, 0x01), domain, keccak_256(concat(
     text("TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"),

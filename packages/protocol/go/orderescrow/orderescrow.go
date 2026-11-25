@@ -55,21 +55,40 @@ var errInput = errors.New("invalid order escrow input")
 
 func text(value string) []byte { return crypto.Keccak256([]byte(value)) }
 
+// ValidTokenName accepts 1 to 64 printable ASCII characters without spaces at either end.
+func ValidTokenName(name string) bool {
+	if name == "" || len(name) > 64 || name != strings.TrimSpace(name) {
+		return false
+	}
+	for i := range len(name) {
+		if name[i] < 0x20 || name[i] > 0x7e {
+			return false
+		}
+	}
+	return true
+}
+
 // Lock is the authorization that pays one order. Digest is what the board signs.
 type Lock struct {
 	Nonce, Digest common.Hash
 	Preimage      []byte
 }
 
-// NewLock builds the authorization for a 672-byte unsigned quote and a phone key.
+// NewLock is NewLockFor with the dollar token.
 func NewLock(unsigned []byte, confirmer common.Address) (Lock, error) {
+	return NewLockFor(TokenName, unsigned, confirmer)
+}
+
+// NewLockFor builds the authorization for a 672-byte unsigned quote and a phone key. tokenName is
+// the name in the signing domain of the quote's asset.
+func NewLockFor(tokenName string, unsigned []byte, confirmer common.Address) (Lock, error) {
 	quote, err := quotev2.Digest(unsigned)
-	if err != nil || confirmer == (common.Address{}) {
+	if err != nil || confirmer == (common.Address{}) || !ValidTokenName(tokenName) {
 		return Lock{}, errInput
 	}
 	word := func(offset int) []byte { return unsigned[offset : offset+32] }
 	nonce := crypto.Keccak256Hash(lockType, quote[:], common.LeftPadBytes(confirmer[:], 32))
-	token := crypto.Keccak256(domainType, text(TokenName), text(TokenVersion), word(chainOffset), word(assetOffset))
+	token := crypto.Keccak256(domainType, text(tokenName), text(TokenVersion), word(chainOffset), word(assetOffset))
 	authorization := crypto.Keccak256(receiveType, word(payerOffset), word(contractOffset), word(amountOffset),
 		make([]byte, 32), word(expiresOffset), nonce[:])
 	preimage := append([]byte{0x19, 0x01}, append(token, authorization...)...)
@@ -120,13 +139,18 @@ func AccountProofDigest(account common.Address, challenge [32]byte) common.Hash 
 		common.LeftPadBytes(account[:], 32), challenge[:]))
 }
 
-// ReturnDigest is the EIP-3009 TransferWithAuthorization that sends the board's balance home.
+// ReturnDigest is ReturnDigestFor with the dollar token.
 func ReturnDigest(token, from, to common.Address, amount *big.Int, validBefore uint64, nonce common.Hash) (common.Hash, error) {
-	if amount == nil || amount.Sign() <= 0 || amount.BitLen() > 256 || token == (common.Address{}) || from == (common.Address{}) ||
+	return ReturnDigestFor(TokenName, token, from, to, amount, validBefore, nonce)
+}
+
+// ReturnDigestFor is the EIP-3009 TransferWithAuthorization that sends the board's balance home.
+func ReturnDigestFor(tokenName string, token, from, to common.Address, amount *big.Int, validBefore uint64, nonce common.Hash) (common.Hash, error) {
+	if !ValidTokenName(tokenName) || amount == nil || amount.Sign() <= 0 || amount.BitLen() > 256 || token == (common.Address{}) || from == (common.Address{}) ||
 		to == (common.Address{}) || nonce == (common.Hash{}) {
 		return common.Hash{}, errInput
 	}
-	domain := crypto.Keccak256(domainType, text(TokenName), text(TokenVersion), common.LeftPadBytes(big.NewInt(ChainID).Bytes(), 32),
+	domain := crypto.Keccak256(domainType, text(tokenName), text(TokenVersion), common.LeftPadBytes(big.NewInt(ChainID).Bytes(), 32),
 		common.LeftPadBytes(token[:], 32))
 	return crypto.Keccak256Hash([]byte{0x19, 0x01}, domain, crypto.Keccak256(
 		text("TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"),
