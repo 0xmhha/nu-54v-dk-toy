@@ -8,6 +8,8 @@ import {
   unpackNearbyPresentation,
   fromBase64,
   toBase64,
+  utf8Encode,
+  v2PayloadLimit,
   orderLockFor,
   orderTokenName,
   quoteOrderRevision,
@@ -196,12 +198,16 @@ export class NearbyRelay {
         const page = Math.floor(req.offset / 50);
         const {prices, snapshotVersion} = await this.api.catalogWindow(page);
         const offset = req.offset % 50;
-        const rows = prices.slice(offset, offset + 4);
-        const next =
-          offset + rows.length < prices.length || prices.length === 50
-            ? req.offset + rows.length
-            : undefined;
-        return { status: 'ok', value: { rows, next, snapshotVersion } };
+        // Fewer rows than four when their text would not fit one reply.
+        for (let count = Math.min(4, prices.length - offset); ; count--) {
+          const rows = prices.slice(offset, offset + count);
+          const next =
+            offset + rows.length < prices.length || prices.length === 50
+              ? req.offset + rows.length
+              : undefined;
+          const reply: NearbyReply = { status: 'ok', value: { rows, next, snapshotVersion } };
+          if (count <= 1 || utf8Encode(JSON.stringify(reply)).length <= v2PayloadLimit) return reply;
+        }
       }
       if (req.op === 'reserve') {
         if (req.deadline !== undefined) {

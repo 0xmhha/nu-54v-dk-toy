@@ -64,6 +64,8 @@ const FRAME = 22;
 const HEADER = 25;
 const CHUNK = 192;
 const MAX_BODY = 2048;
+/** The largest payload of one message. */
+export const v2PayloadLimit = MAX_BODY - HEADER;
 const MAX_SEQUENCE = 0xffffffff;
 const MAX_TTL = 300n;
 const FRAGMENT_TIMEOUT = 5n;
