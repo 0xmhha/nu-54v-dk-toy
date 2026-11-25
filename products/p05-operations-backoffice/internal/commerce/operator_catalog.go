@@ -51,6 +51,7 @@ type operatorMutation struct {
 	Hours            *operatorHours    `json:"hours,omitempty"`
 	Categories       []json.RawMessage `json:"categories,omitempty"`
 	CategoryBindings []categoryBinding `json:"categoryBindings,omitempty"`
+	Options          []skuOptions      `json:"options,omitempty"`
 }
 
 var operatorRef = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -226,7 +227,11 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 65536))
+	limit := int64(catalogRequestBytes)
+	if r.PathValue("operation") == "publish" {
+		limit = publishBytes
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	decoder.DisallowUnknownFields()
 	var mutation operatorMutation
 	if err := decoder.Decode(&mutation); err != nil || !operatorRef.MatchString(mutation.Key) || mutation.Version < 0 {
@@ -241,7 +246,7 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch r.PathValue("operation") {
 	case "publish":
-		if mutation.ExpiresAt == nil || (mutation.Hours != nil && !mutation.Hours.valid()) || mutation.SKU != "" || mutation.Option != "" || mutation.Delta != nil || len(mutation.Rows) < 1 || len(mutation.Rows) > 150 {
+		if mutation.ExpiresAt == nil || (mutation.Hours != nil && !mutation.Hours.valid()) || mutation.SKU != "" || mutation.Option != "" || mutation.Delta != nil || len(mutation.Rows) < 1 || len(mutation.Rows) > catalogRowLimit || len(mutation.Options) > catalogRowLimit/2 {
 			operatorResponse(w, nil, service.BadRequest)
 			return
 		}
@@ -257,6 +262,14 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 				operatorResponse(w, nil, service.BadRequest)
 				return
 			}
+		}
+		chosen := make(map[string]bool, len(mutation.Options))
+		for _, option := range mutation.Options {
+			if !option.valid() {
+				operatorResponse(w, nil, service.BadRequest)
+				return
+			}
+			chosen[option.SKU] = true
 		}
 		groups := make(map[string]map[string]string)
 		for index := range mutation.Rows {
@@ -287,12 +300,34 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 				operatorResponse(w, nil, service.BadRequest)
 				return
 			}
-			if !sku.MatchString(row.SKU) || !sku.MatchString(row.Option) || len(strings.TrimSpace(row.Label)) < 1 ||
+			if chosen[row.SKU] != (row.Option == "") {
+				operatorResponse(w, nil, service.BadRequest)
+				return
+			}
+			if !sku.MatchString(row.SKU) || (!chosen[row.SKU] && !sku.MatchString(row.Option)) || len(strings.TrimSpace(row.Label)) < 1 ||
 				len([]rune(row.Label)) > 120 || !catalogAsset.MatchString(row.Asset) || row.Asset == "0x"+strings.Repeat("0", 40) ||
 				!catalogUnits.MatchString(row.Price) {
 				operatorResponse(w, nil, service.BadRequest)
 				return
 			}
+		}
+		if len(mutation.Options) != 0 {
+			if asset == nil {
+				operatorResponse(w, nil, service.BadRequest)
+				return
+			}
+			mutation.Rows, err = expandOptions(mutation.Rows, mutation.Options, asset.Decimals, h.Profiles[branch].Token)
+			if err != nil {
+				operatorResponse(w, nil, err)
+				return
+			}
+			if mutation.Categories == nil && mutation.CategoryBindings == nil {
+				mutation.Categories, mutation.CategoryBindings = []json.RawMessage{}, []categoryBinding{}
+			}
+		}
+		if !readableCatalog(mutation.Rows, mutation.Options, mutation.Categories, mutation.CategoryBindings) {
+			operatorResponse(w, nil, service.BadRequest)
+			return
 		}
 		rows, marshalErr := json.Marshal(mutation.Rows)
 		if marshalErr != nil {
@@ -309,7 +344,7 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 				actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours).Scan(&reply)
 			break
 		}
-		if mutation.Categories == nil || mutation.CategoryBindings == nil || len(mutation.Categories) > 50 || len(mutation.CategoryBindings) > 150 {
+		if mutation.Categories == nil || mutation.CategoryBindings == nil || len(mutation.Categories) > 50 || len(mutation.CategoryBindings) > catalogRowLimit {
 			operatorResponse(w, nil, service.BadRequest)
 			return
 		}
@@ -327,10 +362,19 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 			operatorResponse(w, nil, service.BadRequest)
 			return
 		}
+		if len(mutation.Options) != 0 {
+			var options []byte
+			if options, err = json.Marshal(mutation.Options); err != nil {
+				break
+			}
+			err = h.Store.db.QueryRow(ctx, "SELECT ledger.publish_operator_catalog_options($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+				actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours, categories, bindings, options).Scan(&reply)
+			break
+		}
 		err = h.Store.db.QueryRow(ctx, "SELECT ledger.publish_operator_catalog_categories($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
 			actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours, categories, bindings).Scan(&reply)
 	case "stock", "option-stock":
-		if mutation.ExpiresAt != nil || mutation.LocalExpiry != "" || mutation.Hours != nil || mutation.Rows != nil || mutation.Categories != nil || mutation.CategoryBindings != nil || mutation.Delta == nil || !sku.MatchString(mutation.SKU) {
+		if mutation.ExpiresAt != nil || mutation.LocalExpiry != "" || mutation.Hours != nil || mutation.Rows != nil || mutation.Categories != nil || mutation.CategoryBindings != nil || mutation.Options != nil || mutation.Delta == nil || !sku.MatchString(mutation.SKU) {
 			operatorResponse(w, nil, service.BadRequest)
 			return
 		}

@@ -61,7 +61,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         val sealed=settings.getString(setting,"").orEmpty()
         if(sealed.isEmpty())return ""
         val bytes=Base64.decode(sealed,Base64.NO_WRAP)
-        require(bytes.size in 28..128028)
+        require(bytes.size in 28..400028)
         val cipher=Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE,journalKey(false),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
         cipher.updateAAD(setting.encodeToByteArray())
@@ -75,7 +75,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
             return
         }
         val clear=value.encodeToByteArray()
-        require(clear.size <=128000)
+        require(clear.size <=400000)
         val cipher=Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE,journalKey(true))
         require(cipher.iv.size==12)

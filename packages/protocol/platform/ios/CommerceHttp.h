@@ -234,7 +234,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
 - (void)saveJournal:(NSString *)name value:(NSString *)value resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   dispatch_async(_work,^{
     NSData *data=[value dataUsingEncoding:NSUTF8StringEncoding];
-    if (!journalName(name) || !data || data.length>128000) { [self unavailable:reject]; return; }
+    if (!journalName(name) || !data || data.length>400000) { [self unavailable:reject]; return; }
     NSMutableDictionary *query=profileQuery([@"journal:" stringByAppendingString:name]);
     NSDictionary *update=@{(__bridge id)kSecValueData:data};
     OSStatus rc=SecItemUpdate((__bridge CFDictionaryRef)query,(__bridge CFDictionaryRef)update);

@@ -91,7 +91,7 @@ test("published catalog rejects repetition and excess rows within a bounded numb
   assert.deepEqual(repeated.pages, [0, 1]);
   const excess = fixture((page) => items(page * 50, 50));
   await assert.rejects(excess.client.publishedCatalog(), /BAD_RESPONSE/);
-  assert.deepEqual(excess.pages, [0, 1, 2, 3]);
+  assert.deepEqual(excess.pages, Array.from({ length: 13 }, (_, page) => page));
 });
 
 test("catalog merge retains distinct options and rejects duplicate or mixed-version nearby rows", () => {

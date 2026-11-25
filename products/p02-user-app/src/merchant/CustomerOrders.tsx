@@ -23,6 +23,7 @@ import {
   assertCommerceCatalogPage,
   assertCommerceCatalogVersion,
   appendCommerceCatalogPage,
+  assertCommerceChoices,
   commerceCatalogLimit,
   bytesToHex,
   hexToBytes,
@@ -1203,6 +1204,7 @@ export function CustomerOrders({
     }
     if (rows.some(row => Date.parse(row.expiresAt) <= Date.now()))
       throw new Error('NEARBY_CATALOG');
+    assertCommerceChoices(rows);
     return rows;
   }
 

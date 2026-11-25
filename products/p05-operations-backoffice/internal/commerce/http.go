@@ -106,6 +106,7 @@ type result struct {
 	Shop             *ShopIdentity          `json:"shop,omitempty"`
 	Catalog          []Price                `json:"catalog,omitempty"`
 	CatalogVersion   *int64                 `json:"catalogVersion,omitempty"`
+	CatalogOptions   []CatalogOptions       `json:"catalogOptions,omitempty"`
 	Orders           []CustomerOrderSummary `json:"orders,omitempty"`
 	Order            *Order                 `json:"order,omitempty"`
 	Quote            *quoteReply            `json:"quote,omitempty"`
@@ -412,7 +413,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 			err = service.BadRequest
 			break
 		}
-		out.Catalog, out.CatalogVersion, err = h.Store.catalogWindow(ctx, bound, int32(page))
+		out.Catalog, out.CatalogVersion, out.CatalogOptions, err = h.Store.catalogMenuWindow(ctx, bound, int32(page))
 		if err == nil && page == 0 {
 			out.Shop, err = h.Store.ShopIdentity(ctx, bound)
 		}

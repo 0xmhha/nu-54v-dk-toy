@@ -15,7 +15,7 @@ import {
 } from '@nu54/protocol';
 
 export const menuCacheJournal = 'terminal-public-menu-v1';
-const byteLimit = 128_000;
+const byteLimit = 400_000;
 const scopePattern = /^[a-f0-9]{64}$/;
 export type CachedMenu = {
   scope: string;

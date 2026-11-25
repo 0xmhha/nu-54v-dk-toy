@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from "./base64.ts";
 import { hexToBytes, utf8Decode, utf8Encode } from "./bytes.ts";
-import { encodeCommerceCart, type CommerceCart } from "./commerce-v2.ts";
+import { commerceCatalogLimit, encodeCommerceCart, type CommerceCart } from "./commerce-v2.ts";
 import {
   encodeV2StreamFrame,
   V2Journal,
@@ -103,7 +103,7 @@ export function decodeNearbyRequest(
         !hasKeys(req, ["op", "branch", "offset"]) ||
         !Number.isSafeInteger(req.offset) ||
         req.offset < 0 ||
-        req.offset > 300
+        req.offset > commerceCatalogLimit
       )
         throw new Error("NEARBY_COMMAND");
       break;

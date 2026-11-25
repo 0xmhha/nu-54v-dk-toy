@@ -187,6 +187,18 @@ export type CommerceCategory = {
   labels: Record<"ko" | "en", string>;
 };
 
+export type CommerceChoice = {
+  group: { key: string; labels: CommerceOptionLabels };
+  value: { key: string; labels: CommerceOptionLabels; order: number };
+};
+/** A label without English text shows the Korean one. */
+export type CommerceOptionLabels = { ko: string; en?: string };
+/** The independent choices of one product, as the server sends them once for each page. */
+export type CommerceSkuOptions = {
+  sku: string;
+  groups: { key: string; labels: CommerceOptionLabels; values: { key: string; labels: CommerceOptionLabels }[] }[];
+};
+
 export type CommercePrice = {
   version: number;
   expiresAt: string;
@@ -199,6 +211,8 @@ export type CommercePrice = {
   skuAvailable?: number;
   metadata?: CommerceMenuMetadata;
   category?: CommerceCategory;
+  /** One entry for each group, in the store's order. Absent for a product with a single list of options. */
+  choices?: CommerceChoice[];
 };
 export type CommerceOrderPayment = {
   nearbyUnpaid?: true;
@@ -394,6 +408,7 @@ type Response = ServiceReplyV2 & {
   terminalOrders?: string[];
   catalog?: CommercePrice[];
   catalogVersion?: number;
+  catalogOptions?: CommerceSkuOptions[];
   shop?: ShopIdentity;
   order?: CommerceOrder;
   orders?: CustomerOrderRow[];
@@ -471,8 +486,98 @@ export function encodeCommerceCart(input: CommerceCart): string {
 }
 
 // Matches the P05 operator publication limit. Both C3 reads carry the same published rows.
-export const commerceCatalogLimit = 150;
+export const commerceCatalogLimit = 600;
 const commerceCatalogPageSize = 50;
+
+const optionLabels = (labels: unknown): labels is CommerceOptionLabels =>
+  !!labels && typeof labels === "object" && !Array.isArray(labels) && "ko" in labels &&
+  Object.entries(labels).every(([key, label]) => (key === "ko" || key === "en") && typeof label === "string" &&
+    label.length > 0 && label.trim() === label && [...label].length <= 24 &&
+    !/[\p{Cc}\u202a-\u202e\u2066-\u2069]/u.test(label));
+const optionKey = (key: unknown, length: number): key is string =>
+  typeof key === "string" && key.length <= length && /^[a-z0-9]+$/.test(key);
+
+function validChoices(row: CommercePrice): boolean {
+  const { choices } = row;
+  if (choices === undefined) return true;
+  return Array.isArray(choices) && choices.length > 0 && choices.length <= 4 &&
+    row.metadata?.optionRequired === true &&
+    choices.every((choice) => !!choice?.group && !!choice.value &&
+      optionKey(choice.group.key, 16) && optionLabels(choice.group.labels) &&
+      optionKey(choice.value.key, 31) && optionLabels(choice.value.labels) &&
+      Number.isSafeInteger(choice.value.order) && choice.value.order >= 0 && choice.value.order < 12) &&
+    new Set(choices.map(({ group }) => group.key)).size === choices.length &&
+    choices.map(({ value }) => value.key).join("-") === row.optionKey;
+}
+
+function withChoices(rows: CommercePrice[], options: unknown): CommercePrice[] {
+  if (options === undefined) return rows;
+  if (!Array.isArray(options) || options.length > rows.length) throw new Error("BAD_RESPONSE");
+  const bySKU = new Map<string, CommerceSkuOptions>();
+  for (const option of options as CommerceSkuOptions[]) {
+    if (!option || !Array.isArray(option.groups) || bySKU.has(option.sku) ||
+        option.groups.some((group) => !group || !Array.isArray(group.values) || group.values.length < 2 || group.values.length > 12))
+      throw new Error("BAD_RESPONSE");
+    bySKU.set(option.sku, option);
+  }
+  const out = rows.map((row) => {
+    const option = bySKU.get(row.sku);
+    if (!option) return row;
+    const keys = row.optionKey.split("-");
+    const choices = option.groups.map(({ key, labels, values }, index): CommerceChoice => {
+      const order = values.findIndex((value) => value?.key === keys[index]);
+      if (order < 0) throw new Error("BAD_RESPONSE");
+      return { group: { key, labels }, value: { key: values[order].key, labels: values[order].labels, order } };
+    });
+    return { ...row, choices };
+  });
+  if (options.some(({ sku }) => !rows.some((row) => row.sku === sku)) || !out.every(validChoices))
+    throw new Error("BAD_RESPONSE");
+  return out;
+}
+
+export type CommerceChoiceGroup = {
+  key: string;
+  labels: CommerceOptionLabels;
+  values: { key: string; labels: CommerceOptionLabels }[];
+};
+
+/** The groups of one product in the store's order, from all of its rows. Empty when it has a single list of options. */
+export function commerceChoiceGroups(rows: CommercePrice[]): CommerceChoiceGroup[] {
+  if (!rows.length || rows.some(({ choices }) => !choices)) return [];
+  return rows[0].choices!.map(({ group }, index) => {
+    const values = new Map(rows.map((row) => [row.choices![index].value.key, row.choices![index].value]));
+    return { ...group, values: [...values.values()].sort((a, b) => a.order - b.order).map(({ key, labels }) => ({ key, labels })) };
+  });
+}
+
+export function commerceOptionLabel(labels: CommerceOptionLabels, locale: "ko" | "en"): string {
+  return labels[locale] ?? labels.ko;
+}
+
+/** A finished catalog has every combination of a product's choices, described the same way in every row. */
+export function assertCommerceChoices(catalog: CommercePrice[]) {
+  const products = new Map<string, CommercePrice[]>();
+  for (const row of catalog) products.set(row.sku, [...(products.get(row.sku) ?? []), row]);
+  for (const rows of products.values()) {
+    if (rows.every(({ choices }) => !choices)) continue;
+    const groups = commerceChoiceGroups(rows);
+    const described = new Map<string, string>();
+    const same = (key: string, value: unknown) => {
+      const text = JSON.stringify(value);
+      if (described.has(key) && described.get(key) !== text) return false;
+      described.set(key, text);
+      return true;
+    };
+    if (!groups.length || groups.some(({ values }) => values.length < 2) ||
+        groups.reduce((count, { values }) => count * values.length, 1) !== rows.length ||
+        rows.some(({ choices }) => choices!.length !== groups.length || choices!.some(({ group, value }, index) =>
+          !same(`${index}`, [group.key, group.labels.ko, group.labels.en]) ||
+          !same(`${index}/${value.key}`, [value.labels.ko, value.labels.en, value.order]) ||
+          !same(`${index}#${value.order}`, value.key))))
+      throw new Error("BAD_RESPONSE");
+  }
+}
 
 function validCategory(value: unknown): boolean {
   if (value === undefined) return true;
@@ -546,6 +651,7 @@ export function assertCommerceCatalogPage(
         row.label.length > 160 ||
         !validMenuMetadata(row.metadata) ||
         !validCategory(row.category) ||
+        !validChoices(row) ||
         typeof row.sku !== "string" ||
         !code.test(row.sku) ||
         typeof row.optionKey !== "string" ||
@@ -859,8 +965,9 @@ export class CommerceClient {
     const reply = await this.call("catalog.read", this.profile.branchRef, {
       page: String(page),
     });
-    const prices = reply.catalog ?? [];
-    assertCommerceCatalogPage(prices, this.clock(), commerceCatalogPageSize);
+    const rows = reply.catalog ?? [];
+    assertCommerceCatalogPage(rows, this.clock(), commerceCatalogPageSize);
+    const prices = withChoices(rows, reply.catalogOptions);
     assertCommerceCatalogVersion(reply.catalogVersion, prices);
     return {prices, shop: reply.shop, snapshotVersion: reply.catalogVersion};
   }
@@ -880,7 +987,10 @@ export class CommerceClient {
       else if (snapshot !== snapshotVersion) throw new Error("CATALOG_CHANGED");
       if (page === 0 && identifyShop && branch !== undefined) shop = readShopIdentity(branch, this.profile.branchRef);
       appendCommerceCatalogPage(catalog, prices);
-      if (prices.length < commerceCatalogPageSize) return {catalog, shop};
+      if (prices.length < commerceCatalogPageSize) {
+        assertCommerceChoices(catalog);
+        return {catalog, shop};
+      }
     }
     throw new Error("BAD_RESPONSE");
   }

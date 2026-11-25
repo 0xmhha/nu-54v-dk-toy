@@ -392,10 +392,11 @@ erDiagram
 |---|---|---|
 | `menu_category` | `(branch_id, version, category_key)`가 한 분류를 식별한다. 점주가 표시 순서와 지역화 이름을 입력한다. 순서가 같으면 키를 기준으로 정렬해 단말 사이 표시 순서를 맞춘다. | 해당 게시 버전과 같은 기간 보유한다. 운영자가 새 버전에서 이름을 바꿔도 이전 게시 내용은 그대로 조회된다. |
 | `menu_sku_category` | `(branch_id, version, sku)`당 최대 한 행이다. 이 행의 분류 키는 같은 지점·버전의 분류를 참조하고, SKU가 같은 게시 요청의 가격 행에 있는지 확인한다. | 미분류 상품은 연결 행 없이 ‘전체’에서 보인다. 한국어·영어 이름은 분류에서 읽고 상품별 사본을 저장하지 않는다. |
+| `menu_sku_options` | `(branch_id, version, sku)`당 최대 한 행이다. 상품의 독립 옵션 묶음(1~4개, 묶음마다 값 2~12개)과 조합을 만들기 전의 기준 가격을 담는다. 같은 게시 요청에 모든 조합의 가격 행이 하나씩 있어야 저장된다. | 해당 게시 버전과 같은 기간 보유한다. 가격·재고·주문의 기준은 여전히 조합 행이고, 이 표는 화면의 묶음 표시와 운영자의 다음 편집에만 쓴다. |
 
 게시 권한이 있는 점주의 한 요청에서 가격, 분류, 상품 연결을 함께 확정한다. 알 수 없는 분류, 다른 지점의 연결, 같은 SKU에 모순되는 연결이 있으면 버전 전체를 취소한다. 같은 요청 키·같은 내용의 재전송은 최초 게시 결과를 돌려주고, 가격이 같아도 분류를 바꾼 재전송은 충돌로 처리한다. 기존의 분류 없는 게시 요청과 저장된 지문은 다시 열 수 있어야 한다.
 
-게시 API는 분류 정의를 `categories`에, SKU 연결을 `categoryBindings`에 받는다. 한 분류에는 안정적인 `key`, 표시 순서 `sortOrder`, 이름 `labels.ko`와 `labels.en`이 있다. SKU 연결은 `sku`와 `categoryKey`를 받는다. 069에서는 게시당 최대 분류 50개·상품 연결 150개를 지원한다. 주문 요청과 주문 지문은 기존 SKU·옵션 기준을 사용한다. [점주 카탈로그 처리](../../../../products/p05-operations-backoffice/internal/commerce/operator_catalog.go) · [정의·연결·공개 조회 DDL](../../../../products/p05-operations-backoffice/internal/store/migrations/069_menu_categories.sql)
+게시 API는 분류 정의를 `categories`에, SKU 연결을 `categoryBindings`에 받는다. 한 분류에는 안정적인 `key`, 표시 순서 `sortOrder`, 이름 `labels.ko`와 `labels.en`이 있다. SKU 연결은 `sku`와 `categoryKey`를 받는다. 069에서는 게시당 최대 분류 50개·상품 연결 150개를 지원한다. 113에서 게시 줄과 상품 연결을 600개로 올리고, 상품마다 독립 옵션 묶음 `options`를 받는다. 옵션이 있는 상품은 `option`이 빈 줄 하나로 보내고 서버가 조합 줄을 만든다. 주문 요청과 주문 지문은 기존 SKU·옵션 기준을 사용한다. [점주 카탈로그 처리](../../../../products/p05-operations-backoffice/internal/commerce/operator_catalog.go) · [정의·연결·공개 조회 DDL](../../../../products/p05-operations-backoffice/internal/store/migrations/069_menu_categories.sql)
 
 공개 조회는 인증 범위 안의 같은 게시 버전에 있는 이름·순서·상품 관계만 전달한다. SDK는 여러 페이지를 읽다가 버전이 바뀌면 혼합 결과를 버린다. 화면에서 선택한 분류와 언어는 단말 상태로 관리한다. 고객의 선택 이력, 지갑 주소, 구매자 식별자를 이 모델에 추가하지 않는다. 인수 때에는 두 지점에서 같은 분류 키를 사용하고, 50번째 행을 넘는 상품과 구형 미분류 상품을 포함해 게시·재조회·언어 변경·장바구니 복구를 대조한다. [메뉴 카테고리의 동선과 조건](ledger.md#점주가-게시한-메뉴-카테고리) · [공용 메뉴 화면](../screens/specs/K.md#k01--공용-메뉴) · [P05 카테고리 DDL과 게시 계약](../../../../products/p05-operations-backoffice/internal/store/migrations/069_menu_categories.sql)
 

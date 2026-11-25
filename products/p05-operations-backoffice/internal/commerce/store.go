@@ -259,6 +259,16 @@ func (s *Store) catalogWindow(ctx context.Context, auth service.Bound, page int3
 	return prices, version, domainError(err)
 }
 
+// catalogMenuWindow is catalogWindow with the choices of the products on the page.
+func (s *Store) catalogMenuWindow(ctx context.Context, auth service.Bound, page int32) ([]Price, *int64, []CatalogOptions, error) {
+	var version *int64
+	var prices []Price
+	var options []CatalogOptions
+	err := s.db.QueryRow(ctx, "SELECT snapshot_version,items,options FROM ledger.catalog_menu_window($1,$2,$3,$4)",
+		auth.Tenant, auth.Request.Domain, auth.Subject, page).Scan(&version, &prices, &options)
+	return prices, version, options, domainError(err)
+}
+
 func (s *Store) Reserve(ctx context.Context, auth service.Bound, cart Cart) (string, error) {
 	lines, err := json.Marshal(cart.Items)
 	if err != nil {

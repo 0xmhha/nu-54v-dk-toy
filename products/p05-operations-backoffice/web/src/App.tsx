@@ -900,7 +900,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                 ))}
                 <button
                   type="button"
-                  disabled={draft.length >= 150}
+                  disabled={draft.length >= 600}
                   onClick={() => setDraft((rows) => [...rows, fresh()])}
                 >
                   옵션 추가
