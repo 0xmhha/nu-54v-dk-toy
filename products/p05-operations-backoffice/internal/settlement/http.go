@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -81,9 +82,49 @@ func (h FinanceHTTP) scopes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "finance access unavailable", http.StatusServiceUnavailable)
 		return
 	}
+	scopes, err := scopesWithTokens(scopes, h.Targets)
+	if err != nil {
+		http.Error(w, "finance access unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write(scopes)
+}
+
+// withToken adds the token of a branch that names one, so a page never shows its amounts as dollars.
+func withToken[V any](view map[string]V, target Target) any {
+	if view == nil || target.Token == (commerce.Token{}) {
+		return view
+	}
+	out := make(map[string]any, len(view)+1)
+	for key, value := range view {
+		out[key] = value
+	}
+	out["token"] = target.Token
+	return out
+}
+
+// scopesWithTokens adds the asset and token of every listed branch that names one. Other rows stay as they are.
+func scopesWithTokens(raw []byte, targets map[string]Target) ([]byte, error) {
+	named := false
+	for _, target := range targets {
+		named = named || target.Token != (commerce.Token{})
+	}
+	if !named {
+		return raw, nil
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		id, _ := row["id"].(string)
+		if target := targets[id]; target.Token != (commerce.Token{}) {
+			row["asset"], row["token"] = lower(target.Asset), target.Token
+		}
+	}
+	return json.Marshal(rows)
 }
 
 func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
@@ -190,7 +231,9 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "invalid order reference", http.StatusBadRequest)
 				return
 			}
-			output, err = h.financeOrder(ctx, principal, in.Branch, in.Sale, target)
+			var detail map[string]json.RawMessage
+			detail, err = h.financeOrder(ctx, principal, in.Branch, in.Sale, target)
+			output = withToken(detail, target)
 			break
 		}
 		day, parseErr := time.Parse("2006-01-02", in.Day)
@@ -211,13 +254,16 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 			}
 			scope := sha256.Sum256([]byte("nu54-finance-console-v1:" + hex.EncodeToString(fp[:]) + ":" + in.Branch + ":" + in.Day))
 			report.ReceiptScope = hex.EncodeToString(scope[:])
+			report.Token = target.Token
 			output = report
 		case "fulfillment-review":
 			if !financeRef.MatchString(in.Event) {
 				http.Error(w, "invalid event reference", http.StatusBadRequest)
 				return
 			}
-			output, err = h.notificationReview(ctx, principal, in.Branch, in.Asset, in.Event, in.Key, day, target)
+			var review map[string]any
+			review, err = h.notificationReview(ctx, principal, in.Branch, in.Asset, in.Event, in.Key, day, target)
+			output = withToken(review, target)
 		case "reconciliation":
 			var raw, receipts json.RawMessage
 			err = h.Store.db.QueryRow(ctx, "SELECT ledger.finance_cases($1,$2,$3,$4,$5),ledger.finance_notification_history($1,$2,$3,$4,$5)",

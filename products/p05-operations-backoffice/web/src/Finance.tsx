@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { RefundConsole } from "./RefundConsole";
+import { namedToken, tokenMoney, type BranchToken } from "./money";
 import {
   escrowStage,
   escrowStages,
@@ -18,6 +19,8 @@ type Report = {
   activeRefunds: number;
   openFulfillment: number;
   closeRevision: number | null;
+  // Present only for a branch that names its token.
+  token?: BranchToken;
 };
 type EventSummary = {
   eventId: string;
@@ -39,6 +42,7 @@ export type Order = {
   fulfillmentStatus: "held" | "closed" | "recorded";
   refunds: string;
   events: EventSummary[];
+  token?: BranchToken;
   // Present when the server also reports the escrow state of the order.
   escrow?: EscrowItem;
 };
@@ -49,6 +53,7 @@ type NotificationReview = EventSummary & {
   businessDay: string;
   bookedAt: string;
   ledgerAmount: string;
+  token?: BranchToken;
   receivedAt?: string;
   deliveredAt?: string;
   originalPayment: {
@@ -80,15 +85,8 @@ export function requestKey(operation: string, scope: string) {
   return key;
 }
 
-export function formatFinanceAmount(units: string) {
-  const value = BigInt(units);
-  const absolute = value < 0n ? -value : value;
-  const fraction = (absolute % 1000000n)
-    .toString()
-    .padStart(6, "0")
-    .replace(/0+$/, "")
-    .padEnd(2, "0");
-  return `${value < 0n ? "-" : ""}${absolute / 1000000n}.${fraction} TestUSDC`;
+export function formatFinanceAmount(units: string, token?: BranchToken) {
+  return tokenMoney(units, token);
 }
 
 // The escrow token of a deployment is named when the console is built, as lower-case addresses
@@ -99,12 +97,13 @@ const pilotAssets = (import.meta.env.VITE_PILOT_ASSETS ?? "")
   .map((asset: string) => asset.trim())
   .filter(Boolean);
 export const knownAsset = (asset?: string) =>
-  !!asset && pilotAssets.includes(asset.toLowerCase());
+  !!asset &&
+  (pilotAssets.includes(asset.toLowerCase()) || !!namedToken(asset));
 export const assetWarning =
   "시범 결제 자산으로 확인되지 않아 금액을 기본 단위로 표시합니다. 배포 설정을 확인하세요.";
 export function formatAssetAmount(units: string, asset?: string) {
   return knownAsset(asset)
-    ? formatFinanceAmount(units)
+    ? formatFinanceAmount(units, namedToken(asset))
     : `${BigInt(units).toLocaleString("ko-KR")} 기본 단위`;
 }
 
@@ -386,11 +385,11 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           </h2>
           <dl>
             <dt>원장에 반영된 확정 매출</dt>
-            <dd>{formatFinanceAmount(report.gross)}</dd>
+            <dd>{formatFinanceAmount(report.gross, report.token)}</dd>
             <dt>원장에 반영된 확정 환불</dt>
-            <dd>{formatFinanceAmount(report.refunds)}</dd>
+            <dd>{formatFinanceAmount(report.refunds, report.token)}</dd>
             <dt>순매출</dt>
-            <dd>{formatFinanceAmount(report.net)}</dd>
+            <dd>{formatFinanceAmount(report.net, report.token)}</dd>
             <dt>미완료 이행</dt>
             <dd>{report.openFulfillment}</dd>
             <dt>처리 중인 환불</dt>
@@ -417,8 +416,8 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           {cases.chainGross !== undefined &&
             cases.chainRefunds !== undefined && (
               <p>
-                체인 확정 입금 {formatFinanceAmount(cases.chainGross)} · 환불{" "}
-                {formatFinanceAmount(cases.chainRefunds)} · 확정 높이{" "}
+                체인 확정 입금 {formatFinanceAmount(cases.chainGross, report?.token)} · 환불{" "}
+                {formatFinanceAmount(cases.chainRefunds, report?.token)} · 확정 높이{" "}
                 {cases.height}
               </p>
             )}
@@ -518,7 +517,7 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
               {notification.businessDay} · {notification.bookedAt}
             </dd>
             <dt>장부 금액</dt>
-            <dd>{formatFinanceAmount(notification.ledgerAmount)}</dd>
+            <dd>{formatFinanceAmount(notification.ledgerAmount, notification.token)}</dd>
             <dt>원결제 등록 주소 버전</dt>
             <dd>
               {notification.originalPayment.beneficiaryVersion ?? "확인 대기"}
@@ -605,7 +604,7 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           </h2>
           <p>
             {report.day} · {report.zone} · 순매출{" "}
-            {formatFinanceAmount(report.net)}
+            {formatFinanceAmount(report.net, report.token)}
           </p>
           <button disabled={busy} onClick={close}>
             {pendingClose ? "같은 마감 조회" : "마감 요청"}
@@ -722,9 +721,11 @@ export function OrderDetail({
         <dt>주문 금액</dt>
         <dd>
           {kept
-            ? formatAssetAmount(order.amount, asset)
-            : formatFinanceAmount(order.amount)}
-          {kept && !knownAsset(asset) && (
+            ? order.token
+              ? formatFinanceAmount(order.amount, order.token)
+              : formatAssetAmount(order.amount, asset)
+            : formatFinanceAmount(order.amount, order.token)}
+          {kept && !order.token && !knownAsset(asset) && (
             <>
               <br />
               {assetWarning}
@@ -734,7 +735,7 @@ export function OrderDetail({
         {!kept && (
           <>
             <dt>확정 환불</dt>
-            <dd>{formatFinanceAmount(order.refunds)}</dd>
+            <dd>{formatFinanceAmount(order.refunds, order.token)}</dd>
           </>
         )}
         {!kept && order.quoteId && (

@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import { rememberTokens, type BranchToken } from "./money";
 
 export type BranchScope = {
   id: string;
   label: string;
   timezone: string;
   capabilities: string[];
+  // Present for a finance branch that names its token.
+  asset?: string;
+  token?: BranchToken;
 };
 
 export type BranchAccess = "loading" | "ready" | "failed";
@@ -32,6 +36,7 @@ export function useBranchAccess(audience: "operator" | "finance") {
       })
       .then((rows: BranchScope[]) => {
         if (stop.signal.aborted) return;
+        rememberTokens(Array.isArray(rows) ? rows : []);
         setBranches(Array.isArray(rows) ? rows : []);
         setAccess("ready");
       })

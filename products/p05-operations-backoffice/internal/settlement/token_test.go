@@ -232,3 +232,35 @@ func TestReturnIsCheckedAgainstTheBranchToken(t *testing.T) {
 		}
 	}
 }
+
+func TestFinancePagesLearnTheBranchToken(t *testing.T) {
+	won := Target{Asset: common.HexToAddress("0xa1"), Token: testWon}
+	raw := []byte(`[{"id":"won","label":"a","capabilities":["reconcile_read"]},{"id":"usd","label":"b","capabilities":[]}]`)
+	if same, err := scopesWithTokens(raw, map[string]Target{"usd": {}}); err != nil || !bytes.Equal(same, raw) {
+		t.Fatalf("dollar scopes changed: %s %v", same, err)
+	}
+	mixed, err := scopesWithTokens(raw, map[string]Target{"won": won, "usd": {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []struct {
+		ID, Asset string
+		Token     *commerce.Token
+	}
+	if err := json.Unmarshal(mixed, &rows); err != nil || len(rows) != 2 || rows[0].Token == nil || *rows[0].Token != testWon ||
+		rows[0].Asset != lower(won.Asset) || rows[1].Token != nil || rows[1].Asset != "" {
+		t.Fatalf("%s %v", mixed, err)
+	}
+	if body, _ := json.Marshal(withToken(map[string]any{"amount": "1"}, Target{})); string(body) != `{"amount":"1"}` {
+		t.Fatalf("dollar view changed: %s", body)
+	}
+	if body, _ := json.Marshal(withToken(map[string]any{"amount": "1"}, won)); !strings.Contains(string(body), `"token":{"name":"NU54 Test KRW"`) {
+		t.Fatalf("won view has no token: %s", body)
+	}
+	if body, _ := json.Marshal(dayReport{}); strings.Contains(string(body), "token") {
+		t.Fatalf("dollar report changed: %s", body)
+	}
+	if body, _ := json.Marshal(dayReport{Token: testWon}); !strings.Contains(string(body), `"decimals":2`) {
+		t.Fatalf("won report has no token: %s", body)
+	}
+}

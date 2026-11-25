@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -31,6 +32,8 @@ type dayReport struct {
 	// Deposits that entered and left the escrow that day. Present only for a day that has any.
 	EscrowLocked   string `json:"escrowLocked,omitempty"`
 	EscrowReturned string `json:"escrowReturned,omitempty"`
+	// Present only for a branch that names its token.
+	Token commerce.Token `json:"token,omitzero"`
 }
 
 func (h FinanceHTTP) report(ctx context.Context, tenant, branch, actor, asset string, day time.Time, key string) (dayReport, error) {

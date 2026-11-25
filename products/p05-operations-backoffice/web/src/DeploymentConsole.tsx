@@ -254,7 +254,7 @@ export function DeploymentConsole({
             <dl>
               <dt>배포 계약</dt>
               <dd>StableNet {deployment.chain} · {deployment.contract}</dd>
-              <dt>허용 TestUSDC</dt>
+              <dt>허용 결제 토큰</dt>
               <dd>{deployment.asset}</dd>
               <dt>배포 manifest 해시</dt>
               <dd>{deployment.manifest}</dd>
@@ -294,7 +294,7 @@ export function DeploymentConsole({
             <dd>
               StableNet {payment.chain} · {payment.contract}
             </dd>
-            <dt>허용 TestUSDC</dt>
+            <dt>허용 결제 토큰</dt>
             <dd>{payment.asset}</dd>
             <dt>배포 manifest 해시</dt>
             <dd>{payment.manifest}</dd>
