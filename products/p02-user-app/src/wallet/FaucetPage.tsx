@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
-import type {FaucetStatus, FaucetToken} from '@nu54/protocol';
+import {stableNetCoin, type FaucetStatus, type FaucetToken} from '@nu54/protocol';
 import {walletId} from '../merchant/customerClient.ts';
 import {Card, Chip, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
@@ -59,6 +59,7 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
     const timer = setInterval(refresh, 10_000);
     return () => clearInterval(timer);
   }, [open, refresh]);
+  const named = (token: FaucetToken) => won[token.token] ?? (token.token === stableNetCoin.asset ? stableNetCoin.label : token.symbol);
   const claim = async (token: FaucetToken) => {
     if (busy) return;
     setBusy(true);
@@ -69,7 +70,7 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
       keys.current.set(token.token, key);
       await client.claimFaucet(token.token, key);
       keys.current.delete(token.token);
-      setSaid(`${won[token.token] ?? token.symbol} · ${t('보내 달라고 했습니다. 확정되면 지갑에 보입니다.')}`);
+      setSaid(`${named(token)} · ${t('보내 달라고 했습니다. 확정되면 지갑에 보입니다.')}`);
     } catch (error) {
       // Anything the server named is an answer; only silence leaves the request open.
       if (faucetFailure(error) !== faucetFailure(new Error())) keys.current.delete(token.token);
@@ -90,9 +91,9 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
       <View style={styles.list}>{status.tokens.map(token => {
         const taken = sends.includes(token.token);
         return <View key={token.token} style={styles.line}>
-          <View style={styles.words}><Text style={type.label}>{won[token.token] ?? token.symbol}</Text>
+          <View style={styles.words}><Text style={type.label}>{named(token)}</Text>
             <Text style={type.small}>{taken ? state(t, token, won[token.token] ? true : undefined) : t('보드가 아직 이 토큰을 보낼 수 없어 받지 않습니다')}</Text></View>
-          {taken && token.state === 'ready' && !other ? <View style={styles.claim}><KitButton label={`${won[token.token] ?? token.symbol} ${t('받기')}`} run={() => { claim(token).catch(() => {}); }} disabled={busy} /></View>
+          {taken && token.state === 'ready' && !other ? <View style={styles.claim}><KitButton label={`${named(token)} ${t('받기')}`} run={() => { claim(token).catch(() => {}); }} disabled={busy} /></View>
             : <Chip label={t(!taken ? '사용 안 함' : token.state === 'open' ? '보내는 중' : token.state === 'limit' ? '받음' : token.state === 'empty' ? '모자람' : '확인 필요')} tone={token.state === 'open' ? 'wait' : 'off'} />}
         </View>;
       })}</View>

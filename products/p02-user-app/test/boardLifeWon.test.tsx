@@ -382,7 +382,7 @@ describe('the coin', () => {
     mockBalance = '0';
     mockOther = {coin: '7'};
     await open('return');
-    expect(text()).not.toContain('7 WKRC');
+    expect(text()).not.toContain('7 KRWC');
     expect(text()).not.toContain('0.000000000000000007');
     expect(!!button('보드 초기화')).toBe(true);
   });

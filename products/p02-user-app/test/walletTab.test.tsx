@@ -63,7 +63,7 @@ beforeEach(async () => {
 afterEach(async () => { await Renderer.act(async () => tree.unmount()); jest.useRealTimers(); });
 
 test('tokens show their amounts, and only what the board signs can be received', async () => {
-  for (const shown of ['82.00', '10,000.00', 'tKRWC', 'WKRC']) expect(text()).toContain(shown);
+  for (const shown of ['82.00', '10,000.00', 'tKRWC', '"KRWC"']) expect(text()).toContain(shown);
   await tap('TestUSDC 82.00');
   expect(pick('받기')).toBeDefined();
   await tap('지갑으로 돌아가기');

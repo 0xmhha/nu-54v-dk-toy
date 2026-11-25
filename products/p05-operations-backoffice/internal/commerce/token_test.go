@@ -209,6 +209,7 @@ func TestCoinCountsForItsBoard(t *testing.T) {
 	}
 	for _, change := range []func(*Token){
 		func(v *Token) { v.BoardDecimals = 0 }, func(v *Token) { v.BoardDecimals = 1 }, func(v *Token) { v.BoardDecimals = 9 }, func(v *Token) { v.Decimals = 8 },
+		func(v *Token) { v.Label = "WKRC" }, func(v *Token) { v.Symbol = "tKRW" },
 	} {
 		bad := coin
 		change(&bad)

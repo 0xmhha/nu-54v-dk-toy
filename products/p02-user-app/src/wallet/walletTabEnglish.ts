@@ -90,6 +90,7 @@ export const walletTabEnglish: Record<string, string> = {
   '체인에서 읽은 정보': 'Read from the chain',
   '기호': 'Symbol',
   '소수 자리': 'Decimals',
+  '탐색기의 이름': 'Name on explorers',
   '내 잔액': 'My balance',
   '계약 주소': 'Contract address',
   '활동': 'Activity',

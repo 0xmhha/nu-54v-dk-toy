@@ -97,7 +97,7 @@ func TestStartChecksEachBranchOfThreeTokens(t *testing.T) {
 		off   bool
 	}{
 		"as the chain has it":                 {target(commerce.StableNetCoin, coinToken), real[commerce.StableNetCoin], false},
-		"shown under another label":           {target(commerce.StableNetCoin, strings.Replace(coinToken, `"KRWC"`, `"WKRC"`, 1)), real[commerce.StableNetCoin], false},
+		"shown under another label":           {target(commerce.StableNetCoin, strings.Replace(coinToken, `"KRWC"`, `"WKRC"`, 1)), real[commerce.StableNetCoin], true},
 		"another name in the settings":        {target(commerce.StableNetCoin, strings.Replace(coinToken, `"WKRC"`, `"KRWC"`, 1)), real[commerce.StableNetCoin], true},
 		"another name on chain":               {target(commerce.StableNetCoin, coinToken), chainToken{"KRWC", "WKRC", 18}, true},
 		"another symbol on chain":             {target(commerce.StableNetCoin, coinToken), chainToken{"WKRC", "KRWC", 18}, true},

@@ -18,8 +18,11 @@ import type { CommerceOrder, CommerceQuote } from "./commerce-v2.ts";
 export type PaymentToken = { name: string; symbol: string; label: string; decimals: number; boardDecimals?: number };
 export const dollarToken: PaymentToken = { name: orderTokenName, symbol: "tUSDC", label: "TestUSDC", decimals: 6 };
 
-/** StableNet's own coin as a token. It is at this address on every StableNet, and no other token is. */
-export const stableNetCoin = { asset: "0x" + "1000".padStart(40, "0"), symbol: "WKRC" };
+/**
+ * StableNet's own coin, KRWC, as a token. The chain calls that token WKRC, and it signs under that name. It is at this
+ * address on every StableNet, and no other token is. Screens say KRWC.
+ */
+export const stableNetCoin = { asset: "0x" + "1000".padStart(40, "0"), symbol: "WKRC", label: "KRWC" };
 /** Base units in one unit of a board: 1 unless the token names the decimals its board counts in. */
 export const boardUnit = (token: Pick<PaymentToken, "decimals" | "boardDecimals">): bigint =>
   10n ** BigInt(token.decimals - (token.boardDecimals ?? token.decimals));
@@ -154,6 +157,7 @@ export function paymentProfile(
   if (payment.token !== undefined && !validPaymentToken(payment.token)) throw new Error("PAYMENT_PROFILE");
   const token = paymentToken(payment);
   if ((token.symbol === stableNetCoin.symbol) !== (payment.asset === stableNetCoin.asset)) throw new Error("PAYMENT_PROFILE");
+  if ((token.symbol === stableNetCoin.symbol) !== (token.label === stableNetCoin.label)) throw new Error("PAYMENT_PROFILE");
   // The firmware's own cap for one payment.
   if (BigInt(payment.maxBaseUnits) > fromBoard(30_000_000n, token)) throw new Error("PAYMENT_PROFILE");
   return payment;

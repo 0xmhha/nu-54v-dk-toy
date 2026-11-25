@@ -26,6 +26,7 @@ test("the coin is accepted only at its own address", () => {
   const { token: _token, abiSha256: _abi, ...plain } = profile;
   for (const bad of [
     { ...profile, asset: "0x" + "2".repeat(40) }, // another token that calls itself the coin
+    { ...profile, token: { ...coin, label: "WKRC" } }, { ...profile, asset: "0x" + "2".repeat(40), token: { ...won, label: "KRWC" }, maxBaseUnits: "30000000" }, // one name on screens
     { ...profile, token: won, maxBaseUnits: "30000000" }, { ...plain, maxBaseUnits: "30000000" }, // the coin as another token
     { ...profile, maxBaseUnits: (300_000n * wei + 1n).toString() }, { ...profile, maxBaseUnits: "0" }, { ...profile, maxBaseUnits: "9".repeat(33) },
     { ...profile, asset: "0x" + "2".repeat(40), token: won, maxBaseUnits: "30000001" },

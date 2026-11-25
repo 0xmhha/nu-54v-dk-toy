@@ -6,7 +6,7 @@ import {onOrdersChanged, orderRecords, type OpenOrder} from '../merchant/orderRe
 import {Card, Chip, KitButton, Row, Section} from '../ui/kit.tsx';
 import {useInnerBack, usePageTop} from '../ui/innerBack.ts';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
-import type {WalletSend} from '@nu54/protocol';
+import {stableNetCoin, type WalletSend} from '@nu54/protocol';
 import {credential} from './BoardLife.tsx';
 import {FaucetPage} from './FaucetPage.tsx';
 import {boardNetwork, networkRows, shownNetwork, type Exchange, type NetworkAdvice, type NetworkRow} from './networks.ts';
@@ -127,6 +127,7 @@ function TokenPage({t, row, token, amount, hidden, language, busy, receive, send
     <Card>
       <Row label={t('보드')} value={t(token.sends ? '받기·보내기' : '보기만')} />
       <Row label={t('소수 자리')} value={String(token.decimals)} />
+      {row.key === boardNetwork && (token.key === 'coin' || token.contract === stableNetCoin.asset) && <Row label={t('탐색기의 이름')} value={stableNetCoin.symbol} />}
       {token.contract && <><Text style={type.small}>{t('계약 주소')}</Text><Text selectable style={styles.mono}>{token.contract}</Text></>}
     </Card>
     {token.sends ? <View style={styles.actions}>

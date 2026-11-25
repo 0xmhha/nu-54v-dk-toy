@@ -22,7 +22,8 @@ type Token struct {
 // StableNetCoin is the chain's own coin as a token: the same address on every StableNet, and no other token.
 var StableNetCoin = common.HexToAddress("0x1000")
 
-const coinSymbol = "WKRC"
+// The chain calls the token of its coin KRWC by this name and symbol. Screens say KRWC.
+const coinSymbol, coinLabel = "WKRC", "KRWC"
 
 // IsCoin reports whether the token is the chain's own coin.
 func (t Token) IsCoin() bool { return t.Symbol == coinSymbol }
@@ -46,7 +47,7 @@ func (t Token) OrDollar() Token {
 // Valid accepts no token or a complete one. Zero decimals is what a forgotten field reads as, so it is refused.
 func (t Token) Valid() bool {
 	return t == (Token{}) || (orderescrow.ValidTokenName(t.Name) && tokenSymbol.MatchString(t.Symbol) &&
-		tokenSymbol.MatchString(t.Label) && t.Decimals >= 1 && t.Decimals <= 18 &&
+		tokenSymbol.MatchString(t.Label) && t.Decimals >= 1 && t.Decimals <= 18 && t.IsCoin() == (t.Label == coinLabel) &&
 		((t.Decimals <= 8 && t.BoardDecimals == 0) || (t.Decimals > 8 && t.BoardDecimals >= 2 && t.BoardDecimals <= 8)))
 }
 

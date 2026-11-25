@@ -353,7 +353,7 @@ describe('return and reset', () => {
     mockOther = {coin: '1000000000000000000'};
     await open('reset');
     expect(button('앱에서 초기화 계속')).toBeUndefined();
-    await press('1.00 WKRC · 잃어도 됩니다');
+    await press('1.00 KRWC · 잃어도 됩니다');
     expect(button('앱에서 초기화 계속')).toBeDefined();
     mockBalance = undefined;
     await open('reset');

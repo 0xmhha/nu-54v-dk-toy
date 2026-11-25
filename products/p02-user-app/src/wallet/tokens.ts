@@ -18,7 +18,7 @@ export type WalletToken = {
 };
 export type ListedToken = {address: string; symbol: string; decimals: number; won?: true};
 
-const coins: Record<EvmChain, string> = {'8283': 'WKRC', '11155111': 'ETH', '84532': 'ETH'};
+const coins: Record<EvmChain, string> = {'8283': stableNetCoin.label, '11155111': 'ETH', '84532': 'ETH'};
 /** The token of the store this phone is registered with, as the wallet lists it. */
 export const storeToken = (policy: CommercePaymentProfile): ListedToken => {
   const token = paymentToken(policy), {label, decimals} = token;
@@ -38,7 +38,9 @@ export function tokensOf(row: NetworkRow, owner: {boardFingerprint: string; gene
   const out = new Map<string, WalletToken>();
   const put = (item: ListedToken, more: Partial<WalletToken> = {}) => {
     const contract = item.address.toLowerCase();
-    if (!out.has(contract)) out.set(contract, {key: contract, contract, symbol: item.symbol, decimals: item.decimals, sends: false, ...more, ...(item.won && more.sends ? {won: true as const} : {})});
+    // The coin has one name on every screen, whatever its token is called on chain.
+    const symbol = row.key === boardNetwork && contract === stableNetCoin.asset ? stableNetCoin.label : item.symbol;
+    if (!out.has(contract)) out.set(contract, {key: contract, contract, symbol, decimals: item.decimals, sends: false, ...more, ...(item.won && more.sends ? {won: true as const} : {})});
   };
   if (row.key === boardNetwork) for (const item of signed) put(item, {sends: true});
   for (const item of listed) put(item);
