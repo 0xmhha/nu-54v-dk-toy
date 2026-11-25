@@ -10,11 +10,15 @@ TABS = ("홈", "결제", "지갑", "둘러보기", "설정")
 
 
 class Walk:
-    def __init__(self, adb, step, evidence):
+    def __init__(self, adb, step, evidence, token="usd"):
         self.adb, self.step, self.evidence = adb, step, evidence
         size = re.search(rb"(\d+)x(\d+)", self.shell("wm", "size"))
         self.width, self.height = int(size[1]), int(size[2])
         self.failed = 0
+        self.won = token == "won"
+        # The wallet list names the token; every other page shows won as won.
+        self.wallet = (lambda dollars: f"tKRW {dollars * 10000:,}.00") if self.won else (lambda dollars: f"TestUSDC {dollars}.00")
+        self.money = (lambda dollars: f"{dollars * 10000:,}원") if self.won else (lambda dollars: f"{dollars}.00 TestUSDC")
 
     # ---- the screen ----
     def shell(self, *args):
@@ -195,13 +199,17 @@ class Walk:
     def deposit(self):
         self.step("deposit", amount="90000000")
         self.tap("입금 안내 보기")
+        if self.won:
+            self.sees("tKRW는 StableNet 테스트넷에만 있습니다")
+            self.shot("02-network-first")
+            self.tap("확인했습니다. 주소 보기")
         self.sees("입금 주소 QR")
         self.tap("홈")
         self.sees("지금 할 일이 없습니다")
-        assert not any("90.00" in word for word in self.words()), "the balance belongs to the wallet tab"
+        assert not any(shown in word for shown in ("90.00", "900,000") for word in self.words()), "the balance belongs to the wallet tab"
         self.shot("03-home")
         self.tap("지갑")
-        self.sees("TestUSDC 90.00")
+        self.sees(self.wallet(90))
         self.shot("03-wallet")
 
     def tokens(self):
@@ -230,7 +238,7 @@ class Walk:
         self.shot("15-other-network")
         self.tap(self.labelled("네트워크 Ethereum"))
         self.tap(self.labelled("StableNet Testnet"))
-        self.sees("TestUSDC 90.00")
+        self.sees(self.wallet(90))
 
     def faucet(self):
         before = int(self.step("state")["balance"])
@@ -249,7 +257,7 @@ class Walk:
         self.sees("이후 다시 받을 수 있습니다", 60)
         self.shot("12-faucet-done")
         self.back()
-        self.sees("TestUSDC 95.00", 60)
+        self.sees(self.wallet(95), 60)
 
     def send(self):
         before = int(self.step("state")["balance"])
@@ -257,9 +265,10 @@ class Walk:
         self.tap("보내기")
         self.sees("오늘 남은 횟수")
         self.type("받는 주소", "0x" + "f1" * 20)
-        self.type("금액", "5")
+        self.type("금액", "50000" if self.won else "5")
         self.tap("다음")
         self.sees("처음 보내는 주소입니다")
+        self.sees(self.money(5))
         self.shot("24-send-review")
         self.tap("이 내용으로 보내기")
         self.sees("보드에는 화면이 없습니다")
@@ -315,7 +324,7 @@ class Walk:
         self.step("servers", change={"down": []})
         # A removed network is not shown any more.
         self.tap("지갑")
-        self.sees("TestUSDC 95.00")
+        self.sees(self.wallet(95))
 
     def settings(self):
         self.tap("설정")
@@ -367,6 +376,7 @@ class Walk:
         code = next(word.split()[-1] for word in self.words() if word.startswith("매장 확인 번호"))
         self.step("confirm", sale=sale, code=code)
         self.sees("결제 내용을 확인하세요")
+        self.sees(self.money(8 * quantity))
         return sale
 
     def check_board(self):

@@ -23,10 +23,11 @@ export class Board {
   dropAfterSigning = false;
   private deaf = false;
   /** Answers what the firmware does not know yet. */
-  readonly sends = new SendStandIn();
+  readonly sends: SendStandIn;
   readonly sounds = {fragment: new Set<(chunk: string) => void>(), lost: new Set<() => void>()};
 
-  constructor(binary: string) {
+  constructor(binary: string, tokenName: string) {
+    this.sends = new SendStandIn(tokenName);
     this.child = spawn(binary, [], {stdio: ['pipe', 'pipe', 'inherit']});
     this.child.stdout!.setEncoding('utf8').on('data', (text: string) => {
       this.buffer += text;

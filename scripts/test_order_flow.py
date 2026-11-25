@@ -25,6 +25,10 @@ FLOW = ROOT / P05 / "test/order-flow"
 USER = "nu54_order_flow"
 DATABASE = "nu54_settlement_order_flow"
 FLOWS = 17
+# Both stores at once. The claim of the last flows moves the chain's clock, which the stores share, so they stay out.
+TOGETHER = ("enroll the board account", "deposit to the board account", "kiosk order, paid", "refused on the board, then", "duplicate lock",
+            "dispute, two people", "test tokens from the faucet", "send to another address", "return, blocked")
+TOKENS = {"usd": ("", FLOWS), "won": ("", FLOWS), "both": ("|".join(TOGETHER), 2 * len(TOGETHER) + 1)}  # and the refused branch
 VECTORS = ROOT / "packages/protocol/v2/testdata"
 WON_BOARD = ("-DNU54_TOKEN_NAME=NU54 Test KRW", f"-DNU54_ORDER_VECTOR={VECTORS / 'order-lock-won.vectors'}",
              f"-DNU54_RETURN_VECTOR={VECTORS / 'wallet-return-won.vectors'}", "-DNU54_RETURN_AMOUNT=3420000")
@@ -134,12 +138,13 @@ def database(scratch, env, tools, log):
     return f"host={socket} port=5432 user={USER} dbname={DATABASE} sslmode=disable"
 
 
-def run_flows(scratch, env, built, dsn, log, verbose, only):
+def run_flows(scratch, env, built, dsn, log, verbose, only, token):
     """Prints the flow lines as they come and returns them with everything else the run said."""
     env = {**env, "P05_SETTLEMENT_TEST_DATABASE_URL": dsn, "P05_SETTLEMENT_TEST_INDEXER": str(built["indexer"]),
            "P05_SETTLEMENT_TEST_RPC": "http://127.0.0.1:1", "FOUNDRY_OUT": str(built["contracts"]),
-           "NU54_ORDER_FLOW_BOARD": str(built["board"]), "NU54_ORDER_FLOW_JEST": str(FLOW / "app/jest.config.cjs")}
-    if only:
+           "NU54_ORDER_FLOW_BOARD": str(built["board"]), "NU54_ORDER_FLOW_BOARD_WON": str(built["board_won"]), "NU54_ORDER_FLOW_TOKEN": token,
+           "NU54_ORDER_FLOW_JEST": str(FLOW / "app/jest.config.cjs")}
+    if only := only or TOKENS[token][0]:
         env["NU54_ORDER_FLOW_ONLY"] = only
     lines, rest = [], []
     with cleanup_stack() as stack:
@@ -169,6 +174,7 @@ def main():
     parser.add_argument("--postgres-bin", type=Path, default=os.environ.get("POSTGRES_BIN"), help="directory with the PostgreSQL tools")
     parser.add_argument("--verbose", action="store_true", help="show the output of the server, the indexer and the apps as it comes")
     parser.add_argument("--only", metavar="PATTERN", help="run the flows whose names match, for example 'enroll|deposit|duplicate'")
+    parser.add_argument("--token", choices=TOKENS, default="usd", help="the store's token, or both stores on one server")
     args = parser.parse_args()
     tools, started = postgres_tools(args.postgres_bin), time.monotonic()
     with integration_workspace("nu54-flow-", str(tools / "pg_ctl"), "data", secure_env()) as (scratch, env):
@@ -180,14 +186,14 @@ def main():
         print("Building and preparing the database", flush=True)
         dsn = database(scratch, env, tools, log)
         built = build(scratch, env, log)
-        status, lines, rest = run_flows(scratch, env, built, dsn, log, args.verbose, args.only)
+        status, lines, rest = run_flows(scratch, env, built, dsn, log, args.verbose, args.only, args.token)
     passed = sum(line.startswith("PASS ") for line in lines)
-    wanted = len(lines) if args.only and lines else FLOWS
+    wanted = len(lines) if args.only and lines else TOKENS[args.token][1]
     if status or passed != wanted or len(lines) != wanted:
         if not args.verbose:
             print("".join(rest)[-12000:], file=sys.stderr)
-        raise SystemExit(f"FAIL order flow: {passed} of {wanted} flows passed ({time.monotonic() - started:.0f}s)")
-    print(f"PASS order flow: {passed} of {wanted} flows ({time.monotonic() - started:.0f}s)", flush=True)
+        raise SystemExit(f"FAIL order flow ({args.token}): {passed} of {wanted} flows passed ({time.monotonic() - started:.0f}s)")
+    print(f"PASS order flow ({args.token}): {passed} of {wanted} flows ({time.monotonic() - started:.0f}s)", flush=True)
 
 
 if __name__ == "__main__":

@@ -103,6 +103,12 @@ type escrowDeployment struct {
 
 func deployEscrow(t *testing.T, ctx context.Context, client *ethclient.Client, db *pgxpool.Pool) escrowDeployment {
 	t.Helper()
+	return deployEscrowFor(t, ctx, client, db, "TestUSDC3009")
+}
+
+// deployEscrowFor deploys the order contract with its own copy of a test token.
+func deployEscrowFor(t *testing.T, ctx context.Context, client *ethclient.Client, db *pgxpool.Pool, artifact string) escrowDeployment {
+	t.Helper()
 	// Fresh keys give this chain a P07 stream identity no other test uses.
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -133,7 +139,7 @@ func deployEscrow(t *testing.T, ctx context.Context, client *ethclient.Client, d
 		}
 		return receipt
 	}
-	asset, tx, err := deployArtifact(t, operator, client, "TestUSDC3009", operator.From)
+	asset, tx, err := deployArtifact(t, operator, client, artifact, operator.From)
 	mined(tx, err)
 	address, tx, err := deployArtifact(t, operator, client, "OrderEscrow", asset, operator.From, fixtureSigner(106).Address())
 	deployed := mined(tx, err)
@@ -145,7 +151,9 @@ func deployEscrow(t *testing.T, ctx context.Context, client *ethclient.Client, d
 	if err != nil {
 		t.Fatal(err)
 	}
-	mined(token.SetTrustedSender(operator, address, true))
+	if artifact == "TestUSDC3009" { // the other test tokens hold nothing back
+		mined(token.SetTrustedSender(operator, address, true))
+	}
 	mined(token.Mint(operator, fixtureSigner(102).Address(), big.NewInt(300_000_000)))
 	mined(contract.ConfigureMerchant(operator, [32]byte{31: 50}, fixtureSigner(101).Address(), fixtureSigner(104).Address(), 2*86400, 7*86400))
 	code, err := client.CodeAt(ctx, address, nil)

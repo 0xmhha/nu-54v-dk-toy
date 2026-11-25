@@ -1,7 +1,7 @@
 // What the firmware does not know yet, played between the phone and the board process: the status says the
 // board can send, and a transfer to another address (0x80) is answered here with the board's own key.
 // The real firmware core answers everything else. Remove this when the firmware signs sends.
-import {bytesToBig, bytesToHex, concat, encodeV2StreamFrame, recoverSigner, V2StreamDecoder, walletReturnDigest} from '@nu54/protocol';
+import {bytesToBig, bytesToHex, concat, encodeV2StreamFrame, recoverSigner, V2StreamDecoder, walletReturnDigestFor} from '@nu54/protocol';
 
 const statusOperation = 0x7f, sendOperation = 0x80, replyCommand = 5, frameHead = 22, bodyHead = 25;
 type Transfer = {token: string; to: string; amount: bigint; validBefore: bigint; nonce: string};
@@ -20,6 +20,7 @@ function build({epoch, sequence, head, payload}: Frame) {
 }
 
 export class SendStandIn {
+  constructor(private readonly tokenName: string) {}
   /** Whether the board says it can send. */
   able = true;
   private fromPhone = new V2StreamDecoder();
@@ -84,7 +85,7 @@ export class SendStandIn {
     const {frame, transfer} = held;
     const reply = (payload: Uint8Array) => build({epoch: frame.epoch, sequence: this.replies++, head: concat(Uint8Array.of(replyCommand), frame.head.subarray(1)), payload});
     if (!approved) return reply(Uint8Array.of(0));
-    const digest = walletReturnDigest({...transfer, from: account});
+    const digest = walletReturnDigestFor(this.tokenName, {...transfer, from: account});
     const raw = await sign(digest);
     const signature = [27, 28].map(v => concat(raw, Uint8Array.of(v))).find(item => recoverSigner(digest, item) === account);
     if (!signature) throw new Error('BOARD_SIGNATURE');

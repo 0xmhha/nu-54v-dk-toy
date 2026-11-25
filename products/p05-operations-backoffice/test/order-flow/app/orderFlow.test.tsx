@@ -31,7 +31,7 @@ import {defaultReadState, readProfiles, walletReadRpc} from '../../../../p02-use
 import {orderProgress} from '../../../../p04-merchant-kiosk/src/kiosk/orderProgress';
 import {
   anchor, balance, board, boardSPKI, commerceHttp, control, customerProfile, dropNearby, fixture, id, journals, kiosk, nearby, notices, now, offline, ownerWallet,
-  pause, phoneCalls, post, radio, renterBle, startBoard, startKiosk, stopWorld, until, wallet,
+  pause, phoneCalls, post, token, radio, read, renterBle, startBoard, startKiosk, stopWorld, until, wallet,
 } from './world';
 
 /** Short, because a board waits for the end of the last quote it signed before it signs a return. */
@@ -39,6 +39,9 @@ const quoteLife = 40;
 let lastQuote = 0;
 const price = BigInt(fixture.amount);
 const store = fixture.payment.beneficiary;
+const won = token.symbol === 'tKRW';
+/** What an owner types and sees. The amounts in base units are the same for both tokens. */
+const shown = won ? {deposit: '900,000원', send: '30000', price: '80,000원'} : {deposit: '90.00 TestUSDC', send: '3', price: '8.00 TestUSDC'};
 const check = (what: string, value: unknown) => { if (!value) throw new Error('expected ' + what); };
 const same = (what: string, seen: unknown, wanted: unknown) => {
   if (String(seen) !== String(wanted)) throw new Error(`${what}: expected ${String(wanted)}, got ${String(seen)}`);
@@ -116,6 +119,7 @@ async function kioskOrder() {
   await sees('결제 내용을 확인하세요');
   const entry = await until('a payment checkpoint', checkpoint);
   same('the order on the phone', entry.order.id, sale);
+  check(`the price ${shown.price} on the phone`, texts().includes(shown.price));
   lastQuote = Math.max(lastQuote, entry.quote.expiresAt);
   return entry;
 }
@@ -197,10 +201,23 @@ async function cancelled(sale: string) {
   await cook(sale, 'preparing', 'unfulfillable');
   same('refund', (await stage(sale, 'refunded')).refund, 'store');
 }
+/** Finance replies with amounts name the store's token, and the token of no other store. */
+const amountReplies = ['escrow-orders', 'escrow-claims', 'report', 'order'];
 async function finance<T = Record<string, unknown>>(who: typeof fixture.finance1, operation: string, body: object, status = 200) {
   const reply = await post(who, '/v2/finance/' + operation, JSON.stringify({branchId: fixture.branch, ...body}));
   same(operation, `${reply.status} ${reply.status === status ? '' : reply.raw}`, `${status} `);
+  if (status === 200 && amountReplies.includes(operation)) {
+    const {token: named, tokenAsset} = JSON.parse(reply.raw) as {token?: object; tokenAsset?: string};
+    same(`the token of ${operation}`, JSON.stringify(named), JSON.stringify(fixture.payment.token && (fixture.shop === 'refused' ? {name: '', symbol: '', label: '', decimals: 0} : token)));
+    same(`the asset of ${operation}`, tokenAsset, fixture.payment.token && fixture.payment.asset);
+  }
   return (status === 200 ? JSON.parse(reply.raw) : {}) as T;
+}
+/** The branches a finance operator may see, with the token of each. */
+async function financeScopes() {
+  const {status, raw} = await read(fixture.finance1, '/v2/finance/scopes');
+  same('finance scopes', status, 200);
+  return JSON.parse(raw) as {id: string; token?: object; asset?: string}[];
 }
 async function answer(sale: string, ...labels: string[]) {
   await openOrders({initialOrder: sale});
@@ -295,7 +312,7 @@ function flow(name: string, run: () => Promise<void>) {
   test(name, async () => {
     const at = Date.now();
     let passed = false;
-    const line = (word: string, detail = '') => writeSync(1, `ORDER-FLOW ${word} ${name} (${((Date.now() - at) / 1000).toFixed(1)}s)${detail}\n`);
+    const line = (word: string, detail = '') => writeSync(1, `ORDER-FLOW ${word} ${fixture.shops > 1 ? fixture.shop + ': ' : ''}${name} (${((Date.now() - at) / 1000).toFixed(1)}s)${detail}\n`);
     try {
       check('a started world', ready);
       await run();
@@ -347,10 +364,16 @@ flow('enroll the board account', async () => {
 flow('deposit to the board account', async () => {
   await deposit(90_000_000n);
   await openLife('deposit');
+  // A token that other networks may also have is named before any address.
+  if (won) {
+    await sees('tKRW는 StableNet 테스트넷에만 있습니다');
+    check('no address before the confirmation', !texts().includes(board.account));
+    await press('확인했습니다. 주소 보기');
+  }
   if (!texts().includes(board.account)) await onBoard('보드 연결해 확인');
   // The page reads the finalized balance, a few blocks behind.
   await until('the deposit on the screen', async () => {
-    if (texts().includes('90.00 TestUSDC')) return true;
+    if (texts().includes(shown.deposit)) return true;
     const again = button('잔액 다시 확인');
     if (again && !again.props.disabled) again.props.run();
     return pause(1000).then(() => false);
@@ -569,6 +592,13 @@ flow('dispute, two people, refund to the board', async () => {
   await deliver(sale);
   await answer(sale, '못 받았어요');
   await stage(sale, 'disputed');
+  // Both finance pages read the order with its token.
+  await finance(fixture.finance1, 'order', {saleId: sale});
+  await finance(fixture.finance1, 'escrow-orders', {});
+  const scopes = await financeScopes();
+  same('finance branches', scopes.map(row => row.id).join(), fixture.branch);
+  same('the token of the branch', JSON.stringify(scopes[0].token), JSON.stringify(fixture.payment.token && token));
+  same('the asset of the branch', scopes[0].asset, fixture.payment.token && fixture.payment.asset);
   const propose = {saleId: sale, outcome: 'refund-buyer', reason: 'not_delivered', idempotencyKey: id()};
   const made = await finance<{decisionId: string; state: string}>(fixture.finance1, 'escrow-resolve', propose);
   await finance(fixture.finance1, 'escrow-resolve-approve', {decisionId: made.decisionId, idempotencyKey: id()}, 404);
@@ -578,6 +608,21 @@ flow('dispute, two people, refund to the board', async () => {
   same('refund', done.refund, 'arbiter');
   same('money back on the board account', await balance(board.account), before);
 });
+
+if (fixture.shops > 1) {
+  flow('test tokens from the faucet', async () => {
+    const before = await balance(board.account);
+    const given = async () => (await phone().faucetStatus()).tokens.find(item => item.token === fixture.payment.asset)!;
+    const offered = await given();
+    same('the token the faucet gives', `${offered.symbol} ${offered.decimals} ${offered.state}`, `${token.symbol} ${token.decimals} ready`);
+    await phone().claimFaucet(offered.token, id());
+    await until('test tokens on the board account', async () => await balance(board.account) === before + BigInt(offered.amount), 60);
+    await until('a final claim', async () => (await given()).claim?.state === 'final', 60);
+    const again = await phone().claimFaucet(offered.token, id()).then(() => 'accepted', error => (error as Error).message);
+    check(`a second claim on one day refused (${again})`, again !== 'accepted');
+    same('money after the second claim', await balance(board.account), before + BigInt(offered.amount));
+  });
+}
 
 flow('send to another address, refused on the board, then a lost answer', async () => {
   const friend = '0x' + 'f1'.repeat(20), before = await balance(board.account);
@@ -589,7 +634,7 @@ flow('send to another address, refused on the board, then a lost answer', async 
     await press('이 내용으로 보내기');
   };
   board.answer = 'refuse';
-  await fill('3');
+  await fill(shown.send);
   await onBoard('보드로 승인');
   await says('보드에서 거절했습니다');
   board.answer = 'press';
@@ -597,7 +642,7 @@ flow('send to another address, refused on the board, then a lost answer', async 
   await says('보내지 않았습니다');
   same('nothing left the account', await balance(board.account), before);
   const asked = board.prompts;
-  await fill('3');
+  await fill(shown.send);
   offline.phone = true; // the board signs, the store cannot be reached
   await onBoard('보드로 승인');
   await until('a transfer on its way', async () => (await sendRecord(commerceHttp).load())?.stage === 'sent');
@@ -623,7 +668,7 @@ flow('return, blocked while an order is open, then final; owner reset', async ()
   const before = await balance(board.account);
   await quotesOver();
   const transfer = {payer: board.account, to: fixture.home, amount: before, validBefore: now() + 300, nonce: '7'.repeat(64)};
-  const signature = await withBoard('board-1', session => session.signReturn(board.generation, {...transfer, token: fixture.payment.asset}, () => {}));
+  const signature = await withBoard('board-1', session => session.signReturn(board.generation, {...transfer, token: fixture.payment.asset}, () => {}, token.name));
   const refusal = await phone().returnWallet({...transfer, amount: before.toString()}, signature, id()).then(() => 'accepted', error => (error as Error).message);
   same('the server with an open order', refusal, 'CHECKOUT_CONFLICT');
   await leave();
@@ -669,6 +714,22 @@ flow('no answer, claim batch', async () => {
   same('payout', paid.payout, 'claim');
   same('store income', await balance(store) - before, price);
 });
+
+// Only with other stores on the same server, so that the run of one store stays as it was.
+if (fixture.shops > 1) {
+  flow('a branch refused at the start', async () => {
+    same('this store', fixture.shop, 'refused');
+    const {prices} = await kiosk.api.catalogWindow(0);
+    const cart = {origin: 'menu' as const, originRef: id(), menuVersion: prices[0].version, items: [{sku: prices[0].sku, option_key: prices[0].optionKey, quantity: 1}]};
+    const refusal = await kiosk.api.reserve(cart, prices[0].asset, id()).then(() => 'accepted', error => (error as Error).message);
+    same('an order at a refused branch', refusal, 'UNSUPPORTED_CAPABILITY');
+    same('stock kept', (await kiosk.api.catalogWindow(0)).prices[0].available, prices[0].available);
+    await finance(fixture.finance1, 'escrow-orders', {}); // in base units
+    const scopes = await financeScopes();
+    same('finance branches', scopes.map(row => row.id).join(), fixture.branch);
+    check('no token for the refused branch', !scopes[0].token && !scopes[0].asset);
+  });
+}
 
 flow('operator reset statement', async () => {
   await quotesOver();

@@ -78,6 +78,7 @@ def main():
     parser.add_argument("--walk", type=Path, metavar="DIRECTORY", help="walk through the flows and keep screenshots in this new directory")
     parser.add_argument("--step", nargs=2, metavar=("NAME", "JSON"), help="take one step in a running simulation, for example --step order '{\"quantity\":2}'")
     parser.add_argument("--postgres-bin", type=Path, default=os.environ.get("POSTGRES_BIN"), help="directory with the PostgreSQL tools")
+    parser.add_argument("--token", choices=("usd", "won"), default="usd", help="the store's token")
     args = parser.parse_args()
     if args.step:
         print(json.dumps(step(args.step[0], **json.loads(args.step[1])), ensure_ascii=False, indent=1))
@@ -110,7 +111,8 @@ def main():
                          flow.ROOT / flow.P05 / "internal/settlement", {
                              "P05_SETTLEMENT_TEST_DATABASE_URL": dsn, "P05_SETTLEMENT_TEST_INDEXER": str(built["indexer"]),
                              "P05_SETTLEMENT_TEST_RPC": "http://127.0.0.1:1", "FOUNDRY_OUT": str(built["contracts"]),
-                             "NU54_ORDER_FLOW_BOARD": str(built["board"]), "NU54_ORDER_FLOW_JEST": str(SIMULATOR / "jest.config.cjs"),
+                             "NU54_ORDER_FLOW_BOARD": str(built["board"]), "NU54_ORDER_FLOW_BOARD_WON": str(built["board_won"]),
+                             "NU54_ORDER_FLOW_TOKEN": args.token, "NU54_ORDER_FLOW_JEST": str(SIMULATOR / "jest.config.cjs"),
                              "NU54_ORDER_FLOW_MINUTES": str(MINUTES)})
             wait_for(bundler, log / "bundler.log", "Dev server ready", 60)
             wait_for(host, log / "host.log", "SIMULATOR-READY", 120)
@@ -119,7 +121,7 @@ def main():
             print(f"Ready for {MINUTES - 2} minutes. The app is starting on {args.serial}; the first bundle takes a minute.", flush=True)
             if args.walk:
                 from simulate_user_app_walk import Walk
-                if failed := Walk(adb, step, args.walk).run():
+                if failed := Walk(adb, step, args.walk, args.token).run():
                     raise SystemExit(f"FAIL user app: {failed} flows failed; see {args.walk}")
                 print("PASS user app", flush=True)
             else:

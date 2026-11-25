@@ -4,7 +4,7 @@ import {createHash, generateKeyPairSync, randomBytes, sign} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import * as http from 'node:http';
 import * as https from 'node:https';
-import {CommerceClient, NearbyCommerceLink, type CommercePaymentProfile} from '@nu54/protocol';
+import {CommerceClient, NearbyCommerceLink, paymentToken, type CommercePaymentProfile} from '@nu54/protocol';
 import {MerchantInbox} from '../../../../p04-merchant-kiosk/src/kiosk/merchantInbox';
 import {NearbyJournals} from '../../../../p04-merchant-kiosk/src/kiosk/nearbyJournals';
 import {NearbyRelay, type RelayProgress} from '../../../../p04-merchant-kiosk/src/kiosk/nearbyRelay';
@@ -12,9 +12,12 @@ import {Board, epochOf} from './board';
 
 type Identity = {subject: string; cert: string; key: string};
 export const fixture = JSON.parse(readFileSync(process.env.NU54_ORDER_FLOW_FIXTURE!, 'utf8')) as {
+  shop: 'usd' | 'won' | 'refused'; /** Stores that run at once on this server. */ shops: number;
   endpoint: string; ca: string; expiresAt: number; tenant: string; branch: string; rpc: string; control: string; secret: string; home: string;
   amount: string; directory: string; payment: CommercePaymentProfile; customer: Identity; terminal: Identity; kitchen: Identity; finance1: Identity; finance2: Identity;
 };
+/** How this store's token signs and is shown. */
+export const token = paymentToken(fixture.payment);
 export const now = () => Math.floor(Date.now() / 1000);
 export const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 export async function until<T>(what: string, check: () => T | Promise<T>, seconds = 40): Promise<NonNullable<T>> {
@@ -53,6 +56,14 @@ export function post(identity: Identity, path: string, body: string): Promise<{s
     call.end(body);
   });
 }
+export function read(identity: Identity, path: string): Promise<{status: number; raw: string}> {
+  return new Promise((resolve, reject) => {
+    https.get(fixture.endpoint + path, {ca: readFileSync(fixture.ca), cert: readFileSync(identity.cert), key: readFileSync(identity.key), timeout: 7000}, reply => {
+      let raw = '';
+      reply.setEncoding('utf8').on('data', text => { raw += text; }).on('end', () => resolve({status: reply.statusCode!, raw}));
+    }).on('error', reject);
+  });
+}
 /** What CommerceHttp.kt does with one call: its size limits and which answers it hands over. */
 async function exchange(identity: Identity, body: string) {
   const refused = () => Object.assign(new Error('The enrolled commerce connection is unavailable'), {code: 'COMMERCE_REFUSED'});
@@ -67,7 +78,7 @@ const phoneKey = generateKeyPairSync('ec', {namedCurve: 'prime256v1'});
 const phonePublic = phoneKey.publicKey.export({type: 'spki', format: 'der'});
 const phoneFingerprint = createHash('sha256').update(phonePublic).digest('hex');
 export const boardSPKI = createHash('sha256').update('order-flow board').digest('hex');
-export const board = new Board(process.env.NU54_ORDER_FLOW_BOARD!);
+export const board = new Board(process.env.NU54_ORDER_FLOW_BOARD!, token.name);
 
 export const journals = new Map<string, string>();
 // The names CommerceHttp.kt seals.
@@ -184,7 +195,7 @@ export async function startKiosk() {
   const inbox = await MerchantInbox.open({getSetting: async name => disk.get(name) ?? '', putSetting: async (name, value) => { disk.set(name, value); }},
     fixture.branch, fixture.terminal.subject);
   kiosk.relay = new NearbyRelay(kiosk.api, inbox, async () => randomBytes(16), () => kiosk.shown, pair => { kiosk.codes = pair?.codes ?? []; },
-    undefined, undefined, event => kiosk.progress.push(event));
+    undefined, undefined, event => kiosk.progress.push(event), token.name);
 }
 
 const notice = new Set<(raw: string) => void>();
