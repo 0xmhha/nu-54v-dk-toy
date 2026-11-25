@@ -1,6 +1,12 @@
 /// <reference types="vite/client" />
 import { RefundConsole } from "./RefundConsole";
-import { namedToken, tokenMoney, type BranchToken } from "./money";
+import {
+  namedToken,
+  replyToken,
+  tokenMoney,
+  type Branded,
+  type BranchToken,
+} from "./money";
 import {
   escrowStage,
   escrowStages,
@@ -19,9 +25,8 @@ type Report = {
   activeRefunds: number;
   openFulfillment: number;
   closeRevision: number | null;
-  // Present only for a branch that names its token.
-  token?: BranchToken;
-};
+  asset?: string;
+} & Branded;
 type EventSummary = {
   eventId: string;
   saleId: string;
@@ -42,10 +47,9 @@ export type Order = {
   fulfillmentStatus: "held" | "closed" | "recorded";
   refunds: string;
   events: EventSummary[];
-  token?: BranchToken;
   // Present when the server also reports the escrow state of the order.
   escrow?: EscrowItem;
-};
+} & Branded;
 type RetryReceipt = EventSummary & { requestId: string };
 type NotificationReview = EventSummary & {
   requestId?: string;
@@ -53,7 +57,7 @@ type NotificationReview = EventSummary & {
   businessDay: string;
   bookedAt: string;
   ledgerAmount: string;
-  token?: BranchToken;
+  asset?: string;
   receivedAt?: string;
   deliveredAt?: string;
   originalPayment: {
@@ -64,7 +68,7 @@ type NotificationReview = EventSummary & {
     attestedAt?: string;
     explorerURL?: string;
   };
-};
+} & Branded;
 type Cases = {
   events: EventSummary[];
   receipts: RetryReceipt[];
@@ -385,11 +389,11 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           </h2>
           <dl>
             <dt>원장에 반영된 확정 매출</dt>
-            <dd>{formatFinanceAmount(report.gross, report.token)}</dd>
+            <dd>{formatFinanceAmount(report.gross, replyToken(report, report.asset))}</dd>
             <dt>원장에 반영된 확정 환불</dt>
-            <dd>{formatFinanceAmount(report.refunds, report.token)}</dd>
+            <dd>{formatFinanceAmount(report.refunds, replyToken(report, report.asset))}</dd>
             <dt>순매출</dt>
-            <dd>{formatFinanceAmount(report.net, report.token)}</dd>
+            <dd>{formatFinanceAmount(report.net, replyToken(report, report.asset))}</dd>
             <dt>미완료 이행</dt>
             <dd>{report.openFulfillment}</dd>
             <dt>처리 중인 환불</dt>
@@ -416,8 +420,8 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           {cases.chainGross !== undefined &&
             cases.chainRefunds !== undefined && (
               <p>
-                체인 확정 입금 {formatFinanceAmount(cases.chainGross, report?.token)} · 환불{" "}
-                {formatFinanceAmount(cases.chainRefunds, report?.token)} · 확정 높이{" "}
+                체인 확정 입금 {formatFinanceAmount(cases.chainGross, replyToken(report, report?.asset))} · 환불{" "}
+                {formatFinanceAmount(cases.chainRefunds, replyToken(report, report?.asset))} · 확정 높이{" "}
                 {cases.height}
               </p>
             )}
@@ -517,7 +521,7 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
               {notification.businessDay} · {notification.bookedAt}
             </dd>
             <dt>장부 금액</dt>
-            <dd>{formatFinanceAmount(notification.ledgerAmount, notification.token)}</dd>
+            <dd>{formatFinanceAmount(notification.ledgerAmount, replyToken(notification, notification.asset))}</dd>
             <dt>원결제 등록 주소 버전</dt>
             <dd>
               {notification.originalPayment.beneficiaryVersion ?? "확인 대기"}
@@ -604,7 +608,7 @@ export function Finance({ initialBranch }: { initialBranch: string }) {
           </h2>
           <p>
             {report.day} · {report.zone} · 순매출{" "}
-            {formatFinanceAmount(report.net, report.token)}
+            {formatFinanceAmount(report.net, replyToken(report, report.asset))}
           </p>
           <button disabled={busy} onClick={close}>
             {pendingClose ? "같은 마감 조회" : "마감 요청"}
@@ -722,9 +726,9 @@ export function OrderDetail({
         <dd>
           {kept
             ? order.token
-              ? formatFinanceAmount(order.amount, order.token)
+              ? formatFinanceAmount(order.amount, replyToken(order, order.asset))
               : formatAssetAmount(order.amount, asset)
-            : formatFinanceAmount(order.amount, order.token)}
+            : formatFinanceAmount(order.amount, replyToken(order, order.asset))}
           {kept && !order.token && !knownAsset(asset) && (
             <>
               <br />
@@ -735,7 +739,7 @@ export function OrderDetail({
         {!kept && (
           <>
             <dt>확정 환불</dt>
-            <dd>{formatFinanceAmount(order.refunds, order.token)}</dd>
+            <dd>{formatFinanceAmount(order.refunds, replyToken(order, order.asset))}</dd>
           </>
         )}
         {!kept && order.quoteId && (

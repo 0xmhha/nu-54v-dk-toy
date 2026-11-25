@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BranchPicker, useAuthorizedBranches } from "./BranchPicker";
 import { financeRequest, formatFinanceAmount as money } from "./Finance";
-import type { BranchToken } from "./money";
+import { replyToken, type Branded } from "./money";
 
 type DeploymentReview = {
   status: "verified" | "unverified" | "invalid";
@@ -41,7 +41,6 @@ type PaymentEvidence = {
   beneficiary?: string;
   beneficiaryVersion?: number;
   amount?: string;
-  token?: BranchToken;
   transaction?: string;
   block?: string;
   log?: number;
@@ -53,7 +52,7 @@ type PaymentEvidence = {
   includedAt?: string;
   attestedAt?: string;
   includedBeforeExpiry?: boolean;
-};
+} & Branded;
 type DeploymentResult =
   | { kind: "profile"; branch: string; profile: DeploymentReview }
   | { kind: "payment"; branch: string; sale: string; evidence: PaymentEvidence };
@@ -337,7 +336,7 @@ export function DeploymentConsole({
                     ? "확정된 지급 금액"
                     : "견적 금액"}
                 </dt>
-                <dd>{money(payment.amount, payment.token)}</dd>
+                <dd>{money(payment.amount, replyToken(payment, payment.asset))}</dd>
               </>
             )}
           </dl>}
@@ -349,7 +348,7 @@ export function DeploymentConsole({
                 <dt>원복 거래와 포함 블록</dt>
                 <dd>{payment.revertedAttempt.transaction} · {payment.revertedAttempt.blockHeight} · {payment.revertedAttempt.block}</dd>
                 <dt>이 시도의 수취 원금 증가</dt>
-                <dd>{money(payment.revertedAttempt.principalDelta, payment.token)}</dd>
+                <dd>{money(payment.revertedAttempt.principalDelta, replyToken(payment, payment.asset))}</dd>
                 <dt>이 시도의 주문 소비</dt>
                 <dd>{payment.revertedAttempt.orderConsumed ? "소비됨" : "없음"}</dd>
                 <dt>가스 사용량</dt>

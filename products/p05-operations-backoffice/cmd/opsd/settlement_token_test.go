@@ -20,8 +20,8 @@ import (
 
 func TestBranchUsesOneToken(t *testing.T) {
 	won := commerce.Token{Name: "NU54 Test KRW", Symbol: "tKRW", Label: "tKRW", Decimals: 2}
-	other := won
-	other.Decimals = 18
+	other, otherName, otherSymbol := won, won, won
+	other.Decimals, otherName.Name, otherSymbol.Symbol = 18, "NU54 Test KRWC", "TKRW"
 	for _, c := range []struct {
 		profile, target commerce.Token
 		ok              bool
@@ -32,6 +32,8 @@ func TestBranchUsesOneToken(t *testing.T) {
 		{won, commerce.Token{}, false},
 		{commerce.Token{}, won, false},
 		{won, other, false},
+		{won, otherName, false},
+		{won, otherSymbol, false},
 	} {
 		err := matchContracts(map[string]commerce.Profile{"b": {Escrow: true, Token: c.profile}},
 			map[string]settlement.Target{"b": {ABI: settlement.EscrowABIHash, Token: c.target}})
@@ -151,7 +153,21 @@ func TestOnlyTheWrongBranchIsTurnedOff(t *testing.T) {
 	if _, ok := active[right]; !ok || len(active) != 1 || reviews[wrong].Status != "invalid" {
 		t.Fatalf("active %v, reviews %+v", active, reviews)
 	}
-	if paused := pausedBranches(targets, active); len(paused) != 1 || !paused[wrong] {
-		t.Fatalf("paused %v", paused)
+	forwarder := settlement.Forwarder{RentalEscrow: settlement.RentalEscrow{Targets: active, Reviews: reviews}}
+	if !forwarder.Paused(wrong) || forwarder.Paused(right) {
+		t.Fatalf("paused: %+v", reviews)
+	}
+}
+
+// A start reads the settings first, so branches whose two settings differ stop it before anything else is needed.
+func TestStartRefusesTwoTokensForOneBranch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "targets.json")
+	if err := os.WriteFile(path, []byte(`{"b":{"abiSha256":"`+settlement.EscrowABIHash+`","token":{"name":"NU54 Test KRW","symbol":"tKRW","label":"tKRW","decimals":2}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("P05_SETTLEMENT_TARGETS", path)
+	_, _, err := installSettlement(context.Background(), context.Background(), "", nil, map[string]commerce.Profile{"b": {Escrow: true}}, nil, http.NewServeMux(), nil)
+	if err == nil || !strings.Contains(err.Error(), "different payment tokens") {
+		t.Fatalf("start went on: %v", err)
 	}
 }

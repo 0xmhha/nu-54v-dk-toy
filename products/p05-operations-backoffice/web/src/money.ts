@@ -1,6 +1,19 @@
 /** A branch's payment token, as opsd names it. Absent means the dollar token. */
 export type BranchToken = { name: string; symbol: string; label: string; decimals: number };
 
+/** What opsd says about the amounts of a reply. Absent means a dollar branch. */
+export type Branded = { token?: BranchToken; tokenAsset?: string };
+/** A token nobody confirmed, or an asset that is not the branch's token: amounts stay in base units. */
+export const baseUnits: BranchToken = { name: "", symbol: "", label: "", decimals: 0 };
+
+/** The token of one amount of a reply. `asset` is what the reply says the amount is in, when it says so. */
+export const replyToken = (reply: Branded | undefined, asset?: string): BranchToken | undefined =>
+  !reply?.token
+    ? undefined
+    : asset && reply.tokenAsset !== asset.toLowerCase()
+      ? baseUnits
+      : reply.token;
+
 const dollar: BranchToken = { name: "NU54 Test USD", symbol: "tUSDC", label: "TestUSDC", decimals: 6 };
 
 /** Dollars and cents. The rest is cut off, never rounded. */
@@ -17,6 +30,8 @@ export function tokenMoney(
   units: string,
   token: Pick<BranchToken, "symbol" | "label" | "decimals"> = dollar
 ) {
+  if (token.decimals === 0)
+    return `${BigInt(units).toLocaleString("ko-KR")} 기본 단위`;
   if (token.symbol !== "tKRW")
     return `${dollarText(units, token.decimals)} ${token.label}`;
   const value = BigInt(units);
@@ -31,10 +46,10 @@ export function tokenMoney(
 }
 
 const named = new Map<string, BranchToken>();
-/** Remembers the tokens of the branches this account may read. */
+/** Remembers which asset a confirmed branch token is. Only that asset is ever shown as the token. */
 export function rememberTokens(rows: { asset?: string; token?: BranchToken }[]) {
   for (const { asset, token } of rows)
-    if (asset && token) named.set(asset.toLowerCase(), token);
+    if (asset && token && token.decimals > 0) named.set(asset.toLowerCase(), token);
 }
 export const namedToken = (asset?: string) =>
   asset ? named.get(asset.toLowerCase()) : undefined;

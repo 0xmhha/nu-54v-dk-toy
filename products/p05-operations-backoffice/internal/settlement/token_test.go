@@ -40,6 +40,12 @@ func symbolOf(name, other string) string {
 // tokenNode answers as a chain with one payment contract and one token.
 func tokenNode(t *testing.T, name, symbol string, decimals int64, code []byte) *ethclient.Client {
 	t.Helper()
+	return tokenNodeAt(t, name, symbol, decimals, code, nil)
+}
+
+// tokenNodeAt changes the answer to one call when it is asked about the approved block.
+func tokenNodeAt(t *testing.T, name, symbol string, decimals int64, code []byte, pinned map[string]string) *ethclient.Client {
+	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var call struct {
 			ID     json.RawMessage   `json:"id"`
@@ -81,6 +87,17 @@ func tokenNode(t *testing.T, name, symbol string, decimals int64, code []byte) *
 					crypto.Keccak256([]byte(name)), crypto.Keccak256([]byte("1")),
 					common.LeftPadBytes(big.NewInt(8283).Bytes(), 32), common.LeftPadBytes(tx.To.Bytes(), 32))
 				result = hexutil.Encode(domain)
+			}
+		}
+		if len(call.Params) > 1 && strings.Contains(string(call.Params[1]), tokenBlock.Hash().Hex()) {
+			key := call.Method
+			if key == "eth_call" {
+				var tx struct{ Input hexutil.Bytes }
+				_ = json.Unmarshal(call.Params[0], &tx)
+				key = hexutil.Encode(tx.Input[:4])
+			}
+			if answer, ok := pinned[key]; ok {
+				result = answer
 			}
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": call.ID, "result": result})
@@ -259,10 +276,10 @@ func TestReturnIsCheckedAgainstTheBranchToken(t *testing.T) {
 func TestFinancePagesLearnTheBranchToken(t *testing.T) {
 	won := Target{Asset: common.HexToAddress("0xa1"), Token: testWon}
 	raw := []byte(`[{"id":"won","label":"a","capabilities":["reconcile_read"]},{"id":"usd","label":"b","capabilities":[]}]`)
-	if same, err := scopesWithTokens(raw, map[string]Target{"usd": {}}); err != nil || !bytes.Equal(same, raw) {
+	if same, err := scopesWithTokens(raw, map[string]Target{"usd": {}}, nil); err != nil || !bytes.Equal(same, raw) {
 		t.Fatalf("dollar scopes changed: %s %v", same, err)
 	}
-	mixed, err := scopesWithTokens(raw, map[string]Target{"won": won, "usd": {}})
+	mixed, err := scopesWithTokens(raw, map[string]Target{"won": won, "usd": {}}, map[string]DeploymentReview{"won": {Status: "verified"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,6 +291,13 @@ func TestFinancePagesLearnTheBranchToken(t *testing.T) {
 		rows[0].Asset != lower(won.Asset) || rows[1].Token != nil || rows[1].Asset != "" {
 		t.Fatalf("%s %v", mixed, err)
 	}
+	if hidden, err := scopesWithTokens(raw, map[string]Target{"won": won}, map[string]DeploymentReview{"won": {Status: "invalid"}}); err != nil || !bytes.Equal(hidden, raw) {
+		t.Fatalf("a refused branch names a token: %s %v", hidden, err)
+	}
+	two := map[string]Target{"won": won, "usd": {Asset: won.Asset, Token: testWon}}
+	if one, err := scopesWithTokens(raw, two, map[string]DeploymentReview{"won": {Status: "verified"}, "usd": {Status: "invalid"}}); err != nil || strings.Count(string(one), "NU54 Test KRW") != 1 {
+		t.Fatalf("only the confirmed branch names a token: %s %v", one, err)
+	}
 	replies := map[string]any{
 		"report": dayReport{Gross: "1"}, "order": map[string]json.RawMessage{"amount": json.RawMessage(`"1"`)}, "reconciliation": map[string]any{"chainGross": "1"},
 		"fulfillment-review": map[string]any{"ledgerAmount": "1"}, "payment-evidence": map[string]any{"amount": "1"},
@@ -282,12 +306,12 @@ func TestFinancePagesLearnTheBranchToken(t *testing.T) {
 	}
 	for operation, reply := range replies {
 		before, _ := json.Marshal(reply)
-		if same, err := brandReply(operation, reply, commerce.Token{}); err != nil {
+		if same, err := brandReply(operation, reply, Target{Asset: won.Asset}, false); err != nil {
 			t.Fatal(err)
 		} else if body, _ := json.Marshal(same); !bytes.Equal(body, before) {
 			t.Errorf("%s of a dollar branch changed: %s", operation, body)
 		}
-		branded, err := brandReply(operation, reply, testWon)
+		branded, err := brandReply(operation, reply, won, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -295,6 +319,12 @@ func TestFinancePagesLearnTheBranchToken(t *testing.T) {
 		body, _ := json.Marshal(branded)
 		if json.Unmarshal(body, &fields) != nil || !strings.Contains(string(fields["token"]), `"name":"NU54 Test KRW"`) {
 			t.Errorf("%s of a won branch has no token: %s", operation, body)
+		}
+		if string(fields["tokenAsset"]) != `"`+lower(won.Asset)+`"` {
+			t.Errorf("%s does not say which asset the token is: %s", operation, body)
+		}
+		if refused, err := brandReply(operation, reply, won, true); err != nil || string(refused.(map[string]json.RawMessage)["token"]) != `{"name":"","symbol":"","label":"","decimals":0}` {
+			t.Errorf("%s of a refused branch claims a token: %v %v", operation, refused, err)
 		}
 		var plain map[string]json.RawMessage
 		_ = json.Unmarshal(before, &plain)
@@ -304,7 +334,53 @@ func TestFinancePagesLearnTheBranchToken(t *testing.T) {
 			}
 		}
 	}
-	if same, err := brandReply("refund-approve", map[string]string{"state": "approved"}, testWon); err != nil || len(same.(map[string]string)) != 1 {
+	if same, err := brandReply("refund-approve", map[string]string{"state": "approved"}, won, false); err != nil || len(same.(map[string]string)) != 1 {
 		t.Errorf("a reply without amounts changed: %v %v", same, err)
+	}
+}
+
+func TestRefusedBranchIsPaused(t *testing.T) {
+	f := Forwarder{RentalEscrow: RentalEscrow{Reviews: map[string]DeploymentReview{"refused": {Status: "invalid"}, "ok": {Status: "verified"}, "plain": {Status: "unverified"}}}}
+	for branch, paused := range map[string]bool{"refused": true, "ok": false, "plain": false, "unknown": false} {
+		if commerce.BranchPauser(f).Paused(branch) != paused {
+			t.Errorf("%s: %v", branch, !paused)
+		}
+	}
+}
+
+// What was approved is checked at the approved block, not only now.
+func TestApprovedBlockIsChecked(t *testing.T) {
+	public, private, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const stream, generation = "00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"
+	code := []byte{0xfe}
+	won := Target{Stream: stream, Manifest: strings.Repeat("11", 32), Contract: common.HexToAddress("0xc0"),
+		Asset: common.HexToAddress("0xa1"), CodeHash: crypto.Keccak256Hash(code), ABI: EscrowABIHash, Token: testWon}
+	signed := deployment.Profile{StreamID: stream, GenerationID: generation, Version: 3, ChainID: 8283, Contract: won.Contract,
+		Asset: won.Asset, ABIHash: won.ABIHash(), Manifest: won.Manifest, CodeHash: won.CodeHash, StartHeight: 9, StartHash: tokenBlock.Hash()}
+	review := func(signed deployment.Profile, pinned map[string]string) string {
+		body, _ := json.Marshal(signed)
+		signature := ed25519.Sign(private, append([]byte("NU54-chainview-profile-v1\x00"), body...))
+		return VerifyOperatorDeployment(context.Background(), tokenNodeAt(t, testWon.Name, testWon.Symbol, 2, code, pinned), won, common.Address{},
+			[]deployment.Profile{signed}, public, map[string]string{generation: rawHex(signature)}, true).Status
+	}
+	if got := review(signed, nil); got != "verified" {
+		t.Fatalf("approved deployment: %s", got)
+	}
+	word := func(value byte) string { return hexutil.Encode(common.LeftPadBytes([]byte{value}, 32)) }
+	for label, pinned := range map[string]map[string]string{
+		"other units": {"0x313ce567": word(6)}, "other signing domain": {"0x3644e515": word(1)}, "other symbol": {"0x95d89b41": word(1)},
+		"other asset": {"0x38d52e0f": word(0xa2)}, "other contract domain": {"0xf698da25": word(1)}, "other code": {"eth_getCode": "0xfd"}, "no code": {"eth_getCode": "0x"},
+	} {
+		if got := review(signed, pinned); got != "invalid" {
+			t.Errorf("%s at the approved block: %s", label, got)
+		}
+	}
+	moved := signed
+	moved.StartHash = common.HexToHash("0x1")
+	if got := review(moved, nil); got != "invalid" {
+		t.Errorf("another start block: %s", got)
 	}
 }

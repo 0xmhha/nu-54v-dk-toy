@@ -2,8 +2,17 @@ package commerce
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,7 +58,7 @@ func TestOperatorPricesUseTheBranchToken(t *testing.T) {
 	if usd == nil || usd.Symbol != "TestUSDC" || usd.Decimals != 6 {
 		t.Fatalf("dollar branch: %+v", usd)
 	}
-	if won == nil || won.Symbol != "tKRW" || won.Decimals != 2 {
+	if won == nil || won.Symbol != "tKRW" || won.Decimals != 2 || won.Token != testWon || usd.Token != (Token{}) {
 		t.Fatalf("won branch: %+v", won)
 	}
 	row := operatorRow{DisplayPrice: "6500", Tax: "0", Discount: "500"}
@@ -115,8 +124,15 @@ func TestCatalogRowsFollowTheBranch(t *testing.T) {
 	}
 }
 
+type pausedPayment struct {
+	PaymentForwarder
+	branch string
+}
+
+func (p pausedPayment) Paused(branch string) bool { return branch == p.branch }
+
 func TestPausedBranchTakesNothing(t *testing.T) {
-	h := HTTP{Profiles: map[string]Profile{"won": {Chain: 8283, Asset: common.HexToAddress("0xa1"), Token: testWon}}, Paused: map[string]bool{"won": true}}
+	h := HTTP{Profiles: map[string]Profile{"won": {Chain: 8283, Asset: common.HexToAddress("0xa1"), Token: testWon}}, Payment: pausedPayment{branch: "won"}}
 	bound := service.Bound{Request: service.Request{Domain: "won", Body: map[string]string{}}}
 	if _, err := h.issueWithReview(context.Background(), bound, nil); !errors.Is(err, service.Capability) {
 		t.Errorf("quote: %v", err)
@@ -139,5 +155,49 @@ func TestPartsThatCancelOutAreStillRefused(t *testing.T) {
 	row := operatorRow{DisplayPrice: "6500", Tax: "0.50", Discount: "0.50"}
 	if err := row.resolvePrice(2); err != nil || row.Price != "650000" || row.wholePrices(testWon) {
 		t.Fatalf("tax and discount of half a won: %+v %v", row, err)
+	}
+}
+
+// The requests themselves, up to the point where the ledger would be asked.
+func TestPausedBranchRefusesRequests(t *testing.T) {
+	cert := &x509.Certificate{Raw: []byte("test store source"), NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(time.Minute)}
+	sum := sha256.Sum256(cert.Raw)
+	asset := "0x2222222222222222222222222222222222222222"
+	ask := func(role, body string, payment PaymentForwarder) *httptest.ResponseRecorder {
+		principal := service.Principal{Tenant: tenant, Subject: customerA, Role: role, ExpiresAt: time.Now().Add(time.Minute).Unix()}
+		if role == "pos" {
+			principal.Grants = []service.Grant{{Domain: branch, Object: branch, Operations: []string{"POS/submit"}}}
+		}
+		h := HTTP{Credentials: map[string]service.Principal{hex.EncodeToString(sum[:]): principal}, Payment: payment,
+			Profiles: map[string]Profile{branch: {Chain: 8283, Asset: common.HexToAddress(asset), Token: testWon}}}
+		mux := http.NewServeMux()
+		h.Register(mux)
+		r := httptest.NewRequest(http.MethodPost, "/v2/commerce", strings.NewReader(body))
+		r.TLS = &tls.ConnectionState{Version: tls.VersionTLS13, PeerCertificates: []*x509.Certificate{cert}, VerifiedChains: [][]*x509.Certificate{{cert}}}
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		return w
+	}
+	pos := func(amount string) string {
+		return `{"pos":{"operation":"submit","branch":"` + branch + `","reference":"S-0142","chainId":8283,"asset":"` + asset + `","amount":"` + amount + `"}}`
+	}
+	if w := ask("pos", pos("650000"), pausedPayment{branch: branch}); !strings.Contains(w.Body.String(), "UNSUPPORTED_CAPABILITY") {
+		t.Errorf("POS order at a paused branch: %d %s", w.Code, w.Body)
+	}
+	if w := ask("pos", pos("650055"), nil); w.Code != http.StatusBadRequest {
+		t.Errorf("POS order of half a won: %d %s", w.Code, w.Body)
+	}
+	if w := ask("pos", pos("650000"), nil); w.Code != http.StatusServiceUnavailable {
+		t.Errorf("a whole-won POS order must reach the ledger: %d %s", w.Code, w.Body)
+	}
+	auth := authorize(t, actor{customerA, "customer"}, "order.create", branch, customerA, customerA,
+		map[string]string{"asset": asset, "quantity": "1", "intentDigest": strings.Repeat("11", 32)})
+	command, err := json.Marshal(auth.Request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := `{"command":` + string(command) + `}`
+	if w := ask("customer", body, pausedPayment{branch: branch}); !strings.Contains(w.Body.String(), "UNSUPPORTED_CAPABILITY") {
+		t.Errorf("order at a paused branch: %d %s", w.Code, w.Body)
 	}
 }

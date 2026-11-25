@@ -366,7 +366,7 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	}
 	ready = true
 	return &settlement.Forwarder{Store: forward, QuoteCipher: quoteCipher, RelayCipher: relay, Targets: activeTargets, GasSponsors: sponsors, MerchantIDs: merchantIDs,
-		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress), Paused: pausedBranches(targets, activeTargets),
+		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress),
 		RentalEscrow: settlement.RentalEscrow{Client: client, Targets: activeTargets, Reviews: reviews}}, closeAll, nil
 }
 
@@ -448,17 +448,6 @@ func sameToken(a, b commerce.Token) bool {
 	return a == b
 }
 
-func pausedBranches(targets, active map[string]settlement.Target) map[string]bool {
-	paused := map[string]bool{}
-	for branch := range targets {
-		if _, ok := active[branch]; !ok {
-			paused[branch] = true
-			log.Printf("settlement of branch %s did not start: its deployment or token was refused", branch)
-		}
-	}
-	return paused
-}
-
 func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, targets map[string]settlement.Target, gas common.Address) (
 	map[string]settlement.Target, map[string]settlement.DeploymentReview,
 ) {
@@ -495,9 +484,11 @@ func checkSettlementDeployments(ctx context.Context, client *ethclient.Client, t
 			lock.Lock()
 			defer lock.Unlock()
 			reviews[branch] = view
-			if view.Status != "invalid" {
-				active[branch] = target
+			if view.Status == "invalid" {
+				log.Printf("settlement of branch %s did not start: its deployment or token was not confirmed on chain", branch)
+				return
 			}
+			active[branch] = target
 		}()
 	}
 	checks.Wait()

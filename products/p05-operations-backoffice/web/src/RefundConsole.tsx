@@ -4,7 +4,7 @@ import {
   financeRequest,
   formatFinanceAmount,
 } from "./Finance";
-import type { BranchToken } from "./money";
+import { replyToken, type Branded } from "./money";
 
 type Adjustment = {
   id: string;
@@ -37,20 +37,19 @@ type Review = {
   funds: string;
   fundsAvailable?: string;
   refunds: Adjustment[];
-  // Present only for a branch that names its token.
-  token?: BranchToken;
-};
+  asset?: string;
+} & Branded;
 type QueueItem = Pick<Adjustment, "state" | "amount"> & {
   refundId: string;
   saleId: string;
   principal: string;
+  asset?: string;
   next: string;
 };
 type QueuePage = {
   items: QueueItem[];
   nextCursor: string | null;
-  token?: BranchToken;
-};
+} & Branded;
 
 const nextSteps: Record<string, string> = {
   decide: "승인 또는 반려 검토 가능",
@@ -113,7 +112,9 @@ export function RefundConsole({ branchId }: { branchId: string }) {
   const [busy, setBusy] = useState(false);
   const active = useRef(false);
   const format = (units: string) =>
-    formatFinanceAmount(units, (review ?? queue)?.token);
+    formatFinanceAmount(units, replyToken(review, review?.asset));
+  const formatItem = (units: string, item: QueueItem) =>
+    formatFinanceAmount(units, replyToken(queue, item.asset));
 
   function run(task: () => Promise<unknown>) {
     if (active.current) return;
@@ -218,10 +219,10 @@ export function RefundConsole({ branchId }: { branchId: string }) {
               {queue.items.map((item) => (
                 <li key={item.refundId}>
                   <p>
-                    환불 {item.refundId} · {format(item.amount)}
+                    환불 {item.refundId} · {formatItem(item.amount, item)}
                   </p>
                   <p>
-                    원주문 {item.saleId} · 원금 {format(item.principal)}
+                    원주문 {item.saleId} · 원금 {formatItem(item.principal, item)}
                   </p>
                   <p>
                     {states[item.state]} · {nextSteps[item.next]}

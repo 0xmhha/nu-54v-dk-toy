@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { namedToken, rememberTokens, tokenMoney } from "../src/money.ts";
+import { baseUnits, namedToken, rememberTokens, replyToken, tokenMoney } from "../src/money.ts";
 
 const won = { name: "NU54 Test KRW", symbol: "tKRW", label: "tKRW", decimals: 2 };
 assert.equal(tokenMoney("6500000"), "6.50 TestUSDC");
@@ -14,3 +14,15 @@ rememberTokens([{ asset: "0xa1", token: won }, { asset: "0xa2" }, {}]);
 assert.deepEqual(namedToken("0xA1"), won);
 assert.equal(namedToken("0xa2"), undefined);
 assert.equal(namedToken(), undefined);
+
+// A reply's token is used only for the asset it belongs to; anything else stays in base units.
+const reply = { token: won, tokenAsset: "0xa1" };
+assert.equal(replyToken(undefined, "0xa1"), undefined);
+assert.equal(replyToken({}, "0xa1"), undefined);
+assert.equal(replyToken(reply), won);
+assert.equal(replyToken(reply, "0xA1"), won);
+assert.equal(replyToken(reply, "0xb2"), baseUnits);
+assert.equal(tokenMoney("6500000", baseUnits), "6,500,000 기본 단위");
+// The token of a refused branch is not a token.
+rememberTokens([{ asset: "0xc3", token: baseUnits }]);
+assert.equal(namedToken("0xc3"), undefined);

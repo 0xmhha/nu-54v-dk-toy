@@ -30,6 +30,17 @@ type PaymentForwarder interface {
 	Forward(context.Context, service.Bound, []byte) (string, error)
 }
 
+// BranchPauser knows the branches whose deployment or token was refused at start. A PaymentForwarder may
+// provide it. Such a branch takes no new order, quote, price or POS order.
+type BranchPauser interface {
+	Paused(branch string) bool
+}
+
+func (h HTTP) paused(branch string) bool {
+	pauser, ok := h.Payment.(BranchPauser)
+	return ok && pauser.Paused(branch)
+}
+
 // OrderLocker pays an order into OrderEscrow. A PaymentForwarder may provide it.
 type OrderLocker interface {
 	AuthorizeLock(context.Context, service.Request, service.Principal, []byte) (*service.OrderApproval, error)
@@ -60,7 +71,6 @@ type HTTP struct {
 	Store                     *Store
 	Credentials               map[string]service.Principal // authorized certificate DER SHA-256 to authenticated authority
 	Profiles                  map[string]Profile           // enrolled opaque branch reference to verified deployment profile
-	Paused                    map[string]bool              // branches whose settlement did not start: no order, quote or price is taken
 	Signer                    Signer
 	Cipher                    cipher.AEAD
 	Payment                   PaymentForwarder
@@ -317,6 +327,10 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, err, nil)
 		return
 	}
+	if req.Operation == "order.create" && h.paused(req.Domain) {
+		errorResponse(w, service.Capability, &bound)
+		return
+	}
 	ctx, cancel := context.WithDeadline(authority.Scope(r.Context(), principal, req.Domain), time.Unix(req.ExpiresAt, 0))
 	defer cancel()
 	if slices.Contains([]string{"catalog.read", "order.create", "checkout.authorize", "quote.issue"}, req.Operation) {
@@ -404,10 +418,6 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	case "order.create":
 		if err = checkCart(bound, outer.Cart); err == nil {
-			if h.Paused[bound.Request.Domain] {
-				err = service.Capability
-				break
-			}
 			out.ResultRef, err = h.Store.Reserve(ctx, bound, *outer.Cart)
 		}
 	case "order.nearby-result":
@@ -551,7 +561,7 @@ func (h HTTP) issue(ctx context.Context, bound service.Bound) (*quoteReply, erro
 }
 
 func (h HTTP) issueWithReview(ctx context.Context, bound service.Bound, review *RentalReviewChallenge) (*quoteReply, error) {
-	if h.Paused[bound.Request.Domain] {
+	if h.paused(bound.Request.Domain) {
 		return nil, service.Capability
 	}
 	if h.QuoteAdmission != nil {

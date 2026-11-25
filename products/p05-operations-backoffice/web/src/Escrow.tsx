@@ -13,7 +13,7 @@ import {
   OrderDetail,
   type Order,
 } from "./Finance";
-import { rememberTokens, type BranchToken } from "./money";
+import { rememberTokens, type Branded } from "./money";
 
 // spending-wallet-wire.md section 7. Unix seconds and base-unit amounts.
 export type EscrowItem = {
@@ -46,8 +46,7 @@ export type EscrowPage = {
   items: EscrowItem[];
   totals: { claimable: string; waiting: string; disputed: string; held: string };
   nextCursor?: string | null;
-  token?: BranchToken;
-};
+} & Branded;
 export type ClaimBatch = {
   batchId: string;
   state: "queued" | "submitted" | "final" | "failed";
@@ -165,7 +164,7 @@ export async function readOrders(
   });
   if (!Array.isArray(page.items) || !page.totals)
     throw new Error("주문 목록을 확인할 수 없습니다. 다시 조회하세요.");
-  rememberTokens(page.items.map(({ asset }) => ({ asset, token: page.token })));
+  rememberTokens([{ asset: page.tokenAsset, token: page.token }]);
   return page;
 }
 

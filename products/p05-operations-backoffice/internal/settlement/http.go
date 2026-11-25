@@ -83,7 +83,7 @@ func (h FinanceHTTP) scopes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "finance access unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	scopes, err := scopesWithTokens(scopes, h.Targets)
+	scopes, err := scopesWithTokens(scopes, h.Targets, h.Deployments)
 	if err != nil {
 		http.Error(w, "finance access unavailable", http.StatusServiceUnavailable)
 		return
@@ -93,11 +93,16 @@ func (h FinanceHTTP) scopes(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(scopes)
 }
 
-// brandReply adds the token of a branch that names one to every reply with amounts, so a page never shows
-// them as dollars. Replies of other branches are not touched.
-func brandReply(operation string, reply any, token commerce.Token) (any, error) {
+// brandReply adds the token of a branch that names one, and the asset it belongs to, to every reply with
+// amounts, so a page never shows them as dollars. The token of a refused branch was not found on chain; its
+// amounts are shown in base units. Replies of other branches are not touched.
+func brandReply(operation string, reply any, target Target, refused bool) (any, error) {
+	token := target.Token
 	if token == (commerce.Token{}) || reply == nil || !slices.Contains(amountReplies, operation) {
 		return reply, nil
+	}
+	if refused {
+		token = commerce.Token{} // zero decimals and no label: base units
 	}
 	raw, err := json.Marshal(reply)
 	if err != nil {
@@ -107,18 +112,22 @@ func brandReply(operation string, reply any, token commerce.Token) (any, error) 
 	if err := json.Unmarshal(raw, &fields); err != nil || fields == nil {
 		return reply, err
 	}
-	fields["token"], err = json.Marshal(token)
+	if fields["token"], err = json.Marshal(token); err != nil {
+		return nil, err
+	}
+	fields["tokenAsset"], err = json.Marshal(lower(target.Asset))
 	return fields, err
 }
 
 var amountReplies = []string{"report", "order", "reconciliation", "fulfillment-review", "payment-evidence", "refund-queue", "refund-status",
 	"escrow-orders", "escrow-claims"}
 
-// scopesWithTokens adds the asset and token of every listed branch that names one. Other rows stay as they are.
-func scopesWithTokens(raw []byte, targets map[string]Target) ([]byte, error) {
+// scopesWithTokens adds the asset and token of every listed branch that names one and was not refused at start.
+// Other rows stay as they are.
+func scopesWithTokens(raw []byte, targets map[string]Target, reviews map[string]DeploymentReview) ([]byte, error) {
 	named := false
-	for _, target := range targets {
-		named = named || target.Token != (commerce.Token{})
+	for branch, target := range targets {
+		named = named || (target.Token != (commerce.Token{}) && reviews[branch].Status != "invalid")
 	}
 	if !named {
 		return raw, nil
@@ -129,7 +138,7 @@ func scopesWithTokens(raw []byte, targets map[string]Target) ([]byte, error) {
 	}
 	for _, row := range rows {
 		id, _ := row["id"].(string)
-		if target := targets[id]; target.Token != (commerce.Token{}) {
+		if target := targets[id]; target.Token != (commerce.Token{}) && reviews[id].Status != "invalid" {
 			row["asset"], row["token"] = lower(target.Asset), target.Token
 		}
 	}
@@ -538,7 +547,7 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 		err = h.Store.db.CheckRead(ctx)
 	}
 	if err == nil {
-		output, err = brandReply(operation, output, h.Targets[in.Branch].Token)
+		output, err = brandReply(operation, output, h.Targets[in.Branch], h.Deployments[in.Branch].Status == "invalid")
 	}
 	if err != nil {
 		var dbError *pgconn.PgError

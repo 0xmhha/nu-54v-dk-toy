@@ -130,7 +130,7 @@ func (row *operatorRow) resolvePrice(decimals int) error {
 
 // resolveRow turns the operator's amounts into base units of the branch token and checks them.
 func (h HTTP) resolveRow(branch string, row *operatorRow) error {
-	if h.Paused[branch] {
+	if h.paused(branch) {
 		return service.Capability
 	}
 	if row.DisplayPrice != "" {
