@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
-import {bytesToHex, fromBase64, type WalletSends} from '@nu54/protocol';
+import {bytesToHex, fromBase64, type PaymentToken, type WalletSends} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
@@ -19,6 +19,8 @@ import {assetMoney, storeMoney} from './tokens.ts';
 const now = () => Math.floor(Date.now() / 1000);
 const pinNote = '위 금액과 받는 주소를 확인한 뒤 SW1을 짧게 누르고 보드 버튼으로 PIN을 입력하세요. 거절하려면 SW2를 누르세요.';
 
+/** Dollars are typed in cents, as the screens show them; a token with fewer decimals in all of them. */
+const sendDecimals = (token: PaymentToken) => Math.min(2, token.decimals);
 const decimalWords = (decimals: number) => ['없음', '한', '두', '세', '네', '다섯', '여섯'][decimals] ?? String(decimals);
 
 /** What the server's refusal of a transfer means. The rest is worded as for a return. */
@@ -158,14 +160,14 @@ export function SendPage(props: BoardLifeProps) {
     try {
       const target = readRecipient(to);
       if (target === board.account) { say('보드 계정 자신에게는 보낼 수 없습니다.'); return; }
-      const units = parseHumanAmount(amount.trim(), store.token.decimals);
+      const typed = sendDecimals(store.token), units = parseHumanAmount(amount.trim(), typed) * 10n ** BigInt(store.token.decimals - typed);
       if (!balance) { say('보드 계정의 잔액을 확인하지 못했습니다. 잠시 뒤 다시 시도하세요.'); return; }
       if (units > balance.latest || units > balance.units) { say(`잔액보다 큰 금액입니다. 확정된 잔액은 ${money(balance.units)}입니다.`); return; }
       if (props.spending && (units > props.spending.perPayment || units > props.spending.leftToday)) { say('보드 한도를 넘는 금액입니다. 내 보드에서 한도를 확인하세요.'); return; }
       say('');
       setReview({to: target, units});
     } catch (error) {
-      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(store.token.decimals) + ' 자리까지 입력할 수 있습니다.');
+      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(sendDecimals(store.token)) + ' 자리까지 입력할 수 있습니다.');
     }
   };
   const scan = async () => {

@@ -87,14 +87,11 @@ func TestWonPricesAreWhole(t *testing.T) {
 		if err := row.resolvePrice(2); err != nil {
 			t.Fatalf("%+v: %v", c, err)
 		}
-		if row.wholePrices(testWon) != c.ok {
+		if row.shownPrices(testWon) != c.ok {
 			t.Errorf("won %+v", c)
 		}
-		if !row.wholePrices(Token{}) {
-			t.Errorf("dollar branch refused %+v", c)
-		}
 	}
-	if (operatorRow{Price: "650055"}).wholePrices(testWon) || !(operatorRow{Price: "650000"}).wholePrices(testWon) {
+	if (operatorRow{Price: "650055"}).shownPrices(testWon) || !(operatorRow{Price: "650000"}).shownPrices(testWon) {
 		t.Error("a price given in base units is checked the same way")
 	}
 }
@@ -113,7 +110,10 @@ func TestCatalogRowsFollowTheBranch(t *testing.T) {
 		{"won", operatorRow{Price: "650055"}, "", false},
 		{"won", operatorRow{Price: "650000"}, "650000", true},
 		{"usd", operatorRow{DisplayPrice: "6.50"}, "6500000", true},
-		{"usd", operatorRow{DisplayPrice: "6.500001"}, "6500001", true},
+		{"usd", operatorRow{DisplayPrice: "6.500001"}, "", false},
+		{"usd", operatorRow{DisplayPrice: "6.50", Tax: "0.001"}, "", false},
+		{"usd", operatorRow{DisplayPrice: "6.50", Discount: "0.001"}, "", false},
+		{"usd", operatorRow{DisplayPrice: "6.50", Tax: "0.01", Discount: "0.02"}, "6490000", true},
 		{"usd", operatorRow{Price: "650055"}, "650055", true},
 		{"unknown", operatorRow{DisplayPrice: "6.50"}, "", false},
 	} {
@@ -153,7 +153,7 @@ func TestForgottenDecimalsAreRefused(t *testing.T) {
 
 func TestPartsThatCancelOutAreStillRefused(t *testing.T) {
 	row := operatorRow{DisplayPrice: "6500", Tax: "0.50", Discount: "0.50"}
-	if err := row.resolvePrice(2); err != nil || row.Price != "650000" || row.wholePrices(testWon) {
+	if err := row.resolvePrice(2); err != nil || row.Price != "650000" || row.shownPrices(testWon) {
 		t.Fatalf("tax and discount of half a won: %+v %v", row, err)
 	}
 }

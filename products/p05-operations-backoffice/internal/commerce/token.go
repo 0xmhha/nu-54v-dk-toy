@@ -35,14 +35,25 @@ func (t Token) Valid() bool {
 		tokenSymbol.MatchString(t.Label) && t.Decimals >= 1 && t.Decimals <= 18)
 }
 
-// wholePrice accepts an operator's price only in units the token is spent in: whole won, or any dollar amount.
+// wholePrice accepts an amount only in whole won at a won branch, and anything elsewhere.
 func (t Token) wholePrice(baseUnits string) bool {
-	if t.OrDollar().Symbol != wonSymbol {
-		return true
+	return t.OrDollar().Symbol != wonSymbol || multiple(baseUnits, t.Decimals)
+}
+
+// shownPrice accepts an operator's price only when every screen shows all of it: whole won, or dollars and cents.
+func (t Token) shownPrice(baseUnits string) bool {
+	token := t.OrDollar()
+	if token.Symbol == wonSymbol {
+		return t.wholePrice(baseUnits)
 	}
+	return token.Decimals <= 2 || multiple(baseUnits, token.Decimals-2)
+}
+
+// multiple reports whole units of ten to the given power.
+func multiple(baseUnits string, power uint8) bool {
 	amount, ok := new(big.Int).SetString(baseUnits, 10)
-	one := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(t.Decimals)), nil)
-	return ok && new(big.Int).Mod(amount, one).Sign() == 0
+	unit := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(power)), nil)
+	return ok && new(big.Int).Mod(amount, unit).Sign() == 0
 }
 
 const wonSymbol = "tKRW"

@@ -35,19 +35,25 @@ export const shownTotal = (row: PriceRow, asset: CatalogAsset) => {
   return total === undefined ? row.price : tokenMoney(total.toString(), assetToken(asset));
 };
 
+/** Decimals an operator may type: won is whole, dollars have cents, and the screens show no more. */
+const typed = (asset: CatalogAsset) =>
+  assetToken(asset).symbol === "tKRW" ? 0 : Math.min(2, asset.decimals);
+
 /** Why these rows cannot be published. The server checks the same. */
 export function priceProblem(rows: PriceRow[], asset: CatalogAsset): string | undefined {
   const won = assetToken(asset).symbol === "tKRW";
-  const whole = (amount: string) =>
-    units(amount, asset.decimals) % 10n ** BigInt(asset.decimals) === 0n;
+  const unit = 10n ** BigInt(asset.decimals - typed(asset));
+  const whole = (amount: string) => units(amount, asset.decimals) % unit === 0n;
   for (const row of rows) {
     const total = rowTotal(row, asset);
-    if (total !== undefined && won && ![row.price, row.tax || "0", row.discount || "0"].every(whole))
-      return "원화 가격과 세금·할인은 원 단위로 입력하세요.";
+    if (total !== undefined && ![row.price, row.tax || "0", row.discount || "0"].every(whole))
+      return won
+        ? "원화 가격과 세금·할인은 원 단위로 입력하세요."
+        : "가격과 세금·할인은 소수점 둘째 자리까지 입력하세요.";
     if (total === undefined || total <= 0n)
       return won
         ? "원화 가격과 세금·할인은 원 단위로 입력하고, 최종 가격은 0보다 커야 합니다."
-        : `가격과 세금·할인은 소수점 ${asset.decimals === 6 ? "여섯" : asset.decimals} 자리까지 입력하고, 최종 가격은 0보다 커야 합니다.`;
+        : "가격과 세금·할인은 소수점 둘째 자리까지 입력하고, 최종 가격은 0보다 커야 합니다.";
   }
   return undefined;
 }

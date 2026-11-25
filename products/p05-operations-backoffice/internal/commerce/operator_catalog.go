@@ -139,16 +139,21 @@ func (h HTTP) resolveRow(branch string, row *operatorRow) error {
 			return service.BadRequest
 		}
 	}
-	if !row.wholePrices(h.Profiles[branch].Token) {
+	if !row.shownPrices(h.Profiles[branch].Token) {
 		return service.BadRequest
 	}
 	return nil
 }
 
-// wholePrices runs after resolvePrice, so every amount is in base units.
-func (row operatorRow) wholePrices(token Token) bool {
+// shownPrices runs after resolvePrice, so every amount is in base units. A dollar price given in base units
+// by an older client keeps its digits.
+func (row operatorRow) shownPrices(token Token) bool {
+	check := token.wholePrice
+	if row.DisplayPrice != "" {
+		check = token.shownPrice
+	}
 	for _, amount := range []string{row.Price, row.DisplayPrice, row.Tax, row.Discount} {
-		if amount != "" && !token.wholePrice(amount) {
+		if amount != "" && !check(amount) {
 			return false
 		}
 	}

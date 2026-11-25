@@ -23,6 +23,8 @@ assert.equal(shownTotal(row("abc"), usd), "abc");
 for (const bad of [row("6500.55"), row("6500", "0.50"), row("6500", "", "0.01"), row("6500", "0.50", "0.50")])
   assert.match(priceProblem([row("1000"), bad], won), /원 단위/);
 assert.match(priceProblem([row("0")], won), /0보다/);
-assert.match(priceProblem([row("1", "", "1")], usd), /여섯 자리/);
+assert.match(priceProblem([row("1", "", "1")], usd), /둘째 자리/);
+for (const bad of [row("6.500001"), row("6.5", "0.001"), row("6.5", "", "0.001"), row("0.005")])
+  assert.match(priceProblem([row("1.00"), bad], usd), /둘째 자리/);
 assert.equal(priceProblem([row("6500", "0", "500")], won), undefined);
-assert.equal(priceProblem([row("6.500001")], usd), undefined);
+assert.equal(priceProblem([row("6.50", "0.01", "0.02")], usd), undefined);

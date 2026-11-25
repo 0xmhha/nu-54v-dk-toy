@@ -615,7 +615,7 @@ describe('sending to another address', () => {
     expect(await kept()).toBeUndefined();
   });
   test('what cannot be sent is refused before the board is asked', async () => {
-    for (const [to, amount, words] of [['0x12', '5', '받는 주소가 맞지 않습니다'], [payer, '5', '보드 계정 자신에게는'], [friend, '42.000001', '잔액보다 큰 금액'], [friend, '1.2345678', '소수점 아래 여섯 자리'],
+    for (const [to, amount, words] of [['0x12', '5', '받는 주소가 맞지 않습니다'], [payer, '5', '보드 계정 자신에게는'], [friend, '42.01', '잔액보다 큰 금액'], [friend, '1.234', '소수점 아래 두 자리'], [friend, '0.005', '소수점 아래 두 자리'],
       [friend, '0', '금액이 맞지 않습니다']] as const) {
       await start(to, amount);
       expect(message).toContain(words);
