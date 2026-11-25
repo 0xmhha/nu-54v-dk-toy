@@ -25,6 +25,9 @@ FLOW = ROOT / P05 / "test/order-flow"
 USER = "nu54_order_flow"
 DATABASE = "nu54_settlement_order_flow"
 FLOWS = 17
+VECTORS = ROOT / "packages/protocol/v2/testdata"
+WON_BOARD = ("-DNU54_TOKEN_NAME=NU54 Test KRW", f"-DNU54_ORDER_VECTOR={VECTORS / 'order-lock-won.vectors'}",
+             f"-DNU54_RETURN_VECTOR={VECTORS / 'wallet-return-won.vectors'}", "-DNU54_RETURN_AMOUNT=3420000")
 LIMIT = 600
 
 
@@ -60,7 +63,7 @@ def openssl_root():
 
 def build(scratch, env, log):
     """Builds side by side. A failed step shows its output and ends the others."""
-    out = {"indexer": scratch / "indexer", "board": scratch / "board/order-board", "contracts": scratch / "contracts",
+    out = {"indexer": scratch / "indexer", "board": scratch / "board/order-board", "board_won": scratch / "board-won/order-board", "contracts": scratch / "contracts",
            "server": scratch / "settlement.test"}
     target = ROOT / P05 / "internal/settlement/order_flow_anvil_test.go"
     if target.exists():
@@ -72,7 +75,11 @@ def build(scratch, env, log):
     steps = {
         "contracts": [(["python3", "-B", "scripts/contract_forge.py", "p06", "build", "--offline", "--quiet"], foundry)],
         "board firmware": [(["cmake", "-S", FLOW / "board", "-B", scratch / "board", "-DCMAKE_BUILD_TYPE=Debug"], cmake),
-                           (["cmake", "--build", scratch / "board"], cmake)],
+                           (["cmake", "--build", scratch / "board"], cmake),
+                           (["ctest", "--test-dir", scratch / "board", "--output-on-failure"], cmake)],
+        "board firmware for won": [(["cmake", "-S", FLOW / "board", "-B", scratch / "board-won", "-DCMAKE_BUILD_TYPE=Debug", *WON_BOARD], cmake),
+                                   (["cmake", "--build", scratch / "board-won"], cmake),
+                                   (["ctest", "--test-dir", scratch / "board-won", "--output-on-failure"], cmake)],
         "server and indexer": [(["go", "test", "-c", "-overlay", overlay, "-o", out["server"], f"./{P05}/internal/settlement"], env),
                                (["go", "build", "-o", out["indexer"], "./products/p07-indexer/cmd/indexer"], env)],
     }

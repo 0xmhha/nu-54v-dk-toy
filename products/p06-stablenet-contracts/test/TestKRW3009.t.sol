@@ -121,6 +121,10 @@ contract TestKRW3009Test is Test {
         // A receive signature is not a transfer signature: nobody else can push it.
         vm.expectRevert(TestToken3009.InvalidAuthorization.selector);
         token.transferWithAuthorization(board, home, 40 * WON, 0, start + 60, nonce, v, r, s);
+        vm.expectEmit(address(token));
+        emit TestToken3009.AuthorizationUsed(board, nonce);
+        vm.expectEmit(address(token));
+        emit TestToken3009.Transfer(board, home, 40 * WON);
         vm.prank(home);
         token.receiveWithAuthorization(board, home, 40 * WON, 0, start + 60, nonce, v, r, s);
         assertEq(token.balanceOf(home), 40 * WON);

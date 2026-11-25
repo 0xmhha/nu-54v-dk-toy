@@ -34,6 +34,8 @@ if(NOT NU54_TOKEN_NAME STREQUAL "NU54 Test USD")
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/rename_token.py ${P01}/core/src/${source}.c VERBATIM)
     list(APPEND SIGNING ${copy})
   endforeach()
+  # Three programs compile the copies; one step makes them.
+  add_custom_target(renamed DEPENDS ${SIGNING})
 endif()
 
 add_executable(order-board board_host.c ${EXTRACTED}
@@ -69,5 +71,12 @@ target_compile_definitions(return-vector PRIVATE ENABLE_MODULE_RECOVERY=1 ECMULT
 set(NU54_ORDER_VECTOR ${REPO}/packages/protocol/v2/testdata/order-lock.vectors CACHE FILEPATH "Payment vector of the token")
 set(NU54_RETURN_VECTOR ${REPO}/packages/protocol/v2/testdata/wallet-return.vectors CACHE FILEPATH "Return vector of the token")
 set(NU54_RETURN_AMOUNT 9500000 CACHE STRING "Amount in the return vector")
+if(TARGET renamed)
+  foreach(program order-board order-vector return-vector)
+    add_dependencies(${program} renamed)
+  endforeach()
+endif()
+# test_order.c checks with assert, so it must not be built without it.
+target_compile_options(order-vector PRIVATE -UNDEBUG)
 add_test(NAME order_vector COMMAND order-vector ${NU54_ORDER_VECTOR})
 add_test(NAME return_vector COMMAND return-vector ${NU54_RETURN_VECTOR} ${NU54_RETURN_AMOUNT})

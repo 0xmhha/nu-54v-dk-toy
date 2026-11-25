@@ -44,8 +44,13 @@ func TestWonReturnMatchesTheContract(t *testing.T) {
 }
 
 func TestTokenNameIsChecked(t *testing.T) {
+	for _, name := range []string{"a", "NU54 Test KRW", strings.Repeat("a", 64), "a!~z"} {
+		if !ValidTokenName(name) {
+			t.Errorf("the name %q was refused", name)
+		}
+	}
 	v := vectors(t, "order-lock-won.vectors")
-	for _, name := range []string{"", " NU54", "NU54 ", "a\nb", "\uc6d0", strings.Repeat("a", 65)} {
+	for _, name := range []string{"", " NU54", "NU54 ", "a\nb", "\uc6d0", strings.Repeat("a", 65), "a\x7f", "\x7fa", "a\x1fb"} {
 		if _, err := NewLockFor(name, v["unsigned"], common.HexToAddress("0x1004")); err == nil {
 			t.Errorf("lock accepted the name %q", name)
 		}
