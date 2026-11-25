@@ -380,6 +380,29 @@ class Walk:
         self.sees(self.money(8 * quantity))
         return sale
 
+    def options(self):
+        """A product with groups on the store's menu: nothing picked first, the missing group named, then one combination."""
+        self.tap("둘러보기")
+        self.tap("가까운 매장에서 주문")
+        self.tap("근처 단말 찾기")
+        self.tap("근거리 단말 후보 1 인증")
+        self.tap("이 매장 메뉴 열기")
+        self.sees(f"옵션 라떼 · {self.money(8)}부터")
+        self.shot("07-menu-options")
+        self.tap("옵션 라떼 옵션 고르기")
+        self.sees("온도")
+        self.shot("08-choices-start")
+        self.tap(f"골라 주세요 · {self.money(8)}부터")
+        self.sees("온도를 골라 주세요")
+        self.shot("09-choices-missing")
+        self.tap("온도 차갑게")
+        self.tap(f"크기 크게 +{self.money(1)}")
+        self.shot("10-choices-picked")
+        self.tap(f"담기 · {self.money(9)}")
+        self.sees("차갑게 · 크게")
+        self.shot("11-menu-basket")
+        self.tap("홈")
+
     def check_board(self):
         self.tap("내 보드 확인")
         self.sees("오늘 남은 한도")
@@ -498,7 +521,7 @@ class Walk:
             self.shell("settings", "put", "global", name, "0")
         try:
             self.wait_for_app(("동의하고 시작",))
-            flows = (self.agree, self.set_up, self.deposit, self.tokens, self.faucet, self.network_settings, self.settings, self.send, self.pay, self.refuse, self.over_limit, self.no_board, self.lost_connection, self.inner_pages, self.give_back)
+            flows = (self.agree, self.set_up, self.deposit, self.tokens, self.faucet, self.network_settings, self.settings, self.send, self.pay, self.refuse, self.over_limit, self.no_board, self.lost_connection, self.options, self.inner_pages, self.give_back)
             for flow in flows:
                 name, at = flow.__name__.replace("_", " "), time.monotonic()
                 try:

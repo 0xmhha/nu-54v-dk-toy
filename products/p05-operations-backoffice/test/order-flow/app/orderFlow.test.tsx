@@ -55,7 +55,7 @@ const records = () => orderRecords(commerceHttp);
 let tree: Renderer.ReactTestRenderer | undefined;
 const texts = () => JSON.stringify(tree?.toJSON() ?? null);
 const button = (label: string) => tree?.root.findAll(node => (node.props.label === label && typeof node.props.run === 'function') ||
-  (node.props.title === label && typeof node.props.onPress === 'function'))[0];
+  ((node.props.title === label || node.props.accessibilityLabel === label) && typeof node.props.onPress === 'function'))[0];
 const sees = (text: string, seconds = 40) => until(`"${text}" on the phone (${seen()})`, () => texts().includes(text), seconds);
 const seen = () => (texts().match(/[가-힣][^"\\]{3,}/g) ?? []).slice(0, 14).join(' | ');
 async function press(label: string, seconds = 20) {
@@ -402,6 +402,32 @@ flow('kiosk order, paid to the store', async () => {
   const paid = await stage(sale, 'paid');
   same('payout', paid.payout, 'receipt');
   same('store income', await balance(store) - before, price);
+});
+
+flow('options picked on the phone, named in the kitchen', async () => {
+  // The same amount goes in first, so the balance the later flows expect stays as it was.
+  const dearer = price + price / 8n, before = await balance(store);
+  await deposit(dearer);
+  await connectStore();
+  await press('옵션 라떼 옵션 고르기');
+  await press('온도 차갑게');
+  await press(won ? '크기 크게 +10,000원' : '크기 크게 +1.00 TestUSDC');
+  await press(won ? '담기 · 90,000원' : '담기 · 9.00 TestUSDC');
+  await press('주문 접수 요청');
+  await sees('결제 내용을 확인하세요');
+  const entry = await until('a payment checkpoint', checkpoint), sale = entry.order.id;
+  lastQuote = Math.max(lastQuote, entry.quote.expiresAt);
+  same('the amount of the combination', entry.order.amount, dearer);
+  await approve();
+  const number = await orderNumber(sale);
+  await oneLock(entry);
+  const row = await until('the order in the kitchen', async () => { const found = await kitchenOrder(sale); return found?.state === 'accepted' ? found : undefined; });
+  same('number in the kitchen', row.pickupNo, number);
+  same('the combination in the kitchen', JSON.stringify(row.items), JSON.stringify([{label: 'Option latte', option: 'ice-l', optionLabel: '차갑게 · 크게', quantity: 1}]));
+  await deliver(sale);
+  await answer(sale, '받았어요', '네, 받았어요');
+  await stage(sale, 'paid');
+  same('store income', await balance(store) - before, dearer);
 });
 
 flow('refused on the board, then a second order and store cancel', async () => {

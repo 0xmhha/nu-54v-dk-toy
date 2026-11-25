@@ -24,7 +24,7 @@ P05 = "products/p05-operations-backoffice"
 FLOW = ROOT / P05 / "test/order-flow"
 USER = "nu54_order_flow"
 DATABASE = "nu54_settlement_order_flow"
-FLOWS = 17
+FLOWS = 18
 # The stores at once. The claim of the last flows moves the chain's clock, which the stores share, so they stay out.
 TOGETHER = ("enroll the board account", "deposit to the board account", "kiosk order, paid", "refused on the board, then", "duplicate lock",
             "dispute, two people", "test tokens from the faucet", "send to another address", "return, blocked")

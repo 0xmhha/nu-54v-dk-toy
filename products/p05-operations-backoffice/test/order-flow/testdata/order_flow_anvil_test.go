@@ -125,6 +125,23 @@ func (s *shop) seed(t *testing.T, db *pgxpool.Pool, tenant string, life time.Dur
 	fixtureExec(t, db, "INSERT INTO ledger.menu_release VALUES($1,1,now()-interval '1 minute',now()+$2*interval '1 second')", s.branch, max(15*time.Minute, life).Seconds())
 	fixtureExec(t, db, "INSERT INTO ledger.price VALUES($1,1,'escrow-cafe','plain','Escrow cafe',$2,$3::text::numeric)", s.branch, lower(s.target.Asset), s.units(8_000_000).String())
 	fixtureExec(t, db, "INSERT INTO ledger.stock VALUES($1,'escrow-cafe',60)", s.branch)
+	// A product with two groups of choices, as the operations page publishes it: a row for every combination.
+	fixtureExec(t, db, "INSERT INTO ledger.stock VALUES($1,'option-latte',60)", s.branch)
+	var breakdown []map[string]any
+	for _, temp := range [][2]string{{"hot", "뜨겁게"}, {"ice", "차갑게"}} {
+		for _, size := range [][3]any{{"s", "보통", int64(0)}, {"l", "크게", int64(1_000_000)}} {
+			option := temp[0] + "-" + size[0].(string)
+			fixtureExec(t, db, "INSERT INTO ledger.price VALUES($1,1,'option-latte',$2,'Option latte',$3,$4::text::numeric)",
+				s.branch, option, lower(s.target.Asset), s.units(8_000_000+size[2].(int64)).String())
+			breakdown = append(breakdown, map[string]any{"sku": "option-latte", "option": option, "required": true, "metadata": map[string]any{
+				"labels": map[string]string{"ko": "옵션 라떼"}, "optionLabels": map[string]string{"ko": temp[1] + " · " + size[1].(string)},
+				"optionGroupLabels": map[string]string{"ko": "온도 · 크기"}}})
+		}
+	}
+	fixtureExec(t, db, "INSERT INTO ledger.catalog_pricing VALUES($1,1,NULL,$2)", s.branch, breakdown)
+	fixtureExec(t, db, `INSERT INTO ledger.menu_sku_options VALUES($1,1,'option-latte','{"label":"Option latte"}',
+		'[{"key":"temp","labels":{"ko":"온도"},"values":[{"key":"hot","labels":{"ko":"뜨겁게"}},{"key":"ice","labels":{"ko":"차갑게"}}]},
+		  {"key":"size","labels":{"ko":"크기"},"values":[{"key":"s","labels":{"ko":"보통"}},{"key":"l","labels":{"ko":"크게"}}]}]')`, s.branch)
 	s.profile = commerce.Profile{Chain: 8283, Contract: s.target.Contract, Asset: s.target.Asset, Beneficiary: fixtureSigner(104).Address(),
 		Signer: fixtureSigner(101).Address(), MerchantID: [32]byte{31: 50}, KeyVersion: 1, BeneficiaryVersion: 1, CommitmentKey: [32]byte{31: 9}, Escrow: true, Token: s.target.Token}
 	digest := s.profile.Digest()
