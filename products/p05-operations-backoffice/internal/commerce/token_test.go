@@ -58,3 +58,56 @@ func TestOperatorPricesUseTheBranchToken(t *testing.T) {
 		t.Fatal("a third decimal was accepted")
 	}
 }
+
+func TestWonPricesAreWhole(t *testing.T) {
+	for _, c := range []struct {
+		base, tax, discount string
+		ok                  bool
+	}{
+		{"6500", "", "", true},
+		{"6500.00", "0", "500", true},
+		{"6500.55", "", "", false},
+		{"6500", "0.50", "", false},
+		{"6500", "", "0.01", false},
+		{"6500.50", "0.50", "", false}, // the total is whole, the parts are not
+	} {
+		row := operatorRow{DisplayPrice: c.base, Tax: c.tax, Discount: c.discount}
+		if err := row.resolvePrice(2); err != nil {
+			t.Fatalf("%+v: %v", c, err)
+		}
+		if row.wholePrices(testWon) != c.ok {
+			t.Errorf("won %+v", c)
+		}
+		if !row.wholePrices(Token{}) {
+			t.Errorf("dollar branch refused %+v", c)
+		}
+	}
+	if (operatorRow{Price: "650055"}).wholePrices(testWon) || !(operatorRow{Price: "650000"}).wholePrices(testWon) {
+		t.Error("a price given in base units is checked the same way")
+	}
+}
+
+func TestCatalogRowsFollowTheBranch(t *testing.T) {
+	asset := common.HexToAddress("0xa1")
+	h := HTTP{Profiles: map[string]Profile{"usd": {Chain: 8283, Asset: asset}, "won": {Chain: 8283, Asset: asset, Token: testWon}}}
+	for _, c := range []struct {
+		branch string
+		row    operatorRow
+		price  string
+		ok     bool
+	}{
+		{"won", operatorRow{DisplayPrice: "6500"}, "650000", true},
+		{"won", operatorRow{DisplayPrice: "6500.55"}, "", false},
+		{"won", operatorRow{Price: "650055"}, "", false},
+		{"won", operatorRow{Price: "650000"}, "650000", true},
+		{"usd", operatorRow{DisplayPrice: "6.50"}, "6500000", true},
+		{"usd", operatorRow{DisplayPrice: "6.500001"}, "6500001", true},
+		{"usd", operatorRow{Price: "650055"}, "650055", true},
+		{"unknown", operatorRow{DisplayPrice: "6.50"}, "", false},
+	} {
+		row := c.row
+		if err := h.resolveRow(c.branch, &row); (err == nil) != c.ok || (c.ok && row.Price != c.price) {
+			t.Errorf("%s %+v: %s %v", c.branch, c.row, row.Price, err)
+		}
+	}
+}

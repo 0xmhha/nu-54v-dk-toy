@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuthorizedBranches } from "./BranchPicker";
+import { tokenMoney } from "./money";
 import boardReference from "../../../p10-platform/release/board-reference.json";
 
 type Operation = {
@@ -138,13 +139,7 @@ function parseUnits(amount: string): string {
   return units.toString();
 }
 function humanUnits(units: string): string {
-  const value = BigInt(units);
-  const part = (value % 1000000n)
-    .toString()
-    .padStart(6, "0")
-    .replace(/0+$/, "")
-    .padEnd(2, "0");
-  return `${value / 1000000n}.${part} TestUSDC`;
+  return tokenMoney(units);
 }
 
 export function Fleet({

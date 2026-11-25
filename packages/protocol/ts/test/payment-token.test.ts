@@ -4,7 +4,7 @@ import test from "node:test";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, utf8Encode } from "../src/bytes.ts";
 import {
-  commerceAmount, dollarToken, namedTokenAbiSha256, orderEscrowAbiSha256, paymentProfile, paymentToken, paysThroughEscrow,
+  commerceAmount, dollarText, dollarToken, namedTokenAbiSha256, orderEscrowAbiSha256, paymentProfile, paymentToken, paysThroughEscrow,
   settlementAbiSha256, tokenAmount, type CommercePaymentProfile,
 } from "../src/commerce-payment.ts";
 
@@ -42,7 +42,9 @@ test("a dollar store reads as before", () => {
     assert.deepEqual(paymentToken(read({ ...plain, abiSha256 })), dollarToken);
   const dollar = { ...plain, abiSha256: orderEscrowAbiSha256 };
   assert.equal(commerceAmount("6500000", plain.asset, dollar), "6.50 TestUSDC");
-  assert.equal(commerceAmount("6500001", plain.asset, dollar), "6.500001 TestUSDC");
+  // Cut off after the second decimal, never rounded.
+  for (const [units, text] of [["6500001", "6.50"], ["6509999", "6.50"], ["6599999", "6.59"], ["999999", "0.99"], ["9999", "0.00"], ["1", "0.00"]])
+    assert.equal(commerceAmount(units, plain.asset, dollar), `${text} TestUSDC`);
   assert.equal(commerceAmount("0", plain.asset, dollar), "0.00 TestUSDC");
 });
 
@@ -58,6 +60,9 @@ test("won amounts are exact", () => {
   assert.equal(commerceAmount("1250000", profile.asset, profile, "en"), "₩12,500");
   assert.equal(tokenAmount(-1250050n, won), "-12,500.50원");
   assert.equal(tokenAmount(-500000n, dollarToken), "-0.50 TestUSDC");
+  assert.equal(tokenAmount(-509999n, dollarToken), "-0.50 TestUSDC");
+  assert.equal(tokenAmount(-9999n, dollarToken), "0.00 TestUSDC");
+  assert.equal(dollarText(1_999_999_999_999_999_999n, 18), "1.99");
   assert.equal(commerceAmount("1250000", "0x" + "9".repeat(40), profile), "1250000 기준 단위");
 });
 

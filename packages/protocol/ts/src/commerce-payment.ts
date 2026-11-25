@@ -71,20 +71,28 @@ export function validPaymentToken(value: unknown): value is PaymentToken {
 /** The token a store's orders are paid in. */
 export const paymentToken = (profile?: Pick<CommercePaymentProfile, "token">): PaymentToken => profile?.token ?? dollarToken;
 
+/** Dollars and cents of an amount. The rest is cut off, never rounded, so no screen shows more than there is (N31). */
+export function dollarText(baseUnits: string | bigint, decimals: number): string {
+  const units = BigInt(baseUnits);
+  const absolute = units < 0n ? -units : units;
+  const scale = 10n ** BigInt(decimals);
+  const cents = (absolute * 100n) / scale; // integer division drops the rest
+  const sign = units < 0n && cents ? "-" : "";
+  return `${sign}${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+
 /**
- * An exact amount as the screens show it. Won is "12,500원" in Korean and "₩12,500" in English.
- * Any other token keeps at least two decimals and its label.
+ * An amount as the screens show it. Won is exact: "12,500원" in Korean and "₩12,500" in English.
+ * Any other store token is a dollar token and keeps two decimals.
  */
 export function tokenAmount(baseUnits: string | bigint, token: PaymentToken, language: "ko" | "en" = "ko"): string {
+  if (token.symbol !== wonSymbol) return `${dollarText(baseUnits, token.decimals)} ${token.label}`;
   const units = BigInt(baseUnits);
-  const negative = units < 0n;
+  const absolute = units < 0n ? -units : units;
   const scale = 10n ** BigInt(token.decimals);
-  const absolute = negative ? -units : units;
   const fraction = token.decimals ? (absolute % scale).toString().padStart(token.decimals, "0").replace(/0+$/, "") : "";
-  const sign = negative ? "-" : "";
-  const whole = (absolute / scale).toString();
-  if (token.symbol !== wonSymbol) return `${sign}${whole}.${fraction.padEnd(2, "0")} ${token.label}`;
-  const amount = whole.replace(/\B(?=(\d{3})+$)/g, ",") + (fraction ? `.${fraction.padEnd(2, "0")}` : "");
+  const sign = units < 0n ? "-" : "";
+  const amount = (absolute / scale).toString().replace(/\B(?=(\d{3})+$)/g, ",") + (fraction ? `.${fraction.padEnd(2, "0")}` : "");
   return language === "ko" ? `${sign}${amount}원` : `${sign}₩${amount}`;
 }
 const wonSymbol = "tKRW";

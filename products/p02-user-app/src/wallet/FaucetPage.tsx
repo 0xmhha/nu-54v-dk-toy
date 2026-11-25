@@ -5,7 +5,7 @@ import {walletId} from '../merchant/customerClient.ts';
 import {Card, Chip, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
 import {credential} from './BoardLife.tsx';
-import {amountText} from './tokens.ts';
+import {tokenText} from './tokens.ts';
 
 type Say = (ko: string) => string;
 const reason = (error: unknown) => error instanceof Error ? error.message : '';
@@ -31,7 +31,7 @@ function state(t: Say, token: FaucetToken) {
   if (token.state === 'limit') return token.availableAt ? `${new Date(token.availableAt * 1000).toLocaleString('ko-KR')} ${t('이후 다시 받을 수 있습니다')}` : t('오늘 받을 수 있는 만큼 받았습니다');
   if (token.state === 'empty') return t('줄 수 있는 시험 토큰이 모자랍니다. 운영자에게 알려 주세요.');
   const last = token.claim?.state === 'failed' ? ` · ${t('지난번은 보내지 못했습니다')}` : token.claim?.state === 'unknown' ? ` · ${t('지난번 결과를 확인하지 못했습니다')}` : '';
-  return `${t('한 번에')} ${amountText(token.amount, token.decimals)} · ${t('남은 횟수')} ${token.remaining}${last}`;
+  return `${t('한 번에')} ${tokenText(token.amount, token)} · ${t('남은 횟수')} ${token.remaining}${last}`;
 }
 
 /** 시험 토큰 받기: what the store's faucet gives, sent to the board account enrolled there. */

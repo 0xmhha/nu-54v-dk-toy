@@ -7,7 +7,7 @@ import {OrderPayment, type OrderPaymentView} from '../merchant/OrderPayment.tsx'
 import {OpenOrderCard, OrderDetail} from '../merchant/OpenOrders.tsx';
 import type {OpenOrder} from '../merchant/orderRecords.ts';
 import {BoardLife, boardLifeTitles, SetupStatus, type BoardLifeProps, type BoardLifeScreen} from './BoardLife.tsx';
-import {amountText} from './tokens.ts';
+import {storeMoney} from './tokens.ts';
 import {BoardCard, BoardPage} from './HomeParts.tsx';
 import {WalletHomeSummary} from './WalletHomeSummary.tsx';
 
@@ -93,7 +93,7 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
         shown === 'permit' ? <><Text accessibilityRole="header" style={styles.title}>{t('내 보드')}</Text>
         <BoardPage t={t} connected={false} permitNeeded amount={String} actions={[]} back={leave} /></> :
         shown === 'board' ? <><Text accessibilityRole="header" style={styles.title}>{t('내 보드')}</Text>
-        <BoardPage t={t} connected setup={<SetupStatus stored={demoLife(0)[1][1].stored} hasEnrollment live={false} open={off} />} amount={units => `${(Number(units) / 1e6).toFixed(2)} TestUSDC`} actions={[]} back={leave}
+        <BoardPage t={t} connected setup={<SetupStatus stored={demoLife(0)[1][1].stored} hasEnrollment live={false} open={off} />} amount={units => storeMoney(units)} actions={[]} back={leave}
           spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: true, sends: true, leftToday: 95_500_000n}} /></> :
         'sentAt' in shown ? <OrderDetail order={shown} amount="4.50 TestUSDC" fresh now={Math.floor(Date.now() / 1000)}
           actions={{answer: off, refresh: off, back: leave}} /> :
@@ -115,7 +115,7 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
       <WalletHomeSummary owner={demoOwner} state={state} language="ko" active
         onHide={() => setHidden(value => !value)} onAccounts={off} onReceive={off} inert />
       <BoardCard t={t} state="active" open={() => setShown('board')} limits={{perPayment: 30000000n, daily: 100000000n, leftToday: 92000000n}}
-        amount={units => `${amountText(units.toString(), 6)} TestUSDC`} />
+        amount={units => storeMoney(units)} />
       <OpenOrderCard open={off} order={demoOrders(0)[1][1]} />
       <Section title={t('주문 화면 예시')}>{demoOrders(0).map(([label], index) =>
         <KitButton key={label} label={t(label)} variant="row" run={() => setShown(demoOrders(Math.floor(Date.now() / 1000))[index][1])} />)}</Section>

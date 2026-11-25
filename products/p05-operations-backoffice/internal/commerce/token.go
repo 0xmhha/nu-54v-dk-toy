@@ -1,6 +1,7 @@
 package commerce
 
 import (
+	"math/big"
 	"regexp"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/orderescrow"
@@ -33,3 +34,15 @@ func (t Token) Valid() bool {
 	return t == (Token{}) || (orderescrow.ValidTokenName(t.Name) && tokenSymbol.MatchString(t.Symbol) &&
 		tokenSymbol.MatchString(t.Label) && t.Decimals <= 18)
 }
+
+// wholePrice accepts an operator's price only in units the token is spent in: whole won, or any dollar amount.
+func (t Token) wholePrice(baseUnits string) bool {
+	if t.OrDollar().Symbol != wonSymbol {
+		return true
+	}
+	amount, ok := new(big.Int).SetString(baseUnits, 10)
+	one := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(t.Decimals)), nil)
+	return ok && new(big.Int).Mod(amount, one).Sign() == 0
+}
+
+const wonSymbol = "tKRW"

@@ -128,9 +128,9 @@ test('each active and pending limit includes the scope-verified asset unit', asy
   let tree:Renderer.ReactTestRenderer;
   await Renderer.act(async()=>{tree=Renderer.create(<WalletSettings {...base} policy={policy} policyDecimals={6}/>);});
   const contents=()=>JSON.stringify(tree!.toJSON()).replace(/","/g,'');
-  expect(contents()).toContain('10 TestUSDC');
-  expect(contents()).toContain('12 TestUSDC');
-  expect(contents()).toContain('30 TestUSDC');
+  expect(contents()).toContain('10.00 TestUSDC');
+  expect(contents()).toContain('12.00 TestUSDC');
+  expect(contents()).toContain('30.00 TestUSDC');
   await Renderer.act(async()=>{tree!.update(<WalletSettings {...base} policy={{...policy,asset:'0x'+'12'.repeat(20)}} policyDecimals={6}/>);});
   expect(contents()).not.toContain('TestUSDC');
   expect(contents()).toContain('12 ERC-20');

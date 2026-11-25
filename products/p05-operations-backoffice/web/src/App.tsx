@@ -1,6 +1,7 @@
 import { DeploymentConsole } from "./DeploymentConsole";
 import { OperatorHome } from "./OperatorHome";
 import { BranchPicker, useAuthorizedBranches } from "./BranchPicker";
+import { tokenMoney } from "./money";
 import { localScheduleValue, scheduleCandidates } from "./localSchedule";
 import type { CommerceMenuMetadata } from "@nu54/protocol";
 import { CatalogCategories, CategoryReview, type CategoryDraft } from "./CatalogCategories";
@@ -191,9 +192,9 @@ function rowTotal(row: Draft) {
 }
 function priceDescription(row: Draft, symbol: string) {
   const amount = decimal.test(row.price)
-    ? humanAmount(rowTotal(row).toString(), 6)
+    ? tokenMoney(rowTotal(row).toString(), { symbol, label: symbol, decimals: 6 })
     : row.price;
-  return `${row.label} ${amount} ${symbol} · 기본 ${row.price}, 세금 ${
+  return `${row.label} ${amount} · 기본 ${row.price}, 세금 ${
     row.tax || "0"
   }, 할인 ${row.discount || "0"}${row.required ? " · 선택 필수" : ""}`;
 }
@@ -586,9 +587,11 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                     <strong>{row.label}</strong> <span>{row.option}</span>{" "}
                     <span>
                       {site.asset?.address === row.asset
-                        ? `${humanAmount(row.price, site.asset.decimals)} ${
-                            site.asset.symbol
-                          }`
+                        ? tokenMoney(row.price, {
+                            symbol: site.asset.symbol,
+                            label: site.asset.symbol,
+                            decimals: site.asset.decimals,
+                          })
                         : `${row.price} 기준 단위`}
                     </span>{" "}
                     <span>

@@ -24,7 +24,7 @@ async page => {
     await page.getByRole("button",{name:"기존 v1 계약 조회"}).click();
     if ("$1" === "submit") {
         await page.getByRole("button",{name:"기존 적립 인출 검토"}).click();
-        await page.getByText("검토한 금액 0.000003 TestUSDC",{exact:false}).waitFor();
+        await page.getByText("검토한 금액 0.00 TestUSDC",{exact:false}).waitFor();
         await page.getByRole("button",{name:"같은 v1 인출 요청"}).click();
         await page.getByText("기존 거래 확정 대기",{exact:false}).waitFor();
     } else {

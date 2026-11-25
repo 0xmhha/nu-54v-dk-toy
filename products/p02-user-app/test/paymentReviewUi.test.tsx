@@ -488,7 +488,7 @@ test('W10 exposes only the reviewed original quote and rejects a changed amount 
   await press('새 견적 확인');
   expect(mockCalls).toContain('quote.issue');
   expect(mockApprove).not.toHaveBeenCalled();
-  expect(screen()).toContain('0.000001 TestUSDC');
+  expect(screen()).toContain('0.00 TestUSDC');
   const scoped = [...mockJournals.entries()].find(([name]) => /^customer-payment-[a-f0-9]{64}$/.test(name));
   const next = JSON.parse(scoped?.[1] ?? '{}');
   expect(next.quote.quoteDigest).toBe(mockQuote.quoteDigest);

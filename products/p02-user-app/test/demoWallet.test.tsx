@@ -13,9 +13,9 @@ test('the demo wallet home shows fixture data with a banner and no usable action
   await Renderer.act(async () => { tree = Renderer.create(<DemoWalletHome t={text => text} close={close} />); });
   const text = JSON.stringify(tree.toJSON());
   expect(text).toContain('시연용 화면');
-  // The balance text is rendered from several children ("42", " ", "TestUSDC").
+  // The balance text is rendered from several children ("42.00", " ", "TestUSDC").
   const shown = tree.root.findAll(node => node.type === Text).map(node => [node.props.children].flat().join('')).join('|');
-  expect(shown).toContain('42 TestUSDC');
+  expect(shown).toContain('42.00 TestUSDC');
   const enabled = tree.root.findAll(node => typeof node.props.onPress === 'function' &&
     ['button', 'tab'].includes(node.props.accessibilityRole) && !node.props.accessibilityState?.disabled)
     .map(node => node.props.accessibilityLabel);

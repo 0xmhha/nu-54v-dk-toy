@@ -289,8 +289,8 @@ async function exercise() {
     });
     await button("대여 계정 개설 검토").click();
     const attestedText = await page.evaluate((at) => new Date(at).toLocaleString("ko-KR"), attested);
-    for (const value of [account, "0.000025 TestUSDC", "0.00004 TestUSDC", "0.00002 TestUSDC", attestedText]) {
-      await review.getByText(value, { exact: true }).waitFor();
+    for (const value of [account, "0.00 TestUSDC", attestedText]) {
+      await review.getByText(value, { exact: true }).first().waitFor();
     }
     await review.getByText(new RegExp("17 · " + destination, "i")).waitFor();
     await button("닫기").click();

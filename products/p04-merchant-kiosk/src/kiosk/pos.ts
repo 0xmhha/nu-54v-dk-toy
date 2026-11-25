@@ -1,4 +1,4 @@
-import type { CommerceOrder } from '@nu54/protocol';
+import { dollarText, type CommerceOrder } from '@nu54/protocol';
 
 export type POSOrder = {
   branch: string;
@@ -73,7 +73,5 @@ export async function readPOSOrder(
 }
 
 export function posAmount(raw: string) {
-  const digits = raw.padStart(7, '0');
-  const fraction = digits.slice(-6).replace(/0+$/, '').padEnd(2, '0');
-  return digits.slice(0, -6) + '.' + fraction + ' TestUSDC';
+  return dollarText(raw, 6) + ' TestUSDC';
 }

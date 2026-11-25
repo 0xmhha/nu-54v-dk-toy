@@ -1,5 +1,5 @@
 // The tokens of the wallet tab. Where a token comes from decides whether the board can send it; its symbol does not.
-import {dollarToken, paymentToken, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
+import {dollarText, dollarToken, paymentToken, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
 import {normalizeEvmAddress, readEvmReceiveBalance, type EvmChain} from './evmTransfer.ts';
 import {boardNetwork, isReadProfile, type Exchange, type NetworkRow} from './networks.ts';
 import {formatReadAmount, readCustomEvmBalance, readProfiles, walletReadRpc, type ReadProfileState} from './readProfiles.ts';
@@ -52,20 +52,25 @@ export const amountText = (units: string, decimals: number) => {
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + fraction.padEnd(2, '0');
 };
 
+const dollarSymbols = ['TestUSDC', 'tUSDC', 'tUSDT', 'USDC', 'USDT'];
+/** A token's amount in a list: dollars cut off after two decimals, anything else in full. */
+export const tokenText = (units: string, token: Pick<ListedToken, 'symbol' | 'decimals'>) => dollarSymbols.includes(token.symbol)
+  ? dollarText(units, token.decimals).replace(/\B(?=(\d{3})+\.)/g, ',') : amountText(units, token.decimals);
+
 /** An amount of the store's token. Without a registration that names one it is the dollar token. */
 export const storeMoney = (units: string | bigint, token: PaymentToken = dollarToken, language: 'ko' | 'en' = 'ko') =>
-  token.symbol === dollarToken.symbol ? `${amountText(units.toString(), token.decimals)} ${token.label}` : tokenAmount(units, token, language);
+  token.symbol === dollarToken.symbol ? `${tokenText(units.toString(), token)} ${token.label}` : tokenAmount(units, token, language);
 
 export async function readToken(row: NetworkRow, token: WalletToken, account: string, exchange: Exchange): Promise<TokenAmount> {
   const rpc = walletReadRpc(row.server, exchange);
   if (row.custom) {
     const {amount} = await readCustomEvmBalance(row.custom, account, rpc);
-    return {units: amount, text: amountText(amount, token.decimals)};
+    return {units: amount, text: tokenText(amount, token)};
   }
   const profile = isReadProfile(row.key) ? readProfiles[row.key] : undefined;
   if (!profile || !('evm' in profile)) throw new Error('WALLET_READ_BOARD_ACCOUNT');
   const {amount} = await readEvmReceiveBalance(rpc, profile.evm, profile.anchor, account, token.contract, false);
-  return {units: amount, text: amountText(amount, token.decimals)};
+  return {units: amount, text: tokenText(amount, token)};
 }
 
 const asciiWord = /^[A-Za-z0-9.-]{1,12}$/;
@@ -91,7 +96,7 @@ export async function reviewToken(row: NetworkRow, input: string, account: strin
   if (typeof head?.hash !== 'string' || !/^0x[0-9a-f]{64}$/.test(head.hash)) throw new Error('TOKEN_BLOCK');
   const symbol = symbolOf(await rpc('eth_call', [{to: contract, data: '0x95d89b41'}, {blockHash: head.hash, requireCanonical: true}]).catch(() => undefined));
   if (decimals === undefined || !symbol) throw new Error('TOKEN_UNREADABLE');
-  return {contract, symbol, decimals, balance: amountText(amount, decimals), block: head.hash, height};
+  return {contract, symbol, decimals, balance: tokenText(amount, {symbol, decimals}), block: head.hash, height};
 }
 
 export function addToken(state: ReadProfileState, owner: {boardFingerprint: string; generation: number}, row: NetworkRow, review: TokenReview): ReadProfileState {

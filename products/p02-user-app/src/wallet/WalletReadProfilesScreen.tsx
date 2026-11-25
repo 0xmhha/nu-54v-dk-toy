@@ -1,4 +1,5 @@
 import {inputPlaceholder} from '../ui/theme.ts';
+import {dollarText} from '@nu54/protocol';
 import {WalletNonEvmAssets} from './WalletNonEvmAssets.tsx';
 import {nonEvmAssetKey, scopedNonEvmAssets} from './nonEvmAssetCatalog.ts';
 import {unknownConnectivity, type ReadProof, type WalletConnectivity} from './walletConnectivity.ts';
@@ -104,6 +105,8 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
   const nonEvmToken = scopedNonEvmAssets(value.nonEvmAssets,verified,selection)
     .find(item => nonEvmAssetKey(item) === selection.asset && !item.hidden);
   const assetReady = nativeAsset || !!selectedToken || !!nonEvmToken;
+  const assetAmount = (units:string, item:{contract:string;decimals:number}) =>
+    assetName(item.contract,item.decimals) === 'TestUSDC' ? dollarText(units,item.decimals) : formatReadAmount(units,item.decimals);
   const assetName = (contract:string, decimals:number) =>
     selection.id === 'stable' && contract === stableTestUsdc && decimals === 6 ? 'TestUSDC' : 'ERC-20';
   const shownAssets = assets.filter(row => (assetFilter === 'hidden' ? row.hidden :
@@ -453,10 +456,10 @@ export function WalletReadProfilesScreen({verified, value, save, found, scan, ba
         const rate = educationRate(value,verified,target);
         return <View key={item.contract}>
         <Text selectable style={styles.label}>{displayAsset} · {profile.label} · {item.contract} · {t('소수 자릿수')} {item.decimals}</Text>
-        {cached?.amount !== undefined && <Text style={styles.label}>{formatReadAmount(cached.amount,item.decimals)} {displayAsset} · {cached.point}</Text>}
+        {cached?.amount !== undefined && <Text style={styles.label}>{assetAmount(cached.amount,item)} {displayAsset} · {cached.point}</Text>}
         {mayInspect && pendingAsset?.asset === item.contract && <>
           <Text selectable style={styles.label}>
-          {language === 'ko' ? '미결 송금' : 'Pending transfer'} · {formatReadAmount(pendingAsset.amount.toString(),item.decimals)} {displayAsset} · {pendingEvm?.hash}
+          {language === 'ko' ? '미결 송금' : 'Pending transfer'} · {assetAmount(pendingAsset.amount.toString(),item)} {displayAsset} · {pendingEvm?.hash}
           </Text>
           {onOpenPending && <Button text={language === 'ko' ? '기존 송금 조회' : 'Open original transfer'} disabled={busy} click={onOpenPending} />}
         </>}

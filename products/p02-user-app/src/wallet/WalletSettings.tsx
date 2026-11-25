@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, AppState, Linking, Platform, Share, StyleSheet, Text, TextInput, View} from 'react-native';
+import {dollarText} from '@nu54/protocol';
 import {WalletAccessibility} from './WalletAccessibility.tsx';
 import Alerts from '../specs/NativeSubscriptionAlerts.ts';
 import {normalizePolicyRecipients, type OwnerIdleLock, type OwnerLimits} from './ownerLimitsWire.ts';
@@ -74,7 +75,7 @@ export function WalletSettings({tabbed=false, spendingBoard=false, giveBack, reg
   const quantity=(n:bigint)=>policyDecimals===undefined ? n.toString() : formatReadAmount(n.toString(),policyDecimals);
   const policyUnit=policy?.chain===8283n && policy.asset===stableTestUsdc && policyDecimals===6 ? 'TestUSDC' : undefined;
   const amountUnit=policyUnit ?? (policyDecimals===undefined ? (ko?'기본 단위':'base units') : 'ERC-20');
-  const amount=(n:bigint)=>quantity(n)+' '+amountUnit;
+  const amount=(n:bigint)=>(policyUnit ? dollarText(n,6) : quantity(n))+' '+amountUnit;
   const activation=(n:bigint)=>n<=8640000000000n ? new Date(Number(n)*1000).toLocaleString(ko?'ko-KR':'en-US') : (ko?'확인 불가':'Unavailable');
   const diagnostic = 'NU54 · ' + Platform.OS + ' ' + String(Platform.Version);
   const button=(label:string,action:()=>void,variant:ButtonVariant='row',detail?:string)=><KitButton label={label} run={action} variant={variant} detail={detail} />;

@@ -126,6 +126,30 @@ func (row *operatorRow) resolvePrice(decimals int) error {
 	return nil
 }
 
+// resolveRow turns the operator's amounts into base units of the branch token and checks them.
+func (h HTTP) resolveRow(branch string, row *operatorRow) error {
+	if row.DisplayPrice != "" {
+		asset := h.assetForOperations(branch)
+		if asset == nil || row.resolvePrice(asset.Decimals) != nil {
+			return service.BadRequest
+		}
+	}
+	if !row.wholePrices(h.Profiles[branch].Token) {
+		return service.BadRequest
+	}
+	return nil
+}
+
+// wholePrices runs after resolvePrice, so every amount is in base units.
+func (row operatorRow) wholePrices(token Token) bool {
+	for _, amount := range []string{row.Price, row.DisplayPrice, row.Tax, row.Discount} {
+		if amount != "" && !token.wholePrice(amount) {
+			return false
+		}
+	}
+	return true
+}
+
 func (h HTTP) assetForOperations(branch string) *operatorAsset {
 	profile, ok := h.Profiles[branch]
 	if !ok || profile.Chain != 8283 || profile.Asset.Hex() == "0x0000000000000000000000000000000000000000" {
@@ -245,12 +269,11 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			groups[row.SKU] = group
-			if row.DisplayPrice != "" {
-				if asset == nil || row.resolvePrice(asset.Decimals) != nil {
-					operatorResponse(w, nil, service.BadRequest)
-					return
-				}
-			} else if row.Tax != "" || row.Discount != "" || row.Required || mutation.Hours != nil {
+			if h.resolveRow(branch, row) != nil {
+				operatorResponse(w, nil, service.BadRequest)
+				return
+			}
+			if row.DisplayPrice == "" && (row.Tax != "" || row.Discount != "" || row.Required || mutation.Hours != nil) {
 				operatorResponse(w, nil, service.BadRequest)
 				return
 			}

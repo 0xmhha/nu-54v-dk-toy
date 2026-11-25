@@ -1,3 +1,4 @@
+import {dollarText} from '@nu54/protocol';
 import {nonEvmAssetKey, scopedNonEvmAssets} from './nonEvmAssetCatalog.ts';
 import {unknownConnectivity, type ReadProof, type WalletConnectivity} from './walletConnectivity.ts';
 import React from 'react';
@@ -52,7 +53,7 @@ export function WalletHomeSummary({owner, state = defaultReadState, language, ac
       !snapshot ? <Text style={styles.text}>{ko ? '조회 기록 없음' : 'No balance observation'}</Text> :
       snapshot.inactive ? <Text style={styles.text}>{ko ? '계정이 활성화되지 않았습니다.' : 'Account is inactive.'}</Text> :
       snapshot.unconfigured ? <Text style={styles.text}>{ko ? '설정된 발행 자산 신뢰선 없음' : 'No configured trust line for this issued asset'}</Text> :
-      <Text style={styles.balance}>{snapshot.issued ?? formatReadAmount(snapshot.amount!, snapshot.decimals)} {unit}</Text>}
+      <Text style={styles.balance}>{snapshot.issued ?? (unit === 'TestUSDC' ? dollarText(snapshot.amount!, 6) : formatReadAmount(snapshot.amount!, snapshot.decimals))} {unit}</Text>}
     {active && <View style={styles.link}><View style={[styles.dot, !rechecked && styles.dotWait, connectivity.link === 'offline' && styles.dotOff]} />
       <Text accessibilityLiveRegion="polite" style={styles.text}>{linkLabel}</Text></View>}
     {active && connectivity.link === 'offline' && <Text style={styles.text}>
