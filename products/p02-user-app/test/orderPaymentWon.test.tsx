@@ -190,3 +190,13 @@ test('a chain that cannot be read does not stop it; the server checks too', asyn
   expect(screen()).not.toContain('이 매장의 토큰이 등록된 내용과 다릅니다');
   expect(button('보드로 승인')).toBeDefined();
 });
+
+test('the reader itself names an unreadable number of decimals', async () => {
+  const {readEvmReceiveBalance} = jest.requireActual<typeof import('../src/wallet/evmTransfer')>('../src/wallet/evmTransfer');
+  const word = (value: bigint) => '0x' + value.toString(16).padStart(64, '0'), genesis = '0x' + 'a1'.repeat(32);
+  const rpc = (decimals: string) => async (method: string, params: unknown[]) => method === 'eth_chainId' ? '0x205b'
+    : method === 'eth_getBlockByNumber' ? {hash: params[0] === '0x0' ? genesis : '0x' + 'b1'.repeat(32), number: '0x10'}
+    : (params[0] as {data: string}).data === '0x313ce567' ? decimals : word(5n);
+  await expect(readEvmReceiveBalance(rpc(word(2n)) as never, '8283', genesis, payer, policy.asset, true)).resolves.toMatchObject({decimals: 2});
+  for (const bad of [word(40n), '0x', 'x']) await expect(readEvmReceiveBalance(rpc(bad) as never, '8283', genesis, payer, policy.asset, true)).rejects.toThrow('EVM_ASSET_DECIMALS');
+});

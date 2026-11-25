@@ -14,7 +14,7 @@ import {branch as mockBranch, customer as mockCustomer, generation, now, order a
   terminal as mockTerminal} from './fixtures/order';
 
 const mockWonPolicy = {...mockPolicy, abiSha256: mockNamed, token: {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2}};
-let mockStore: 'won' | 'usd' | 'other' = 'won';
+let mockStore: 'won' | 'usd' | 'other' | 'v2' = 'won', mockBroken = false, mockShop = mockBranch;
 const mockJournals = new Map<string, string>();
 const mockCalls: string[] = [];
 const mockSent: (ServiceRequestV2 & {approvalSignature?: string})[] = [];
@@ -42,15 +42,15 @@ jest.mock('../src/wallet/evmTransfer.ts', () => ({...jest.requireActual('../src/
 jest.mock('../src/specs/NativeShopQr.ts', () => ({__esModule: true, default: null}));
 jest.mock('../src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: null}));
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: {
-  loadProfile: async () => mockEnrolled ? JSON.stringify({scope: {role: 'customer', branchRef: mockBranch, subjectRef: mockCustomer, tenantRef: mockBranch, expiresAt: 4_000_000_000},
-    pin: 'a'.repeat(64), payment: mockStore === 'usd' ? mockPolicy : mockStore === 'other' ? {...mockWonPolicy, asset: '0x' + '7'.repeat(40)} : mockWonPolicy}) : '',
+  loadProfile: async () => mockBroken ? Promise.reject(new Error('keystore')) : mockEnrolled ? JSON.stringify({scope: {role: 'customer', branchRef: mockShop, subjectRef: mockCustomer, tenantRef: mockBranch, expiresAt: 4_000_000_000},
+    pin: 'a'.repeat(64), payment: mockStore === 'usd' ? mockPolicy : mockStore === 'v2' ? {...mockPolicy, abiSha256: undefined} : mockStore === 'other' ? {...mockWonPolicy, asset: '0x' + '7'.repeat(40)} : mockWonPolicy}) : '',
   loadJournal: async (name: string) => mockJournals.get(name) ?? '',
   saveJournal: async (name: string, value: string) => { mockJournals.set(name, value); },
   randomBytes: async (length: number) => mockBase64(new Uint8Array(length).fill(mockSeed++ % 250 + 1)),
   exchange: async (_role: string, raw: string) => {
     const {command, approvalSignature} = JSON.parse(raw) as {command: ServiceRequestV2; approvalSignature?: string};
     mockCalls.push(command.operation);
-    const {requestId, requestDigest} = mockBind(command, {role: 'customer', branchRef: mockBranch, subjectRef: mockCustomer, tenantRef: mockBranch, expiresAt: 4_000_000_000,
+    const {requestId, requestDigest} = mockBind(command, {role: 'customer', branchRef: mockShop, subjectRef: mockCustomer, tenantRef: mockBranch, expiresAt: 4_000_000_000,
       grants: [{domainRef: command.domainRef, objectRef: command.objectRef, operations: [`C3/${command.operation}`]}]} as never, Math.floor(Date.now() / 1000));
     const ok = {requestId, requestDigest, status: 'ok', resultRef: command.objectRef};
     if (mockServerDown) throw new Error('offline');
@@ -119,7 +119,7 @@ const record = () => returnRecord(Http).load();
 beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
   Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
-  mockStore = 'won'; boardName = 'NU54 Test KRW';
+  mockStore = 'won'; mockBroken = false; mockShop = mockBranch; boardName = 'NU54 Test KRW';
   mockJournals.clear(); mockCalls.length = 0; mockSent.length = 0; went.length = 0;
   mockLatest = undefined; mockOther = {}; mockSends = []; mockPerDay = 3; mockSendError = ''; mockSendLost = false; mockRelays = true; mockTokens.length = 0; mockOrders = []; mockServerDown = false; mockBalance = '42000000'; mockHeld = undefined; mockReturnError = ''; mockReturnLost = false; mockEnrolled = true;
   mockPayer = {...account, expiresAt: now + 9999};
@@ -252,10 +252,87 @@ test('a reset warns of the money in won', async () => {
   await open('reset');
   expect(text()).toContain('420,000원');
 });
+const elsewhere = '0fbc54ef-2827-4ab5-bfcd-3a27611c39ff';
+test('a return sent through another store is never called failed and never sent again', async () => {
+  const asked = fresh();
+  await returnRecord(Http).save(verifyReturn(asked, signed(asked), won));
+  await open('return');
+  await press('반납 보내기');
+  expect((await record())).toMatchObject({stage: 'sent', branch: mockBranch});
+  mockShop = elsewhere;
+  jest.setSystemTime((now + 100_000) * 1000);
+  await open('return');
+  expect(text()).toContain('결과 확인 안 됨');
+  expect(text()).toContain('돈이 이미 나갔을 수 있습니다');
+  expect(button('같은 반납 다시 보내기')).toBeUndefined();
+  expect(text()).not.toContain('빠져나간 돈은 없습니다');
+  const {settleReturn, submitReturn} = jest.requireActual<typeof import('../src/wallet/boardReturn')>('../src/wallet/boardReturn');
+  const client = {profile: {branchRef: elsewhere}, walletReturn: async () => undefined, returnWallet: jest.fn()};
+  expect((await settleReturn(Http, client as never, () => now + 100_000))?.stage).toBe('sent');
+  await expect(submitReturn(client as never, (await record())!, async () => {}, now, won)).rejects.toThrow('SENT_AT_OTHER_STORE');
+  expect(client.returnWallet).not.toHaveBeenCalled();
+  expect((await settleReturn(Http, {...client, profile: {branchRef: mockBranch}} as never, () => now + 100_000))).toBeUndefined();
+});
+test('a transfer sent through another store is never called failed and never sent again', async () => {
+  await start();
+  await press('이 내용으로 보내기');
+  await press('보드로 승인');
+  expect(await sendRecord(Http).load()).toMatchObject({stage: 'sent', branch: mockBranch});
+  mockShop = elsewhere;
+  jest.setSystemTime((now + 100_000) * 1000);
+  await open('send');
+  expect(text()).toContain('결과 확인 안 됨');
+  expect(button('같은 거래 다시 보내기')).toBeUndefined();
+  const {settleSend, submitSend} = jest.requireActual<typeof import('../src/wallet/boardSend')>('../src/wallet/boardSend');
+  const client = {profile: {branchRef: elsewhere}, walletSends: async () => ({perDay: 3, remaining: 3, sends: []}), sendWallet: jest.fn()};
+  expect((await settleSend(Http, client as never, () => now + 100_000))?.stage).toBe('sent');
+  await expect(submitSend(client as never, (await sendRecord(Http).load())!, async () => {}, now, won)).rejects.toThrow('SENT_AT_OTHER_STORE');
+  expect(client.sendWallet).not.toHaveBeenCalled();
+  expect((await settleSend(Http, {...client, profile: {branchRef: mockBranch}} as never, () => now + 100_000))?.stage).toBe('failed');
+});
+test('a transfer of another asset is not shown as this store\'s money', async () => {
+  await start();
+  await press('이 내용으로 보내기');
+  mockStore = 'other';
+  await open('send');
+  expect(text()).toContain('확인 안 됨');
+  expect(text()).not.toContain('50,000원');
+  await press('보드로 승인');
+  expect(message).toContain('다른 매장에 등록되어');
+  expect(session.signSend).not.toHaveBeenCalled();
+});
+test('a registration that could not be read signs nothing and can be read again', async () => {
+  const asked = fresh();
+  await returnRecord(Http).save(asked);
+  mockBroken = true;
+  await open('return');
+  expect(text()).toContain('확인 안 됨');
+  mockBroken = false; // readable when the button is pressed, but the page still does not know the token
+  await press('보드로 승인');
+  expect(message).toContain('화면의 토큰과');
+  expect(session.signReturn).not.toHaveBeenCalled();
+  mockBroken = true;
+  await open('send');
+  mockBroken = false;
+  await open('send');
+  expect(text()).toContain('420,000원');
+});
+test('the store must be the same asset, not only the same token', async () => {
+  const {sameStore, storeOf} = jest.requireActual<typeof import('../src/wallet/tokens')>('../src/wallet/tokens');
+  const here = storeOf(mockWonPolicy);
+  expect([sameStore(here, storeOf(mockWonPolicy, elsewhere)), sameStore(here, storeOf({...mockWonPolicy, asset: '0x' + '7'.repeat(40)})), sameStore(undefined, here)]).toEqual([true, false, false]);
+});
+test('a dollar store with the older contract still shows dollars', async () => {
+  mockStore = 'v2';
+  await open('deposit');
+  expect(text()).toContain('TestUSDC');
+  expect(text()).toContain(payer);
+});
 test('without a registration no amount is guessed and nothing can be sent', async () => {
   mockEnrolled = false;
   await open('send');
   expect(text()).toContain('매장 주문 등록이 필요합니다');
+  expect(button('이 내용으로 보내기')).toBeUndefined();
   await open('deposit');
   expect(text()).toContain('StableNet 테스트넷으로만');
   await press('확인했습니다. 주소 보기');

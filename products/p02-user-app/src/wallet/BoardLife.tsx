@@ -12,7 +12,7 @@ import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
 import {
-  boardFailure, forgetReturn, newReturn, pendingReset, readResetAnswer, readResetBlock, renewReturn, resetBlocked, resetLifetime, resetRequestText, resetUnknown,
+  atOtherStore, boardFailure, forgetReturn, newReturn, pendingReset, readResetAnswer, readResetBlock, renewReturn, resetBlocked, resetLifetime, resetRequestText, resetUnknown,
   returnRecord, returnStale, serverFailure, settleReturn, submitReturn, verifyReturn, type PendingReset, type ResetBlock, type ReturnRecord,
 } from './boardReturn.ts';
 import {forgetSend, type SendRecord} from './boardSend.ts';
@@ -24,6 +24,7 @@ import {SendPage} from './SendPage.tsx';
 import {testedBoard, withoutBoardAccount, type WalletStorage} from './profile.ts';
 import {readProfiles, walletReadRpc} from './readProfiles.ts';
 import {networkRows, serverFor} from './networks.ts';
+import {registeredStore} from './registeredStore.ts';
 import {receiveQr} from './receivePresentation.ts';
 import {readToken, sameStore, storeOf, storeToken, tokensOf, unknownAmount, type Store, type ListedToken} from './tokens.ts';
 
@@ -50,6 +51,8 @@ export type BoardLifeProps = {
   /** The store of this phone's registration; these pages read it themselves unless it is given (design review).
    * Without one nobody knows which token the board signs. */
   store?: Store;
+  /** Whether the registration was read; set by BoardLife for its pages. */
+  storeRead?: 'loading' | 'done'; readStore?: () => void;
   /** Tokens the operator lists for StableNet. */
   listed?: ListedToken[];
 };
@@ -89,7 +92,10 @@ export async function shownToken(asset: string, shown?: Store): Promise<PaymentT
   return token;
 }
 export const tokenFailures: Record<string, string> = {
-  OTHER_STORE: '다른 매장에 등록되어 있어 이 거래를 이어서 할 수 없습니다. 이 거래를 만든 매장의 등록서가 필요합니다. 빠져나간 돈은 없습니다.',
+  OTHER_STORE: '다른 매장에 등록되어 있어 이 거래를 이어서 할 수 없습니다. 이 거래를 만든 매장의 등록서가 필요합니다.',
+  SENT_AT_OTHER_STORE: '이 거래는 다른 매장을 통해 보냈습니다. 돈이 이미 나갔을 수 있습니다. 그 매장에 다시 등록해 결과를 확인하고, 다시 보내지 마세요.',
+  RETURN_SIGNATURE: '이 거래의 서명이 매장 등록의 토큰과 맞지 않아 보내지 않았습니다. 이 거래를 만든 매장의 등록서가 필요합니다.',
+  SEND_SIGNATURE: '이 거래의 서명이 매장 등록의 토큰과 맞지 않아 보내지 않았습니다. 이 거래를 만든 매장의 등록서가 필요합니다.',
   TOKEN_CHANGED: '화면의 토큰과 매장 등록의 토큰이 다르거나 확인되지 않았습니다. 이 화면을 닫고 다시 여세요. 빠져나간 돈은 없습니다.',
 };
 
@@ -315,9 +321,10 @@ function DepositPage(props: BoardLifeProps) {
     }, boardFailure)} /></>;
   // The same address exists on every EVM network, and what arrives there on another one cannot be moved.
   const label = props.store?.token.label;
+  if (props.storeRead === 'loading') return <Text style={type.body}>매장 등록을 확인하고 있습니다.</Text>;
   if (props.store?.token.symbol !== dollarToken.symbol && !networkSeen) return <>
     {warning}
-    <Notice tone="stop" title="StableNet 테스트넷으로만 보내세요" body={`${label ? `${label}는 StableNet 테스트넷에만 있습니다. ` : '매장에 등록하지 않아 이 보드가 쓰는 토큰을 확인하지 못했습니다. 매장에 등록하기 전에는 보내지 않는 것을 권장합니다. '} 다른 네트워크나 다른 토큰으로 보낸 것은 이 보드가 다시 보낼 수 없습니다. 시험용이며 실제 돈이 아닙니다.`} />
+    <Notice tone="stop" title="StableNet 테스트넷으로만 보내세요" body={`${label ? `${label}는 StableNet 테스트넷에만 있습니다.` : '매장 등록을 확인하지 못해 이 보드가 쓰는 토큰을 알 수 없습니다. 확인하기 전에는 보내지 않는 것을 권장합니다.'} 다른 네트워크나 다른 토큰으로 보낸 것은 이 보드가 다시 보낼 수 없습니다. 시험용이며 실제 돈이 아닙니다.`} />
     <KitButton label="확인했습니다. 주소 보기" run={() => setNetworkSeen(true)} disabled={props.busy} /></>;
   return <>
     {warning}
@@ -567,6 +574,8 @@ function ReturnPage(props: BoardLifeProps) {
       await check();
     }, error => explain(error, serverFailure))} />
     {record.sentAt === undefined && <KitButton label="반납 취소" run={restart} disabled={props.busy} variant="secondary" />}</>;
+  if (record.stage === 'sent' && atOtherStore(record, props.store?.branch)) return <>{summary}
+    <Notice tone="stop" title="결과 확인 안 됨" body={tokenFailures.SENT_AT_OTHER_STORE} /></>;
   if (record.stage === 'sent') return <>{summary}
     <Notice title="반납을 확인하고 있습니다" body="거래가 확정될 때까지 기다립니다. 두 번 보내지 않습니다. 앱을 열어 두면 다른 화면에서도 이어서 확인합니다." />
     <KitButton label="지금 확인" run={() => work(check, error => explain(error, serverFailure))} disabled={props.busy} />
@@ -620,7 +629,7 @@ function ResetPage(props: BoardLifeProps) {
   const [sure, setSure] = useState(false);
   const wait = props.spending?.pinWait ?? 0;
   const risk = [
-    balance && (balance.units > 0n || balance.latest > 0n) ? `남은 돈 ${storeText(balance.units > balance.latest ? balance.units : balance.latest, props.store)}을 잃습니다.` : balance === null ? '남은 돈이 있는지 확인하지 못했습니다. 있으면 잃습니다.' : '',
+    balance && (balance.units > 0n || balance.latest > 0n) ? props.store ? `남은 돈 ${storeText(balance.units > balance.latest ? balance.units : balance.latest, props.store)}을 잃습니다.` : '보드 계정에 돈이 남아 있습니다. 금액은 확인하지 못했고, 초기화하면 모두 잃습니다.' : balance === null ? '남은 돈이 있는지 확인하지 못했습니다. 있으면 잃습니다.' : '',
     unfinished(stored) ? '결과를 모르는 다른 전송이나 서명이 있습니다.' : '',
   ].filter(Boolean);
   return <>
@@ -741,20 +750,23 @@ export const boardLifeTitles: Record<BoardLifeScreen, string> = {
   setup: '보드 설정', 'return-address': '반납받을 주소', deposit: '받기', send: '보내기', return: '반납', reset: '공장 초기화', 'operator-reset': '운영자 초기화',
 };
 
-/** The registered store, read once when these pages open. `undefined` until it is known, and without one. */
+/** Read when these pages open, and again on request. `undefined` while it is read, without one, or when it cannot be read. */
 function useStore(fixture?: Store) {
-  const [store, setStore] = useState(fixture);
+  const [store, setStore] = useState(fixture), [storeRead, setRead] = useState<'loading' | 'done'>(fixture ? 'done' : 'loading');
+  const live = useRef(true);
+  const readStore = useCallback(() => {
+    registeredStore().catch(() => undefined).then(value => { if (live.current) { setStore(value); setRead('done'); } });
+  }, []);
   useEffect(() => {
-    if (fixture) return;
-    let live = true;
-    credential().then(({policy}) => { if (live) setStore(storeOf(policy)); }, () => {});
-    return () => { live = false; };
-  }, [fixture]);
-  return store;
+    live.current = true;
+    if (!fixture) readStore();
+    return () => { live.current = false; };
+  }, [fixture, readStore]);
+  return {store, storeRead, readStore};
 }
 
 export function BoardLife(given: BoardLifeProps) {
-  const store = useStore(given.store), props = {...given, store};
+  const props = {...given, ...useStore(given.store)};
   const Page = {setup: SetupPage, 'return-address': ReturnAddressPage, deposit: DepositPage, send: SendPage, return: ReturnPage, reset: ResetPage, 'operator-reset': OperatorResetPage}[props.screen];
   return <View style={styles.page} testID={'board-life-' + props.screen}>
     <Page {...props} />

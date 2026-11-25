@@ -15,6 +15,7 @@ import {WalletHomeSummary} from './WalletHomeSummary.tsx';
 // Fixture-only wallet home for design review on a QA build (OwnerWallet.demoWallet()). It never
 // reads or writes the stored profile, never connects to a board and every action is disabled, so
 // nothing here can approve, sign or send. The banner stays on screen the whole time.
+const demoStore = {asset: '0x' + '5'.repeat(40), token: dollarToken};
 const demoOwner = {boardFingerprint: 'de'.repeat(32), generation: 1, address: '0x' + 'de'.repeat(20)};
 
 export function demoReadState(now: number): ReadProfileState {
@@ -63,7 +64,7 @@ export function demoLife(now: number): [string, DemoLife][] {
   const fresh = {version: 2 as const, exercised: false, mode: 'personal' as const};
   const tested = {...fresh, verified, spendingBoard: board}, full = {...tested, spendingBoard: {...board, returnAddress: home}};
   const balance = {units: 42_000_000n, latest: 42_000_000n, text: '42.00 TestUSDC'}, found = [{address: 'demo', name: 'NU54'}];
-  const record = {payer: demoOwner.address, generation: '1', device, token: '0x' + 'de'.repeat(20), to: home, amount: '42000000',
+  const record = {payer: demoOwner.address, generation: '1', device, token: demoStore.asset, to: home, amount: '42000000',
     validBefore: now + 400, nonce, key: 'dededede-dede-4ede-9ede-dededededede', signature: 'de'.repeat(64) + '1b'};
   const back = (stage: 'signing' | 'sent' | 'final' | 'resetting') => ({screen: 'return' as const, stored: full, found, fixture: {balance, record: {...record, stage}}});
   return [
@@ -76,7 +77,6 @@ export function demoLife(now: number): [string, DemoLife][] {
   ];
 }
 
-const demoStore = {asset: '0x' + '5'.repeat(40), token: dollarToken};
 export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: () => void}) {
   const [hidden, setHidden] = useState(false);
   const base = useMemo(() => demoReadState(Date.now()), []);

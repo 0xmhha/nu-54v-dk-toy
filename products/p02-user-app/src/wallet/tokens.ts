@@ -58,8 +58,8 @@ export const tokenText = (units: string, token: Pick<ListedToken, 'symbol' | 'de
   ? dollarText(units, token.decimals).replace(/\B(?=(\d{3})+\.)/g, ',') : amountText(units, token.decimals);
 
 /** The store this phone is registered with: its token's address and how that token signs and is shown. */
-export type Store = {asset: string; token: PaymentToken};
-export const storeOf = (policy: CommercePaymentProfile): Store => ({asset: policy.asset.toLowerCase(), token: paymentToken(policy)});
+export type Store = {asset: string; token: PaymentToken; branch?: string};
+export const storeOf = (policy: CommercePaymentProfile, branch?: string): Store => ({asset: policy.asset.toLowerCase(), token: paymentToken(policy), ...(branch ? {branch} : {})});
 export const sameStore = (a: Store | undefined, b: Store) => !!a && a.asset === b.asset && JSON.stringify(a.token) === JSON.stringify(b.token);
 export const unknownAmount = {ko: '확인 안 됨', en: 'Not confirmed'};
 /** An amount of one asset. Only the registered store's token is known; nothing else is shown as if it were dollars. */

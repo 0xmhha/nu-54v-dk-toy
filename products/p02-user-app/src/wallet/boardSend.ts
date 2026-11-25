@@ -2,7 +2,7 @@
 import {type CommerceClient, hexToBytes, recoverSigner, orderTokenName, walletReturnDigestFor, type WalletSend} from '@nu54/protocol';
 import {customerDigest} from '../merchant/customerJournal.ts';
 import type {OrderAccount} from '../merchant/orderRecords.ts';
-import {returnRefusals} from './boardReturn.ts';
+import {atOtherStore, returnRefusals} from './boardReturn.ts';
 
 type Storage = {loadJournal(name: string): Promise<string>; saveJournal(name: string, value: string): Promise<void>};
 const address = /^0x[0-9a-f]{40}$/, hash = /^[0-9a-f]{64}$/;
@@ -12,9 +12,11 @@ export type SendRecord = OrderAccount & {
   device: string; token: string; to: string; amount: string; validBefore: number; nonce: string; key: string;
   stage: 'signing' | 'signed' | 'sent' | 'final' | 'failed';
   signature?: string; sentAt?: number; txHash?: string;
+  /** The store that was asked to send it. Only that store can say what became of it. */
+  branch?: string;
 };
 const stages = ['signing', 'signed', 'sent', 'final', 'failed'];
-const fields = ['payer', 'generation', 'device', 'token', 'to', 'amount', 'validBefore', 'nonce', 'key', 'stage', 'signature', 'sentAt', 'txHash'];
+const fields = ['payer', 'generation', 'device', 'token', 'to', 'amount', 'validBefore', 'nonce', 'key', 'stage', 'signature', 'sentAt', 'txHash', 'branch'];
 const name = `customer-order-${customerDigest('nu54-wallet-send-v1')}`;
 
 export function validSend(value: SendRecord) {
@@ -25,7 +27,7 @@ export function validSend(value: SendRecord) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value.key) && stages.includes(value.stage) &&
     (value.signature === undefined || /^[0-9a-f]{128}(1b|1c)$/.test(value.signature)) && (value.stage === 'signing' || value.signature !== undefined) &&
     (value.sentAt === undefined || (Number.isSafeInteger(value.sentAt) && value.sentAt > 0)) &&
-    (value.txHash === undefined || /^0x[0-9a-f]{64}$/.test(value.txHash));
+    (value.txHash === undefined || /^0x[0-9a-f]{64}$/.test(value.txHash)) && (value.branch === undefined || /^[0-9a-f-]{36}$/.test(value.branch));
 }
 
 export function sendRecord(storage: Storage) {
@@ -79,7 +81,7 @@ export function followSend(record: SendRecord, sends: WalletSend[], now: number)
 /** Reads what the server holds for a transfer on its way. A record that moved on meanwhile is left alone. */
 export async function settleSend(storage: Storage, client: CommerceClient, now: () => number) {
   const records = sendRecord(storage), current = await records.load();
-  if (current?.stage !== 'sent') return current;
+  if (current?.stage !== 'sent' || atOtherStore(current, client.profile?.branchRef)) return current;
   const next = followSend(current, (await client.walletSends()).sends, now());
   const latest = await records.load();
   if (JSON.stringify(latest) !== JSON.stringify(current)) return latest;
@@ -91,8 +93,9 @@ export async function settleSend(storage: Storage, client: CommerceClient, now: 
 export async function submitSend(client: CommerceClient, record: SendRecord, save: (next?: SendRecord) => Promise<void>, now: number, tokenName = orderTokenName): Promise<SendRecord> {
   if (!record.signature || verifySend(record, record.signature, tokenName).signature !== record.signature) throw new Error('SEND_SIGNATURE');
   if (record.validBefore <= now) throw new Error('SEND_EXPIRED');
+  if (record.stage === 'sent' && atOtherStore(record, client.profile?.branchRef)) throw new Error('SENT_AT_OTHER_STORE');
   const first = record.sentAt === undefined;
-  const sent: SendRecord = {...record, stage: 'sent', sentAt: now};
+  const sent: SendRecord = {...record, stage: 'sent', sentAt: now, ...(client.profile ? {branch: client.profile.branchRef} : {})};
   await save(sent);
   try {
     const {payer, to, token, amount, validBefore, nonce} = sent;

@@ -8,7 +8,7 @@ import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
 import {Chooser, credential, Notice, shownToken, signingToken, tokenFailures, useBalance, type BoardLifeProps} from './BoardLife.tsx';
-import {boardFailure, serverFailure} from './boardReturn.ts';
+import {atOtherStore, boardFailure, serverFailure} from './boardReturn.ts';
 import {newSend, renewSend, sendRecord, sendStale, settleSend, submitSend, verifySend, type SendRecord} from './boardSend.ts';
 import {parseHumanAmount} from './evmRegistry.ts';
 import {normalizeEvmAddress} from './evmTransfer.ts';
@@ -104,6 +104,8 @@ export function SendPage(props: BoardLifeProps) {
     if (record.stage === 'failed') return <>{summary}<Notice tone="stop" title="보내지 않았습니다" body="거래가 실행되지 않은 것을 확인했습니다. 빠져나간 돈은 없습니다." />
       <KitButton label="확인" run={() => drop('')} disabled={props.busy} /></>;
     const other = !verified || verified.address !== record.payer || String(verified.generation) !== record.generation;
+    if (record.stage === 'sent' && atOtherStore(record, store?.branch)) return <>{summary}
+      <Notice tone="stop" title="결과 확인 안 됨" body={tokenFailures.SENT_AT_OTHER_STORE} /></>;
     if (record.stage === 'sent') return <>{summary}
       <Notice title="보낸 거래를 확인하고 있습니다" body="확정될 때까지 기다립니다. 두 번 보내지 않습니다. 이 화면을 닫아도 결과는 다시 확인합니다." />
       <KitButton label="지금 확인" run={() => work(check, sendFailure)} disabled={props.busy} />
@@ -146,7 +148,9 @@ export function SendPage(props: BoardLifeProps) {
   if (!verified || !board) return <Notice body="먼저 보드 연결과 서명 시험을 마치세요." />;
   if (problem) return <><Notice body={problem} /><KitButton label="다시 확인" run={() => work(list, sendFailure)} disabled={props.busy} variant="secondary" /></>;
   if (!props.fixture && !held) return <Text style={type.body}>보내기를 확인하고 있습니다.</Text>;
-  if (!store) return <Notice body={sendFailure(new Error('NO_CREDENTIAL'))} />;
+  if (props.storeRead === 'loading') return <Text style={type.body}>매장 등록을 확인하고 있습니다.</Text>;
+  if (!store) return <><Notice body="매장 등록을 확인하지 못했습니다. 등록했다면 다시 확인하고, 아니면 결제 탭에서 매장 담당자가 준 등록서를 입력하세요." />
+    <KitButton label="등록 다시 확인" run={() => props.readStore?.()} variant="secondary" disabled={props.busy} /></>;
   if (props.spending && !props.spending.sends) return <Notice title="아직 보낼 수 없습니다" body="연결한 보드의 펌웨어가 보내기를 지원하지 않습니다. 남은 돈은 반납으로 원래 지갑에 보낼 수 있습니다.">
     <KitButton label="반납 보기" run={() => props.go('return')} variant="secondary" /></Notice>;
   const contacts = (stored.walletRead?.contacts ?? []).filter(item => item.id === 'stable');

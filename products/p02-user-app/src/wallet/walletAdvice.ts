@@ -4,6 +4,7 @@ import {NETWORK} from '../setup/network.ts';
 import {credential} from './BoardLife.tsx';
 import {checkServer, networkRows, type Exchange} from './networks.ts';
 import {readEndpoint, readProfiles, type ReadProfileId, type ReadProfileState} from './readProfiles.ts';
+import {registeredStore} from './registeredStore.ts';
 import {storeOf, storeToken} from './tokens.ts';
 import type {WalletAdvice} from './WalletTab.tsx';
 
@@ -50,7 +51,11 @@ export function useWalletAdvice(active: boolean, round: unknown, sequence: numbe
       const list = readNetworkList(await client.networkList(), {operator: NETWORK.operator}, Math.floor(Date.now() / 1000), latest.current.sequence);
       if (live) setOperator(same(fromOperator(list)));
       if (list.sequence > latest.current.sequence) latest.current.keepSequence(list.sequence);
-    }).catch(() => { if (live) setStore(old => old ?? {}); });
+    }).catch(async () => {
+      // A store with another contract still names the token of its amounts.
+      const registered = await registeredStore().catch(() => undefined);
+      if (live) setStore(old => old ?? (registered ? {registered} : {}));
+    });
     return () => { live = false; };
   }, [active, round]);
   const [merged, setMerged] = useState<WalletAdvice>();

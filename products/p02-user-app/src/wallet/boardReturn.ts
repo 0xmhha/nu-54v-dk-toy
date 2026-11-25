@@ -13,9 +13,11 @@ export type ReturnRecord = OrderAccount & {
   device: string; token: string; to: string; amount: string; validBefore: number; nonce: string; key: string;
   stage: 'signing' | 'signed' | 'sent' | 'final' | 'resetting';
   signature?: string; sentAt?: number; txHash?: string;
+  /** The store that was asked to send it. Only that store can say what became of it. */
+  branch?: string;
 };
 const stages = ['signing', 'signed', 'sent', 'final', 'resetting'];
-const fields = ['payer', 'generation', 'device', 'token', 'to', 'amount', 'validBefore', 'nonce', 'key', 'stage', 'signature', 'sentAt', 'txHash'];
+const fields = ['payer', 'generation', 'device', 'token', 'to', 'amount', 'validBefore', 'nonce', 'key', 'stage', 'signature', 'sentAt', 'txHash', 'branch'];
 const name = `customer-order-${customerDigest('nu54-wallet-return-v1')}`;
 
 export function validReturn(value: ReturnRecord) {
@@ -27,8 +29,11 @@ export function validReturn(value: ReturnRecord) {
     (value.signature === undefined || /^[0-9a-f]{128}(1b|1c)$/.test(value.signature)) &&
     (value.amount === '0' ? ['final', 'resetting'].includes(value.stage) : value.stage === 'signing' || value.signature !== undefined) &&
     (value.sentAt === undefined || (Number.isSafeInteger(value.sentAt) && value.sentAt > 0)) &&
-    (value.txHash === undefined || /^0x[0-9a-f]{64}$/.test(value.txHash));
+    (value.txHash === undefined || /^0x[0-9a-f]{64}$/.test(value.txHash)) && (value.branch === undefined || /^[0-9a-f-]{36}$/.test(value.branch));
 }
+
+/** Sent through another store: this one knows nothing of it, and its silence means nothing. */
+export const atOtherStore = (record: {branch?: string}, branch: string | undefined) => !!record.branch && !!branch && record.branch !== branch;
 
 const watchers = new Set<() => void>();
 /** Called after the return on this phone changed. */
@@ -95,7 +100,7 @@ export function followReturn(record: ReturnRecord, seen: WalletReturn | undefine
 /** Reads what the server holds for a sent return. A record that moved on meanwhile is left alone. */
 export async function settleReturn(storage: Storage, client: CommerceClient, now: () => number) {
   const records = returnRecord(storage), current = await records.load();
-  if (current?.stage !== 'sent') return current;
+  if (current?.stage !== 'sent' || atOtherStore(current, client.profile?.branchRef)) return current;
   const next = followReturn(current, await client.walletReturn(), now());
   const latest = await records.load();
   if (JSON.stringify(latest) !== JSON.stringify(current)) return latest;
@@ -154,8 +159,9 @@ export const returnRefusals = ['CHECKOUT_CONFLICT', 'MISMATCHED_EVIDENCE', 'EXPI
 export async function submitReturn(client: CommerceClient, record: ReturnRecord, save: (next?: ReturnRecord) => Promise<void>, now: number, tokenName = orderTokenName) {
   if (!record.signature || verifyReturn(record, record.signature, tokenName).signature !== record.signature) throw new Error('RETURN_SIGNATURE');
   if (record.validBefore <= now) throw new Error('RETURN_EXPIRED');
+  if (record.stage === 'sent' && atOtherStore(record, client.profile?.branchRef)) throw new Error('SENT_AT_OTHER_STORE');
   const first = record.sentAt === undefined;
-  const sent: ReturnRecord = {...record, stage: 'sent', sentAt: now};
+  const sent: ReturnRecord = {...record, stage: 'sent', sentAt: now, ...(client.profile ? {branch: client.profile.branchRef} : {})};
   await save(sent);
   try {
     const {payer, to, amount, validBefore, nonce} = sent;
