@@ -17,7 +17,9 @@ const home = '0x' + 'ab'.repeat(20), key = '0fbc54ef-2827-4ab5-bfcd-3a27611c39ea
 test('the wallet lists and words the store token', () => {
   expect(storeToken(policy)).toEqual({address: policy.asset, symbol: 'TestUSDC', decimals: 6});
   expect(storeToken(wonPolicy)).toEqual({address: policy.asset, symbol: 'tKRW', decimals: 2});
-  expect(storeMoney(1_234_500_000n)).toBe('1,234.50 TestUSDC');
+  expect(storeMoney(1_234_500_000n, dollarToken)).toBe('1,234.50 TestUSDC');
+  expect(storeMoney('1250000', undefined)).toBe('확인 안 됨');
+  expect(storeMoney('1250000', undefined, 'en')).toBe('Not confirmed');
   expect(storeMoney('1250000', won)).toBe('12,500원');
   expect(storeMoney(3_420_000n, won, 'en')).toBe('₩34,200');
 });
@@ -56,7 +58,7 @@ describe('receiving', () => {
   const device = '34'.repeat(32), account = '0x' + '12'.repeat(20);
   const props = (token?: typeof won): BoardLifeProps => ({
     screen: 'deposit', native: null, hasEnrollment: true, found: [], busy: false, scan() {}, go() {}, orders() {}, work() {}, say() {}, wait() {}, copy() {},
-    withBoard: async () => { throw new Error('unused'); }, commit: async () => {}, seen() {}, token, fixture: {balance: undefined},
+    withBoard: async () => { throw new Error('unused'); }, commit: async () => {}, seen() {}, store: token && {asset: policy.asset, token}, fixture: {balance: undefined},
     seenBoard: {account, generation: 1, at: Date.now()},
     stored: {version: 2, exercised: true, mode: 'personal', verified: {boardFingerprint: device, address: account, generation: 1, network: '8283'},
       spendingBoard: {device, account, generation: 1, testedAt: 1_800_000_000}} as unknown as BoardLifeProps['stored'],
@@ -79,7 +81,7 @@ describe('receiving', () => {
     await Renderer.act(async () => { tree.unmount(); });
   });
   test('a dollar store shows it as before', async () => {
-    const tree = await render();
+    const tree = await render(dollarToken);
     expect(JSON.stringify(tree.toJSON())).toContain(account);
     expect(JSON.stringify(tree.toJSON())).toContain('TestUSDC');
     await Renderer.act(async () => { tree.unmount(); });

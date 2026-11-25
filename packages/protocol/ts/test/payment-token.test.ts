@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, utf8Encode } from "../src/bytes.ts";
+import { commerceCartAmount } from "../src/commerce-cart-review.ts";
 import {
   commerceAmount, dollarText, dollarToken, namedTokenAbiSha256, orderEscrowAbiSha256, paymentProfile, paymentToken, paysThroughEscrow,
   settlementAbiSha256, tokenAmount, type CommercePaymentProfile,
@@ -31,7 +32,8 @@ test("a store names its token with a mark that earlier apps refuse", () => {
   for (const bad of [
     { ...profile, abiSha256: orderEscrowAbiSha256 }, { ...profile, abiSha256: settlementAbiSha256 }, { ...profile, abiSha256: undefined },
     unnamed, { ...profile, token: null }, { ...profile, token: {} }, { ...profile, token: { ...won, name: "" } },
-    { ...profile, token: { ...won, label: "t KRW" } }, { ...profile, token: { ...won, decimals: 19 } },
+    { ...profile, token: { ...won, label: "t KRW" } }, { ...profile, token: { ...won, symbol: "t KRW" } }, { ...profile, token: { ...won, symbol: "" } },
+    { ...profile, token: { ...won, decimals: 19 } }, { ...profile, token: { ...won, decimals: 0 } }, { ...profile, token: { ...won, decimals: -1 } },
     { ...profile, token: { ...won, decimals: 1.5 } }, { ...profile, token: { ...won, extra: 1 } },
   ]) assert.throws(() => read(bad), /PAYMENT_PROFILE/, JSON.stringify(bad));
 });
@@ -63,6 +65,8 @@ test("won amounts are exact", () => {
   assert.equal(tokenAmount(-509999n, dollarToken), "-0.50 TestUSDC");
   assert.equal(tokenAmount(-9999n, dollarToken), "0.00 TestUSDC");
   assert.equal(dollarText(1_999_999_999_999_999_999n, 18), "1.99");
+  assert.equal(commerceCartAmount("1250000", profile.asset, profile, "en"), "₩12,500");
+  assert.equal(commerceCartAmount("1250000", profile.asset, profile), "12,500원");
   assert.equal(commerceAmount("1250000", "0x" + "9".repeat(40), profile), "1250000 기준 단위");
 });
 

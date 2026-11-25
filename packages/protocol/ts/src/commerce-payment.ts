@@ -65,7 +65,7 @@ export function validPaymentToken(value: unknown): value is PaymentToken {
   const token = value as PaymentToken;
   return !!token && typeof token === "object" && Object.keys(token).sort().join() === "decimals,label,name,symbol" &&
     validTokenName(token.name) && tokenWord.test(token.symbol) && tokenWord.test(token.label) &&
-    Number.isInteger(token.decimals) && token.decimals >= 0 && token.decimals <= 18;
+    Number.isInteger(token.decimals) && token.decimals >= 1 && token.decimals <= 18;
 }
 
 /** The token a store's orders are paid in. */
@@ -90,7 +90,7 @@ export function tokenAmount(baseUnits: string | bigint, token: PaymentToken, lan
   const units = BigInt(baseUnits);
   const absolute = units < 0n ? -units : units;
   const scale = 10n ** BigInt(token.decimals);
-  const fraction = token.decimals ? (absolute % scale).toString().padStart(token.decimals, "0").replace(/0+$/, "") : "";
+  const fraction = (absolute % scale).toString().padStart(token.decimals, "0").replace(/0+$/, "");
   const sign = units < 0n ? "-" : "";
   const amount = (absolute / scale).toString().replace(/\B(?=(\d{3})+$)/g, ",") + (fraction ? `.${fraction.padEnd(2, "0")}` : "");
   return language === "ko" ? `${sign}${amount}원` : `${sign}₩${amount}`;

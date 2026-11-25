@@ -57,9 +57,18 @@ const dollarSymbols = ['TestUSDC', 'tUSDC', 'tUSDT', 'USDC', 'USDT'];
 export const tokenText = (units: string, token: Pick<ListedToken, 'symbol' | 'decimals'>) => dollarSymbols.includes(token.symbol)
   ? dollarText(units, token.decimals).replace(/\B(?=(\d{3})+\.)/g, ',') : amountText(units, token.decimals);
 
-/** An amount of the store's token. Without a registration that names one it is the dollar token. */
-export const storeMoney = (units: string | bigint, token: PaymentToken = dollarToken, language: 'ko' | 'en' = 'ko') =>
-  token.symbol === dollarToken.symbol ? `${tokenText(units.toString(), token)} ${token.label}` : tokenAmount(units, token, language);
+/** The store this phone is registered with: its token's address and how that token signs and is shown. */
+export type Store = {asset: string; token: PaymentToken};
+export const storeOf = (policy: CommercePaymentProfile): Store => ({asset: policy.asset.toLowerCase(), token: paymentToken(policy)});
+export const sameStore = (a: Store | undefined, b: Store) => !!a && a.asset === b.asset && JSON.stringify(a.token) === JSON.stringify(b.token);
+export const unknownAmount = {ko: '확인 안 됨', en: 'Not confirmed'};
+/** An amount of one asset. Only the registered store's token is known; nothing else is shown as if it were dollars. */
+export const assetMoney = (units: string | bigint, asset: string, store: Store | undefined, language: 'ko' | 'en' = 'ko') =>
+  store?.asset === asset.toLowerCase() ? storeMoney(units, store.token, language) : unknownAmount[language];
+
+/** An amount of the store's token. Without a registration nobody knows which token a board signs. */
+export const storeMoney = (units: string | bigint, token: PaymentToken | undefined, language: 'ko' | 'en' = 'ko'): string =>
+  !token ? unknownAmount[language] : token.symbol === dollarToken.symbol ? `${tokenText(units.toString(), token)} ${token.label}` : tokenAmount(units, token, language);
 
 export async function readToken(row: NetworkRow, token: WalletToken, account: string, exchange: Exchange): Promise<TokenAmount> {
   const rpc = walletReadRpc(row.server, exchange);

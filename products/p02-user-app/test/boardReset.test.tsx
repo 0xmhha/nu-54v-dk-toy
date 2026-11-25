@@ -107,7 +107,11 @@ test('the deposit address appears for ten minutes after the board proved itself'
     await tap('받기');
     await tap('내 보드 찾기');
     await tap('보드 연결해 확인');
+    // Without a registration nobody knows the board's token, so the network is confirmed before the address.
+    expect(text()).not.toContain(oldAccount);
+    await tap('확인했습니다. 주소 보기');
     expect(text()).toContain(oldAccount);
+    expect(text()).not.toContain('TestUSDC');
     expect(text()).toContain('버튼으로 초기화했다면');
     await Renderer.act(async () => { await jest.advanceTimersByTimeAsync(601_000); });
     expect(text()).not.toContain(oldAccount);

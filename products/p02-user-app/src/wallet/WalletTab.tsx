@@ -6,19 +6,19 @@ import {onOrdersChanged, orderRecords, type OpenOrder} from '../merchant/orderRe
 import {Card, Chip, KitButton, Row, Section} from '../ui/kit.tsx';
 import {useInnerBack, usePageTop} from '../ui/innerBack.ts';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
-import type {PaymentToken, WalletSend} from '@nu54/protocol';
+import type {WalletSend} from '@nu54/protocol';
 import {credential} from './BoardLife.tsx';
 import {FaucetPage} from './FaucetPage.tsx';
 import {boardNetwork, networkRows, shownNetwork, type Exchange, type NetworkAdvice, type NetworkRow} from './networks.ts';
 import {testedBoard, type WalletStorage} from './profile.ts';
 import {defaultReadState, type ReadProfileState} from './readProfiles.ts';
-import {addToken, isEvmRow, readToken, removeToken, reviewToken, storeMoney, tokenFailure, tokensOf, type ListedToken, type TokenAmount, type TokenReview, type WalletToken} from './tokens.ts';
+import {addToken, assetMoney, isEvmRow, readToken, removeToken, reviewToken, tokenFailure, tokensOf, type ListedToken, type Store, type TokenAmount, type TokenReview, type WalletToken} from './tokens.ts';
 
 type Say = (ko: string) => string;
 /** What others told this phone: servers, tokens the board signs (the store's), tokens the operator lists. */
-export type WalletAdvice = NetworkAdvice & {/** The store's token, when its registration names one. */ token?: PaymentToken; signed?: ListedToken[]; listed?: Partial<Record<string, ListedToken[]>>};
+export type WalletAdvice = NetworkAdvice & {/** The store of this phone's registration. */ registered?: Store; signed?: ListedToken[]; listed?: Partial<Record<string, ListedToken[]>>};
 type Props = {
-  t: Say; stored: WalletStorage; advice?: WalletAdvice; exchange?: Exchange; active: boolean; busy?: boolean;
+  t: Say; language?: 'ko' | 'en'; stored: WalletStorage; advice?: WalletAdvice; exchange?: Exchange; active: boolean; busy?: boolean;
   hide: () => void; receive: () => void; send: () => void; giveBack: () => void; networks: () => void; board: () => void; top?: () => void;
   save: (change: (state: ReadProfileState) => ReadProfileState) => Promise<unknown>;
   openOrder: (sale: string) => void;
@@ -200,7 +200,7 @@ export function WalletTab(props: Props) {
   if (token) return <><TokenPage t={t} row={row} token={token} amount={amounts[token.key]} hidden={hidden} busy={busy} receive={props.receive} send={props.send}
     forget={token.added ? () => { save(now => removeToken(now, token.added!)).then(close, () => {}); } : undefined} />{back}</>;
   const failed = tokens.length > 0 && tokens.every(item => amounts[item.key] === null);
-  const line = (at: number, state: string, units: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : storeMoney(units, advice?.token)}`;
+  const line = (at: number, state: string, units: string, asset: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : assetMoney(units, asset, advice?.registered, props.language)}`;
   const canAdd = !row.custom && isEvmRow(row) && !!account && !!exchange;
   return <View style={styles.page} testID="wallet-tab">
     <Pressable accessibilityRole="button" accessibilityLabel={`${t('네트워크')} ${row.label}, ${t('바꾸기')}`} onPress={() => setPage('networks')}
@@ -234,8 +234,8 @@ export function WalletTab(props: Props) {
     </> : <Text style={styles.warn}>{t('보드가 이 네트워크의 계정을 만들지 않습니다. 네트워크 서버만 관리할 수 있습니다.')}</Text>}
     {row.key === boardNetwork && <Section title={t('활동')}>
       {history.length ? history.map(item => 'sale' in item
-        ? <KitButton key={item.sale} variant="row" run={() => props.openOrder(item.sale)} label={item.store ?? t('매장 주문')} detail={line(item.sentAt, t(openOrderLabel(item)), item.amount)} />
-        : <KitButton key={item.nonce} variant="row" run={props.send} label={`${t('보냄')} · ${item.to.slice(0, 8)}…${item.to.slice(-4)}`} detail={line(item.createdAt, t(sendStates[item.state]), item.amount)} />)
+        ? <KitButton key={item.sale} variant="row" run={() => props.openOrder(item.sale)} label={item.store ?? t('매장 주문')} detail={line(item.sentAt, t(openOrderLabel(item)), item.amount, item.asset)} />
+        : <KitButton key={item.nonce} variant="row" run={props.send} label={`${t('보냄')} · ${item.to.slice(0, 8)}…${item.to.slice(-4)}`} detail={line(item.createdAt, t(sendStates[item.state]), item.amount, item.token)} />)
         : <View style={styles.empty}><Text style={type.small}>{t('아직 결제한 기록이 없습니다.')}</Text></View>}
     </Section>}
     {row.sends && <KitButton label={t('반납')} run={props.giveBack} variant="secondary" disabled={busy || !board} />}

@@ -1,4 +1,4 @@
-import { dollarText, type CommerceOrder } from '@nu54/protocol';
+import { dollarToken, tokenAmount, type CommerceOrder, type PaymentToken } from '@nu54/protocol';
 
 export type POSOrder = {
   branch: string;
@@ -72,6 +72,7 @@ export async function readPOSOrder(
   return result;
 }
 
-export function posAmount(raw: string) {
-  return dollarText(raw, 6) + ' TestUSDC';
+/** A POS order is always in the store's own asset. */
+export function posAmount(raw: string, token: PaymentToken = dollarToken) {
+  return tokenAmount(raw, token);
 }

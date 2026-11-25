@@ -41,9 +41,11 @@ test("won return matches the contract", () => {
 });
 
 test("the token name is checked", () => {
-  assert.ok(validTokenName("a") && validTokenName(won));
-  for (const name of ["", " NU54", "NU54 ", "a\nb", "\uc6d0", "a".repeat(65)]) {
+  for (const name of ["a", won, "a".repeat(64), "a!~z"]) assert.ok(validTokenName(name), name);
+  for (const name of ["", " NU54", "NU54 ", "a\nb", "\uc6d0", "a".repeat(65), "a\x7f", "\x7fa", "a\x1fb"]) {
     assert.ok(!validTokenName(name), JSON.stringify(name));
     assert.throws(() => orderLockFor(name, unsigned, lock.confirmer), /ORDER_TOKEN_NAME/);
+    assert.throws(() => walletReturnDigestFor(name, { token: lock.confirmer, from: payment.payer, to: lock.confirmer, amount: 1n, validBefore: 1n, nonce: "1".repeat(64) }),
+      /ORDER_TOKEN_NAME/);
   }
 });

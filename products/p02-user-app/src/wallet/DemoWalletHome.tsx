@@ -2,6 +2,7 @@ import React, {useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {Brand, KitButton, Section} from '../ui/kit.tsx';
 import {color, radius, font} from '../ui/theme.ts';
+import {dollarToken} from '@nu54/protocol';
 import {defaultReadState, observationScope, type ReadProfileState} from './readProfiles.ts';
 import {OrderPayment, type OrderPaymentView} from '../merchant/OrderPayment.tsx';
 import {OpenOrderCard, OrderDetail} from '../merchant/OpenOrders.tsx';
@@ -75,6 +76,7 @@ export function demoLife(now: number): [string, DemoLife][] {
   ];
 }
 
+const demoStore = {asset: '0x' + '5'.repeat(40), token: dollarToken};
 export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: () => void}) {
   const [hidden, setHidden] = useState(false);
   const base = useMemo(() => demoReadState(Date.now()), []);
@@ -86,14 +88,14 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
     return <ScrollView contentContainerStyle={styles.content} testID="demo-page">
       <Text style={styles.ribbon}>{t('시연용 화면')}</Text>
       {typeof shown === 'object' && 'fixture' in shown ? <><Text accessibilityRole="header" style={styles.title}>{boardLifeTitles[shown.screen]}</Text>
-        <BoardLife screen={shown.screen} stored={shown.stored} fixture={shown.fixture} found={shown.found ?? []} native={null} hasEnrollment={!!shown.stored.verified} busy={false}
+        <BoardLife store={demoStore} screen={shown.screen} stored={shown.stored} fixture={shown.fixture} found={shown.found ?? []} native={null} hasEnrollment={!!shown.stored.verified} busy={false}
           spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 300, orderOpen: false, sends: true, leftToday: 95_500_000n}}
           scan={off} go={leave} orders={off} work={off} say={off} withBoard={() => Promise.reject(new Error('DEMO'))} wait={off} commit={async () => {}} copy={off} seen={off}
           seenBoard={shown.seen ? {account: demoOwner.address, generation: 1, at: Date.now()} : undefined} /></> :
         shown === 'permit' ? <><Text accessibilityRole="header" style={styles.title}>{t('내 보드')}</Text>
         <BoardPage t={t} connected={false} permitNeeded amount={String} actions={[]} back={leave} /></> :
         shown === 'board' ? <><Text accessibilityRole="header" style={styles.title}>{t('내 보드')}</Text>
-        <BoardPage t={t} connected setup={<SetupStatus stored={demoLife(0)[1][1].stored} hasEnrollment live={false} open={off} />} amount={units => storeMoney(units)} actions={[]} back={leave}
+        <BoardPage t={t} connected setup={<SetupStatus stored={demoLife(0)[1][1].stored} hasEnrollment live={false} open={off} />} amount={units => storeMoney(units, dollarToken)} actions={[]} back={leave}
           spending={{account: demoOwner.address, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: true, sends: true, leftToday: 95_500_000n}} /></> :
         'sentAt' in shown ? <OrderDetail order={shown} amount="4.50 TestUSDC" fresh now={Math.floor(Date.now() / 1000)}
           actions={{answer: off, refresh: off, back: leave}} /> :
@@ -115,7 +117,7 @@ export function DemoWalletHome({t, close}: {t: (ko: string) => string; close: ()
       <WalletHomeSummary owner={demoOwner} state={state} language="ko" active
         onHide={() => setHidden(value => !value)} onAccounts={off} onReceive={off} inert />
       <BoardCard t={t} state="active" open={() => setShown('board')} limits={{perPayment: 30000000n, daily: 100000000n, leftToday: 92000000n}}
-        amount={units => storeMoney(units)} />
+        amount={units => storeMoney(units, dollarToken)} />
       <OpenOrderCard open={off} order={demoOrders(0)[1][1]} />
       <Section title={t('주문 화면 예시')}>{demoOrders(0).map(([label], index) =>
         <KitButton key={label} label={t(label)} variant="row" run={() => setShown(demoOrders(Math.floor(Date.now() / 1000))[index][1])} />)}</Section>

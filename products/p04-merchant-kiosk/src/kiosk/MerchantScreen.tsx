@@ -1090,7 +1090,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       if (active.current !== slot) return;
       if (error instanceof Error && error.message === 'POS_ASSET_UNSUPPORTED') {
         setMessage(
-          'TestUSDC 결제만 가능합니다. POS의 자산과 네트워크를 확인하세요.',
+          `${paymentToken(policy).label} 결제만 가능합니다. POS의 자산과 네트워크를 확인하세요.`,
         );
         return;
       }
@@ -1796,11 +1796,12 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       <Text style={s.amountLabel}>금액</Text>
       <Text style={s.amount}>
         {screen.pos
-          ? posAmount(screen.sale.amount)
+          ? posAmount(screen.sale.amount, paymentToken(policy))
           : commerceAmount(
               screen.sale.amount,
               screen.sale.asset,
               policy,
+              menuLocale,
             )}
       </Text>
       {Object.keys(choice).length > 0 && <Text style={s.amountLabel}>
@@ -1853,10 +1854,12 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   previous.unitPrice,
                   previous.asset,
                   policy,
+                  menuLocale,
                 )} → ${commerceCartAmount(
                   current.unitPrice,
                   current.asset,
                   policy,
+                  menuLocale,
                 )}`}</Label>
               );
             })}
@@ -1865,6 +1868,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 amount,
                 asset,
                 policy,
+                menuLocale,
               )}`}</Label>
             ))}
           </>
@@ -1873,7 +1877,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           <Text key={asset} style={s.total}>
             {`${
               cartReview?.priceChanges.length ? '새 합계' : '합계'
-            } · ${commerceCartAmount(amount, asset, policy)}`}
+            } · ${commerceCartAmount(amount, asset, policy, menuLocale)}`}
           </Text>
         ))}
         {!!basketUnits && <Text style={s.hint}>
@@ -2457,7 +2461,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             ) : <Label>{mode?.mode === 'pos' ? 'POS 결제 전용' : '메뉴 주문'}</Label>}
             {!screen.key && mode?.mode === 'pos' && (
               <>
-                <Label>StableNet 테스트넷 8283 · TestUSDC</Label>
+                <Label>StableNet 테스트넷 8283 · {paymentToken(policy).label}</Label>
                 {posBlocked && <Text accessibilityRole="alert" style={s.notice}>{posBlockedNotice}</Text>}
                 <TextInput
                   accessibilityLabel="POS 인계 코드"
@@ -2702,8 +2706,8 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 <Text accessibilityLabel={`주문번호 ${screen.sale.pickupNo}`} style={s.paidNumber}>{screen.sale.pickupNo}</Text>
                 <View style={s.paidRow}>
                   {screen.pos && <Text style={s.label}>{`POS 주문 ${screen.pos.reference}`}</Text>}
-                  <Text style={s.label}>{screen.pos ? posAmount(screen.sale.amount)
-                    : commerceAmount(screen.sale.amount, screen.sale.asset, policy)}</Text>
+                  <Text style={s.label}>{screen.pos ? posAmount(screen.sale.amount, paymentToken(policy))
+                    : commerceAmount(screen.sale.amount, screen.sale.asset, policy, menuLocale)}</Text>
                   <Text style={s.hint}>{`영수증 ${screen.sale.receiptRef?.slice(-8).toUpperCase()}`}</Text>
                 </View>
                 <Text style={s.label}>주문번호는 휴대전화에서도 볼 수 있어요. 준비되면 이 번호로 알려 드려요.</Text>
@@ -2725,7 +2729,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 )}
                 {(screen.pos ||
                   (screen.sale && policy?.asset === screen.sale.asset)) && (
-                  <Label>StableNet 테스트넷 8283 · {screen.pos ? 'TestUSDC' : paymentToken(policy).label}</Label>
+                  <Label>StableNet 테스트넷 8283 · {paymentToken(policy).label}</Label>
                 )}
                 {screen.posSelection?.state === 'locking' && (
                   <Label>{`선택한 표식 · ${screen.posSelection.code}`}</Label>

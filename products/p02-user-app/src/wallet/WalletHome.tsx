@@ -1695,7 +1695,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   const openBoardPage = () => { boardFrom.current = screen === 'settings' ? 'settings' : 'home'; setScreen('board'); };
   const saveNetworks = (change: (state: ReadProfileState) => ReadProfileState) => commit(head => ({...head, walletRead: change(head.walletRead ?? defaultReadState)}));
   const exchange = native ? walletExchange : undefined;
-  const boardAmount = (units: bigint) => storeMoney(units, advice?.token, language === 'en' ? 'en' : 'ko');
+  const boardAmount = (units: bigint) => storeMoney(units, advice?.registered?.token, language);
   const boardRegistered = status?.state === 'active' && status.device === profile?.device;
   const boardAccount = stored ? stored.verified ?? null : undefined;
   const connectInstalledBoard = () => {setFromInstall(false); setScreen('owner');};
@@ -1778,7 +1778,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
             run={() => setScreen(stored.spendingBoard ? 'wallet' : 'owner')} />}
         </Section>}
       </>}
-      {stored && screen === 'wallet' && <WalletTab t={t} stored={stored} advice={advice} exchange={exchange} active={homeActive} busy={busy} hide={toggleBalance}
+      {stored && screen === 'wallet' && <WalletTab t={t} language={language} stored={stored} advice={advice} exchange={exchange} active={homeActive} busy={busy} hide={toggleBalance}
         receive={() => openLife('deposit')} send={() => openLife('send')} giveBack={() => openLife('return')} board={() => openLife('setup')} networks={() => setScreen('networks')} top={showTop}
         save={saveNetworks} openOrder={openOrder ?? orders} />}
       {stored && screen === 'networks' && <NetworksScreen t={t} state={stored.walletRead} advice={advice} exchange={exchange} offline={connectivity.link === 'offline'}
@@ -1799,7 +1799,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
           ...(stored.spendingBoard ? [] : [{label: t('원래 보드에서 분실한 휴대전화 교체'), run: () => setScreen('replace-phone')}]),
         ]} />}
       {stored && screen in boardLifeTitles && <BoardLife screen={screen as BoardLifeScreen} stored={stored} native={native} spending={spending}
-        hasEnrollment={!!profile} registered={boardRegistered} found={found} busy={busy} scan={() => scan(!!stored.verified)} go={next => { setMessage(''); setScreen(next === 'board' ? lifeFrom.current : next); }} orders={orders} listed={advice?.listed?.stable} token={advice?.token} work={work} say={sayLife}
+        hasEnrollment={!!profile} registered={boardRegistered} found={found} busy={busy} scan={() => scan(!!stored.verified)} go={next => { setMessage(''); setScreen(next === 'board' ? lifeFrom.current : next); }} orders={orders} listed={advice?.listed?.stable} work={work} say={sayLife}
         withBoard={boardRequest} wait={setBoardWait} copy={text => { Share.share({message: text}).catch(() => {}); }}
         commit={async change => {
           const next = await commit(change);

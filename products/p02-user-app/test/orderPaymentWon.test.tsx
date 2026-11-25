@@ -33,6 +33,7 @@ let mockDecimals: number | undefined = 2;
 jest.mock('../src/wallet/evmTransfer.ts', () => ({...jest.requireActual('../src/wallet/evmTransfer.ts'),
   readEvmReceiveBalance: async (...args: unknown[]) => {
     if (mockDecimals === undefined) throw new Error('offline');
+    if (mockDecimals > 36) throw new Error('EVM_ASSET_DECIMALS');
     return {amount: '6000000', block: '1', ...(args[5] ? {decimals: mockDecimals} : {})};
   }}));
 const mockStatus = jest.fn();
@@ -173,8 +174,8 @@ test('a board that signed the dollar token pays nothing', async () => {
   expect(mockNearby.some(item => item.op === 'lock')).toBe(false);
 });
 
-test('other decimals on chain stop the payment before the board', async () => {
-  mockDecimals = 18;
+test.each([18, 40])('%d decimals on chain stop the payment before the board', async decimals => {
+  mockDecimals = decimals;
   await toConfirm();
   await press('내 보드 확인');
   expect(screen()).toContain('이 매장의 토큰이 등록된 내용과 다릅니다');

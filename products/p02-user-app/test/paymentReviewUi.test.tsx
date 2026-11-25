@@ -478,8 +478,8 @@ test('W10 exposes only the reviewed original quote and rejects a changed amount 
   expect(mockApprove).not.toHaveBeenCalled();
   await press('견적 확인으로');
   await press('검증한 보드 찾기');
-  mockQuote = mockQuoteFor(1n);
-  mockOrder = {...order, quoteDigest: mockQuote.quoteDigest, amount: '1', revision: order.revision + 1};
+  mockQuote = mockQuoteFor(10_000n);
+  mockOrder = {...order, quoteDigest: mockQuote.quoteDigest, amount: '10000', revision: order.revision + 1};
   await press('시험 보드에서 결제 검토');
   expect(mockApprove).not.toHaveBeenCalled();
   expect(mockConnect).not.toHaveBeenCalled();
@@ -488,7 +488,7 @@ test('W10 exposes only the reviewed original quote and rejects a changed amount 
   await press('새 견적 확인');
   expect(mockCalls).toContain('quote.issue');
   expect(mockApprove).not.toHaveBeenCalled();
-  expect(screen()).toContain('0.00 TestUSDC');
+  expect(screen()).toContain('0.01 TestUSDC');
   const scoped = [...mockJournals.entries()].find(([name]) => /^customer-payment-[a-f0-9]{64}$/.test(name));
   const next = JSON.parse(scoped?.[1] ?? '{}');
   expect(next.quote.quoteDigest).toBe(mockQuote.quoteDigest);

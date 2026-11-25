@@ -1616,8 +1616,8 @@ export function CustomerOrders({
     const held = await readEvmReceiveBalance(
       walletReadRpc(endpoint, (url, packet) => wallet.evmRpc(url, packet)), '8283', readProfiles.stable.anchor,
       payment.payer, policy.asset, !!policy.token,
-    ).catch(() => undefined);
-    const balance = held && BigInt(held.amount);
+    ).catch((error: unknown) => error instanceof Error && error.message === 'EVM_ASSET_DECIMALS' ? {amount: undefined, decimals: -1} : undefined);
+    const balance = held?.amount === undefined ? undefined : BigInt(held.amount);
     if (!mounted.current || revision !== loadRevision.current) return;
     const amount = BigInt(entry.order.amount);
     const show = (value: bigint) => commerceAmount(value.toString(), policy.asset, policy);

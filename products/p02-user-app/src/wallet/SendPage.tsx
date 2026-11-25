@@ -1,20 +1,20 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
-import {bytesToHex, dollarToken, fromBase64, type WalletSends} from '@nu54/protocol';
+import {bytesToHex, fromBase64, type WalletSends} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
-import {Chooser, credential, Notice, signingToken, useBalance, type BoardLifeProps} from './BoardLife.tsx';
+import {Chooser, credential, Notice, shownToken, signingToken, tokenFailures, useBalance, type BoardLifeProps} from './BoardLife.tsx';
 import {boardFailure, serverFailure} from './boardReturn.ts';
 import {newSend, renewSend, sendRecord, sendStale, settleSend, submitSend, verifySend, type SendRecord} from './boardSend.ts';
 import {parseHumanAmount} from './evmRegistry.ts';
 import {normalizeEvmAddress} from './evmTransfer.ts';
 import {testedBoard} from './profile.ts';
 import {defaultReadState, readContact} from './readProfiles.ts';
-import {storeMoney} from './tokens.ts';
+import {assetMoney, storeMoney} from './tokens.ts';
 
 const now = () => Math.floor(Date.now() / 1000);
 const pinNote = '위 금액과 받는 주소를 확인한 뒤 SW1을 짧게 누르고 보드 버튼으로 PIN을 입력하세요. 거절하려면 SW2를 누르세요.';
@@ -29,6 +29,7 @@ export function sendFailure(error: unknown): string {
     REPLAY_CONFLICT: '이미 보내는 중인 거래가 있습니다. 그 결과를 기다리세요.',
     BUSY: '오늘 보낼 수 있는 횟수를 다 썼거나 서버가 바쁩니다. 나중에 다시 시도하세요.',
     NO_CREDENTIAL: '먼저 매장 주문 등록이 필요합니다. 결제 탭에서 매장 담당자가 준 등록서를 입력하세요.',
+    ...tokenFailures,
     SEND_EXPIRED: '보드가 승인한 시간이 지났습니다. 처음부터 다시 시도하세요. 빠져나간 돈은 없습니다.',
   } as Record<string, string>)[error instanceof Error ? error.message : ''] ?? serverFailure(error);
 }
@@ -48,7 +49,7 @@ export function readRecipient(text: string) {
 
 /** 보내기: the store token to any address. The board signs it, the store relays it and pays the gas. */
 export function SendPage(props: BoardLifeProps) {
-  const token = props.token ?? dollarToken, money = (units: string | bigint) => storeMoney(units, token);
+  const {store} = props, money = (units: string | bigint) => storeMoney(units, store?.token);
   const {stored, work, withBoard, say} = props;
   const {verified} = stored, board = testedBoard(stored);
   const {balance, read} = useBalance(props);
@@ -94,7 +95,7 @@ export function SendPage(props: BoardLifeProps) {
 
   if (record) {
     const contact = stored.walletRead?.contacts.find(item => item.id === 'stable' && item.address === record.to);
-    const summary = <Card><AmountLine amount={money(record.amount)} label="보내는 금액" />
+    const summary = <Card><AmountLine amount={assetMoney(record.amount, record.token, store)} label="보내는 금액" />
       <Row label="네트워크" value="StableNet 테스트넷" /><Row label="수수료" value="매장이 냅니다" />
       <Text style={type.small}>{`받는 주소${contact ? ` · ${contact.name}` : ''}`}</Text><Text selectable style={styles.address}>{record.to}</Text></Card>;
     const drop = (text: string) => work(async () => { await keep(undefined); setReview(undefined); say(text); }, () => '보내기 기록을 바꾸지 못했습니다.');
@@ -124,8 +125,9 @@ export function SendPage(props: BoardLifeProps) {
     return <>{summary}
       <Text style={type.body}>보드에는 화면이 없습니다. 위 금액과 주소를 확인하고 보드에서 승인하세요.</Text>
       <Chooser props={props} label="보드로 승인" run={handle => work(async () => {
+        const {name} = await shownToken(record.token, store);
         const signed = await withBoard(handle, async session => {
-          const asked = renewSend(record, now()), name = (await signingToken(record.token)).name;
+          const asked = renewSend(record, now());
           await keep(asked);
           const signature = await session.signSend(BigInt(asked.generation), {...asked, amount: BigInt(asked.amount)},
             () => props.wait({flow: 'send', step: 'approve', note: pinNote}), name);
@@ -144,6 +146,7 @@ export function SendPage(props: BoardLifeProps) {
   if (!verified || !board) return <Notice body="먼저 보드 연결과 서명 시험을 마치세요." />;
   if (problem) return <><Notice body={problem} /><KitButton label="다시 확인" run={() => work(list, sendFailure)} disabled={props.busy} variant="secondary" /></>;
   if (!props.fixture && !held) return <Text style={type.body}>보내기를 확인하고 있습니다.</Text>;
+  if (!store) return <Notice body={sendFailure(new Error('NO_CREDENTIAL'))} />;
   if (props.spending && !props.spending.sends) return <Notice title="아직 보낼 수 없습니다" body="연결한 보드의 펌웨어가 보내기를 지원하지 않습니다. 남은 돈은 반납으로 원래 지갑에 보낼 수 있습니다.">
     <KitButton label="반납 보기" run={() => props.go('return')} variant="secondary" /></Notice>;
   const contacts = (stored.walletRead?.contacts ?? []).filter(item => item.id === 'stable');
@@ -151,14 +154,14 @@ export function SendPage(props: BoardLifeProps) {
     try {
       const target = readRecipient(to);
       if (target === board.account) { say('보드 계정 자신에게는 보낼 수 없습니다.'); return; }
-      const units = parseHumanAmount(amount.trim(), token.decimals);
+      const units = parseHumanAmount(amount.trim(), store.token.decimals);
       if (!balance) { say('보드 계정의 잔액을 확인하지 못했습니다. 잠시 뒤 다시 시도하세요.'); return; }
       if (units > balance.latest || units > balance.units) { say(`잔액보다 큰 금액입니다. 확정된 잔액은 ${money(balance.units)}입니다.`); return; }
       if (props.spending && (units > props.spending.perPayment || units > props.spending.leftToday)) { say('보드 한도를 넘는 금액입니다. 내 보드에서 한도를 확인하세요.'); return; }
       say('');
       setReview({to: target, units});
     } catch (error) {
-      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(token.decimals) + ' 자리까지 입력할 수 있습니다.');
+      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(store.token.decimals) + ' 자리까지 입력할 수 있습니다.');
     }
   };
   const scan = async () => {
@@ -195,6 +198,7 @@ export function SendPage(props: BoardLifeProps) {
         setHeld(fresh);
         if (fresh.remaining < 1) throw new Error('BUSY');
         const chosen = latest.current!;
+        await shownToken(policy.asset, store);
         const nonce = bytesToHex(fromBase64(await Http!.randomBytes(32)), false);
         await keep(newSend({payer: verified.address, generation: String(verified.generation), device: board.device, token: policy.asset.toLowerCase(), to: chosen.to},
           chosen.units, nonce, await walletId(), now()));
@@ -203,7 +207,7 @@ export function SendPage(props: BoardLifeProps) {
     </>;
   }
   return <>
-    <Card><Row label="토큰" value={`${token.label} · StableNet 테스트넷`} /><Row label="가진 금액" value={balance === undefined ? '확인하는 중' : balance ? money(balance.units) : '확인 안 됨'} />
+    <Card><Row label="토큰" value={`${store.token.label} · StableNet 테스트넷`} /><Row label="가진 금액" value={balance === undefined ? '확인하는 중' : balance ? money(balance.units) : '확인 안 됨'} />
       {props.spending && <><Row label="한 번에" value={money(props.spending.perPayment)} /><Row label="오늘 남은 한도" value={money(props.spending.leftToday)} /></>}
       {held && <Row label="오늘 남은 횟수" value={`${held.remaining} / ${held.perDay}`} />}</Card>
     {balance === null && <KitButton label="잔액 다시 확인" run={() => work(async () => { await read(); }, () => '잔액을 확인하지 못했습니다.')} variant="secondary" disabled={props.busy} />}
