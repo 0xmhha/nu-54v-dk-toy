@@ -137,15 +137,36 @@ func executePinnedProgram(ctx context.Context, snapshot string, input io.Reader,
 }
 
 type enrolledProfile struct {
-	Chain              uint64 `json:"chainId"`
-	Contract           string `json:"contract"`
-	Asset              string `json:"asset"`
-	Beneficiary        string `json:"beneficiary"`
-	Signer             string `json:"signer"`
-	Merchant           string `json:"merchantId"`
-	KeyVersion         uint64 `json:"keyVersion"`
-	BeneficiaryVersion uint64 `json:"beneficiaryVersion"`
-	ABI                string `json:"abiSha256,omitempty"` // empty: SettlementV2
+	Chain              uint64         `json:"chainId"`
+	Contract           string         `json:"contract"`
+	Asset              string         `json:"asset"`
+	Beneficiary        string         `json:"beneficiary"`
+	Signer             string         `json:"signer"`
+	Merchant           string         `json:"merchantId"`
+	KeyVersion         uint64         `json:"keyVersion"`
+	BeneficiaryVersion uint64         `json:"beneficiaryVersion"`
+	ABI                string         `json:"abiSha256,omitempty"` // empty: SettlementV2
+	Token              commerce.Token `json:"token,omitzero"`      // empty: the dollar token
+}
+
+// issuance checks one enrolled branch and gives its quote profile.
+func (p enrolledProfile) issuance(commitment [32]byte) (commerce.Profile, error) {
+	for _, literal := range []string{p.Contract, p.Asset, p.Beneficiary, p.Signer} {
+		if !common.IsHexAddress(literal) || common.HexToAddress(literal) == (common.Address{}) {
+			return commerce.Profile{}, errors.New("invalid enrolled merchant profile address")
+		}
+	}
+	merchant, err := hex.DecodeString(p.Merchant)
+	if err != nil || len(merchant) != 32 || bytes.Equal(merchant, make([]byte, 32)) ||
+		p.Chain != 8283 || p.KeyVersion == 0 || p.BeneficiaryVersion == 0 ||
+		(p.ABI != "" && p.ABI != settlement.ABIHash && p.ABI != settlement.EscrowABIHash) || !p.Token.Valid() ||
+		(p.Token != (commerce.Token{}) && p.ABI != settlement.EscrowABIHash) {
+		return commerce.Profile{}, errors.New("invalid enrolled merchant profile")
+	}
+	return commerce.Profile{Chain: p.Chain, Contract: common.HexToAddress(p.Contract), Asset: common.HexToAddress(p.Asset),
+		Beneficiary: common.HexToAddress(p.Beneficiary), Signer: common.HexToAddress(p.Signer), MerchantID: [32]byte(merchant),
+		KeyVersion: p.KeyVersion, BeneficiaryVersion: p.BeneficiaryVersion, CommitmentKey: commitment,
+		Escrow: p.ABI == settlement.EscrowABIHash, Token: p.Token}, nil
 }
 
 func configJSON(key string, value any) error {
@@ -218,21 +239,11 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	}
 	profiles := map[string]commerce.Profile{}
 	for branch, p := range raw {
-		for _, literal := range []string{p.Contract, p.Asset, p.Beneficiary, p.Signer} {
-			if !common.IsHexAddress(literal) || common.HexToAddress(literal) == (common.Address{}) {
-				return errors.New("invalid enrolled merchant profile address")
-			}
+		profile, err := p.issuance(commitment)
+		if err != nil {
+			return err
 		}
-		merchant, err := hex.DecodeString(p.Merchant)
-		if err != nil || len(merchant) != 32 || bytes.Equal(merchant, make([]byte, 32)) ||
-			p.Chain != 8283 || p.KeyVersion == 0 || p.BeneficiaryVersion == 0 ||
-			(p.ABI != "" && p.ABI != settlement.ABIHash && p.ABI != settlement.EscrowABIHash) {
-			return errors.New("invalid enrolled merchant profile")
-		}
-		profiles[branch] = commerce.Profile{Chain: p.Chain, Contract: common.HexToAddress(p.Contract), Asset: common.HexToAddress(p.Asset),
-			Beneficiary: common.HexToAddress(p.Beneficiary), Signer: common.HexToAddress(p.Signer), MerchantID: [32]byte(merchant),
-			KeyVersion: p.KeyVersion, BeneficiaryVersion: p.BeneficiaryVersion, CommitmentKey: commitment,
-			Escrow: p.ABI == settlement.EscrowABIHash}
+		profiles[branch] = profile
 	}
 	if len(profiles) == 0 {
 		return errors.New("no merchant issuance profile configured")

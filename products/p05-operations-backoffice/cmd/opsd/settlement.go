@@ -429,11 +429,14 @@ func loadFaucet(ctx context.Context, client *ethclient.Client, limit *big.Int, t
 }
 
 // matchContracts refuses a branch whose issuance profile and relay target name different payment
-// contracts: its quotes could never be paid the way its relay pays.
+// contracts or tokens: its quotes could never be paid the way its relay pays.
 func matchContracts(profiles map[string]commerce.Profile, targets map[string]settlement.Target) error {
 	for branch, target := range targets {
 		if profile, enrolled := profiles[branch]; enrolled && profile.Escrow != target.Escrow() {
 			return errors.New("issuance profile and settlement target use different payment contracts")
+		}
+		if profile, enrolled := profiles[branch]; enrolled && profile.Token.OrDollar() != target.Token.OrDollar() {
+			return errors.New("issuance profile and settlement target use different payment tokens")
 		}
 	}
 	return nil

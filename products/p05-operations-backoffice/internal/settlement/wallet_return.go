@@ -162,7 +162,7 @@ func (f Forwarder) storeTransfer(ctx context.Context, bound service.Bound, targe
 		return service.BadRequest
 	}
 	nonce := common.HexToHash(req.Body["nonce"])
-	digest, err := orderescrow.ReturnDigest(target.Asset, payer, to, amount, uint64(validBefore), nonce)
+	digest, err := orderescrow.ReturnDigestFor(target.Token.OrDollar().Name, target.Asset, payer, to, amount, uint64(validBefore), nonce)
 	if err != nil {
 		return service.BadRequest
 	}

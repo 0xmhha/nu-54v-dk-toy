@@ -11,6 +11,7 @@ import (
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/testusdc"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/testusdc3009"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/orderescrow"
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p07-indexer/pkg/deployment"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -71,6 +72,14 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 	if !operatorDeploymentRuntimeMatches(ctx, client, target) {
 		return invalid
 	}
+	if target.Escrow() {
+		if !tokenMatches(&bind.CallOpts{Context: ctx}, target, client) {
+			return invalid
+		}
+	} else if target.Token != (commerce.Token{}) {
+		return invalid
+	}
+	units := target.Token.OrDollar().Decimals
 	view := deploymentIdentity(target, gas)
 	if !requireSignature {
 		return view
@@ -90,7 +99,7 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 	if signed == nil || signed.Version != target.profileVersion() || signed.ChainID != view.Chain || signed.Contract != target.Contract ||
 		signed.Asset != target.Asset || signed.Manifest != target.Manifest || signed.CodeHash != target.CodeHash ||
 		signed.ABIHash != target.ABIHash() || !financeRef.MatchString(signed.GenerationID) || signed.StartHeight <= 0 ||
-		signed.StartHash == (common.Hash{}) || (signed.AssetDecimals != nil && *signed.AssetDecimals != 6) {
+		signed.StartHash == (common.Hash{}) || (signed.AssetDecimals != nil && *signed.AssetDecimals != units) {
 		return invalid
 	}
 	sig, err := hex.DecodeString(signatures[signed.GenerationID])
@@ -125,28 +134,35 @@ func VerifyOperatorDeployment(ctx context.Context, client *ethclient.Client, tar
 	if err != nil {
 		return invalid
 	}
-	units, err := token.Decimals(at)
-	if err != nil || units != 6 {
+	if actual, err := token.Decimals(at); err != nil || actual != units {
 		return invalid
 	}
-	if target.Escrow() && !lockToken(at, asset, client) {
+	if target.Escrow() && !tokenMatches(at, target, client) {
 		return invalid
 	}
 	view.Status, view.StartHeight, view.StartHash = "verified", signed.StartHeight, signed.StartHash.Hex()
 	return view
 }
 
-// lockToken checks that the token signs the domain the board and orderescrow.NewLock use.
-func lockToken(at *bind.CallOpts, asset common.Address, client *ethclient.Client) bool {
+// tokenMatches checks that the asset has the units and the signing domain its branch expects, so a
+// board's signature for another token never reaches a relay. Symbols are only shown and not compared.
+func tokenMatches(at *bind.CallOpts, target Target, client *ethclient.Client) bool {
+	asset, want := target.Asset, target.Token.OrDollar()
+	if !target.Token.Valid() {
+		return false
+	}
 	token, err := testusdc3009.NewTestusdc3009Caller(asset, client)
 	if err != nil {
+		return false
+	}
+	if decimals, err := token.Decimals(at); err != nil || decimals != want.Decimals {
 		return false
 	}
 	domain, err := token.DOMAINSEPARATOR(at)
 	text := func(value string) []byte { return crypto.Keccak256([]byte(value)) }
 	return err == nil && common.Hash(domain) == crypto.Keccak256Hash(
 		text("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-		text(orderescrow.TokenName), text(orderescrow.TokenVersion),
+		text(want.Name), text(orderescrow.TokenVersion),
 		common.LeftPadBytes(big.NewInt(orderescrow.ChainID).Bytes(), 32), common.LeftPadBytes(asset.Bytes(), 32))
 }
 

@@ -12,6 +12,7 @@ import (
 
 	v2 "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/settlementv2"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/quotev2"
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -36,6 +37,8 @@ type Target struct {
 	Sponsor common.Address `json:"gasSponsor,omitzero"`
 	// SendsPerDay is how many transfers of one customer the store relays in 24 hours. Zero offers none.
 	SendsPerDay int32 `json:"walletSendsPerDay,omitempty"`
+	// Token is how the asset signs and is shown. Absent means the dollar token; only an escrow branch may name one.
+	Token commerce.Token `json:"token,omitzero"`
 }
 
 // ABIHash returns the ABI this target is enrolled with.

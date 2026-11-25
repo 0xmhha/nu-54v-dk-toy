@@ -88,6 +88,19 @@ P05_SETTLEMENT_TEST_DATABASE_URL="host=<socket dir> dbname=nu54_settlement_escro
   sh test/settlement/anvil.sh -run TestLoopbackOrderEscrow -v
 ```
 
+### A branch with another token
+
+Optional. `token` in a branch's entry of both `P05_COMMERCE_PROFILES` and `P05_SETTLEMENT_TARGETS` names the payment token. Without it the branch uses the dollar token (`NU54 Test USD`, 6 decimals, shown as TestUSDC). Only an OrderEscrow branch may name one.
+
+```json
+{"token": {"name": "NU54 Test KRW", "symbol": "tKRW", "label": "tKRW", "decimals": 2}}
+```
+
+- `name` is the name in the token's signing domain. The board's order and return signatures are checked against it.
+- `label` and `decimals` are for screens and prices. `symbol` is the chain's symbol and is not compared.
+- At start every OrderEscrow branch is compared with the chain, with or without deployment approvals. A branch whose token has other decimals or another signing domain is turned off; the other branches keep running. `opsd` does not start when the two settings of one branch differ.
+- The token is not part of the issuance digest, so naming it does not end open quotes. Remove the field before starting an older `opsd`, which refuses unknown settings.
+
 ### Transfers to any address
 
 Optional. `walletSendsPerDay` (1 to 100) in a branch's target lets its enrolled customers send the store's token to any address ([wire agreement](../../docs/content/commercial/architecture/spending-wallet-wire.md#11-다른-주소로-보내기)). The board signs an EIP-3009 authorization, the relay account sends it as it sends a return (through `gasSponsor` when there is one) and the store pays the gas. Without the setting `wallet.send` and `wallet.send-status` answer `UNSUPPORTED_CAPABILITY`. The number counts every accepted transfer of an account or customer in 24 hours, also failed ones. Migration 112 keeps them in `ledger.wallet_send`.

@@ -22,7 +22,7 @@ const lockPayloadSize = 65 + common.AddressLength
 
 // verifyLock accepts only the paying board's signature over this exact quote and phone key.
 func verifyLock(quote Quote, target Target, confirmer common.Address, signature []byte) (orderescrow.Lock, error) {
-	lock, err := orderescrow.NewLock(quote.Unsigned, confirmer)
+	lock, err := orderescrow.NewLockFor(target.Token.OrDollar().Name, quote.Unsigned, confirmer)
 	if err != nil {
 		return orderescrow.Lock{}, err
 	}

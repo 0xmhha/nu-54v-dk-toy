@@ -27,7 +27,8 @@ type Profile struct {
 	MerchantID                           [32]byte
 	KeyVersion, BeneficiaryVersion       uint64
 	CommitmentKey                        [32]byte
-	Escrow                               bool // Contract is OrderEscrow
+	Escrow                               bool  // Contract is OrderEscrow
+	Token                                Token // zero: DollarToken
 }
 
 type QuoteOrder struct {

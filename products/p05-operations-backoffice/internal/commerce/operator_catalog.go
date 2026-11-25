@@ -131,7 +131,8 @@ func (h HTTP) assetForOperations(branch string) *operatorAsset {
 	if !ok || profile.Chain != 8283 || profile.Asset.Hex() == "0x0000000000000000000000000000000000000000" {
 		return nil
 	}
-	return &operatorAsset{strings.ToLower(profile.Asset.Hex()), "TestUSDC", 6, profile.Chain}
+	token := profile.Token.OrDollar()
+	return &operatorAsset{strings.ToLower(profile.Asset.Hex()), token.Label, int(token.Decimals), profile.Chain}
 }
 
 func (h HTTP) registerOperators(mux *http.ServeMux) {
