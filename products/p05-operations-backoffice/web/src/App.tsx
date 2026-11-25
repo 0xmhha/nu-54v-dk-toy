@@ -13,6 +13,8 @@ import { localScheduleValue, scheduleCandidates } from "./localSchedule";
 import type { CommerceMenuMetadata } from "@nu54/protocol";
 import { CatalogCategories, CategoryReview, type CategoryDraft } from "./CatalogCategories";
 import { MenuDeclarations, menuDeclarationSummary } from "./MenuDeclarations";
+import { OptionReview, ProductEditor, ProductList } from "./MenuOptions";
+import { emptyGroup, emptyProduct, menuLines, productProblems, publishedProducts, rowLimit, savedProducts, type Product, type SavedOptions } from "./optionGroups";
 import { useRef, useState, type FormEvent } from "react";
 import "./operations.css";
 import { Experience } from "./Experience";
@@ -38,6 +40,7 @@ type Catalog = Partial<CategoryDraft> & {
   expiresAt: string | null;
   rows: CatalogRow[];
   hours?: Hours | null;
+  options?: SavedOptions[];
   breakdown?: Array<{
     sku: string;
     option: string;
@@ -173,6 +176,12 @@ function catalogChanges(before: Draft[], after: Draft[]) {
   });
 }
 
+/** The code of a combination is made up by this page, so its name is shown instead. */
+function optionName(site: Site, row: { sku: string; option: string }) {
+  if (!site.catalog.options?.some(({ sku }) => sku === row.sku)) return row.option;
+  return site.catalog.breakdown?.find(({ sku, option }) => sku === row.sku && option === row.option)?.metadata?.optionLabels?.ko ?? row.option;
+}
+
 const defaultHours: Hours = {
   opens: "10:00",
   closes: "19:00",
@@ -183,7 +192,12 @@ function priceDescription(row: Draft, asset?: Asset) {
     row.tax || "0"
   }, 할인 ${row.discount || "0"}${row.required ? " · 선택 필수" : ""}`;
 }
+/** Rows typed one by one. The combinations of a product with groups are made from its groups. */
 function editableRows(site: Site): Draft[] {
+  const grouped = new Set(site.catalog.options?.map(({ sku }) => sku));
+  return publishedRows(site).filter(({ sku }) => !grouped.has(sku));
+}
+function publishedRows(site: Site): Draft[] {
   const breakdown = new Map(
     site.catalog.breakdown?.map((row) => [row.sku + "/" + row.option, row])
   );
@@ -314,8 +328,12 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
   const scopes = useAuthorizedBranches("operator");
   const [site, setSite] = useState<Site>();
   const [draft, setDraft] = useState<Draft[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  // `at` is the place of an existing product; a new one has none.
+  const [editing, setEditing] = useState<{ product: Product; at?: number; row?: number }>();
+  const rowForm = useRef<HTMLFormElement>(null);
   const [categoryDraft, setCategoryDraft] = useState<CategoryDraft>({ categories: [], categoryBindings: [] });
-  const catalogSKUs = [...new Set(draft.map((row) => row.sku).filter(Boolean))];
+  const catalogSKUs = [...new Set([...draft, ...products].map((row) => row.sku).filter(Boolean))];
   const [deadline, setDeadline] = useState("");
   const [deadlineChoice, setDeadlineChoice] = useState("");
   const [hours, setHours] = useState<Hours>(defaultHours);
@@ -344,6 +362,8 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
     setSite(exact);
     setStale(false);
     setDraft(editableRows(exact));
+    setProducts(exact.asset ? savedProducts(exact.catalog.options, exact.asset) : []);
+    setEditing(undefined);
     setCategoryDraft({ categories: exact.catalog.categories ?? [], categoryBindings: exact.catalog.categoryBindings ?? [] });
     setDeadline(
       exact.catalog.expiresAt
@@ -367,7 +387,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
             DENIED: "이 지점의 활성 운영자 권한을 확인할 수 없습니다.",
             CONFLICT:
               "서버 상태가 바뀌었습니다. 제출 전 현재 버전을 확인하세요.",
-            INVALID: "입력값과 서버의 게시 기간을 확인하세요.",
+            INVALID: "입력값과 서버의 게시 기간을 확인하세요. 옵션 묶음의 이름이 길거나 조합이 많으면 앱이 읽을 수 있는 크기를 넘을 수 있습니다.",
             STORAGE: "보호된 재시도 기록을 사용할 수 없습니다.",
           }[error.message] ??
             "응답을 확인하지 못했습니다. 같은 요청을 다시 확인하세요."
@@ -411,7 +431,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
       version: site.catalog.version,
     };
     if (action === "publish") {
-      if (!site.asset || !draft.length || !deadlineISO) {
+      if (!site.asset || !(draft.length + products.length) || !deadlineISO) {
         setNotice("가격 행과 RFC 3339 만료 시간을 확인하세요.");
         return;
       }
@@ -424,6 +444,21 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
         setNotice(problem);
         return;
       }
+      const { asset } = site;
+      if (menuLines(products, draft.length) > rowLimit) {
+        setNotice(`매장 전체 ${menuLines(products, draft.length)}줄입니다. ${rowLimit}줄까지 게시할 수 있습니다.`);
+        return;
+      }
+      const taken = new Set(draft.map(({ sku }) => sku));
+      const wrong = products.find((product) => {
+        const found = productProblems(product, asset);
+        return found.incomplete || found.product || found.groups.some(Boolean) || taken.has(product.sku);
+      });
+      if (wrong) {
+        setNotice(`${wrong.label}의 옵션 묶음과 상품 코드를 확인하세요.`);
+        return;
+      }
+      const grouped = publishedProducts(products, asset.address);
       const { categories, categoryBindings } = categoryDraft;
       const keys = new Set(categories.map(({ key }) => key));
       if (keys.size !== categories.length || categories.some(({ labels }) =>
@@ -439,10 +474,11 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
             catalogSKUs.includes(sku) && keys.has(categoryKey)),
         } : {}),
         ...(limitedHours ? { hours } : {}),
-        rows: draft.map(({ price, ...row }) => ({
+        rows: [...draft.map(({ price, ...row }) => ({
           ...row,
           displayPrice: price,
-        })),
+        })), ...grouped.rows],
+        ...(products.length ? { options: grouped.options } : {}),
         expiresAt: new Date(deadlineISO).toISOString(),
         localExpiry: deadline,
       });
@@ -563,7 +599,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               <ul className="live">
                 {site.catalog.rows.map((row) => (
                   <li key={row.sku + "/" + row.option}>
-                    <strong>{row.label}</strong> <span>{row.option}</span>{" "}
+                    <strong>{row.label}</strong> <span>{optionName(site, row)}</span>{" "}
                     <span>
                       {site.asset?.address === row.asset
                         ? tokenMoney(row.price, assetToken(site.asset))
@@ -576,7 +612,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                     </span>
                     <span>
                       {menuDeclarationSummary(
-                        editableRows(site).find(
+                        site.catalog.breakdown?.find(
                           (item) =>
                             item.sku === row.sku && item.option === row.option
                         )?.metadata
@@ -652,6 +688,9 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                       : "제한 없음"}
                   </p>
                   <p>이미 발급된 견적은 발급가를 유지합니다.</p>
+                  {site.asset && (!!products.length || !!site.catalog.options?.length) && (
+                    <OptionReview before={savedProducts(site.catalog.options, site.asset)} after={products} asset={site.asset} lines={menuLines(products, draft.length)} />
+                  )}
                   {Array.isArray(confirm.body.categories) && <CategoryReview value={confirm.body as CategoryDraft} skus={catalogSKUs} />}
                   <ul>
                     {catalogChanges(editableRows(site), draft).map(
@@ -689,7 +728,8 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               )}
               {confirm.operation !== "publish" && (
                 <p>
-                  {String(confirm.body.sku)} 수량 변경{" "}
+                  {String(confirm.body.sku)}
+                  {!!confirm.body.option && ` ${optionName(site, { sku: String(confirm.body.sku), option: String(confirm.body.option) })}`} 수량 변경{" "}
                   {String(confirm.body.delta)}
                 </p>
               )}
@@ -704,12 +744,56 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               </button>
             </section>
           )}
-          <section>
+          {site.asset && editing && (
+            <ProductEditor
+              key={editing.product.sku + editing.at}
+              product={editing.product}
+              asset={site.asset}
+              fresh={editing.at === undefined}
+              taken={[...products.filter((_, i) => i !== editing.at), ...draft.filter((_, i) => i !== editing.row)].map(({ sku }) => sku)}
+              otherLines={menuLines(products.filter((_, i) => i !== editing.at), draft.length - (editing.row === undefined ? 0 : 1))}
+              cancel={() => setEditing(undefined)}
+              remove={() => {
+                setProducts((list) => list.filter((_, i) => i !== editing.at));
+                setEditing(undefined);
+              }}
+              save={(product) => {
+                const { groups, ...plain } = product;
+                setProducts((list) => {
+                  const rest = list.filter((_, i) => i !== editing.at);
+                  if (!groups.length) return rest;
+                  return editing.at === undefined ? [...list, product] : list.map((item, i) => (i === editing.at ? product : item));
+                });
+                setDraft((rows) => [
+                  ...rows.filter((_, i) => i !== editing.row),
+                  ...(groups.length ? [] : [{ ...plain, option: "standard", asset: site.asset!.address, required: false }]),
+                ]);
+                setEditing(undefined);
+              }}
+            />
+          )}
+          {site.asset && !editing && (
+            <fieldset className="bare" disabled={busy || stale || !!confirm || !!pending}>
+              <ProductList
+                products={products}
+                plain={[...new Set(draft.map(({ sku }) => sku).filter(Boolean))].map((sku) => {
+                  const rows = draft.filter((row) => row.sku === sku);
+                  return { sku, label: rows[0].label, price: shownTotal(rows[0], site.asset!), lines: rows.length };
+                })}
+                asset={site.asset}
+                lines={menuLines(products, draft.length)}
+                edit={(at) => setEditing({ product: products[at], at })}
+                add={() => setEditing({ product: emptyProduct() })}
+                show={(sku) => rowForm.current?.querySelector<HTMLElement>(`[data-sku="${CSS.escape(sku)}"] input`)?.focus()}
+              />
+            </fieldset>
+          )}
+          <section hidden={!!editing}>
             <h2>가격과 옵션 게시</h2>
             {!site.asset && (
               <p>이 지점의 등록 결제 자산을 확인할 수 없습니다.</p>
             )}
-            <form onSubmit={(event) => propose("publish", event)}>
+            <form ref={rowForm} onSubmit={(event) => propose("publish", event)}>
               <fieldset
                 disabled={
                   busy || stale || !!confirm || !!pending || !site.asset
@@ -797,7 +881,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                 )}
                 <CatalogCategories value={categoryDraft} skus={catalogSKUs} change={setCategoryDraft} />
                 {draft.map((row, index) => (
-                  <fieldset key={index}>
+                  <fieldset key={index} data-sku={row.sku}>
                     <legend>옵션 {index + 1}</legend>
                     <div className="grid">
                       <label>
@@ -888,6 +972,18 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                         )
                       }
                     />
+                    {!row.required && draft.filter(({ sku }) => sku === row.sku).length === 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const { optionLabels: _, optionGroupLabels: __, ...metadata } = row.metadata ?? {};
+                          setEditing({ row: index, product: { sku: row.sku, label: row.label, price: row.price, tax: row.tax, discount: row.discount,
+                            metadata: row.metadata && metadata, groups: [emptyGroup()] } });
+                        }}
+                      >
+                        옵션 묶음 만들기
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
@@ -900,12 +996,12 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                 ))}
                 <button
                   type="button"
-                  disabled={draft.length >= 600}
+                  disabled={menuLines(products, draft.length) >= rowLimit}
                   onClick={() => setDraft((rows) => [...rows, fresh()])}
                 >
                   옵션 추가
                 </button>
-                <button disabled={!draft.length}>게시 내용 검토</button>
+                <button disabled={!(draft.length + products.length)}>게시 내용 검토</button>
               </fieldset>
             </form>
           </section>
@@ -946,7 +1042,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                       .filter((row) => row.sku === sku)
                       .map((row) => (
                         <option key={row.option} value={row.option}>
-                          {row.option}
+                          {optionName(site, row)}
                         </option>
                       ))}
                   </select>

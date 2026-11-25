@@ -97,7 +97,9 @@ const koreanAllergens = [
 
 export function commerceMenuDisclosure(
   row: CommercePrice,
-  locale: "ko" | "en"
+  locale: "ko" | "en",
+  /** Declared for some of the choices only. */
+  depending: CommerceMenuMetadata["allergens"] = []
 ) {
   const { allergens, crossContact, crossContactAllergens, crossContactSource } = row.metadata ?? {};
   const ko = locale === "ko";
@@ -106,11 +108,12 @@ export function commerceMenuDisclosure(
       ? ko
         ? "알레르기 성분 미입력"
         : "Allergen ingredients not supplied"
-      : allergens.length
+      : allergens.length || depending.length
       ? (ko ? "점주 신고 성분 " : "Merchant-declared ingredients ") +
-        allergens
-          .map((code) =>
-            ko ? koreanAllergens[commerceAllergens.indexOf(code)] : code
+        [...allergens, ...depending]
+          .map((code, index) =>
+            (index === allergens.length ? (ko ? "옵션에 따라 " : "depending on your choices ") : "") +
+            (ko ? koreanAllergens[commerceAllergens.indexOf(code)] : code)
           )
           .join(", ")
       : ko

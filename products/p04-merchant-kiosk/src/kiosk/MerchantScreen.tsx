@@ -1,5 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { menuCategories, MenuCategorySelector } from './menuCategories';
+import { MenuChoices } from './MenuChoices';
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,12 @@ import {
   commerceLineKey,
   commerceLineCapacity,
   commerceNeedsOptionSupport,
+  commerceChoiceDisclosure,
+  commerceChoiceState,
+  commerceChooseMessage,
+  commerceOptionLabel,
+  commercePickChange,
+  type CommercePicks,
   commerceCartAmount,
   commerceReservationRejected,
   reviewCommerceCart,
@@ -151,7 +158,7 @@ type PublicScreen = {
   pairing?: {state: 'binding'; code: string} | {state: 'unknown'; checkedAt: number};
 };
 type POSSelection = {state: 'locking'; code: string} | {state: 'unknown' | 'conflict'};
-type MenuDetail = { sku: string; option?: string; quantity: number; error?: 'option' | 'stock' };
+type MenuDetail = { sku: string; option?: string; picks?: CommercePicks; quantity: number; error?: 'option' | 'stock' };
 type CartReplacement = {
   previous: CommerceSelection[string];
   next: CommerceSelection[string];
@@ -265,6 +272,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const basketHeading = useRef<ComponentRef<typeof Text>>(null);
   const [menuDetail, setMenuDetail] = useState<MenuDetail>();
   const optionHeading = useRef<ComponentRef<typeof Text>>(null);
+  const choicesTop = useRef({ page: 0, column: 0, group: 0 });
   const [cartReplacement, setCartReplacement] = useState<CartReplacement>();
   const [cartReview, setCartReview] = useState<CommerceCartReview>();
   const [pos, setPos] = useState('');
@@ -935,9 +943,11 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       (rows.length === 1 ? rows[0] : rows.find(row => row.optionKey === 'standard'));
     const selected = previous ?? defaultOption;
     keepPublicActive();
+    if (rows[0].choices) publicScroll.current?.scrollTo({ y: 0, animated: false });
     setMenuDetail({
       sku: rows[0].sku,
       option: selected?.optionKey,
+      ...(rows[0].choices && { picks: Object.fromEntries((previous?.choices ?? []).map(({ group, value }) => [group.key, value.key])) }),
       quantity: selected ? choice[commerceLineKey(selected)]?.quantity ?? 1 : 1,
     });
   }
@@ -948,6 +958,24 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     if (!/[가-힣]$/.test(group)) return `${group} 옵션을 선택해 주세요`;
     const particle = (group.charCodeAt(group.length - 1) - 0xac00) % 28 === 0 ? '를' : '을';
     return `${group}${particle} 선택해 주세요`;
+  }
+
+  function pickChoice(detail: MenuDetail, rows: CommercePrice[], group: string, value: string) {
+    keepPublicActive();
+    const next = commercePickChange(rows, { picks: detail.picks ?? {}, quantity: detail.quantity }, group, value, choice);
+    setMenuDetail({ ...detail, ...next, error: detail.error === 'option' ? 'option' : undefined });
+  }
+
+  function addChoices(detail: MenuDetail, names: string[], row?: CommercePrice) {
+    keepPublicActive();
+    if (row) return addMenuDetail(detail, row);
+    setMenuDetail({ ...detail, error: 'option' });
+    AccessibilityInfo.announceForAccessibility(commerceChooseMessage(names, menuLocale));
+    requestAnimationFrame(() => {
+      const { page, column, group } = choicesTop.current;
+      publicScroll.current?.scrollTo({ y: page + column + group, animated: false });
+      if (optionHeading.current) AccessibilityInfo.sendAccessibilityEvent(optionHeading.current, 'focus');
+    });
   }
 
   function addMenuDetail(detail: MenuDetail, selected: CommercePrice | undefined, group?: string) {
@@ -1791,6 +1819,14 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     else menuGroups.set(row.sku, [row]);
   }
 
+  const detailRows = (menuDetail && menuGroups.get(menuDetail.sku)) ?? [];
+  const picking = menuDetail && basketVisible && !publicGuide && !cartReplacement && detailRows.length
+    ? commerceChoiceState(detailRows, menuDetail.picks ?? {}, choice) : undefined;
+  const fromPrice = (rows: CommercePrice[], { from, varies }: { from: string; varies: boolean }) => {
+    const amount = commerceAmount(from, rows[0].asset, policy, menuLocale);
+    return !varies ? amount : menuLocale === 'ko' ? `${amount}부터` : `From ${amount}`;
+  };
+
   const amountBox = screen?.sale && (
     <View style={s.amountBox}>
       <Text style={s.amountLabel}>금액</Text>
@@ -2528,7 +2564,10 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   const quantity = required
                     ? productRows.reduce((sum, item) => sum + (choice[commerceLineKey(item)]?.quantity ?? 0), 0)
                     : choice[commerceLineKey(row)]?.quantity ?? 0;
-                  const available = required
+                  const choices = required ? commerceChoiceState(productRows, {}, choice) : undefined;
+                  const available = choices
+                    ? Math.max(...productRows.map(item => commerceLineCapacity(item, {})))
+                    : required
                     ? row.skuAvailable ?? Math.max(...productRows.map(item => item.available))
                     : commerceLineCapacity(row, choice);
                   return (
@@ -2538,6 +2577,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                         {required ? names.product : `${names.product} · ${names.option}`}
                       </Text>
                       {!required && <Text style={s.price}>{commerceAmount(row.unitPrice, row.asset, policy, menuLocale)}</Text>}
+                      {choices && <Text style={s.price}>{fromPrice(productRows, choices)}</Text>}
                       {!required && <Text style={s.hint}>{commerceMenuDisclosure(row, menuLocale)}</Text>}
                       <Label>
                         {available === 0
@@ -2583,7 +2623,30 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   );
                 })}
                 </View>
-                {menuDetail && !cartReplacement && (() => {
+                {menuDetail && picking && (
+                  <View style={wide ? s.choosing : s.stack} onLayout={event => { choicesTop.current.page = event.nativeEvent.layout.y; }}>
+                    <View style={wide ? s.choosingItem : s.stack}>
+                      <Text accessibilityRole="header" style={s.title}>{commerceMenuLabels(picking.row ?? detailRows[0], menuLocale).product}</Text>
+                      <Label>{commerceChoiceDisclosure(detailRows, menuDetail.picks ?? {}, menuLocale)}</Label>
+                      {!picking.row && detailRows.some(row => row.metadata?.allergens?.length) && <Text style={s.hint}>
+                        {menuLocale === 'ko' ? '모두 고르면 들어 있는 성분만 보여 줍니다.' : 'Once you have chosen, only the ingredients in it are shown.'}
+                      </Text>}
+                      {detailRows.some(row => row.metadata?.allergens?.length || row.metadata?.crossContact === 'possible') && (
+                        <Text style={s.hint}>{menuLocale === 'ko' ? '알레르기가 있으면 주문 전에 직원에게 제조 환경을 확인하세요.' :
+                          'If you have an allergy, ask staff about preparation before ordering.'}</Text>
+                      )}
+                      <Button label={menuLocale === 'ko' ? '메뉴로 돌아가기' : 'Back to menu'}
+                        run={() => { keepPublicActive(); setMenuDetail(undefined); }} />
+                    </View>
+                    <View style={wide ? s.splitMain : s.stack} onLayout={event => { choicesTop.current.column = event.nativeEvent.layout.y; }}>
+                      <MenuChoices state={picking} locale={menuLocale} missing={menuDetail.error === 'option'}
+                        money={units => commerceAmount(units, detailRows[0].asset, policy, menuLocale)}
+                        pick={(group, value) => pickChoice(menuDetail, detailRows, group, value)}
+                        heading={optionHeading} place={top => { choicesTop.current.group = top; }} />
+                    </View>
+                  </View>
+                )}
+                {menuDetail && !picking && !cartReplacement && (() => {
                   const rows = menuGroups.get(menuDetail.sku) ?? [];
                   if (!rows.length) return null;
                   const selected = rows.find(row => row.optionKey === menuDetail.option);
@@ -2955,7 +3018,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           </>
         )}
       </ScrollView>
-      {wide && basketVisible && !publicGuide && (
+      {wide && basketVisible && !publicGuide && !picking && (
         <View accessibilityLabel={menuLocale === 'ko' ? '장바구니' : 'Basket'} style={s.aside}>
           <ScrollView contentContainerStyle={s.asideScroll}>
             <Text ref={basketHeading} accessibilityRole="header" style={s.heading}>
@@ -2968,6 +3031,36 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         </View>
       )}
       </View>
+      {menuDetail && picking && (() => {
+        const ko = menuLocale === 'ko';
+        const { row } = picking;
+        const maximum = row ? commerceLineCapacity(row, choice) : Math.max(...detailRows.map(item => commerceLineCapacity(item, choice)));
+        const names = picking.groups.filter(({ picked }) => !picked).map(({ labels }) => commerceOptionLabel(labels, menuLocale));
+        const price = row
+          ? commerceAmount((BigInt(row.unitPrice) * BigInt(menuDetail.quantity)).toString(), row.asset, policy, menuLocale)
+          : fromPrice(detailRows, picking);
+        const text = maximum === 0 ? (ko ? '품절' : 'Sold out') : row ? (ko ? '담기' : 'Add') : commerceChooseMessage(names, menuLocale);
+        const change = (by: number) => {
+          keepPublicActive();
+          setMenuDetail({ ...menuDetail, quantity: menuDetail.quantity + by, error: menuDetail.error === 'stock' ? undefined : menuDetail.error });
+        };
+        return (
+          <View style={s.choosingBar}>
+            <View style={s.footer}>
+              <Button text="−" label={ko ? '수량 줄이기' : 'Decrease quantity'} disabled={menuDetail.quantity <= 1} run={() => change(-1)} />
+              <Text accessibilityLiveRegion="polite" accessibilityLabel={`${ko ? '수량' : 'Quantity'} ${menuDetail.quantity}`} style={s.quantity}>{menuDetail.quantity}</Text>
+              <Button text="+" label={ko ? '수량 늘리기' : 'Increase quantity'} disabled={menuDetail.quantity >= maximum} run={() => change(1)} />
+            </View>
+            <View style={s.choosingAdd}>
+              {menuDetail.error === 'stock' && (
+                <Text accessibilityRole="alert" style={s.label}>{ko ? '선택한 수량을 준비할 수 없습니다' : 'This quantity is unavailable'}</Text>
+              )}
+              <Button primary label={`${text} ${price}`} text={`${text}  ·  ${price}`} disabled={busy || maximum === 0}
+                run={() => addChoices(menuDetail, names, row)} />
+            </View>
+          </View>
+        );
+      })()}
       {!wide && basketVisible && !publicGuide && !basketOpen && !menuDetail && !cartReplacement && (
         <View style={s.basketBar}>
           <View accessibilityLiveRegion="polite">
@@ -3011,6 +3104,14 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
+  choosing: { flexDirection: 'row', gap: 32, alignItems: 'flex-start' },
+  choosingItem: { width: 400, gap: 12 },
+  choosingBar: {
+    borderTopWidth: 1, borderTopColor: line, backgroundColor: paper, paddingHorizontal: 28, paddingVertical: 12,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16,
+  },
+  choosingAdd: { flexGrow: 1, flexBasis: 320, gap: 6 },
+  quantity: { minWidth: 40, fontSize: 22, fontWeight: '800', color: ink, textAlign: 'center', alignSelf: 'center' },
   basketLine: { borderBottomWidth: 1, borderBottomColor: line, paddingBottom: 10, gap: 8 },
   scroll: { padding: 28, gap: 14 },
   title: { fontSize: 30, color: ink, fontWeight: '800', letterSpacing: -0.6 },

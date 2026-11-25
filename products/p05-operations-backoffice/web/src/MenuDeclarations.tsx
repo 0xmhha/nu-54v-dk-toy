@@ -1,6 +1,6 @@
 import { commerceAllergens, type CommerceMenuMetadata } from "@nu54/protocol";
 
-const allergenNames = [
+export const allergenNames = [
   "우유",
   "달걀",
   "생선",
@@ -59,9 +59,12 @@ export function MenuDeclarations({
   metadata = {},
   change,
   required = false,
+  product = false,
 }: {
   metadata?: CommerceMenuMetadata;
   required?: boolean;
+  /** The names of the options come from the product's groups. */
+  product?: boolean;
   change: (next: CommerceMenuMetadata) => void;
 }) {
   const labelFields = ["labels", "optionLabels", "optionGroupLabels"] as const;
@@ -69,7 +72,7 @@ export function MenuDeclarations({
   return (
     <fieldset>
       <legend>언어별 메뉴와 점주 알레르기 정보</legend>
-      {labelFields.filter(field => required || field !== "optionGroupLabels").map((field) =>
+      {labelFields.filter(field => product ? field === "labels" : required || field !== "optionGroupLabels").map((field) =>
         languages.map((language) => (
           <label key={field + language}>
             {field === "labels" ? "상품" : field === "optionLabels" ? "옵션" : "필수 옵션 그룹"}{" "}

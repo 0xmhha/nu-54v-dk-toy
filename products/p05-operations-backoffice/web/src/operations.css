@@ -206,3 +206,67 @@ progress {
     scroll-margin-top: 5rem;
   }
 }
+.spread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+}
+.spread > h2,
+.spread > p {
+  margin-block: 0.4rem;
+}
+.editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 1rem 2rem;
+}
+.value {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  align-items: end;
+  gap: 0 0.7rem;
+  border-top: 1px solid #dbe3dc;
+  padding-block: 0.4rem;
+}
+.value summary {
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding-block: 0.5rem;
+  box-sizing: border-box;
+}
+.problem {
+  background: #f8e1df;
+  color: #7a2020;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.8rem;
+}
+.scroll {
+  overflow-x: auto;
+}
+.scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-wrap: normal;
+}
+.scroll :is(th, td) {
+  text-align: left;
+  border-top: 1px solid #dbe3dc;
+  padding: 0.4rem 0.6rem;
+}
+.scroll .amount {
+  text-align: right;
+  white-space: nowrap;
+}
+fieldset.bare {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.value details[open] {
+  grid-column: 1 / -1;
+}
+.value details .grid {
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+}

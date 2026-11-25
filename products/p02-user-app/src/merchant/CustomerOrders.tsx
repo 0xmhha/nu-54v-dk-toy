@@ -1,5 +1,6 @@
 import {inputPlaceholder} from '../ui/theme.ts';
 import {
+  Fragment,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -83,6 +84,7 @@ import {
   SubscriptionScreen,
 } from './subscriptions/SubscriptionScreen.tsx';
 import { ShopMenuCategories, shopMenuCategories } from './ShopMenuCategories';
+import { ChoiceCard, MenuChoices } from './MenuChoices.tsx';
 import { CustomerNearby } from './nearbyClient.ts';
 import { ShopDiscovery, type ShopMatch } from './ShopDiscovery.tsx';
 import ShopQr from '../specs/NativeShopQr.ts';
@@ -307,11 +309,14 @@ export function CustomerOrders({
   const categories = shopMenuCategories(catalog);
   const selectedCategory = categories.some(({key}) => key === menuCategory) ? menuCategory : '';
   const [cart, setCart] = useState<CommerceSelection>({});
+  const [choosing, setChoosing] = useState('');
   const [cartReview, setCartReview] = useState<PickupCartReview>();
   const [point, setPoint] = useState<Checkpoint>();
   const [nearbyKey, setNearbyKey] = useState('');
   const [nearbyEnrollment, setNearbyEnrollment] = useState('');
   const [shop, setShop] = useState<ShopMatch>();
+  const shopBranch = shop?.identity.branch;
+  useEffect(() => setChoosing(''), [shopBranch, point]);
   const [shopOffline, setShopOffline] = useState(false);
   const [shopPermissionDenied, setShopPermissionDenied] = useState(false);
   const [entrancePending, setEntrancePending] = useState(Boolean(initialShopQr));
@@ -2524,6 +2529,20 @@ export function CustomerOrders({
         }} />
     </ScrollView>;
   }
+  const menuMoney = (units: string, asset: string) => commerceAmount(units, asset, policy);
+  const oneOptionOnly = menuLocale === 'ko'
+    ? '이 매장에서는 품목당 옵션을 하나씩 담을 수 있습니다. 옵션을 바꾸려면 담은 옵션을 먼저 빼세요.'
+    : 'This store accepts one option per item. Remove the selected option to choose another.';
+  const choiceRows = choosing ? catalog.filter(row => row.sku === choosing && row.choices) : [];
+  if (phase === 'active' && client && !deniedLink && !showSubscriptions && !point && !menuReadOnly && (shop || pickupMode) && choiceRows.length) {
+    return <MenuChoices key={choosing} rows={choiceRows} cart={cart} locale={menuLocale} money={menuMoney} disabled={busy}
+      blocked={row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart) ? oneOptionOnly : undefined}
+      add={(row, quantity) => {
+        setCart(old => quantity <= commerceLineCapacity(row, old) ? {...old, [commerceLineKey(row)]: {row, quantity}} : old);
+        setChoosing('');
+      }}
+      back={() => setChoosing('')} />;
+  }
   const pairView = pair && (
             <>
               {pair.code && <Text style={s.text}>확인 번호 {pair.code}</Text>}
@@ -2864,20 +2883,23 @@ export function CustomerOrders({
           {!point && (shop || pickupMode) && <ShopMenuCategories
             categories={categories} selected={selectedCategory} select={setMenuCategory} locale={menuLocale} />}
           {!point && !menuReadOnly && (shop || pickupMode) && catalog.some(row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart)) && (
-            <Text style={s.text}>{menuLocale === 'ko'
-              ? '이 매장에서는 품목당 옵션을 하나씩 담을 수 있습니다. 옵션을 바꾸려면 담은 옵션을 먼저 빼세요.'
-              : 'This store accepts one option per item. Remove the selected option to choose another.'}</Text>
+            <Text style={s.text}>{oneOptionOnly}</Text>
           )}
           {!point && (shop || pickupMode) &&
             catalog.map(row => {
               if (selectedCategory && row.category?.key !== selectedCategory) return null;
+              // Combinations are picked on their own page; the ones in the basket stay in the list, after the product.
+              const card = row.choices && catalog.find(item => item.sku === row.sku) === row ? <ChoiceCard key={row.sku}
+                rows={catalog.filter(item => item.sku === row.sku)} cart={cart} locale={menuLocale} money={menuMoney}
+                pick={menuReadOnly ? undefined : {run: () => setChoosing(row.sku), disabled: busy}} /> : null;
+              if (row.choices && !cart[commerceLineKey(row)]) return card;
               const names = commerceMenuLabels(row, menuLocale);
               const key = commerceLineKey(row);
               const quantity = cart[key]?.quantity ?? 0;
               const available = commerceLineCapacity(row, cart);
               const needsRemoval = row.skuAvailable === undefined && commerceHasSiblingOption(row, cart);
               return (
-                <View key={row.sku + '/' + row.optionKey} style={s.line}>
+                <Fragment key={row.sku + '/' + row.optionKey}>{card}<View style={s.line}>
                   <Text style={s.text}>
                     {names.product} · {names.option} ·{' '}
                     {commerceAmount(row.unitPrice, row.asset, policy)}
@@ -2924,7 +2946,7 @@ export function CustomerOrders({
                       }
                     />
                   )}
-                </View>
+                </View></Fragment>
               );
             })}
           {nearbySoldOut && point?.route === 'nearby' && shop &&
