@@ -36,6 +36,7 @@ import {
   commerceLineCapacity,
   commerceHasSiblingOption,
   commerceNeedsOptionSupport,
+  CommercePhotoCache,
   commerceCartAmount,
   commerceReservationRejected,
   reviewCommerceCart,
@@ -310,6 +311,8 @@ export function CustomerOrders({
   const selectedCategory = categories.some(({key}) => key === menuCategory) ? menuCategory : '';
   const [cart, setCart] = useState<CommerceSelection>({});
   const [choosing, setChoosing] = useState('');
+  // The menu may come next to the kiosk, but photos are read from the server; without it the page shows names.
+  const photos = useMemo(() => client ? new CommercePhotoCache(name => client.catalogPhoto(name)) : undefined, [client]);
   const [cartReview, setCartReview] = useState<PickupCartReview>();
   const [point, setPoint] = useState<Checkpoint>();
   const [nearbyKey, setNearbyKey] = useState('');
@@ -2535,7 +2538,7 @@ export function CustomerOrders({
     : 'This store accepts one option per item. Remove the selected option to choose another.';
   const choiceRows = choosing ? catalog.filter(row => row.sku === choosing && row.choices) : [];
   if (phase === 'active' && client && !deniedLink && !showSubscriptions && !point && !menuReadOnly && (shop || pickupMode) && choiceRows.length) {
-    return <MenuChoices key={choosing} rows={choiceRows} cart={cart} locale={menuLocale} money={menuMoney} disabled={busy}
+    return <MenuChoices key={choosing} rows={choiceRows} cart={cart} locale={menuLocale} money={menuMoney} disabled={busy} photos={photos}
       blocked={row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart) ? oneOptionOnly : undefined}
       add={(row, quantity) => {
         setCart(old => quantity <= commerceLineCapacity(row, old) ? {...old, [commerceLineKey(row)]: {row, quantity}} : old);

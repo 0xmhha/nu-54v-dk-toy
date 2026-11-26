@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { PhotoInfo } from "./MenuPhotos";
 import { allergenNames, MenuDeclarations } from "./MenuDeclarations";
 import { commerceAllergens, type CommerceMenuMetadata } from "@nu54/protocol";
 import { assetToken, type CatalogAsset } from "./prices";
@@ -63,7 +64,7 @@ export function ProductList({ products, plain, asset, lines, edit, add, show }: 
   );
 }
 
-export function ProductEditor({ product, asset, taken, otherLines, fresh, save, remove, cancel }: {
+export function ProductEditor({ product, asset, taken, otherLines, fresh, save, remove, cancel, photo, photoField }: {
   product: Product;
   asset: CatalogAsset;
   /** Codes of the other products. */
@@ -71,11 +72,14 @@ export function ProductEditor({ product, asset, taken, otherLines, fresh, save, 
   /** Rows of the rest of the menu. */
   otherLines: number;
   fresh: boolean;
-  save: (product: Product) => void;
+  save: (product: Product, photo?: PhotoInfo) => void;
   remove: () => void;
   cancel: () => void;
+  photo?: PhotoInfo;
+  photoField: (label: string, value: PhotoInfo | undefined, change: (photo?: PhotoInfo) => void) => ReactNode;
 }) {
   const [draft, setDraft] = useState(product);
+  const [picture, setPicture] = useState(photo);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   const change = (part: Partial<Product>) => setDraft((old) => ({ ...old, ...part }));
@@ -95,7 +99,7 @@ export function ProductEditor({ product, asset, taken, otherLines, fresh, save, 
       aria-label="메뉴 고치기"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!blocked && !problems.incomplete) save(draft);
+        if (!blocked && !problems.incomplete) save(draft, picture);
       }}
     >
       <section className="editor">
@@ -119,6 +123,7 @@ export function ProductEditor({ product, asset, taken, otherLines, fresh, save, 
           {problems.product && <p role="alert" className="problem">{problems.product}</p>}
           <p>세금이 있는 상품에는 더하는 금액을 적을 수 없습니다.</p>
           <p>알레르기 성분을 적지 않은 상품에는 값의 성분도 적을 수 없습니다. 들어 있지 않으면 성분을 하나도 고르지 않고 게시합니다.</p>
+          {photoField(draft.label || "새 상품", picture, setPicture)}
           <MenuDeclarations product metadata={draft.metadata} change={(metadata) => change({ metadata })} />
         </div>
         <div>

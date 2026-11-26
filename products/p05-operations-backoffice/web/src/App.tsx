@@ -14,6 +14,7 @@ import type { CommerceMenuMetadata } from "@nu54/protocol";
 import { CatalogCategories, CategoryReview, type CategoryDraft } from "./CatalogCategories";
 import { MenuDeclarations, menuDeclarationSummary } from "./MenuDeclarations";
 import { OptionReview, ProductEditor, ProductList } from "./MenuOptions";
+import { PhotoField, PhotoReview, photoLimit, type PhotoInfo } from "./MenuPhotos";
 import { emptyGroup, emptyProduct, menuLines, productProblems, publishedProducts, rowLimit, savedProducts, type Product, type SavedOptions } from "./optionGroups";
 import { useRef, useState, type FormEvent } from "react";
 import "./operations.css";
@@ -60,7 +61,10 @@ type Site = {
   receiptScope: string;
   catalog: Catalog;
   asset?: Asset;
+  photos?: Array<PhotoInfo & { sku: string; thumb: string }>;
 };
+const sitePhotos = (site: Site): Record<string, PhotoInfo> =>
+  Object.fromEntries((site.photos ?? []).map(({ sku, photo, bytes, confirmedAt }) => [sku, { photo, bytes, confirmedAt }]));
 type Draft = Pick<
   CatalogRow,
   "sku" | "option" | "label" | "asset" | "price"
@@ -332,7 +336,34 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
   // `at` is the place of an existing product; a new one has none.
   const [editing, setEditing] = useState<{ product: Product; at?: number; row?: number }>();
   // The rows of a product without groups, as they were when it was opened.
-  const [rowsOf, setRowsOf] = useState<{ sku: string; before: Draft[] }>();
+  const [rowsOf, setRowsOf] = useState<{ sku: string; before: Draft[]; photo?: PhotoInfo }>();
+  // The photo of each product by its code, as it will be published.
+  const [photos, setPhotos] = useState<Record<string, PhotoInfo>>({});
+  const setPhoto = (sku: string, photo?: PhotoInfo) => setPhotos((old) => {
+    const { [sku]: _, ...rest } = old;
+    return photo ? { ...rest, [sku]: photo } : rest;
+  });
+  const photoSource = (photo: string) => `${endpoint(site!.branch)}/photo/${photo}`;
+  async function uploadPhoto(file: File): Promise<PhotoInfo> {
+    const image = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+      reader.onerror = () => reject(new Error("사진 파일을 읽지 못했습니다."));
+      reader.readAsDataURL(file);
+    });
+    const reply = await fetch(`${endpoint(site!.branch)}/photo`, {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestKey: crypto.randomUUID(), image, rightsConfirmed: true }),
+    });
+    if (reply.status === 422) throw new Error(`${file.name} · 사진을 읽을 수 없습니다. JPEG나 PNG인지 확인해 주세요.`);
+    if (reply.status === 400) throw new Error("오늘 올린 게시 전 사진이 50장을 넘었습니다. 게시하거나 내일 다시 올려 주세요.");
+    if (!reply.ok) throw new Error("사진을 올리지 못했습니다. 운영 권한을 확인하고 다시 시도해 주세요.");
+    const made = await reply.json() as { photo: string; bytes: number };
+    if (!/^[0-9a-f]{64}$/.test(made.photo)) throw new Error("사진을 올리지 못했습니다.");
+    return { photo: made.photo, bytes: made.bytes, confirmedAt: new Date().toISOString() };
+  }
+  const photoField = (label: string, value: PhotoInfo | undefined, change: (photo?: PhotoInfo) => void) =>
+    <PhotoField label={label} value={value} source={photoSource} upload={uploadPhoto} change={change} />;
   const [categoryDraft, setCategoryDraft] = useState<CategoryDraft>({ categories: [], categoryBindings: [] });
   const catalogSKUs = [...new Set([...draft, ...products].map((row) => row.sku).filter(Boolean))];
   const [deadline, setDeadline] = useState("");
@@ -366,6 +397,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
     setProducts(exact.asset ? savedProducts(exact.catalog.options, exact.asset) : []);
     setEditing(undefined);
     setRowsOf(undefined);
+    setPhotos(sitePhotos(exact));
     setCategoryDraft({ categories: exact.catalog.categories ?? [], categoryBindings: exact.catalog.categoryBindings ?? [] });
     setDeadline(
       exact.catalog.expiresAt
@@ -460,6 +492,11 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
         setNotice(`${wrong.label}의 옵션 묶음과 상품 코드를 확인하세요.`);
         return;
       }
+      const listed = Object.entries(photos).filter(([sku]) => catalogSKUs.includes(sku));
+      if (listed.length > photoLimit) {
+        setNotice(`메뉴 사진은 ${photoLimit}장까지 게시할 수 있습니다.`);
+        return;
+      }
       const grouped = publishedProducts(products, asset.address);
       const { categories, categoryBindings } = categoryDraft;
       const keys = new Set(categories.map(({ key }) => key));
@@ -481,6 +518,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
           displayPrice: price,
         })), ...grouped.rows],
         ...(products.length ? { options: grouped.options } : {}),
+        photos: listed.map(([sku, { photo }]) => ({ sku, photo })),
         expiresAt: new Date(deadlineISO).toISOString(),
         localExpiry: deadline,
       });
@@ -690,6 +728,8 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                       : "제한 없음"}
                   </p>
                   <p>이미 발급된 견적은 발급가를 유지합니다.</p>
+                  <PhotoReview before={sitePhotos(site)} after={Object.fromEntries(Object.entries(photos).filter(([sku]) => catalogSKUs.includes(sku)))}
+                    names={Object.fromEntries([...draft, ...products].map(({ sku, label }) => [sku, label]))} source={photoSource} />
                   {site.asset && (!!products.length || !!site.catalog.options?.length) && (
                     <OptionReview before={savedProducts(site.catalog.options, site.asset)} after={products} asset={site.asset} lines={menuLines(products, draft.length)} />
                   )}
@@ -755,12 +795,18 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               taken={[...products.filter((_, i) => i !== editing.at), ...draft.filter((_, i) => i !== editing.row)].map(({ sku }) => sku)}
               otherLines={menuLines(products.filter((_, i) => i !== editing.at), draft.length - (editing.row === undefined ? 0 : 1))}
               cancel={() => setEditing(undefined)}
+              photo={photos[editing.product.sku]}
+              photoField={photoField}
               remove={() => {
                 setProducts((list) => list.filter((_, i) => i !== editing.at));
                 setEditing(undefined);
               }}
-              save={(product) => {
+              save={(product, photo) => {
                 const { groups, ...plain } = product;
+                setPhotos((old) => {
+                  const { [editing.product.sku]: _, [product.sku]: __, ...rest } = old;
+                  return photo ? { ...rest, [product.sku]: photo } : rest;
+                });
                 setProducts((list) => {
                   const rest = list.filter((_, i) => i !== editing.at);
                   if (!groups.length) return rest;
@@ -786,7 +832,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                 lines={menuLines(products, draft.length)}
                 edit={(at) => setEditing({ product: products[at], at })}
                 add={() => setEditing({ product: emptyProduct() })}
-                show={(sku) => setRowsOf({ sku, before: draft })}
+                show={(sku) => setRowsOf({ sku, before: draft, photo: photos[sku] })}
               />
             </fieldset>
           )}
@@ -794,6 +840,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
             <form aria-label="옵션 목록 고치기" onSubmit={(event) => { event.preventDefault(); setRowsOf(undefined); }}>
               <section>
                 <h2>{draft.find(({ sku }) => sku === rowsOf.sku)?.label || rowsOf.sku}</h2>
+                {photoField(draft.find(({ sku }) => sku === rowsOf.sku)?.label || rowsOf.sku, photos[rowsOf.sku], (photo) => setPhoto(rowsOf.sku, photo))}
                 <fieldset className="bare" disabled={busy || stale || !!confirm || !!pending}>
                   {draft.map((row, index) => row.sku !== rowsOf.sku ? null : (
                   <fieldset key={index} data-sku={row.sku}>
@@ -922,7 +969,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               <section className="spread" aria-label="저장">
                 <p>고친 것은 게시할 때 한꺼번에 적용됩니다.</p>
                 <div>
-                  <button type="button" className="quiet" onClick={() => { setDraft(rowsOf.before); setRowsOf(undefined); }}>되돌리기</button>
+                  <button type="button" className="quiet" onClick={() => { setDraft(rowsOf.before); setPhoto(rowsOf.sku, rowsOf.photo); setRowsOf(undefined); }}>되돌리기</button>
                   <button>이 상품 저장</button>
                 </div>
               </section>

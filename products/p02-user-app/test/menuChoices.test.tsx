@@ -14,6 +14,9 @@ const mockScope = {role: 'customer', branchRef: mockBranch, subjectRef: mockRef(
 const mockShop = {branch: mockBranch, branchLabel: '여울 커피'};
 const mockCarts: CommerceCart[] = [];
 const mockJournals = new Map<string, string>();
+const mockThumb = Uint8Array.from({length: 900}, (_, i) => (i * 11) & 255);
+const mockThumbName = require('@noble/hashes/sha256').sha256(mockThumb).reduce((s: string, b: number) => s + b.toString(16).padStart(2, '0'), '');
+let mockPhotoReads = 0, mockServerDown = false;
 let mockNearby = false, mockStock: number | undefined = 5, mockOffline = false, mockSoldOut = '-', mockEntropy = 0;
 const mockGroups: CommerceSkuOptions['groups'] = [
   {key: 'temp', labels: {ko: '온도', en: 'Temperature'}, values: [{key: 'hot', labels: {ko: '뜨겁게', en: 'Hot'}}, {key: 'ice', labels: {ko: '차갑게', en: 'Iced'}}]},
@@ -65,7 +68,14 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     if (command.operation === 'invoice.list') return JSON.stringify({...reply, invoices: []});
     if (mockOffline) throw Object.assign(new Error('offline'), {code: 'COMMERCE_NETWORK_OFFLINE'});
     if (command.operation === 'catalog.read')
-      return JSON.stringify({...reply, catalog: mockRows(false), catalogVersion: 1, catalogOptions: [{sku: 'latte', groups: mockGroups}], shop: mockShop});
+      return JSON.stringify({...reply, catalog: mockRows(false), catalogVersion: 1, catalogOptions: [{sku: 'latte', groups: mockGroups}], shop: mockShop,
+        catalogPhotos: [{sku: 'latte', photo: 'a'.repeat(64), thumb: mockThumbName}]});
+    if (command.operation === 'catalog.photo') {
+      mockPhotoReads++;
+      if (mockServerDown) throw Object.assign(new Error('offline'), {code: 'COMMERCE_NETWORK_OFFLINE'});
+      expect(command.body.photo).toBe(mockThumbName); // the small copy is enough for the phone
+      return JSON.stringify({...reply, photo: {size: mockThumb.length, data: mockBase64(mockThumb)}});
+    }
     if (command.operation === 'order.create') { mockCarts.push(cart!); throw new Error('no reply'); }
     throw new Error('unexpected ' + command.operation);
   },
@@ -99,6 +109,8 @@ beforeEach(() => {
   mockNearby = mockOffline = false;
   mockStock = 5;
   mockSoldOut = '-';
+  mockPhotoReads = 0;
+  mockServerDown = false;
 });
 
 test.each([false, true])('the combination the customer picked is the one that is ordered (nearby=%s)', async nearby => {
@@ -209,5 +221,27 @@ test('the words are English on the English menu, and nothing can be picked from 
     expect(view(tree)).toContain('최근 메뉴를 보고 있습니다');
     expect(view(tree)).toContain('카페라떼 · 5,000원부터');
     expect(button(tree, '카페라떼 옵션 고르기')).toBeUndefined();
+  });
+});
+
+test('the choice page shows the small menu photo from the server, and only the name when it cannot be read', async () => {
+  const photo = (tree: Renderer.ReactTestRenderer) => tree.root.findAll(node => typeof node.type === 'string' && node.props.source?.uri)
+    .map(node => [node.props.accessibilityLabel, node.props.source.uri]);
+  const settle = () => Renderer.act(async () => { await new Promise(resolve => setTimeout(resolve, 30)); });
+  await shopping(async tree => {
+    expect(photo(tree)).toEqual([]); // not on the menu list, as drawn
+    await tap(tree, '카페라떼 옵션 고르기');
+    await settle();
+    expect(photo(tree)).toEqual([['카페라떼 메뉴 사진', 'data:image/jpeg;base64,' + mockBase64(mockThumb)]]);
+    expect(mockPhotoReads).toBe(1);
+  });
+  mockNearby = true;
+  mockServerDown = true;
+  await shopping(async tree => {
+    await tap(tree, '카페라떼 옵션 고르기');
+    await settle();
+    expect(photo(tree)).toEqual([]);
+    await tap(tree, '온도 차갑게');
+    expect(view(tree)).toContain('카페라떼');
   });
 });

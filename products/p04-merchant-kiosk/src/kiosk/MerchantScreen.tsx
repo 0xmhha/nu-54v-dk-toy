@@ -1,9 +1,11 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { menuCategories, MenuCategorySelector } from './menuCategories';
 import { MenuChoices } from './MenuChoices';
+import { MenuPhoto } from './MenuPhoto';
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ComponentRef,
@@ -35,6 +37,7 @@ import {
   commerceLineCapacity,
   commerceNeedsOptionSupport,
   commerceChoiceDisclosure,
+  CommercePhotoCache,
   commerceChoiceState,
   commerceChooseMessage,
   commerceOptionLabel,
@@ -233,6 +236,11 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const [orderPage, setOrderPage] = useState<string[]>();
   const [role, setRole] = useState<Slot>('terminal');
   const [client, setClient] = useState<CommerceClient>();
+  // Photos are read from the server by their names, small ones for the menu and the large one for a product's page.
+  const photos = useMemo(() => new CommercePhotoCache(name => {
+    if (!client) throw new Error('PHOTO_OFFLINE');
+    return client.catalogPhoto(name);
+  }), [client]);
   const [inbox, setInbox] = useState<MerchantInbox>();
   const [enrollment, setEnrollment] = useState('');
   const [pin, setPin] = useState('');
@@ -2573,6 +2581,8 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   return (
                     <View key={row.sku + '/' + row.optionKey}
                       style={[s.card, wide && s.cardWide, !!quantity && s.cardChosen, available === 0 && s.cardOut]}>
+                      {row.photo && <MenuPhoto cache={photos} name={row.photo.thumb} height={wide ? 150 : 120}
+                        label={`${names.product} ${menuLocale === 'ko' ? '메뉴 사진' : 'photo'}`} />}
                       <Text style={s.cardTitle}>
                         {required ? names.product : `${names.product} · ${names.option}`}
                       </Text>
@@ -2626,6 +2636,8 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 {menuDetail && picking && (
                   <View style={wide ? s.choosing : s.stack} onLayout={event => { choicesTop.current.page = event.nativeEvent.layout.y; }}>
                     <View style={wide ? s.choosingItem : s.stack}>
+                      {detailRows[0].photo && <MenuPhoto cache={photos} name={detailRows[0].photo.photo} height={wide ? 300 : 240}
+                        label={`${commerceMenuLabels(detailRows[0], menuLocale).product} ${menuLocale === 'ko' ? '메뉴 사진' : 'photo'}`} />}
                       <Text accessibilityRole="header" style={s.title}>{commerceMenuLabels(picking.row ?? detailRows[0], menuLocale).product}</Text>
                       <Label>{commerceChoiceDisclosure(detailRows, menuDetail.picks ?? {}, menuLocale)}</Label>
                       {!picking.row && detailRows.some(row => row.metadata?.allergens?.length) && <Text style={s.hint}>
@@ -2658,6 +2670,8 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                     Math.max(...rows.map(row => commerceLineCapacity(row, choice)));
                   return (
                     <View style={s.line}>
+                      {rows[0].photo && <MenuPhoto cache={photos} name={rows[0].photo.photo} height={240} width={320}
+                        label={`${commerceMenuLabels(rows[0], menuLocale).product} ${ko ? '메뉴 사진' : 'photo'}`} />}
                       <Text accessibilityRole="header" style={s.title}>
                         {commerceMenuLabels(selected ?? rows[0], menuLocale).product}
                       </Text>

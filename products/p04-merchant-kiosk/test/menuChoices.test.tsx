@@ -21,6 +21,12 @@ let mockEntropy = 0;
 let mockSoldOut: string[] = [];
 let mockVersion = 1;
 let mockDropped = '';
+// A photo for the latte: its page copy and its list copy, served in parts as opsd does.
+const mockPhoto = Uint8Array.from({ length: 30_000 }, (_, i) => (i * 13) & 255);
+const mockThumb = mockPhoto.slice(0, 700);
+const mockHex = (bytes: Uint8Array) => require('@noble/hashes/sha256').sha256(bytes).reduce((s: string, b: number) => s + b.toString(16).padStart(2, '0'), '');
+let mockPhotos = false;
+const mockPhotoReads: string[] = [];
 const mockProfile = () => ({ branchRef: mockShop, subjectRef: mockRef(2), tenantRef: mockRef(5), role: 'terminal', expiresAt: mockClock() + 120 });
 const mockGroups: CommerceSkuOptions['groups'] = [
   { key: 'temp', labels: { ko: '온도', en: 'Temperature' }, values: [{ key: 'hot', labels: { ko: '뜨겁게', en: 'Hot' } }, { key: 'ice', labels: { ko: '차갑게', en: 'Iced' } }] },
@@ -44,6 +50,7 @@ function mockCatalog() {
       })),
     ],
     catalogVersion: mockVersion,
+    ...(mockPhotos ? { catalogPhotos: [{ sku: 'latte', photo: mockHex(mockPhoto), thumb: mockHex(mockThumb) }] } : {}),
     catalogOptions: [{ sku: 'latte', groups: mockGroups.map(group => ({ ...group, values: group.values.filter(({ key }) => key !== mockDropped) })) }],
     shop: { branch: mockShop, branchLabel: '여울 커피' },
   };
@@ -74,6 +81,12 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
       const response = { requestId, requestDigest, status: 'ok', resultRef: command.objectRef };
       if (command.operation === 'terminal.device')
         return JSON.stringify({ ...response, terminalDevice: { revision: 0, language: 'ko', idleSeconds: 60 } });
+      if (command.operation === 'catalog.photo') {
+        const bytes = command.body.photo === mockHex(mockPhoto) ? mockPhoto : mockThumb;
+        mockPhotoReads.push(`${bytes === mockPhoto ? 'photo' : 'thumb'} ${command.body.offset}`);
+        const at = Number(command.body.offset);
+        return JSON.stringify({ ...response, photo: { size: bytes.length, data: mockBase64(bytes.slice(at, at + 18000)) } });
+      }
       if (command.operation === 'catalog.read') return JSON.stringify({ ...response, ...mockCatalog() });
       if (command.operation === 'terminal.state')
         return JSON.stringify({ ...response, terminal: { mode: 'menu', revision: 1 } });
@@ -111,6 +124,8 @@ beforeEach(() => {
   mockSoldOut = [];
   mockVersion = 1;
   mockDropped = '';
+  mockPhotos = false;
+  mockPhotoReads.length = 0;
   Dimensions.set({ window, screen: window });
 });
 
@@ -203,5 +218,25 @@ test('on a narrow screen the choices and the add button stay together', async ()
     expect(button(tree, '내 장바구니')).toBeUndefined();
     for (const label of ['온도 뜨겁게', '크기 보통', '우유 우유', '담기 5,000원']) await press(tree, label);
     expect(button(tree, '내 장바구니')).toBeDefined();
+  });
+});
+
+test('the menu shows the small photo, the product page the large one, each read once', async () => {
+  mockPhotos = true;
+  await kiosk(async tree => {
+    const shown = () => tree.root.findAll(n => typeof n.type === 'string' && !!n.props.source?.uri)
+      .map(n => [n.props.accessibilityLabel, n.props.source.uri]);
+    await Renderer.act(async () => { await new Promise(resolve => setTimeout(resolve, 30)); });
+    expect(shown()).toEqual([['카페라떼 메뉴 사진', 'data:image/jpeg;base64,' + mockBase64(mockThumb)]]);
+    await press(tree, '카페라떼 옵션 선택');
+    await Renderer.act(async () => { await new Promise(resolve => setTimeout(resolve, 30)); });
+    expect(shown()).toEqual([['카페라떼 메뉴 사진', 'data:image/jpeg;base64,' + mockBase64(mockPhoto)]]);
+    await press(tree, '메뉴로 돌아가기');
+    await press(tree, '카페라떼 옵션 선택');
+    expect(mockPhotoReads).toEqual(['thumb 0', 'photo 0', 'photo 18000']);
+    // The cookie has no photo and shows its name alone.
+    await press(tree, '메뉴로 돌아가기');
+    expect(view(tree)).toContain('쿠키');
+    expect(shown()).toHaveLength(1);
   });
 });

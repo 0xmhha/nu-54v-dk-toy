@@ -13,7 +13,10 @@ const shots = process.argv[2];
 const dist = path.join(__dirname, "../../web/dist");
 const branch = "11111111-1111-4111-8111-111111111111";
 const asset = "0x" + "ab".repeat(20);
-const published = [], stocked = [];
+const published = [], stocked = [], uploads = [];
+// A real 2×2 PNG, so the page can read its size before sending it.
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8z8DAwMDAxMDAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==", "base64");
+const digestOf = (n) => require("node:crypto").createHash("sha256").update("photo" + n).digest("hex");
 let refuse = false;
 let catalog = {
   version: 1, timezone: "Asia/Seoul", expiresAt: new Date(Date.now() + 86400000).toISOString(),
@@ -26,7 +29,7 @@ let catalog = {
 };
 
 // What opsd answers after a publication: one row for each combination, and the groups as they were sent.
-function accept({ rows, options = [] }) {
+function accept({ rows, options = [], photos: photosSent = [] }) {
   const made = [], breakdown = [];
   for (const row of rows) {
     const option = options.find(({ sku }) => sku === row.sku);
@@ -41,7 +44,7 @@ function accept({ rows, options = [] }) {
     }
   }
   const units = (amount) => String(Number(amount) * 100);
-  catalog = { ...catalog, version: catalog.version + 1, rows: made, breakdown, options: options.map(({ sku, groups }) => {
+  catalog = { ...catalog, version: catalog.version + 1, rows: made, breakdown, photos: photosSent, options: options.map(({ sku, groups }) => {
     const row = rows.find((item) => item.sku === sku);
     return { sku, base: { label: row.label, displayPrice: units(row.displayPrice), tax: units(row.tax), discount: units(row.discount), metadata: row.metadata },
       groups: groups.map((group) => ({ ...group, values: group.values.map((value) => ({ ...value, price: units(value.price) })) })) };
@@ -55,13 +58,23 @@ const server = http.createServer(async (req, res) => {
   for await (const part of req) raw += part;
   if (url.pathname.endsWith("/scopes")) return json(200, [{ id: branch, label: "여울 커피", timezone: "Asia/Seoul", capabilities: ["catalog"] }]);
   const call = /^\/v2\/operations\/catalog\/[0-9a-f-]+(\/[a-z-]+)?$/.exec(url.pathname);
+  if (url.pathname.endsWith("/photo") && req.method === "POST") {
+    const body = JSON.parse(raw);
+    uploads.push(body);
+    assert.equal(body.rightsConfirmed, true);
+    return json(200, { photo: digestOf(uploads.length), thumb: digestOf(-uploads.length), bytes: 61440, thumbBytes: 12000 });
+  }
+  if (/\/photo\/[0-9a-f]{64}$/.test(url.pathname)) {
+    res.writeHead(200, { "Content-Type": "image/png" });
+    return res.end(png);
+  }
   if (call && req.method === "POST") {
     const body = JSON.parse(raw);
     if (refuse) return json(400);
     if (call[1] === "/publish") { published.push(body); accept(body); } else stocked.push([call[1], body]);
     return json(200, {});
   }
-  if (call) return json(200, { receiptScope: "ef".repeat(32), catalog,
+  if (call) return json(200, { receiptScope: "ef".repeat(32), catalog, photos: (catalog.photos ?? []).map((item) => ({ ...item, thumb: digestOf(0), bytes: 61440 })),
     asset: { address: asset, symbol: "tKRW", decimals: 2, chainId: 8283, token: { name: "NU54 Test KRW", symbol: "tKRW", label: "tKRW", decimals: 2 } } });
   const file = path.join(dist, url.pathname.replace(/^\/ops\/?/, "") || "index.html");
   if (!file.startsWith(dist) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return json(404);
@@ -228,6 +241,47 @@ async function main() {
     assert.deepEqual(again[0], groups[0]);
     assert.equal(again[2].values.some(({ key }) => key === groups[2].values[1].key), false, "a removed code is not used again");
 
+    // A menu photo: the store confirms its rights first, the page refuses what it cannot send, and publishing names it.
+    await button("카페라떼 고치기").click();
+    const field = editor.getByRole("group", { name: "메뉴 사진", exact: true });
+    await field.getByText("카페라떼 사진이 없습니다.").waitFor();
+    const chooser = field.locator('input[type="file"]');
+    await chooser.setInputFiles({ name: "latte.png", mimeType: "image/png", buffer: png });
+    await field.getByRole("alert").filter({ hasText: "권리를 먼저 확인해 주세요" }).waitFor();
+    await field.getByLabel(/메뉴에 쓸 권리가 매장에 있습니다/).check();
+    await chooser.setInputFiles({ name: "IMG_2031.HEIC", mimeType: "image/heic", buffer: png });
+    await field.getByRole("alert").filter({ hasText: "JPEG나 PNG만" }).waitFor();
+    await chooser.setInputFiles({ name: "big.png", mimeType: "image/png", buffer: Buffer.concat([png, Buffer.alloc(5 * 1024 * 1024)]) });
+    await field.getByRole("alert").filter({ hasText: "5MB를 넘습니다" }).waitFor();
+    assert.equal(uploads.length, 0);
+    await chooser.setInputFiles({ name: "latte.png", mimeType: "image/png", buffer: png });
+    await field.getByRole("img", { name: "서버가 다시 만든 카페라떼 메뉴 사진" }).waitFor();
+    assert.deepEqual(Buffer.from(uploads[0].image, "base64"), png);
+    await field.getByText("800×600 JPEG · 60KB").waitFor();
+    await fits("photo");
+    await save.click();
+    await button("게시 내용 검토").click();
+    await review.getByRole("list", { name: "사진에서 바뀌는 것" }).getByText("새 사진").waitFor();
+    await review.getByText("메뉴 사진 1 / 200장", { exact: false }).waitFor();
+    await fits("photo-review");
+    await button("변경 적용").click();
+    await page.getByRole("status").filter({ hasText: "새 메뉴 버전의 게시를 확인했습니다." }).waitFor();
+    assert.deepEqual(published.at(-1).photos, [{ sku: "latte", photo: digestOf(1) }]);
+    // Reloaded, the photo is there for the next edit; cancelling a removal keeps it.
+    await button("카페라떼 고치기").click();
+    await field.getByRole("button", { name: "사진 지우기" }).click();
+    await button("되돌리기", editor).click();
+    await button("카페라떼 고치기").click();
+    await field.getByRole("img").waitFor();
+    await field.getByRole("button", { name: "사진 지우기" }).click();
+    await save.click();
+    await button("게시 내용 검토").click();
+    await review.getByText("사진 지움 · 이름만 보임").waitFor();
+    await button("취소").click();
+    await button("카페라떼 고치기").click();
+    await field.getByText("카페라떼 사진이 없습니다.").waitFor();
+    await button("되돌리기", editor).click();
+
     // A single product gets groups, and a product without groups becomes a single one again.
     await button("치즈케이크 고치기").click();
     await button("옵션 묶음 만들기").click();
@@ -238,12 +292,12 @@ async function main() {
     await editor.getByText("묶음이 없으면").waitFor();
     await save.click();
     await publish();
-    assert.deepEqual(published[2].options.map(({ sku }) => sku), ["cake"]);
-    assert.deepEqual(published[2].rows.map(({ sku, option }) => [sku, option]), [["beans", "whole"], ["beans", "ground"], ["latte", "standard"], ["cake", ""]]);
+    assert.deepEqual(published[3].options.map(({ sku }) => sku), ["cake"]);
+    assert.deepEqual(published[3].rows.map(({ sku, option }) => [sku, option]), [["beans", "whole"], ["beans", "ground"], ["latte", "standard"], ["cake", ""]]);
     await button("치즈케이크 고치기").click();
     await button("이 상품 빼기", editor).click();
     await publish();
-    assert.equal(Object.hasOwn(published[3], "options"), false);
+    assert.equal(Object.hasOwn(published[4], "options"), false);
 
     // Six hundred rows for the whole menu.
     await button("상품 추가").click();

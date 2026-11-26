@@ -2,11 +2,12 @@ import {useRef, useState, type ComponentRef} from 'react';
 import {AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {
   commerceChoiceDisclosure, commerceChoiceState, commerceChooseMessage, commerceLineCapacity, commerceLineKey, commerceMenuLabels,
-  commerceOptionLabel, commercePickChange, type CommerceChoiceState, type CommercePicking, type CommercePrice, type CommerceSelection,
+  commerceOptionLabel, commercePickChange, type CommerceChoiceState, type CommercePhotoCache, type CommercePicking, type CommercePrice, type CommerceSelection,
 } from '@nu54/protocol';
 import {KitButton} from '../ui/kit.tsx';
 import {color, font, radius, space, type} from '../ui/theme.ts';
 import {useInnerBack} from '../ui/innerBack.ts';
+import {MenuPhoto} from './MenuPhoto.tsx';
 
 export function choicePrice(rows: CommercePrice[], {from, varies}: CommerceChoiceState, locale: 'ko' | 'en', money: (units: string, asset: string) => string) {
   const amount = money(from, rows[0].asset);
@@ -14,7 +15,7 @@ export function choicePrice(rows: CommercePrice[], {from, varies}: CommerceChoic
 }
 
 /** One value is picked in each group. Tapping the picked value takes it back. */
-export function MenuChoices({rows, cart, locale, money, disabled, blocked, add, back}: {
+export function MenuChoices({rows, cart, locale, money, disabled, blocked, add, back, photos}: {
   rows: CommercePrice[];
   cart: CommerceSelection;
   locale: 'ko' | 'en';
@@ -24,6 +25,8 @@ export function MenuChoices({rows, cart, locale, money, disabled, blocked, add, 
   blocked: (row: CommercePrice) => string | undefined;
   add: (row: CommercePrice, quantity: number) => void;
   back: () => void;
+  /** Read only while the phone reaches the server; offline the page shows the name alone. */
+  photos?: CommercePhotoCache;
 }) {
   const ko = locale === 'ko';
   const [picking, setPicking] = useState<CommercePicking>({picks: {}, quantity: 1});
@@ -61,6 +64,8 @@ export function MenuChoices({rows, cart, locale, money, disabled, blocked, add, 
         <Text accessibilityRole="header" style={[type.title, styles.title]}>{commerceMenuLabels(rows[0], locale).product}</Text>
       </View>
       <View style={styles.declared}>
+        {photos && rows[0].photo && <MenuPhoto cache={photos} name={rows[0].photo.thumb} height={150} width={200}
+          label={`${commerceMenuLabels(rows[0], locale).product} ${ko ? '메뉴 사진' : 'photo'}`} />}
         <Text style={type.body}>{commerceChoiceDisclosure(rows, picking.picks, locale)}</Text>
         {rows.some(({metadata}) => metadata?.allergens?.length || metadata?.crossContact === 'possible') && <Text style={type.small}>
           {ko ? '알레르기가 있으면 주문 전에 직원에게 제조 환경을 확인하세요.' : 'If you have an allergy, ask staff about preparation before ordering.'}</Text>}
