@@ -98,7 +98,8 @@ static void replace_lost_phone(void)
 	nu54_owner_enrollment lost = {0};
 	assert(nu54_owner_begin(&lost, &vault, &crypto, &new_link, &request, 1, prior_owner));
 	assert(!nu54_owner_begin_lost(&lost, &vault, &crypto, &new_link, &request, 1));
-	uint8_t proof[300] = {2};
+	/* The signature goes after the record and the key; sign_message may write up to 80 bytes there. */
+	uint8_t proof[320] = {2};
 	memcpy(proof + 1, lost.record, sizeof(lost.record));
 	proof[131] = (uint8_t)spki_size;
 	memcpy(proof + 132, spki, (size_t)spki_size);

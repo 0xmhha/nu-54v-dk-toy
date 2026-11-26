@@ -88,7 +88,7 @@ class MarketRunnerTest(unittest.TestCase):
                 shutil.copy2(source, self.runner.with_name(name))
         for name in ("integration_workspace.py", "android/test_release_workspace.py"):
             shutil.copy2(SCRIPTS / name, self.root / "scripts" / name)
-        for folder in ("node_modules", "packages", "docs/content/specifications",
+        for folder in ("node_modules", "packages", "docs/content/specifications", "docs/content/commercial/legal",
                        "products/p01-device-firmware"):
             (self.root / folder).mkdir(parents=True)
         self.file("products/p02-user-app/android/app/debug.keystore")

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,7 +37,9 @@ def check_tools(names):
         cmd, pattern = TOOLS[name]
         observed = subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
         match = re.search(pattern, observed)
-        expected = LOCK["versions"]["foundry" if name == "cast" else name]
+        # macOS runners have no prebuilt Python newer than 3.12.10, so they keep their own pin.
+        key = "python-macos" if name == "python" and sys.platform == "darwin" else "foundry" if name == "cast" else name
+        expected = LOCK["versions"][key]
         actual = " / ".join(match.groups()) if match else None
         check(actual == expected, f"{name}: expected {expected}; observed {observed.strip()}")
         print(f"{name}={expected}")

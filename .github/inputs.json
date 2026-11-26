@@ -2,6 +2,7 @@
   "version": 1,
   "versions": {
     "python": "3.12.12",
+    "python-macos": "3.12.10",
     "go": "1.26.11",
     "node": "22.23.5",
     "pnpm": "10.18.0",

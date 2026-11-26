@@ -30,7 +30,8 @@ config.write_text("".join(line for line in config.read_text().splitlines(keepend
 Path(sys.argv[1], "source").write_text(str(root))
 PY
 source=$(cat "$out/source")
-cmake -S "$source" -B "$out/build" -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF -DENABLE_PROGRAMS=OFF
+# The pinned library is checked by its digest, not by its warnings: a newer compiler warns inside it (ssl_tls.c).
+cmake -S "$source" -B "$out/build" -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF -DENABLE_PROGRAMS=OFF -DMBEDTLS_FATAL_WARNINGS=OFF
 cmake --build "$out/build" -j 4
 "${CC:-cc}" -std=c11 -Wall -Wextra -Werror \
     -I "$source/include" -I "$source/tf-psa-crypto/include" \
