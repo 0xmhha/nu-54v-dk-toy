@@ -11,6 +11,7 @@ export type OrderState = {
   closedDays: { day: string; addedBy: string; addedAt: string }[];
   soldOut: { sku: string; by: string; at: string }[];
   log: { by: string; at: string; change: Record<string, unknown> }[];
+  taxFreeShop?: { designation: string; designatedOn: string; refundOperator: string; by: string; at: string } | null;
   me: string;
 };
 type Mode = OrderState["mode"];
@@ -41,6 +42,7 @@ export function logLine(entry: OrderState["log"][number], names: Map<string, str
   const c = entry.change;
   if (typeof c.mode === "string") return describe(c as Change);
   if (typeof c.closedDay === "string") return `휴무일 ${c.closed ? "더함" : "뺌"} · ${dayName(c.closedDay)}`;
+  if ("taxFreeShop" in c) return c.taxFreeShop ? `면세판매장 지정 번호 저장 · ${c.taxFreeShop}` : "면세판매장 지정 번호 지움";
   if (Array.isArray(c.products))
     return `${c.soldOut ? "품절로" : "다시 팔기"} · ${(c.products as string[]).map((sku) => names.get(sku) ?? sku).join(", ")}`;
   return "바꿈";
@@ -56,7 +58,11 @@ const dayName = (day: string) => {
 };
 
 /** Whether the branch takes orders, its closed days and sold-out products. Changed only here; every change is recorded. */
-export function StoreState({ branch, zone, products }: { branch: string; zone: string; products: Product[] }) {
+export function StoreState({ branch, zone, products, onState }: {
+  branch: string; zone: string; products: Product[];
+  /** Told each time the state is read or changed, so the menu editor knows the tax-free shop designation. */
+  onState?: (state: OrderState) => void;
+}) {
   const [state, setState] = useState<OrderState>();
   const [mode, setMode] = useState<Mode>("open");
   const [minutes, setMinutes] = useState(15);
@@ -67,6 +73,7 @@ export function StoreState({ branch, zone, products }: { branch: string; zone: s
   const [filter, setFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [shop, setShop] = useState({ designation: "", designatedOn: "", refundOperator: "", confirmed: false });
   const names = new Map(products.map((p) => [p.sku, p.label]));
 
   const show = (next: OrderState) => {
@@ -74,6 +81,9 @@ export function StoreState({ branch, zone, products }: { branch: string; zone: s
     setMode(next.mode);
     if (next.busyMinutes) setMinutes(next.busyMinutes);
     setResume(next.resumeAt ?? "");
+    setShop({ designation: next.taxFreeShop?.designation ?? "", designatedOn: next.taxFreeShop?.designatedOn ?? "",
+      refundOperator: next.taxFreeShop?.refundOperator ?? "", confirmed: false });
+    onState?.(next);
   };
   useEffect(() => {
     send(stateUrl(branch)).then(show, () => setNotice("주문 받기 상태를 읽지 못했습니다."));
@@ -186,6 +196,26 @@ export function StoreState({ branch, zone, products }: { branch: string; zone: s
           onClick={() => ask(`고른 ${picked.length}개를 다시 팔까요?`, async () => { const next = await send(stateUrl(branch) + "/sold-out", { products: picked, soldOut: false }); setPicked([]); return next; })}>
           고른 것을 다시 팔기</button>
         <p className="warning">품절은 그 상품의 모든 옵션 조합에 적용됩니다. 남은 수량은 그대로 두고, 다시 팔면 남은 수량대로 팝니다. 게시한 메뉴를 다시 게시하지 않아도 바로 적용됩니다.</p>
+      </section>
+
+      <section aria-labelledby="tax-free-shop">
+        <h2 id="tax-free-shop">외국인 세금 환급</h2>
+        <p>관할 세무서장의 지정을 받은 외국인관광객 면세판매장만 외국인 손님에게 환급 대상 물품을 알릴 수 있습니다.</p>
+        {state.taxFreeShop && (
+          <p>지금: 지정 번호 <strong>{state.taxFreeShop.designation}</strong> · {when(state.taxFreeShop.at, zone)} · 저장한 사람 {who(state, state.taxFreeShop.by)}</p>
+        )}
+        <label>지정 번호(지정서에 적힌 번호) <input value={shop.designation} maxLength={40} placeholder="예: 123-45-67890-001"
+          onChange={(e) => setShop({ ...shop, designation: e.target.value.trim() })} /></label>
+        <label>지정받은 날 <input type="date" max={state.today} value={shop.designatedOn} onChange={(e) => setShop({ ...shop, designatedOn: e.target.value })} /></label>
+        <label>환급 창구 운영사(환급 서류를 내주는 곳) <input value={shop.refundOperator} maxLength={80} placeholder="매장이 계약한 운영사 이름"
+          onChange={(e) => setShop({ ...shop, refundOperator: e.target.value })} /></label>
+        <label><input type="checkbox" checked={shop.confirmed} onChange={(e) => setShop({ ...shop, confirmed: e.target.checked })} /> 지정서를 확인했고, 지정이 취소되면 바로 지우겠습니다.</label>
+        <button disabled={busy || !shop.confirmed || !/^[0-9A-Za-z-]{4,40}$/.test(shop.designation) || !shop.designatedOn || !shop.refundOperator.trim()}
+          onClick={() => ask(`면세판매장 지정 번호 ${shop.designation}을(를) 저장할까요?`, () => send(stateUrl(branch) + "/tax-free", { ...shop }))}>저장</button>{" "}
+        {state.taxFreeShop && <button className="secondary" disabled={busy}
+          onClick={() => ask("면세판매장 지정 번호를 지울까요? 모든 상품의 환급 대상 표시가 손님 화면에서 함께 꺼집니다.", () => send(stateUrl(branch) + "/tax-free", { designation: "" }))}>지정 번호 지우기</button>}
+        <p className="warning">이 시스템은 국세청에 지정 여부를 묻지 않고, 매장이 적은 번호를 그대로 보입니다. 환급 금액을 계산하거나 돌려주지 않습니다. 결제 금액은 그대로이고, 환급은 매장의 환급 창구에서 합니다.</p>
+        <p>손님에게 보이는 조건: 부가세가 붙은, 포장해 가져가는 물품만 대상입니다. 한 번에 15,000원 이상 사면 환급 서류를 받을 수 있고, 출국할 때 물품을 가지고 나가야 합니다.</p>
       </section>
 
       <section aria-labelledby="state-log">

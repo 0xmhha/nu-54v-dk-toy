@@ -163,7 +163,7 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
       <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
     </Card>
     {order.items && money && order.items.reduce((sum, item) => sum + BigInt(item.total), 0n).toString() === order.amount &&
-      <Receipt items={order.items} money={money} />}
+      <Receipt items={order.items} money={money} taxFreeShop={order.taxFreeShop} />}
     {given && (order.pendingAction
       ? <View style={styles.notice}><Text style={styles.noticeText}>{`'${answers[given].label}' 답을 확인하고 있습니다. 확정되면 상태가 바뀝니다.`}</Text></View>
       : <View style={styles.notice}>
@@ -185,6 +185,7 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
 }
 
 const styles = StyleSheet.create({
+  refund: {gap: 4, padding: 12, borderRadius: 12, backgroundColor: '#f6e3bf'},
   receiptLine: {gap: 2, paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#d5dfd3'},
   receiptRow: {flexDirection: 'row', justifyContent: 'space-between', gap: 12},
   card: {flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: radius.l, borderWidth: 1,
@@ -209,7 +210,8 @@ const styles = StyleSheet.create({
 });
 
 /** What was bought, line by line: the price, and the supply value and tax inside it when the store said them. */
-function Receipt({items, money}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string}) {
+function Receipt({items, money, taxFreeShop}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string; taxFreeShop?: string}) {
+  const refund = taxFreeShop ? items.filter(item => item.refund) : [];
   const taxed = items.every(item => item.tax !== undefined);
   const sum = (pick: (item: (typeof items)[number]) => bigint) => items.reduce((total, item) => total + pick(item), 0n);
   const row = (label: string, value: string, strong = false) => <View style={styles.receiptRow}>
@@ -219,7 +221,7 @@ function Receipt({items, money}: {items: NonNullable<OpenOrder['items']>; money:
     {items.map((item, index) => <View key={index} style={styles.receiptLine}>
       {row(`${item.name} ×${item.quantity}`, money(item.total), true)}
       {item.tax !== undefined && <>
-        {row(item.taxKind === 'exempt' ? '면세' : '부가세 10% 포함', '')}
+        {row(`${item.taxKind === 'exempt' ? '면세' : '부가세 10% 포함'}${item.refund && taxFreeShop ? ' · 외국인 환급 대상 물품' : ''}`, '')}
         {row('공급가액', money((BigInt(item.total) - BigInt(item.tax)).toString()))}
         {row('세금', money(item.tax))}
         {row('뺀 금액', money('0'))}
@@ -230,6 +232,11 @@ function Receipt({items, money}: {items: NonNullable<OpenOrder['items']>; money:
       {row('세금 합계', money(sum(item => BigInt(item.tax!)).toString()))}
     </>}
     {row('낸 금액', money(sum(item => BigInt(item.total)).toString()), true)}
-    {taxed && <Text style={type.small}>세금 환급은 시험 단계에서 하지 않습니다.</Text>}
+    {refund.length > 0 && <View style={styles.refund}>
+      <Text style={type.label}>외국인 세금 환급</Text>
+      <Text style={type.small}>{`환급 대상 물품 ${money(refund.reduce((sum, item) => sum + BigInt(item.total), 0n).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다. 출국할 때 물품을 가지고 나가야 환급됩니다.`}</Text>
+      <Text style={type.small}>{`면세판매장 지정 번호 ${taxFreeShop} (매장이 적은 번호)`}</Text>
+      <Text style={type.small}>이 앱은 환급 금액을 계산하거나 돌려주지 않습니다.</Text>
+    </View>}
   </Card>;
 }

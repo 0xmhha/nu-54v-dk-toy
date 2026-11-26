@@ -343,6 +343,8 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
   const [branch, setBranch] = useState(initialBranch);
   const scopes = useAuthorizedBranches("operator");
   const [site, setSite] = useState<Site>();
+  // The tax-free shop designation, read with the order state; the refund mark needs it.
+  const [refundShop, setRefundShop] = useState<string>();
   const [draft, setDraft] = useState<Draft[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   // `at` is the place of an existing product; a new one has none.
@@ -681,6 +683,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               branch={site.branch}
               zone={site.catalog.timezone}
               products={storeProducts(site.catalog.rows)}
+              onState={(state) => setRefundShop(state.taxFreeShop?.designation)}
             />
           )}
           {stale && (
@@ -814,6 +817,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               key={editing.product.sku + editing.at}
               product={editing.product}
               asset={site.asset}
+              refundShop={refundShop}
               fresh={editing.at === undefined}
               taken={[...products.filter((_, i) => i !== editing.at), ...draft.filter((_, i) => i !== editing.row)].map(({ sku }) => sku)}
               otherLines={menuLines(products.filter((_, i) => i !== editing.at), draft.length - (editing.row === undefined ? 0 : 1))}
@@ -867,9 +871,9 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                 {site.asset && (() => {
                   const first = draft.find(({ sku }) => sku === rowsOf.sku);
                   // Every row of the product takes the same tax.
-                  return first && <TaxField row={first} metadata={first.metadata} asset={site.asset}
+                  return first && <TaxField row={first} metadata={first.metadata} asset={site.asset} refundShop={refundShop}
                     change={(metadata, tax) => setDraft((rows) => rows.map((item) => item.sku !== rowsOf.sku ? item : {
-                      ...item, tax, metadata: { ...item.metadata, tax: metadata.tax, taxRefund: metadata.taxRefund },
+                      ...item, tax, metadata: { ...item.metadata, tax: metadata.tax, takeAway: metadata.takeAway, taxRefund: metadata.taxRefund },
                     }))} />;
                 })()}
                 <fieldset className="bare" disabled={busy || stale || !!confirm || !!pending}>
@@ -994,7 +998,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                     onClick={() => setDraft((rows) => {
                       // A new option of a product keeps the product's tax, so one product never mixes two ways of taxing.
                       const same = rows.find((row) => row.sku === rowsOf.sku)?.metadata;
-                      const tax = same?.tax ? { tax: same.tax, ...(same.taxRefund ? { taxRefund: true } : {}) } : undefined;
+                      const tax = same?.tax ? { tax: same.tax, ...(same.takeAway ? { takeAway: true } : {}), ...(same.taxRefund ? { taxRefund: true } : {}) } : undefined;
                       return [...rows, { ...fresh(), sku: rowsOf.sku, asset: site.asset?.address ?? "", ...(tax ? { metadata: tax } : {}) }];
                     })}
                   >

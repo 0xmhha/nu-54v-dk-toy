@@ -24,11 +24,15 @@ export type OrderAnswer = {action: OrderBuyerAction; claimableAt: number; key: s
 export type OrderProgress = Partial<Pick<OrderEscrowStatus, 'stage' | 'claimableAt' | 'resolveBy' | 'payout' | 'refund' | 'pendingAction'>> &
   {pickupNo?: number; pickup?: CommerceOrderPayment['pickupStage']};
 /** One line of what was bought: its name, quantity and amount, and the tax inside that amount when the store said it. */
-export type OrderItem = {name: string; quantity: number; total: string; tax?: string; taxKind?: 'vat10' | 'exempt'};
+export type OrderItem = {name: string; quantity: number; total: string; tax?: string; taxKind?: 'vat10' | 'exempt';
+  /** A good a foreign visitor may claim the tax back on, as the designated shop said at payment. */
+  refund?: true};
 export type OpenOrder = OrderAccount & OrderProgress & {
   sale: string; branch: string; customer: string; confirmer: string; store?: string;
   asset: string; amount: string; escrow: string; merchantId: string; orderKey: string; sentAt: number;
   notified?: true; answer?: OrderAnswer; items?: OrderItem[];
+  /** The tax-free shop designation number shown at payment, kept for the refund counter. */
+  taxFreeShop?: string;
 };
 
 /**
@@ -47,10 +51,11 @@ const hash = /^[0-9a-f]{64}$/;
 const stages = ['received', 'submitted', 'locked', 'delivered', 'disputed', 'paid', 'refunded', 'failed'];
 const settled = ['paid', 'refunded', 'failed'];
 const fields = ['payer', 'generation', 'sale', 'branch', 'customer', 'confirmer', 'store', 'asset', 'amount', 'escrow', 'merchantId', 'orderKey', 'sentAt',
-  'stage', 'claimableAt', 'resolveBy', 'payout', 'refund', 'pendingAction', 'pickupNo', 'pickup', 'notified', 'answer', 'items'];
+  'stage', 'claimableAt', 'resolveBy', 'payout', 'refund', 'pendingAction', 'pickupNo', 'pickup', 'notified', 'answer', 'items', 'taxFreeShop'];
 const units = /^(0|[1-9][0-9]{0,77})$/;
 const validItem = (item: OrderItem) => !!item && typeof item === 'object' &&
-  Object.keys(item).every(key => ['name', 'quantity', 'total', 'tax', 'taxKind'].includes(key)) &&
+  Object.keys(item).every(key => ['name', 'quantity', 'total', 'tax', 'taxKind', 'refund'].includes(key)) &&
+  (item.refund === undefined || (item.refund === true && item.taxKind === 'vat10')) &&
   typeof item.name === 'string' && item.name.length > 0 && item.name.length <= 200 &&
   Number.isSafeInteger(item.quantity) && item.quantity > 0 && item.quantity <= 1000 && units.test(item.total) &&
   (item.tax === undefined ? item.taxKind === undefined
@@ -77,6 +82,7 @@ function validOrder(value: OpenOrder) {
     (value.refund === undefined || ['store', 'undelivered', 'arbiter', 'dispute-expired'].includes(value.refund)) &&
     (value.pendingAction === undefined || actions.includes(value.pendingAction)) &&
     (value.notified === undefined || value.notified === true) &&
+    (value.taxFreeShop === undefined || (typeof value.taxFreeShop === 'string' && /^[0-9A-Za-z-]{4,40}$/.test(value.taxFreeShop))) &&
     (value.items === undefined || (Array.isArray(value.items) && value.items.length > 0 && value.items.length <= 20 && value.items.every(validItem))) &&
     (value.answer === undefined || (actions.includes(value.answer.action) && Number.isSafeInteger(value.answer.claimableAt) &&
       value.answer.claimableAt > 0 && uuid.test(value.answer.key) && /^[0-9a-f]{128}(1b|1c)$/.test(value.answer.signature) &&

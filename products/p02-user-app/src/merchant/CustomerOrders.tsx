@@ -257,13 +257,14 @@ type PickupCartReview = CommerceCartReview & {
 type OrderOutcome = {sale: string; store: string; amount: string} & ({kind: 'done'; number: number} | {kind: 'failed'});
 
 /** The lines of a receipt. The tax is the one inside each line's price, when the store said it. */
-function receiptItems(selection: CommerceSelection, policy: CommercePaymentProfile): OrderItem[] | undefined {
+function receiptItems(selection: CommerceSelection, policy: CommercePaymentProfile, taxFreeShop?: string): OrderItem[] | undefined {
   const lines = Object.values(selection);
   if (!lines.length || lines.length > 20) return undefined;
   return lines.map(({row, quantity}) => {
     const line = commerceLineTax(row, quantity, policy);
     return {name: commerceMenuLabels(row, 'ko').name.slice(0, 200), quantity, total: (BigInt(row.unitPrice) * BigInt(quantity)).toString(),
-      ...(line ? {tax: line.tax.toString(), taxKind: row.metadata!.tax!} : {})};
+      ...(line ? {tax: line.tax.toString(), taxKind: row.metadata!.tax!} : {}),
+      ...(taxFreeShop && line && row.metadata?.tax === 'vat10' && row.metadata.takeAway && row.metadata.taxRefund ? {refund: true as const} : {})};
   });
 }
 
@@ -2020,7 +2021,10 @@ export function CustomerOrders({
       ...orderAccount(entry), escrow: policy.contract, merchantId: policy.merchantId, sale: entry.order.id, branch: entry.branch, customer: entry.customer, confirmer, store: entry.store,
       asset: entry.order.asset, amount: entry.order.amount, orderKey: entry.quote.orderKey, sentAt: now(),
       // What was bought, kept for the receipt: the lines of the basket this order was made from.
-      ...(point?.order === entry.order.id && point.selection ? {items: receiptItems(point.selection, policy)} : {}),
+      ...(point?.order === entry.order.id && point.selection ? (() => {
+        const items = receiptItems(point.selection, policy, storeState.state?.taxFreeShop);
+        return {items, ...(items?.some(item => item.refund) ? {taxFreeShop: storeState.state!.taxFreeShop} : {})};
+      })() : {}),
     });
     const attempt = {...entry, forwardAttempted: true as const};
     await keepPayment(attempt);
@@ -3055,7 +3059,7 @@ export function CustomerOrders({
             return taxed && asset ? <>
               <Text style={s.text}>{`공급가액 · ${commerceCartAmount(taxed.supply.toString(), asset, policy)}`}</Text>
               <Text style={s.text}>{`세금(가격에 포함) · ${commerceCartAmount(taxed.tax.toString(), asset, policy)}`}</Text>
-              <Text style={s.text}>공급가액은 품목마다 원 단위 아래를 버리고, 남은 금액이 세금입니다. 세금 환급은 시험 단계에서 하지 않습니다.</Text>
+              <Text style={s.text}>공급가액은 품목마다 원 단위 아래를 버리고, 남은 금액이 세금입니다.</Text>
             </> : null;
           })()}
           {!point && !menuReadOnly && (shop || pickupMode) && Object.keys(cart).length > 0 && (

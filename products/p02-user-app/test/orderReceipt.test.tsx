@@ -39,6 +39,19 @@ test('the receipt shows each line with the supply value and the tax inside it, a
   await Renderer.act(async () => tree.unmount());
 });
 
+test('a good from a designated tax-free shop is marked on the receipt with the number for the counter', async () => {
+  const refunded: OpenOrder = {...order, taxFreeShop: '123-45-67890-001',
+    items: [{...order.items![0], refund: true}, order.items![1]]};
+  let tree!: Renderer.ReactTestRenderer;
+  await Renderer.act(async () => {
+    tree = Renderer.create(<OrderDetail order={refunded} amount="12,500원" money={money} fresh={false} now={1_764_000_100}
+      actions={{answer: () => {}, refresh: () => {}, back: () => {}}} />);
+  });
+  for (const part of ['부가세 10% 포함 · 외국인 환급 대상 물품', '외국인 세금 환급', '환급 대상 물품 6,000원', '면세판매장 지정 번호 123-45-67890-001 (매장이 적은 번호)'])
+    expect(text(tree)).toContain(part);
+  await Renderer.act(async () => tree.unmount());
+});
+
 test('a kept order with lines reads back, and lines that cannot be true are refused', async () => {
   const journal = new Map<string, string>();
   const storage = {loadJournal: async (name: string) => journal.get(name) ?? '', saveJournal: async (name: string, value: string) => { journal.set(name, value); },
@@ -46,7 +59,7 @@ test('a kept order with lines reads back, and lines that cannot be true are refu
   const records = orderRecords(storage);
   await records.keep(order);
   expect((await records.list())[0].items).toEqual(order.items);
-  for (const items of [[{...order.items![0], tax: '700000'}], [{...order.items![0], taxKind: undefined}], [{...order.items![0], quantity: 0}], []]) {
+  for (const items of [[{...order.items![0], refund: true, taxKind: 'exempt' as const}], [{...order.items![0], tax: '700000'}], [{...order.items![0], taxKind: undefined}], [{...order.items![0], quantity: 0}], []]) {
     journal.clear();
     await expect(records.keep({...order, items: items as OpenOrder['items']})).rejects.toThrow();
   }

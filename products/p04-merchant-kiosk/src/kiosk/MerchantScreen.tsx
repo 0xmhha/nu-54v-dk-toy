@@ -41,6 +41,7 @@ import {
   commerceChoiceDisclosure,
   commerceCartTax,
   commerceLineTax,
+  commerceRefundGoods,
   CommercePhotoCache,
   commerceChoiceState,
   commerceChooseMessage,
@@ -1950,6 +1951,15 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             } · ${commerceCartAmount(amount, asset, policy, menuLocale)}`}
           </Text>
         ))}
+        {(() => {
+          // Only a designated tax-free shop says so; the refund is its counter's, and the price stays as it is.
+          const goods = commerceRefundGoods(choice, policy, orderState.state?.taxFreeShop);
+          if (!goods) return null;
+          const amount = commerceAmount(goods.total.toString(), goods.lines[0].asset, policy, menuLocale);
+          return <Text style={s.notice}>{menuLocale === 'ko'
+            ? `외국인 세금 환급 · 환급 대상 물품 ${amount}. ${goods.reaches ? '15,000원 이상이라 계산대에서 환급 서류를 받을 수 있습니다' : '15,000원 이상 사야 환급 서류를 받을 수 있습니다'}. 여권이 필요하고, 출국할 때 물품을 가지고 나가야 합니다. 결제 금액은 그대로입니다.`
+            : `Tax refund for foreign visitors · eligible goods ${amount}. ${goods.reaches ? 'Ask at the counter for the refund form' : 'The form needs 15,000 won or more of them'}; bring your passport and take the goods out of Korea. The price you pay stays the same.`}</Text>;
+        })()}
         {basketTax && basketTotals.length === 1 && <Text style={s.hint}>
           {menuLocale === 'ko'
             ? `공급가액 ${commerceAmount(basketTax.supply.toString(), basketTotals[0].asset, policy, menuLocale)} · ${taxNote(basketTax.tax, basketTotals[0].asset)}`
@@ -2737,6 +2747,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                         </View>
                       )}
                       {maximum === 0 && <Label>{ko ? '품절' : 'Sold out'}</Label>}
+                      {selected?.metadata?.taxRefund && orderState.state?.taxFreeShop && <Label>{ko
+                        ? '외국인 환급 대상 물품 · 포장해 가져가는 물품입니다'
+                        : 'Tax refund eligible for foreign visitors · a take-away good'}</Label>}
                       {selected && (
                         <>
                           <Label>{commerceMenuDisclosure(selected, menuLocale)}</Label>

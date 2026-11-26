@@ -170,9 +170,12 @@ async function main() {
     await tax.getByText("455원").waitFor(); // 5,000원 = 4,545원 + 455원
     await tax.getByLabel("면세").check();
     await tax.getByRole("definition").filter({ hasText: /^0원$/ }).waitFor();
-    assert.equal(await tax.getByLabel("외국인 세금 환급 대상 상품").isDisabled(), false);
+    // Without a tax-free shop designation the refund mark stays off, whatever the product is.
+    const refund = tax.getByRole("group", { name: "외국인 세금 환급" });
     await tax.getByLabel("부가세 10% (가격에 포함)").check();
-    await tax.getByLabel("외국인 세금 환급 대상 상품").check();
+    await refund.getByLabel(/^포장해 가져가는 물품입니다/).check();
+    assert.equal(await refund.getByLabel("환급 대상 물품으로 알리기").isDisabled(), true);
+    await refund.getByText(/면세판매장 지정 번호를 먼저 적어야/).waitFor();
     assert.equal(await editor.getByRole("alert").count(), 0);
     await fields(3, 1).getByText(/더해지는 성분/).click();
     await fields(3, 1).getByLabel("우유", { exact: true }).check();
@@ -228,7 +231,7 @@ async function main() {
     await publish();
     const [first] = published;
     assert.deepEqual(first.rows.find(({ sku }) => sku === "latte"), { sku: "latte", option: "", label: "카페라떼", asset, displayPrice: "5000", tax: "0", discount: "0", required: true,
-      metadata: { tax: "vat10", taxRefund: true, allergens: [] } });
+      metadata: { tax: "vat10", takeAway: true, allergens: [] } });
     const [{ groups }] = first.options;
     assert.deepEqual(groups.map(({ labels }) => labels.ko), ["온도", "크기", "우유"]);
     const codes = groups.flatMap(({ key, values }) => [key, ...values.map((value) => value.key)]);

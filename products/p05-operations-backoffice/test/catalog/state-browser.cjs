@@ -50,6 +50,13 @@ const server = http.createServer(async (req, res) => {
       state.closedDays = state.closedDays.filter(({ day }) => day !== body.day);
       if (body.closed) state.closedDays.push({ day: body.day, addedBy: me, addedAt: new Date().toISOString() });
       record({ closedDay: body.day, closed: body.closed });
+    } else if (changing[1] === "tax-free") {
+      if (body.designation === "") { state.taxFreeShop = null; record({ taxFreeShop: null }); }
+      else {
+        if (!body.confirmed || !/^[0-9A-Za-z-]{4,40}$/.test(body.designation)) return json(400);
+        state.taxFreeShop = { designation: body.designation, designatedOn: body.designatedOn, refundOperator: body.refundOperator, by: me, at: new Date().toISOString() };
+        record({ taxFreeShop: body.designation });
+      }
     } else {
       state.soldOut = state.soldOut.filter(({ sku }) => !body.products.includes(sku));
       if (body.soldOut) state.soldOut.push(...body.products.map((sku) => ({ sku, by: me, at: new Date().toISOString() })));
@@ -153,9 +160,36 @@ async function main() {
     assert.equal(await products.getByRole("listitem").count(), 1);
     await fits("state-sold-out");
 
+    // A tax-free shop: saved only once the designation is confirmed; then a taxed take-away good can be marked.
+    const shop = page.getByRole("region", { name: "외국인 세금 환급" });
+    await shop.getByLabel(/^지정 번호/).fill("123-45-67890-001");
+    await shop.getByLabel("지정받은 날").fill("2026-11-20");
+    await shop.getByLabel(/^환급 창구 운영사/).fill("환급 창구");
+    assert.equal(await button("저장", shop).isDisabled(), true, "not saved before the designation is confirmed");
+    await shop.getByLabel(/지정서를 확인했고/).check();
+    await button("저장", shop).click();
+    await button("바꾸기", confirm).click();
+    assert.deepEqual(sent.pop(), ["tax-free", { designation: "123-45-67890-001", designatedOn: "2026-11-20", refundOperator: "환급 창구", confirmed: true }]);
+    await shop.getByText(/지금: 지정 번호 123-45-67890-001 .* 저장한 사람 나/).waitFor();
+    await fits("state-tax-free");
+    await page.getByRole("button", { name: "치즈케이크 고치기" }).click();
+    const refund = page.getByRole("group", { name: "외국인 세금 환급" });
+    await page.getByRole("group", { name: "세금", exact: true }).getByLabel("부가세 10% (가격에 포함)").check();
+    assert.equal(await refund.getByLabel("환급 대상 물품으로 알리기").isDisabled(), true, "not until it is a take-away good");
+    await refund.getByLabel(/^포장해 가져가는 물품입니다/).check();
+    await refund.getByLabel("환급 대상 물품으로 알리기").check();
+    await refund.getByText(/지정 번호 123-45-67890-001 · 결제 금액은 그대로/).waitFor();
+    await page.getByRole("group", { name: "세금", exact: true }).getByLabel("면세").check();
+    assert.equal(await refund.getByLabel("환급 대상 물품으로 알리기").isChecked(), false, "an exempt good loses the mark");
+    await button("되돌리기").click();
+    await shop.getByRole("button", { name: "지정 번호 지우기" }).click();
+    await button("바꾸기", confirm).click();
+    await log.getByText("면세판매장 지정 번호 지움").waitFor();
+    await log.getByText("면세판매장 지정 번호 저장 · 123-45-67890-001").waitFor();
+
     // The record lists every change, newest first.
     assert.deepEqual(await log.getByRole("listitem").locator("strong").allTextContents(), [
-      "다시 팔기 · 콜드브루", "품절로 · 카페라떼, 치즈케이크", "휴무일 뺌 · 2026년 11월 30일 (월)", "휴무일 더함 · 2026년 11월 30일 (월)",
+      "면세판매장 지정 번호 지움", "면세판매장 지정 번호 저장 · 123-45-67890-001", "다시 팔기 · 콜드브루", "품절로 · 카페라떼, 치즈케이크", "휴무일 뺌 · 2026년 11월 30일 (월)", "휴무일 더함 · 2026년 11월 30일 (월)",
       "멈춤 · 11:20쯤 다시 받음으로 알림", "바쁨 · 약 25분"]);
     assert.deepEqual(errors, []);
     console.log("order state: busy and paused asked once more, closed days, several sold out at once, the record, 390px and 2x text");

@@ -65,9 +65,11 @@ export function ProductList({ products, plain, asset, lines, edit, add, show }: 
   );
 }
 
-export function ProductEditor({ product, asset, taken, otherLines, fresh, save, remove, cancel, photo, photoField }: {
+export function ProductEditor({ product, asset, refundShop, taken, otherLines, fresh, save, remove, cancel, photo, photoField }: {
   product: Product;
   asset: CatalogAsset;
+  /** The store's tax-free shop designation number, when it has one. */
+  refundShop?: string;
   /** Codes of the other products. */
   taken: string[];
   /** Rows of the rest of the menu. */
@@ -122,7 +124,7 @@ export function ProductEditor({ product, asset, taken, otherLines, fresh, save, 
             </label>
           ))}
           {problems.product && <p role="alert" className="problem">{problems.product}</p>}
-          <TaxField row={draft} metadata={draft.metadata} asset={asset} change={(metadata, tax) => change({ metadata, tax })} />
+          <TaxField row={draft} metadata={draft.metadata} asset={asset} refundShop={refundShop} change={(metadata, tax) => change({ metadata, tax })} />
           {!draft.metadata?.tax && <p>세금을 가격에 더해 받는 상품에는 더하는 금액을 적을 수 없습니다.</p>}
           <p>알레르기 성분을 적지 않은 상품에는 값의 성분도 적을 수 없습니다. 들어 있지 않으면 성분을 하나도 고르지 않고 게시합니다.</p>
           {photoField(draft.label || "새 상품", picture, setPicture)}

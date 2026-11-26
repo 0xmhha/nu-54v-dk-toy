@@ -29,6 +29,7 @@ let mockPhotos = false;
 let mockTaxed = false;
 let mockState: unknown;
 let mockPauseAtPay = false;
+let mockRefund = false;
 const mockPhotoReads: string[] = [];
 const mockProfile = () => ({ branchRef: mockShop, subjectRef: mockRef(2), tenantRef: mockRef(5), role: 'terminal', expiresAt: mockClock() + 120 });
 const mockGroups: CommerceSkuOptions['groups'] = [
@@ -44,7 +45,8 @@ function mockCatalog() {
   const label = (row: string[]) => row.map((key, i) => mockGroups[i].values.find(value => value.key === key)!.labels.ko).join(' · ');
   return {
     catalog: [
-      { ...common, sku: 'cookie', optionKey: 'standard', label: '쿠키', unitPrice: '300000' },
+      { ...common, sku: 'cookie', optionKey: 'standard', label: '쿠키', unitPrice: '300000',
+        ...(mockRefund ? { metadata: { tax: 'vat10' as const, takeAway: true, taxRefund: true } } : {}) },
       ...keys.map(row => ({
         ...common, sku: 'latte', optionKey: row.join('-'), label: '카페라떼',
         unitPrice: String((5000 + row.reduce((sum, key) => sum + (mockExtra[key] ?? 0), 0)) * 100),
@@ -137,6 +139,7 @@ beforeEach(() => {
   mockTaxed = false;
   mockState = undefined;
   mockPauseAtPay = false;
+  mockRefund = false;
   mockPhotoReads.length = 0;
   Dimensions.set({ window, screen: window });
 });
@@ -302,5 +305,23 @@ test('a pause that comes while paying clears the basket and says nothing was cha
     expect(view(tree)).toContain('지금은 주문을 잠시 멈췄습니다');
     expect(view(tree)).toContain('담아 둔 것을 지웠습니다. 돈은 나가지 않았습니다.');
     expect(button(tree, '하드월렛으로 결제').props.disabled).toBe(true);
+  });
+});
+
+test('a designated tax-free shop tells a visitor which goods count and whether they reach 15,000원', async () => {
+  mockRefund = true;
+  mockState = { mode: 'open', taxFreeShop: '123-45-67890-001' };
+  await kiosk(async tree => {
+    await press(tree, '쿠키 standard 추가');
+    expect(view(tree)).toContain('환급 대상 물품 3,000원. 15,000원 이상 사야 환급 서류를 받을 수 있습니다');
+    for (let i = 0; i < 4; i++) await press(tree, '쿠키 standard 추가');
+    expect(view(tree)).toContain('환급 대상 물품 15,000원. 15,000원 이상이라 계산대에서 환급 서류를 받을 수 있습니다');
+    expect(view(tree)).toContain('결제 금액은 그대로입니다');
+  });
+  // The same goods at a shop without a designation say nothing of a refund.
+  mockState = { mode: 'open' };
+  await kiosk(async tree => {
+    await press(tree, '쿠키 standard 추가');
+    expect(view(tree)).not.toContain('환급');
   });
 });
