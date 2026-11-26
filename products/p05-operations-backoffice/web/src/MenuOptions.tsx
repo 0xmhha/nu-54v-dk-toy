@@ -54,7 +54,7 @@ export function ProductList({ products, plain, asset, lines, edit, add, show }: 
           <li key={sku} className="spread">
             <span><strong>{label}</strong><br />{lines > 1 ? `옵션 목록 ${lines}개` : "옵션 묶음 없음"}</span>
             <span className="amount">{lines}줄 · {price}</span>
-            <button type="button" className="quiet" aria-label={`${label} 고치기`} onClick={() => show(sku)}>고치기</button>
+            <button type="button" className="quiet" data-sku={sku} aria-label={`${label} 고치기`} onClick={() => show(sku)}>고치기</button>
           </li>
         ))}
       </ul>

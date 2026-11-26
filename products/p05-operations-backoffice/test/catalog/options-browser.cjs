@@ -114,8 +114,12 @@ async function main() {
     await button("운영 권한 및 메뉴 조회").click();
     await page.getByRole("heading", { name: "메뉴 2개 · 게시 줄 3 / 600", exact: true }).waitFor();
     await page.getByText("옵션 목록 2개").waitFor();
+    // A product without groups has its own page too; going back keeps the list as it was.
     await button("치즈케이크 고치기").click();
-    assert.equal(await page.evaluate(() => document.activeElement.closest("[data-sku]").dataset.sku), "cake");
+    await page.getByRole("form", { name: "옵션 목록 고치기" }).getByLabel("기본 가격", { exact: true }).fill("9999");
+    await button("되돌리기").click();
+    await page.getByText("1줄 · 6,500원").waitFor();
+    assert.equal(await page.getByLabel("기본 가격", { exact: true }).count(), 0, "rows are not shown under the list");
 
     // A new product with three groups.
     await button("상품 추가").click();
@@ -225,6 +229,7 @@ async function main() {
     assert.equal(again[2].values.some(({ key }) => key === groups[2].values[1].key), false, "a removed code is not used again");
 
     // A single product gets groups, and a product without groups becomes a single one again.
+    await button("치즈케이크 고치기").click();
     await button("옵션 묶음 만들기").click();
     await fill(1, "조각", [["한 조각"], ["두 조각", "6000"]]);
     await save.click();

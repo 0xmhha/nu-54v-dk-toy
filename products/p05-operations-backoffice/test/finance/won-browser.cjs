@@ -143,11 +143,14 @@ async function main() {
     };
     await menu(wonBranch);
     await shows("won catalog", ["6,500원"]);
+    await page.getByRole("button", { name: "라떼 고치기", exact: true }).click();
     assert.equal(await page.evaluate(() => [...document.querySelectorAll("main input")].some((node) => node.value === "6500.00")), true, "won input");
     await shot("catalog-won");
     // Half a won is refused on the page, and nothing is sent; a whole price is reviewed in won.
     const publish = async (price) => {
+      if (!(await page.getByLabel("기본 가격", { exact: true }).count())) await page.getByRole("button", { name: "라떼 고치기", exact: true }).click();
       await page.getByLabel("기본 가격", { exact: true }).first().fill(price);
+      await page.getByRole("button", { name: "이 상품 저장", exact: true }).click();
       await page.getByRole("button", { name: "게시 내용 검토", exact: true }).click();
     };
     await publish("6500.55");
@@ -158,6 +161,7 @@ async function main() {
     await shot("catalog-review");
     await menu(usdBranch);
     await shows("dollar catalog", ["6.50 TestUSDC"], [/[0-9]원/]);
+    await page.getByRole("button", { name: "라떼 고치기", exact: true }).click();
     assert.equal(await page.evaluate(() => [...document.querySelectorAll("main input")].some((node) => node.value === "6.500001")), true, "every digit stays in the input");
     assert.deepEqual(errors, []);
     console.log("won pages: report, cases, order, refunds, evidence, claims, catalog; refused and dollar branches beside them");

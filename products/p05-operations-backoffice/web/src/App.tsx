@@ -331,7 +331,8 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   // `at` is the place of an existing product; a new one has none.
   const [editing, setEditing] = useState<{ product: Product; at?: number; row?: number }>();
-  const rowForm = useRef<HTMLFormElement>(null);
+  // The rows of a product without groups, as they were when it was opened.
+  const [rowsOf, setRowsOf] = useState<{ sku: string; before: Draft[] }>();
   const [categoryDraft, setCategoryDraft] = useState<CategoryDraft>({ categories: [], categoryBindings: [] });
   const catalogSKUs = [...new Set([...draft, ...products].map((row) => row.sku).filter(Boolean))];
   const [deadline, setDeadline] = useState("");
@@ -364,6 +365,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
     setDraft(editableRows(exact));
     setProducts(exact.asset ? savedProducts(exact.catalog.options, exact.asset) : []);
     setEditing(undefined);
+    setRowsOf(undefined);
     setCategoryDraft({ categories: exact.catalog.categories ?? [], categoryBindings: exact.catalog.categoryBindings ?? [] });
     setDeadline(
       exact.catalog.expiresAt
@@ -772,7 +774,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               }}
             />
           )}
-          {site.asset && !editing && (
+          {site.asset && !editing && !rowsOf && (
             <fieldset className="bare" disabled={busy || stale || !!confirm || !!pending}>
               <ProductList
                 products={products}
@@ -784,103 +786,16 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                 lines={menuLines(products, draft.length)}
                 edit={(at) => setEditing({ product: products[at], at })}
                 add={() => setEditing({ product: emptyProduct() })}
-                show={(sku) => rowForm.current?.querySelector<HTMLElement>(`[data-sku="${CSS.escape(sku)}"] input`)?.focus()}
+                show={(sku) => setRowsOf({ sku, before: draft })}
               />
             </fieldset>
           )}
-          <section hidden={!!editing}>
-            <h2>가격과 옵션 게시</h2>
-            {!site.asset && (
-              <p>이 지점의 등록 결제 자산을 확인할 수 없습니다.</p>
-            )}
-            <form ref={rowForm} onSubmit={(event) => propose("publish", event)}>
-              <fieldset
-                disabled={
-                  busy || stale || !!confirm || !!pending || !site.asset
-                }
-              >
-                <label>
-                  게시 만료 ({site.catalog.timezone})
-                  <input
-                    required
-                    type="datetime-local"
-                    value={deadline}
-                    onChange={(event) => {
-                      setDeadline(event.target.value);
-                      setDeadlineChoice("");
-                    }}
-                  />
-                </label>
-                {deadline && !deadlineCandidates.length && (
-                  <p role="status">
-                    이 시간대에는 해당 시각이 없습니다. 다른 시각을 선택하세요.
-                  </p>
-                )}
-                {deadlineCandidates.length > 1 && (
-                  <label>
-                    겹치는 시각의 UTC 차이 선택
-                    <select
-                      value={
-                        deadlineChoice
-                          ? new Date(deadlineChoice).toISOString().slice(0, 16)
-                          : ""
-                      }
-                      onChange={(event) =>
-                        setDeadlineChoice(
-                          event.target.value
-                            ? event.target.value + ":00.000Z"
-                            : ""
-                        )
-                      }
-                    >
-                      <option value="">검토할 시각 선택</option>
-                      {deadlineCandidates.map((candidate) => (
-                        <option key={candidate} value={candidate.slice(0, 16)}>
-                          {new Intl.DateTimeFormat("ko-KR", {
-                            timeZone: site.catalog.timezone,
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            timeZoneName: "shortOffset",
-                          }).format(new Date(candidate))}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={limitedHours}
-                    onChange={(event) => setLimitedHours(event.target.checked)}
-                  />
-                  매일 영업 시간 지정
-                </label>
-                {limitedHours && (
-                  <fieldset>
-                    <legend>영업 시간</legend>
-                    {(["opens", "closes", "zone"] as const).map((field) => (
-                      <label key={field}>
-                        {
-                          {
-                            opens: "영업 시작",
-                            closes: "영업 종료",
-                            zone: "시간대 (IANA)",
-                          }[field]
-                        }
-                        <input
-                          required
-                          type={field === "zone" ? "text" : "time"}
-                          value={hours[field]}
-                          onChange={(event) =>
-                            setHours({ ...hours, [field]: event.target.value })
-                          }
-                        />
-                      </label>
-                    ))}
-                  </fieldset>
-                )}
-                <CatalogCategories value={categoryDraft} skus={catalogSKUs} change={setCategoryDraft} />
-                {draft.map((row, index) => (
+          {rowsOf && (
+            <form aria-label="옵션 목록 고치기" onSubmit={(event) => { event.preventDefault(); setRowsOf(undefined); }}>
+              <section>
+                <h2>{draft.find(({ sku }) => sku === rowsOf.sku)?.label || rowsOf.sku}</h2>
+                <fieldset className="bare" disabled={busy || stale || !!confirm || !!pending}>
+                  {draft.map((row, index) => row.sku !== rowsOf.sku ? null : (
                   <fieldset key={index} data-sku={row.sku}>
                     <legend>옵션 {index + 1}</legend>
                     <div className="grid">
@@ -977,6 +892,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                         type="button"
                         onClick={() => {
                           const { optionLabels: _, optionGroupLabels: __, ...metadata } = row.metadata ?? {};
+                          setRowsOf(undefined);
                           setEditing({ row: index, product: { sku: row.sku, label: row.label, price: row.price, tax: row.tax, discount: row.discount,
                             metadata: row.metadata && metadata, groups: [emptyGroup()] } });
                         }}
@@ -993,14 +909,117 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                       이 옵션 제거
                     </button>
                   </fieldset>
-                ))}
-                <button
-                  type="button"
-                  disabled={menuLines(products, draft.length) >= rowLimit}
-                  onClick={() => setDraft((rows) => [...rows, fresh()])}
-                >
-                  옵션 추가
-                </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={menuLines(products, draft.length) >= rowLimit}
+                    onClick={() => setDraft((rows) => [...rows, { ...fresh(), sku: rowsOf.sku, asset: site.asset?.address ?? "" }])}
+                  >
+                    옵션 추가
+                  </button>
+                </fieldset>
+              </section>
+              <section className="spread" aria-label="저장">
+                <p>고친 것은 게시할 때 한꺼번에 적용됩니다.</p>
+                <div>
+                  <button type="button" className="quiet" onClick={() => { setDraft(rowsOf.before); setRowsOf(undefined); }}>되돌리기</button>
+                  <button>이 상품 저장</button>
+                </div>
+              </section>
+            </form>
+          )}
+          <section hidden={!!editing || !!rowsOf}>
+            <h2>게시 설정</h2>
+            {!site.asset && (
+              <p>이 지점의 등록 결제 자산을 확인할 수 없습니다.</p>
+            )}
+            <form onSubmit={(event) => propose("publish", event)}>
+              <fieldset
+                disabled={
+                  busy || stale || !!confirm || !!pending || !site.asset
+                }
+              >
+                <label>
+                  게시 만료 ({site.catalog.timezone})
+                  <input
+                    required
+                    type="datetime-local"
+                    value={deadline}
+                    onChange={(event) => {
+                      setDeadline(event.target.value);
+                      setDeadlineChoice("");
+                    }}
+                  />
+                </label>
+                {deadline && !deadlineCandidates.length && (
+                  <p role="status">
+                    이 시간대에는 해당 시각이 없습니다. 다른 시각을 선택하세요.
+                  </p>
+                )}
+                {deadlineCandidates.length > 1 && (
+                  <label>
+                    겹치는 시각의 UTC 차이 선택
+                    <select
+                      value={
+                        deadlineChoice
+                          ? new Date(deadlineChoice).toISOString().slice(0, 16)
+                          : ""
+                      }
+                      onChange={(event) =>
+                        setDeadlineChoice(
+                          event.target.value
+                            ? event.target.value + ":00.000Z"
+                            : ""
+                        )
+                      }
+                    >
+                      <option value="">검토할 시각 선택</option>
+                      {deadlineCandidates.map((candidate) => (
+                        <option key={candidate} value={candidate.slice(0, 16)}>
+                          {new Intl.DateTimeFormat("ko-KR", {
+                            timeZone: site.catalog.timezone,
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZoneName: "shortOffset",
+                          }).format(new Date(candidate))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={limitedHours}
+                    onChange={(event) => setLimitedHours(event.target.checked)}
+                  />
+                  매일 영업 시간 지정
+                </label>
+                {limitedHours && (
+                  <fieldset>
+                    <legend>영업 시간</legend>
+                    {(["opens", "closes", "zone"] as const).map((field) => (
+                      <label key={field}>
+                        {
+                          {
+                            opens: "영업 시작",
+                            closes: "영업 종료",
+                            zone: "시간대 (IANA)",
+                          }[field]
+                        }
+                        <input
+                          required
+                          type={field === "zone" ? "text" : "time"}
+                          value={hours[field]}
+                          onChange={(event) =>
+                            setHours({ ...hours, [field]: event.target.value })
+                          }
+                        />
+                      </label>
+                    ))}
+                  </fieldset>
+                )}
+                <CatalogCategories value={categoryDraft} skus={catalogSKUs} change={setCategoryDraft} />
                 <button disabled={!(draft.length + products.length)}>게시 내용 검토</button>
               </fieldset>
             </form>

@@ -27,14 +27,20 @@ async function exercise() {
       await heading("현재 메뉴").waitFor();
       return (await loaded).json();
     }
+    // A product's rows are edited on its own page, opened from the menu list.
+    const rows = (sku) => page.locator(`button[data-sku="${sku}"]`).click();
+    const saveRows = () => button("이 상품 저장").click();
     async function review(price) {
+      await page.locator("button[data-sku]").first().click();
       await page.getByLabel("기본 가격", { exact: true }).first().fill(price);
+      await saveRows();
       await button("게시 내용 검토").click();
       await heading("메뉴 게시 확인").waitFor();
     }
 
     if (scenario === "k07") {
       const original = await open(branchA);
+      await rows("drink-12");
       const koreanGroup = page.getByLabel("필수 옵션 그룹 한국어 이름", { exact: true });
       const englishGroup = page.getByLabel("필수 옵션 그룹 영어 이름", { exact: true });
       assert.equal(await koreanGroup.first().inputValue(), "");
@@ -43,6 +49,8 @@ async function exercise() {
       await englishGroup.first().fill("Temperature");
       assert.equal(await koreanGroup.nth(1).inputValue(), "온도");
       assert.equal(await englishGroup.nth(1).inputValue(), "Temperature");
+      await saveRows();
+      await rows("baked-09");
       const candidates = page.getByRole("group", {name: "언어별 메뉴와 점주 알레르기 정보", exact:true});
       const fields = await candidates.count();
       let index = -1;
@@ -55,6 +63,7 @@ async function exercise() {
       await declaration.getByLabel("교차접촉 정보", {exact:true}).selectOption("possible");
       await declaration.getByLabel("교차접촉 설비", {exact:true}).selectOption("shared-baking-equipment");
       await declaration.getByLabel("교차접촉 견과류", {exact:true}).check();
+      await saveRows();
       await button("게시 내용 검토").click();
       const reviewPanel = page.getByRole("region", {name:"변경 확인"});
       await reviewPanel.getByText(/온도.*Temperature/).first().waitFor();
@@ -72,13 +81,14 @@ async function exercise() {
 
     const a = await open(branchA);
     async function addProduct(sku, label) {
-      await button("옵션 추가").click();
-      const row = page.getByRole("group", {name: /^옵션 [0-9]+$/}).last();
-      await row.getByLabel("상품 코드", {exact: true}).fill(sku);
-      await row.getByLabel("옵션 코드", {exact: true}).fill("standard");
-      await row.getByLabel("표시 이름", {exact: true}).fill(label);
-      await row.getByLabel("기본 가격", {exact: true}).fill("3.10");
-      await row.getByRole("combobox", {name: /^결제 자산/}).selectOption(a.asset.address);
+      // A new product without groups is saved as one row, in the branch's asset.
+      await button("상품 추가").click();
+      const editor = page.getByRole("form", {name: "메뉴 고치기"});
+      await editor.getByLabel("상품 코드", {exact: true}).fill(sku);
+      await editor.getByLabel("상품 이름", {exact: true}).fill(label);
+      await editor.getByLabel(/^가격\(/).fill("3.10");
+      await editor.getByRole("button", {name: "묶음 1 지우기", exact: true}).click();
+      await editor.getByRole("button", {name: "이 상품 저장", exact: true}).click();
     }
     await addProduct("item-22", "Croissant");
     await addProduct("item-23", "House special");
