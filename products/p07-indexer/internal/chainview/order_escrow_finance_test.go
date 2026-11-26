@@ -3,8 +3,10 @@ package chainview
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -302,6 +304,66 @@ func TestPostgresEscrowSkipSpam(t *testing.T) {
 	}
 	t.Logf("%d skips ingested in %s over %d polls; escrow_receipt %s before, %s after", 2*spam, ingest, polls, before, after)
 	if after > 100*time.Millisecond {
-		t.Fatalf("skipped claims slowed an order read to %s", after)
+		t.Fatalf("skipped claims slowed an order read to %s\n%s", after, explainOrderRead(t, db, profile.StreamID, merchant, order))
 	}
+}
+
+// explainOrderRead shows how the database runs escrow_receipt's lookup, with the parameters left open
+// as inside the function and with them filled in, and how large the tables are, so a slow read on
+// a shared runner can be told apart from a slow plan.
+func explainOrderRead(t *testing.T, db *pgxpool.Pool, stream, merchant, order string) string {
+	t.Helper()
+	ctx := context.Background()
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		return err.Error()
+	}
+	defer conn.Release()
+	var out strings.Builder
+	lines := func(query string, args ...any) {
+		// Simple protocol: pgx would otherwise reuse its own cached statement across the two plan modes.
+		rows, err := conn.Query(ctx, query, append([]any{pgx.QueryExecModeSimpleProtocol}, args...)...)
+		if err != nil {
+			fmt.Fprintf(&out, "%s: %v\n", query, err)
+			return
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var line string
+			if rows.Scan(&line) == nil {
+				out.WriteString(line + "\n")
+			}
+		}
+		if err := rows.Err(); err != nil {
+			fmt.Fprintf(&out, "%v\n", err)
+		}
+	}
+	lines(`SELECT format('%s rows=%s pages=%s', relname, reltuples::bigint, relpages) FROM pg_class
+		WHERE relnamespace='chainview'::regnamespace AND relname IN ('evidence','observed_event','block','read_target','generation','stream')
+		ORDER BY relname`)
+	lookup := `SELECT f.id FROM chainview.escrow_fact f
+		WHERE f.id = ANY(ARRAY(SELECT e.id FROM chainview.evidence e
+			WHERE e.generation_id=(SELECT t.generation_id FROM chainview.read_target t WHERE t.stream_id=$1)
+			AND e.merchant_key=$2 AND e.order_key=$3 AND e.kind IN ('locked','delivered','disputed','released','cancelled'))
+		|| ARRAY(SELECT e.id FROM chainview.evidence e
+			WHERE e.generation_id=(SELECT t.generation_id FROM chainview.read_target t WHERE t.stream_id=$1)
+			AND e.merchant_key=$2 AND e.order_key=$3 AND e.kind='claim-skipped'
+			ORDER BY e.anchor_height DESC,e.tx_hash DESC,e.log_index DESC LIMIT 20))
+		AND f.stream_id=$1 ORDER BY f.block_height,f.log_index`
+	for _, mode := range []string{"force_generic_plan", "force_custom_plan"} {
+		out.WriteString("== " + mode + "\n")
+		if _, err := conn.Exec(ctx, "SET plan_cache_mode = "+mode); err != nil {
+			return out.String() + err.Error()
+		}
+		_, _ = conn.Exec(ctx, "DEALLOCATE ALL")
+		if _, err := conn.Exec(ctx, "PREPARE order_read(uuid,text,text) AS "+lookup); err != nil {
+			return out.String() + err.Error()
+		}
+		// EXECUTE takes no bind parameters, so the test's own values go in as quoted literals.
+		quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+		lines("EXPLAIN (ANALYZE, BUFFERS) EXECUTE order_read(" + quote(stream) + "," + quote(merchant) + "," + quote(order) + ")")
+	}
+	_, _ = conn.Exec(ctx, "DEALLOCATE ALL")
+	_, _ = conn.Exec(ctx, "RESET plan_cache_mode")
+	return out.String()
 }
