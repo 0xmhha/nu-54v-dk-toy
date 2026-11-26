@@ -167,7 +167,7 @@ async function main() {
     const save = button("이 상품 저장", editor);
     const tax = editor.getByRole("group", { name: "세금", exact: true });
     assert.equal(await tax.getByLabel("부가세 10% (가격에 포함)").isChecked(), true);
-    await tax.getByText("454원").waitFor(); // 5,000원 = 4,546원 + 454원
+    await tax.getByText("455원").waitFor(); // 5,000원 = 4,545원 + 455원
     await tax.getByLabel("면세").check();
     await tax.getByRole("definition").filter({ hasText: /^0원$/ }).waitFor();
     assert.equal(await tax.getByLabel("외국인 세금 환급 대상 상품").isDisabled(), false);
@@ -213,7 +213,7 @@ async function main() {
     const cells = table.map((row) => row.split("\t").map((cell) => cell.trim()));
     for (const [name, base, extra, total, taxed, allergens] of cells) {
       const charged = Number(total.replace(/[^0-9]/g, ""));
-      assert.equal(taxed, `${Math.floor(charged / 11).toLocaleString("en-US")}원`, name);
+      assert.equal(taxed, `${(charged - Math.floor(charged * 10 / 11)).toLocaleString("en-US")}원`, name);
       const sum = (name.includes("크게") ? 500 : 0) + (/두유|귀리/.test(name) ? 700 : 0);
       assert.deepEqual([base, extra, total], ["5,000원", sum ? `+${sum.toLocaleString("en-US")}원` : "0원", `${(5000 + sum).toLocaleString("en-US")}원`], name);
       assert.equal(allergens, name.endsWith("우유") && !name.includes("두유") ? "우유" : "없음", name);

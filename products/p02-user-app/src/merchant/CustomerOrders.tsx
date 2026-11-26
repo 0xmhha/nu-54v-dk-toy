@@ -3055,7 +3055,7 @@ export function CustomerOrders({
             return taxed && asset ? <>
               <Text style={s.text}>{`공급가액 · ${commerceCartAmount(taxed.supply.toString(), asset, policy)}`}</Text>
               <Text style={s.text}>{`세금(가격에 포함) · ${commerceCartAmount(taxed.tax.toString(), asset, policy)}`}</Text>
-              <Text style={s.text}>세금은 품목마다 원 단위 아래를 버려 계산합니다. 세금 환급은 시험 단계에서 하지 않습니다.</Text>
+              <Text style={s.text}>공급가액은 품목마다 원 단위 아래를 버리고, 남은 금액이 세금입니다. 세금 환급은 시험 단계에서 하지 않습니다.</Text>
             </> : null;
           })()}
           {!point && !menuReadOnly && (shop || pickupMode) && Object.keys(cart).length > 0 && (

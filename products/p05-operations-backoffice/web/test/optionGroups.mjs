@@ -23,9 +23,9 @@ assert.deepEqual(rows.map(({ option, total }) => [option, total]), [
   ["ice-s-cow", "5,000원"], ["ice-s-oat", "5,700원"], ["ice-l-cow", "5,500원"], ["ice-l-oat", "6,200원"],
 ]);
 assert.deepEqual(rows[3], { option: "hot-l-oat", label: "뜨겁게 · 크게 · 귀리 음료", base: "5,000원", added: "+1,200원", total: "6,200원", tax: "", allergens: ["soy"] });
-// A price that includes 10% shows the tax inside each combination, cut to the whole won.
+// A price that includes 10% shows the tax inside each combination, its supply value cut to the whole won.
 const taxed = combinations({ ...latte(), metadata: { allergens: ["soy"], tax: "vat10" } }, won);
-assert.deepEqual(taxed.map(({ total, tax }) => [total, tax]).slice(0, 4), [["5,000원", "454원"], ["5,700원", "518원"], ["5,500원", "500원"], ["6,200원", "563원"]]);
+assert.deepEqual(taxed.map(({ total, tax }) => [total, tax]).slice(0, 4), [["5,000원", "455원"], ["5,700원", "519원"], ["5,500원", "500원"], ["6,200원", "564원"]]);
 assert.equal(combinations({ ...latte(), metadata: { tax: "exempt" } }, won)[0].tax, "0원");
 assert.deepEqual(rows[0].allergens, ["soy", "milk"]);
 assert.equal(rows[0].added, "0원");

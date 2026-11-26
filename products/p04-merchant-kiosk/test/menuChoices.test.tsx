@@ -258,13 +258,13 @@ test('the basket says how much tax its prices include, line by line, and only wh
   await kiosk(async tree => {
     await press(tree, '카페라떼 옵션 선택');
     for (const label of ['온도 차갑게', '크기 크게 +500원', '우유 두유 +700원', '수량 늘리기', '담기 12,400원']) await press(tree, label);
-    // 12,400원 is 11,273원 and 1,127원 of tax: one line, cut to the whole won.
-    expect(view(tree)).toContain('세금 1,127원 포함');
-    expect(view(tree)).toContain('공급가액 11,273원 · 세금 1,127원 포함');
+    // 12,400원 is 11,272원 and 1,128원 of tax: one line, its supply value cut to the whole won.
+    expect(view(tree)).toContain('세금 1,128원 포함');
+    expect(view(tree)).toContain('공급가액 11,272원 · 세금 1,128원 포함');
     // The cookie says nothing of its tax, so the basket shows no total of it.
     await press(tree, '쿠키 standard 추가');
     expect(view(tree)).not.toContain('공급가액');
-    expect(view(tree)).toContain('세금 1,127원 포함');
+    expect(view(tree)).toContain('세금 1,128원 포함');
   });
 });
 
