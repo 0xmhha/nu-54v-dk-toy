@@ -83,3 +83,7 @@ Stood in for: the phone's native modules (storage, Bluetooth, key store, TLS to 
 - Without `--walk` the app stays open for 43 minutes. `--step NAME JSON` takes the steps of the owner, kiosk, store or operator from another terminal, for example `--step order '{"quantity":2}'` puts an order on the kiosk and before the phone's camera, and `--step board '{"change":{"answer":"refuse"}}'` makes the owner refuse. [host.test.ts](../products/p05-operations-backoffice/test/order-flow/simulator/host.test.ts) lists them.
 
 The app's screens and logic, its notifications, the firmware core, server, indexer and contracts are real. Bluetooth, TLS, the phone's protected storage and keys, the camera and the board's buttons and PIN are stood in for, and one-second countdowns tick every three seconds so that the screen can be read. Only the bundler configuration in that directory replaces the native modules, so no build of the app contains them. It runs on emulators only. The bundler listens on port 8785 and the stand-ins on 8790, both on this machine.
+
+## 키오스크를 로컬 매장에 붙여 보기
+
+`python3 -B scripts/simulate_kiosk_app.py <에뮬레이터> <새 폴더> [--stay]`는 주문 흐름과 같은 서버·DB·체인을 띄우고, 같은 서버에서 운영 웹을 내준다. 운영 웹을 브라우저로 조작해 카페 메뉴 7개(사진 6장, 묶음 상품 3개)를 게시하고 재고를 넣은 뒤, 키오스크 앱을 에뮬레이터에서 태블릿 가로 화면으로 띄운다. 키오스크의 화면은 실제이고 네이티브 모듈만 `test/order-flow/simulator`의 것으로 바뀐다. 사진이 오는 동안에는 uiautomator가 화면을 읽지 못하므로 `--stay`로 띄워 두고 `adb`로 누르며 캡처한다. 실제 BLE와 보드는 확인하지 않는다.

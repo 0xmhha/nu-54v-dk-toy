@@ -10,7 +10,7 @@ import {NearbyJournals} from '../../../../p04-merchant-kiosk/src/kiosk/nearbyJou
 import {NearbyRelay, type RelayProgress} from '../../../../p04-merchant-kiosk/src/kiosk/nearbyRelay';
 import {Board, epochOf} from './board';
 
-type Identity = {subject: string; cert: string; key: string};
+export type Identity = {subject: string; cert: string; key: string};
 export const fixture = JSON.parse(readFileSync(process.env.NU54_ORDER_FLOW_FIXTURE!, 'utf8')) as {
   shop: 'usd' | 'won' | 'krwc' | 'refused'; /** Base units in one unit of the board. */ unit: string; /** Stores that run at once on this server. */ shops: number;
   endpoint: string; ca: string; expiresAt: number; tenant: string; branch: string; rpc: string; control: string; secret: string; home: string;
@@ -65,7 +65,7 @@ export function read(identity: Identity, path: string): Promise<{status: number;
   });
 }
 /** What CommerceHttp.kt does with one call: its size limits and which answers it hands over. */
-async function exchange(identity: Identity, body: string) {
+export async function exchange(identity: Identity, body: string) {
   const refused = () => Object.assign(new Error('The enrolled commerce connection is unavailable'), {code: 'COMMERCE_REFUSED'});
   if (Buffer.byteLength(body) < 2 || Buffer.byteLength(body) > 8192) throw refused();
   const {status, raw} = await post(identity, '/v2/commerce', body);

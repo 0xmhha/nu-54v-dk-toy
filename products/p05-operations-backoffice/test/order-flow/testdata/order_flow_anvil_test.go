@@ -115,6 +115,11 @@ func (s *shop) seed(t *testing.T, db *pgxpool.Pool, tenant string, life time.Dur
 	fixtureExec(t, db, "INSERT INTO ledger.commerce_grant VALUES($1,$2,'customer',NULL,now()+interval '1 hour')", s.branch, s.actors[customer])
 	fixtureExec(t, db, "INSERT INTO ledger.commerce_grant VALUES($1,$2,'terminal','menu',now()+interval '1 hour')", s.branch, s.actors[terminal])
 	fixtureExec(t, db, "INSERT INTO ledger.finance_grant VALUES($1,$2,'pickup_manage',now()+interval '1 hour')", s.branch, s.actors[kitchen])
+	if os.Getenv("NU54_ORDER_FLOW_OPS_WEB") != "" {
+		// The kitchen's certificate also edits the menu on the operations page of a local run.
+		fixtureExec(t, db, "INSERT INTO ledger.login_subject VALUES($2,$1) ON CONFLICT DO NOTHING", s.actors[kitchen], "cafe_"+s.actors[kitchen])
+		fixtureExec(t, db, "INSERT INTO ledger.staff_grant VALUES($1,$2,'operator',now()-interval '1 minute',null)", s.branch, s.actors[kitchen])
+	}
 	for actor, capabilities := range map[int][]string{
 		finance1: {"report_read", "escrow_claim", "escrow_dispute_request", "escrow_dispute_approve"},
 		finance2: {"escrow_dispute_request", "escrow_dispute_approve"}} {
@@ -446,11 +451,11 @@ func TestOrderFlow(t *testing.T) {
 			CurrentPublication: func(at time.Time) bool { return at.Before(until) }}, known && p.Contract == target.Contract && payer != gas
 	}
 	mux := http.NewServeMux()
-	commerce.HTTP{Store: commerceStore, GasSponsors: sponsors, Credentials: credentials, Signer: fixtureSigner(101), Cipher: qCipher,
+	commerceHTTP := commerce.HTTP{Store: commerceStore, GasSponsors: sponsors, Credentials: credentials, Signer: fixtureSigner(101), Cipher: qCipher,
 		Payment: Forwarder{Store: login("nu54_p05_commerce"), QuoteCipher: qCipher, RelayCipher: relayCipher, Targets: active,
 			GasSponsors: sponsors, MerchantIDs: merchantIDs, Faucet: faucet, GasAccount: gas,
 			RentalEscrow: RentalEscrow{Client: client, Targets: active, Reviews: reviews}},
-		Profiles: profiles, PresentationKey: ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32))}.Register(mux)
+		Profiles: profiles, PresentationKey: ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32))}
 	(FinanceHTTP{Store: login("nu54_p05_finance"), Funds: LiveChain{client}, Targets: targets, Merchants: merchants, Deployments: reviews, GasAccount: gas,
 		Evidence: proof, CloseStore: login("nu54_p05_settlement"), QuoteCipher: qCipher, OperatorOrigin: "https://ops.test",
 		Resolver: fixtureSigner(106).Address(), Credentials: financeCredentials}).Register(mux)
@@ -462,6 +467,12 @@ func TestOrderFlow(t *testing.T) {
 		return server
 	}
 	server := mtls(mux)
+	// A local run serves the operations page from the same origin, which the menu requests must come from.
+	if web := os.Getenv("NU54_ORDER_FLOW_OPS_WEB"); web != "" {
+		commerceHTTP.OperatorOrigin = server.URL
+		mux.Handle("/ops/", http.StripPrefix("/ops/", http.FileServer(http.Dir(web))))
+	}
+	commerceHTTP.Register(mux)
 	receiverMux := http.NewServeMux()
 	Receiver{Store: login("nu54_p05_receiver"), Evidence: proof, Grants: receivers}.Register(receiverMux)
 	receiver := mtls(receiverMux)
