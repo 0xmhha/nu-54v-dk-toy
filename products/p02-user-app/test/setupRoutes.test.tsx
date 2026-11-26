@@ -20,6 +20,7 @@ test('new board setup and already installed board have separate entry points',as
  await Renderer.act(async()=>button('지갑 선택으로').props.onPress());
  await Renderer.act(async()=>button('설치된 보드 연결').props.onPress());
  expect(JSON.stringify(tree!.toJSON())).toContain('독립 설치 기록');
+ await Renderer.act(async()=>tree!.unmount());
 });
 test('Bluetooth denial leaves the existing wallet untouched',async()=>{
  mockStored=''; mockSave.mockClear();
@@ -30,6 +31,7 @@ test('Bluetooth denial leaves the existing wallet untouched',async()=>{
  await Renderer.act(async()=>{button('개인 기기 찾기').props.onPress(); await Promise.resolve();});
  expect(JSON.stringify(tree!.toJSON())).toContain('블루투스 권한');
  expect(mockSave).not.toHaveBeenCalled();
+ await Renderer.act(async()=>tree!.unmount());
 });
 
 test('signed custom installation resumes after restart and is bound before registration',async()=>{
@@ -67,6 +69,7 @@ test('signed custom installation resumes after restart and is bound before regis
  await Renderer.act(async()=>button('같은 보드 등록 계속').props.onPress());
  expect(JSON.stringify(tree!.toJSON())).toContain('독립 설치 기록');
  clock.mockRestore();
+ await Renderer.act(async()=>tree!.unmount());
 });
 test('picker cancellation or malformed trust cannot unlock a challenge',async()=>{
  mockStored=''; mockFiles=[]; let tree:Renderer.ReactTestRenderer;
@@ -79,4 +82,5 @@ test('picker cancellation or malformed trust cannot unlock a challenge',async()=
  await Renderer.act(async()=>{button('독립 신뢰 파일 선택').props.onPress();await Promise.resolve();});
  expect(button('설치 확인 요청 만들기').props.accessibilityState.disabled).toBe(true);
  expect(mockStored).toBe('');
+ await Renderer.act(async()=>tree!.unmount());
 });
