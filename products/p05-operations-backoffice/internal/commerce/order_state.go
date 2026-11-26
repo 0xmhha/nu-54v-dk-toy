@@ -26,6 +26,11 @@ type orderStateChange struct {
 	Closed      *bool    `json:"closed,omitempty"`
 	Products    []string `json:"products,omitempty"`
 	SoldOut     *bool    `json:"soldOut,omitempty"`
+	// The tax-free shop designation; an empty Designation removes it.
+	Designation    *string `json:"designation,omitempty"`
+	DesignatedOn   string  `json:"designatedOn,omitempty"`
+	RefundOperator string  `json:"refundOperator,omitempty"`
+	Confirmed      bool    `json:"confirmed,omitempty"`
 }
 
 // CustomerOrderState is what customers and terminals read with the first menu page.
@@ -33,6 +38,8 @@ type CustomerOrderState struct {
 	Mode        string `json:"mode"`
 	BusyMinutes int    `json:"busyMinutes,omitempty"`
 	ResumeAt    string `json:"resumeAt,omitempty"`
+	// TaxFreeShop is the designation number of a tax-free shop for foreign visitors, as the store entered it.
+	TaxFreeShop string `json:"taxFreeShop,omitempty"`
 	// SoldOut is applied to the menu rows (their counts read as zero), not sent, so a page keeps its size.
 	SoldOut []string `json:"-"`
 }
@@ -92,6 +99,18 @@ func (h HTTP) operateOrderState(w http.ResponseWriter, r *http.Request) {
 		products, _ := json.Marshal(change.Products)
 		err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_sold_out($1,$2,$3,$4,$5)",
 			actor.Tenant, branch, actor.Subject, products, *change.SoldOut).Scan(&reply)
+	case "tax-free":
+		switch {
+		case change.Designation == nil:
+			err = service.BadRequest
+		case *change.Designation == "":
+			err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_tax_free_shop($1,$2,$3,NULL,NULL,NULL)", actor.Tenant, branch, actor.Subject).Scan(&reply)
+		case !change.Confirmed || !calendar.MatchString(change.DesignatedOn) || strings.TrimSpace(change.RefundOperator) == "":
+			err = service.BadRequest // the operator confirms the designation they read
+		default:
+			err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_tax_free_shop($1,$2,$3,$4,$5::date,$6)",
+				actor.Tenant, branch, actor.Subject, *change.Designation, change.DesignatedOn, change.RefundOperator).Scan(&reply)
+		}
 	default:
 		http.NotFound(w, r)
 		return

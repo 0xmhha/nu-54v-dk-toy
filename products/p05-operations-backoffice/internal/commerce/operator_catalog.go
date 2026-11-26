@@ -291,6 +291,7 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 			chosen[option.SKU] = true
 		}
 		groups := make(map[string]map[string]string)
+		refundShop := false
 		for index := range mutation.Rows {
 			row := &mutation.Rows[index]
 			if asset != nil && row.Asset != asset.Address {
@@ -319,6 +320,14 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 			if row.Metadata != nil && row.Metadata.Tax != "" && row.Tax != "0" {
 				operatorResponse(w, nil, service.BadRequest)
 				return
+			}
+			if row.Metadata != nil && row.Metadata.TaxRefund && !refundShop {
+				var named bool
+				if err := h.Store.db.QueryRow(ctx, "SELECT ledger.tax_free_shop_named($1,$2,$3)", actor.Tenant, branch, actor.Subject).Scan(&named); err != nil || !named {
+					operatorResponse(w, nil, service.BadRequest) // only a designated tax-free shop may say so
+					return
+				}
+				refundShop = true
 			}
 			if row.DisplayPrice == "" && (row.Tax != "" || row.Discount != "" || row.Required || mutation.Hours != nil) {
 				operatorResponse(w, nil, service.BadRequest)

@@ -238,6 +238,33 @@ func TestPostgresOrderState(t *testing.T) {
 	if _, err := store.db.Exec(ctx, "DELETE FROM ledger.branch_state_log"); err == nil {
 		t.Fatal("the server's role deleted the record")
 	}
+	// A refund mark needs a designated tax-free shop, confirmed by the operator, and a taxed take-away good.
+	refund := func(tax string) map[string]any {
+		r := cookie("beans")
+		r.Metadata = &menuMetadata{Tax: tax, TakeAway: true, TaxRefund: true}
+		r.Tax = "0"
+		return map[string]any{"requestKey": fresh(), "version": 1, "expiresAt": time.Now().Add(time.Hour).UTC(),
+			"rows": []operatorRow{cookie("cookie"), cookie("cake"), r}}
+	}
+	call("POST", "/v2/operations/catalog/"+branch+"/publish", refund("vat10"), 400)
+	number := "123-45-67890-001"
+	set("tax-free", map[string]any{"designation": number, "designatedOn": "2026-11-20", "refundOperator": "환급 창구"}, 400)
+	set("tax-free", map[string]any{"designation": "번호", "designatedOn": "2026-11-20", "refundOperator": "환급 창구", "confirmed": true}, 400)
+	set("tax-free", map[string]any{"designation": number, "designatedOn": "2999-01-01", "refundOperator": "환급 창구", "confirmed": true}, 400)
+	shop := set("tax-free", map[string]any{"designation": number, "designatedOn": "2026-11-20", "refundOperator": "환급 창구", "confirmed": true}, 200)
+	if shop["taxFreeShop"].(map[string]any)["designation"] != number || shop["taxFreeShop"].(map[string]any)["by"] != operator {
+		t.Fatal(shop)
+	}
+	if s := seen(); s.TaxFreeShop != number {
+		t.Fatalf("%+v", s)
+	}
+	call("POST", "/v2/operations/catalog/"+branch+"/publish", refund("exempt"), 400)
+	call("POST", "/v2/operations/catalog/"+branch+"/publish", refund("vat10"), 200)
+	set("tax-free", map[string]any{"designation": ""}, 200)
+	if s := seen(); s.TaxFreeShop != "" {
+		t.Fatal("the number stayed after it was removed")
+	}
+
 	// The operations routes refuse a page from another origin.
 	req, _ := http.NewRequestWithContext(ctx, "POST", server.URL+state+"/mode", strings.NewReader(`{"mode":"open"}`))
 	req.Header.Set("Origin", "https://elsewhere.invalid")

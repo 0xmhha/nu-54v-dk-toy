@@ -16,7 +16,10 @@ type menuMetadata struct {
 	CrossContact          string            `json:"crossContact,omitempty"`
 	// The tax the price includes: "vat10" or "exempt". Empty keeps the old way, a tax amount added to the price.
 	Tax string `json:"tax,omitempty"`
-	// A good a visitor may claim the tax back on. Shown only; nothing is taken off the price yet.
+	// A take-away good, carried away rather than eaten or drunk in the store.
+	TakeAway bool `json:"takeAway,omitempty"`
+	// A good a foreign visitor may claim the tax back on: taxed, taken away, and sold by a designated tax-free shop.
+	// Shown only; nothing is taken off the price, and the store's refund counter does the refund.
 	TaxRefund bool `json:"taxRefund,omitempty"`
 }
 
@@ -50,7 +53,7 @@ func (m menuMetadata) valid() bool {
 	if m.CrossContactAllergens != nil && (m.CrossContact != "possible" || len(*m.CrossContactAllergens) == 0) {
 		return false
 	}
-	if (m.Tax != "" && m.Tax != "vat10" && m.Tax != "exempt") || (m.TaxRefund && m.Tax == "") {
+	if (m.Tax != "" && m.Tax != "vat10" && m.Tax != "exempt") || (m.TaxRefund && (m.Tax != "vat10" || !m.TakeAway)) {
 		return false
 	}
 	return (m.Allergens == nil || validDeclaredAllergens(*m.Allergens)) &&

@@ -69,7 +69,12 @@ export type CommerceMenuMetadata = {
   crossContactSource?: "shared-equipment" | "shared-baking-equipment";
   /** The price includes this tax. Absent: the store said nothing, as before. */
   tax?: "vat10" | "exempt";
-  /** Marked by the store as a good a visitor may claim the tax back on. Shown only; nothing is taken off yet. */
+  /** A take-away good, carried away rather than eaten or drunk in the store. */
+  takeAway?: boolean;
+  /**
+   * A taxed take-away good a foreign visitor may claim the tax back on. Shown only while the store is a designated
+   * tax-free shop (CommerceOrderState.taxFreeShop); nothing is taken off the price, and the store's counter refunds.
+   */
   taxRefund?: boolean;
 };
 export function commerceMenuLabels(row: CommercePrice, locale: "ko" | "en") {
@@ -188,7 +193,8 @@ function validMenuMetadata(value: unknown): boolean {
       )) &&
     (metadata.allergens === undefined || validAllergens(metadata.allergens)) &&
     (metadata.tax === undefined || metadata.tax === "vat10" || metadata.tax === "exempt") &&
-    (metadata.taxRefund === undefined || (metadata.taxRefund === true && metadata.tax !== undefined))
+    (metadata.takeAway === undefined || metadata.takeAway === true) &&
+    (metadata.taxRefund === undefined || (metadata.taxRefund === true && metadata.tax === "vat10" && metadata.takeAway === true))
   );
 }
 
@@ -417,24 +423,31 @@ function validOrderEscrow(order: CommerceOrder) {
  * Whether the store takes new orders. "busy" still takes them and says how long they take; "paused" and "closed"
  * (a closed day) do not, and the server refuses a new order or quote. resumeAt is the store's own note, never applied.
  */
-export type CommerceOrderState =
+export type CommerceOrderState = (
   | {mode: "open"}
   | {mode: "busy"; busyMinutes: number}
   | {mode: "paused"; resumeAt?: string}
-  | {mode: "closed"};
+  | {mode: "closed"}
+) & {
+  /** The designation number of a tax-free shop for foreign visitors, as the store entered it. */
+  taxFreeShop?: string;
+};
 
 /** Reads the state sent with the first menu page; anything unexpected reads as nothing known. */
 export function readOrderState(value: unknown): CommerceOrderState | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const state = value as Record<string, unknown>;
-  if (Object.keys(state).some(key => !["mode", "busyMinutes", "resumeAt"].includes(key))) return undefined;
-  if (state.mode === "open" || state.mode === "closed") return {mode: state.mode};
+  if (Object.keys(state).some(key => !["mode", "busyMinutes", "resumeAt", "taxFreeShop"].includes(key))) return undefined;
+  if (state.taxFreeShop !== undefined && (typeof state.taxFreeShop !== "string" || !/^[0-9A-Za-z-]{4,40}$/.test(state.taxFreeShop)))
+    return undefined;
+  const shop = state.taxFreeShop === undefined ? {} : {taxFreeShop: state.taxFreeShop as string};
+  if (state.mode === "open" || state.mode === "closed") return {mode: state.mode, ...shop};
   if (state.mode === "busy" && Number.isSafeInteger(state.busyMinutes) && (state.busyMinutes as number) >= 5 &&
-      (state.busyMinutes as number) <= 60) return {mode: "busy", busyMinutes: state.busyMinutes as number};
+      (state.busyMinutes as number) <= 60) return {mode: "busy", busyMinutes: state.busyMinutes as number, ...shop};
   if (state.mode === "paused") {
-    if (state.resumeAt === undefined) return {mode: "paused"};
+    if (state.resumeAt === undefined) return {mode: "paused", ...shop};
     if (typeof state.resumeAt === "string" && /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(state.resumeAt))
-      return {mode: "paused", resumeAt: state.resumeAt};
+      return {mode: "paused", resumeAt: state.resumeAt, ...shop};
   }
   return undefined;
 }

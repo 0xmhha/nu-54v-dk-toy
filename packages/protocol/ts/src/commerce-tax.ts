@@ -23,6 +23,22 @@ export function commerceLineTax(row: CommercePrice, quantity: number, profile?: 
   return { total, tax: total - supply, supply };
 }
 
+/** The least a visitor buys at once from a tax-free shop to claim the tax back, in won (the decree's rule). */
+export const commerceRefundMinimumWon = 15_000n;
+
+/**
+ * The goods in a basket a foreign visitor may claim the tax back on, while the store is a designated tax-free shop.
+ * Only for won prices; reaches says whether they come to the minimum. The refund itself is the store's counter's.
+ */
+export function commerceRefundGoods(selection: CommerceSelection, profile?: CommercePaymentProfile, taxFreeShop?: string) {
+  if (!taxFreeShop || !profile || !isWon(paymentToken(profile))) return undefined;
+  const lines = Object.values(selection).filter(({ row }) => row.metadata?.taxRefund && row.metadata.tax === "vat10" && row.metadata.takeAway);
+  if (!lines.length) return undefined;
+  const total = lines.reduce((sum, { row, quantity }) => sum + BigInt(row.unitPrice) * BigInt(quantity), 0n);
+  const unit = 10n ** BigInt(paymentToken(profile).decimals);
+  return { total, reaches: total >= commerceRefundMinimumWon * unit, lines: lines.map(({ row }) => row) };
+}
+
 /** A basket: the sum of its lines, or undefined while any line has no tax said. */
 export function commerceCartTax(selection: CommerceSelection, profile?: CommercePaymentProfile): CommerceTax | undefined {
   const lines = Object.values(selection).map(({ row, quantity }) => commerceLineTax(row, quantity, profile));
