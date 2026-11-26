@@ -1,3 +1,4 @@
+import {MaskRise} from './Motion.tsx';
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {color, font, radius} from '../ui/theme.ts';
@@ -15,7 +16,7 @@ export function PickupTicket({number, store}: {number: string | number; store?: 
   return <View style={styles.ticket} accessible accessibilityLabel={`${store ? store + ' ' : ''}주문번호 ${number}`}>
     {!!store && <Text style={styles.ticketStore}>{store}</Text>}
     <Text style={styles.ticketLabel}>주문번호</Text>
-    <Text style={styles.ticketNumber}>{number}</Text>
+    <MaskRise height={72}><Text style={styles.ticketNumber}>{number}</Text></MaskRise>
   </View>;
 }
 

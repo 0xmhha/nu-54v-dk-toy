@@ -27,6 +27,8 @@ const mockThumb = mockPhoto.slice(0, 700);
 const mockHex = (bytes: Uint8Array) => require('@noble/hashes/sha256').sha256(bytes).reduce((s: string, b: number) => s + b.toString(16).padStart(2, '0'), '');
 let mockPhotos = false;
 let mockTaxed = false;
+let mockState: unknown;
+let mockPauseAtPay = false;
 const mockPhotoReads: string[] = [];
 const mockProfile = () => ({ branchRef: mockShop, subjectRef: mockRef(2), tenantRef: mockRef(5), role: 'terminal', expiresAt: mockClock() + 120 });
 const mockGroups: CommerceSkuOptions['groups'] = [
@@ -89,10 +91,15 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
         const at = Number(command.body.offset);
         return JSON.stringify({ ...response, photo: { size: bytes.length, data: mockBase64(bytes.slice(at, at + 18000)) } });
       }
-      if (command.operation === 'catalog.read') return JSON.stringify({ ...response, ...mockCatalog() });
+      if (command.operation === 'catalog.read')
+        return JSON.stringify({ ...response, ...mockCatalog(), ...(mockState && command.body.page === '0' ? { orderState: mockState } : {}) });
       if (command.operation === 'terminal.state')
         return JSON.stringify({ ...response, terminal: { mode: 'menu', revision: 1 } });
       if (command.operation === 'order.create') {
+        if (mockPauseAtPay) {
+          mockState = { mode: 'paused', resumeAt: '11:20' };
+          return JSON.stringify({ requestId, requestDigest, status: 'error', error: 'CATALOG_CHANGED' });
+        }
         mockCarts.push(cart!);
         return JSON.stringify({ ...response, resultRef: mockSale });
       }
@@ -128,6 +135,8 @@ beforeEach(() => {
   mockDropped = '';
   mockPhotos = false;
   mockTaxed = false;
+  mockState = undefined;
+  mockPauseAtPay = false;
   mockPhotoReads.length = 0;
   Dimensions.set({ window, screen: window });
 });
@@ -256,5 +265,42 @@ test('the basket says how much tax its prices include, line by line, and only wh
     await press(tree, '쿠키 standard 추가');
     expect(view(tree)).not.toContain('공급가액');
     expect(view(tree)).toContain('세금 1,127원 포함');
+  });
+});
+
+test('a busy store shows its minutes above the menu, and orders still go', async () => {
+  mockState = { mode: 'busy', busyMinutes: 25 };
+  await kiosk(async tree => {
+    expect(view(tree)).toContain('지금은 약 25분 걸립니다');
+    expect(view(tree)).toContain('5,000원부터');
+    await press(tree, '쿠키 standard 추가');
+    await press(tree, '하드월렛으로 결제');
+      expect(mockCarts).toHaveLength(1);
+  });
+});
+
+test('a paused store or a closed day shows why in place of the menu', async () => {
+  mockState = { mode: 'paused', resumeAt: '11:20' };
+  await kiosk(async tree => {
+    expect(view(tree)).toContain('지금은 주문을 잠시 멈췄습니다');
+    expect(view(tree)).toContain('11:20쯤 다시 받는다고');
+    expect(button(tree, '카페라떼 옵션 선택')).toBeUndefined();
+  });
+  mockState = { mode: 'closed' };
+  await kiosk(async tree => {
+    expect(view(tree)).toContain('오늘은 쉬는 날입니다');
+    expect(button(tree, '카페라떼 옵션 선택')).toBeUndefined();
+  });
+});
+
+test('a pause that comes while paying clears the basket and says nothing was charged', async () => {
+  mockPauseAtPay = true;
+  await kiosk(async tree => {
+    await press(tree, '쿠키 standard 추가');
+    await press(tree, '하드월렛으로 결제');
+    expect(mockCarts).toHaveLength(0);
+    expect(view(tree)).toContain('지금은 주문을 잠시 멈췄습니다');
+    expect(view(tree)).toContain('담아 둔 것을 지웠습니다. 돈은 나가지 않았습니다.');
+    expect(button(tree, '하드월렛으로 결제').props.disabled).toBe(true);
   });
 });

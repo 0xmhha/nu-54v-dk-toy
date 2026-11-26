@@ -71,6 +71,7 @@ import {
   type CustomerOrderSummary,
   type SubscriptionInvoice,
   type CommercePrice,
+  type CommerceOrderState,
   type CommerceCartReview,
   type CommerceSelection,
   type NearbyCommerceLink,
@@ -79,6 +80,7 @@ import {
   type CommercePaymentProfile,
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
+import {StoreNotice, storeStopped} from './StoreNotice.tsx';
 import {BookingPaymentTerms, type TravelBookingPayment, type TravelBookingScope} from '../travel/BookingPaymentTerms.tsx';
 import {TravelPickupDetail} from '../travel/TravelPickupDetail.tsx';
 import Nearby from '../specs/NativeNearby.ts';
@@ -317,6 +319,8 @@ export function CustomerOrders({
   }, [subscriptionLink]);
   const [menuLocale, setMenuLocale] = useState<'ko' | 'en'>('ko');
   const [catalog, setCatalog] = useState<CommercePrice[]>([]);
+  // What the store said about taking orders, read with the menu from the server; refused marks a payment it stopped.
+  const [storeState, setStoreState] = useState<{state?: CommerceOrderState; refused?: boolean; checkedAt?: string}>({});
   const [menuCategory, setMenuCategory] = useState('');
   const [menuReadOnly, setMenuReadOnly] = useState(false);
   const menuCheckedAt = useRef<number | undefined>(undefined);
@@ -886,6 +890,8 @@ export function CustomerOrders({
     expired = false,
   ) {
     const rows = await readCatalog();
+    // A pause or a closed day refuses the order before any money moves; the basket stays for later.
+    setStoreState(previous => ({...previous, refused: storeStopped(previous.state)}));
     if (!stillCurrent()) return;
     const previous =
       check.selection ??
@@ -1196,7 +1202,16 @@ export function CustomerOrders({
   async function readCatalog(routeLink: NearbyCommerceLink | null | undefined = link, opening = false): Promise<CommercePrice[]> {
     if (!client) throw new Error('CLIENT_REQUIRED');
     if (!pickupMode && !opening && !shop) throw new Error('SHOP_NOT_CONFIRMED');
-    if (!routeLink) return client.publishedCatalog();
+    if (!routeLink) {
+      const menu = await client.publishedMenu();
+      const at = new Date(now() * 1000);
+      setStoreState(previous => ({
+        state: menu.orderState,
+        refused: previous.refused && storeStopped(menu.orderState),
+        checkedAt: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`,
+      }));
+      return menu.catalog;
+    }
     const rows: CommercePrice[] = [];
     let offset = 0;
     let snapshot: number | undefined;
@@ -2887,6 +2902,13 @@ export function CustomerOrders({
               }
             />
           )}
+          {!point && (shop || pickupMode) && (
+            <StoreNotice state={storeState.state} refused={storeState.refused} checkedAt={storeStopped(storeState.state) ? storeState.checkedAt : undefined} />
+          )}
+          {!point && (shop || pickupMode) && storeStopped(storeState.state) && (
+            <Button label="다시 받는지 확인" disabled={busy}
+              run={() => work(async () => { setCatalog(await readCatalog()); }, '매장 상태를 확인하지 못했습니다. 다시 시도하세요.')} />
+          )}
           {!point && (shop || pickupMode) && !!catalog.length && (
             <Button
               label={
@@ -3047,7 +3069,7 @@ export function CustomerOrders({
                     ? '바뀐 장바구니 확인 후 주문 접수'
                     : '주문 접수 요청'
               }
-              disabled={busy}
+              disabled={busy || storeStopped(storeState.state)}
               run={() =>
                 work(
                   reserve,

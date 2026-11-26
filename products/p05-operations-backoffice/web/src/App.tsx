@@ -15,6 +15,7 @@ import { CatalogCategories, CategoryReview, type CategoryDraft } from "./Catalog
 import { MenuDeclarations, menuDeclarationSummary } from "./MenuDeclarations";
 import { OptionReview, ProductEditor, ProductList } from "./MenuOptions";
 import { PhotoField, PhotoReview, photoLimit, type PhotoInfo } from "./MenuPhotos";
+import { StoreState, type Product as StoreProduct } from "./StoreState";
 import { TaxField, TaxReview } from "./MenuTax";
 import { emptyGroup, emptyProduct, menuLines, productProblems, publishedProducts, rowLimit, savedProducts, type Product, type SavedOptions } from "./optionGroups";
 import { useRef, useState, type FormEvent } from "react";
@@ -245,6 +246,16 @@ async function exchange(path: string, body?: Record<string, unknown>) {
     throw new Error("UNKNOWN");
   }
   return reply.json();
+}
+/** One entry per product of the published menu, for marking sold out. */
+function storeProducts(rows: Site["catalog"]["rows"]): StoreProduct[] {
+  const products = new Map<string, StoreProduct>();
+  for (const row of rows) {
+    const known = products.get(row.sku);
+    if (known) known.rows += 1;
+    else products.set(row.sku, { sku: row.sku, label: row.label, rows: 1, available: Number(row.available) });
+  }
+  return [...products.values()];
 }
 const endpoint = (branch: string) =>
   `/v2/operations/catalog/${encodeURIComponent(branch)}`;
@@ -664,6 +675,14 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               </ul>
             )}
           </section>
+          {site.catalog.version > 0 && (
+            <StoreState
+              key={site.branch}
+              branch={site.branch}
+              zone={site.catalog.timezone}
+              products={storeProducts(site.catalog.rows)}
+            />
+          )}
           {stale && (
             <section aria-label="편집본 충돌">
               <p>
@@ -972,7 +991,12 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                   <button
                     type="button"
                     disabled={menuLines(products, draft.length) >= rowLimit}
-                    onClick={() => setDraft((rows) => [...rows, { ...fresh(), sku: rowsOf.sku, asset: site.asset?.address ?? "" }])}
+                    onClick={() => setDraft((rows) => {
+                      // A new option of a product keeps the product's tax, so one product never mixes two ways of taxing.
+                      const same = rows.find((row) => row.sku === rowsOf.sku)?.metadata;
+                      const tax = same?.tax ? { tax: same.tax, ...(same.taxRefund ? { taxRefund: true } : {}) } : undefined;
+                      return [...rows, { ...fresh(), sku: rowsOf.sku, asset: site.asset?.address ?? "", ...(tax ? { metadata: tax } : {}) }];
+                    })}
                   >
                     옵션 추가
                   </button>

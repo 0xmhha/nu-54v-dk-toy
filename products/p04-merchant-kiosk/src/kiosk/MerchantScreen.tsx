@@ -2,6 +2,8 @@ import { sha256 } from '@noble/hashes/sha256';
 import { menuCategories, MenuCategorySelector } from './menuCategories';
 import { MenuChoices } from './MenuChoices';
 import { MenuPhoto } from './MenuPhoto';
+import { StoreNotice, storeStopped } from './StoreNotice';
+import { MaskRise, PaidMark, PaymentSteps, Pop, SlideIn } from './Motion';
 import {
   useCallback,
   useEffect,
@@ -68,6 +70,7 @@ import {
   type CommerceCart,
   type CommerceOrder,
   type CommercePrice,
+  type CommerceOrderState,
   type CommerceCartReview,
   type CommerceSelection,
   type StaffAccess,
@@ -274,6 +277,8 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
   const selectedCategory = categories.some(({ key }) => key === menuCategory) ? menuCategory : '';
   const [offlineMenu,setOfflineMenu]=useState<CachedMenu>();
   const [menuBranchLabel,setMenuBranchLabel]=useState<string>();
+  // What the store said about taking orders, read with the menu; cleared marks a basket emptied by a pause.
+  const [orderState,setOrderState]=useState<{state?:CommerceOrderState; cleared?:boolean}>({});
   const menuScope=useRef<string>(undefined);
   const [choice, setChoice] = useState<CommerceSelection>({});
   const [basketOpen, setBasketOpen] = useState(false);
@@ -816,7 +821,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         setOfflineMenu(undefined);
         return {current:observed, menu:[]};
       }
-      const {catalog,shop}=await client.publishedMenu();
+      const {catalog,shop,orderState:state}=await client.publishedMenu();
       const confirmed=await client.terminalState();
       if (generation!==staffEpoch.current) return undefined;
       if (confirmed.mode!=='menu' || confirmed.revision!==observed.revision ||
@@ -830,7 +835,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       }
       if (generation!==staffEpoch.current) return undefined;
       setOfflineMenu(undefined);
-      return {current:confirmed,menu:catalog,shop};
+      return {current:confirmed,menu:catalog,shop,state};
     } catch (error) {
       const available=networkUnavailable(error) && await enrolled().catch(()=>false);
       const raw=available ? await transport.loadJournal(menuCacheJournal).catch(()=> '') : '';
@@ -876,7 +881,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     await inbox.reclaimPublicOrders(sale => client.status(sale));
     const online=await publicMenuStatus();
     if (!online || generation!==staffEpoch.current) return;
-    const {current,menu,shop}=online;
+    const {current,menu,shop,state}=online;
     if (current.transition?.state === 'waiting') {
       const applied = await applyTerminalVersion(current.transition);
       if (generation !== staffEpoch.current) return;
@@ -899,6 +904,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     inbox.openPublic(handle);
     setMode(current);
     setMenuBranchLabel(shop?.branchLabel);
+    setOrderState({state});
     setStock(menu);
     setMenuLocale(deviceRef.current.language);
     show({ session: handle });
@@ -1077,8 +1083,17 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       if (active.current?.session !== session || active.current.connectionEnded) return;
       setCartReview(reviewCommerceCart(previous, stock));
       show({ session });
-      const refreshed = await client.publishedCatalog();
+      const {catalog: refreshed, orderState: state} = await client.publishedMenu();
       if (active.current?.session !== session || active.current.connectionEnded) return;
+      if (storeStopped(state)) {
+        // Paused or closed while paying: nothing was charged, and the basket cannot be ordered now.
+        setOrderState({state, cleared: Object.keys(previous).length > 0});
+        setCartReview(undefined);
+        setChoice({});
+        setStock(refreshed);
+        return;
+      }
+      setOrderState({state});
       applyCartReview(reviewCommerceCart(previous, refreshed), refreshed);
       return;
     }
@@ -1876,7 +1891,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           const names = commerceMenuLabels(row, menuLocale);
           const required = menuGroups.get(row.sku)?.some(item => item.metadata?.optionRequired);
           return (
-            <View key={commerceLineKey(row)} style={s.basketLine}>
+            <SlideIn key={commerceLineKey(row)} style={s.basketLine}>
               <Label>{`${names.name} ×${quantity}`}</Label>
               {(() => { const line = commerceLineTax(row, quantity, policy); return line && <Text style={s.hint}>{taxNote(line.tax, row.asset)}</Text>; })()}
               {(required || basketOpen || wide) && !menuDetail && !cartReplacement && <Button
@@ -1885,7 +1900,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 disabled={busy}
                 run={() => reduceChoice(row)}
               />}
-            </View>
+            </SlideIn>
           );
         })}
         {!menuDetail && !cartReplacement && <>
@@ -2519,6 +2534,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             {branchTitle ? (
               <Text accessibilityRole="header" style={screen.key ? s.hint : s.title}>{menuBranchLabel}</Text>
             ) : <Label>{mode?.mode === 'pos' ? 'POS 결제 전용' : '메뉴 주문'}</Label>}
+            {!screen.key && mode?.mode === 'menu' && <StoreNotice state={orderState.state} ko={menuLocale === 'ko'} cleared={orderState.cleared} />}
             {!screen.key && mode?.mode === 'pos' && (
               <>
                 <Label>StableNet 테스트넷 8283 · {paymentToken(policy).label}</Label>
@@ -2545,7 +2561,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 />
               </>
             )}
-            {!screen.key && mode?.mode === 'menu' && (
+            {!screen.key && mode?.mode === 'menu' && !storeStopped(orderState.state) && (
               <>
                 <View style={s.footer}>
                 {!!stock.length && (
@@ -2794,9 +2810,12 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             )}
             {screen.key && progress === 'paid' && screen.sale && (
               <View style={s.paid} accessibilityLiveRegion="polite">
+                <PaidMark label="결제 완료" />
                 <Text accessibilityRole="header" style={s.paidBadge}>결제 완료</Text>
                 <Text style={s.paidLabel}>주문번호</Text>
-                <Text accessibilityLabel={`주문번호 ${screen.sale.pickupNo}`} style={s.paidNumber}>{screen.sale.pickupNo}</Text>
+                <MaskRise height={150}>
+                  <Text accessibilityLabel={`주문번호 ${screen.sale.pickupNo}`} style={s.paidNumber}>{screen.sale.pickupNo}</Text>
+                </MaskRise>
                 <View style={s.paidRow}>
                   {screen.pos && <Text style={s.label}>{`POS 주문 ${screen.pos.reference}`}</Text>}
                   <Text style={s.label}>{screen.pos ? posAmount(screen.sale.amount, paymentToken(policy))
@@ -2836,6 +2855,10 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                 {screen.selectedCode && (
                   <Label>{`연결한 휴대전화 · ${screen.selectedCode}`}</Label>
                 )}
+                {!screen.pos && !!progress && ['open', 'approving', 'submitting', 'unknown'].includes(progress) &&
+                  <PaymentSteps label={menuLocale === 'ko' ? '결제 단계' : 'Payment steps'}
+                    steps={menuLocale === 'ko' ? ['주문 확인', '휴대전화 승인', '결제 확인', '완료'] : ['Order', 'Phone approves', 'Checking', 'Done']}
+                    current={progress === 'open' ? (screen.paired || screen.selectedCode ? 1 : 0) : progress === 'approving' ? 1 : 2} />}
                 <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.title}>
                   {progress === 'unpaid'
                     ? '결제되지 않았습니다 · 빠져나간 돈은 없습니다'
@@ -3051,9 +3074,14 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
       {wide && basketVisible && !publicGuide && !picking && (
         <View accessibilityLabel={menuLocale === 'ko' ? '장바구니' : 'Basket'} style={s.aside}>
           <ScrollView contentContainerStyle={s.asideScroll}>
-            <Text ref={basketHeading} accessibilityRole="header" style={s.heading}>
-              {menuLocale === 'ko' ? '장바구니' : 'Basket'}
-            </Text>
+            <View style={s.basketHead}>
+              <Text ref={basketHeading} accessibilityRole="header" style={s.heading}>
+                {menuLocale === 'ko' ? '장바구니' : 'Basket'}
+              </Text>
+              {!!basketUnits && <Pop value={basketUnits} style={s.countBadge}>
+                <Text accessibilityLabel={menuLocale === 'ko' ? `담은 수 ${basketUnits}` : `${basketUnits} in basket`} style={s.countText}>{basketUnits}</Text>
+              </Pop>}
+            </View>
             {!basketUnits && <Text style={s.hint}>{menuLocale === 'ko' ? '담은 메뉴가 없습니다.' : 'Your basket is empty.'}</Text>}
             {basketSummary}
             <Button label="주문 그만하기" run={() => openPublicGuide('cancel')} disabled={busy} />
@@ -3143,6 +3171,9 @@ const s = StyleSheet.create({
   choosingAdd: { flexGrow: 1, flexBasis: 320, gap: 6 },
   quantity: { minWidth: 40, fontSize: 22, fontWeight: '800', color: ink, textAlign: 'center', alignSelf: 'center' },
   basketLine: { borderBottomWidth: 1, borderBottomColor: line, paddingBottom: 10, gap: 8 },
+  basketHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  countBadge: { minWidth: 34, height: 34, borderRadius: 17, backgroundColor: '#174b38', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  countText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   scroll: { padding: 28, gap: 14 },
   title: { fontSize: 30, color: ink, fontWeight: '800', letterSpacing: -0.6 },
   heading: { fontSize: 22, color: ink, fontWeight: '800' },

@@ -4,6 +4,7 @@ import {BoardStepPanel} from '../wallet/BoardStepPanel.tsx';
 import {Card, KitButton, Row, Section} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
 import {AmountLine, PickupTicket} from './paymentParts.tsx';
+import {PaidMark} from './Motion.tsx';
 
 // States of an order paid with the owner's board into the escrow. CustomerOrders decides the state;
 // this file only draws it, so the fixture demo and the tests show the same screens.
@@ -173,6 +174,7 @@ export function OrderPayment({view, actions, busy = false, message, t = text => 
       <KitButton label="결제 화면 닫기" run={actions.close} variant="secondary" />
     </>}
     {view.kind === 'done' && <>
+      <View style={styles.paidMark}><PaidMark size={88} label="결제했습니다" /></View>
       <PickupTicket number={view.number} store={view.store} />
       <Card><AmountLine amount={view.amount} label="결제 금액" />
         <Text style={type.body}>매장에서 이 번호를 보여 주세요. 준비 상태는 결제 탭에서 볼 수 있습니다.</Text></Card>
@@ -187,6 +189,7 @@ export function OrderPayment({view, actions, busy = false, message, t = text => 
 }
 
 const styles = StyleSheet.create({
+  paidMark: {alignItems: 'center', paddingVertical: 8},
   screen: {gap: 14, paddingBottom: 24},
   amountCard: {padding: 20},
   store: {fontFamily: font, fontSize: 17, fontWeight: '800', color: color.mint},

@@ -16,7 +16,8 @@ const mockCarts: CommerceCart[] = [];
 const mockJournals = new Map<string, string>();
 const mockThumb = Uint8Array.from({length: 900}, (_, i) => (i * 11) & 255);
 const mockThumbName = require('@noble/hashes/sha256').sha256(mockThumb).reduce((s: string, b: number) => s + b.toString(16).padStart(2, '0'), '');
-let mockPhotoReads = 0, mockServerDown = false, mockTaxed = false;
+let mockPhotoReads = 0, mockServerDown = false, mockTaxed = false, mockPauseAtPay = false;
+let mockState: unknown;
 let mockNearby = false, mockStock: number | undefined = 5, mockOffline = false, mockSoldOut = '-', mockEntropy = 0;
 const mockGroups: CommerceSkuOptions['groups'] = [
   {key: 'temp', labels: {ko: '온도', en: 'Temperature'}, values: [{key: 'hot', labels: {ko: '뜨겁게', en: 'Hot'}}, {key: 'ice', labels: {ko: '차갑게', en: 'Iced'}}]},
@@ -70,14 +71,21 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     if (mockOffline) throw Object.assign(new Error('offline'), {code: 'COMMERCE_NETWORK_OFFLINE'});
     if (command.operation === 'catalog.read')
       return JSON.stringify({...reply, catalog: mockRows(false), catalogVersion: 1, catalogOptions: [{sku: 'latte', groups: mockGroups}], shop: mockShop,
-        catalogPhotos: [{sku: 'latte', photo: 'a'.repeat(64), thumb: mockThumbName}]});
+        catalogPhotos: [{sku: 'latte', photo: 'a'.repeat(64), thumb: mockThumbName}], ...(mockState ? {orderState: mockState} : {})});
     if (command.operation === 'catalog.photo') {
       mockPhotoReads++;
       if (mockServerDown) throw Object.assign(new Error('offline'), {code: 'COMMERCE_NETWORK_OFFLINE'});
       expect(command.body.photo).toBe(mockThumbName); // the small copy is enough for the phone
       return JSON.stringify({...reply, photo: {size: mockThumb.length, data: mockBase64(mockThumb)}});
     }
-    if (command.operation === 'order.create') { mockCarts.push(cart!); throw new Error('no reply'); }
+    if (command.operation === 'order.create') {
+      if (mockPauseAtPay) {
+        mockState = {mode: 'paused', resumeAt: '11:20'};
+        return JSON.stringify({requestId, requestDigest, status: 'error', error: 'CATALOG_CHANGED'});
+      }
+      mockCarts.push(cart!);
+      throw new Error('no reply');
+    }
     throw new Error('unexpected ' + command.operation);
   },
 }}));
@@ -113,6 +121,8 @@ beforeEach(() => {
   mockPhotoReads = 0;
   mockServerDown = false;
   mockTaxed = false;
+  mockState = undefined;
+  mockPauseAtPay = false;
 });
 
 test.each([false, true])('the combination the customer picked is the one that is ordered (nearby=%s)', async nearby => {
@@ -257,5 +267,38 @@ test('the basket shows the tax its prices include once every line says it', asyn
     expect(view(tree)).toContain('세금(가격에 포함) · 1,000원');
     await tap(tree, '쿠키 standard 추가');
     expect(view(tree)).not.toContain('공급가액');
+  });
+});
+
+test('a busy store shows its minutes above the menu', async () => {
+  mockState = {mode: 'busy', busyMinutes: 25};
+  await shopping(async tree => {
+    expect(view(tree)).toContain('지금은 약 25분 걸립니다');
+    expect(view(tree)).toContain('주문은 받습니다');
+  });
+});
+
+test('a paused store says when it said it would take orders again, and the order cannot be sent', async () => {
+  mockState = {mode: 'paused', resumeAt: '11:20'};
+  await shopping(async tree => {
+    expect(view(tree)).toContain('매장이 주문을 잠시 멈췄습니다');
+    expect(view(tree)).toContain('11:20쯤 다시 받는다고 알렸습니다.');
+    await tap(tree, '쿠키 standard 추가');
+    expect(button(tree, '주문 접수 요청').props.disabled).toBe(true);
+    mockState = {mode: 'open'};
+    await tap(tree, '다시 받는지 확인');
+    expect(view(tree)).not.toContain('매장이 주문을 잠시 멈췄습니다');
+    expect(button(tree, '주문 접수 요청').props.disabled).toBeFalsy();
+  });
+});
+
+test('a pause that comes while paying keeps the basket and says nothing was charged', async () => {
+  mockPauseAtPay = true;
+  await shopping(async tree => {
+    await tap(tree, '쿠키 standard 추가');
+    await tap(tree, '주문 접수 요청');
+    expect(view(tree)).toContain('매장이 주문을 잠시 멈췄습니다');
+    expect(view(tree)).toContain('결제하지 않았습니다. 돈은 나가지 않았고, 담은 것은 그대로 두었습니다.');
+    expect(mockCarts).toHaveLength(0);
   });
 });

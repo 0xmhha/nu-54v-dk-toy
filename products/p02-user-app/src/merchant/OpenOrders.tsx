@@ -162,7 +162,8 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
       <AmountLine amount={amount} label="결제 금액" />
       <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
     </Card>
-    {order.items && money && <Receipt items={order.items} money={money} />}
+    {order.items && money && order.items.reduce((sum, item) => sum + BigInt(item.total), 0n).toString() === order.amount &&
+      <Receipt items={order.items} money={money} />}
     {given && (order.pendingAction
       ? <View style={styles.notice}><Text style={styles.noticeText}>{`'${answers[given].label}' 답을 확인하고 있습니다. 확정되면 상태가 바뀝니다.`}</Text></View>
       : <View style={styles.notice}>

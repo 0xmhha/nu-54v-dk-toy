@@ -24,6 +24,12 @@ test('the receipt shows each line with the supply value and the tax inside it, a
   for (const part of ['영수증', '카페라떼 · 차갑게 · 크게 · 샷 추가 ×1', '6,000원', '5,455원', '545원', '590원', '5,910원',
     '공급가액 합계', '11,365원', '세금 합계', '1,135원', '낸 금액', '12,500원', '뺀 금액'])
     expect(text(tree)).toContain(part);
+  // Lines that do not add up to what was paid are not shown as a receipt.
+  await Renderer.act(async () => {
+    tree.update(<OrderDetail order={{...order, amount: '1250001'}} amount="12,500원" money={money} fresh={false} now={1_764_000_100}
+      actions={{answer: () => {}, refresh: () => {}, back: () => {}}} />);
+  });
+  expect(text(tree)).not.toContain('영수증');
   // An order kept before receipts were kept shows its amount alone.
   await Renderer.act(async () => {
     tree.update(<OrderDetail order={{...order, items: undefined}} amount="12,500원" money={money} fresh={false} now={1_764_000_100}
