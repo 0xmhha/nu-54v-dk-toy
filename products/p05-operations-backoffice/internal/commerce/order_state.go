@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
@@ -31,6 +32,10 @@ type orderStateChange struct {
 	DesignatedOn   string  `json:"designatedOn,omitempty"`
 	RefundOperator string  `json:"refundOperator,omitempty"`
 	Confirmed      bool    `json:"confirmed,omitempty"`
+	// Cancelling one order that cannot be prepared: the order, the stage seen, and a key for repeating the same request.
+	Sale     string `json:"sale,omitempty"`
+	Revision *int64 `json:"revision,omitempty"`
+	Key      string `json:"key,omitempty"`
 }
 
 // CustomerOrderState is what customers and terminals read with the first menu page.
@@ -38,6 +43,8 @@ type CustomerOrderState struct {
 	Mode        string `json:"mode"`
 	BusyMinutes int    `json:"busyMinutes,omitempty"`
 	ResumeAt    string `json:"resumeAt,omitempty"`
+	// AutoKitchen says a test store's automatic kitchen records the stages, not a person.
+	AutoKitchen bool `json:"autoKitchen,omitempty"`
 	// TaxFreeShop is the designation number of a tax-free shop for foreign visitors, as the store entered it.
 	TaxFreeShop string `json:"taxFreeShop,omitempty"`
 	// SoldOut is applied to the menu rows (their counts read as zero), not sent, so a page keeps its size.
@@ -47,6 +54,7 @@ type CustomerOrderState struct {
 func (h HTTP) registerOrderState(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v2/operations/state/{branch}", h.operateOrderState)
 	mux.HandleFunc("POST /v2/operations/state/{branch}/{action}", h.operateOrderState)
+	mux.HandleFunc("GET /v2/operations/state/{branch}/order", h.findOrder)
 }
 
 // operateOrderState reads or changes whether the store takes orders, its closed days and sold-out products.
@@ -99,6 +107,22 @@ func (h HTTP) operateOrderState(w http.ResponseWriter, r *http.Request) {
 		products, _ := json.Marshal(change.Products)
 		err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_sold_out($1,$2,$3,$4,$5)",
 			actor.Tenant, branch, actor.Subject, products, *change.SoldOut).Scan(&reply)
+	case "cancel":
+		// Only someone with the kitchen-manage grant; the change records who it was.
+		if !operatorRef.MatchString(change.Sale) || !operatorRef.MatchString(change.Key) || change.Revision == nil {
+			err = service.BadRequest
+			break
+		}
+		var revision int64
+		manage := authority.Scope(ctx, actor, branch, "pickup_manage")
+		if err = h.Store.db.QueryRow(manage, "SELECT ledger.kiosk_pickup_change($1,$2,$3,$4,$5,$6,'unfulfillable','operator')",
+			actor.Tenant, branch, actor.Subject, change.Sale, change.Key, *change.Revision).Scan(&revision); err == nil {
+			reply, _ = json.Marshal(map[string]int64{"revision": revision})
+		}
+		if err == nil {
+			operatorResponse(w, reply, nil)
+			return
+		}
 	case "tax-free":
 		switch {
 		case change.Designation == nil:
@@ -163,10 +187,11 @@ func markSoldOut(rows []Price, soldOut []string) {
 
 // ReadyBoard is today's pickup numbers by stage, for the board on the store's tablet. Nothing else about an order.
 type ReadyBoard struct {
-	CheckedAt string  `json:"checkedAt"`
-	Ready     []int64 `json:"ready"`
-	Making    []int64 `json:"making"`
-	Received  []int64 `json:"received"`
+	CheckedAt   string  `json:"checkedAt"`
+	AutoKitchen bool    `json:"autoKitchen,omitempty"`
+	Ready       []int64 `json:"ready"`
+	Making      []int64 `json:"making"`
+	Received    []int64 `json:"received"`
 }
 
 // ReadyBoard reads the board for the store's own tablet; any other credential is refused.
@@ -180,4 +205,60 @@ func (s *Store) ReadyBoard(ctx context.Context, auth service.Bound) (*ReadyBoard
 		return nil, err
 	}
 	return &board, nil
+}
+
+// findOrder finds one of today's orders by its pickup number, for the person who may cancel it.
+func (h HTTP) findOrder(w http.ResponseWriter, r *http.Request) {
+	branch := r.PathValue("branch")
+	actor, ok := h.operatorCredential(r)
+	number, err := strconv.ParseInt(r.URL.Query().Get("number"), 10, 64)
+	if !operatorRef.MatchString(branch) || !ok || h.Store == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil || number < 1 || number > 99999 {
+		operatorResponse(w, nil, service.BadRequest)
+		return
+	}
+	ctx := authority.Scope(authority.Scope(r.Context(), actor, branch), actor, branch, "pickup_manage")
+	var reply json.RawMessage
+	if err := h.Store.db.QueryRow(ctx, "SELECT ledger.operator_find_order($1,$2,$3,$4)", actor.Tenant, branch, actor.Subject, number).Scan(&reply); err != nil {
+		operatorResponse(w, nil, err)
+		return
+	}
+	if reply == nil || string(reply) == "null" {
+		http.NotFound(w, r)
+		return
+	}
+	operatorResponse(w, reply, nil)
+}
+
+// StepAutoKitchen moves the due orders of every test store whose kitchen is on, but only on a chain testChain accepts.
+func (s *Store) StepAutoKitchen(ctx context.Context, testChain func(branch string) bool) (int, error) {
+	rows, err := s.db.Query(ctx, "SELECT branch::text FROM ledger.auto_kitchen_branches() branch")
+	if err != nil {
+		return 0, err
+	}
+	var branches []string
+	for rows.Next() {
+		var branch string
+		if err := rows.Scan(&branch); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		branches = append(branches, branch)
+	}
+	rows.Close()
+	moved := 0
+	for _, branch := range branches {
+		if !testChain(branch) {
+			continue // a store marked by mistake on another chain is never run
+		}
+		var n int
+		if err := s.db.QueryRow(ctx, "SELECT ledger.auto_kitchen_step($1)", branch).Scan(&n); err != nil {
+			return moved, err
+		}
+		moved += n
+	}
+	return moved, nil
 }

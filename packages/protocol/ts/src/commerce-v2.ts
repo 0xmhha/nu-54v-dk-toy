@@ -431,16 +431,20 @@ export type CommerceOrderState = (
 ) & {
   /** The designation number of a tax-free shop for foreign visitors, as the store entered it. */
   taxFreeShop?: string;
+  /** A test store whose automatic kitchen records the stages; no person checks what was made. */
+  autoKitchen?: true;
 };
 
 /** Reads the state sent with the first menu page; anything unexpected reads as nothing known. */
 export function readOrderState(value: unknown): CommerceOrderState | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const state = value as Record<string, unknown>;
-  if (Object.keys(state).some(key => !["mode", "busyMinutes", "resumeAt", "taxFreeShop"].includes(key))) return undefined;
+  if (Object.keys(state).some(key => !["mode", "busyMinutes", "resumeAt", "taxFreeShop", "autoKitchen"].includes(key))) return undefined;
+  if (state.autoKitchen !== undefined && state.autoKitchen !== true) return undefined;
   if (state.taxFreeShop !== undefined && (typeof state.taxFreeShop !== "string" || !/^[0-9A-Za-z-]{4,40}$/.test(state.taxFreeShop)))
     return undefined;
-  const shop = state.taxFreeShop === undefined ? {} : {taxFreeShop: state.taxFreeShop as string};
+  const shop = {...(state.taxFreeShop === undefined ? {} : {taxFreeShop: state.taxFreeShop as string}),
+    ...(state.autoKitchen ? {autoKitchen: true as const} : {})};
   if (state.mode === "open" || state.mode === "closed") return {mode: state.mode, ...shop};
   if (state.mode === "busy" && Number.isSafeInteger(state.busyMinutes) && (state.busyMinutes as number) >= 5 &&
       (state.busyMinutes as number) <= 60) return {mode: "busy", busyMinutes: state.busyMinutes as number, ...shop};
@@ -453,17 +457,19 @@ export function readOrderState(value: unknown): CommerceOrderState | undefined {
 }
 
 /** The ready board: pickup numbers that are ready (newest first), being made, and received but not started. */
-export type CommerceReadyBoard = {checkedAt: string; ready: number[]; making: number[]; received: number[]};
+export type CommerceReadyBoard = {checkedAt: string; ready: number[]; making: number[]; received: number[]; autoKitchen?: true};
 
 export function readReadyBoard(value: unknown): CommerceReadyBoard | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const board = value as Record<string, unknown>;
   const numbers = (list: unknown) => Array.isArray(list) && list.length <= 40 &&
     list.every(n => Number.isSafeInteger(n) && (n as number) > 0 && (n as number) < 100000);
-  if (Object.keys(board).some(key => !["checkedAt", "ready", "making", "received"].includes(key)) ||
+  if (Object.keys(board).some(key => !["checkedAt", "ready", "making", "received", "autoKitchen"].includes(key)) ||
+      (board.autoKitchen !== undefined && typeof board.autoKitchen !== "boolean") ||
       typeof board.checkedAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(board.checkedAt) ||
       !numbers(board.ready) || !numbers(board.making) || !numbers(board.received)) return undefined;
-  return {checkedAt: board.checkedAt, ready: board.ready as number[], making: board.making as number[], received: board.received as number[]};
+  return {checkedAt: board.checkedAt, ready: board.ready as number[], making: board.making as number[], received: board.received as number[],
+    ...(board.autoKitchen === true ? {autoKitchen: true as const} : {})};
 }
 
 type Response = ServiceReplyV2 & {

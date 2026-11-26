@@ -288,6 +288,8 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 				_ = gate.Run(poll, func(ctx context.Context) error {
 					_ = store.RetireTerminalReceipts(ctx)
 					_, _ = store.PruneMenuPhotos(ctx)
+					// The automatic kitchen of a test store, only on the test chain (8283).
+					_, _ = store.StepAutoKitchen(ctx, func(branch string) bool { return profiles[branch].Chain == 8283 })
 					for range 8 {
 						changed, err := store.ReclaimExpired(ctx)
 						if err != nil || !changed {

@@ -320,6 +320,89 @@ func TestPostgresOrderState(t *testing.T) {
 		t.Fatal("a customer read the board", string(leaked))
 	}
 
+	// The automatic kitchen of a test store: one stage per due order per step, never on another chain,
+	// and an operator with the kitchen-manage grant can still cancel an order before it is handed over.
+	paidOrder := func(number int64, stage string, since string) string {
+		t.Helper()
+		sale := fresh()
+		tx, err := admin.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(ctx)
+		steps := []struct {
+			query string
+			args  []any
+		}{
+			{"SET LOCAL session_replication_role = replica", nil},
+			{"INSERT INTO ledger.sale(id,branch_id,origin,origin_ref,asset_ref,amount,state) VALUES($1,$2,'menu',$1,$3,300000,'paid')", []any{sale, branch, asset}},
+			{"INSERT INTO ledger.order_line(sale_id,branch_id,menu_version,sku,option_key,quantity,price) VALUES($1,$2,1,'cookie','standard',1,300000)", []any{sale, branch}},
+			{"INSERT INTO ledger.pickup(sale_id,branch_id,business_day,number) VALUES($1,$2,ledger.ledger_business_day($2,clock_timestamp()),$3)", []any{sale, branch, number}},
+			{"WITH e AS (INSERT INTO ledger.fulfillment_outbox(sale_id,kind,source_ref,revision,state,delivered_at) VALUES($1,'paid',$1,1,'delivered',clock_timestamp()-$2::interval) RETURNING event_id,effect_key) " +
+				"INSERT INTO ledger.consumer_receipt(event_id,effect_key,payload_digest,accepted_epoch) SELECT event_id,effect_key,sha256('x'),repeat('a',64) FROM e", []any{sale, since}},
+		}
+		if stage != "accepted" {
+			steps = append(steps, struct {
+				query string
+				args  []any
+			}{"INSERT INTO ledger.travel_pickup_progress(sale_id,state,revision,updated_at) VALUES($1,$2,1,clock_timestamp()-$3::interval)", []any{sale, stage, since}})
+		}
+		for _, step := range steps {
+			if _, err := tx.Exec(ctx, step.query, step.args...); err != nil {
+				t.Fatal(step.query, err)
+			}
+		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return sale
+	}
+	paidOrder(21, "accepted", "40 seconds")
+	paidOrder(22, "accepted", "10 seconds")
+	paidOrder(23, "preparing", "6 minutes")
+	paidOrder(24, "ready", "3 minutes")
+	paidOrder(25, "ready", "1 minute")
+	anyChain := func(string) bool { return true }
+	if moved, err := store.StepAutoKitchen(ctx, anyChain); err != nil || moved != 0 {
+		t.Fatal("a store that is not a test store was run", moved, err)
+	}
+	execute("INSERT INTO ledger.branch_test_store(branch_id,auto_kitchen) VALUES($1,true)", branch)
+	if moved, err := store.StepAutoKitchen(ctx, func(string) bool { return false }); err != nil || moved != 0 {
+		t.Fatal("the kitchen ran off the test chain", moved, err)
+	}
+	if moved, err := store.StepAutoKitchen(ctx, anyChain); err != nil || moved != 3 {
+		t.Fatal("21 starts, 23 is ready, 24 is handed over", moved, err)
+	}
+	if moved, err := store.StepAutoKitchen(ctx, anyChain); err != nil || moved != 0 {
+		t.Fatal("a second step at once skipped a stage", moved, err)
+	}
+	if s := seen(); !s.AutoKitchen {
+		t.Fatalf("%+v", s)
+	}
+	if got := call("GET", state, nil, 200); got["autoKitchen"] != true {
+		t.Fatal(got)
+	}
+	// Finding and cancelling need the kitchen-manage grant.
+	call("GET", state+"/order?number=25", nil, 404)
+	execute("INSERT INTO ledger.finance_grant VALUES($1,$2,'pickup_manage',now()+interval '5 minutes')", branch, operator)
+	found := call("GET", state+"/order?number=23", nil, 200)
+	if found["stage"] != "ready" || found["byKitchen"] != true || found["amount"] != "300000" {
+		t.Fatal(found)
+	}
+	call("GET", state+"/order?number=99", nil, 404)
+	open := call("GET", state+"/order?number=25", nil, 200)
+	cancel := map[string]any{"sale": open["sale"], "revision": open["revision"], "key": fresh()}
+	set("cancel", cancel, 200)
+	set("cancel", cancel, 200) // the same request again
+	if after := call("GET", state+"/order?number=25", nil, 200); after["stage"] != "unfulfillable" || after["cancelledBy"] != operator {
+		t.Fatal(after)
+	}
+	handed := call("GET", state+"/order?number=24", nil, 200)
+	if handed["stage"] != "collected" {
+		t.Fatal(handed)
+	}
+	set("cancel", map[string]any{"sale": handed["sale"], "revision": handed["revision"], "key": fresh()}, 409)
+
 	// The operations routes refuse a page from another origin.
 	req, _ := http.NewRequestWithContext(ctx, "POST", server.URL+state+"/mode", strings.NewReader(`{"mode":"open"}`))
 	req.Header.Set("Origin", "https://elsewhere.invalid")
