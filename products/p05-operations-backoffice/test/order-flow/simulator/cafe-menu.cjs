@@ -122,6 +122,16 @@ async function main() {
       await page.getByRole("status").filter({ hasText: "재고 반영을 확인했습니다." }).waitFor();
     }
     console.log(`cafe menu: ${menu.length} products, ${Object.keys(photo).length} photos, published and stocked`);
+    // NU54_CAFE_BUSY=<minutes> marks the store busy, the way an operator would, to see the band on the kiosk.
+    if (process.env.NU54_CAFE_BUSY) {
+      await page.getByRole("radio", { name: /바쁨/ }).check();
+      const minutes = Number(process.env.NU54_CAFE_BUSY);
+      for (let at = 15; at < minutes; at += 5) await button("5분 늘리기").click();
+      await button(`바쁨 · 약 ${minutes}분(으)로 바꾸기`).click();
+      await page.getByRole("alertdialog", { name: "바꾸기 전 확인" }).getByRole("button", { name: "바꾸기", exact: true }).click();
+      await page.getByText(new RegExp(`지금 상태: 바쁨 · 약 ${minutes}분`)).waitFor();
+      console.log(`cafe store: busy, about ${minutes} minutes`);
+    }
   } finally {
     await browser.close();
   }
