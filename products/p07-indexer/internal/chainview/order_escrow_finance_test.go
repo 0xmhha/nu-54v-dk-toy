@@ -229,11 +229,15 @@ func TestPostgresEscrowSkipSpam(t *testing.T) {
 	read := func() time.Duration {
 		t.Helper()
 		orderFacts(t, server, profile.StreamID, merchant, order) // first use plans the function
-		start := time.Now()
+		// The fastest of ten: a read that grows with the skips is slow every time, while a shared CI
+		// runner can stall one read right after a large write.
+		fastest := time.Duration(1<<63 - 1)
 		for range 10 {
+			start := time.Now()
 			orderFacts(t, server, profile.StreamID, merchant, order)
+			fastest = min(fastest, time.Since(start))
 		}
-		return time.Since(start) / 10
+		return fastest
 	}
 	before := read()
 	// A refused row still fails the whole poll when the events travel in one batch.
