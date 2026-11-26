@@ -59,6 +59,7 @@ export function ReadyBoardView({board, lost, fresh, ko}: {board?: CommerceReadyB
     <View style={s.board}>
       {/* Read out once when a number becomes ready; the board itself is not re-read every few seconds. */}
       <Text accessibilityLiveRegion="polite" style={s.hidden}>{fresh.length ? `${ko ? '새로 준비된 번호' : 'Now ready'} ${fresh.join(', ')}` : ''}</Text>
+      <View style={s.columns}>
       <View accessibilityRole="summary" accessibilityLabel={ko ? '준비 완료' : 'Ready'} style={s.ready}>
         <Text accessibilityRole="header" style={s.readyTitle}>{ko ? '준비되었습니다' : 'Ready'}</Text>
         {large.length ? (
@@ -78,6 +79,7 @@ export function ReadyBoardView({board, lost, fresh, ko}: {board?: CommerceReadyB
         <Text accessibilityRole="header" style={s.sideTitle}>{ko ? '접수' : 'Received'}</Text>
         <Text style={s.sideNumbers}>{board.received.length ? board.received.join('  ') : '–'}</Text>
       </View>
+      </View>
       <Text style={[s.small, lost && s.lost]}>
         {lost
           ? `${ko ? '연결이 끊겼습니다 · 마지막 확인' : 'Connection lost · last checked'} ${clock(board.checkedAt)}`
@@ -92,16 +94,18 @@ const s = StyleSheet.create({
   band: {flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#d4efa7', borderRadius: 14, paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'flex-start'},
   bandLabel: {fontSize: 16, fontWeight: '700', color: deep},
   bandNumber: {fontSize: 24, fontWeight: '800', color: deep},
+  // Side by side when there is room, as in the approved board; one column on a narrow screen.
   board: {gap: 16},
+  columns: {flexDirection: 'row', flexWrap: 'wrap', gap: 16},
   hidden: {position: 'absolute', width: 1, height: 1, opacity: 0},
-  ready: {backgroundColor: '#d4efa7', borderRadius: 20, padding: 24, gap: 14},
+  ready: {backgroundColor: '#d4efa7', borderRadius: 20, padding: 24, gap: 14, flexGrow: 1.4, flexBasis: 420},
   readyTitle: {fontSize: 34, fontWeight: '800', color: deep},
   readyGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 14},
   readyTile: {minWidth: 180, height: 130, alignItems: 'center', justifyContent: 'center', borderRadius: 20},
   readyNumber: {fontSize: 104, lineHeight: 120, fontWeight: '800', color: deep, letterSpacing: -4},
   restLine: {fontSize: 22, fontWeight: '700', color: deep},
   empty: {fontSize: 22, color: deep},
-  side: {gap: 6},
+  side: {gap: 6, flexGrow: 1, flexBasis: 260, paddingVertical: 12},
   sideTitle: {fontSize: 22, fontWeight: '800', color: ink},
   sideNumbers: {fontSize: 40, fontWeight: '800', color: '#3d5148'},
   small: {fontSize: 16, color: '#4f655a'},
