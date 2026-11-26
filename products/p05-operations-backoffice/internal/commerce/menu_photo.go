@@ -235,7 +235,7 @@ func validPhotos(photos []menuPhoto) bool {
 // withPhotos binds the photos in the same statement, and so the same transaction, as the publication.
 func withPhotos(call string, args []any, photos []menuPhoto) (string, []any) {
 	if photos == nil {
-		return call, args
+		photos = []menuPhoto{} // recorded too, so the same request cannot add photos later
 	}
 	raw, _ := json.Marshal(photos)
 	n := strconv.Itoa(len(args) + 1)

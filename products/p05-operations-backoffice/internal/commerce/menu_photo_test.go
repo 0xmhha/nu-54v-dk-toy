@@ -223,6 +223,13 @@ func TestPostgresMenuPhotos(t *testing.T) {
 		return map[string]any{"requestKey": fresh(), "version": version, "expiresAt": time.Now().Add(time.Hour).UTC(),
 			"rows": []operatorRow{row("latte"), row("cookie")}, "photos": photos}
 	}
+	// Uploading the same picture again starts its day again, so it is not removed under an open draft.
+	execute("UPDATE ledger.menu_photo SET created_at=now()-interval '23 hours 59 minutes' WHERE branch_id=$1", branch)
+	upload(encoded(t, testPicture(1200, 900, 255), "jpeg"), true, 200)
+	var fresher bool
+	if err := admin.QueryRow(ctx, "SELECT bool_and(created_at > now()-interval '1 minute') FROM ledger.menu_photo WHERE branch_id=$1", branch).Scan(&fresher); err != nil || !fresher {
+		t.Fatal("uploading again did not start the photo's day again", err)
+	}
 	first := publication(0, []menuPhoto{{"latte", photo}})
 	call("POST", "/publish", first, 200)
 	call("POST", "/publish", first, 200) // the same request again
@@ -294,6 +301,12 @@ func TestPostgresMenuPhotos(t *testing.T) {
 		t.Fatalf("%+v", rows)
 	}
 	call("POST", "/publish", publication(4, []menuPhoto{{"cookie", photo}, {"latte", photo}}), 200)
+	// A publication without photos is recorded as none: the same request with photos is refused, not added to it.
+	none := publication(5, nil)
+	delete(none, "photos")
+	call("POST", "/publish", none, 200)
+	none["photos"] = []menuPhoto{{"latte", photo}}
+	call("POST", "/publish", none, 409)
 
 	// At most 50 photos a day that no menu uses.
 	execute("INSERT INTO ledger.menu_photo SELECT branch_id, encode(sha256(photo||n::text::bytea),'hex'), encode(sha256(thumb||n::text::bytea),'hex'), photo||n::text::bytea, thumb||n::text::bytea, uploaded_by, now(), now() FROM ledger.menu_photo, generate_series(1,50) n WHERE branch_id=$1", branch)
