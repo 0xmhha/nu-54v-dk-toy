@@ -9,6 +9,7 @@ export * from "./commerce-v2.ts";
 export * from "./commerce-cart-review.ts";
 export * from "./commerce-choices.ts";
 export * from "./commerce-photos.ts";
+export * from "./commerce-tax.ts";
 export * from "./nearby-commerce.ts";
 export * from "./commerce-payment.ts";
 export * from "./order-escrow.ts";

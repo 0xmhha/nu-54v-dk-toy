@@ -67,6 +67,10 @@ export type CommerceMenuMetadata = {
   crossContact?: "unknown" | "possible" | "declared-none";
   crossContactAllergens?: CommerceAllergen[];
   crossContactSource?: "shared-equipment" | "shared-baking-equipment";
+  /** The price includes this tax. Absent: the store said nothing, as before. */
+  tax?: "vat10" | "exempt";
+  /** Marked by the store as a good a visitor may claim the tax back on. Shown only; nothing is taken off yet. */
+  taxRefund?: boolean;
 };
 export function commerceMenuLabels(row: CommercePrice, locale: "ko" | "en") {
   const product = row.metadata?.labels?.[locale] ?? row.label;
@@ -182,7 +186,9 @@ function validMenuMetadata(value: unknown): boolean {
       ["unknown", "possible", "declared-none"].includes(
         metadata.crossContact
       )) &&
-    (metadata.allergens === undefined || validAllergens(metadata.allergens))
+    (metadata.allergens === undefined || validAllergens(metadata.allergens)) &&
+    (metadata.tax === undefined || metadata.tax === "vat10" || metadata.tax === "exempt") &&
+    (metadata.taxRefund === undefined || (metadata.taxRefund === true && metadata.tax !== undefined))
   );
 }
 

@@ -315,6 +315,11 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 				operatorResponse(w, nil, service.BadRequest)
 				return
 			}
+			// A price that includes its tax has no tax amount on top of it.
+			if row.Metadata != nil && row.Metadata.Tax != "" && row.Tax != "0" {
+				operatorResponse(w, nil, service.BadRequest)
+				return
+			}
 			if row.DisplayPrice == "" && (row.Tax != "" || row.Discount != "" || row.Required || mutation.Hours != nil) {
 				operatorResponse(w, nil, service.BadRequest)
 				return

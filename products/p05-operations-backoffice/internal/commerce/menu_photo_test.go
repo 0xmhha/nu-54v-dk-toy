@@ -282,6 +282,19 @@ func TestPostgresMenuPhotos(t *testing.T) {
 	if _, photos, _ := read(customer, 0); len(photos) != 2 {
 		t.Fatal(photos)
 	}
+	// A price that includes its tax takes no tax amount on top; one that says nothing keeps the old way.
+	taxed := func(tax string) map[string]any {
+		r := row("latte")
+		r.Metadata, r.Tax = &menuMetadata{Tax: "vat10"}, tax
+		return map[string]any{"requestKey": fresh(), "version": 3, "expiresAt": time.Now().Add(time.Hour).UTC(), "rows": []operatorRow{r}}
+	}
+	call("POST", "/publish", taxed("100"), 400)
+	call("POST", "/publish", taxed("0"), 200)
+	if rows, _, _ := read(customer, 0); len(rows) != 1 || rows[0].Metadata == nil || rows[0].Metadata.Tax != "vat10" || rows[0].UnitPrice != "450000" {
+		t.Fatalf("%+v", rows)
+	}
+	call("POST", "/publish", publication(4, []menuPhoto{{"cookie", photo}, {"latte", photo}}), 200)
+
 	// At most 50 photos a day that no menu uses.
 	execute("INSERT INTO ledger.menu_photo SELECT branch_id, encode(sha256(photo||n::text::bytea),'hex'), encode(sha256(thumb||n::text::bytea),'hex'), photo||n::text::bytea, thumb||n::text::bytea, uploaded_by, now(), now() FROM ledger.menu_photo, generate_series(1,50) n WHERE branch_id=$1", branch)
 	upload(encoded(t, testPicture(640, 480, 255), "png"), true, 400)
