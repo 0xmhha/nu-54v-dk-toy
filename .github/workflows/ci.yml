@@ -51,6 +51,8 @@ jobs:
         with:
           python-version: "3.12.12"
       - run: python3 scripts/verify_ci_inputs.py python go node pnpm uv foundry cast
+      - name: Install the Python packages of the firmware tests
+        run: "python3 -m pip install --require-hashes --only-binary=:all: -r products/p01-device-firmware/test/requirements.txt"
       - name: Install the verified Solidity compiler
         run: |
           solc=$(python3 scripts/install_contract_compiler.py "$RUNNER_TEMP/solc-0.8.39")
@@ -147,6 +149,8 @@ jobs:
         run: make -C products/p03-cloud-mpc-wallet db-test
         env:
           POSTGRES_BIN: /usr/lib/postgresql/16/bin
+      - name: Install the Python packages of the firmware tests
+        run: "python3 -m pip install --require-hashes --only-binary=:all: -r products/p01-device-firmware/test/requirements.txt"
       - name: Install fleet PostgreSQL adapter
         run: "python3 -m pip install --require-hashes --no-binary=:all: -r products/p10-platform/release/requirements.txt"
       - run: pnpm --filter @nu54/p04-kiosk... install --frozen-lockfile
