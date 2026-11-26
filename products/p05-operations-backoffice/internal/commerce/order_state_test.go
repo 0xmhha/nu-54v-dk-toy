@@ -265,6 +265,61 @@ func TestPostgresOrderState(t *testing.T) {
 		t.Fatal("the number stayed after it was removed")
 	}
 
+	// The ready board: today's numbers by stage for the store's tablet only, and nothing else about an order.
+	terminal := fresh()
+	execute("INSERT INTO ledger.commerce_grant(branch_id,actor_id,role_code,valid_until,terminal_mode) VALUES($1,$2,'terminal',now()+interval '5 minutes','menu')", branch, terminal)
+	pickup := func(number int64, stage string, paid string) {
+		t.Helper()
+		sale := fresh()
+		// Rows written directly, without the payment path that would make them; triggers and keys are off for this.
+		tx, err := admin.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(ctx)
+		for _, step := range []struct {
+			query string
+			args  []any
+		}{
+			{"SET LOCAL session_replication_role = replica", nil},
+			{"INSERT INTO ledger.sale(id,branch_id,origin,origin_ref,asset_ref,amount,state) VALUES($1,$2,'menu',$1,$3,300000,$4)", []any{sale, branch, asset, paid}},
+			{"INSERT INTO ledger.pickup(sale_id,branch_id,business_day,number) VALUES($1,$2,ledger.ledger_business_day($2,clock_timestamp()),$3)", []any{sale, branch, number}},
+		} {
+			if _, err := tx.Exec(ctx, step.query, step.args...); err != nil {
+				t.Fatal(step.query, err)
+			}
+		}
+		if stage != "received" {
+			if _, err := tx.Exec(ctx, "INSERT INTO ledger.travel_pickup_progress(sale_id,state,revision,updated_at) VALUES($1,$2,1,clock_timestamp()+make_interval(secs => $3))", sale, stage, number); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pickup(11, "ready", "paid")
+	pickup(12, "ready", "paid")
+	pickup(13, "preparing", "paid")
+	pickup(15, "received", "paid")
+	pickup(16, "collected", "paid")
+	pickup(17, "unfulfillable", "paid")
+	board, err := store.ReadyBoard(ctx, authorize(t, actor{terminal, "terminal"}, "board.read", branch, branch, "", map[string]string{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(board.Ready, board.Making, board.Received) != "[12 11] [13] [15]" || board.CheckedAt == "" {
+		t.Fatalf("%+v", board)
+	}
+	if raw, _ := json.Marshal(board); strings.Contains(string(raw), "amount") || strings.Contains(string(raw), "sale") {
+		t.Fatal("the board says more than numbers", string(raw))
+	}
+	// The service rules give the request to tablets only; the function refuses a customer on its own too.
+	var leaked []byte
+	if err := store.db.QueryRow(ctx, "SELECT ledger.ready_board($1,$2,$3)", tenant, branch, customer).Scan(&leaked); err == nil {
+		t.Fatal("a customer read the board", string(leaked))
+	}
+
 	// The operations routes refuse a page from another origin.
 	req, _ := http.NewRequestWithContext(ctx, "POST", server.URL+state+"/mode", strings.NewReader(`{"mode":"open"}`))
 	req.Header.Set("Origin", "https://elsewhere.invalid")

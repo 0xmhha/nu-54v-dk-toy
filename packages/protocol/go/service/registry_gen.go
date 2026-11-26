@@ -27,6 +27,15 @@ const registryJSON = `{
   "maxEnvelopeBytes": 4096,
   "maxEvidenceAgeSeconds": 300,
   "operations": {
+    "C3/board.read": {
+      "fields": {},
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "terminal"
+      ],
+      "ttlSeconds": 60
+    },
     "C3/catalog.photo": {
       "fields": {
         "offset": "uint32",

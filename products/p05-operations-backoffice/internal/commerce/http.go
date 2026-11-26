@@ -105,6 +105,7 @@ type result struct {
 	service.Reply
 	Shop             *ShopIdentity          `json:"shop,omitempty"`
 	OrderState       *CustomerOrderState    `json:"orderState,omitempty"`
+	Board            *ReadyBoard            `json:"board,omitempty"`
 	Catalog          []Price                `json:"catalog,omitempty"`
 	CatalogVersion   *int64                 `json:"catalogVersion,omitempty"`
 	CatalogOptions   []CatalogOptions       `json:"catalogOptions,omitempty"`
@@ -430,6 +431,8 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	case "board.read":
+		out.Board, err = h.Store.ReadyBoard(ctx, bound)
 	case "catalog.photo":
 		var offset int64
 		if offset, err = strconv.ParseInt(req.Body["offset"], 10, 32); err == nil {
@@ -516,7 +519,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	if err == nil && time.Now().Unix() >= req.ExpiresAt {
 		err = service.Unknown
 	}
-	if err == nil && slices.Contains([]string{"catalog.read", "catalog.photo", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list",
+	if err == nil && slices.Contains([]string{"catalog.read", "catalog.photo", "board.read", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list",
 		"payer.status", "wallet.return-status", "wallet.send-status", "faucet.status", "network.list", "terminal.device"}, req.Operation) {
 		err = h.Store.db.CheckRead(ctx)
 	}

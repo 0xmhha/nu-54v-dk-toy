@@ -16,6 +16,7 @@
       "response": "result"
     },
     "C3/catalog.photo": {"mode":"read","roles":["customer","terminal"],"ttlSeconds":60,"fields":{"photo":"digest","offset":"uint32"},"response":"result"},
+    "C3/board.read": {"mode":"read","roles":["terminal"],"ttlSeconds":60,"fields":{},"response":"result"},
     "C3/subscription.offers": {"mode":"read","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},
     "C3/subscription.list": {"mode":"read","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},
     "C3/invoice.list": {"mode":"read","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},

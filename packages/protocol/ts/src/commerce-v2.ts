@@ -452,6 +452,20 @@ export function readOrderState(value: unknown): CommerceOrderState | undefined {
   return undefined;
 }
 
+/** The ready board: pickup numbers that are ready (newest first), being made, and received but not started. */
+export type CommerceReadyBoard = {checkedAt: string; ready: number[]; making: number[]; received: number[]};
+
+export function readReadyBoard(value: unknown): CommerceReadyBoard | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const board = value as Record<string, unknown>;
+  const numbers = (list: unknown) => Array.isArray(list) && list.length <= 40 &&
+    list.every(n => Number.isSafeInteger(n) && (n as number) > 0 && (n as number) < 100000);
+  if (Object.keys(board).some(key => !["checkedAt", "ready", "making", "received"].includes(key)) ||
+      typeof board.checkedAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(board.checkedAt) ||
+      !numbers(board.ready) || !numbers(board.making) || !numbers(board.received)) return undefined;
+  return {checkedAt: board.checkedAt, ready: board.ready as number[], making: board.making as number[], received: board.received as number[]};
+}
+
 type Response = ServiceReplyV2 & {
   reservationFound?: boolean;
   unavailable?: CommerceCartLine[];
@@ -467,6 +481,7 @@ type Response = ServiceReplyV2 & {
   photo?: { size: number; data: string };
   shop?: ShopIdentity;
   orderState?: unknown;
+  board?: unknown;
   order?: CommerceOrder;
   orders?: CustomerOrderRow[];
   payer?: PayerEnrollment;
@@ -1048,6 +1063,14 @@ export class CommerceClient {
     const prices = withPhotos(withChoices(rows, reply.catalogOptions), reply.catalogPhotos);
     assertCommerceCatalogVersion(reply.catalogVersion, prices);
     return {prices, shop: reply.shop, orderState: page === 0 ? readOrderState(reply.orderState) : undefined, snapshotVersion: reply.catalogVersion};
+  }
+
+  /** Today's pickup numbers by stage, for the board on the store's own tablet. Nothing else about an order. */
+  async readyBoard(): Promise<CommerceReadyBoard> {
+    const reply = await this.call("board.read", this.profile.branchRef, {});
+    const board = readReadyBoard(reply.board);
+    if (!board) throw new Error("BAD_RESPONSE");
+    return board;
   }
 
   /** A published photo, read in parts that each fit a reply, and checked against its name. Base64 of the JPEG. */

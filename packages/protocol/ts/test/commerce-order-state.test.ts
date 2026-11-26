@@ -13,3 +13,12 @@ test("the store state sent with the menu reads as one of four, and anything else
     {mode: "paused", resumeAt: "25:00"}, {mode: "open", extra: 1}, {mode: "later"}, {mode: "open", taxFreeShop: "번호"}, {mode: "open", taxFreeShop: 5}])
     assert.equal(readOrderState(value), undefined, JSON.stringify(value));
 });
+
+test("the ready board reads as numbers only, and anything more is refused", async () => {
+  const {readReadyBoard} = await import("../src/v2.ts");
+  const board = {checkedAt: "2026-11-26T07:04:18Z", ready: [12, 11], making: [13], received: [15]};
+  assert.deepEqual(readReadyBoard(board), board);
+  for (const value of [undefined, {...board, amount: "1"}, {...board, ready: ["12"]}, {...board, ready: [0]}, {...board, checkedAt: "now"},
+    {...board, making: Array.from({length: 41}, (_, i) => i + 1)}])
+    assert.equal(readReadyBoard(value), undefined, String(JSON.stringify(value)).slice(0, 60));
+});

@@ -160,3 +160,24 @@ func markSoldOut(rows []Price, soldOut []string) {
 		}
 	}
 }
+
+// ReadyBoard is today's pickup numbers by stage, for the board on the store's tablet. Nothing else about an order.
+type ReadyBoard struct {
+	CheckedAt string  `json:"checkedAt"`
+	Ready     []int64 `json:"ready"`
+	Making    []int64 `json:"making"`
+	Received  []int64 `json:"received"`
+}
+
+// ReadyBoard reads the board for the store's own tablet; any other credential is refused.
+func (s *Store) ReadyBoard(ctx context.Context, auth service.Bound) (*ReadyBoard, error) {
+	var raw []byte
+	if err := s.db.QueryRow(ctx, "SELECT ledger.ready_board($1,$2,$3)", auth.Tenant, auth.Request.Domain, auth.Subject).Scan(&raw); err != nil {
+		return nil, domainError(err)
+	}
+	var board ReadyBoard
+	if err := json.Unmarshal(raw, &board); err != nil {
+		return nil, err
+	}
+	return &board, nil
+}
