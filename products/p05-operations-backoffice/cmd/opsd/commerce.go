@@ -287,6 +287,7 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 			case <-ticker.C:
 				_ = gate.Run(poll, func(ctx context.Context) error {
 					_ = store.RetireTerminalReceipts(ctx)
+					_, _ = store.PruneMenuPhotos(ctx)
 					for range 8 {
 						changed, err := store.ReclaimExpired(ctx)
 						if err != nil || !changed {

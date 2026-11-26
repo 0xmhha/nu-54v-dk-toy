@@ -286,4 +286,19 @@ func TestPostgresMenuPhotos(t *testing.T) {
 	execute("INSERT INTO ledger.menu_photo SELECT branch_id, encode(sha256(photo||n::text::bytea),'hex'), encode(sha256(thumb||n::text::bytea),'hex'), photo||n::text::bytea, thumb||n::text::bytea, uploaded_by, now(), now() FROM ledger.menu_photo, generate_series(1,50) n WHERE branch_id=$1", branch)
 	upload(encoded(t, testPicture(640, 480, 255), "png"), true, 400)
 	upload(encoded(t, testPicture(1200, 900, 255), "jpeg"), true, 200) // one it has already
+
+	// A day later the unpublished uploads go; the one a published version names stays.
+	execute("UPDATE ledger.menu_photo SET created_at=now()-interval '2 days' WHERE branch_id=$1", branch)
+	for gone := 1; gone > 0; {
+		if gone, err = store.PruneMenuPhotos(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var left []string
+	if err := admin.QueryRow(ctx, "SELECT array_agg(digest) FROM ledger.menu_photo WHERE branch_id=$1", branch).Scan(&left); err != nil || len(left) != 1 || left[0] != photo {
+		t.Fatal(left, err)
+	}
+	if _, err := part(customer, photo, 0); err != nil {
+		t.Fatal("the published photo went", err)
+	}
 }

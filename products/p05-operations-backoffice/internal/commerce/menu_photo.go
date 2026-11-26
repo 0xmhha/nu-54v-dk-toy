@@ -242,3 +242,10 @@ func withPhotos(call string, args []any, photos []menuPhoto) (string, []any) {
 	return "SELECT r FROM (" + call + ") pub(r), LATERAL (SELECT ledger.bind_menu_photos($1,$2,$3,(r->>'version')::bigint,$" + n + ")) bound",
 		append(args, raw)
 }
+
+// PruneMenuPhotos removes uploads that no published version uses after a day, a few at a time.
+func (s *Store) PruneMenuPhotos(ctx context.Context) (int, error) {
+	var gone int
+	err := s.db.QueryRow(ctx, "SELECT ledger.prune_menu_photos()").Scan(&gone)
+	return gone, domainError(err)
+}
