@@ -104,6 +104,7 @@ type request struct {
 type result struct {
 	service.Reply
 	Shop             *ShopIdentity          `json:"shop,omitempty"`
+	OrderState       *CustomerOrderState    `json:"orderState,omitempty"`
 	Catalog          []Price                `json:"catalog,omitempty"`
 	CatalogVersion   *int64                 `json:"catalogVersion,omitempty"`
 	CatalogOptions   []CatalogOptions       `json:"catalogOptions,omitempty"`
@@ -196,6 +197,7 @@ func (h HTTP) Register(mux *http.ServeMux) {
 	mux.Handle("POST /v2/commerce", authority.Protect(h.Credentials, http.HandlerFunc(h.serve)))
 	operators := http.NewServeMux()
 	h.registerOperators(operators)
+	h.registerOrderState(operators)
 	h.registerPayout(operators)
 	h.registerRental(operators)
 	if h.ProtectedClose != nil && h.ProtectedWithdrawal {
@@ -418,6 +420,15 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		out.Catalog, out.CatalogVersion, out.CatalogOptions, out.CatalogPhotos, err = h.Store.catalogMenuPhotoWindow(ctx, bound, int32(page))
 		if err == nil && page == 0 {
 			out.Shop, err = h.Store.ShopIdentity(ctx, bound)
+		}
+		if err == nil {
+			var state *CustomerOrderState
+			if state, err = h.Store.OrderState(ctx, bound); err == nil {
+				markSoldOut(out.Catalog, state.SoldOut)
+				if page == 0 {
+					out.OrderState = state
+				}
+			}
 		}
 	case "catalog.photo":
 		var offset int64

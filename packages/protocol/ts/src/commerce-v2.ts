@@ -413,6 +413,32 @@ function validOrderEscrow(order: CommerceOrder) {
   if (escrow.stage === "failed") return order.state === "checking" || order.state === "closed";
   return order.state === "paid";
 }
+/**
+ * Whether the store takes new orders. "busy" still takes them and says how long they take; "paused" and "closed"
+ * (a closed day) do not, and the server refuses a new order or quote. resumeAt is the store's own note, never applied.
+ */
+export type CommerceOrderState =
+  | {mode: "open"}
+  | {mode: "busy"; busyMinutes: number}
+  | {mode: "paused"; resumeAt?: string}
+  | {mode: "closed"};
+
+/** Reads the state sent with the first menu page; anything unexpected reads as nothing known. */
+export function readOrderState(value: unknown): CommerceOrderState | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const state = value as Record<string, unknown>;
+  if (Object.keys(state).some(key => !["mode", "busyMinutes", "resumeAt"].includes(key))) return undefined;
+  if (state.mode === "open" || state.mode === "closed") return {mode: state.mode};
+  if (state.mode === "busy" && Number.isSafeInteger(state.busyMinutes) && (state.busyMinutes as number) >= 5 &&
+      (state.busyMinutes as number) <= 60) return {mode: "busy", busyMinutes: state.busyMinutes as number};
+  if (state.mode === "paused") {
+    if (state.resumeAt === undefined) return {mode: "paused"};
+    if (typeof state.resumeAt === "string" && /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(state.resumeAt))
+      return {mode: "paused", resumeAt: state.resumeAt};
+  }
+  return undefined;
+}
+
 type Response = ServiceReplyV2 & {
   reservationFound?: boolean;
   unavailable?: CommerceCartLine[];
@@ -427,6 +453,7 @@ type Response = ServiceReplyV2 & {
   catalogPhotos?: (CommercePhoto & { sku: string })[];
   photo?: { size: number; data: string };
   shop?: ShopIdentity;
+  orderState?: unknown;
   order?: CommerceOrder;
   orders?: CustomerOrderRow[];
   payer?: PayerEnrollment;
@@ -1007,7 +1034,7 @@ export class CommerceClient {
     assertCommerceCatalogPage(rows, this.clock(), commerceCatalogPageSize);
     const prices = withPhotos(withChoices(rows, reply.catalogOptions), reply.catalogPhotos);
     assertCommerceCatalogVersion(reply.catalogVersion, prices);
-    return {prices, shop: reply.shop, snapshotVersion: reply.catalogVersion};
+    return {prices, shop: reply.shop, orderState: page === 0 ? readOrderState(reply.orderState) : undefined, snapshotVersion: reply.catalogVersion};
   }
 
   /** A published photo, read in parts that each fit a reply, and checked against its name. Base64 of the JPEG. */
@@ -1041,17 +1068,18 @@ export class CommerceClient {
   private async readPublishedCatalog(identifyShop: boolean) {
     const catalog: CommercePrice[] = [];
     let shop: ShopIdentity | undefined;
+    let orderState: CommerceOrderState | undefined;
     const lastPage = Math.floor(commerceCatalogLimit / commerceCatalogPageSize);
     let snapshot: number | undefined;
     for (let page = 0; page <= lastPage; page++) {
-      const {prices, shop: branch, snapshotVersion} = await this.catalogWindow(page);
-      if (page === 0) snapshot = snapshotVersion;
+      const {prices, shop: branch, orderState: state, snapshotVersion} = await this.catalogWindow(page);
+      if (page === 0) [snapshot, orderState] = [snapshotVersion, state];
       else if (snapshot !== snapshotVersion) throw new Error("CATALOG_CHANGED");
       if (page === 0 && identifyShop && branch !== undefined) shop = readShopIdentity(branch, this.profile.branchRef);
       appendCommerceCatalogPage(catalog, prices);
       if (prices.length < commerceCatalogPageSize) {
         assertCommerceChoices(catalog);
-        return {catalog, shop};
+        return {catalog, shop, orderState};
       }
     }
     throw new Error("BAD_RESPONSE");
@@ -1061,7 +1089,8 @@ export class CommerceClient {
     return (await this.readPublishedCatalog(false)).catalog;
   }
 
-  async publishedMenu(): Promise<{catalog: CommercePrice[]; shop?: ShopIdentity}> {
+  /** The menu with the shop's name and whether it takes orders now. A server without the state leaves it out. */
+  async publishedMenu(): Promise<{catalog: CommercePrice[]; shop?: ShopIdentity; orderState?: CommerceOrderState}> {
     return this.readPublishedCatalog(true);
   }
 

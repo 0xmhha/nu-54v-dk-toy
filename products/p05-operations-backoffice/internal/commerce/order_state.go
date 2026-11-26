@@ -1,0 +1,143 @@
+package commerce
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"regexp"
+	"slices"
+	"strings"
+
+	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
+	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/authority"
+)
+
+var (
+	wallClock = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+	calendar  = regexp.MustCompile(`^20[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`)
+)
+
+// orderStateChange is one change from the operations page: the store's state, one closed day, or products sold out.
+type orderStateChange struct {
+	Mode        string   `json:"mode,omitempty"`
+	BusyMinutes *int     `json:"busyMinutes,omitempty"`
+	ResumeAt    *string  `json:"resumeAt,omitempty"`
+	Day         string   `json:"day,omitempty"`
+	Closed      *bool    `json:"closed,omitempty"`
+	Products    []string `json:"products,omitempty"`
+	SoldOut     *bool    `json:"soldOut,omitempty"`
+}
+
+// CustomerOrderState is what customers and terminals read with the first menu page.
+type CustomerOrderState struct {
+	Mode        string `json:"mode"`
+	BusyMinutes int    `json:"busyMinutes,omitempty"`
+	ResumeAt    string `json:"resumeAt,omitempty"`
+	// SoldOut is applied to the menu rows (their counts read as zero), not sent, so a page keeps its size.
+	SoldOut []string `json:"-"`
+}
+
+func (h HTTP) registerOrderState(mux *http.ServeMux) {
+	mux.HandleFunc("GET /v2/operations/state/{branch}", h.operateOrderState)
+	mux.HandleFunc("POST /v2/operations/state/{branch}/{action}", h.operateOrderState)
+}
+
+// operateOrderState reads or changes whether the store takes orders, its closed days and sold-out products.
+func (h HTTP) operateOrderState(w http.ResponseWriter, r *http.Request) {
+	branch := r.PathValue("branch")
+	actor, ok := h.operatorCredential(r)
+	if !operatorRef.MatchString(branch) || !ok || h.Store == nil {
+		http.NotFound(w, r)
+		return
+	}
+	ctx := authority.Scope(r.Context(), actor, branch)
+	var reply json.RawMessage
+	if r.Method == http.MethodGet {
+		err := h.Store.db.QueryRow(ctx, "SELECT ledger.operator_order_state($1,$2,$3)", actor.Tenant, branch, actor.Subject).Scan(&reply)
+		operatorResponse(w, h.withMe(reply, actor.Subject), err)
+		return
+	}
+	if h.OperatorOrigin == "" || r.Header.Get("Origin") != h.OperatorOrigin || strings.TrimSpace(r.Header.Get("Content-Type")) != "application/json" {
+		http.NotFound(w, r)
+		return
+	}
+	var change orderStateChange
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&change) != nil {
+		operatorResponse(w, nil, service.BadRequest)
+		return
+	}
+	var err error
+	switch r.PathValue("action") {
+	case "mode":
+		if change.Mode == "" || (change.ResumeAt != nil && !wallClock.MatchString(*change.ResumeAt)) {
+			err = service.BadRequest
+			break
+		}
+		err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_order_state($1,$2,$3,$4,$5,$6)",
+			actor.Tenant, branch, actor.Subject, change.Mode, change.BusyMinutes, change.ResumeAt).Scan(&reply)
+	case "closed-day":
+		if !calendar.MatchString(change.Day) || change.Closed == nil {
+			err = service.BadRequest
+			break
+		}
+		err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_closed_day($1,$2,$3,$4::date,$5)",
+			actor.Tenant, branch, actor.Subject, change.Day, *change.Closed).Scan(&reply)
+	case "sold-out":
+		if len(change.Products) == 0 || len(change.Products) > 200 || change.SoldOut == nil {
+			err = service.BadRequest
+			break
+		}
+		products, _ := json.Marshal(change.Products)
+		err = h.Store.db.QueryRow(ctx, "SELECT ledger.set_sold_out($1,$2,$3,$4,$5)",
+			actor.Tenant, branch, actor.Subject, products, *change.SoldOut).Scan(&reply)
+	default:
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		operatorResponse(w, nil, err)
+		return
+	}
+	operatorResponse(w, h.withMe(reply, actor.Subject), nil)
+}
+
+// withMe adds who is asking, so the page can say "you" instead of a reference.
+func (h HTTP) withMe(reply json.RawMessage, me string) json.RawMessage {
+	var state map[string]json.RawMessage
+	if reply == nil || json.Unmarshal(reply, &state) != nil {
+		return reply
+	}
+	state["me"], _ = json.Marshal(me)
+	out, _ := json.Marshal(state)
+	return out
+}
+
+// OrderState reads the store's state for a customer or terminal.
+func (s *Store) OrderState(ctx context.Context, auth service.Bound) (*CustomerOrderState, error) {
+	var state CustomerOrderState
+	var raw []byte
+	if err := s.db.QueryRow(ctx, "SELECT ledger.customer_order_state($1,$2,$3)", auth.Tenant, auth.Request.Domain, auth.Subject).Scan(&raw); err != nil {
+		return nil, domainError(err)
+	}
+	var wire struct {
+		CustomerOrderState
+		SoldOut []string `json:"soldOut"`
+	}
+	if err := json.Unmarshal(raw, &wire); err != nil {
+		return nil, err
+	}
+	state = wire.CustomerOrderState
+	state.SoldOut = wire.SoldOut
+	return &state, nil
+}
+
+// markSoldOut shows the products a store marked sold out as having none left.
+func markSoldOut(rows []Price, soldOut []string) {
+	for index := range rows {
+		if slices.Contains(soldOut, rows[index].SKU) {
+			rows[index].Available, rows[index].SKUAvailable = 0, 0
+		}
+	}
+}
