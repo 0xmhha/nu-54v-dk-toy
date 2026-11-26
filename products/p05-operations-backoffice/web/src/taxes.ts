@@ -1,0 +1,12 @@
+import type { CommerceMenuMetadata } from "@nu54/protocol";
+import { isWon } from "./money.ts";
+import { assetToken, type CatalogAsset } from "./prices.ts";
+
+export type TaxKind = NonNullable<CommerceMenuMetadata["tax"]>;
+
+/** The tax inside an amount of base units: 1/11 for 10%, cut to the whole won or the cent. The apps count the same. */
+export function includedTax(total: bigint, kind: TaxKind | undefined, asset: CatalogAsset) {
+  if (kind !== "vat10") return 0n;
+  const unit = 10n ** BigInt(isWon(assetToken(asset)) ? asset.decimals : Math.max(0, asset.decimals - 2));
+  return total / 11n / unit * unit;
+}

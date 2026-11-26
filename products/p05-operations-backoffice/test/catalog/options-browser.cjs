@@ -22,9 +22,9 @@ let catalog = {
   version: 1, timezone: "Asia/Seoul", expiresAt: new Date(Date.now() + 86400000).toISOString(),
   rows: [
     { sku: "cake", option: "standard", label: "치즈케이크", asset, price: "650000", available: 5 },
-    { sku: "beans", option: "whole", label: "원두 200g", asset, price: "1800000", available: 5 }, { sku: "beans", option: "ground", label: "원두 200g", asset, price: "1800000", available: 5 },
+    { sku: "beans", option: "whole", label: "원두 200g", asset, price: "1850000", available: 5 }, { sku: "beans", option: "ground", label: "원두 200g", asset, price: "1850000", available: 5 },
   ],
-  breakdown: [{ sku: "beans", option: "whole", displayPrice: "1800000", tax: "0", discount: "0", required: true }, { sku: "beans", option: "ground", displayPrice: "1800000", tax: "0", discount: "0", required: true }],
+  breakdown: [{ sku: "beans", option: "whole", displayPrice: "1800000", tax: "50000", discount: "0", required: true }, { sku: "beans", option: "ground", displayPrice: "1800000", tax: "50000", discount: "0", required: true }],
   options: [], categories: [], categoryBindings: [],
 };
 
@@ -134,6 +134,20 @@ async function main() {
     await page.getByText("1줄 · 6,500원").waitFor();
     assert.equal(await page.getByLabel("기본 가격", { exact: true }).count(), 0, "rows are not shown under the list");
 
+    // The beans took 500원 of tax on top of 18,000원. Making the price include its tax lowers what a customer pays, and the review says so.
+    await button("원두 200g 고치기").click();
+    const rowsForm = page.getByRole("form", { name: "옵션 목록 고치기" });
+    const beansTax = rowsForm.getByRole("group", { name: "세금", exact: true });
+    assert.equal(await beansTax.getByLabel("세금 500원을 가격에 더해 받기 (지금 방식)").isChecked(), true);
+    await beansTax.getByLabel("면세").check();
+    assert.equal(await rowsForm.getByLabel("세금", { exact: true }).count(), 0, "no amount on top once the price includes its tax");
+    await button("이 상품 저장", rowsForm).click();
+    await button("게시 내용 검토").click();
+    await page.getByRole("region", { name: "변경 확인" }).getByRole("list", { name: "세금에서 바뀌는 것" }).getByText(/원두 200g · 세금 500원 별도 → 면세 · 손님이 낼 금액 18,500원 → 18,000원/).waitFor();
+    await page.getByRole("region", { name: "변경 확인" }).getByText("낼 금액이 줄어듭니다. 지금처럼 받으려면 가격을 18,500원으로 적어 주세요.", { exact: false }).waitFor();
+    await fits("tax-review");
+    await button("취소").click();
+
     // A new product with three groups.
     await button("상품 추가").click();
     await editor.getByLabel("상품 코드", { exact: true }).fill("cake");
@@ -149,13 +163,17 @@ async function main() {
     await editor.getByText("조합 12줄 · 5,000원부터 6,200원까지").waitFor();
     await editor.getByText("매장 전체 15 / 600줄").waitFor();
 
-    // Refused beside the group it is about.
+    // A new product's price includes 10% tax; a choice may add to it, and the page shows the tax inside.
     const save = button("이 상품 저장", editor);
-    await editor.getByLabel(/^세금/).fill("500");
-    await group(2).getByRole("alert").filter({ hasText: "세금이 있는 상품" }).waitFor();
-    assert.equal(await group(1).getByRole("alert").count(), 0);
-    assert.equal(await save.isDisabled(), true);
-    await editor.getByLabel(/^세금/).fill("0");
+    const tax = editor.getByRole("group", { name: "세금", exact: true });
+    assert.equal(await tax.getByLabel("부가세 10% (가격에 포함)").isChecked(), true);
+    await tax.getByText("454원").waitFor(); // 5,000원 = 4,546원 + 454원
+    await tax.getByLabel("면세").check();
+    await tax.getByRole("definition").filter({ hasText: /^0원$/ }).waitFor();
+    assert.equal(await tax.getByLabel("외국인 세금 환급 대상 상품").isDisabled(), false);
+    await tax.getByLabel("부가세 10% (가격에 포함)").check();
+    await tax.getByLabel("외국인 세금 환급 대상 상품").check();
+    assert.equal(await editor.getByRole("alert").count(), 0);
     await fields(3, 1).getByText(/더해지는 성분/).click();
     await fields(3, 1).getByLabel("우유", { exact: true }).check();
     await group(3).getByRole("alert").filter({ hasText: "알레르기 성분을 먼저" }).waitFor();
@@ -193,7 +211,9 @@ async function main() {
     const table = await review.locator("tbody tr").allInnerTexts();
     assert.equal(table.length, 12);
     const cells = table.map((row) => row.split("\t").map((cell) => cell.trim()));
-    for (const [name, base, extra, total, allergens] of cells) {
+    for (const [name, base, extra, total, taxed, allergens] of cells) {
+      const charged = Number(total.replace(/[^0-9]/g, ""));
+      assert.equal(taxed, `${Math.floor(charged / 11).toLocaleString("en-US")}원`, name);
       const sum = (name.includes("크게") ? 500 : 0) + (/두유|귀리/.test(name) ? 700 : 0);
       assert.deepEqual([base, extra, total], ["5,000원", sum ? `+${sum.toLocaleString("en-US")}원` : "0원", `${(5000 + sum).toLocaleString("en-US")}원`], name);
       assert.equal(allergens, name.endsWith("우유") && !name.includes("두유") ? "우유" : "없음", name);
@@ -207,7 +227,8 @@ async function main() {
     await page.getByRole("heading", { name: "메뉴 3개 · 게시 줄 15 / 600", exact: true }).waitFor();
     await publish();
     const [first] = published;
-    assert.deepEqual(first.rows.find(({ sku }) => sku === "latte"), { sku: "latte", option: "", label: "카페라떼", asset, displayPrice: "5000", tax: "0", discount: "0", required: true, metadata: { allergens: [] } });
+    assert.deepEqual(first.rows.find(({ sku }) => sku === "latte"), { sku: "latte", option: "", label: "카페라떼", asset, displayPrice: "5000", tax: "0", discount: "0", required: true,
+      metadata: { tax: "vat10", taxRefund: true, allergens: [] } });
     const [{ groups }] = first.options;
     assert.deepEqual(groups.map(({ labels }) => labels.ko), ["온도", "크기", "우유"]);
     const codes = groups.flatMap(({ key, values }) => [key, ...values.map((value) => value.key)]);

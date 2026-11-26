@@ -119,8 +119,10 @@ const answers: Record<OrderBuyerAction, {label: string; warn?: string; confirm?:
 };
 
 /** One order from payment to its end, with the answers the buyer may give now. */
-export function OrderDetail({order, amount, fresh, mine = true, former = false, busy = false, message, now, actions}: {
+export function OrderDetail({order, amount, money, fresh, mine = true, former = false, busy = false, message, now, actions}: {
   order: OpenOrder; amount: string;
+  /** Formats base units of this order's token, for the lines of the receipt. */
+  money?: (units: string) => string;
   /** The state below comes from the server in this visit, so it can be answered. */
   fresh: boolean;
   /** This phone holds the key the order answers to. */
@@ -160,6 +162,7 @@ export function OrderDetail({order, amount, fresh, mine = true, former = false, 
       <AmountLine amount={amount} label="결제 금액" />
       <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
     </Card>
+    {order.items && money && <Receipt items={order.items} money={money} />}
     {given && (order.pendingAction
       ? <View style={styles.notice}><Text style={styles.noticeText}>{`'${answers[given].label}' 답을 확인하고 있습니다. 확정되면 상태가 바뀝니다.`}</Text></View>
       : <View style={styles.notice}>
@@ -181,6 +184,8 @@ export function OrderDetail({order, amount, fresh, mine = true, former = false, 
 }
 
 const styles = StyleSheet.create({
+  receiptLine: {gap: 2, paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#d5dfd3'},
+  receiptRow: {flexDirection: 'row', justifyContent: 'space-between', gap: 12},
   card: {flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: radius.l, borderWidth: 1,
     borderColor: color.line, backgroundColor: color.sheet},
   pressed: {opacity: 0.82},
@@ -201,3 +206,29 @@ const styles = StyleSheet.create({
   notice: {gap: 10, borderRadius: radius.m, padding: 14, backgroundColor: color.amberBg},
   noticeText: {fontFamily: font, fontSize: 15, lineHeight: 22, color: '#5a3b05'},
 });
+
+/** What was bought, line by line: the price, and the supply value and tax inside it when the store said them. */
+function Receipt({items, money}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string}) {
+  const taxed = items.every(item => item.tax !== undefined);
+  const sum = (pick: (item: (typeof items)[number]) => bigint) => items.reduce((total, item) => total + pick(item), 0n);
+  const row = (label: string, value: string, strong = false) => <View style={styles.receiptRow}>
+    <Text style={strong ? type.label : type.small}>{label}</Text><Text style={strong ? type.label : type.small}>{value}</Text></View>;
+  return <Card>
+    <Text accessibilityRole="header" style={type.section}>영수증</Text>
+    {items.map((item, index) => <View key={index} style={styles.receiptLine}>
+      {row(`${item.name} ×${item.quantity}`, money(item.total), true)}
+      {item.tax !== undefined && <>
+        {row(item.taxKind === 'exempt' ? '면세' : '부가세 10% 포함', '')}
+        {row('공급가액', money((BigInt(item.total) - BigInt(item.tax)).toString()))}
+        {row('세금', money(item.tax))}
+        {row('뺀 금액', money('0'))}
+      </>}
+    </View>)}
+    {taxed && <>
+      {row('공급가액 합계', money(sum(item => BigInt(item.total) - BigInt(item.tax!)).toString()))}
+      {row('세금 합계', money(sum(item => BigInt(item.tax!)).toString()))}
+    </>}
+    {row('낸 금액', money(sum(item => BigInt(item.total)).toString()), true)}
+    {taxed && <Text style={type.small}>세금 환급은 시험 단계에서 하지 않습니다.</Text>}
+  </Card>;
+}

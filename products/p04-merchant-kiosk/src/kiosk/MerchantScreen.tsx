@@ -37,6 +37,8 @@ import {
   commerceLineCapacity,
   commerceNeedsOptionSupport,
   commerceChoiceDisclosure,
+  commerceCartTax,
+  commerceLineTax,
   CommercePhotoCache,
   commerceChoiceState,
   commerceChooseMessage,
@@ -1820,6 +1822,11 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     !screen.key && !screen.connectionEnded && !offlineMenu && mode?.mode === 'menu';
   const basketUnits = Object.values(choice).reduce((total, item) => total + item.quantity, 0);
   const basketTotals = commerceCartTotals(choice);
+  // The tax inside the basket, shown only when the store said the tax of every line.
+  const basketTax = commerceCartTax(choice, policy);
+  const taxNote = (tax: bigint, asset: string) => menuLocale === 'ko'
+    ? `세금 ${commerceAmount(tax.toString(), asset, policy, menuLocale)} 포함`
+    : `Includes ${commerceAmount(tax.toString(), asset, policy, menuLocale)} tax`;
   const menuGroups = new Map<string, CommercePrice[]>();
   for (const row of stock) {
     const group = menuGroups.get(row.sku);
@@ -1852,6 +1859,11 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
         {Object.values(choice).map(({ row, quantity }) =>
           `${commerceMenuLabels(row, menuLocale).product} ${quantity}`).join(' · ')}
       </Text>}
+      {!screen.pos && basketTax && basketTax.total.toString() === screen.sale.amount && <Text style={s.amountLabel}>
+        {menuLocale === 'ko'
+          ? `공급가액 ${commerceAmount(basketTax.supply.toString(), screen.sale.asset, policy, menuLocale)} · ${taxNote(basketTax.tax, screen.sale.asset)}`
+          : `${taxNote(basketTax.tax, screen.sale.asset)} · Before tax ${commerceAmount(basketTax.supply.toString(), screen.sale.asset, policy, menuLocale)}`}
+      </Text>}
     </View>
   );
   const kitchenOpen = staffView === 'work' && pickupOpen && !printView && !!staff?.permissions.includes('pickup') && !!pickupJournal;
@@ -1866,6 +1878,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           return (
             <View key={commerceLineKey(row)} style={s.basketLine}>
               <Label>{`${names.name} ×${quantity}`}</Label>
+              {(() => { const line = commerceLineTax(row, quantity, policy); return line && <Text style={s.hint}>{taxNote(line.tax, row.asset)}</Text>; })()}
               {(required || basketOpen || wide) && !menuDetail && !cartReplacement && <Button
           text={menuLocale === 'ko' ? '빼기' : 'Remove'}
                 label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
@@ -1922,6 +1935,11 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             } · ${commerceCartAmount(amount, asset, policy, menuLocale)}`}
           </Text>
         ))}
+        {basketTax && basketTotals.length === 1 && <Text style={s.hint}>
+          {menuLocale === 'ko'
+            ? `공급가액 ${commerceAmount(basketTax.supply.toString(), basketTotals[0].asset, policy, menuLocale)} · ${taxNote(basketTax.tax, basketTotals[0].asset)}`
+            : `${taxNote(basketTax.tax, basketTotals[0].asset)} · Before tax ${commerceAmount(basketTax.supply.toString(), basketTotals[0].asset, policy, menuLocale)}`}
+        </Text>}
         {!!basketUnits && <Text style={s.hint}>
           {menuLocale === 'ko' ? '네트워크 수수료는 매장이 냅니다' : 'The store pays the network fee'}
         </Text>}

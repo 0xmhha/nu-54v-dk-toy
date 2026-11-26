@@ -22,7 +22,11 @@ assert.deepEqual(rows.map(({ option, total }) => [option, total]), [
   ["hot-s-cow", "5,000원"], ["hot-s-oat", "5,700원"], ["hot-l-cow", "5,500원"], ["hot-l-oat", "6,200원"],
   ["ice-s-cow", "5,000원"], ["ice-s-oat", "5,700원"], ["ice-l-cow", "5,500원"], ["ice-l-oat", "6,200원"],
 ]);
-assert.deepEqual(rows[3], { option: "hot-l-oat", label: "뜨겁게 · 크게 · 귀리 음료", base: "5,000원", added: "+1,200원", total: "6,200원", allergens: ["soy"] });
+assert.deepEqual(rows[3], { option: "hot-l-oat", label: "뜨겁게 · 크게 · 귀리 음료", base: "5,000원", added: "+1,200원", total: "6,200원", tax: "", allergens: ["soy"] });
+// A price that includes 10% shows the tax inside each combination, cut to the whole won.
+const taxed = combinations({ ...latte(), metadata: { allergens: ["soy"], tax: "vat10" } }, won);
+assert.deepEqual(taxed.map(({ total, tax }) => [total, tax]).slice(0, 4), [["5,000원", "454원"], ["5,700원", "518원"], ["5,500원", "500원"], ["6,200원", "563원"]]);
+assert.equal(combinations({ ...latte(), metadata: { tax: "exempt" } }, won)[0].tax, "0원");
 assert.deepEqual(rows[0].allergens, ["soy", "milk"]);
 assert.equal(rows[0].added, "0원");
 assert.equal(priceRange(latte(), won), "5,000원부터 6,200원까지");
@@ -50,6 +54,9 @@ assert.deepEqual(savedProducts(undefined, won), []);
 // Refused, beside the group it is about. The server refuses the same.
 const problem = (change, asset = won) => { const product = latte(); change(product); return productProblems(product, asset); };
 assert.deepEqual(problem(() => {}), { product: undefined, groups: [undefined, undefined, undefined], incomplete: false });
+// A choice may add to a price that includes its tax; only an amount added on top of the price refuses it.
+assert.deepEqual(problem((p) => { p.metadata.tax = "vat10"; }).groups, [undefined, undefined, undefined]);
+assert.equal(emptyProduct().metadata.tax, "vat10");
 const tax = problem((p) => { p.tax = "500"; });
 assert.equal(tax.groups[0], undefined);
 assert.match(tax.groups[1], /세금이 있는 상품/);

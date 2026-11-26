@@ -37,6 +37,8 @@ import {
   commerceHasSiblingOption,
   commerceNeedsOptionSupport,
   CommercePhotoCache,
+  commerceCartTax,
+  commerceLineTax,
   commerceCartAmount,
   commerceReservationRejected,
   reviewCommerceCart,
@@ -117,7 +119,7 @@ import {AmountLine, PickupTicket} from './paymentParts.tsx';
 import {color, font, radius} from '../ui/theme.ts';
 import {customerJournals} from './customerJournal.ts';
 import {askOrderNotices, customerClient, openOrderLabel, recordOrder, refreshOpenOrders, sendOrderAnswer, walletId} from './customerClient.ts';
-import {isOpenOrder, orderRecords, type OpenOrder} from './orderRecords.ts';
+import {isOpenOrder, orderRecords, type OpenOrder, type OrderItem} from './orderRecords.ts';
 import {useScreenProtection} from '../ui/screenProtection.ts';
 import {isFormerBoard, OpenOrderCard, OrderDetail} from './OpenOrders.tsx';
 import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} from './OrderPayment.tsx';
@@ -251,6 +253,17 @@ type PickupCartReview = CommerceCartReview & {
 };
 
 type OrderOutcome = {sale: string; store: string; amount: string} & ({kind: 'done'; number: number} | {kind: 'failed'});
+
+/** The lines of a receipt. The tax is the one inside each line's price, when the store said it. */
+function receiptItems(selection: CommerceSelection, policy: CommercePaymentProfile): OrderItem[] | undefined {
+  const lines = Object.values(selection);
+  if (!lines.length || lines.length > 20) return undefined;
+  return lines.map(({row, quantity}) => {
+    const line = commerceLineTax(row, quantity, policy);
+    return {name: commerceMenuLabels(row, 'ko').name.slice(0, 200), quantity, total: (BigInt(row.unitPrice) * BigInt(quantity)).toString(),
+      ...(line ? {tax: line.tax.toString(), taxKind: row.metadata!.tax!} : {})};
+  });
+}
 
 export function CustomerOrders({
   back,
@@ -1991,6 +2004,8 @@ export function CustomerOrders({
     await records.keep({
       ...orderAccount(entry), escrow: policy.contract, merchantId: policy.merchantId, sale: entry.order.id, branch: entry.branch, customer: entry.customer, confirmer, store: entry.store,
       asset: entry.order.asset, amount: entry.order.amount, orderKey: entry.quote.orderKey, sentAt: now(),
+      // What was bought, kept for the receipt: the lines of the basket this order was made from.
+      ...(point?.order === entry.order.id && point.selection ? {items: receiptItems(point.selection, policy)} : {}),
     });
     const attempt = {...entry, forwardAttempted: true as const};
     await keepPayment(attempt);
@@ -2182,7 +2197,8 @@ export function CustomerOrders({
       board: board?.view, boards, searching: busy && !boards.length && !board, resumed: !!entry.boardStarted && !busy,
       items: point?.order === entry.order.id ? Object.values(point.selection ?? {}).map(({row, quantity}) => {
         const names = commerceMenuLabels(row, menuLocale);
-        return {label: `${names.name} ×${quantity}`,
+        const line = commerceLineTax(row, quantity, policy);
+        return {label: `${names.name} ×${quantity}${line ? ` · 세금 ${commerceAmount(line.tax.toString(), row.asset, policy)} 포함` : ''}`,
           amount: commerceCartAmount((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy)};
       }) : [],
     };
@@ -2524,7 +2540,7 @@ export function CustomerOrders({
       generation: '', asset: otherDetail!.asset, amount: otherDetail!.amount, sentAt: Math.floor(Date.parse(otherDetail!.payment?.includedAt ?? otherDetail!.expiresAt) / 1000),
       pickupNo: otherDetail!.pickupNo, pickup: otherDetail!.payment?.pickupStage};
     return <ScrollView contentContainerStyle={s.scroll}>
-      <OrderDetail order={shown} amount={commerceAmount(shown.amount, shown.asset, policy)} fresh={order?.id === shown.sale} mine={!!recordedDetail} former={isFormerBoard(shown, boardAccount)}
+      <OrderDetail order={shown} amount={commerceAmount(shown.amount, shown.asset, policy)} money={units => commerceAmount(units, shown.asset, policy)} fresh={order?.id === shown.sale} mine={!!recordedDetail} former={isFormerBoard(shown, boardAccount)}
         busy={busy} message={message} now={now()} actions={{
           answer: action => work(() => answerOrder(action), '답을 보내지 못했습니다. 상태를 다시 확인하세요.'),
           refresh: () => work(() => openOrderDetail(shown.sale), orderOffline),
@@ -3010,6 +3026,16 @@ export function CustomerOrders({
                 } · ${commerceCartAmount(amount, asset, policy)}`}
               </Text>
             ))}
+          {!point && (() => {
+            // Shown only when the store said the tax of every line in the basket.
+            const taxed = commerceCartTax(cart, policy);
+            const asset = Object.values(cart)[0]?.row.asset;
+            return taxed && asset ? <>
+              <Text style={s.text}>{`공급가액 · ${commerceCartAmount(taxed.supply.toString(), asset, policy)}`}</Text>
+              <Text style={s.text}>{`세금(가격에 포함) · ${commerceCartAmount(taxed.tax.toString(), asset, policy)}`}</Text>
+              <Text style={s.text}>세금은 품목마다 원 단위 아래를 버려 계산합니다. 세금 환급은 시험 단계에서 하지 않습니다.</Text>
+            </> : null;
+          })()}
           {!point && !menuReadOnly && (shop || pickupMode) && Object.keys(cart).length > 0 && (
             <Button
               label={

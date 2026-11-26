@@ -1,6 +1,7 @@
 import type { CommerceMenuMetadata } from "@nu54/protocol";
 import { assetToken, humanAmount, priceProblem, rowTotal, type CatalogAsset, type PriceRow } from "./prices.ts";
 import { isWon, tokenMoney } from "./money.ts";
+import { includedTax } from "./taxes.ts";
 
 // The server checks the same limits; these explain them before it refuses.
 export const rowLimit = 600;
@@ -30,7 +31,7 @@ export function newKey(): string {
 
 export const emptyValue = (): OptionValue => ({ key: newKey(), ko: "", en: "", price: "0", allergens: [] });
 export const emptyGroup = (): OptionGroup => ({ key: newKey(), ko: "", en: "", values: [emptyValue(), emptyValue()] });
-export const emptyProduct = (): Product => ({ sku: "", label: "", price: "", tax: "0", discount: "0", groups: [emptyGroup()] });
+export const emptyProduct = (): Product => ({ sku: "", label: "", price: "", tax: "0", discount: "0", metadata: { tax: "vat10" }, groups: [emptyGroup()] });
 
 export function savedProducts(options: SavedOptions[] | undefined, asset: CatalogAsset): Product[] {
   const amount = (units: string | undefined) => humanAmount(units || "0", asset.decimals).replace(/\.0+$/, "");
@@ -62,7 +63,7 @@ export const lineCount = ({ groups }: Product) => groups.reduce((count, { values
 const zero = (amount: string) => /^0*(\.0*)?$/.test(amount);
 const added = (value: OptionValue, asset: CatalogAsset) => (zero(value.price) ? 0n : rowTotal({ price: value.price, tax: "", discount: "" }, asset));
 
-export type Combination = { option: string; label: string; base: string; added: string; total: string; allergens?: Allergens };
+export type Combination = { option: string; label: string; base: string; added: string; total: string; tax: string; allergens?: Allergens };
 /** The rows the server will make, in the store's order. Empty while an amount is not one. */
 export function combinations(product: Product, asset: CatalogAsset): Combination[] {
   const base = rowTotal(product, asset);
@@ -81,7 +82,8 @@ export function combinations(product: Product, asset: CatalogAsset): Combination
   }
   const money = (units: bigint) => tokenMoney(units.toString(), assetToken(asset));
   return rows.map(({ keys, names, sum, allergens }) => ({
-    option: keys.join("-"), label: names.join(" · "), base: money(base), added: sum ? `+${money(sum)}` : money(0n), total: money(base + sum), allergens,
+    option: keys.join("-"), label: names.join(" · "), base: money(base), added: sum ? `+${money(sum)}` : money(0n), total: money(base + sum),
+    tax: product.metadata?.tax ? money(includedTax(base + sum, product.metadata.tax, asset)) : "", allergens,
   }));
 }
 

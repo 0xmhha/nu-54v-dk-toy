@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { PhotoInfo } from "./MenuPhotos";
+import { TaxField } from "./MenuTax";
 import { allergenNames, MenuDeclarations } from "./MenuDeclarations";
 import { commerceAllergens, type CommerceMenuMetadata } from "@nu54/protocol";
 import { assetToken, type CatalogAsset } from "./prices";
@@ -114,14 +115,15 @@ export function ProductEditor({ product, asset, taken, otherLines, fresh, save, 
             상품 이름
             <input required maxLength={120} value={draft.label} onChange={(event) => change({ label: event.target.value })} />
           </label>
-          {([["price", "가격"], ["tax", "세금"], ["discount", "할인"]] as const).map(([key, name]) => (
+          {([["price", "가격"], ["discount", "할인"]] as const).map(([key, name]) => (
             <label key={key}>
-              {name}({unit(asset)}){key === "price" && " · 옵션을 더하기 전"}
+              {name}({unit(asset)}){key === "price" && (draft.metadata?.tax ? " · 세금 포함, 옵션을 더하기 전" : " · 옵션을 더하기 전")}
               <input required={key === "price"} inputMode="decimal" value={draft[key]} onChange={(event) => change({ [key]: event.target.value })} />
             </label>
           ))}
           {problems.product && <p role="alert" className="problem">{problems.product}</p>}
-          <p>세금이 있는 상품에는 더하는 금액을 적을 수 없습니다.</p>
+          <TaxField row={draft} metadata={draft.metadata} asset={asset} change={(metadata, tax) => change({ metadata, tax })} />
+          {!draft.metadata?.tax && <p>세금을 가격에 더해 받는 상품에는 더하는 금액을 적을 수 없습니다.</p>}
           <p>알레르기 성분을 적지 않은 상품에는 값의 성분도 적을 수 없습니다. 들어 있지 않으면 성분을 하나도 고르지 않고 게시합니다.</p>
           {photoField(draft.label || "새 상품", picture, setPicture)}
           <MenuDeclarations product metadata={draft.metadata} change={(metadata) => change({ metadata })} />
@@ -224,10 +226,10 @@ export function OptionReview({ before, after, asset, lines }: { before: Product[
           <summary>{product.label} · 조합 {lineCount(product)}줄</summary>
           <div className="scroll" tabIndex={0} role="region" aria-label={`${product.label} 조합`}>
             <table>
-              <thead><tr><th scope="col">조합</th><th scope="col" className="amount">상품 가격</th><th scope="col" className="amount">더하는 금액</th><th scope="col" className="amount">받는 금액</th><th scope="col">알레르기</th></tr></thead>
+              <thead><tr><th scope="col">조합</th><th scope="col" className="amount">상품 가격</th><th scope="col" className="amount">더하는 금액</th><th scope="col" className="amount">받는 금액</th>{product.metadata?.tax && <th scope="col" className="amount">그중 세금</th>}<th scope="col">알레르기</th></tr></thead>
               <tbody>
                 {combinations(product, asset).map((row) => (
-                  <tr key={row.option}><td>{row.label}</td><td className="amount">{row.base}</td><td className="amount">{row.added}</td><td className="amount"><strong>{row.total}</strong></td><td>{allergenText(row.allergens)}</td></tr>
+                  <tr key={row.option}><td>{row.label}</td><td className="amount">{row.base}</td><td className="amount">{row.added}</td><td className="amount"><strong>{row.total}</strong></td>{product.metadata?.tax && <td className="amount">{row.tax}</td>}<td>{allergenText(row.allergens)}</td></tr>
                 ))}
               </tbody>
             </table>

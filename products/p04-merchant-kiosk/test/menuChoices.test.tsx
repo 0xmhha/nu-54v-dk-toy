@@ -26,6 +26,7 @@ const mockPhoto = Uint8Array.from({ length: 30_000 }, (_, i) => (i * 13) & 255);
 const mockThumb = mockPhoto.slice(0, 700);
 const mockHex = (bytes: Uint8Array) => require('@noble/hashes/sha256').sha256(bytes).reduce((s: string, b: number) => s + b.toString(16).padStart(2, '0'), '');
 let mockPhotos = false;
+let mockTaxed = false;
 const mockPhotoReads: string[] = [];
 const mockProfile = () => ({ branchRef: mockShop, subjectRef: mockRef(2), tenantRef: mockRef(5), role: 'terminal', expiresAt: mockClock() + 120 });
 const mockGroups: CommerceSkuOptions['groups'] = [
@@ -46,7 +47,8 @@ function mockCatalog() {
         ...common, sku: 'latte', optionKey: row.join('-'), label: '카페라떼',
         unitPrice: String((5000 + row.reduce((sum, key) => sum + (mockExtra[key] ?? 0), 0)) * 100),
         available: mockSoldOut.some(out => row.join('-').match(out)) ? 0 : 5,
-        metadata: { labels: { ko: '카페라떼', en: 'Cafe latte' }, optionLabels: { ko: label(row) }, optionRequired: true, allergens: [row.includes('cow') ? 'milk' : 'soy'] },
+        metadata: { labels: { ko: '카페라떼', en: 'Cafe latte' }, optionLabels: { ko: label(row) }, optionRequired: true, allergens: [row.includes('cow') ? 'milk' : 'soy'],
+          ...(mockTaxed ? { tax: 'vat10' as const } : {}) },
       })),
     ],
     catalogVersion: mockVersion,
@@ -125,6 +127,7 @@ beforeEach(() => {
   mockVersion = 1;
   mockDropped = '';
   mockPhotos = false;
+  mockTaxed = false;
   mockPhotoReads.length = 0;
   Dimensions.set({ window, screen: window });
 });
@@ -238,5 +241,20 @@ test('the menu shows the small photo, the product page the large one, each read 
     await press(tree, '메뉴로 돌아가기');
     expect(view(tree)).toContain('쿠키');
     expect(shown()).toHaveLength(1);
+  });
+});
+
+test('the basket says how much tax its prices include, line by line, and only when every line says it', async () => {
+  mockTaxed = true;
+  await kiosk(async tree => {
+    await press(tree, '카페라떼 옵션 선택');
+    for (const label of ['온도 차갑게', '크기 크게 +500원', '우유 두유 +700원', '수량 늘리기', '담기 12,400원']) await press(tree, label);
+    // 12,400원 is 11,273원 and 1,127원 of tax: one line, cut to the whole won.
+    expect(view(tree)).toContain('세금 1,127원 포함');
+    expect(view(tree)).toContain('공급가액 11,273원 · 세금 1,127원 포함');
+    // The cookie says nothing of its tax, so the basket shows no total of it.
+    await press(tree, '쿠키 standard 추가');
+    expect(view(tree)).not.toContain('공급가액');
+    expect(view(tree)).toContain('세금 1,127원 포함');
   });
 });

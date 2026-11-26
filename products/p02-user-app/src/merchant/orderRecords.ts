@@ -23,10 +23,12 @@ export type OrderAnswer = {action: OrderBuyerAction; claimableAt: number; key: s
 /** What the server last reported about the order. */
 export type OrderProgress = Partial<Pick<OrderEscrowStatus, 'stage' | 'claimableAt' | 'resolveBy' | 'payout' | 'refund' | 'pendingAction'>> &
   {pickupNo?: number; pickup?: CommerceOrderPayment['pickupStage']};
+/** One line of what was bought: its name, quantity and amount, and the tax inside that amount when the store said it. */
+export type OrderItem = {name: string; quantity: number; total: string; tax?: string; taxKind?: 'vat10' | 'exempt'};
 export type OpenOrder = OrderAccount & OrderProgress & {
   sale: string; branch: string; customer: string; confirmer: string; store?: string;
   asset: string; amount: string; escrow: string; merchantId: string; orderKey: string; sentAt: number;
-  notified?: true; answer?: OrderAnswer;
+  notified?: true; answer?: OrderAnswer; items?: OrderItem[];
 };
 
 /**
@@ -45,7 +47,14 @@ const hash = /^[0-9a-f]{64}$/;
 const stages = ['received', 'submitted', 'locked', 'delivered', 'disputed', 'paid', 'refunded', 'failed'];
 const settled = ['paid', 'refunded', 'failed'];
 const fields = ['payer', 'generation', 'sale', 'branch', 'customer', 'confirmer', 'store', 'asset', 'amount', 'escrow', 'merchantId', 'orderKey', 'sentAt',
-  'stage', 'claimableAt', 'resolveBy', 'payout', 'refund', 'pendingAction', 'pickupNo', 'pickup', 'notified', 'answer'];
+  'stage', 'claimableAt', 'resolveBy', 'payout', 'refund', 'pendingAction', 'pickupNo', 'pickup', 'notified', 'answer', 'items'];
+const units = /^(0|[1-9][0-9]{0,77})$/;
+const validItem = (item: OrderItem) => !!item && typeof item === 'object' &&
+  Object.keys(item).every(key => ['name', 'quantity', 'total', 'tax', 'taxKind'].includes(key)) &&
+  typeof item.name === 'string' && item.name.length > 0 && item.name.length <= 200 &&
+  Number.isSafeInteger(item.quantity) && item.quantity > 0 && item.quantity <= 1000 && units.test(item.total) &&
+  (item.tax === undefined ? item.taxKind === undefined
+    : units.test(item.tax) && BigInt(item.tax) <= BigInt(item.total) && (item.taxKind === 'vat10' || item.taxKind === 'exempt'));
 const actions = ['receipt', 'dispute', 'withdraw'];
 
 /** The buyer's key is still needed for this order. */
@@ -68,6 +77,7 @@ function validOrder(value: OpenOrder) {
     (value.refund === undefined || ['store', 'undelivered', 'arbiter', 'dispute-expired'].includes(value.refund)) &&
     (value.pendingAction === undefined || actions.includes(value.pendingAction)) &&
     (value.notified === undefined || value.notified === true) &&
+    (value.items === undefined || (Array.isArray(value.items) && value.items.length > 0 && value.items.length <= 20 && value.items.every(validItem))) &&
     (value.answer === undefined || (actions.includes(value.answer.action) && Number.isSafeInteger(value.answer.claimableAt) &&
       value.answer.claimableAt > 0 && uuid.test(value.answer.key) && /^[0-9a-f]{128}(1b|1c)$/.test(value.answer.signature) &&
       (value.answer.sentAt === undefined || (Number.isSafeInteger(value.answer.sentAt) && value.answer.sentAt > 0))));

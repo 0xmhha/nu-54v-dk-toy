@@ -15,6 +15,7 @@ import { CatalogCategories, CategoryReview, type CategoryDraft } from "./Catalog
 import { MenuDeclarations, menuDeclarationSummary } from "./MenuDeclarations";
 import { OptionReview, ProductEditor, ProductList } from "./MenuOptions";
 import { PhotoField, PhotoReview, photoLimit, type PhotoInfo } from "./MenuPhotos";
+import { TaxField, TaxReview } from "./MenuTax";
 import { emptyGroup, emptyProduct, menuLines, productProblems, publishedProducts, rowLimit, savedProducts, type Product, type SavedOptions } from "./optionGroups";
 import { useRef, useState, type FormEvent } from "react";
 import "./operations.css";
@@ -728,6 +729,9 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                       : "제한 없음"}
                   </p>
                   <p>이미 발급된 견적은 발급가를 유지합니다.</p>
+                  {site.asset && <TaxReview asset={site.asset}
+                    before={[...editableRows(site), ...savedProducts(site.catalog.options, site.asset)]}
+                    after={[...draft.filter((row, index) => draft.findIndex(({ sku }) => sku === row.sku) === index), ...products]} />}
                   <PhotoReview before={sitePhotos(site)} after={Object.fromEntries(Object.entries(photos).filter(([sku]) => catalogSKUs.includes(sku)))}
                     names={Object.fromEntries([...draft, ...products].map(({ sku, label }) => [sku, label]))} source={photoSource} />
                   {site.asset && (!!products.length || !!site.catalog.options?.length) && (
@@ -841,6 +845,14 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               <section>
                 <h2>{draft.find(({ sku }) => sku === rowsOf.sku)?.label || rowsOf.sku}</h2>
                 {photoField(draft.find(({ sku }) => sku === rowsOf.sku)?.label || rowsOf.sku, photos[rowsOf.sku], (photo) => setPhoto(rowsOf.sku, photo))}
+                {site.asset && (() => {
+                  const first = draft.find(({ sku }) => sku === rowsOf.sku);
+                  // Every row of the product takes the same tax.
+                  return first && <TaxField row={first} metadata={first.metadata} asset={site.asset}
+                    change={(metadata, tax) => setDraft((rows) => rows.map((item) => item.sku !== rowsOf.sku ? item : {
+                      ...item, tax, metadata: { ...item.metadata, tax: metadata.tax, taxRefund: metadata.taxRefund },
+                    }))} />;
+                })()}
                 <fieldset className="bare" disabled={busy || stale || !!confirm || !!pending}>
                   {draft.map((row, index) => row.sku !== rowsOf.sku ? null : (
                   <fieldset key={index} data-sku={row.sku}>
@@ -879,7 +891,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
                           "tax",
                           "discount",
                         ] as const
-                      ).map((key) => (
+                      ).filter((key) => key !== "tax" || !row.metadata?.tax).map((key) => (
                         <label key={key}>
                           {names[key]}
                           <input

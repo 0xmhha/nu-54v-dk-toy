@@ -16,7 +16,7 @@ const mockCarts: CommerceCart[] = [];
 const mockJournals = new Map<string, string>();
 const mockThumb = Uint8Array.from({length: 900}, (_, i) => (i * 11) & 255);
 const mockThumbName = require('@noble/hashes/sha256').sha256(mockThumb).reduce((s: string, b: number) => s + b.toString(16).padStart(2, '0'), '');
-let mockPhotoReads = 0, mockServerDown = false;
+let mockPhotoReads = 0, mockServerDown = false, mockTaxed = false;
 let mockNearby = false, mockStock: number | undefined = 5, mockOffline = false, mockSoldOut = '-', mockEntropy = 0;
 const mockGroups: CommerceSkuOptions['groups'] = [
   {key: 'temp', labels: {ko: '온도', en: 'Temperature'}, values: [{key: 'hot', labels: {ko: '뜨겁게', en: 'Hot'}}, {key: 'ice', labels: {ko: '차갑게', en: 'Iced'}}]},
@@ -30,7 +30,8 @@ function mockRows(choices: boolean): CommercePrice[] {
     ...mockGroups[0].values.flatMap((a, i) => mockGroups[1].values.map((b, j) => ({
       ...common, sku: 'latte', optionKey: `${a.key}-${b.key}`, label: '카페라떼', unitPrice: String(500000 + j * 50000),
       available: `${a.key}-${b.key}` === mockSoldOut ? 0 : mockStock ?? 5,
-      metadata: {labels: {ko: '카페라떼', en: 'Cafe latte'}, optionLabels: {ko: `${a.labels.ko} · ${b.labels.ko}`}, optionRequired: true, allergens: ['milk' as const]},
+      metadata: {labels: {ko: '카페라떼', en: 'Cafe latte'}, optionLabels: {ko: `${a.labels.ko} · ${b.labels.ko}`}, optionRequired: true, allergens: ['milk' as const],
+        ...(mockTaxed ? {tax: 'vat10' as const} : {})},
       ...(choices ? {choices: [{group: {key: 'temp', labels: mockGroups[0].labels}, value: {...a, order: i}}, {group: {key: 'size', labels: mockGroups[1].labels}, value: {...b, order: j}}]} : {}),
     }))),
   ];
@@ -111,6 +112,7 @@ beforeEach(() => {
   mockSoldOut = '-';
   mockPhotoReads = 0;
   mockServerDown = false;
+  mockTaxed = false;
 });
 
 test.each([false, true])('the combination the customer picked is the one that is ordered (nearby=%s)', async nearby => {
@@ -243,5 +245,17 @@ test('the choice page shows the small menu photo from the server, and only the n
     expect(photo(tree)).toEqual([]);
     await tap(tree, '온도 차갑게');
     expect(view(tree)).toContain('카페라떼');
+  });
+});
+
+test('the basket shows the tax its prices include once every line says it', async () => {
+  mockTaxed = true;
+  await shopping(async tree => {
+    await tap(tree, '카페라떼 옵션 고르기');
+    for (const label of ['온도 차갑게', '크기 크게 +500원', '수량 늘리기', '담기 · 11,000원']) await tap(tree, label);
+    expect(view(tree)).toContain('공급가액 · 10,000원'); // 11,000원 holds 1,000원 of tax
+    expect(view(tree)).toContain('세금(가격에 포함) · 1,000원');
+    await tap(tree, '쿠키 standard 추가');
+    expect(view(tree)).not.toContain('공급가액');
   });
 });
