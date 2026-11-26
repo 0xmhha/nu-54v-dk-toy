@@ -216,7 +216,7 @@ async function main() {
     const cells = table.map((row) => row.split("\t").map((cell) => cell.trim()));
     for (const [name, base, extra, total, taxed, allergens] of cells) {
       const charged = Number(total.replace(/[^0-9]/g, ""));
-      assert.equal(taxed, `${(charged - Math.floor(charged * 10 / 11)).toLocaleString("en-US")}원`, name);
+      assert.equal(taxed, `${(charged - Math.round(charged * 10 / 11)).toLocaleString("en-US")}원`, name);
       const sum = (name.includes("크게") ? 500 : 0) + (/두유|귀리/.test(name) ? 700 : 0);
       assert.deepEqual([base, extra, total], ["5,000원", sum ? `+${sum.toLocaleString("en-US")}원` : "0원", `${(5000 + sum).toLocaleString("en-US")}원`], name);
       assert.equal(allergens, name.endsWith("우유") && !name.includes("두유") ? "우유" : "없음", name);

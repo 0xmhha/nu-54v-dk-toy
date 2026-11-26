@@ -47,7 +47,7 @@ export function TaxField({ row, metadata, asset, refundShop, change }: {
           <dt>{kind === "vat10" ? "세금 10%" : "세금"}</dt><dd className="amount">{money(includedTax(total, kind, asset))}</dd>
         </dl>
       )}
-      {kind && <p>세금은 주문의 품목 줄마다 계산합니다. 공급가액의 원 단위 아래는 버리고, 남은 금액이 세금입니다. 옵션으로 더하는 금액에도 같은 세율이 들어 있습니다.</p>}
+      {kind && <p>세금은 주문의 품목 줄마다 계산합니다. 공급가액은 원 단위에서 반올림하고, 남은 금액이 세금입니다. 옵션으로 더하는 금액에도 같은 세율이 들어 있습니다.</p>}
       <fieldset>
         <legend>외국인 세금 환급</legend>
         <label>

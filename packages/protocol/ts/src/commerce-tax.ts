@@ -1,5 +1,5 @@
-// The tax inside a price, line by line. A price includes its tax; each line's supply value (10/11 of it) is cut to the
-// whole won (or the cent), as a tax base drops what is under one won, and the tax is the rest of the price.
+// The tax inside a price, line by line. A price includes its tax; each line's supply value (10/11 of it) is rounded to the
+// whole won (or the cent), half up as the tax office recommends, and the tax is the rest, so it is 10% of the supply value.
 import type { CommerceSelection } from "./commerce-cart-review.ts";
 import { isWon, paymentToken, type CommercePaymentProfile } from "./commerce-payment.ts";
 import type { CommercePrice } from "./commerce-v2.ts";
@@ -19,7 +19,8 @@ export function commerceLineTax(row: CommercePrice, quantity: number, profile?: 
   const total = BigInt(row.unitPrice) * BigInt(quantity);
   const unit = shownUnit(profile);
   // 10% on top of the supply value: the supply value is 10/11 of the price that includes it.
-  const supply = kind === "vat10" ? total * 10n / 11n / unit * unit : total;
+  // Half up: (2·10·total + 11·unit) / (2·11·unit), in whole units.
+  const supply = kind === "vat10" ? (total * 20n + 11n * unit) / (22n * unit) * unit : total;
   return { total, tax: total - supply, supply };
 }
 
