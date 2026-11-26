@@ -527,7 +527,7 @@ export function PickupKitchen({
           )}
           {selected.items?.map((item, index) => (
             <Text key={index} style={styles.text}>
-              {item.label} · {item.optionLabel ?? item.option} ×{item.quantity}
+              {item.label}{item.option === 'standard' ? '' : ` · ${item.optionLabel ?? item.option}`} ×{item.quantity}
             </Text>
           ))}
           {actions(list?.find(item => item.saleRef === selected.saleRef && item.revision >= selected.revision) ?? selected, true)}

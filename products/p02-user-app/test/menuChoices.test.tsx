@@ -148,7 +148,7 @@ test.each([false, true])('the combination the customer picked is the one that is
     await tap(tree, '담기 · 11,000원');
     await tap(tree, '카페라떼 차갑게 · 크게 빼기');
     expect(view(tree)).toContain('합계 · 5,500원');
-    await tap(tree, '쿠키 standard 추가');
+    await tap(tree, '쿠키 추가');
     await tap(tree, '주문 접수 요청');
     expect(mockCarts).toHaveLength(1);
     expect(mockCarts[0].items).toEqual([{sku: 'cookie', option_key: 'standard', quantity: 1}, {sku: 'latte', option_key: 'ice-l', quantity: 1}]);
@@ -227,7 +227,7 @@ test('the words are English on the English menu, and nothing can be picked from 
     expect(view(tree)).toContain('Choose Size');
     await tap(tree, 'Back to menu');
     await tap(tree, 'Menu language 한국어');
-    await tap(tree, '쿠키 standard 추가');
+    await tap(tree, '쿠키 추가');
     mockOffline = true;
     await tap(tree, '주문 접수 요청');
     expect(view(tree)).toContain('최근 메뉴를 보고 있습니다');
@@ -265,7 +265,7 @@ test('the basket shows the tax its prices include once every line says it', asyn
     for (const label of ['온도 차갑게', '크기 크게 +500원', '수량 늘리기', '담기 · 11,000원']) await tap(tree, label);
     expect(view(tree)).toContain('공급가액 · 10,000원'); // 11,000원 holds 1,000원 of tax
     expect(view(tree)).toContain('세금(가격에 포함) · 1,000원');
-    await tap(tree, '쿠키 standard 추가');
+    await tap(tree, '쿠키 추가');
     expect(view(tree)).not.toContain('공급가액');
   });
 });
@@ -283,7 +283,7 @@ test('a paused store says when it said it would take orders again, and the order
   await shopping(async tree => {
     expect(view(tree)).toContain('매장이 주문을 잠시 멈췄습니다');
     expect(view(tree)).toContain('11:20쯤 다시 받는다고 알렸습니다.');
-    await tap(tree, '쿠키 standard 추가');
+    await tap(tree, '쿠키 추가');
     expect(button(tree, '주문 접수 요청').props.disabled).toBe(true);
     mockState = {mode: 'open'};
     await tap(tree, '다시 받는지 확인');
@@ -295,7 +295,7 @@ test('a paused store says when it said it would take orders again, and the order
 test('a pause that comes while paying keeps the basket and says nothing was charged', async () => {
   mockPauseAtPay = true;
   await shopping(async tree => {
-    await tap(tree, '쿠키 standard 추가');
+    await tap(tree, '쿠키 추가');
     await tap(tree, '주문 접수 요청');
     expect(view(tree)).toContain('매장이 주문을 잠시 멈췄습니다');
     expect(view(tree)).toContain('결제하지 않았습니다. 돈은 나가지 않았고, 담은 것은 그대로 두었습니다.');

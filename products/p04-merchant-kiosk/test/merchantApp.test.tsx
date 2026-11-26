@@ -198,8 +198,8 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({
         });
       }
       const { command } = wire;
-      // The settings are read beside every step; they are no part of an order.
-      if (!command.operation.startsWith('terminal.device')) mockDialed.push(command.operation);
+      // The settings and the ready board are read beside every step; they are no part of an order.
+      if (!command.operation.startsWith('terminal.device') && command.operation !== 'board.read') mockDialed.push(command.operation);
       if (mockMenuFailure && (!mockMenuFailureAt || mockMenuFailureAt===command.operation) &&
           ['terminal.state','catalog.read'].includes(command.operation)) {
         throw Object.assign(new Error('transport failed'), {code: mockMenuFailure==='offline' ?
@@ -1636,7 +1636,7 @@ test('K09 phone guidance keeps the existing public basket and uses the branch en
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   try {
     await press(tree, '새 고객 주문');
-    await press(tree, '차 standard 추가');
+    await press(tree, '차 추가');
     await press(tree, '내 폰으로 주문');
     expect(view(tree)).toContain('개인 주문을 시작하는 매장 입구 QR');
     expect(view(tree)).toContain('여울 커피 성수점');
@@ -1654,7 +1654,7 @@ test('K09 confirms an unreserved cancellation and keeps the basket when continui
   await Renderer.act(async () => { tree = Renderer.create(<App />); });
   try {
     await press(tree, '새 고객 주문');
-    await press(tree, '차 standard 추가');
+    await press(tree, '차 추가');
     await press(tree, '내 장바구니');
     await press(tree, '주문 그만하기');
     expect(view(tree)).toContain('공용 주문을 닫을까요?');
@@ -1745,7 +1745,7 @@ test('K02 a landscape tablet keeps the same basket and its checkout beside the m
     await press(tree, '새 고객 주문');
     expect(view(tree)).toContain('담은 메뉴가 없습니다.');
     expect(view(tree)).not.toContain('내 장바구니');
-    await press(tree, '차 standard 추가');
+    await press(tree, '차 추가');
     expect(view(tree)).toContain('한정 메뉴');
     expect(view(tree)).toContain('차 ×1');
     expect(view(tree)).toContain('합계 · 3.00 TestUSDC');

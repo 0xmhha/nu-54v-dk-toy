@@ -2960,7 +2960,7 @@ export function CustomerOrders({
                       : 'Sold out'}
                   </Text>}
                   {!menuReadOnly && <Button
-                    label={`${names.product} ${names.option} ${
+                    label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                       menuLocale === 'ko' ? '추가' : 'Add'
                     }`}
                     disabled={busy || needsRemoval || quantity >= available}
@@ -2976,7 +2976,7 @@ export function CustomerOrders({
                   />}
                   {!menuReadOnly && !!quantity && (
                     <Button
-                      label={`${names.product} ${names.option} ${
+                      label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                         menuLocale === 'ko' ? '빼기' : 'Remove'
                       }`}
                       disabled={busy}
@@ -3088,7 +3088,7 @@ export function CustomerOrders({
               {nearbySoldOut.map(({sku, option_key, quantity}) => {
                 const key = commerceLineKey({sku, optionKey: option_key});
                 const row = point.selection?.[key]?.row;
-                const names = row ? commerceMenuLabels(row, menuLocale) : {product: sku, option: option_key, name: `${sku} · ${option_key}`};
+                const names = row ? commerceMenuLabels(row, menuLocale) : {product: sku, option: option_key, name: option_key === 'standard' ? sku : `${sku} · ${option_key}`};
                 return <Text key={key} style={s.text}>
                   {`확보 못한 품목 · ${names.name} ×${quantity}`}
                 </Text>;

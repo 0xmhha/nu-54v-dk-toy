@@ -31,7 +31,9 @@ let mockState: unknown;
 let mockPauseAtPay = false;
 let mockRefund = false;
 const mockPhotoReads: string[] = [];
-const mockProfile = () => ({ branchRef: mockShop, subjectRef: mockRef(2), tenantRef: mockRef(5), role: 'terminal', expiresAt: mockClock() + 120 });
+const mockProfile = () => ({ branchRef: mockShop, subjectRef: mockRef(2), tenantRef: mockRef(5), role: 'terminal', expiresAt: mockExpires });
+// One expiry per test: a profile read again must be the same text, or the kiosk takes it for another enrolment.
+let mockExpires = 0;
 const mockGroups: CommerceSkuOptions['groups'] = [
   { key: 'temp', labels: { ko: '온도', en: 'Temperature' }, values: [{ key: 'hot', labels: { ko: '뜨겁게', en: 'Hot' } }, { key: 'ice', labels: { ko: '차갑게', en: 'Iced' } }] },
   { key: 'size', labels: { ko: '크기', en: 'Size' }, values: [{ key: 's', labels: { ko: '보통', en: 'Regular' } }, { key: 'l', labels: { ko: '크게', en: 'Large' } }] },
@@ -130,6 +132,7 @@ async function kiosk(run: (tree: Renderer.ReactTestRenderer) => Promise<void>) {
 }
 const window = { width: 1280, height: 800, scale: 1, fontScale: 1 };
 beforeEach(() => {
+  mockExpires = mockClock() + 120;
   mockCarts.length = 0;
   mockJournal.clear();
   mockSoldOut = [];
@@ -265,7 +268,7 @@ test('the basket says how much tax its prices include, line by line, and only wh
     expect(view(tree)).toContain('세금 1,128원 포함');
     expect(view(tree)).toContain('공급가액 11,272원 · 세금 1,128원 포함');
     // The cookie says nothing of its tax, so the basket shows no total of it.
-    await press(tree, '쿠키 standard 추가');
+    await press(tree, '쿠키 추가');
     expect(view(tree)).not.toContain('공급가액');
     expect(view(tree)).toContain('세금 1,128원 포함');
   });
@@ -276,7 +279,7 @@ test('a busy store shows its minutes above the menu, and orders still go', async
   await kiosk(async tree => {
     expect(view(tree)).toContain('지금은 약 25분 걸립니다');
     expect(view(tree)).toContain('5,000원부터');
-    await press(tree, '쿠키 standard 추가');
+    await press(tree, '쿠키 추가');
     await press(tree, '하드월렛으로 결제');
       expect(mockCarts).toHaveLength(1);
   });
@@ -299,7 +302,7 @@ test('a paused store or a closed day shows why in place of the menu', async () =
 test('a pause that comes while paying clears the basket and says nothing was charged', async () => {
   mockPauseAtPay = true;
   await kiosk(async tree => {
-    await press(tree, '쿠키 standard 추가');
+    await press(tree, '쿠키 추가');
     await press(tree, '하드월렛으로 결제');
     expect(mockCarts).toHaveLength(0);
     expect(view(tree)).toContain('지금은 주문을 잠시 멈췄습니다');
@@ -312,16 +315,17 @@ test('a designated tax-free shop tells a visitor which goods count and whether t
   mockRefund = true;
   mockState = { mode: 'open', taxFreeShop: '123-45-67890-001' };
   await kiosk(async tree => {
-    await press(tree, '쿠키 standard 추가');
-    expect(view(tree)).toContain('환급 대상 물품 3,000원. 15,000원 이상 사야 환급 서류를 받을 수 있습니다');
-    for (let i = 0; i < 4; i++) await press(tree, '쿠키 standard 추가');
-    expect(view(tree)).toContain('환급 대상 물품 15,000원. 15,000원 이상이라 계산대에서 환급 서류를 받을 수 있습니다');
-    expect(view(tree)).toContain('결제 금액은 그대로입니다');
+    expect(view(tree)).toContain('외국인 환급 대상 물품');
+    await press(tree, '쿠키 추가');
+    expect(view(tree)).toContain('환급 대상 물품 3,000원. 한 번 결제에 15,000원 이상 사야 환급 서류를 받을 수 있습니다');
+    for (let i = 0; i < 4; i++) await press(tree, '쿠키 추가');
+    expect(view(tree)).toContain('환급 대상 물품 15,000원. 한 번 결제에 15,000원 이상이라 계산대에서 환급 서류를 받을 수 있습니다');
+    expect(view(tree)).toContain('결제 금액은 그대로이고, 환급액은 환급 창구의 수수료를 뺀 금액입니다');
   });
   // The same goods at a shop without a designation say nothing of a refund.
   mockState = { mode: 'open' };
   await kiosk(async tree => {
-    await press(tree, '쿠키 standard 추가');
+    await press(tree, '쿠키 추가');
     expect(view(tree)).not.toContain('환급');
   });
 });

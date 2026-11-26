@@ -4,6 +4,7 @@ import { MenuChoices } from './MenuChoices';
 import { MenuPhoto } from './MenuPhoto';
 import { StoreNotice, storeStopped } from './StoreNotice';
 import { MaskRise, PaidMark, PaymentSteps, Pop, SlideIn } from './Motion';
+import { ReadyBand, ReadyBoardView, useReadyBoard } from './ReadyBoard';
 import {
   useCallback,
   useEffect,
@@ -1838,6 +1839,10 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
     !screen.key && !screen.connectionEnded && !offlineMenu && mode?.mode === 'menu';
   const basketUnits = Object.values(choice).reduce((total, item) => total + item.quantity, 0);
   const basketTotals = commerceCartTotals(choice);
+  // The ready board: whole while nobody is ordering, as a band of four while someone is (decided: band and idle board).
+  const readBoard = useMemo(() => client ? () => client.readyBoard() : undefined, [client]);
+  const boardShown = setup === 'terminal' && staffView === 'public' && !offlineMenu && !pickupStaff && (!screen || (mode?.mode === 'menu' && !screen.connectionEnded));
+  const {board: readyBoard, lost: boardLost, fresh: boardFresh} = useReadyBoard(readBoard, boardShown);
   // The tax inside the basket, shown only when the store said the tax of every line.
   const basketTax = commerceCartTax(choice, policy);
   const taxNote = (tax: bigint, asset: string) => menuLocale === 'ko'
@@ -1897,7 +1902,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
               {(() => { const line = commerceLineTax(row, quantity, policy); return line && <Text style={s.hint}>{taxNote(line.tax, row.asset)}</Text>; })()}
               {(required || basketOpen || wide) && !menuDetail && !cartReplacement && <Button
           text={menuLocale === 'ko' ? '빼기' : 'Remove'}
-                label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
+                label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
                 disabled={busy}
                 run={() => reduceChoice(row)}
               />}
@@ -1957,8 +1962,8 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           if (!goods) return null;
           const amount = commerceAmount(goods.total.toString(), goods.lines[0].asset, policy, menuLocale);
           return <Text style={s.notice}>{menuLocale === 'ko'
-            ? `외국인 세금 환급 · 환급 대상 물품 ${amount}. ${goods.reaches ? '15,000원 이상이라 계산대에서 환급 서류를 받을 수 있습니다' : '15,000원 이상 사야 환급 서류를 받을 수 있습니다'}. 여권이 필요하고, 출국할 때 물품을 가지고 나가야 합니다. 결제 금액은 그대로입니다.`
-            : `Tax refund for foreign visitors · eligible goods ${amount}. ${goods.reaches ? 'Ask at the counter for the refund form' : 'The form needs 15,000 won or more of them'}; bring your passport and take the goods out of Korea. The price you pay stays the same.`}</Text>;
+            ? `외국인 세금 환급 · 환급 대상 물품 ${amount}. ${goods.reaches ? '한 번 결제에 15,000원 이상이라 계산대에서 환급 서류를 받을 수 있습니다' : '한 번 결제에 15,000원 이상 사야 환급 서류를 받을 수 있습니다'}. 여권이 필요하고, 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 합니다. 결제 금액은 그대로이고, 환급액은 환급 창구의 수수료를 뺀 금액입니다.`
+            : `Tax refund for foreign visitors · eligible goods ${amount}. ${goods.reaches ? 'Ask at the counter for the refund form' : 'The form needs 15,000 won or more of them in one payment'}; bring your passport and take the goods out of Korea within 3 months. The price you pay stays the same; the refund is less the counter's fee.`}</Text>;
         })()}
         {basketTax && basketTotals.length === 1 && <Text style={s.hint}>
           {menuLocale === 'ko'
@@ -2481,6 +2486,9 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
               }, '온라인 메뉴 단말의 등록 지점을 확인할 수 없습니다.')} />
           </>
         )}
+        {boardShown && !screen && (
+          <ReadyBoardView board={readyBoard} lost={boardLost} fresh={boardFresh} ko={deviceRef.current.language !== 'en'} />
+        )}
         {setup === 'terminal' &&
           staffView === 'public' &&
           !offlineMenu &&
@@ -2544,6 +2552,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             {branchTitle ? (
               <Text accessibilityRole="header" style={screen.key ? s.hint : s.title}>{menuBranchLabel}</Text>
             ) : <Label>{mode?.mode === 'pos' ? 'POS 결제 전용' : '메뉴 주문'}</Label>}
+            {mode?.mode === 'menu' && <ReadyBand board={readyBoard} ko={menuLocale === 'ko'} />}
             {!screen.key && mode?.mode === 'menu' && <StoreNotice state={orderState.state} ko={menuLocale === 'ko'} cleared={orderState.cleared} />}
             {!screen.key && mode?.mode === 'pos' && (
               <>
@@ -2631,6 +2640,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       {!required && <Text style={s.price}>{commerceAmount(row.unitPrice, row.asset, policy, menuLocale)}</Text>}
                       {choices && <Text style={s.price}>{fromPrice(productRows, choices)}</Text>}
                       {!required && <Text style={s.hint}>{commerceMenuDisclosure(row, menuLocale)}</Text>}
+                      {row.metadata?.taxRefund && orderState.state?.taxFreeShop && <Text style={s.refundChip}>{menuLocale === 'ko' ? '외국인 환급 대상 물품' : 'Tax refund eligible'}</Text>}
                       <Label>
                         {available === 0
                           ? menuLocale === 'ko'
@@ -2653,7 +2663,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       )}
                       {!required && <Button
                         text={menuLocale === 'ko' ? '담기' : 'Add'}
-                        label={`${names.product} ${names.option} ${
+                        label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                           menuLocale === 'ko' ? '추가' : 'Add'
                         }`}
                         disabled={busy || quantity >= available}
@@ -2665,7 +2675,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       {!required && !!quantity && (
                         <Button
                           text={menuLocale === 'ko' ? '빼기' : 'Remove'}
-                          label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
+                          label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
                           disabled={busy}
                           run={() => reduceChoice(row)}
                         />
@@ -3187,6 +3197,7 @@ const s = StyleSheet.create({
   basketHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   countBadge: { minWidth: 34, height: 34, borderRadius: 17, backgroundColor: '#174b38', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   countText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  refundChip: { alignSelf: 'flex-start', fontSize: 14, fontWeight: '700', color: '#5a3b05', backgroundColor: '#f6e3bf', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   scroll: { padding: 28, gap: 14 },
   title: { fontSize: 30, color: ink, fontWeight: '800', letterSpacing: -0.6 },
   heading: { fontSize: 22, color: ink, fontWeight: '800' },

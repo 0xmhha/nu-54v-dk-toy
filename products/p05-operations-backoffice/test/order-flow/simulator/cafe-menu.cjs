@@ -132,6 +132,47 @@ async function main() {
       await page.getByText(new RegExp(`지금 상태: 바쁨 · 약 ${minutes}분`)).waitFor();
       console.log(`cafe store: busy, about ${minutes} minutes`);
     }
+    // NU54_CAFE_REFUND=1 makes the store a designated tax-free shop and adds a take-away good marked for the refund,
+    // to see the kiosk's notice: one bag is under 15,000원, two are over it.
+    if (process.env.NU54_CAFE_REFUND === "1") {
+      const confirm = page.getByRole("alertdialog", { name: "바꾸기 전 확인" });
+      const shop = page.getByRole("region", { name: "외국인 세금 환급" });
+      await shop.getByLabel(/^지정 번호/).fill("123-45-67890-001");
+      await shop.getByLabel("지정받은 날").fill("2026-11-20");
+      await shop.getByLabel(/^환급 창구 운영사/).fill("환급 창구");
+      await shop.getByLabel(/지정서를 확인했고/).check();
+      await button("저장", shop).click();
+      await button("바꾸기", confirm).click();
+      await shop.getByText(/지금: 지정 번호 123-45-67890-001/).waitFor();
+
+      const beans = { sku: "beans", name: "원두 200g", en: "Coffee beans 200g", price: "9000" };
+      await button("상품 추가").click();
+      await editor.getByLabel("상품 코드", { exact: true }).fill(beans.sku);
+      await editor.getByLabel("상품 이름", { exact: true }).fill(beans.name);
+      await editor.getByLabel(/^가격\(/).fill(beans.price);
+      await editor.getByLabel("상품 영어 이름", { exact: true }).fill(beans.en);
+      await button("묶음 1 지우기", editor).click();
+      await editor.getByRole("group", { name: "세금", exact: true }).getByLabel("부가세 10% (가격에 포함)").check();
+      const refund = editor.getByRole("group", { name: "외국인 세금 환급", exact: true });
+      await refund.getByLabel(/^포장해 가져가는 물품입니다/).check();
+      await refund.getByLabel("환급 대상 물품으로 알리기").check();
+      await refund.getByText(/지정 번호 123-45-67890-001 · 결제 금액은 그대로/).waitFor();
+      await button("이 상품 저장", editor).click();
+      await page.getByRole("heading", { name: /^메뉴 \d+개/ }).waitFor();
+      await page.getByLabel(`${beans.sku} 상품 카테고리`, { exact: true }).selectOption(coffee[0]);
+      await page.getByLabel(/^게시 만료/).fill(local);
+      await button("게시 내용 검토").click();
+      await button("변경 적용").waitFor();
+      if (shots) await page.screenshot({ path: path.join(shots, "ops-refund-review.png"), fullPage: true });
+      await button("변경 적용").click();
+      await page.getByRole("status").filter({ hasText: "새 메뉴 버전의 게시를 확인했습니다." }).waitFor();
+      await stock.locator("select").first().selectOption(beans.sku);
+      await stock.getByLabel("증감 수량").fill("50");
+      await button("재고 조정 검토").click();
+      await button("변경 적용").click();
+      await page.getByRole("status").filter({ hasText: "재고 반영을 확인했습니다." }).last().waitFor();
+      console.log(`cafe store: tax-free shop 123-45-67890-001, ${beans.name} ${beans.price}원 marked for the refund`);
+    }
   } finally {
     await browser.close();
   }

@@ -128,8 +128,37 @@ export function PaymentSteps({steps, current, label}: {steps: string[]; current:
   );
 }
 
+/**
+ * 3. A newly ready number on the board: it rises in its box (360ms) and its tile stays marked for 3 seconds, fading out.
+ * With less motion asked for, the mark stays still for the same 3 seconds and then goes.
+ */
+export function NewNumber({fresh, children, style}: {fresh: boolean; children: React.ReactNode; style?: StyleProp<ViewStyle>}) {
+  const reduced = useReducedMotion();
+  const mark = useRef(new Animated.Value(fresh ? 1 : 0)).current;
+  const [still, setStill] = useState(fresh);
+  useEffect(() => {
+    if (!fresh) return;
+    if (reduced) {
+      setStill(true);
+      const timer = setTimeout(() => setStill(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    mark.setValue(1);
+    const fade = Animated.timing(mark, {toValue: 0, duration: 3000, easing: Easing.out(Easing.ease), useNativeDriver: true});
+    fade.start();
+    return () => fade.stop();
+  }, [fresh, reduced, mark]);
+  return (
+    <View style={style}>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.newMark, {opacity: reduced ? (still ? 1 : 0) : mark}]} />
+      {fresh ? <MaskRise height={120}>{children}</MaskRise> : children}
+    </View>
+  );
+}
+
 const green = '#174b38';
 const s = StyleSheet.create({
+  newMark: {backgroundColor: '#f6e3bf', borderWidth: 4, borderColor: '#c8902b', borderRadius: 20},
   mask: {overflow: 'hidden'},
   ring: {borderWidth: 4, borderColor: green},
   mark: {backgroundColor: green, alignItems: 'center', justifyContent: 'center'},

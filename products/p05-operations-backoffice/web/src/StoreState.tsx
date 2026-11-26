@@ -215,7 +215,7 @@ export function StoreState({ branch, zone, products, onState }: {
         {state.taxFreeShop && <button className="secondary" disabled={busy}
           onClick={() => ask("면세판매장 지정 번호를 지울까요? 모든 상품의 환급 대상 표시가 손님 화면에서 함께 꺼집니다.", () => send(stateUrl(branch) + "/tax-free", { designation: "" }))}>지정 번호 지우기</button>}
         <p className="warning">이 시스템은 국세청에 지정 여부를 묻지 않고, 매장이 적은 번호를 그대로 보입니다. 환급 금액을 계산하거나 돌려주지 않습니다. 결제 금액은 그대로이고, 환급은 매장의 환급 창구에서 합니다.</p>
-        <p>손님에게 보이는 조건: 부가세가 붙은, 포장해 가져가는 물품만 대상입니다. 한 번에 15,000원 이상 사면 환급 서류를 받을 수 있고, 출국할 때 물품을 가지고 나가야 합니다.</p>
+        <p>손님에게 보이는 조건: 부가세가 붙은, 포장해 가져가는 물품만 대상입니다. 한 번 결제에 15,000원 이상 사면 환급 서류를 받을 수 있고, 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 합니다. 환급액은 환급 창구의 수수료를 뺀 금액입니다. 간이과세자는 지정받을 수 없습니다.</p>
       </section>
 
       <section aria-labelledby="state-log">

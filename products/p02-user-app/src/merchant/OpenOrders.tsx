@@ -234,7 +234,7 @@ function Receipt({items, money, taxFreeShop}: {items: NonNullable<OpenOrder['ite
     {row('낸 금액', money(sum(item => BigInt(item.total)).toString()), true)}
     {refund.length > 0 && <View style={styles.refund}>
       <Text style={type.label}>외국인 세금 환급</Text>
-      <Text style={type.small}>{`환급 대상 물품 ${money(refund.reduce((sum, item) => sum + BigInt(item.total), 0n).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다. 출국할 때 물품을 가지고 나가야 환급됩니다.`}</Text>
+      <Text style={type.small}>{`환급 대상 물품 ${money(refund.reduce((sum, item) => sum + BigInt(item.total), 0n).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다(한 번 결제에 15,000원 이상). 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 환급되고, 환급액은 환급 창구의 수수료를 뺀 금액입니다.`}</Text>
       <Text style={type.small}>{`면세판매장 지정 번호 ${taxFreeShop} (매장이 적은 번호)`}</Text>
       <Text style={type.small}>이 앱은 환급 금액을 계산하거나 돌려주지 않습니다.</Text>
     </View>}
