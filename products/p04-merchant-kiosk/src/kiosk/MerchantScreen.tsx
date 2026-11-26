@@ -1865,7 +1865,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           const required = menuGroups.get(row.sku)?.some(item => item.metadata?.optionRequired);
           return (
             <View key={commerceLineKey(row)} style={s.basketLine}>
-              <Label>{`${names.product} · ${names.option} ×${quantity}`}</Label>
+              <Label>{`${names.name} ×${quantity}`}</Label>
               {(required || basketOpen || wide) && !menuDetail && !cartReplacement && <Button
           text={menuLocale === 'ko' ? '빼기' : 'Remove'}
                 label={`${names.product} ${names.option} ${menuLocale === 'ko' ? '빼기' : 'Remove'}`}
@@ -1880,7 +1880,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
           const names = commerceMenuLabels(row, menuLocale);
           return (
             <Label key={commerceLineKey(row)}>
-              {`확보 못한 품목 · ${names.product} · ${names.option} ×${quantity}`}
+              {`확보 못한 품목 · ${names.name} ×${quantity}`}
             </Label>
           );
         })}
@@ -1892,9 +1892,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
             {cartReview.priceChanges.map(({ previous, current }) => {
               const names = commerceMenuLabels(current, menuLocale);
               return (
-                <Label key={commerceLineKey(current)}>{`${names.product} · ${
-                  names.option
-                } · ${commerceCartAmount(
+                <Label key={commerceLineKey(current)}>{`${names.name} · ${commerceCartAmount(
                   previous.unitPrice,
                   previous.asset,
                   policy,
@@ -2584,7 +2582,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                       {row.photo && <MenuPhoto cache={photos} name={row.photo.thumb} height={wide ? 150 : 120}
                         label={`${names.product} ${menuLocale === 'ko' ? '메뉴 사진' : 'photo'}`} />}
                       <Text style={s.cardTitle}>
-                        {required ? names.product : `${names.product} · ${names.option}`}
+                        {required ? names.product : `${names.name}`}
                       </Text>
                       {!required && <Text style={s.price}>{commerceAmount(row.unitPrice, row.asset, policy, menuLocale)}</Text>}
                       {choices && <Text style={s.price}>{fromPrice(productRows, choices)}</Text>}
@@ -2748,7 +2746,7 @@ export function MerchantScreen({ legacy }: { legacy?: () => void }) {
                   const line = ({ row, quantity }: CommerceSelection[string]) => {
                     const names = commerceMenuLabels(row, menuLocale);
                     const amount = commerceCartAmount((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy, menuLocale);
-                    return `${names.product} · ${names.option} ×${quantity} · ${amount}`;
+                    return `${names.name} ×${quantity} · ${amount}`;
                   };
                   return (
                     <View style={s.line}>

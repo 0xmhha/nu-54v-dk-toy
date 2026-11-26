@@ -69,10 +69,11 @@ export type CommerceMenuMetadata = {
   crossContactSource?: "shared-equipment" | "shared-baking-equipment";
 };
 export function commerceMenuLabels(row: CommercePrice, locale: "ko" | "en") {
-  return {
-    product: row.metadata?.labels?.[locale] ?? row.label,
-    option: row.metadata?.optionLabels?.[locale] ?? row.optionKey,
-  };
+  const product = row.metadata?.labels?.[locale] ?? row.label;
+  const option = row.metadata?.optionLabels?.[locale] ?? row.optionKey;
+  // A product with nothing to choose is published as "standard"; that code is no name to show a customer.
+  const named = row.metadata?.optionLabels?.[locale] !== undefined || row.optionKey !== "standard";
+  return { product, option, name: named ? `${product} · ${option}` : product };
 }
 const koreanAllergens = [
   "우유",

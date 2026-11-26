@@ -1620,7 +1620,7 @@ test('K01 opens the public basket from outside the full menu scroll area', async
     expect(mockSubmittedCarts).toHaveLength(0);
     await press(tree, 'Menu language 한국어');
     expect(view(tree)).not.toContain('한정 메뉴');
-    expect(view(tree)).toContain('크루아상 · standard ×1');
+    expect(view(tree)).toContain('크루아상 ×1');
     await press(tree, '메뉴로 돌아가기');
     expect(view(tree)).toContain('한정 메뉴');
     await press(tree, '내 장바구니');
@@ -1644,7 +1644,7 @@ test('K09 phone guidance keeps the existing public basket and uses the branch en
     expect(view(tree)).not.toContain('이 주문을 여는 일회용 QR');
     expect(mockSubmittedCarts).toHaveLength(0);
     await press(tree, '내 공용 장바구니로');
-    expect(view(tree)).toContain('차 · standard ×1');
+    expect(view(tree)).toContain('차 ×1');
   } finally { await Renderer.act(async () => tree.unmount()); }
 });
 
@@ -1659,11 +1659,11 @@ test('K09 confirms an unreserved cancellation and keeps the basket when continui
     await press(tree, '주문 그만하기');
     expect(view(tree)).toContain('공용 주문을 닫을까요?');
     await press(tree, '계속 주문하기');
-    expect(view(tree)).toContain('차 · standard ×1');
+    expect(view(tree)).toContain('차 ×1');
     await press(tree, '주문 그만하기');
     await press(tree, '닫고 화면 지우기');
     expect(mockSubmittedCarts).toHaveLength(0);
-    expect(view(tree)).not.toContain('차 · standard ×1');
+    expect(view(tree)).not.toContain('차 ×1');
     await press(tree, '새 고객 주문');
     expect(view(tree)).toContain('담은 수량 0');
   } finally { await Renderer.act(async () => tree.unmount()); }
@@ -1747,7 +1747,7 @@ test('K02 a landscape tablet keeps the same basket and its checkout beside the m
     expect(view(tree)).not.toContain('내 장바구니');
     await press(tree, '차 standard 추가');
     expect(view(tree)).toContain('한정 메뉴');
-    expect(view(tree)).toContain('차 · standard ×1');
+    expect(view(tree)).toContain('차 ×1');
     expect(view(tree)).toContain('합계 · 3.00 TestUSDC');
     await press(tree, '하드월렛으로 결제');
     expect(mockSubmittedCarts).toHaveLength(1);

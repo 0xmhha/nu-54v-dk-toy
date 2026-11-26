@@ -2182,7 +2182,7 @@ export function CustomerOrders({
       board: board?.view, boards, searching: busy && !boards.length && !board, resumed: !!entry.boardStarted && !busy,
       items: point?.order === entry.order.id ? Object.values(point.selection ?? {}).map(({row, quantity}) => {
         const names = commerceMenuLabels(row, menuLocale);
-        return {label: `${names.product} · ${names.option} ×${quantity}`,
+        return {label: `${names.name} ×${quantity}`,
           amount: commerceCartAmount((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy)};
       }) : [],
     };
@@ -2904,7 +2904,7 @@ export function CustomerOrders({
               return (
                 <Fragment key={row.sku + '/' + row.optionKey}>{card}<View style={s.line}>
                   <Text style={s.text}>
-                    {names.product} · {names.option} ·{' '}
+                    {names.name} ·{' '}
                     {commerceAmount(row.unitPrice, row.asset, policy)}
                   </Text>
                   <Text style={s.text}>
@@ -2972,7 +2972,7 @@ export function CustomerOrders({
               const names = commerceMenuLabels(row, menuLocale);
               return (
                 <Text key={commerceLineKey(row)} style={s.text}>
-                  {`확보 못한 품목 · ${names.product} · ${names.option} ×${quantity}`}
+                  {`확보 못한 품목 · ${names.name} ×${quantity}`}
                 </Text>
               );
             })}
@@ -2984,9 +2984,7 @@ export function CustomerOrders({
               {cartReview.priceChanges.map(({ previous, current }) => {
                 const names = commerceMenuLabels(current, menuLocale);
                 return (
-                  <Text key={commerceLineKey(current)} style={s.text}>{`${names.product} · ${
-                    names.option
-                  } · ${commerceCartAmount(
+                  <Text key={commerceLineKey(current)} style={s.text}>{`${names.name} · ${commerceCartAmount(
                     previous.unitPrice,
                     previous.asset,
                     policy,
@@ -3038,16 +3036,16 @@ export function CustomerOrders({
               {nearbySoldOut.map(({sku, option_key, quantity}) => {
                 const key = commerceLineKey({sku, optionKey: option_key});
                 const row = point.selection?.[key]?.row;
-                const names = row ? commerceMenuLabels(row, menuLocale) : {product: sku, option: option_key};
+                const names = row ? commerceMenuLabels(row, menuLocale) : {product: sku, option: option_key, name: `${sku} · ${option_key}`};
                 return <Text key={key} style={s.text}>
-                  {`확보 못한 품목 · ${names.product} · ${names.option} ×${quantity}`}
+                  {`확보 못한 품목 · ${names.name} ×${quantity}`}
                 </Text>;
               })}
               {Object.values(point.selection ?? {}).filter(({row}) => !nearbySoldOut.some(
                 line => line.sku === row.sku && line.option_key === row.optionKey)).map(({row, quantity}) => {
                 const names = commerceMenuLabels(row, menuLocale);
                 return <Text key={commerceLineKey(row)} style={s.text}>
-                  {`선택 유지 · ${names.product} · ${names.option} ×${quantity}`}
+                  {`선택 유지 · ${names.name} ×${quantity}`}
                 </Text>;
               })}
               <Button label="수량·옵션 수정" disabled={busy} run={() =>
@@ -3272,7 +3270,7 @@ export function CustomerOrders({
                 Object.values(point.selection ?? {}).map(({row, quantity}) => {
                   const names = commerceMenuLabels(row, menuLocale);
                   return <Text key={commerceLineKey(row)} style={s.text}>
-                    {`${names.product} · ${names.option} ×${quantity} · ${commerceCartAmount(row.unitPrice, row.asset, policy)}`}
+                    {`${names.name} ×${quantity} · ${commerceCartAmount(row.unitPrice, row.asset, policy)}`}
                   </Text>;
                 })}
               {approved.authorization && (
