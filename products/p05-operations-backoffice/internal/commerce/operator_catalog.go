@@ -52,6 +52,8 @@ type operatorMutation struct {
 	Categories       []json.RawMessage `json:"categories,omitempty"`
 	CategoryBindings []categoryBinding `json:"categoryBindings,omitempty"`
 	Options          []skuOptions      `json:"options,omitempty"`
+	// Absent from an older page: the new version then has no photos.
+	Photos []menuPhoto `json:"photos,omitempty"`
 }
 
 var operatorRef = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -174,6 +176,8 @@ func (h HTTP) registerOperators(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v2/operations/scopes", h.operateScopes)
 	mux.HandleFunc("GET /v2/operations/catalog/{branch}", h.operateCatalog)
 	mux.HandleFunc("POST /v2/operations/catalog/{branch}/{operation}", h.operateCatalog)
+	mux.HandleFunc("POST /v2/operations/catalog/{branch}/photo", h.uploadMenuPhoto)
+	mux.HandleFunc("GET /v2/operations/catalog/{branch}/photo/{digest}", h.operatorPhoto)
 }
 
 func (h HTTP) operatorCredential(r *http.Request) (service.Principal, bool) {
@@ -213,13 +217,24 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 			operatorResponse(w, nil, err)
 			return
 		}
+		var version struct {
+			Version int64 `json:"version"`
+		}
+		var photos json.RawMessage = []byte("[]")
+		if json.Unmarshal(reply, &version) == nil && version.Version > 0 {
+			if err := h.Store.db.QueryRow(ctx, "SELECT ledger.operator_menu_photos($1,$2,$3,$4)", actor.Tenant, branch, actor.Subject, version.Version).Scan(&photos); err != nil {
+				operatorResponse(w, nil, err)
+				return
+			}
+		}
 		certificate := r.TLS.PeerCertificates[0].Raw
 		scope := sha256.Sum256(append(append([]byte("nu54-catalog-console-v1"), certificate...), branch...))
 		writeJSON(w, http.StatusOK, struct {
 			Catalog      json.RawMessage `json:"catalog"`
 			ReceiptScope string          `json:"receiptScope"`
 			Asset        *operatorAsset  `json:"asset,omitempty"`
-		}{reply, hex.EncodeToString(scope[:]), asset})
+			Photos       json.RawMessage `json:"photos"`
+		}{reply, hex.EncodeToString(scope[:]), asset, photos})
 		return
 	}
 	origin := r.Header.Get("Origin")
@@ -246,6 +261,10 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 	var err error
 	switch r.PathValue("operation") {
 	case "publish":
+		if mutation.Photos != nil && !validPhotos(mutation.Photos) {
+			operatorResponse(w, nil, service.BadRequest)
+			return
+		}
 		if mutation.ExpiresAt == nil || (mutation.Hours != nil && !mutation.Hours.valid()) || mutation.SKU != "" || mutation.Option != "" || mutation.Delta != nil || len(mutation.Rows) < 1 || len(mutation.Rows) > catalogRowLimit || len(mutation.Options) > catalogRowLimit/2 {
 			operatorResponse(w, nil, service.BadRequest)
 			return
@@ -325,7 +344,7 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 				mutation.Categories, mutation.CategoryBindings = []json.RawMessage{}, []categoryBinding{}
 			}
 		}
-		if !readableCatalog(mutation.Rows, mutation.Options, mutation.Categories, mutation.CategoryBindings) {
+		if !readableCatalog(mutation.Rows, mutation.Options, mutation.Categories, mutation.CategoryBindings, mutation.Photos...) {
 			operatorResponse(w, nil, service.BadRequest)
 			return
 		}
@@ -340,8 +359,9 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if mutation.Categories == nil && mutation.CategoryBindings == nil {
-			err = h.Store.db.QueryRow(ctx, "SELECT ledger.publish_operator_catalog_pricing($1,$2,$3,$4,$5,$6,$7,$8)",
-				actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours).Scan(&reply)
+			call, args := withPhotos("SELECT ledger.publish_operator_catalog_pricing($1,$2,$3,$4,$5,$6,$7,$8)",
+				[]any{actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours}, mutation.Photos)
+			err = h.Store.db.QueryRow(ctx, call, args...).Scan(&reply)
 			break
 		}
 		if mutation.Categories == nil || mutation.CategoryBindings == nil || len(mutation.Categories) > 50 || len(mutation.CategoryBindings) > catalogRowLimit {
@@ -367,14 +387,16 @@ func (h HTTP) operateCatalog(w http.ResponseWriter, r *http.Request) {
 			if options, err = json.Marshal(mutation.Options); err != nil {
 				break
 			}
-			err = h.Store.db.QueryRow(ctx, "SELECT ledger.publish_operator_catalog_options($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
-				actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours, categories, bindings, options).Scan(&reply)
+			call, args := withPhotos("SELECT ledger.publish_operator_catalog_options($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+				[]any{actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours, categories, bindings, options}, mutation.Photos)
+			err = h.Store.db.QueryRow(ctx, call, args...).Scan(&reply)
 			break
 		}
-		err = h.Store.db.QueryRow(ctx, "SELECT ledger.publish_operator_catalog_categories($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-			actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours, categories, bindings).Scan(&reply)
+		call, args := withPhotos("SELECT ledger.publish_operator_catalog_categories($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+			[]any{actor.Tenant, branch, actor.Subject, requestKey, mutation.Version, mutation.ExpiresAt.UTC(), rows, hours, categories, bindings}, mutation.Photos)
+		err = h.Store.db.QueryRow(ctx, call, args...).Scan(&reply)
 	case "stock", "option-stock":
-		if mutation.ExpiresAt != nil || mutation.LocalExpiry != "" || mutation.Hours != nil || mutation.Rows != nil || mutation.Categories != nil || mutation.CategoryBindings != nil || mutation.Options != nil || mutation.Delta == nil || !sku.MatchString(mutation.SKU) {
+		if mutation.ExpiresAt != nil || mutation.LocalExpiry != "" || mutation.Hours != nil || mutation.Rows != nil || mutation.Photos != nil || mutation.Categories != nil || mutation.CategoryBindings != nil || mutation.Options != nil || mutation.Delta == nil || !sku.MatchString(mutation.SKU) {
 			operatorResponse(w, nil, service.BadRequest)
 			return
 		}

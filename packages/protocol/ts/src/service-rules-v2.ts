@@ -24,6 +24,19 @@ export const SERVICE_V2_RULES = {
   "maxEnvelopeBytes": 4096,
   "maxEvidenceAgeSeconds": 300,
   "operations": {
+    "C3/catalog.photo": {
+      "fields": {
+        "offset": "uint32",
+        "photo": "digest"
+      },
+      "mode": "read",
+      "response": "result",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60
+    },
     "C3/catalog.read": {
       "fields": {
         "page": "uint32"

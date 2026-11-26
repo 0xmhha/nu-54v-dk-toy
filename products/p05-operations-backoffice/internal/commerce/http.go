@@ -107,6 +107,8 @@ type result struct {
 	Catalog          []Price                `json:"catalog,omitempty"`
 	CatalogVersion   *int64                 `json:"catalogVersion,omitempty"`
 	CatalogOptions   []CatalogOptions       `json:"catalogOptions,omitempty"`
+	CatalogPhotos    []CatalogPhoto         `json:"catalogPhotos,omitempty"`
+	Photo            *PhotoPart             `json:"photo,omitempty"`
 	Orders           []CustomerOrderSummary `json:"orders,omitempty"`
 	Order            *Order                 `json:"order,omitempty"`
 	Quote            *quoteReply            `json:"quote,omitempty"`
@@ -413,9 +415,16 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 			err = service.BadRequest
 			break
 		}
-		out.Catalog, out.CatalogVersion, out.CatalogOptions, err = h.Store.catalogMenuWindow(ctx, bound, int32(page))
+		out.Catalog, out.CatalogVersion, out.CatalogOptions, out.CatalogPhotos, err = h.Store.catalogMenuPhotoWindow(ctx, bound, int32(page))
 		if err == nil && page == 0 {
 			out.Shop, err = h.Store.ShopIdentity(ctx, bound)
+		}
+	case "catalog.photo":
+		var offset int64
+		if offset, err = strconv.ParseInt(req.Body["offset"], 10, 32); err == nil {
+			out.Photo, err = h.Store.photoPart(ctx, bound, req.Body["photo"], offset)
+		} else {
+			err = service.BadRequest
 		}
 	case "order.create":
 		if err = checkCart(bound, outer.Cart); err == nil {
@@ -496,7 +505,7 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	if err == nil && time.Now().Unix() >= req.ExpiresAt {
 		err = service.Unknown
 	}
-	if err == nil && slices.Contains([]string{"catalog.read", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list",
+	if err == nil && slices.Contains([]string{"catalog.read", "catalog.photo", "order.list", "order.status", "order.nearby-result", "checkout.pending", "checkout.pos-nearby", "subscription.offers", "subscription.list", "invoice.list",
 		"payer.status", "wallet.return-status", "wallet.send-status", "faucet.status", "network.list", "terminal.device"}, req.Operation) {
 		err = h.Store.db.CheckRead(ctx)
 	}

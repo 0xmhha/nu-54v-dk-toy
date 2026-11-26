@@ -6,6 +6,7 @@ import { networkListLimit } from "./network-list.ts";
 import {readShopIdentity, type ShopIdentity} from "./shop-identity.ts";
 import { validRentalReviewChallenge, type PrivatePresentation, type RentalReviewChallenge } from "./private-presentation.ts";
 import { sha256 } from "@noble/hashes/sha256";
+import { fromBase64, toBase64 } from "./base64.ts";
 import { bytesToHex, hexToBytes, utf8Encode } from "./bytes.ts";
 import { quoteDigest, quoteV2Layout } from "./quote-v2.ts";
 import {
@@ -202,6 +203,8 @@ export type CommerceSkuOptions = {
   groups: { key: string; labels: CommerceOptionLabels; values: { key: string; labels: CommerceOptionLabels }[] }[];
 };
 
+export type CommercePhoto = { photo: string; thumb: string };
+
 export type CommercePrice = {
   version: number;
   expiresAt: string;
@@ -216,6 +219,8 @@ export type CommercePrice = {
   category?: CommerceCategory;
   /** One entry for each group, in the store's order. Absent for a product with a single list of options. */
   choices?: CommerceChoice[];
+  /** The names (SHA-256) of the product's photo and of its small copy for lists. Absent when it has none. */
+  photo?: CommercePhoto;
 };
 export type CommerceOrderPayment = {
   nearbyUnpaid?: true;
@@ -412,6 +417,8 @@ type Response = ServiceReplyV2 & {
   catalog?: CommercePrice[];
   catalogVersion?: number;
   catalogOptions?: CommerceSkuOptions[];
+  catalogPhotos?: (CommercePhoto & { sku: string })[];
+  photo?: { size: number; data: string };
   shop?: ShopIdentity;
   order?: CommerceOrder;
   orders?: CustomerOrderRow[];
@@ -512,6 +519,26 @@ function validChoices(row: CommercePrice): boolean {
     new Set(choices.map(({ group }) => group.key)).size === choices.length &&
     choices.map(({ value }) => value.key).join("-") === row.optionKey;
 }
+
+const photoName = /^[0-9a-f]{64}$/;
+const validPhoto = (photo: unknown): photo is CommercePhoto =>
+  !!photo && typeof photo === "object" && !Array.isArray(photo) && Object.keys(photo).length === 2 &&
+  photoName.test((photo as CommercePhoto).photo) && photoName.test((photo as CommercePhoto).thumb);
+
+function withPhotos(rows: CommercePrice[], photos: unknown): CommercePrice[] {
+  if (photos === undefined) return rows;
+  if (!Array.isArray(photos) || photos.length > rows.length) throw new Error("BAD_RESPONSE");
+  const bySKU = new Map<string, CommercePhoto>();
+  for (const item of photos as (CommercePhoto & { sku: string })[]) {
+    const { sku, ...photo } = item ?? {};
+    if (typeof sku !== "string" || bySKU.has(sku) || !validPhoto(photo) || !rows.some((row) => row.sku === sku)) throw new Error("BAD_RESPONSE");
+    bySKU.set(sku, { photo: photo.photo, thumb: photo.thumb });
+  }
+  return rows.map((row) => (bySKU.has(row.sku) ? { ...row, photo: bySKU.get(row.sku)! } : row));
+}
+
+/** Most bytes of one photo; the server makes none larger. */
+export const commercePhotoLimit = 150 * 1024;
 
 function withChoices(rows: CommercePrice[], options: unknown): CommercePrice[] {
   if (options === undefined) return rows;
@@ -655,6 +682,7 @@ export function assertCommerceCatalogPage(
         !validMenuMetadata(row.metadata) ||
         !validCategory(row.category) ||
         !validChoices(row) ||
+        (row.photo !== undefined && !validPhoto(row.photo)) ||
         typeof row.sku !== "string" ||
         !code.test(row.sku) ||
         typeof row.optionKey !== "string" ||
@@ -970,9 +998,33 @@ export class CommerceClient {
     });
     const rows = reply.catalog ?? [];
     assertCommerceCatalogPage(rows, this.clock(), commerceCatalogPageSize);
-    const prices = withChoices(rows, reply.catalogOptions);
+    const prices = withPhotos(withChoices(rows, reply.catalogOptions), reply.catalogPhotos);
     assertCommerceCatalogVersion(reply.catalogVersion, prices);
     return {prices, shop: reply.shop, snapshotVersion: reply.catalogVersion};
+  }
+
+  /** A published photo, read in parts that each fit a reply, and checked against its name. Base64 of the JPEG. */
+  async catalogPhoto(name: string): Promise<string> {
+    if (!photoName.test(name)) throw new Error("BAD_REQUEST");
+    const parts: Uint8Array[] = [];
+    let size = -1, read = 0;
+    do {
+      const reply = await this.call("catalog.photo", this.profile.branchRef, { photo: name, offset: String(read) });
+      const part = reply.photo;
+      if (!part || !Number.isSafeInteger(part.size) || part.size < 1 || part.size > commercePhotoLimit ||
+          (size >= 0 && part.size !== size) || typeof part.data !== "string")
+        throw new Error("BAD_RESPONSE");
+      size = part.size;
+      const bytes = fromBase64(part.data);
+      if (!bytes.length || read + bytes.length > size) throw new Error("BAD_RESPONSE");
+      parts.push(bytes);
+      read += bytes.length;
+    } while (read < size);
+    const whole = new Uint8Array(size);
+    let at = 0;
+    for (const part of parts) { whole.set(part, at); at += part.length; }
+    if (bytesToHex(sha256(whole), false) !== name) throw new Error("BAD_RESPONSE");
+    return toBase64(whole);
   }
 
   async catalog(page = 0): Promise<CommercePrice[]> {

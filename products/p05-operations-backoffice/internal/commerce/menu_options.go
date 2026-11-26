@@ -260,7 +260,12 @@ func addUnits(a, b string) (string, error) {
 
 // readableCatalog refuses a publication the apps could not read back: each page of rows and, for a phone next to the
 // kiosk, each single row has a size limit.
-func readableCatalog(rows []operatorRow, options []skuOptions, categories []json.RawMessage, bindings []categoryBinding) bool {
+func readableCatalog(rows []operatorRow, options []skuOptions, categories []json.RawMessage, bindings []categoryBinding, photos ...menuPhoto) bool {
+	// A product with a photo carries its two names once on a page, and in each of its rows next to the kiosk.
+	pictured := make(map[string]int, len(photos))
+	for _, photo := range photos {
+		pictured[photo.SKU] = size(CatalogPhoto{photo.SKU, photo.Photo, photo.Photo}) + 1
+	}
 	byCategory := make(map[string]*CatalogCategory)
 	for _, raw := range categories {
 		var category CatalogCategory
@@ -308,11 +313,11 @@ func readableCatalog(rows []operatorRow, options []skuOptions, categories []json
 			}
 		}
 		bytes := size(published) + 8 // microseconds in the expiry, and the comma
-		if bytes+sizes[row.SKU].row > nearbyRowBytes {
+		if bytes+sizes[row.SKU].row+pictured[row.SKU] > nearbyRowBytes {
 			return false
 		}
 		if page += bytes; !seen[row.SKU] {
-			page += sizes[row.SKU].page + 1
+			page += sizes[row.SKU].page + 1 + pictured[row.SKU]
 			seen[row.SKU] = true
 		}
 		if page > catalogPageBytes {
