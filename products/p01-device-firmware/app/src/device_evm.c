@@ -27,9 +27,9 @@ enum {
 
 static int external_context(const uint8_t *context, size_t size, bool browser, size_t *context_size)
 {
-	if (size <= EXTERNAL_CONTEXT_PREFIX ||
+	if (size <= (size_t)EXTERNAL_CONTEXT_PREFIX ||
 	    context[EXTERNAL_CONTEXT_IDS] < 9 || context[EXTERNAL_CONTEXT_IDS] > EXTERNAL_ORIGIN_MAX ||
-	    size <= EXTERNAL_CONTEXT_PREFIX + context[EXTERNAL_CONTEXT_IDS] ||
+	    size <= (size_t)EXTERNAL_CONTEXT_PREFIX + context[EXTERNAL_CONTEXT_IDS] ||
 	    (!browser && !memcmp(context, context + 32, 32))) return -1;
 	for (size_t i = 0; i < EXTERNAL_CONTEXT_IDS; i += 32) {
 		uint8_t nonzero = 0;

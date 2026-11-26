@@ -116,7 +116,9 @@ static const nu54_install_policy *device_install_policy(void) { return &policy; 
 #define nu54_sig_finish(digest, raw, address, out) (memset(out, 1, 65), sign_fails ? NU54_SIG_BAD_V : NU54_SIG_OK)
 #define nu54_owner_confirm(e, v, l, now, prompt, ok) ((void)(v), (e)->proven = false, confirm_fails || !(ok) ? -1 : 0)
 #define nu54_owner_status(v, c, e, out) ((void)(c), memset(out, 0, NU54_OWNER_STATUS_SIZE) == NULL)
-#define nu54_v2_link_send(l, reply, write, context) ((void)(reply), send_fails ? -1 : 0)
+/* A function, not an expression: the board code calls it as a statement and ignores the result. */
+static int link_send_stub(const void *reply) { (void)reply; return send_fails ? -1 : 0; }
+#define nu54_v2_link_send(l, reply, write, context) link_send_stub(reply)
 #define send_receipt(reply, signature, length) ((void)(reply), (void)(signature), send_fails ? -1 : 0)
 #define payment_generation_current(p) ((p) != NULL)
 #define payment_address(p, out) (memset(out, 1, 20) != NULL)

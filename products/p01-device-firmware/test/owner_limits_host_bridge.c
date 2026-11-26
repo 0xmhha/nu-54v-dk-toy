@@ -171,9 +171,11 @@ int main(int argc,char **argv){
   memset(state.intent.digest,6,32);memcpy(state.intent.amount+24,wire+1,8);
   uint8_t output[LAB_TX_LENGTH],address[20]={7};size_t output_size=0;
   int result=device_evm_complete(&state,&link,now,1,1,address,output,&output_size);
-  if(result==0)return 13;reply[0]=99;reply[1]=state.pending?0:1;len=2;
+  if(result==0)return 13;
+  reply[0]=99;reply[1]=state.pending?0:1;len=2;
  }
  else return 9;
  saved=(struct saved){.data=data,.fresh=fresh_record,.init=init_record,.independent=independent_counter,.stored=stored_counter,.exists=exists,.fresh_exists=fresh_exists,.init_exists=init_exists,.ps_size=ps_size};memcpy(saved.extension,extension,sizeof(extension));f=fopen(file,"wb");if(!f)return 10;if(fwrite(&saved,sizeof(saved),1,f)!=1){fclose(f);return 11;}fclose(f);
- for(size_t i=0;i<len;i++)printf("%02x",reply[i]);puts("");return 0;
+ for(size_t i=0;i<len;i++)printf("%02x",reply[i]);
+ puts("");return 0;
 }

@@ -164,7 +164,8 @@ int device_owner_limits_initialize_confirm_ps(const nu54_limit_change *change,ui
     struct owner_limits_ps_record baseline,next;int result=-1;
     if(initialize_baseline(change,lower,&baseline) ||
        nu54_limit_change_confirm(&baseline.state,change,lower,upper,prompt,button,approval,proof,hash,verify,&next.state)) {
-        if(approval)nu54_local_approval_cancel(approval); goto done_initialize;
+        if(approval)nu54_local_approval_cancel(approval);
+        goto done_initialize;
     }
     struct owner_limits_fresh_record witness={.schema=OWNER_LIMITS_SCHEMA,.generation=change->generation};
     memcpy(witness.board,change->board,32);

@@ -38,7 +38,8 @@ psa_status_t psa_ps_set(psa_storage_uid_t uid,size_t size,const void *input,uint
 }
 psa_status_t psa_ps_get_info(psa_storage_uid_t uid,struct psa_storage_info_t *info) {
  if(uid==TEST_FRESH_UID || uid==TEST_INIT_UID){if(!(uid==TEST_FRESH_UID?fresh_exists:init_exists))return PSA_ERROR_DOES_NOT_EXIST; info->size=sizeof(fresh_record); info->flags=PSA_STORAGE_FLAG_WRITE_ONCE; return 0;}
- if(!exists)return PSA_ERROR_DOES_NOT_EXIST;info->size=ps_size;return 0;
+ if(!exists)return PSA_ERROR_DOES_NOT_EXIST;
+ info->size=ps_size;return 0;
 }
 static int hash(const uint8_t *v,size_t n,uint8_t out[32]) {memset(out,0,32);for(size_t i=0;i<n;i++)out[i%32]^=(uint8_t)(v[i]+i);return 0;}
 static int present(void *v,const uint8_t *p,size_t n) {(void)v;(void)p;return n==66?0:-1;}

@@ -332,7 +332,10 @@ static void test_records(void)
 	assert(found.outcome == NU54_ORDER_REFUSED);
 	assert(nu54_order_find(read_slot, NULL, NOW, id, other, &found, &slot) == NU54_PILOT_RECEIPT_ERROR);
 	records[5].outcome = 0;
-	assert(nu54_order_find(read_slot, NULL, NOW, id + 1, other, &found, &slot) == NU54_PILOT_RECEIPT_ERROR);
+	uint8_t shifted[16]; /* another request: the same bytes moved by one, all sixteen within bounds */
+	memcpy(shifted, id + 1, 15);
+	shifted[15] = id[0];
+	assert(nu54_order_find(read_slot, NULL, NOW, shifted, other, &found, &slot) == NU54_PILOT_RECEIPT_ERROR);
 	broken = true;
 	assert(nu54_order_find(read_slot, NULL, NOW, id, digest, &found, &slot) == NU54_PILOT_RECEIPT_ERROR);
 }
