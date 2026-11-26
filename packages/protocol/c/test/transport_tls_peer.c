@@ -1,3 +1,7 @@
+/* glibc hides O_NOFOLLOW and other POSIX names under -std=c11; macOS shows them anyway. */
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 #include "nu54_transport_v2_openssl.h"
 #include "nu54_quote_v2.h"
 #include "nu54_pilot.h"
