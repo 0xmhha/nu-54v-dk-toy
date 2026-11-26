@@ -22,11 +22,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/gassponsor"
+	escrowcalls "github.com/0xmhha/nu-54v-dk-toy/packages/contracts-abi/go/orderescrow"
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/commerce"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p07-indexer/pkg/deployment"
@@ -301,6 +303,32 @@ func (s *shop) balances(t *testing.T, ctx context.Context, client *ethclient.Cli
 		back.Add(back, cancels.Event.Amount)
 	}
 	must(errors.Join(locks.Error(), releases.Error(), cancels.Error()))
+	// Each order on its own: what was locked is what was paid out, given back, or is still held for it.
+	perOrder, err := s.escrow.contract.FilterOrderLocked(all, nil, nil, nil)
+	must(err)
+	for perOrder.Next() {
+		order := perOrder.Event.OrderId
+		out := new(big.Int)
+		released, err := s.escrow.contract.FilterOrderReleased(all, nil, [][32]byte{order})
+		must(err)
+		for released.Next() {
+			out.Add(out, released.Event.Amount)
+		}
+		cancelled, err := s.escrow.contract.FilterOrderCancelled(all, nil, [][32]byte{order})
+		must(err)
+		for cancelled.Next() {
+			out.Add(out, cancelled.Event.Amount)
+		}
+		stored, err := s.escrow.contract.Orders(opts, perOrder.Event.MerchantId, order)
+		must(err)
+		if out.Sign() == 0 {
+			out.Set(stored.Amount) // nothing left it yet, so it is all held
+		}
+		if out.Cmp(perOrder.Event.Amount) != 0 {
+			t.Fatalf("%s: order %x locked %s but %s left or is held", s.name, order[:4], perOrder.Event.Amount, out)
+		}
+	}
+	must(perOrder.Error())
 	held, err := s.escrow.contract.TotalHeld(opts)
 	must(err)
 	sum := new(big.Int).Add(new(big.Int).Add(paid, back), held)
@@ -488,7 +516,8 @@ func TestOrderFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	ledger := login("nu54_p05_settlement")
-	worker := &Worker{Store: ledger, Evidence: proof, Chain: LiveChain{client}, Targets: active, QuoteCipher: qCipher,
+	crashing := &crashingChain{LiveChain: LiveChain{client}, armed: map[string]bool{}}
+	worker := &Worker{Store: ledger, Evidence: proof, Chain: crashing, Targets: active, QuoteCipher: qCipher,
 		RelayCipher: relayCipher, GasAccount: gas, GasSigner: gasKey, MaxGasPrice: big.NewInt(100_000_000_000), Now: time.Now,
 		MerchantSigner: fixtureSigner(101), MerchantSigners: signers,
 		Resolver: fixtureSigner(106).Address(), ResolverSigner: fixtureSigner(106), MerchantIDs: merchantIDs, Faucet: faucet}
@@ -515,8 +544,12 @@ func TestOrderFlow(t *testing.T) {
 		}()
 	}
 	var noted sync.Map
+	var heldUntil atomic.Int64 // while set, the server's loops are down; the chain goes on
 	tick := func(name string, step func(context.Context) (bool, error)) func() {
 		return func() {
+			if time.Now().UnixMilli() < heldUntil.Load() {
+				return
+			}
 			for range 8 {
 				call, end := context.WithTimeout(stop, 7*time.Second)
 				moved, err := step(call)
@@ -545,7 +578,16 @@ func TestOrderFlow(t *testing.T) {
 	every(300*time.Millisecond, func() {
 		_, _ = db.Exec(stop, "UPDATE ledger.settlement_work SET retry_at=clock_timestamp() WHERE NOT finished AND retry_at>clock_timestamp()+interval '600 milliseconds'")
 	})
-	every(300*time.Millisecond, tick("worker", worker.Step))
+	// A worker that died after a send is replaced by a new one, as a restarted opsd would be; all it knew is in the database.
+	var current atomic.Pointer[Worker]
+	current.Store(worker)
+	crashing.restart = func() { fresh := *worker; current.Store(&fresh) }
+	every(300*time.Millisecond, tick("worker", func(ctx context.Context) (bool, error) { return current.Load().Step(ctx) }))
+	// The automatic kitchen of a test store, as opsd runs it, once a flow marks the store.
+	every(time.Second, tick("kitchen", func(ctx context.Context) (bool, error) {
+		moved, err := commerceStore.StepAutoKitchen(ctx, func(string) bool { return true })
+		return moved > 0, err
+	}))
 	every(300*time.Millisecond, tick("dispatch", dispatch.Step))
 	every(time.Second, tick("expiry", commerceStore.ReclaimExpired))
 
@@ -579,8 +621,9 @@ func TestOrderFlow(t *testing.T) {
 		home := s.escrow.operator // the buyer's ordinary wallet: it holds the minted token and its own gas
 		control := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var in struct {
-				Op, Address, OrderKey, Amount string
-				Seconds                       int64
+				Op, Address, OrderKey, Amount, Method string
+				On                                    bool
+				Seconds                               int64
 			}
 			if r.Header.Get("X-Order-Flow") != rawHex(secret) || json.NewDecoder(r.Body).Decode(&in) != nil {
 				http.Error(w, "denied", http.StatusForbidden)
@@ -654,6 +697,26 @@ func TestOrderFlow(t *testing.T) {
 					}
 					return map[string]string{"anotherContract": said,
 						"withoutToken": VerifyOperatorDeployment(ctx, client, dollar, gas, nil, nil, nil, false).Status}, nil
+				case "crash-after-send": // the worker dies right after it sends this call (lock, markDelivered or cancel)
+					if _, known := escrowSelectors()[in.Method]; !known {
+						return nil, errors.New("method")
+					}
+					crashing.arm(in.Method)
+					return map[string]bool{"ok": true}, nil
+				case "crashes": // the sends the worker died after, in order
+					return map[string][]string{"methods": crashing.history()}, nil
+				case "hold": // the server's loops stop for a while
+					heldUntil.Store(time.Now().Add(time.Duration(in.Seconds) * time.Second).UnixMilli())
+					return map[string]bool{"ok": true}, nil
+				case "auto-kitchen": // mark the store a test store with its kitchen on, quick, or take it back
+					var err error
+					if in.On {
+						_, err = db.Exec(ctx, `INSERT INTO ledger.branch_test_store(branch_id,auto_kitchen,start_after,usual_minutes,hand_over_after)
+							VALUES($1,true,interval '0',1,interval '0') ON CONFLICT (branch_id) DO UPDATE SET auto_kitchen=true`, s.branch)
+					} else {
+						_, err = db.Exec(ctx, "DELETE FROM ledger.branch_test_store WHERE branch_id=$1", s.branch)
+					}
+					return map[string]bool{"ok": err == nil}, err
 				case "quote-lifetime":
 					_, err := db.Exec(ctx, "UPDATE ledger.issuance_profile SET quote_lifetime_seconds=$2 WHERE branch_id=$1", s.branch, in.Seconds)
 					return map[string]bool{"ok": true}, err
@@ -745,4 +808,59 @@ func TestOrderFlow(t *testing.T) {
 		t.Logf("%s: %d sponsored payments", s.name, payments)
 		s.balances(t, ctx, client, faucet.Account, shops)
 	}
+}
+
+// escrowSelectors are the order escrow calls a worker sends, by name.
+func escrowSelectors() map[string][]byte {
+	parsed, err := escrowcalls.OrderescrowMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
+	out := map[string][]byte{}
+	for _, name := range []string{"lock", "markDelivered", "cancel"} {
+		out[name] = parsed.Methods[name].ID
+	}
+	return out
+}
+
+// crashingChain is the live chain, except that a send it was armed for reaches the chain and then reports an error,
+// as if the process had died right after the call left it; the world then starts a new worker.
+type crashingChain struct {
+	LiveChain
+	mu      sync.Mutex
+	armed   map[string]bool
+	crashed []string
+	restart func()
+}
+
+func (c *crashingChain) arm(method string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.armed[method] = true
+}
+
+func (c *crashingChain) history() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]string(nil), c.crashed...)
+}
+
+func (c *crashingChain) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+	if err := c.LiveChain.SendTransaction(ctx, tx); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for name, selector := range escrowSelectors() {
+		// A sponsored call carries the escrow call inside it.
+		if c.armed[name] && bytes.Contains(tx.Data(), selector) {
+			delete(c.armed, name)
+			c.crashed = append(c.crashed, name)
+			if c.restart != nil {
+				c.restart()
+			}
+			return errors.New("the worker died after sending " + name)
+		}
+	}
+	return nil
 }

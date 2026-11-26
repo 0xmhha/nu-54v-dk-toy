@@ -24,7 +24,7 @@ P05 = "products/p05-operations-backoffice"
 FLOW = ROOT / P05 / "test/order-flow"
 USER = "nu54_order_flow"
 DATABASE = "nu54_settlement_order_flow"
-FLOWS = 18
+FLOWS = 20
 # The stores at once. The claim of the last flows moves the chain's clock, which the stores share, so they stay out.
 TOGETHER = ("enroll the board account", "deposit to the board account", "kiosk order, paid", "refused on the board, then", "duplicate lock",
             "dispute, two people", "test tokens from the faucet", "send to another address", "return, blocked")
@@ -34,7 +34,8 @@ WON_BOARD = ("-DNU54_TOKEN_NAME=NU54 Test KRW", f"-DNU54_ORDER_VECTOR={VECTORS /
              f"-DNU54_RETURN_VECTOR={VECTORS / 'wallet-return-won.vectors'}", "-DNU54_RETURN_AMOUNT=3420000")
 COIN_BOARD = ("-DNU54_TOKEN_NAME=WKRC", "-DNU54_TOKEN_UNIT=10000000000000000", f"-DNU54_ORDER_VECTOR={VECTORS / 'order-lock-coin.vectors'}",
               f"-DNU54_RETURN_VECTOR={VECTORS / 'wallet-return-coin.vectors'}", "-DNU54_RETURN_AMOUNT=3420000")
-LIMIT = 600
+# The thirty-customer flow alone takes about five minutes.
+LIMIT = 1200
 
 
 def secure_env():
@@ -157,7 +158,7 @@ def run_flows(scratch, env, built, dsn, log, verbose, only, token):
         process = OwnedProcess()
         stack.callback(process.stop)
         child = process.start([str(built["server"]), "-test.run", "^TestOrderFlow$", "-test.v", "-test.timeout", f"{LIMIT}s"],
-                              cwd=ROOT / P05 / "internal/settlement", env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              cwd=ROOT / P05 / "internal/settlement", env={**env, "NU54_ORDER_FLOW_MINUTES": str(LIMIT // 60 - 2)}, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, errors="replace", bufsize=1)
         for line in child.stdout:
             rest.append(line)

@@ -310,7 +310,8 @@ let authority = '';
 let ready = false;
 let failed = 0;
 const started = Date.now();
-function flow(name: string, run: () => Promise<void>) {
+/** One named flow. A flow longer than the usual three minutes says how long it may take. */
+function flow(name: string, run: () => Promise<void>, timeout?: number) {
   test(name, async () => {
     const at = Date.now();
     let passed = false;
@@ -335,7 +336,7 @@ function flow(name: string, run: () => Promise<void>) {
       // A failed flow must not block the next one with its unfinished payment.
       if (!passed) for (const [key, value] of [...journals]) if (/^customer-payment-/.test(key) || value.includes('"originRef"')) journals.delete(key);
     }
-  });
+  }, timeout);
 }
 
 beforeAll(async () => {
@@ -651,6 +652,95 @@ if (fixture.shops > 1) {
     same('money after the second claim', await balance(board.account), before + BigInt(offered.amount));
   });
 }
+
+/** One customer's order through the kitchen and the customer's answer. */
+async function servedOrder() {
+  const entry = await paidOrder(), sale = entry.order.id;
+  await deliver(sale);
+  await answer(sale, '받았어요', '네, 받았어요');
+  same('payout', (await stage(sale, 'paid')).payout, 'receipt');
+  return sale;
+}
+/** The ready board the kiosk reads shows exactly the numbers the kitchen has ready. */
+async function boardMatchesKitchen() {
+  const board = await kiosk.api.readyBoard();
+  const ready = readPickupKitchen(await kitchen('pickup-queue')).filter(row => row.state === 'ready').map(row => row.pickupNo);
+  same('ready numbers on the board', [...board.ready].sort().join(','), [...ready].sort().join(','));
+}
+
+flow('thirty customers: served, cancelled by the store, and served by the automatic kitchen', async () => {
+  const before = await balance(store);
+  // Twenty-seven are paid out; the three cancelled come back to the board account.
+  await deposit(27n * price);
+  for (let i = 0; i < 3; i++) {
+    const entry = await paidOrder();
+    await cancelled(entry.order.id);
+  }
+  for (let i = 0; i < 25; i++) {
+    const entry = await paidOrder(), sale = entry.order.id;
+    await cook(sale, 'preparing', 'ready');
+    if (i % 5 === 0) await boardMatchesKitchen();
+    await cook(sale, 'collected');
+    await stage(sale, 'delivered');
+    await answer(sale, '받았어요', '네, 받았어요');
+    await stage(sale, 'paid');
+  }
+  // A test store's automatic kitchen takes the last two from received to handed over by itself.
+  await control('auto-kitchen', {on: true});
+  try {
+    const last = [await paidOrder(), await paidOrder()].map(entry => entry.order.id);
+    for (const sale of last) {
+      await stage(sale, 'delivered', 150);
+      await answer(sale, '받았어요', '네, 받았어요');
+      await stage(sale, 'paid');
+    }
+  } finally {
+    await control('auto-kitchen', {on: false});
+  }
+  same('store income for 27 orders', await balance(store) - before, 27n * price);
+}, 600_000);
+
+flow('five interruptions: the server stops and comes back at each', async () => {
+  const before = await balance(store);
+  await deposit(4n * price);
+  // After the refund is sent: the cancel reaches the chain, the worker dies, a new one finishes the refund.
+  const refunded = await paidOrder();
+  await control('crash-after-send', {method: 'cancel'});
+  await cancelled(refunded.order.id);
+  // After the lock is sent: the lock reaches the chain and the worker dies before it records the send.
+  await control('crash-after-send', {method: 'lock'});
+  await servedOrder();
+  // After it is included, before it is recorded: the worker dies after the send and the server stays down while blocks come.
+  await control('crash-after-send', {method: 'lock'});
+  const included = await cartOrder();
+  await approve();
+  await until('the lock on chain', async () => (await control<{count: number}>('locks', {orderKey: included.quote.orderKey})).count === 1);
+  await control('hold', {seconds: 8});
+  await orderNumber(included.order.id);
+  await oneLock(included);
+  await deliver(included.order.id);
+  await answer(included.order.id, '받았어요', '네, 받았어요');
+  await stage(included.order.id, 'paid');
+  // After the kitchen started: the server stops, then the order goes on from where it was.
+  const started = await paidOrder();
+  await cook(started.order.id, 'preparing');
+  await control('hold', {seconds: 8});
+  await pause(9000);
+  await cook(started.order.id, 'ready');
+  await until('a ready notice', async () => { await follow(started.order.id); return notices.includes(started.order.id); });
+  await cook(started.order.id, 'collected');
+  await stage(started.order.id, 'delivered');
+  await answer(started.order.id, '받았어요', '네, 받았어요');
+  await stage(started.order.id, 'paid');
+  // After the hand-over is recorded: the delivery call reaches the chain and the worker dies; a new one records it.
+  const handed = await paidOrder();
+  await control('crash-after-send', {method: 'markDelivered'});
+  await deliver(handed.order.id);
+  await answer(handed.order.id, '받았어요', '네, 받았어요');
+  await stage(handed.order.id, 'paid');
+  same('the sends the worker died after', (await control<{methods: string[]}>('crashes')).methods.join(','), 'cancel,lock,lock,markDelivered');
+  same('store income for 4 orders', await balance(store) - before, 4n * price);
+});
 
 flow('send to another address, refused on the board, then a lost answer', async () => {
   const friend = '0x' + 'f1'.repeat(20), before = await balance(board.account);

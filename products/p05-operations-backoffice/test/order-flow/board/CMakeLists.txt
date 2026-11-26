@@ -66,8 +66,9 @@ add_executable(order-board board_host.c ${EXTRACTED}
   ${SECP}/src/secp256k1.c ${SECP}/src/precomputed_ecmult.c ${SECP}/src/precomputed_ecmult_gen.c)
 target_include_directories(order-board BEFORE PRIVATE ${P01}/test/fakes-spending ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
   ${P01}/app/src ${P01}/core/include ${PROTOCOL}/include ${SECP}/include)
+# One board stands in for every customer of the run, thirty of them in one flow, so its day allows 250 orders.
 target_compile_definitions(order-board PRIVATE ENABLE_MODULE_RECOVERY=1 ECMULT_WINDOW_SIZE=4
-  CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=100000000)
+  CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=2000000000)
 set_source_files_properties(board_host.c return_vector.c PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Werror")
 target_link_libraries(order-board PRIVATE OpenSSL::Crypto)
 
