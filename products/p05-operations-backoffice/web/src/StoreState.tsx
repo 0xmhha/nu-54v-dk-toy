@@ -12,6 +12,7 @@ export type OrderState = {
   soldOut: { sku: string; by: string; at: string }[];
   log: { by: string; at: string; change: Record<string, unknown> }[];
   taxFreeShop?: { designation: string; designatedOn: string; refundOperator: string; by: string; at: string } | null;
+  autoKitchen?: boolean;
   me: string;
 };
 type Mode = OrderState["mode"];
@@ -58,8 +59,17 @@ const dayName = (day: string) => {
 };
 
 /** Whether the branch takes orders, its closed days and sold-out products. Changed only here; every change is recorded. */
-export function StoreState({ branch, zone, products, onState }: {
+/** One of today's orders, found by its number for cancelling. */
+type FoundOrder = { sale: string; number: number; stage: string; revision: number; amount: string; asset: string;
+  refund?: "queued" | "final" | "superseded" | "failed"; byKitchen?: boolean; cancelledBy?: string;
+  items?: { label: string; option?: string; quantity: number }[] };
+const stageName: Record<string, string> = { accepted: "접수", preparing: "만드는 중", ready: "준비 완료", collected: "전달됨", unfulfillable: "준비할 수 없음으로 취소됨" };
+const fresh = () => crypto.randomUUID();
+
+export function StoreState({ branch, zone, products, onState, money }: {
   branch: string; zone: string; products: Product[];
+  /** Formats base units of the store's token. */
+  money?: (units: string) => string;
   /** Told each time the state is read or changed, so the menu editor knows the tax-free shop designation. */
   onState?: (state: OrderState) => void;
 }) {
@@ -74,6 +84,10 @@ export function StoreState({ branch, zone, products, onState }: {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [shop, setShop] = useState({ designation: "", designatedOn: "", refundOperator: "", confirmed: false });
+  const [number, setNumber] = useState("");
+  const [order, setOrder] = useState<FoundOrder>();
+  const [orderNote, setOrderNote] = useState("");
+  const [cancelKey, setCancelKey] = useState(fresh);
   const names = new Map(products.map((p) => [p.sku, p.label]));
 
   const show = (next: OrderState) => {
@@ -102,6 +116,18 @@ export function StoreState({ branch, zone, products, onState }: {
       setAsking(undefined);
     }
   };
+  // While a cancelled order's refund is being confirmed, look again every few seconds.
+  useEffect(() => {
+    if (!order || order.stage !== "unfulfillable" || order.refund === "final" || order.refund === "failed") return;
+    const timer = setTimeout(() => find(String(order.number), true), 3000);
+    return () => clearTimeout(timer);
+  }, [order]);
+  async function find(value: string, quiet = false) {
+    if (!quiet) { setOrder(undefined); setOrderNote(""); }
+    const reply = await fetch(`${stateUrl(branch)}/order?number=${encodeURIComponent(value)}`, { credentials: "same-origin" });
+    if (reply.ok) { setOrder(await reply.json()); if (!quiet) setCancelKey(fresh()); }
+    else if (!quiet) setOrderNote(reply.status === 404 ? "오늘 이 번호의 주문을 찾지 못했습니다. 주문 취소 권한이 없을 때도 이렇게 보입니다." : "주문을 읽지 못했습니다. 다시 시도해 주세요.");
+  }
   if (!state) return <section aria-label="주문 받기"><h2>주문 받기</h2><p role="status">{notice || "읽는 중"}</p></section>;
 
   const change: Change = mode === "busy" ? { mode, busyMinutes: minutes } : mode === "paused" ? { mode, ...(resume ? { resumeAt: resume } : {}) } : { mode };
@@ -112,6 +138,7 @@ export function StoreState({ branch, zone, products, onState }: {
 
   return (
     <>
+      {state.autoKitchen && <p className="warning" role="note"><strong>시험 매장 · 자동 주방</strong> 주방 단계(시작, 준비 완료, 전달)를 사람이 아니라 자동 주방이 기록합니다. 만든 것을 확인하지 않으므로, 만들 수 없는 주문은 아래 "주문 취소"에서 전달 기록 전에 취소해 주세요.</p>}
       <section aria-labelledby="order-state">
         <h2 id="order-state">지금 주문 받기</h2>
         <p>
@@ -196,6 +223,47 @@ export function StoreState({ branch, zone, products, onState }: {
           onClick={() => ask(`고른 ${picked.length}개를 다시 팔까요?`, async () => { const next = await send(stateUrl(branch) + "/sold-out", { products: picked, soldOut: false }); setPicked([]); return next; })}>
           고른 것을 다시 팔기</button>
         <p className="warning">품절은 그 상품의 모든 옵션 조합에 적용됩니다. 남은 수량은 그대로 두고, 다시 팔면 남은 수량대로 팝니다. 게시한 메뉴를 다시 게시하지 않아도 바로 적용됩니다.</p>
+      </section>
+
+      <section aria-labelledby="order-cancel">
+        <h2 id="order-cancel">주문 취소</h2>
+        <p>만들 수 없는 주문을 주문번호로 찾아 "준비할 수 없음"으로 취소하고 환불합니다. 전달이 기록된 뒤에는 취소할 수 없습니다.</p>
+        <form onSubmit={(e) => { e.preventDefault(); void find(number); }}>
+          <label>주문번호 <input inputMode="numeric" pattern="[0-9]*" maxLength={5} value={number} onChange={(e) => setNumber(e.target.value.replace(/[^0-9]/g, ""))} /></label>{" "}
+          <button disabled={busy || !number}>찾기</button>
+        </form>
+        {orderNote && <p role="status">{orderNote}</p>}
+        {order && (
+          <div aria-label={`${order.number}번 주문`}>
+            <p><strong>{order.number}번 · {(order.items ?? []).map((i) => `${i.label}${i.option ? ` ${i.option}` : ""} ×${i.quantity}`).join(", ")}</strong>{" "}
+              <span>{money ? money(order.amount) : `${order.amount} 기준 단위`}</span></p>
+            <p>{stageName[order.stage] ?? order.stage}{order.byKitchen ? " · 자동 주방이 기록" : ""}</p>
+            {order.stage === "unfulfillable" ? (
+              <p role="status">{order.refund === "final" ? "환불되었습니다. 돈이 손님의 보드 계정으로 돌아갔습니다."
+                : order.refund === "failed" ? "환불을 보내지 못했습니다. 운영 담당자에게 알려 주세요."
+                : "취소했습니다. 환불을 확인하고 있습니다. 아직 돌아가지 않았습니다."}
+                {order.cancelledBy && ` · 취소한 사람 ${who(state, order.cancelledBy)}`}</p>
+            ) : order.stage === "collected" ? (
+              <p>전달이 기록되어 취소할 수 없습니다. 손님이 이의를 내면 이의 처리에서 다룹니다.</p>
+            ) : (
+              <button className="danger" disabled={busy}
+                onClick={() => ask(`${order.number}번을 취소하고 ${money ? money(order.amount) : order.amount}을(를) 환불할까요? 손님의 보드 계정으로 돌아가고 되돌릴 수 없습니다.`,
+                  async () => {
+                    try {
+                      await send(stateUrl(branch) + "/cancel", { sale: order.sale, revision: order.revision, key: cancelKey });
+                    } catch (error) {
+                      setOrderNote("취소하지 못했습니다. 이미 전달이 기록되었거나, 다른 사람이 먼저 바꿨거나, 권한이 없습니다. 다시 찾아 확인해 주세요.");
+                      throw error;
+                    }
+                    await find(String(order.number), true);
+                    return state;
+                  })}>
+                취소하고 환불
+              </button>
+            )}
+          </div>
+        )}
+        <p>누가 언제 눌렀는지 남습니다. 환불은 확정된 뒤에 끝났다고 보입니다.</p>
       </section>
 
       <section aria-labelledby="tax-free-shop">

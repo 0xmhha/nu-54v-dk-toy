@@ -7,7 +7,14 @@ export const storeStopped = (state?: CommerceOrderState) => state?.mode === 'pau
 
 /** What the store said about taking orders, above its menu. refused: a payment was just refused because of it. */
 export function StoreNotice({state, refused, checkedAt}: {state?: CommerceOrderState; refused?: boolean; checkedAt?: string}) {
-  if (!state || state.mode === 'open') return null;
+  const kitchen = state?.autoKitchen
+    ? <Text style={s.small}>시험 매장 · 자동 주방: 주방 단계를 자동으로 기록하고, 만든 것을 사람이 확인하지 않습니다. 받은 것이 다르면 받은 뒤 이의를 낼 수 있습니다.</Text>
+    : null;
+  if (!state || state.mode === 'open') return kitchen;
+  return <View style={s.gap}>{kitchen}<Notice state={state} refused={refused} checkedAt={checkedAt} /></View>;
+}
+
+function Notice({state, refused, checkedAt}: {state: CommerceOrderState; refused?: boolean; checkedAt?: string}) {
   if (state.mode === 'busy')
     return (
       <View accessibilityRole="summary" style={s.box}>

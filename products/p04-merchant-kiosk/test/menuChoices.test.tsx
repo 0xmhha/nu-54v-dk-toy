@@ -329,3 +329,11 @@ test('a designated tax-free shop tells a visitor which goods count and whether t
     expect(view(tree)).not.toContain('환급');
   });
 });
+
+test('a test store with an automatic kitchen says so above the menu', async () => {
+  mockState = { mode: 'open', autoKitchen: true };
+  await kiosk(async tree => {
+    expect(view(tree)).toContain('시험 매장 · 자동 주방: 주방 단계를 자동으로 기록합니다');
+    expect(view(tree)).toContain('5,000원부터');
+  });
+});

@@ -59,6 +59,7 @@ export function ReadyBoardView({board, lost, fresh, ko}: {board?: CommerceReadyB
     <View style={s.board}>
       {/* Read out once when a number becomes ready; the board itself is not re-read every few seconds. */}
       <Text accessibilityLiveRegion="polite" style={s.hidden}>{fresh.length ? `${ko ? '새로 준비된 번호' : 'Now ready'} ${fresh.join(', ')}` : ''}</Text>
+      {board.autoKitchen && <Text style={s.kitchen}>{ko ? '시험 매장 · 자동 주방으로 운영 중' : 'Test store · automatic kitchen'}</Text>}
       <View style={s.columns}>
       <View accessibilityRole="summary" accessibilityLabel={ko ? '준비 완료' : 'Ready'} style={s.ready}>
         <Text accessibilityRole="header" style={s.readyTitle}>{ko ? '준비되었습니다' : 'Ready'}</Text>
@@ -96,6 +97,7 @@ const s = StyleSheet.create({
   bandNumber: {fontSize: 24, fontWeight: '800', color: deep},
   // Side by side when there is room, as in the approved board; one column on a narrow screen.
   board: {gap: 16},
+  kitchen: {alignSelf: 'flex-start', fontSize: 16, fontWeight: '700', color: '#5a3b05', backgroundColor: '#f6e3bf', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6},
   columns: {flexDirection: 'row', flexWrap: 'wrap', gap: 16},
   hidden: {position: 'absolute', width: 1, height: 1, opacity: 0},
   ready: {backgroundColor: '#d4efa7', borderRadius: 20, padding: 24, gap: 14, flexGrow: 1.4, flexBasis: 420},

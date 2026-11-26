@@ -18,6 +18,9 @@ test('the whole board shows four ready numbers large, the rest in a line, and wh
   expect(text(tree)).toContain('새로 준비된 번호 21'); // read out once
   expect(text(tree)).toContain('만드는 중');
   expect(text(tree)).toContain('접수');
+  expect(text(tree)).not.toContain('자동 주방');
+  await Renderer.act(async () => tree.update(<ReadyBoardView board={{...board([21]), autoKitchen: true}} lost={false} fresh={[]} ko />));
+  expect(text(tree)).toContain('시험 매장 · 자동 주방으로 운영 중');
   await Renderer.act(async () => tree.update(<ReadyBoardView board={board([21])} lost fresh={[]} ko />));
   expect(text(tree)).toContain('연결이 끊겼습니다 · 마지막 확인');
 });

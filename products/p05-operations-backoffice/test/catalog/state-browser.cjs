@@ -28,7 +28,15 @@ const catalog = {
 const today = "2026-11-26";
 // What opsd keeps; changed the way the server's functions change it.
 const state = { mode: "open", busyMinutes: null, resumeAt: null, changedBy: null, changedAt: null, today,
-  closedDays: [], soldOut: [{ sku: "coldbrew", by: other, at: "2026-11-26T00:50:00Z" }], log: [] };
+  closedDays: [], soldOut: [{ sku: "coldbrew", by: other, at: "2026-11-26T00:50:00Z" }], log: [], autoKitchen: true };
+// Today's orders as the server finds them by number; the refund of a cancelled one is confirmed on the second look.
+const orders = {
+  25: { sale: "44444444-4444-4444-8444-444444444425", number: 25, stage: "ready", revision: 2, amount: "1250000", asset, byKitchen: true,
+    items: [{ label: "카페라떼", option: "차갑게 · 크게", quantity: 1 }, { label: "치즈케이크", quantity: 1 }] },
+  24: { sale: "44444444-4444-4444-8444-444444444424", number: 24, stage: "collected", revision: 3, amount: "500000", asset, byKitchen: true,
+    items: [{ label: "카페라떼", quantity: 1 }] },
+};
+let looks = 0;
 const record = (change) => state.log.unshift({ by: me, at: new Date().toISOString(), change });
 
 const server = http.createServer(async (req, res) => {
@@ -50,6 +58,12 @@ const server = http.createServer(async (req, res) => {
       state.closedDays = state.closedDays.filter(({ day }) => day !== body.day);
       if (body.closed) state.closedDays.push({ day: body.day, addedBy: me, addedAt: new Date().toISOString() });
       record({ closedDay: body.day, closed: body.closed });
+    } else if (changing[1] === "cancel") {
+      const found = Object.values(orders).find(({ sale }) => sale === body.sale);
+      if (!found || found.stage === "collected" || found.revision !== body.revision) return json(409);
+      Object.assign(found, { stage: "unfulfillable", revision: found.revision + 1, refund: "queued", cancelledBy: me });
+      looks = 0;
+      return json(200, { revision: found.revision });
     } else if (changing[1] === "tax-free") {
       if (body.designation === "") { state.taxFreeShop = null; record({ taxFreeShop: null }); }
       else {
@@ -63,6 +77,12 @@ const server = http.createServer(async (req, res) => {
       record({ soldOut: body.soldOut, products: body.products });
     }
     return json(200, { ...state, me });
+  }
+  if (/^\/v2\/operations\/state\/[0-9a-f-]+\/order$/.test(url.pathname)) {
+    const found = orders[url.searchParams.get("number")];
+    if (!found) return json(404);
+    if (found.refund === "queued" && ++looks >= 2) found.refund = "final";
+    return json(200, found);
   }
   if (/^\/v2\/operations\/state\/[0-9a-f-]+$/.test(url.pathname)) return json(200, { ...state, me });
   if (/^\/v2\/operations\/catalog\/[0-9a-f-]+$/.test(url.pathname)) return json(200, { receiptScope: "ef".repeat(32), catalog, photos: [],
@@ -186,6 +206,30 @@ async function main() {
     await button("바꾸기", confirm).click();
     await log.getByText("면세판매장 지정 번호 지움").waitFor();
     await log.getByText("면세판매장 지정 번호 저장 · 123-45-67890-001").waitFor();
+
+    // A test store says its kitchen is automatic; an order is found by number and cancelled before it is handed over.
+    await page.getByRole("note").getByText("시험 매장 · 자동 주방").waitFor();
+    const cancelling = page.getByRole("region", { name: "주문 취소" });
+    await cancelling.getByLabel("주문번호").fill("99");
+    await button("찾기", cancelling).click();
+    await cancelling.getByText(/오늘 이 번호의 주문을 찾지 못했습니다/).waitFor();
+    await cancelling.getByLabel("주문번호").fill("24");
+    await button("찾기", cancelling).click();
+    await cancelling.getByText("전달이 기록되어 취소할 수 없습니다.", { exact: false }).waitFor();
+    assert.equal(await cancelling.getByRole("button", { name: "취소하고 환불" }).count(), 0);
+    await cancelling.getByLabel("주문번호").fill("25");
+    await button("찾기", cancelling).click();
+    await cancelling.getByText("25번 · 카페라떼 차갑게 · 크게 ×1, 치즈케이크 ×1").waitFor();
+    await cancelling.getByText("12,500원").waitFor();
+    await cancelling.getByText("준비 완료 · 자동 주방이 기록").waitFor();
+    await button("취소하고 환불", cancelling).click();
+    await confirm.getByRole("heading", { name: /25번을 취소하고 12,500원을\(를\) 환불할까요\?/ }).waitFor();
+    await fits("state-cancel-confirm");
+    await button("바꾸기", confirm).click();
+    await cancelling.getByText(/취소했습니다. 환불을 확인하고 있습니다. .* 취소한 사람 나/).waitFor();
+    assert.equal(sent.pop()[0], "cancel");
+    await cancelling.getByText(/환불되었습니다. 돈이 손님의 보드 계정으로 돌아갔습니다./).waitFor({ timeout: 12000 });
+    await fits("state-cancelled");
 
     // The record lists every change, newest first.
     assert.deepEqual(await log.getByRole("listitem").locator("strong").allTextContents(), [

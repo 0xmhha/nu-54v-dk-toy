@@ -302,3 +302,10 @@ test('a pause that comes while paying keeps the basket and says nothing was char
     expect(mockCarts).toHaveLength(0);
   });
 });
+
+test('a test store with an automatic kitchen says so above the menu', async () => {
+  mockState = {mode: 'open', autoKitchen: true};
+  await shopping(async tree => {
+    expect(view(tree)).toContain('시험 매장 · 자동 주방: 주방 단계를 자동으로 기록하고');
+  });
+});

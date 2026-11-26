@@ -684,6 +684,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               zone={site.catalog.timezone}
               products={storeProducts(site.catalog.rows)}
               onState={(state) => setRefundShop(state.taxFreeShop?.designation)}
+              money={site.asset ? (units) => tokenMoney(units, assetToken(site.asset!)) : undefined}
             />
           )}
           {stale && (

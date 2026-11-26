@@ -381,3 +381,7 @@ button.secondary {
   color: #174b38;
   border: 1px solid #174b38;
 }
+button.danger {
+  background: #8a3b12;
+  border-color: #8a3b12;
+}

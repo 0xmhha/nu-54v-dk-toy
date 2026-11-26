@@ -10,7 +10,14 @@ export const storeStopped = (state?: CommerceOrderState) => state?.mode === 'pau
  * take the menu's place. Nothing here moves: the state is read, not announced.
  */
 export function StoreNotice({state, ko, cleared}: {state?: CommerceOrderState; ko: boolean; cleared?: boolean}) {
-  if (!state || state.mode === 'open') return null;
+  const kitchen = state?.autoKitchen ? <Text style={s.kitchen}>{ko
+    ? '시험 매장 · 자동 주방: 주방 단계를 자동으로 기록합니다'
+    : 'Test store · automatic kitchen: the kitchen stages are recorded automatically'}</Text> : null;
+  if (!state || state.mode === 'open') return kitchen;
+  return <View style={s.stack}>{kitchen}<Notice state={state} ko={ko} cleared={cleared} /></View>;
+}
+
+function Notice({state, ko, cleared}: {state: CommerceOrderState; ko: boolean; cleared?: boolean}) {
   if (state.mode === 'busy')
     return (
       <View accessibilityRole="summary" style={s.band}>
@@ -40,6 +47,8 @@ export function StoreNotice({state, ko, cleared}: {state?: CommerceOrderState; k
 }
 
 const s = StyleSheet.create({
+  stack: {gap: 10},
+  kitchen: {alignSelf: 'flex-start', fontSize: 15, fontWeight: '700', color: '#5a3b05', backgroundColor: '#f6e3bf', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6},
   band: {backgroundColor: '#f6e3bf', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18, gap: 4},
   bandTitle: {fontSize: 24, fontWeight: '800', color: '#5a3b05'},
   bandText: {fontSize: 17, color: '#5a3b05', lineHeight: 24},
