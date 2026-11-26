@@ -21,7 +21,8 @@ TOOLS = {
     "cast": (["cast", "--version"], r"cast Version: (\d+\.\d+\.\d+)(?:-v\S+)?"),
     "java": (["java", "-version"], r"build (\d+\.\d+\.\d+\+\d+)"),
     "ruby": (["ruby", "--version"], r"ruby (\S+)"),
-    "bundler": (["bundle", "--version"], r"Bundler version (\S+)"),
+    # Bundler 4 prints only the number; older ones print "Bundler version 2.x".
+    "bundler": (["bundle", "--version"], r"(?:Bundler version )?(\d+\.\d+\.\d+)"),
     "xcode": (["xcodebuild", "-version"], r"Xcode (\S+)\s+Build version (\S+)"),
     "nrf-sdk-manager": (["nrfutil", "sdk-manager", "--version"], r"(?m)^nrfutil-sdk-manager (\d+\.\d+\.\d+)(?:\s|$)"),
 }
