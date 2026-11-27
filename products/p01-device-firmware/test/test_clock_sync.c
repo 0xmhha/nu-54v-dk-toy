@@ -1298,6 +1298,26 @@ static void test_open_orders_through_restarts(void)
 	assert(!install(grant) && !device_install_order_hold());
 	assert(device_order_open(device_install_earliest(), uptime)); /* this start still holds it */
 	assert(board_restart() == 0 && !device_order_open(device_install_earliest(), uptime));
+
+	/* The periodic save keeps a hold that has not run out, and it is shorter by the time the board
+	 * has run: a restart after that save holds the order for what is left. */
+	late_board(3 * 3600);
+	assert(!device_order_erase());
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record));
+	real += 200;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	uptime += 10 * 1000;
+	writes = 0;
+	(void)device_install_keep_time();
+	assert(writes == 1 && clock_saved.earliest == real + 10 && clock_saved.hold == real + NU54_ORDER_MAX_SECONDS);
+	assert(board_restart() == 0 && device_install_order_hold() == NU54_ORDER_MAX_SECONDS - 10);
+	const int64_t resumed = uptime;
+	uptime = resumed + (NU54_ORDER_MAX_SECONDS - 10) * 1000 - 1;
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime += 1;
+	assert(!device_order_open(device_install_earliest(), uptime));
 }
 
 /* The audit's third finding: eight messages, each a second ahead of the one before, cost eight

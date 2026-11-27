@@ -226,7 +226,7 @@ add_test(NAME tls_bind COMMAND test_tls_bind)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c reset_display_input reset_install_input reset_link session_live
-    journal_new_session clock_wait_over stream bind_session poll_tls receive_bytes
+    journal_new_session clock_wait_over stream bind_session poll_tls resume_order_hold device_pilot_init receive_bytes
   DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
 add_executable(test_pilot_session test_pilot_session.c ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
   ../core/src/nu54_install.c ../core/src/nu54_owner.c ../core/src/nu54_vault.c

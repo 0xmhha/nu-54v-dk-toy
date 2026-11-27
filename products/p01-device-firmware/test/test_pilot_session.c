@@ -1,6 +1,7 @@
 /* How a session of the spending profile is put together on the board: the first write that opens
  * it (receive_bytes), the TLS work item that binds it, feeds it and ends it (poll_tls), and what
- * its end leaves behind (reset_link). These functions are extracted from device_pilot.c at build
+ * its end leaves behind (reset_link). Before that, what the board does at its start and in which
+ * order (device_pilot_init). These functions are extracted from device_pilot.c at build
  * time. Bluetooth, the ring buffer and TLS are stand-ins: TLS hands the written bytes on as they
  * are, and the handshake ends when the test says so. What a message does once it is read is not
  * looked at here (frame is a stand-in; test_clock_sync.c runs the real one). */
@@ -43,7 +44,8 @@ static struct {uint8_t bytes[8192]; size_t used;} pilot_rx;
 
 #define MBEDTLS_ERR_SSL_WANT_READ (-0x6900)
 #define MBEDTLS_ERR_SSL_WANT_WRITE (-0x6880)
-typedef struct {int unused;} mbedtls_ssl_config, mbedtls_x509_crt;
+typedef struct {int unused;} mbedtls_ssl_config, mbedtls_x509_crt, mbedtls_pk_context;
+#define k_work_init_delayable(work, handler) ((void)(work))
 static int tls, handshake = MBEDTLS_ERR_SSL_WANT_READ; /* what the handshake answers now */
 static unsigned setups, ended_tls;
 static const mbedtls_ssl_config *set_up;
@@ -83,6 +85,8 @@ typedef struct {
 	mbedtls_ssl_config config;
 } device_tls_v2_profile;
 struct provisioned_tls {
+	mbedtls_x509_crt ca, board;
+	mbedtls_pk_context key;
 	device_tls_v2_profile profiles[2];
 };
 static struct provisioned_tls tls_banks[2];
@@ -102,7 +106,8 @@ static int hash(const uint8_t *data, size_t length, uint8_t out[32])
 	return 0;
 }
 static nu54_v2_journal journal = {journal_slots, 8, hash, 0};
-static bool ready, bound, recovering, clock_only, display_confirmed;
+static bool initialized, ready, bound, recovering, clock_only, display_confirmed;
+static int64_t clock_worker = -1;
 static int64_t deadline, recovery_window, session_began;
 static device_tls_v2_validity session_validity;
 static nu54_owner_idle owner_idle;
@@ -181,6 +186,36 @@ static int frame(const uint8_t *data, size_t length)
 	return frames.result;
 }
 
+/* The start: what each step answers, and the order in which the board took them. */
+static struct {
+	int install, reset, restore;
+	uint64_t hold;
+	char steps[64];
+	unsigned freed;
+	int64_t resumed_at;
+	uint64_t resumed;
+} start;
+static int step(const char *name, int result)
+{
+	strcat(start.steps, name);
+	return result;
+}
+static int device_install_init(void) { return step("install,", start.install); }
+static int device_spending_init(void) { return step("reset,", start.reset); }
+static int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *ca, mbedtls_x509_crt *board,
+				  mbedtls_pk_context *key, device_tls_v2_profile profiles[2])
+{
+	assert(bundle == install_bundle && capacity == sizeof(install_bundle) && ca == &tls_banks[tls_bank].ca);
+	assert(board == &tls_banks[tls_bank].board && key == &tls_banks[tls_bank].key && profiles == tls_banks[tls_bank].profiles);
+	return step("restore,", start.restore);
+}
+static void free_tls_bank(struct provisioned_tls *bank) { assert(bank == &tls_banks[tls_bank]); ++start.freed; }
+static uint64_t device_install_order_hold(void) { return (uint64_t)step("hold,", (int)start.hold); }
+static void device_order_resume(int64_t at, uint64_t seconds) { start.resumed_at = at; start.resumed = seconds; }
+static bool device_pilot_active(void) { return true; }
+static void clear_legacy_bonds(void) { (void)step("bonds,", 0); }
+void device_pilot_init(void);
+
 struct k_work;
 static void reset_link(void);
 static void poll_tls(struct k_work *ignored);
@@ -237,6 +272,42 @@ static void open_and_send(uint8_t route, size_t size)
 }
 
 /* ---- cases ---- */
+static void starts_with(int install, int reset, int restore, uint64_t hold)
+{
+	memset(&start, 0, sizeof(start));
+	start.install = install;
+	start.reset = reset;
+	start.restore = restore;
+	start.hold = hold;
+	start.resumed_at = -1;
+	initialized = ready = false;
+	clock_worker = -1;
+	uptime += 300;
+	device_pilot_init();
+}
+
+/* The start of the board. A reset that a power cut interrupted is finished before the stored grant
+ * is looked for, and the hold of an order that was open when the phone moved the clock is taken up
+ * after that, whether a grant was found or not. */
+static void test_the_start(void)
+{
+	starts_with(0, 0, 0, 170);
+	assert(!strcmp(start.steps, "install,reset,restore,hold,bonds,") && initialized && ready);
+	assert(clock_worker == uptime && !start.freed && start.resumed == 170 && start.resumed_at == uptime);
+	/* No grant to take up: nothing is saved for one, and the hold is asked for all the same. */
+	starts_with(0, 0, 1, 240);
+	assert(!strcmp(start.steps, "install,reset,restore,hold,bonds,") && initialized && !ready);
+	assert(clock_worker < 0 && start.freed == 1 && start.resumed == 240 && start.resumed_at == uptime);
+	starts_with(0, 0, 1, 0);
+	assert(start.resumed_at == uptime && !start.resumed);
+	/* The interrupted reset could not be finished, or the installation state is not readable:
+	 * the board does not go on to a grant. */
+	starts_with(0, -1, 0, 170);
+	assert(!strcmp(start.steps, "install,reset,") && !initialized && !ready && clock_worker < 0 && start.resumed_at < 0);
+	starts_with(-1, 0, 0, 170);
+	assert(!strcmp(start.steps, "install,") && !initialized && !ready && start.resumed_at < 0);
+}
+
 static void test_the_first_write_opens_the_session(void)
 {
 	static const uint8_t route[1] = {NU54_V2_MANAGEMENT}, more[3] = {1, 2, 3}, unknown[1] = {9};
@@ -435,6 +506,7 @@ static void test_a_time_that_waits_for_the_button(void)
 
 int main(void)
 {
+	test_the_start();
 	test_the_first_write_opens_the_session();
 	test_the_work_item_binds_and_feeds_it();
 	test_what_ends_it();
