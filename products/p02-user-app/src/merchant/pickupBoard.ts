@@ -5,7 +5,7 @@ import {OWNER_GATT} from '../wallet/ownerWire.ts';
 import {decodeWalletStorage} from '../wallet/profile.ts';
 import type {BoardLink, PickupBoard} from './customerEntrance.ts';
 
-// The board this phone is registered with, reached over Bluetooth for one account proof per pickup QR. The board ends
+// The board this phone is registered with, reached over Bluetooth for one account proof per pickup QR or session. The board ends
 // a session about two minutes after it starts, so each QR opens a new one; the last board that answered is tried
 // first, and a scan finds it again when it does not answer.
 
@@ -39,7 +39,7 @@ export const ownerPickupBoard: PickupBoard = {
         await session.connect(handle);
         const status = await session.status();
         const {account} = await session.spendingStatus(status.generation);
-        return {account, prove: challenge => session.proveAccount(account, challenge), close: () => session.close()};
+        return {account, generation: String(status.generation), prove: challenge => session.proveAccount(account, challenge), close: () => session.close()};
       } catch {
         session.close();
         return undefined;
@@ -59,7 +59,7 @@ export const ownerPickupBoard: PickupBoard = {
       if (round === 0) handles.splice(0, handles.length, ...(await scan()).filter(handle => handle !== lastHandle));
     }
     // No board of this account answered; the first other one says which board is near.
-    if (other) return {account: other, prove: async () => { throw new Error('ACCOUNT_PROOF'); }, close: () => {}};
+    if (other) return {account: other, generation: '', prove: async () => { throw new Error('ACCOUNT_PROOF'); }, close: () => {}};
     throw new Error('BOARD_NOT_FOUND');
   },
 };

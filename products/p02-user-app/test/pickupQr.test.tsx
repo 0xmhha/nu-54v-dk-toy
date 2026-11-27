@@ -28,7 +28,7 @@ function board(secret: Uint8Array | 'absent' | 'silent' = key) {
     opened.push(expected);
     if (secret === 'absent') throw new Error('BOARD_NOT_FOUND');
     const account = addressOfPrivateKey(secret === 'silent' ? key : secret);
-    const link: BoardLink = {account, close: () => { closed.push(account); }, prove: async challenge => {
+    const link: BoardLink = {account, generation: '3', close: () => { closed.push(account); }, prove: async challenge => {
       if (secret === 'silent') throw new Error('OWNER_DISCONNECTED');
       return {account, signature: bytesToHex(signDigest(accountProofDigest(account, challenge), secret), false)};
     }};

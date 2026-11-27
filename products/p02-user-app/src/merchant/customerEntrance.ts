@@ -104,8 +104,11 @@ export class CustomerEntrance {
   }
 }
 
-/** A board that answered: its spending account, read without a button, and the account proof over a challenge. */
-export type BoardLink = {account: string; prove(challenge: Uint8Array): Promise<{account: string; signature: string}>; close(): void};
+/**
+ * A board that answered: its spending account and generation, read without a button, and the account proof over a
+ * challenge.
+ */
+export type BoardLink = {account: string; generation: string; prove(challenge: Uint8Array): Promise<{account: string; signature: string}>; close(): void};
 /** Opens the board near the phone, preferring the one whose account is `expected`. Throws when none answers. */
 export type PickupBoard = {open(expected: string): Promise<BoardLink>};
 
