@@ -69,7 +69,6 @@ func (h HTTP) customerMenu(w http.ResponseWriter, r *http.Request) {
 	if page == 0 {
 		reply.Shop, reply.OrderState = &ShopIdentity{Branch: branch, BranchLabel: label}, &wire.CustomerOrderState
 	}
-	h.Customer.sawPublished(branch) // only a published store has a public menu
 	writeJSON(w, http.StatusOK, reply)
 }
 

@@ -320,8 +320,8 @@ func TestCustomerEntranceIsWired(t *testing.T) {
 			t.Errorf("the entrance has no %s", fields.Type().Field(i).Name)
 		}
 	}
-	if limiters != 11 {
-		t.Errorf("the entrance has %d request limits; this test knows 11", limiters)
+	if limiters != 14 {
+		t.Errorf("the entrance has %d request limits; this test knows 14", limiters)
 	}
 	if cap(entrance.InFlight) != customerInFlight || cap(entrance.BalanceReads) != customerBalanceReads || customerBalanceReads >= customerInFlight {
 		t.Errorf("requests at once: %d (want %d), balance reads among them: %d (want %d)", cap(entrance.InFlight), customerInFlight, cap(entrance.BalanceReads), customerBalanceReads)

@@ -252,9 +252,10 @@ func TestCustomerContractWithoutDatabase(t *testing.T) {
 	entrance := &CustomerEntrance{InFlight: make(chan struct{}, 1), InFlightWait: 5 * time.Millisecond}
 	entrance.InFlight <- struct{}{}
 	HTTP{Customer: entrance}.RegisterCustomer(full)
-	// A challenge that reads: only a request an app sends waits for a place among the requests served at once.
+	// A challenge that reads, for a store: only a request an app sends waits for a place among the requests served
+	// at once. (An `account` challenge asks nothing of the database and needs no place.)
 	crowded := httptest.NewRecorder()
-	full.ServeHTTP(crowded, httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader(`{"purpose":"account"}`)))
+	full.ServeHTTP(crowded, httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader(`{"purpose":"checkout","branchRef":"`+contractCafe+`"}`)))
 	run.take("busy-in-flight", crowded.Code, crowded.Header(), crowded.Body.Bytes(), nil)
 	run.settle()
 

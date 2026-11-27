@@ -246,10 +246,22 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if got := prove(board, account, first, 400); got["error"] != string(service.Expired) {
 		t.Fatal("a challenge was accepted twice", got)
 	}
+	// A challenge is kept nowhere until it is used, so there is no row to age: the entrance's clock is put past the
+	// challenge's two minutes instead. The database refuses a challenge past its time by its own clock as well.
 	late := challenge("checkout", shop, "")
-	execute("UPDATE ledger.customer_challenge SET expires_at=now()-interval '1 second' WHERE challenge_hash=$1", hashOf(late[:]))
+	h.Customer.clock = func() time.Time { return time.Now().Add(121 * time.Second) }
 	if got := prove(board, account, late, 400); got["error"] != string(service.Expired) {
 		t.Fatal("an expired challenge was accepted", got)
+	}
+	h.Customer.clock = nil
+	var taken bool
+	if err := admin.QueryRow(ctx, "SELECT ledger.use_customer_challenge($1,'checkout',$2,NULL,clock_timestamp()-interval '1 second')",
+		hashOf(late[:]), shop).Scan(&taken); err != nil || taken {
+		t.Fatalf("the database took a challenge past its time: %v %v", taken, err)
+	}
+	var kept int
+	if err := admin.QueryRow(ctx, "SELECT count(*) FROM ledger.customer_challenge WHERE branch_id=$1", shop).Scan(&kept); err != nil || kept != 1 {
+		t.Fatalf("%d challenges of the store are kept after two were given and one was used: %v", kept, err)
 	}
 	call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": fresh()}, 400)
 
@@ -624,7 +636,8 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatal("another board with a valid signature got the order", got)
 	}
 	prove(board, account, used, 400) // that challenge is used up
-	prove(board, account, challenge("order", elsewhere, sale), 400)
+	// An order is followed only at its own store: a challenge that names another store with it is not given at all.
+	call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "order", "branchRef": elsewhere, "saleRef": sale}, 400)
 	ordered := prove(board, account, challenge("order", shop, sale), 200)
 	if ordered["saleRef"] != sale || ordered["purpose"] != "order" {
 		t.Fatal(ordered)

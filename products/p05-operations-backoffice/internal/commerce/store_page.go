@@ -80,7 +80,6 @@ func (h HTTP) customerStore(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	h.Customer.sawPublished(branch) // a challenge for this store is now one the entrance recognises
 	if profile, enrolled := h.Profiles[branch]; enrolled {
 		for key, value := range storePayment(profile) {
 			page[key], _ = json.Marshal(value)

@@ -552,9 +552,9 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 					return
 				case <-tick.C:
 					if counts := customer.Limited.Drain(); len(counts) != 0 {
-						log.Printf("customer entrance refused in 30s: proof=%d failed=%d start=%d read=%d photo=%d address=%d live=%d session=%d unknown=%d hold=%d balance=%d busy=%d",
-							counts["proof"], counts["failed"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["live"],
-							counts["session"], counts["unknown"], counts["hold"], counts["balance"], counts["busy"])
+						log.Printf("customer entrance refused in 30s: issue=%d attempt=%d failed=%d account=%d proof=%d start=%d read=%d photo=%d address=%d live=%d session=%d unknown=%d hold=%d balance=%d busy=%d",
+							counts["issue"], counts["attempt"], counts["failed"], counts["account"], counts["proof"], counts["start"], counts["read"], counts["photo"],
+							counts["address"], counts["live"], counts["session"], counts["unknown"], counts["hold"], counts["balance"], counts["busy"])
 					}
 				}
 			}

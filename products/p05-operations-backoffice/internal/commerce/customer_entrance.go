@@ -1,7 +1,6 @@
 package commerce
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -39,21 +38,29 @@ import (
 // A fourth purpose, "account", belongs to no store: its proof answers how many unfinished orders the account has, so
 // a phone that kept no record of them can still learn that its board must not be reset yet.
 //
-// The request limits (customer_limits.go) are laid out so that what costs a sender nothing is counted where the
-// customers behind the same address do not need it: a request the entrance cannot yet tell from a guess pays from
-// the address's allowance of failed attempts (FailLimiter, AddressLimiter), and one it recognises pays from the
-// allowance customers use (Limiter, LiveLimiter) or from one of its own account (StartLimiter, HoldAttempts).
+// A challenge is kept nowhere: it carries its purpose, its store or order and its expiry under the server's own tag
+// (customer_challenge.go). The request limits (customer_limits.go) are laid out so that what costs a sender nothing
+// uses up nothing the customers behind the same address need.
 type CustomerEntrance struct {
-	// Limiter is the limit of each address on the challenges and proofs the entrance recognises as an app's: a
-	// challenge for a store it knows to be public, and a proof over a challenge it gave. ReadLimiter, PhotoLimiter,
-	// AddressLimiter and FailLimiter fall back to it when they are not set.
-	Limiter *RateLimiter
-	// FailLimiter is the strict limit of each address on challenges and proofs that fail in a way no app's request
-	// does: a body that does not read, a store that is not public, a signature that is not the account's, a
-	// challenge the server does not hold. A request that cannot be told from those yet pays here first and gets
-	// it back when it turns out well; a recognised one never needs it. Nil counts every challenge and proof under
-	// Limiter alone.
+	// IssueLimiter is the limit of each address on challenge requests, counted as one arrives. Giving a challenge
+	// writes nothing, so this bounds only the reads of the store behind it. Nil counts them under Limiter.
+	IssueLimiter *RateLimiter
+	// AttemptLimiter is the limit of each address on proof requests, counted as one arrives and before its body is
+	// read or its signature checked. Nil counts them under Limiter.
+	AttemptLimiter *RateLimiter
+	// FailLimiter is the strict limit of each address on challenges and proofs that failed in a way no app's request
+	// does: a body that does not read, a challenge the server did not give, a signature that is not the account's, a
+	// store that is not public, an order the account did not pay. It is counted after the attempt failed; an
+	// address that used it up is answered a wait instead of the error. Nil answers every failed attempt as it is.
 	FailLimiter *RateLimiter
+	// AccountLimiter is the limit of each proven account, at each address, on its proofs: counted only for a proof
+	// with the account's own signature over a challenge of this server.
+	AccountLimiter *RateLimiter
+	// Limiter is the limit of each address on the proofs that start a checkout session or ask about an account,
+	// counted after the account's own. A proof for an order (its session, its pickup QR) is not counted here: the
+	// database decides whether the account paid that order. IssueLimiter, AttemptLimiter, ReadLimiter, PhotoLimiter
+	// and AddressLimiter fall back to it when they are not set.
+	Limiter *RateLimiter
 	// ReadLimiter is the limit of each address on the public reads: the store list, a store page and a menu page.
 	ReadLimiter *RateLimiter
 	// PhotoLimiter is the limit of each address on public menu photo parts; nil leaves them under ReadLimiter.
@@ -113,11 +120,14 @@ type CustomerEntrance struct {
 	OperatorContact string
 	// ListPage is how many stores one page of the store list holds; zero, or more than 200, is 200.
 	ListPage int
-	// What the entrance remembers in memory to recognise a request before it reads the database: the stores it
-	// lately saw public, the challenges it gave and has not seen proven, and the session tokens it lately saw live.
-	// All three are bounded and are forgotten with the process; a request they do not know is only counted more
-	// strictly, never refused for that alone.
-	published, issued, live recentSet
+	// clock is the time challenges and the memory below are measured by; nil is the system's.
+	clock func() time.Time
+	// keys sign the challenges the entrance gives (customer_challenge.go).
+	keys challengeKeys
+	// live is the session tokens the entrance lately saw live, each with its purpose and the key of its own
+	// allowance. It is bounded and is forgotten with the process; a session it does not know is only counted more
+	// strictly, never refused for that.
+	live recentSet
 }
 
 const (
@@ -172,12 +182,13 @@ func (c *LimitedCount) add(kind string) {
 	c.counts[kind]++
 }
 
-// Drain returns the counts since the last call, by kind: "proof" (challenges and proofs of an address), "failed"
-// (failed attempts of an address), "read", "photo", "address" (session tokens of an address not lately seen live),
-// "live" (the ceiling of an address over its live sessions), "session" (one session's own limit), "unknown" (session
-// tokens the server does not know), "start" (sessions one account started), "hold" (carts an account asked to hold,
-// or an address came to hold), "balance" (no place among the balance reads) and "busy" (no place among the requests
-// served at once).
+// Drain returns the counts since the last call, by kind: "issue" (challenge requests of an address), "attempt"
+// (proof requests of an address), "failed" (failed attempts of an address), "account" (one account's proofs),
+// "proof" (proofs of an address that start a checkout session or ask about an account), "start" (sessions one
+// account started), "read", "photo", "address" (session tokens of an address not lately seen live), "live" (the
+// ceiling of an address over its live sessions), "session" (one session's own limit), "unknown" (session tokens
+// the server does not know), "hold" (carts an account asked to hold, or an address came to hold), "balance" (no
+// place among the balance reads) and "busy" (no place among the requests served at once).
 func (c *LimitedCount) Drain() map[string]int64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -198,14 +209,8 @@ func (c *CustomerEntrance) tooMany(w http.ResponseWriter, kind string, wait time
 // controls: how many requests it sends and how slowly it sends each.
 func (c *CustomerEntrance) admitted(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Body != nil && r.Body != http.NoBody {
-			// One byte past the longest body is kept, so a longer one still fails its route's own length check.
-			body, err := io.ReadAll(io.LimitReader(r.Body, entranceBody+1))
-			if err != nil {
-				errorResponse(w, service.BadRequest, nil) // the client stopped sending
-				return
-			}
-			r.Body = io.NopCloser(bytes.NewReader(body))
+		if !readBody(w, r) {
+			return
 		}
 		if c.InFlight != nil {
 			wait := time.NewTimer(lifetime(c.InFlightWait, defaultInFlightWait))
@@ -291,10 +296,10 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = io.WriteString(w, "ok\n")
 	})
-	// A challenge and a proof are read and counted before they are admitted (customer_limits.go): what they are
-	// decides which allowance they use.
-	mux.Handle("POST /v2/customer/challenge", h.Customer.attempted(h.Customer.askedChallenge, h.customerChallenge))
-	mux.Handle("POST /v2/customer/proof", h.Customer.attempted(h.Customer.askedProof, h.customerProof))
+	// A challenge and a proof are counted for their address as they arrive, read, and then counted for what they
+	// are before they are let through (customer_limits.go).
+	mux.Handle("POST /v2/customer/challenge", h.Customer.challenges(h.customerChallenge))
+	mux.Handle("POST /v2/customer/proof", h.Customer.proofs(h.customerProof))
 	// A request with a session token is counted for its address here, before the token is looked up, and for its
 	// session once that is known (customerCommerce). A token lately seen live has the ceiling of live sessions;
 	// any other has the stricter one of tokens the server may not know.
@@ -302,7 +307,7 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		admitted := h.Customer.admitted(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			limiter, kind := first(h.Customer.AddressLimiter, h.Customer.Limiter), "address"
-			if hash, ok := bearerHash(r); ok && h.Customer.LiveLimiter != nil && h.Customer.live.has(string(hash[:]), time.Now()) {
+			if hash, ok := bearerHash(r); ok && h.Customer.LiveLimiter != nil && h.Customer.live.has(string(hash[:]), h.Customer.now()) {
 				limiter, kind = h.Customer.LiveLimiter, "live"
 			}
 			if limiter != nil {
@@ -339,56 +344,48 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, limit int64, into any)
 var customerHex32 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var customerAccount = regexp.MustCompile(`^0x[0-9a-f]{40}$`)
 
-// customerChallenge gives a one-time value for the board to sign. The request was read and counted before it was
-// admitted (askedChallenge).
+// customerChallenge gives a one-time value for the board to sign. The request was counted and read before it came
+// here (CustomerEntrance.challenges). Nothing is written: the database is only asked whether the store takes
+// customers, or whether the order named is one of that store, and the challenge carries the rest itself.
+//
+//	checkout  the store's page is published; any other store answers like a branch that does not exist
+//	order, pickup  the order is one of the store named, and the store's page is published or the store already took
+//	    payment for that order (being checked or paid): a customer who paid follows, answers and collects the
+//	    order even after the store took its page back
+//	account  no store and no order: nothing is asked of the database
 func (h HTTP) customerChallenge(w http.ResponseWriter, r *http.Request) {
-	try := attemptOf(r)
-	in := try.challenge
+	in := attemptOf(r).challenge
 	if in == nil {
 		errorResponse(w, service.BadRequest, nil)
 		return
 	}
 	if h.Store == nil {
-		try.settle(true, false)
 		http.NotFound(w, r)
 		return
 	}
-	challenge, err := freshId()
+	subject := in.Branch
+	if in.Purpose != "account" {
+		var sale *string
+		if in.Sale != "" {
+			sale, subject = &in.Sale, in.Sale
+		}
+		var allowed bool
+		if err := h.Store.db.QueryRow(r.Context(), "SELECT ledger.customer_challenge_allowed($1,$2,$3)", in.Branch, in.Purpose, sale).Scan(&allowed); err != nil {
+			errorResponse(w, customerError(err), nil)
+			return
+		}
+		if !allowed {
+			// One answer for a branch that does not exist, a store that is not public and an order that is not its.
+			h.Customer.failed(w, r, service.BadRequest)
+			return
+		}
+	}
+	now := h.Customer.now()
+	expires := now.Add(lifetime(h.Customer.ChallengeLifetime, defaultChallengeLifetime)).Truncate(time.Second)
+	challenge, err := h.Customer.keys.mint(now, in.Purpose, subject, expires)
 	if err != nil {
-		try.settle(true, false)
 		errorResponse(w, service.Unknown, nil)
 		return
-	}
-	hash := sha256.Sum256(challenge[:])
-	var branch, sale *string
-	if in.Branch != "" {
-		branch = &in.Branch
-	}
-	if in.Sale != "" {
-		sale = &in.Sale
-	}
-	seconds := int(lifetime(h.Customer.ChallengeLifetime, defaultChallengeLifetime) / time.Second)
-	var expires time.Time
-	if err = h.Store.db.QueryRow(r.Context(), "SELECT ledger.issue_customer_challenge($1,$2,$3,$4,$5)",
-		branch, in.Purpose, sale, hash[:], seconds).Scan(&expires); err != nil {
-		err = customerError(err)
-		// A store that is not public, or no store at all: the attempt failed, and the store is forgotten as public.
-		refused := service.CodeOf(err) == service.BadRequest || service.CodeOf(err) == service.Forbidden
-		if refused {
-			h.Customer.published.drop(in.Branch)
-			h.Customer.published.drop(in.Branch + "/" + in.Sale)
-		}
-		try.settle(!refused, false)
-		errorResponse(w, err, nil)
-		return
-	}
-	try.settle(true, false)
-	h.Customer.issued.put(string(hash[:]), expires, in.Purpose)
-	switch in.Purpose {
-	case "checkout":
-		h.Customer.sawPublished(in.Branch) // only a published store gives a checkout challenge
-	case "order", "pickup":
-		h.Customer.sawPublished(in.Branch + "/" + in.Sale) // the next challenge for this order is recognised
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"challenge": hex.EncodeToString(challenge[:]), "expiresAt": expires.Unix()})
 }
@@ -423,7 +420,8 @@ type accountOrdersReply struct {
 
 // customerProof accepts the board's signature over one challenge and answers with an order session, a pickup token
 // or, for an `account` challenge, the number of unfinished orders of the account. The request was read, its
-// signature checked and the request counted before it was admitted (askedProof).
+// challenge and signature checked and the request counted before it came here (CustomerEntrance.askedProof). The
+// challenge is used up here, by the database, whatever the proof then turns out to be.
 func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
 	try := attemptOf(r)
 	in := try.proof
@@ -433,65 +431,56 @@ func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
 	}
 	challenge, account := in.challenge, in.account
 	challengeHash := sha256.Sum256(challenge[:])
-	// The challenge is used up by whatever comes next; a second proof over it is no longer one the entrance gave.
-	h.Customer.issued.drop(string(challengeHash[:]))
 	if h.Store == nil {
-		try.settle(true, false)
+		try.settle(false)
 		http.NotFound(w, r)
+		return
+	}
+	if in.ticket.purpose == "account" {
+		var open *int
+		err := h.Store.db.QueryRow(r.Context(), "SELECT ledger.prove_account_orders($1,$2,$3)", challengeHash[:], account[:], in.ticket.expires).Scan(&open)
+		try.settle(false)
+		switch {
+		case err != nil:
+			errorResponse(w, customerError(err), nil)
+		case open == nil:
+			errorResponse(w, service.Expired, nil) // used before, or past its time by the database's clock
+		default:
+			writeJSON(w, http.StatusOK, accountOrdersReply{Purpose: "account", OpenOrders: *open})
+		}
 		return
 	}
 	token, err := freshId()
 	if err != nil {
-		try.settle(true, false)
+		try.settle(false)
 		errorResponse(w, service.Unknown, nil)
 		return
 	}
 	tokenHash := sha256.Sum256(token[:])
-	// An `account` challenge, or one this process does not remember giving: asked first as an account challenge,
-	// which leaves every other challenge untouched.
-	if in.purpose == "account" || in.purpose == "" {
-		var open *int
-		if err = h.Store.db.QueryRow(r.Context(), "SELECT ledger.prove_account_orders($1,$2)", challengeHash[:], account[:]).Scan(&open); err != nil {
-			try.settle(true, false)
-			errorResponse(w, customerError(err), nil)
-			return
-		}
-		if open != nil {
-			try.settle(true, false)
-			writeJSON(w, http.StatusOK, accountOrdersReply{Purpose: "account", OpenOrders: *open})
-			return
-		}
-		if in.purpose == "account" {
-			try.settle(false, false)
-			errorResponse(w, service.Expired, nil)
-			return
-		}
-	}
 	subject := CustomerSubject(account)
 	seconds := func(set, fallback time.Duration) int { return int(lifetime(set, fallback) / time.Second) }
 	var outcome, purpose, branchRef string
 	var sale, tenantRef *string
 	var expires *time.Time
-	err = h.Store.db.QueryRow(r.Context(), "SELECT outcome_,purpose_,branch_::text,sale_::text,tenant_::text,expires_ FROM ledger.prove_customer_account($1,$2,$3,$4,$5,$6,$7,$8)",
-		challengeHash[:], account[:], subject, in.generation, tokenHash[:],
+	err = h.Store.db.QueryRow(r.Context(), "SELECT outcome_,purpose_,branch_::text,sale_::text,tenant_::text,expires_ FROM ledger.prove_customer_account($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+		challengeHash[:], in.ticket.purpose, in.ticket.subject, in.ticket.expires, account[:], subject, in.generation, tokenHash[:],
 		seconds(h.Customer.CheckoutLifetime, defaultCheckoutLifetime), seconds(h.Customer.OrderLifetime, defaultOrderLifetime),
 		seconds(h.Customer.PickupLifetime, defaultPickupLifetime)).Scan(&outcome, &purpose, &branchRef, &sale, &tenantRef, &expires)
 	if err != nil {
-		err = customerError(err)
-		// A challenge the server does not hold is a failed attempt; any other refusal was about a real challenge.
-		try.settle(service.CodeOf(err) != service.Expired, false)
-		errorResponse(w, err, nil)
+		try.settle(false)
+		errorResponse(w, customerError(err), nil)
 		return
 	}
 	started := outcome == "ok" && purpose != "pickup" && expires != nil
-	try.settle(true, started)
+	try.settle(started)
 	if status, refusal, refused := proofRefusal(outcome, expires); refused {
 		writeJSON(w, status, refusal)
 		return
 	}
 	switch outcome {
 	case "mismatch":
-		errorResponse(w, service.Mismatch, nil)
+		// The database says the account is not the one that paid this order: a failed attempt, counted now.
+		h.Customer.failed(w, r, service.Mismatch)
 		return
 	case "ok":
 	default:
@@ -510,7 +499,12 @@ func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
 		reply.PickupToken = hex.EncodeToString(token[:])
 	} else {
 		reply.Session, reply.Subject, reply.Tenant = hex.EncodeToString(token[:]), subject, *tenantRef
-		h.Customer.sawLive(tokenHash, *expires) // the session is known from its first request on
+		// The session is known from its first request on.
+		session := customerSession{Branch: branchRef, Actor: subject, Purpose: purpose, Tenant: *tenantRef, ExpiresAt: *expires}
+		if sale != nil {
+			session.Sale = *sale
+		}
+		h.Customer.sawLive(tokenHash, session)
 	}
 	writeJSON(w, http.StatusOK, reply)
 }
@@ -685,10 +679,10 @@ func (h HTTP) liveSession(w http.ResponseWriter, r *http.Request) (customerSessi
 		refuse()
 		return customerSession{}, false
 	}
-	h.Customer.sawLive(hash, session.ExpiresAt)
+	h.Customer.sawLive(hash, session)
 	// A live session has its own allowance, whatever address it comes from.
 	if limiter := h.Customer.SessionLimiter; limiter != nil {
-		if allowed, wait := limiter.Take(session.Actor + "/" + session.Branch + "/" + session.Purpose + "/" + session.Sale); !allowed {
+		if allowed, wait := limiter.Take(session.limitKey()); !allowed {
 			h.Customer.tooMany(w, "session", wait)
 			return customerSession{}, false
 		}

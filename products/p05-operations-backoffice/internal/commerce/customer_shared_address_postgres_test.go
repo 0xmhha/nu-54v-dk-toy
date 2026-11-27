@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -801,5 +802,138 @@ func TestPostgresPublishedGateAndOpenOrders(t *testing.T) {
 	}
 	if _, again := f.checkout(other); again.status != 200 {
 		t.Fatalf("a new session after the store opened again: %d %s", again.status, again.raw)
+	}
+}
+
+// restart puts a new entrance in the place of the fixture's, as a restarted opsd has one: every allowance full and
+// nothing remembered.
+func (f *entranceFixture) restart() {
+	lookup := f.h.Customer.lookup
+	limits := NewCustomerLimits(func() time.Time {
+		f.clock.Lock()
+		defer f.clock.Unlock()
+		return f.now
+	})
+	limits.Funds, limits.lookup = f.funds, lookup
+	f.h.Customer = limits
+	entrance := http.NewServeMux()
+	f.h.RegisterCustomer(entrance)
+	f.customers.Config.Handler = entrance
+}
+
+// The probes of the third review, with the limits opsd serves under and every request from the one address.
+
+// Challenges cost a sender nothing, so they must cost the customers of its address nothing either, and neither
+// must proof requests that are never looked at twice. A sender without any key asks for an `account` challenge five
+// times a second for two minutes (the review's probe), then nineteen times a second, which is just under what an
+// address may ask (twenty a second); then it sends bodies that do not read to the proof route at that rate.
+// Twenty-five customers start a session meanwhile, one about every 4.8 seconds.
+func TestPostgresFreeChallengesDoNotStopCustomers(t *testing.T) {
+	free := func(f *entranceFixture) entranceReply { return f.challenge("account", "") }
+	junk := func(f *entranceFixture) entranceReply {
+		return f.send("POST", "/v2/customer/proof", "", `{"challenge":`)
+	}
+	for _, probe := range []struct {
+		name, what string
+		every      time.Duration
+		send       func(*entranceFixture) entranceReply
+		answers    []int
+	}{
+		{"free5", "account challenges at 5 a second", 200 * time.Millisecond, free, []int{200}},
+		{"free19", "account challenges at 19 a second", 53 * time.Millisecond, free, []int{200}},
+		{"junk19", "proof bodies that do not read at 19 a second", 53 * time.Millisecond, junk, []int{400, 429}},
+	} {
+		t.Run(probe.name, func(t *testing.T) {
+			f := newEntranceFixture(t, probe.name)
+			served, asked, sent := 0, 0, 0
+			between := int(4800 * time.Millisecond / probe.every)
+			for passed := time.Duration(0); passed < 2*time.Minute; passed += probe.every {
+				sent++
+				if reply := probe.send(f); !slices.Contains(probe.answers, reply.status) {
+					t.Fatalf("request %d of the sender: %d %s", sent, reply.status, reply.raw)
+				}
+				f.pass(probe.every)
+				if sent%between == 0 && asked < 25 {
+					asked++
+					if issued, proven := f.checkout(mustKey(t)); issued.status == 200 && proven.status == 200 && proven.body["session"] != nil {
+						served++
+					}
+				}
+			}
+			limited := f.h.Customer.Limited.Drain()
+			t.Logf("%s for 2 minutes (%d requests): %d of %d customers started a session; refusals by kind %v", probe.what, sent, served, asked, limited)
+			if served != asked || asked != 25 {
+				t.Fatalf("%d of %d customers started a session during %s", served, asked, probe.what)
+			}
+			// Nothing a customer needs was refused; only the sender's own failed attempts were, past their allowance.
+			delete(limited, "failed")
+			if len(limited) != 0 {
+				t.Fatalf("refusals by kind: %v", limited)
+			}
+		})
+	}
+}
+
+// A customer the server has no memory of pays nothing for the failed attempts of someone else. The sender keeps
+// the failed attempts of the address used up: twelve bodies that do not read at once, then one every five seconds,
+// each just before a customer asks. Twenty-four customers start a session right after a restart, at a store nobody
+// has read; then the store takes its page back, the server restarts again, and the customer who paid asks twelve
+// times for the order session and the pickup QR of that order.
+func TestPostgresFailedAttemptsOfOthersDoNotStopCustomers(t *testing.T) {
+	f := newEntranceFixture(t, "strict")
+	payer := mustKey(t)
+	f.funds.balances[crypto.PubkeyToAddress(payer.PublicKey)] = big.NewInt(300_000)
+	_, first := f.checkout(payer)
+	if first.status != 200 {
+		t.Fatalf("the paying customer's session: %d %s", first.status, first.raw)
+	}
+	held := f.order(first.body["session"].(string), f.fresh(), f.fresh())
+	if held.status != 200 {
+		t.Fatalf("the paying customer's cart: %d %s", held.status, held.raw)
+	}
+	sale := held.body["resultRef"].(string)
+	f.paid(sale, payer)
+	junk := func() {
+		t.Helper()
+		if reply := f.send("POST", "/v2/customer/challenge", "", `{"purpose":`); reply.status != 400 && reply.status != 429 {
+			t.Fatalf("a body that does not read: %d %s", reply.status, reply.raw)
+		}
+	}
+	f.restart()
+	for i := 0; i < 12; i++ {
+		junk()
+	}
+	started := 0
+	for i := 0; i < 24; i++ {
+		f.pass(5 * time.Second)
+		junk()
+		if issued, proven := f.checkout(mustKey(t)); issued.status == 200 && proven.status == 200 && proven.body["session"] != nil {
+			started++
+		}
+	}
+	f.publish(false)
+	f.restart()
+	for i := 0; i < 12; i++ {
+		junk()
+	}
+	followed := 0
+	for i := 0; i < 12; i++ {
+		f.pass(5 * time.Second)
+		junk()
+		purpose := []string{"order", "pickup"}[i%2]
+		issued := f.challenge(purpose, sale)
+		if issued.status != 200 {
+			continue
+		}
+		// The order is still being made: its session is given, and its pickup proof says "not ready".
+		if proven := f.prove(payer, issued, ""); (purpose == "order" && proven.status == 200 && proven.body["session"] != nil) ||
+			(purpose == "pickup" && proven.status == 409 && proven.body["reason"] == "not_ready") {
+			followed++
+		}
+	}
+	t.Logf("one body that does not read every 5 seconds: %d of 24 customers started a session after a restart; the customer who paid was answered %d of 12 times at a store that took its page back; refusals by kind %v",
+		started, followed, f.h.Customer.Limited.Drain())
+	if started != 24 || followed != 12 {
+		t.Fatalf("%d of 24 customers started a session and the paid order was answered %d of 12 times", started, followed)
 	}
 }
