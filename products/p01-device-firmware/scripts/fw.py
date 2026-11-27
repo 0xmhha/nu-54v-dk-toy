@@ -6,7 +6,7 @@ global PATH setup is needed. The vendored board package is passed as BOARD_ROOT
 because sysbuild resolves the board before the application CMakeLists runs.
 
 Usage:
-    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending [--secure-key]] [--approtect] [--security-counter=N] [--official]]
+    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending [--secure-key] [--standby]] [--approtect] [--security-counter=N] [--official]]
     python3 scripts/fw.py keygen PATH
     python3 scripts/fw.py reject-images OUT_DIR
     python3 scripts/fw.py flash
@@ -24,6 +24,9 @@ recovery. It needs NU54_INSTALL_AUTHORITY_HEX and is never an --official image.
 --secure-key builds the spending wallet for the TrustZone target (.../cpuapp/ns): TF-M keeps the wallet
 key in the secure side (app/secure-key.conf and its two layout overlays). The image is checked on the
 host only. It gets no release manifest, and `flash` refuses it until the profile is qualified on a board.
+--standby builds the spending wallet without the UART driver in the application (app/standby.conf), so
+that the driver's always-on receiver does not keep the board awake while it waits. MCUboot keeps its UART
+for serial recovery. The effect on the current is not measured yet.
 Signed builds record the verified bootloader and application outputs in release-manifest.json.
 --official requires --approtect, a monotonic security counter, a pinned signing key, and a clean source tree.
 
@@ -237,7 +240,7 @@ def release_manifest(official: bool, approtect: bool, public: Path, fingerprint:
 
 
 def build(pristine: bool, rental: bool, release: bool, approtect: bool, official: bool = False,
-          counter: int | None = None, spending: bool = False, *, secure_key: bool = False,
+          counter: int | None = None, spending: bool = False, *, secure_key: bool = False, standby: bool = False,
           test_cache: Path | None = None, runner=None) -> int:
     if approtect and not release:
         sys.exit("--approtect only goes with --release")
@@ -258,6 +261,9 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
     if secure_key and (not spending or approtect or counter is not None):
         sys.exit("--secure-key is the build-verified TrustZone spending profile: "
                  "it requires --release --spending without --approtect or --security-counter")
+    if standby and (not spending or counter is not None):
+        sys.exit("--standby turns the application's UART driver off: it requires --release --spending "
+                 "without --security-counter, whose update path uses that UART")
     args = ["west", "build", "-b", SECURE_BOARD if secure_key else BOARD, str(APP), "-d", str(BUILD_DIR)]
     if pristine:
         args += ["-p", "always"]
@@ -317,6 +323,8 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
             app_conf.append(pin_conf)
         if counter is not None:
             app_conf.append(APP / "counted-update.conf")
+        if standby:
+            app_conf.append(APP / "standby.conf")
         if secure_key:
             app_conf.append(APP / "secure-key.conf")
             cmake += [f"-Dapp_EXTRA_DTC_OVERLAY_FILE={APP / 'secure-key.overlay'}",
@@ -346,11 +354,25 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
                 boot_conf.append(APP / "approtect.conf")
             cmake.append("-Dmcuboot_EXTRA_CONF_FILE=" + ";".join(str(p) for p in boot_conf))
         rc = west_build(mcuboot)
+        if rc == 0 and standby:
+            standby_evidence()
         if rc == 0 and secure_key:
             return secure_key_evidence(public)
         if rc == 0:
             release_manifest(official, approtect, public, fingerprint, counter, enrollment_pin, mbedtls, mcuboot)
         return rc
+
+
+def standby_evidence() -> None:
+    """A --standby build must really be without the UART driver and the console.
+
+    Read back from the generated configuration, because a value that does not take effect is only a
+    warning in the build log. It says nothing about the current: that has to be measured."""
+    config = set((BUILD_DIR / "app/zephyr/.config").read_text().splitlines())
+    left = sorted({"CONFIG_SERIAL=y", "CONFIG_UART_NRFX_UARTE=y", "CONFIG_UART_CONSOLE=y", "CONFIG_CONSOLE=y",
+                   "CONFIG_LOG=y"} & config)
+    if left:
+        sys.exit("Built configuration keeps what --standby turns off: " + ", ".join(left))
 
 
 def placed_in_image(link_map: Path, name: str) -> bool:
@@ -494,6 +516,7 @@ def main(argv: list[str]) -> int:
         options = ("--pristine" in argv, "--rental" in argv, "--release" in argv,
                    "--approtect" in argv, "--official" in argv, int(counter_flags[0]) if counter_flags else None, "--spending" in argv)
         secure_key = "--secure-key" in argv
+        standby = "--standby" in argv
         if "--test-capability-cache" in argv:
             if (not os.environ.get("P01_BUILD_DIR") or not BUILD_DIR.is_absolute()
                     or (BUILD_DIR.exists() and (not BUILD_DIR.is_dir() or any(BUILD_DIR.iterdir())))):
@@ -504,8 +527,8 @@ def main(argv: list[str]) -> int:
             finally:
                 sys.path.pop(0)
             with scoped_workspace("nu54-p01-capability-") as cache:
-                return build(*options, secure_key=secure_key, test_cache=cache, runner=run_command)
-        return build(*options, secure_key=secure_key)
+                return build(*options, secure_key=secure_key, standby=standby, test_cache=cache, runner=run_command)
+        return build(*options, secure_key=secure_key, standby=standby)
     if argv[0] in {"keygen", "reject-images"}:
         if len(argv) != 2:
             print(__doc__)
