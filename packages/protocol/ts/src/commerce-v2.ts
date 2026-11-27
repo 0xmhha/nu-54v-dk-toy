@@ -36,6 +36,43 @@ export class CommerceReservationError extends Error {
     this.unavailable = unavailable;
   }
 }
+
+/**
+ * Why the cart of a proven board account held no stock (the customer entrance, before the reservation):
+ * `balance_short` with the cart's amount and the account's balance in base units of the asset, `balance_unavailable`
+ * when the server could not read the chain, and `hold_limit` when its address asked for too many carts. Nothing is
+ * held and no order exists for the request, so the same cart can be asked for again.
+ */
+export type CommerceHoldReason = "balance_short" | "balance_unavailable" | "hold_limit";
+export class CommerceHoldRefusal extends Error {
+  readonly reason: CommerceHoldReason;
+  /** Only with `balance_short`: what the cart costs and what the account holds, in base units. */
+  readonly required?: string;
+  readonly balance?: string;
+
+  constructor(code: string, reason: CommerceHoldReason, required?: string, balance?: string) {
+    super(code);
+    this.reason = reason;
+    this.required = required;
+    this.balance = balance;
+  }
+}
+
+/** Reads the refusal of a cart's hold from an error reply to `order.create`; undefined when the reply names none. */
+export function readHoldRefusal(reply: { error?: string; reason?: unknown; required?: unknown; balance?: unknown }): CommerceHoldRefusal | undefined {
+  if (reply.reason === undefined) return undefined;
+  const units = (value: unknown): value is string => typeof value === "string" && /^(0|[1-9][0-9]{0,77})$/.test(value);
+  if (reply.reason === "balance_short") {
+    if (reply.error !== "CHECKOUT_CONFLICT" || !units(reply.required) || !units(reply.balance) ||
+        BigInt(reply.balance) >= BigInt(reply.required)) throw new Error("BAD_RESPONSE");
+    return new CommerceHoldRefusal(reply.error, reply.reason, reply.required, reply.balance);
+  }
+  if (reply.reason === "balance_unavailable" || reply.reason === "hold_limit") {
+    if (reply.error !== "BUSY" || reply.required !== undefined || reply.balance !== undefined) throw new Error("BAD_RESPONSE");
+    return new CommerceHoldRefusal(reply.error, reply.reason);
+  }
+  throw new Error("BAD_RESPONSE");
+}
 export const commerceAllergens = [
   "milk",
   "egg",
@@ -475,6 +512,9 @@ export function readReadyBoard(value: unknown): CommerceReadyBoard | undefined {
 type Response = ServiceReplyV2 & {
   reservationFound?: boolean;
   unavailable?: CommerceCartLine[];
+  reason?: unknown;
+  required?: unknown;
+  balance?: unknown;
   comparison?: CheckoutComparison;
   comparisons?: CheckoutComparison[];
   terminal?: TerminalSettings;
@@ -845,6 +885,9 @@ export class CommerceClient {
           throw new Error("BAD_RESPONSE");
         throw new CommerceReservationError(reply.error!, lines);
       }
+      // The customer entrance says why a proven account's cart was not held.
+      const unheld = operation === "order.create" ? readHoldRefusal(reply) : undefined;
+      if (unheld) throw unheld;
       throw new Error(reply.error);
     }
     if (
