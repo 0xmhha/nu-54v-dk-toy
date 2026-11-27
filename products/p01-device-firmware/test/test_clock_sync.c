@@ -1472,6 +1472,23 @@ static void test_the_latest_time_comes_down(void)
 	const uint64_t kept = journal.trusted_time;
 	make_grant(record, 3, 1, real - 100, granted + 31 * DAY);
 	assert(operator_installs(record, 2000) && journal.trusted_time == kept && device_install_now() == real);
+
+	/* Bringing the latest possible time down leaves the lower bound alone, to the fraction of a
+	 * second: it goes on turning where it did. */
+	wipe(1, 0);
+	memcpy(vault.record.owner, phone_key, 32);
+	end_session();
+	make_grant(record, 1, 1, granted, granted + 31 * DAY);
+	assert(!operator_installs(record, 58000));
+	grant_names_the_store();
+	uptime += 2500;
+	real = granted + 3;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(told().earliest == granted + 2 && told().latest == real + NU54_CLOCK_PHONE_SECONDS);
+	uptime += 499;
+	assert(device_install_earliest() == granted + 2);
+	uptime += 1;
+	assert(device_install_earliest() == granted + 3 && device_install_now() == real + 1 + NU54_CLOCK_PHONE_SECONDS);
 }
 
 /* The decision of 2026-11-27 on how far the phone alone moves the clock: by a day (the build's
@@ -1546,6 +1563,12 @@ static void test_the_phone_alone_moves_a_day(void)
 	board_polls();
 	assert(clock_wait.pending && !button(true) && !pending_prompt && !shown_prompt && !clock_wait.pending);
 	assert(writes == 1 && clock_turns == 1);
+	assert(device_install_earliest() == real && device_install_now() == real + 4 + NU54_CLOCK_PHONE_SECONDS);
+	/* Its seconds turn where the message's do: 0.4 s of the wait were left over. */
+	uptime += 599;
+	assert(device_install_earliest() == real);
+	uptime += 1;
+	real += 1;
 	assert(device_install_earliest() == real && device_install_now() == real + 4 + NU54_CLOCK_PHONE_SECONDS);
 	/* The session goes on and the order is taken. */
 	assert(!status() && !pay() && approval.pending);
