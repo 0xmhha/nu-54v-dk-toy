@@ -166,7 +166,10 @@ contract ChargeGovernanceTest is ChargeBase {
         proposeOn(pool, "addOrigin", abi.encode(type(uint256).max, next), "salt");
         proposeOn(pool, "returnToken", abi.encode(next, type(uint256).max), "salt");
         proposeOn(pool, "withdraw", abi.encode(type(uint256).max), "salt");
+        uint256 most = type(uint256).max;
+        proposeOn(pool, "raiseLimits", abi.encode(WonPool.Limits(most, most, most, most, most)), "salt");
         toSource();
+        proposeOn(deposit, "raiseLimit", abi.encode(most), "salt");
         proposeOn(deposit, "setRates", abi.encode(type(uint256).max, type(uint256).max), "salt");
         // The largest clean address is taken.
         proposeOn(deposit, "setKey", abi.encode(ChargeGovernance.Key.Relay, type(uint160).max), "salt");
