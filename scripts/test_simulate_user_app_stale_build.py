@@ -208,6 +208,45 @@ class BuildRecord(Repository):
             self.write(name, "written\n")
             self.assertIsNone(self.stale(), name)
 
+    def link(self, name, target):
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.unlink(missing_ok=True)
+        path.symlink_to(target)
+
+    def test_a_link_counts_by_where_it_leads_and_by_what_lies_there(self):
+        """The header lies outside the files the build is known to read, so only the link tells of it."""
+        link, up = f"{APP}/native/market/frames.h", "../../../../"
+        self.write("packages/protocol/c/frames.h", "#define FRAME 64\n")
+        self.write("packages/protocol/c/frames-copy.h", "#define FRAME 64\n")
+        self.link(link, up + "packages/protocol/c/frames.h")
+        self.build()
+        self.assertIsNone(self.stale())
+        self.write("packages/protocol/c/frames.h", "#define FRAME 128\n")
+        self.assertIn(link, self.stale())
+        self.write("packages/protocol/c/frames.h", "#define FRAME 64\n")
+        self.assertIsNone(self.stale())
+        self.link(link, up + "packages/protocol/c/frames-copy.h")  # the same content elsewhere
+        self.assertIn(link, self.stale())
+        self.link(link, up + "packages/protocol/c/frames.h")
+        (self.root / "packages/protocol/c/frames.h").unlink()
+        self.assertIn(link, self.stale())
+
+    def test_a_link_to_a_directory_counts_by_every_file_below_it(self):
+        link = f"{APP}/native/protocol"
+        self.write("packages/protocol/c/include/frames.h", "#define FRAME 64\n")
+        self.link(f"{APP}/native/loop", "loop")
+        self.link("packages/protocol/c/include/self", ".")
+        self.link(link, "../../../packages/protocol/c")
+        self.build()
+        self.assertIsNone(self.stale())
+        self.write("packages/protocol/c/include/frames.h", "#define FRAME 128\n")
+        self.assertIn(link, self.stale())
+        self.write("packages/protocol/c/include/frames.h", "#define FRAME 64\n")
+        self.assertIsNone(self.stale())
+        self.write("packages/protocol/c/include/new.h", "")
+        self.assertIn(link, self.stale())
+
     def test_modification_times_play_no_part(self):
         self.build()
         os.utime(self.root / KOTLIN, (2_000_000_000, 2_000_000_000))  # newer than the APK

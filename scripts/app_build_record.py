@@ -85,13 +85,31 @@ def file_digest(path):
     return digest.hexdigest()
 
 
+def tree_digest(directory):
+    """One digest of all that lies below a directory. A link inside it counts by its text only, so a loop ends."""
+    digest = hashlib.sha256()
+    for place, directories, files in os.walk(directory):
+        directories.sort()
+        for name in sorted(files + [name for name in directories if os.path.islink(os.path.join(place, name))]):
+            path = os.path.join(place, name)
+            content = "link:" + os.readlink(path) if os.path.islink(path) else file_digest(path) if os.path.isfile(path) else "other"
+            digest.update(f"{os.path.relpath(path, directory)}\0{content}\0".encode(errors="surrogateescape"))
+    return digest.hexdigest()
+
+
+def link_digest(path):
+    """Where a link leads and what lies there: the build reads through it, also to a place outside its inputs."""
+    content = file_digest(path) if path.is_file() else tree_digest(path) if path.is_dir() else "nothing"
+    return f"link:{os.readlink(path)}={content}"
+
+
 def fingerprint(root, inputs):
     """Each input's content digest by name. A file deleted from the working tree is left out."""
     found = {}
     for name in input_files(root, inputs):
         path = Path(root) / name
         if path.is_symlink():
-            found[name] = "link:" + os.readlink(path)
+            found[name] = link_digest(path)
         elif path.is_file():
             found[name] = file_digest(path)
     return found
