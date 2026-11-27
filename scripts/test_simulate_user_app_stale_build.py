@@ -218,7 +218,9 @@ class BuildRecord(Repository):
         for name in (f"{APP}/android/app/build/generated/source/codegen/Spec.java", f"{APP}/android/build/reports/problems.html", f"{APP}/android/.gradle/8.14/fileHashes.bin",
                      f"{APP}/android/.kotlin/sessions/kotlin-compiler.salive", f"{APP}/android/app/.cxx/Debug/x86_64/build.ninja", f"{APP}/node_modules/react-native/index.js",
                      "packages/protocol/platform/node_modules/typescript/index.js", f"{APP}/android/local.properties", f"{APP}/android/.idea/workspace.xml",
-                     f"{APP}/android/app/app.iml", f"{APP}/android/app/src/main/.DS_Store", f"{APP}/android/java_pid1.hprof"):
+                     f"{APP}/android/app/app.iml", f"{APP}/android/app/src/main/.DS_Store", f"{APP}/android/java_pid1.hprof",
+                     f"{APP}/.metro-health-check-4242", f"{APP}/coverage/lcov.info", f"{APP}/npm-debug.log", f"{APP}/.env", f"{APP}/.env.local",
+                     f"{APP}/android/app/upload.pem", f"{APP}/android/app/upload.keystore"):
             self.write(name, "written\n")
             self.assertIsNone(self.stale(), name)
 

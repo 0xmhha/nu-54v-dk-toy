@@ -53,9 +53,11 @@ USER_APP = Inputs(
     keep=("products/p02-user-app/src/specs",),  # the build generates native code from these
     # The ignore rules of the repository are not used: they name build/, out/, cache/, dist/ and bin/ wherever they lie,
     # and a new package of that name is a source. The build directories are named by their place instead.
-    written=(*(f"/products/p02-user-app/android/{name}/" for name in ("build", "app/build", "app/.cxx", ".gradle", ".kotlin")),
-             "node_modules/", ".idea/", "*.iml", "*.hprof", ".DS_Store",
-             "local.properties", "*.keystore"),  # where this machine keeps the SDK, and keys that are not the tracked debug key
+    # A file that a tool writes below `take` and that is not named here counts as a changed source: name it then.
+    written=(*(f"/products/p02-user-app/{name}/" for name in ("android/build", "android/app/build", "android/app/.cxx", "android/.gradle", "android/.kotlin", "coverage")),
+             "node_modules/", ".idea/", "*.iml", "*.hprof", ".DS_Store", ".metro-health-check*", "npm-debug.log", "yarn-error.log", "__pycache__/",
+             "local.properties",  # where this machine keeps the SDK
+             ".env", ".env.*", "*.pem", "*.keystore"),  # secrets, which a debug build does not read; the debug key is tracked
     # The build takes native code from node_modules, which no digest here covers. pnpm writes the lockfile it installed
     # from to node_modules/.pnpm/lock.yaml; that file is pnpm's own and not a documented interface. An install of a part
     # of the workspace (--filter) writes a part of the lockfile and is refused here, and files edited inside
