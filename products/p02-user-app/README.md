@@ -72,3 +72,38 @@ make -C products/p01-device-firmware test HOST_BUILD=/tmp/nu54-w12-host-build
 새 앱 세션에서는 **한도와 잠금**에서 등록 보드를 찾아 인증합니다. 같은 등록 보드의 잠금 규칙은 설정 홈에서도 재확인할 수 있습니다. 정책 적용 직후에는 활성 정책을 읽은 기기 연결에서 잠금 규칙도 확인합니다. 기기가 해당 기능을 제공하지 않거나 인증이 끊긴 경우에는 확인된 정책과 확인하지 못한 잠금 규칙을 각각 표시합니다. 활성 한도와 변경 검토의 단위는 검증된 체인과 자산에 따라 표시합니다.
 
 설정의 **접근성**에서 화면 읽기, 동작 줄이기, 표시 언어와 알림 설정을 확인합니다. **도움말·진단**은 공유할 항목을 먼저 미리 보여줍니다. 두 화면 모두 설정으로 돌아갈 수 있습니다.
+
+### 매장 등록 없는 주문의 빌드 값
+
+매장 화면에서 등록 없이 주문하는 길은 앱 빌드에 고정한 값만 믿는다. 값은 `src/merchant/customerEntranceDeployment.ts`의 두 상수에 들어가고, 저장소에는 둘 다 `undefined`로 둔다. 비어 있으면 앱은 매장 목록, 매장 화면의 주문, 수령 QR을 열지 않고 그렇다고 알린다.
+
+| 상수 | 값 | 쓰는 곳 |
+|---|---|---|
+| `approvedCustomerEntrance` | `origin`(opsd `P05_CUSTOMER_ADDR`의 https 주소), `ca`(서버 인증서를 발급한 CA, DER의 base64), `pin`(서버 인증서 공개키 SPKI의 SHA-256, 소문자 16진수 64자) | 매장 목록, 매장 화면, 메뉴, 계정 증명, 세션 요청. 시스템 인증서 저장소는 쓰지 않는다 |
+| `approvedOrderPayment` | `chain`(8283), `contract`(주문 계약 `OrderEscrow` 주소), `asset`(그 계약의 토큰 주소), `token`(이름·기호·화면 이름·자릿수. 없으면 달러 시험 토큰), `rpc`(체인을 읽을 주소. 소유자가 고른 서버가 먼저다) | 견적 검증. 서버는 매장의 계약 번호(`merchantId`)만 알려 주고, 앱은 이 계약에서 그 번호의 견적 서명자와 받는 주소를 읽는다 |
+
+빌드할 때 묶는 방법은 하나다. 아래 모양의 JSON 파일을 만들고 그 경로를 `NU54_CUSTOMER_ORDER_BUILD`에 넣어 번들한다(`build-tools/customer-order-build.js`, `babel.config.js`). 값이 형식에 맞지 않으면 번들이 멈춘다. `payment`는 빼도 되고(목록만 보는 빌드), `entrance` 없이 `payment`만 넣을 수는 없다. 필드 이름은 매장 등록서의 `payment` 항목과 같으므로, 로컬 배포 기록의 `chain`·`contract`·`asset`·`token`·`rpc`를 그대로 옮긴다. 체인의 첫 블록은 앱이 이미 가진 값(`src/wallet/readProfiles.ts`의 `stable.anchor`)을 쓴다.
+
+```json
+{
+  "entrance": {"origin": "https://127.0.0.1:8444", "ca": "<base64>", "pin": "<64 hex>"},
+  "payment": {"chain": 8283, "contract": "0x…", "asset": "0x…",
+    "token": {"name": "NU54 Test KRW", "symbol": "tKRW", "label": "tKRW", "decimals": 2}, "rpc": "https://127.0.0.1:8545"}
+}
+```
+
+```bash
+openssl x509 -in ca.pem -outform der | base64 | tr -d '\n'                                             # ca
+openssl x509 -in server.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256   # pin
+NU54_CUSTOMER_ORDER_BUILD=/path/to/order-build.json npx react-native start --reset-cache               # 로컬 시험 번들
+pnpm -C products/p02-user-app test customerOrderBuild orderPaymentTrust storeOrder                     # 묶는 도구, 검증, 주문 흐름
+```
+
+다시 배포해야 하는 때:
+
+- 서버 인증서의 키를 바꾸면 `pin`이 달라진다. 새 키로 바꾸기 전에 새 `pin`을 묶은 앱을 먼저 내야 하고, 옛 앱은 새 서버에 연결하지 못한다. 같은 키로 인증서만 다시 받으면 `pin`은 그대로다.
+- CA를 바꾸면 `ca`가, 서버 주소를 바꾸면 `origin`이 달라져 앱을 다시 내야 한다.
+- 주문 계약을 새로 배포하거나 토큰을 바꾸면 `contract`·`asset`·`token`이 달라져 앱을 다시 내야 한다. 옛 앱은 새 계약의 견적을 거절한다.
+- 매장의 견적 서명 키나 받는 주소를 바꾸는 것(`configureMerchant`)은 앱을 다시 내지 않는다. 앱이 결제 때마다 계약에서 읽는다. 확정된 블록을 읽으므로 바꾼 직후 잠깐은 옛 값으로 검증해 새 견적을 거절할 수 있다.
+
+남는 위험: 서버가 등록된 다른 매장의 번호를 주면 그 매장의 견적이 검증을 통과한다. 돈은 같은 주문 계약에 잠기고 이의로 돌려받는다. 체인을 읽는 서버(`rpc` 또는 소유자가 고른 서버)가 거짓 기록을 주는 경우도 같은 범위다. 운영자 서명 매장 프로필은 실제 자산 전에 더한다([유즈케이스 점검과 결정](../../docs/content/commercial/use-case-review.md) 9장).

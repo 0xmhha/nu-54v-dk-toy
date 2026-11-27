@@ -1,12 +1,14 @@
 const path = require('path');
 const {approvedOrigin} = require('./build-tools/public-travel-origin');
+const {customerOrderBuild} = require('./build-tools/customer-order-build');
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
 
 // Monorepo: let Metro see the workspace root so @nu54/protocol resolves ([N25]).
 const workspaceRoot = path.resolve(__dirname, '../..');
 
 const config = {
-  cacheVersion: `p09:${approvedOrigin(process.env.NU54_P09_PUBLIC_ORIGIN)}`,
+  // A bundle made for one set of bound values is never reused for another.
+  cacheVersion: `p09:${approvedOrigin(process.env.NU54_P09_PUBLIC_ORIGIN)}|order:${JSON.stringify(customerOrderBuild(process.env.NU54_CUSTOMER_ORDER_BUILD))}`,
   watchFolders: [workspaceRoot],
   resolver: {
     // Workspace packages can have different peer-resolution trees. React hooks
