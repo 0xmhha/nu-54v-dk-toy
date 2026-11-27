@@ -71,6 +71,18 @@ class CustomerEntranceLab : Instrumentation() {
         check(refused { c3.customerEntrance(anchor(pin_ = "00".repeat(32)), challenge, "", body) } is SSLException) { "wrong pin accepted" }
         result.putString("entrance_pin", "reject")
 
+        // The current key and the next one: the server may carry either. Two wrong keys, the same key twice, three keys
+        // and no key are no anchor.
+        fun pinned(vararg pins: String) =
+            JSONObject().put("origin", origin).put("ca", ca).put("pin", org.json.JSONArray(pins.toList())).toString()
+        check(JSONObject(c3.customerEntrance(pinned("00".repeat(32), pin), challenge, "", body)).getInt("status") == 200) { "the second pin was refused" }
+        check(JSONObject(c3.customerEntrance(pinned(pin), challenge, "", body)).getInt("status") == 200) { "a list of one pin was refused" }
+        check(refused { c3.customerEntrance(pinned("00".repeat(32), "11".repeat(32)), challenge, "", body) } is SSLException) { "two wrong pins accepted" }
+        check(refused { c3.customerEntrance(pinned(pin, pin), challenge, "", body) } is IllegalArgumentException)
+        check(refused { c3.customerEntrance(pinned(pin, "00".repeat(32), "11".repeat(32)), challenge, "", body) } is IllegalArgumentException)
+        check(refused { c3.customerEntrance(pinned(), challenge, "", body) } is IllegalArgumentException)
+        result.putString("entrance_pins", "pass")
+
         // The right pin under a CA that did not issue the server certificate.
         check(refused { c3.customerEntrance(anchor(ca_ = required("otherCa")), challenge, "", body) } is SSLException) { "foreign CA accepted" }
         result.putString("entrance_ca", "reject")
@@ -97,6 +109,15 @@ class CustomerEntranceLab : Instrumentation() {
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/stores", "", body) } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/stores/../commerce", "", "") } is IllegalArgumentException)
         result.putString("entrance_scope", "reject")
+
+        // Order sessions are kept in the sealed journal under their own name; a name outside the list is refused.
+        val sessions = "customer-sessions-" + "ab".repeat(32)
+        c3.saveJournal(sessions, "[]")
+        check(c3.loadJournal(sessions) == "[]") { "the order sessions were not kept" }
+        c3.saveJournal(sessions, "")
+        check(refused { c3.saveJournal("customer-session-" + "ab".repeat(32), "[]") } is IllegalArgumentException)
+        check(refused { c3.loadJournal(sessions + "\n") } is IllegalArgumentException)
+        result.putString("entrance_journal", "pass")
         result.putString("customer_entrance_lab", "pass")
     }
 

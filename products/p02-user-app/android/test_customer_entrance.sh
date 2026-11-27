@@ -100,6 +100,6 @@ other="$(openssl x509 -in "$scratch/other.pem" -outform DER | openssl base64 -A)
 "$adb_bin" -s "$serial" shell am instrument -w -e port "$port" -e ca "$ca" -e pin "$pin" -e otherCa "$other" \
   "$instrumentation" | tee "$scratch/receipt.log"
 for line in customer_entrance_lab=pass entrance_client_certificate=none entrance_session=pass entrance_redirect=reject entrance_pin=reject \
-  entrance_ca=reject entrance_host=reject entrance_scope=reject; do
+  entrance_ca=reject entrance_host=reject entrance_scope=reject entrance_pins=pass entrance_journal=pass; do
   grep -q "^INSTRUMENTATION_RESULT: $line" "$scratch/receipt.log"
 done

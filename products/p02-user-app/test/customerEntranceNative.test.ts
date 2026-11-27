@@ -47,6 +47,15 @@ describe('customer entrance over the native commerce module', () => {
       await expect(nativeEntrance(anchor, http)('/v2/customer/proof', '{}')).rejects.toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
   });
 
+  test('the current key and the next one go to the native module as a list of two', async () => {
+    const next = 'cd'.repeat(32);
+    const customerRequest = jest.fn(async (_anchor: string, _path: string, _session: string, _body: string) => answer(200, '{}'));
+    await nativeEntrance({...anchor, pin: [pin, next]}, {customerRequest})('/v2/customer/stores', '');
+    expect(customerRequest.mock.calls[0][0]).toBe(JSON.stringify({origin: anchor.origin, ca, pin: [pin, next]}));
+    for (const pins of [[], [pin, pin], [pin, next, 'ef'.repeat(32)], [pin, '0'.repeat(64)], [pin, 5]])
+      expect(entranceAnchor({...anchor, pin: pins as string[]})).toBeUndefined();
+  });
+
   test('an anchor that is missing, not https, or without a CA or a pin never reaches the native module', async () => {
     const customerRequest = jest.fn(async () => answer(200, '{}'));
     const broken = [undefined, {...anchor, origin: 'http://store.example'}, {...anchor, origin: 'https://store.example/path'},

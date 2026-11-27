@@ -23,12 +23,19 @@ export class EntranceError extends Error {
 /** The native half of the entrance connection (specs/NativeCommerceHttp.ts). */
 export type EntranceTransport = {customerRequest?: (anchor: string, path: string, session: string, body: string) => Promise<string>};
 
+/** The pinned keys of an anchor: one, or the current one and the next. Undefined when they are not that. */
+export function entrancePins(pin: unknown): string[] | undefined {
+  const pins = typeof pin === 'string' ? [pin] : Array.isArray(pin) ? pin : [];
+  return pins.length >= 1 && pins.length <= 2 && new Set(pins).size === pins.length &&
+    pins.every(value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value) && !/^0+$/.test(value)) ? pins as string[] : undefined;
+}
+
 /** The anchor as the native module takes it, or undefined when any part is not what a release may bind. */
 export function entranceAnchor(anchor: CustomerEntranceAnchor | undefined): string | undefined {
   try {
-    if (!anchor || !/^[0-9a-f]{64}$/.test(anchor.pin) || /^0+$/.test(anchor.pin) ||
-        !/^[A-Za-z0-9+/]{64,5460}={0,2}$/.test(anchor.ca) || anchor.ca.length % 4) return undefined;
-    return JSON.stringify({origin: publicOrigin(anchor.origin), ca: anchor.ca, pin: anchor.pin});
+    const pins = entrancePins(anchor?.pin);
+    if (!anchor || !pins || !/^[A-Za-z0-9+/]{64,5460}={0,2}$/.test(anchor.ca) || anchor.ca.length % 4) return undefined;
+    return JSON.stringify({origin: publicOrigin(anchor.origin), ca: anchor.ca, pin: typeof anchor.pin === 'string' ? anchor.pin : pins});
   } catch {
     return undefined;
   }
@@ -36,7 +43,7 @@ export function entranceAnchor(anchor: CustomerEntranceAnchor | undefined): stri
 
 /**
  * Sends to the entrance through the native commerce module: TLS 1.3, no client certificate, and a server accepted
- * only by the CA and key pin of this build (customerEntranceDeployment.ts). No enrollment profile and no system
+ * only by the CA and a key pin of this build (customerEntranceDeployment.ts). No enrollment profile and no system
  * certificate store take part. A build without an anchor or without the native method, or any native failure,
  * counts as no answer.
  */
