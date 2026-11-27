@@ -17,7 +17,12 @@ export class Board {
   lamps: number[] = [];
   erased = 0;
   device = '';
+  /** The wallet account. Twenty zero bytes while the board has no owner: the key is made at the registration. */
   account = '';
+  /** Whether the board advertises by itself for its next owner. */
+  waitsForOwner = false;
+  /** How many seconds the board's latest possible time is ahead of its earliest one; 0 without a grant. */
+  ahead = 0;
   generation = 0n;
   connected = false;
   /** The next signature never reaches the phone: the link ends once the board signed. */
@@ -53,6 +58,9 @@ export class Board {
       }
     } else if (word === 'erased') { this.erased++; this.sends.forget(); }
     else if (word === 'booted') { this.sends.reset(); [this.device, this.account, this.generation] = [rest[0], '0x' + rest[1], BigInt(rest[2])]; }
+    else if (word === 'account') this.account = '0x' + rest[0];
+    else if (word === 'owner-wait') this.waitsForOwner = rest[0] === '1';
+    else if (word === 'clock') this.ahead = Number(BigInt(rest[1]) - BigInt(rest[0]));
     const found = this.waiting.findIndex(item => item.words.includes(word));
     if (found >= 0) this.waiting.splice(found, 1)[0].resolve(line);
   }
@@ -94,9 +102,12 @@ export class Board {
     this.write(line);
     return heard;
   }
-  /** Power cycle: the operator's grant is needed again, and `ahead` is how many seconds it took. */
+  /** Power cycle. The board keeps the operator's grant and goes on from the time it saved last, so its clock is late. */
   boot() { return this.command('boot', 'booted'); }
-  grant(ahead = 2) { return this.command(`grant 3000 ${ahead}`); }
+  /** The operator installs a grant that runs for `life` seconds; `ahead` is how many seconds the signing took. */
+  async grant(ahead = 2, life = 3000) {
+    if (await this.command(`grant ${life} ${ahead}`, 'ok', 'refused') !== 'ok') throw new Error('BOARD_GRANT_REFUSED');
+  }
 
   /** The Bluetooth link ends without either side asking for it. */
   drop() {

@@ -1,4 +1,5 @@
-# The spending wallet firmware compiled for the host (board_host.c). Built by scripts/test_order_flow.py.
+# The spending wallet firmware compiled for the host (board_host.c). Built by scripts/test_order_flow.py, and by the
+# firmware host tests (products/p01-device-firmware/test/CMakeLists.txt), which need no database and no chain.
 cmake_minimum_required(VERSION 3.20)
 project(nu54_order_flow_board C)
 
@@ -45,15 +46,20 @@ if(COPIES)
 endif()
 
 # The message handling is taken out of the app sources, so this board runs the text the real one builds.
+# So is the keeping of the grant and of the time in storage, and the clock the owner's phone sets.
 set(EXTRACTED ${CMAKE_CURRENT_BINARY_DIR}/board_pilot.h)
 add_custom_command(OUTPUT ${EXTRACTED}
   COMMAND ${Python3_EXECUTABLE} -B ${P01}/test/extract_c.py ${EXTRACTED}
-    ${P01}/app/src/device_install.c import_public verify device_install_verify_authority
+    ${P01}/app/src/device_install.c OFFER_TTL_MS INSTALL_GRANT INSTALL_CLOCK INSTALL_GRANT_PART GRANT_PART_SIZE GRANT_PARTS
+      CLOCK_SAVE_SECONDS import_public verify device_install_verify_authority storage_found removed clock_load clock_store
+      grant_store grant_read device_install_forget device_install_earliest no_owner device_install_keep_time
+      device_install_set_time device_install_now device_install_policy
     ${DEVICE_PILOT} RESET_NONCE_MS reset_display_input reset_install_input reset_link
       session_live owner_pin_live pilot_pin send_frame present load_refusal clear_legacy_bonds report_legacy_bonds
-      reset_nonce_issue journal_new_session spending_request spending_erase_and_reboot spending_button manage load_receipt send_receipt
+      owner_absent reset_nonce_issue journal_new_session reset_of_released spending_request spending_erase_and_reboot
+      spending_button manage load_receipt send_receipt
       reclaim_receipt receipt_status payment_generation_current payment_address order_request order_button
-      frame stream sign device_pilot_button
+      clock_request frame stream sign bind_session device_pilot_button device_pilot_owner_absent keep_time
   DEPENDS ${P01}/test/extract_c.py ${P01}/app/src/device_install.c ${DEVICE_PILOT} VERBATIM)
 
 add_executable(order-board board_host.c ${EXTRACTED}
@@ -67,8 +73,10 @@ add_executable(order-board board_host.c ${EXTRACTED}
 target_include_directories(order-board BEFORE PRIVATE ${P01}/test/fakes-spending ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
   ${P01}/app/src ${P01}/core/include ${PROTOCOL}/include ${SECP}/include)
 # One board stands in for every customer of the run, thirty of them in one flow, so its day allows 250 orders.
+# It waits for its owner as the commercial board does, and saves its time as often (the Kconfig default).
 target_compile_definitions(order-board PRIVATE ENABLE_MODULE_RECOVERY=1 ECMULT_WINDOW_SIZE=4
-  CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=2000000000)
+  CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=2000000000
+  CONFIG_NU54_OWNER_WAIT_ADV=1 CONFIG_NU54_CLOCK_SAVE_SECONDS=3600)
 set_source_files_properties(board_host.c return_vector.c PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Werror")
 target_link_libraries(order-board PRIVATE OpenSSL::Crypto)
 
