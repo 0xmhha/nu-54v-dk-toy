@@ -112,6 +112,26 @@ export function pinnedPolicy(pin: OrderPaymentPin, merchantId: string, record: M
 }
 
 /**
+ * What a store's menu is shown with before the chain is read: the contract and token of the build, and nobody to pay.
+ * It is not a pinned policy, so no quote verifies against it. `confirmPolicy` fills in the merchant record later, in
+ * place, so every screen that already holds this policy pays by the confirmed one.
+ */
+export function unconfirmedPolicy(pin: OrderPaymentPin, merchantId: string | undefined): CommercePaymentProfile {
+  const nobody = '0x' + '0'.repeat(40);
+  return {chain: pin.chain, contract: pin.contract, asset: pin.asset, ...(pin.token ? {token: pin.token} : {}), ...(pin.rpc ? {rpc: pin.rpc} : {}),
+    abiSha256: pin.token ? namedTokenAbiSha256 : orderEscrowAbiSha256, merchantId: merchantId ?? '0'.repeat(64), signer: nobody, beneficiary: nobody,
+    keyVersion: 0, beneficiaryVersion: 0, maxBaseUnits: fromBoard(30_000_000n, paymentToken(pin)).toString()};
+}
+
+/** Makes an unconfirmed policy the pinned policy of its merchant, with the record the contract holds. */
+export function confirmPolicy(policy: CommercePaymentProfile, pin: OrderPaymentPin, record: MerchantRecord): void {
+  const checked = pinnedPolicy(pin, policy.merchantId, record);
+  if (checked.contract !== policy.contract || checked.asset !== policy.asset) throw new PaymentTrustError('CONTRACT_MISMATCH');
+  Object.assign(policy, {signer: checked.signer, beneficiary: checked.beneficiary, keyVersion: checked.keyVersion, beneficiaryVersion: checked.beneficiaryVersion});
+  pinned.add(policy);
+}
+
+/**
  * Checks a quote from the entrance against a pinned policy before any screen or board uses it: the merchant
  * signature of the on-chain signer, and the chain, contract, token, beneficiary, merchant number and versions.
  * It must be an order-contract quote for the board's own account (not a rented payer).

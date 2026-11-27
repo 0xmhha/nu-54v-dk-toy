@@ -17,7 +17,10 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
   customerRequest: (a: string, p: string, s: string, b: string) => mockCustomerRequest(a, p, s, b),
   loadJournal: async () => '', saveJournal: async () => {}, loadProfile: async () => '', randomBytes: async () => 'AAAAAAAAAAAAAAAAAAAAAA==',
 }}));
-jest.mock('../src/merchant/customerEntranceDeployment.ts', () => ({__esModule: true, get approvedCustomerEntrance() { return mockAnchor; }}));
+// The order contract a release would bind beside it.
+let mockPin: {chain: number; contract: string; asset: string} | undefined;
+jest.mock('../src/merchant/customerEntranceDeployment.ts', () => ({__esModule: true, get approvedCustomerEntrance() { return mockAnchor; },
+  get approvedOrderPayment() { return mockPin; }}));
 
 const cafe = '0fbc54ef-2827-4ab5-bfcd-3a27611c3002';
 const status = {mode: 'open', weekday: 4, time: '10:31', timezone: 'Asia/Seoul'};
@@ -31,7 +34,7 @@ const pick = (label: string, role = 'button') => tree.root.findAll(node => node.
 const tap = (label: string, role?: string) => Renderer.act(async () => { pick(label, role).props.onPress(); });
 const selected = () => [...new Set(tree.root.findAll(node => node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)
   .map(node => node.props.accessibilityLabel))];
-afterEach(async () => { await Renderer.act(async () => tree.unmount()); jest.restoreAllMocks(); });
+afterEach(async () => { await Renderer.act(async () => tree.unmount()); jest.restoreAllMocks(); mockPin = undefined; });
 
 /** App with the entrance of a release bound, answering one listed store. */
 async function open(anchor = true, link?: string) {
@@ -96,4 +99,34 @@ test('without the entrance address the finder says so, and a shortcut link keeps
   await Renderer.act(async () => {});
   expect(selected()).toEqual(['결제']);
   expect(mockCustomerRequest).not.toHaveBeenCalled();
+});
+
+test('with the order contract bound, the order button opens the store\'s menu with no registration and no proof, and goes back to the page', async () => {
+  mockPin = {chain: 8283, contract: '0x' + '3'.repeat(40), asset: '0x' + '2'.repeat(40)};
+  await open();
+  const page = {branchRef: cafe, name: '여울 커피', kind: '카페', intro: '직접 볶은 원두', status, merchantId: 'e1' + '0'.repeat(60) + '07'};
+  mockCustomerRequest.mockImplementation(async (_anchor, path) => JSON.stringify(
+    path === '/v2/customer/stores' ? {status: 200, body: JSON.stringify({stores: [{branchRef: cafe, name: '여울 커피', kind: '카페', status}]})}
+    : path === `/v2/customer/stores/${cafe}` ? {status: 200, body: JSON.stringify(page)}
+    : path === `/v2/customer/stores/${cafe}/menu/0` ? {status: 200, body: JSON.stringify({shop: {branch: cafe, branchLabel: '여울 커피'}, orderState: {mode: 'open'},
+      catalogVersion: 1, catalog: [{sku: 'tea', optionKey: 'standard', label: '차', asset: mockPin!.asset, version: 1, unitPrice: '3500000', available: 2, skuAvailable: 2,
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString()}]})}
+    : {status: 404, body: ''}));
+  await tap('둘러보기', 'tab');
+  await tap('매장 찾기');
+  await tap('여울 커피');
+  await tap('메뉴 보고 주문');
+  await Renderer.act(async () => {});
+  expect(selected()).toEqual(['결제']);
+  expect(text()).toContain('여울 커피 메뉴');
+  expect(text()).toContain('3.50 TestUSDC');
+  expect(text()).not.toContain('주문 등록'); // no registration step on this route
+  expect(text()).not.toContain('근처 단말 찾기');
+  // Only public reads went out: the list, the page and the menu. No challenge, proof or session.
+  const calls = mockCustomerRequest.mock.calls.map(call => [call[1], call[2], call[3]]);
+  expect(calls.filter(call => call[0] === `/v2/customer/stores/${cafe}/menu/0`)).toEqual([[`/v2/customer/stores/${cafe}/menu/0`, '', '']]);
+  expect(calls.every(call => call[0].startsWith('/v2/customer/stores') && call[1] === '' && call[2] === '')).toBe(true);
+  await tap('매장 화면으로');
+  await Renderer.act(async () => {});
+  expect(text()).toContain('직접 볶은 원두');
 });

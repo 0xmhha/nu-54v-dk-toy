@@ -73,6 +73,10 @@ func TestCustomerSubject(t *testing.T) {
 	if !operatorRef.MatchString(subject) {
 		t.Fatalf("not a version 4 UUID the C3 boundary accepts: %s", subject)
 	}
+	// The phone derives the same subject before any proof (p02 storeAccess.ts, storeAccess.test.ts holds this value too).
+	if subject != "1a07c82c-ec0d-4eca-98d2-6aec9f1bb156" {
+		t.Fatalf("the derivation changed: %s", subject)
+	}
 	// The existing fixed subjects are random; the derivation is domain separated from them.
 	for _, existing := range []string{customerA, customerB, terminal} {
 		if subject == existing {

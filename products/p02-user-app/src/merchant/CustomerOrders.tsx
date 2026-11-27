@@ -125,7 +125,8 @@ import {isOpenOrder, orderRecords, type OpenOrder, type OrderItem} from './order
 import {useScreenProtection} from '../ui/screenProtection.ts';
 import {isFormerBoard, OpenOrderCard, OrderDetail} from './OpenOrders.tsx';
 import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} from './OrderPayment.tsx';
-import {configuredEntrance, issuePickupQr} from './customerEntrance.ts';
+import {configuredEntrance, issuePickupQr, shortAccount} from './customerEntrance.ts';
+import {openStoreAccess, SessionNeeded, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
 import {ownerPickupBoard} from './pickupBoard.ts';
 import {PickupQrScreen} from './PickupQr.tsx';
 
@@ -187,6 +188,22 @@ const reviewStopLabel: Record<PaymentReviewStop, string> = {
 function orderRowDetail(row: CustomerOrderSummary, sent?: OpenOrder) {
   const state = sent?.stage ? openOrderLabel(sent) : orderStateLabel[row.state];
   return sent ? `${new Date(sent.sentAt * 1000).toLocaleString('ko-KR', {month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'})} · ${state}` : state;
+}
+/** Why an order at a store reached without a registration cannot go on, in the customer's words. */
+function accessProblemText(problem: AccessProblem | {kind: 'no-build'}) {
+  switch (problem.kind) {
+    case 'no-build': return '이 앱에는 주문을 받을 매장 서버와 주문 계약이 아직 정해지지 않았습니다.';
+    case 'no-account': return '주문하려면 먼저 지갑 탭에서 보드를 연결하고 서명 시험을 마치세요.';
+    case 'no-board': return '결제할 보드를 찾지 못했습니다. 보드를 켜고 휴대전화 가까이 둔 뒤 다시 시도하세요.';
+    case 'other-board': return `가까이 있는 보드(${shortAccount(problem.board)})는 이 휴대전화의 보드(${shortAccount(problem.expected)})가 아닙니다. 내 보드를 가까이 두고 다시 시도하세요.`;
+    case 'board-changed': return '보드 등록이 바뀌었습니다. 지갑 탭의 보드 설정에서 서명 시험을 다시 한 뒤 주문하세요.';
+    case 'held': return '이 보드 계정에 끝나지 않은 주문이 있어 지금은 새로 시작할 수 없습니다. 진행 중인 주문을 먼저 확인하세요.';
+    case 'busy': return '요청이 많습니다. 잠시 뒤 다시 시도하세요.';
+    case 'payment': return problem.code === 'NO_MERCHANT' ? '이 매장은 아직 앱에서 주문 결제를 받지 않습니다.'
+      : problem.code === 'CHAIN_UNREADABLE' ? '결제 정보를 체인에서 확인하지 못해 주문을 시작하지 않았습니다. 잠시 뒤 다시 시도하세요.'
+      : '이 매장의 결제 정보가 이 앱의 주문 계약과 맞지 않아 주문할 수 없습니다. 운영자에게 문의하세요.';
+    default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
+  }
 }
 const now = () => Math.floor(Date.now() / 1000);
 const identifier =
@@ -286,7 +303,13 @@ export function CustomerOrders({
   openShopQr,
   travelCheckout,
   subscriptionLink,
+  store,
 }: {
+  /**
+   * A store picked from its store page. The phone orders there through the customer entrance without registering:
+   * the menu is public, and the board proves its account when the order is asked for (storeAccess.ts).
+   */
+  store?: StoreChoice;
   /** Inside the app tabs the 결제 tab replaces the separate back button. */
   tabbed?: boolean;
   openBoard?: () => void;
@@ -371,6 +394,11 @@ export function CustomerOrders({
   const [reviewClock, setReviewClock] = useState(now);
   const boardReview = useRef<object | undefined>(undefined);
   const [policy, setPolicy] = useState<CommercePaymentProfile>();
+  const storeBranch = store?.branch, storeName = store?.name, storeMerchant = store?.merchantId;
+  const [storeAccess, setStoreAccess] = useState<StoreAccess>();
+  const [storeProblem, setStoreProblem] = useState<AccessProblem | {kind: 'no-build'}>();
+  // The board account's balance of the store's token: undefined before it is read, null when it cannot be read.
+  const [boardBalance, setBoardBalance] = useState<bigint | null>();
   // An order paid into the escrow takes the whole page until the owner closes it.
   const [orderFocus, setOrderFocus] = useState(true);
   const [orderBoard, setOrderBoard] = useState<{request: string; handle?: string; view?: OrderBoard; block?: OrderBlock; pinWait?: number}>();
@@ -490,6 +518,9 @@ export function CustomerOrders({
     setDeniedLink(false);
     setCounterQrAllowed(false);
     setMessage('');
+    setStoreAccess(undefined);
+    setStoreProblem(undefined);
+    setBoardBalance(undefined);
     // Without a working registration the phone still knows its open orders and can say how to reach them.
     const showStranded = () => {
       if (Http) orderRecords(Http).list().then(rows => { if (current()) setStranded(rows.filter(isOpenOrder)); }).catch(() => {});
@@ -497,6 +528,50 @@ export function CustomerOrders({
     try {
       if (!Http) {
         setPhase('locked');
+        return;
+      }
+      if (storeBranch && storeName) {
+        // No registration takes part: the menu is a public read, and nothing is asked of a board until the order.
+        const access = await openStoreAccess({branch: storeBranch, name: storeName, merchantId: storeMerchant}, ownerPickupBoard);
+        if (!current()) return;
+        if (!access) {
+          setStoreProblem({kind: 'no-build'});
+          setPhase('locked');
+          return;
+        }
+        const actor = access.client;
+        const pending = checkpoint(await access.journals.read('order'), actor);
+        const payment = paymentCheckpoint(await access.journals.read('payment'), actor.profile.branchRef, actor.profile.subjectRef);
+        if (!current()) return;
+        setPolicy(access.policy);
+        setJournals(access.journals);
+        setApproved(payment);
+        setPoint(pending);
+        setClient(actor);
+        setStoreAccess(access);
+        setShop({identity: {branch: storeBranch, branchLabel: storeName}, route: 'direct'});
+        setEntrancePending(false);
+        setPhase('active');
+        registration.current = access.id;
+        if (OwnerWallet) OwnerWallet.loadProfile().then(wallet => {
+          if (current()) setBoardAccount(decodeWalletStorage(wallet).verified ?? null);
+        }).catch(() => {});
+        // An order with a session of its own is read again; the others keep what the phone last wrote down.
+        void refreshOpenOrders(actor).then(rows => { if (current()) setOpenOrders(rows); }).catch(() => {});
+        void access.balance().then(value => { if (current()) setBoardBalance(value ?? null); });
+        if (!pending) {
+          try {
+            const menu = await actor.publishedMenu();
+            if (!current()) return;
+            const at = new Date(now() * 1000);
+            menuCheckedAt.current = now();
+            setCatalog(menu.catalog);
+            if (menu.shop) setShop({identity: menu.shop, route: 'direct'});
+            setStoreState({state: menu.orderState, checkedAt: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`});
+          } catch {
+            if (current()) setMessage('메뉴를 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.');
+          }
+        }
         return;
       }
       const raw = await Http.loadProfile('customer');
@@ -626,13 +701,19 @@ export function CustomerOrders({
     } catch {
       if (current()) { setPhase('locked'); showStranded(); }
     }
-  }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder]);
+  }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant]);
 
   useEffect(() => {
     mounted.current = true;
     const sub = AppState.addEventListener('change', state => {
       if (state === 'active') {
         const revision = ++loadRevision.current;
+        // A store page's order keeps its basket while the app is away; it holds no registration to read again.
+        if (storeBranch) {
+          if (registration.current) setPhase('active');
+          else load();
+          return;
+        }
         Http?.loadProfile('customer').then(raw => {
           if (!mounted.current || revision !== loadRevision.current) return;
           if (raw === registration.current && !initialLocator && !subscriptionLink) setPhase(raw ? 'active' : 'setup');
@@ -668,7 +749,7 @@ export function CustomerOrders({
       ownerConnection.current?.close();
       sub.remove();
     };
-  }, [initialLocator, invalidateLoad, load, subscriptionLink]);
+  }, [initialLocator, invalidateLoad, load, subscriptionLink, storeBranch]);
 
   useEffect(() => {
     load();
@@ -744,9 +825,19 @@ export function CustomerOrders({
     setMessage('');
     setBusy(true);
     const revision = loadRevision.current;
+    const live = () => mounted.current && revision === loadRevision.current;
     action()
+      .catch(async (error: unknown) => {
+        // A request that needs the board's account proof asks for it once and runs again. The client, the journals
+        // and the policy of a store page are the same objects before and after, so the same step can be repeated.
+        if (!(error instanceof SessionNeeded) || !storeAccess) throw error;
+        const problem = await storeAccess.ensure(error.scope);
+        if (!live()) return;
+        setStoreProblem(problem);
+        if (!problem) await action();
+      })
       .catch(() => {
-        if (mounted.current && revision === loadRevision.current) setMessage(failure);
+        if (live()) setMessage(failure);
       })
       .finally(() => {
         if (performing.current === token) {
@@ -822,6 +913,14 @@ export function CustomerOrders({
     if (!client || point || menuReadOnly || (pickupMode ? !pickupChoice : !shop))
       throw new Error('ORDER_PENDING');
     const revision = loadRevision.current;
+    if (storeAccess) {
+      // The first step that needs the customer: the store's merchant record is read from the order contract, then
+      // the board proves its account. Stock is held only by the order that follows.
+      const problem = await storeAccess.ensure({purpose: 'checkout', branch: storeAccess.store.branch});
+      if (!mounted.current || revision !== loadRevision.current) return;
+      setStoreProblem(problem);
+      if (problem) return;
+    }
     let rows: CommercePrice[];
     try {
       rows = await readCatalog();
@@ -2072,6 +2171,9 @@ export function CustomerOrders({
     if (record && failed) await records.update(view.id, {stage: 'failed'});
     else if (record) await recordOrder(record, view);
     if (locked || failed) await keepPayment();
+    // While the board is still near, the paid order gets the session that follows it to its end (ready notice,
+    // receipt, dispute). Without the board now, the order's page asks for the same proof later.
+    if (locked && storeAccess) void storeAccess.ensure({purpose: 'order', branch: entry.branch, sale: view.id}).catch(() => {});
     if (!mounted.current || revision !== loadRevision.current) return locked || failed;
     setOpenOrders((await records.list()).filter(row => row.branch === entry.branch && row.customer === entry.customer));
     if (locked || failed) {
@@ -2321,6 +2423,13 @@ export function CustomerOrders({
     const recorded = openOrders.find(row => row.sale === detailSale);
     if (!client || !recorded || order?.id !== recorded.sale) throw new Error('ORDER_ANSWER_SCOPE');
     const revision = loadRevision.current;
+    if (storeAccess) {
+      // An answer goes with the session of this one order; the board that paid proves its account for it once.
+      const problem = await storeAccess.ensure({purpose: 'order', branch: recorded.branch, sale: recorded.sale});
+      if (!mounted.current || revision !== loadRevision.current) return;
+      setStoreProblem(problem);
+      if (problem) return;
+    }
     let failure = '';
     try {
       await sendOrderAnswer(client, recorded, order, action, now());
@@ -2523,7 +2632,7 @@ export function CustomerOrders({
   if (orderView) {
     // Each step of the payment starts at its top, whatever was scrolled before.
     return <ScrollView key={orderView.kind} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-      <OrderPayment view={orderView} busy={busy} message={message}
+      <OrderPayment view={orderView} busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem) : '')}
         t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text}
         actions={{
           findBoard: () => work(findOrderBoard, '보드를 찾지 못했습니다. 보드 전원과 블루투스 권한을 확인하세요.'),
@@ -2572,7 +2681,7 @@ export function CustomerOrders({
       </ScrollView>;
     return <ScrollView contentContainerStyle={s.scroll}>
       <OrderDetail order={shown} amount={commerceAmount(shown.amount, shown.asset, policy)} money={units => commerceAmount(units, shown.asset, policy)} fresh={order?.id === shown.sale} mine={!!recordedDetail} former={isFormerBoard(shown, boardAccount)}
-        busy={busy} message={message} now={now()} actions={{
+        busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem) : '')} now={now()} actions={{
           answer: action => work(() => answerOrder(action), '답을 보내지 못했습니다. 상태를 다시 확인하세요.'),
           refresh: () => work(() => openOrderDetail(shown.sale), orderOffline),
           back: closeDetail,
@@ -2581,6 +2690,9 @@ export function CustomerOrders({
     </ScrollView>;
   }
   const menuMoney = (units: string, asset: string) => commerceAmount(units, asset, policy);
+  // Known only for a store page's order, once the balance was read: the basket costs more than the board account holds.
+  const cartShort = !!storeAccess && typeof boardBalance === 'bigint' &&
+    commerceCartTotals(cart).some(row => row.asset === policy?.asset && BigInt(row.amount) > boardBalance);
   const oneOptionOnly = menuLocale === 'ko'
     ? '이 매장에서는 품목당 옵션을 하나씩 담을 수 있습니다. 옵션을 바꾸려면 담은 옵션을 먼저 빼세요.'
     : 'This store accepts one option per item. Remove the selected option to choose another.';
@@ -2683,18 +2795,25 @@ export function CustomerOrders({
           {message}
         </Text>
       )}
-      {phase === 'check' && <Text style={s.text}>등록 상태 확인 중</Text>}
+      {phase === 'check' && <Text style={s.text}>{storeBranch ? '매장 메뉴를 여는 중' : '등록 상태 확인 중'}</Text>}
       {(phase === 'locked' || phase === 'setup') && !!stranded.length && <Card>
         <Text accessibilityRole="header" style={s.cardTitle}>{`진행 중인 주문이 ${stranded.length}건 있습니다`}</Text>
         {stranded.map(row => <Text key={row.sale} style={s.text}>
           {`${row.store ?? '매장 주문'}${row.pickupNo === undefined ? '' : ` · 주문번호 ${row.pickupNo}`} · ${openOrderLabel(row)}`}</Text>)}
         <Text style={s.text}>상태를 보거나 받았다고 답하려면 인터넷 주문 등록이 필요합니다. 매장 담당자에게 이 휴대전화의 주문 등록 공개키를 보여 주고 새 등록서를 받아 이 화면에 입력하세요.</Text>
       </Card>}
-      {phase === 'locked' && (
+      {phase === 'locked' && !storeBranch && (
         <Text style={s.text}>
           보호된 주문 등록을 열 수 없습니다. 발급 담당자에게 문의하세요.
         </Text>
       )}
+      {!!storeBranch && phase === 'locked' && !storeProblem && <Text style={s.text}>매장 주문을 열지 못했습니다. 다시 시도하세요.</Text>}
+      {storeProblem && <View style={s.line}>
+        <Text accessibilityRole="alert" style={s.text}>{accessProblemText(storeProblem)}</Text>
+        {(storeProblem.kind === 'no-account' || storeProblem.kind === 'board-changed') && openBoard &&
+          <Button label="내 보드 열기" variant="secondary" run={openBoard} />}
+      </View>}
+      {!!storeBranch && phase === 'locked' && <Button label="매장 화면으로" variant="secondary" run={back} />}
       {phase === 'setup' && (
         <>
           {/* Before registration the payments tab explains the three steps instead of opening on a bare form. */}
@@ -2902,8 +3021,10 @@ export function CustomerOrders({
                 <Text style={s.text}>{menuLocale === 'ko' ? '신규 견적 발급 일시 중지' : 'New quotes paused'}</Text>
                 <Button label={menuLocale === 'ko' ? '매장 상태 다시 확인' : 'Check store connection'}
                   disabled={busy} run={() => work(refreshShopMenu, '매장과 현재 메뉴를 다시 확인하세요.')} />
-              </> : <Text style={s.text}>{shop.route === 'relay' ? '온라인 단말 중계' : '휴대전화 온라인 연결'}</Text>}
-              <Button label="매장 다시 선택" disabled={busy} run={resetShop} />
+              </> : <Text style={s.text}>{storeAccess ? '메뉴는 누구나 볼 수 있습니다. 주문할 때 보드로 본인을 확인합니다.'
+                : shop.route === 'relay' ? '온라인 단말 중계' : '휴대전화 온라인 연결'}</Text>}
+              {storeAccess ? <Button label="매장 화면으로" variant="secondary" disabled={busy} run={back} />
+                : <Button label="매장 다시 선택" disabled={busy} run={resetShop} />}
             </>
           )}
           {(shopEntry || pickupMode) && pairView}
@@ -3075,6 +3196,22 @@ export function CustomerOrders({
               <Text style={s.text}>공급가액은 품목마다 원 단위에서 반올림하고, 남은 금액이 세금입니다.</Text>
             </> : null;
           })()}
+          {!point && storeAccess && Object.keys(cart).length > 0 && (() => {
+            // The board is never asked to approve what its account cannot pay: a short balance is said at the basket.
+            const total = commerceCartTotals(cart).find(row => row.asset === policy?.asset);
+            if (!total || !policy) return null;
+            if (boardBalance === undefined || boardBalance === null) return <Text style={s.text}>{boardBalance === null
+              ? '보드 잔액을 확인하지 못했습니다. 결제 전에 보드에서 다시 확인합니다.' : '보드 잔액을 확인하고 있습니다.'}</Text>;
+            return <>
+              <Text style={s.text}>{`보드 잔액 · ${commerceCartAmount(boardBalance.toString(), policy.asset, policy)}`}</Text>
+              {cartShort && <>
+                <Text accessibilityRole="alert" style={s.text}>보드 잔액이 합계보다 적어 주문할 수 없습니다. 지갑에서 충전한 뒤 다시 확인하세요.</Text>
+                {openBoard && <Button label="충전하러 가기" variant="secondary" run={openBoard} />}
+                <Button label="잔액 다시 확인" variant="secondary" disabled={busy}
+                  run={() => work(async () => { setBoardBalance(await storeAccess.balance() ?? null); }, '보드 잔액을 확인하지 못했습니다.')} />
+              </>}
+            </>;
+          })()}
           {!point && !menuReadOnly && (shop || pickupMode) && Object.keys(cart).length > 0 && (
             <Button
               label={
@@ -3086,7 +3223,7 @@ export function CustomerOrders({
                     ? '바뀐 장바구니 확인 후 주문 접수'
                     : '주문 접수 요청'
               }
-              disabled={busy || storeStopped(storeState.state)}
+              disabled={busy || storeStopped(storeState.state) || cartShort}
               run={() =>
                 work(
                   reserve,

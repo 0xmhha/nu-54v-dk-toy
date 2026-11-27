@@ -24,6 +24,8 @@ import {MarketLab} from './market/MarketLab.tsx';
 import {color, font} from './ui/theme.ts';
 import {ExploreHome} from './explore/ExploreHome.tsx';
 import {StoreFinder} from './merchant/StoreFinder.tsx';
+import {orderPaymentPin} from './merchant/orderPaymentTrust.ts';
+import {customerSubject, type StoreChoice} from './merchant/storeAccess.ts';
 import {configuredDirectory} from './merchant/storeDirectory.ts';
 import ShopQr from './specs/NativeShopQr.ts';
 import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
@@ -466,7 +468,10 @@ function Shell() {
   // Runs while the app is in front on any tab, so a ready order is announced wherever the owner is.
   const openOrders = useOpenOrders();
   const [shownOrder, setShownOrder] = useState('');
+  // A store picked from its store page, ordered from without a registration (merchant/storeAccess.ts).
+  const [storeOrder, setStoreOrder] = useState<StoreChoice>();
   const openShopQr = useCallback((raw: string) => {
+    setStoreOrder(undefined);
     setOrderLink('');
     setSubscriptionLink('');
     setCounterQr('');
@@ -556,6 +561,7 @@ function Shell() {
     setRenting(false);
   };
   const openPaymentList = (qr = '') => {
+    setStoreOrder(undefined);
     setOrderLink('');
     setSubscriptionLink('');
     setCounterQr(qr);
@@ -564,9 +570,21 @@ function Shell() {
     setIncomingPaymentLink(value => value + 1);
   };
   const closePayments = () => {
+    const left = storeOrder;
     openPaymentList();
     setShownOrder('');
     setShopping(false);
+    // An order started from a store page goes back to that page.
+    if (left && storeDirectory) openStores(left.branch);
+  };
+  /** The menu of a store page, and from there the order. `sale` opens one of its orders first. */
+  const openStoreOrder = (store: StoreChoice, sale = '') => {
+    openPaymentList();
+    setFinding(undefined);
+    setStoreOrder(store);
+    setShopEntry(true);
+    setShownOrder(sale);
+    setShopping(true);
   };
   const openTravelBookings = (scope: TravelBookingScope) => {
     setTravelBooking(scope);
@@ -644,14 +662,18 @@ function Shell() {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
-        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : finding && !renting ? <ScrollView
           contentContainerStyle={styles.finder} keyboardShouldPersistTaps="handled" testID="store-finder">
           <StoreFinder key={finding.nonce} directory={storeDirectory} initialBranch={finding.branch}
             scan={ShopQr ? () => ShopQr!.scan() : undefined}
             back={() => { closeOverlays(); requestWallet('home'); }}
-            order={store => { setFinding(undefined); openShopQr(makeEntranceQr(store.branch)); }}
+            order={store => {
+              // A build with its order contract bound orders without a registration; one without keeps the earlier route.
+              if (orderPaymentPin()) openStoreOrder(store);
+              else { setFinding(undefined); openShopQr(makeEntranceQr(store.branch)); }
+            }}
             payQr={raw => { setFinding(undefined); openPaymentList(raw); setShopping(true); }} />
         </ScrollView> : renting ? <View style={styles.root}>
           <Button label="지갑 프로필 선택" onPress={profiles} variant="secondary" />
@@ -676,7 +698,13 @@ function Shell() {
             {label: '테스트 시장 학습', detail: '테스트넷에서 교환과 유동성을 연습합니다', run: () => { setExploring(false); setMarketLab(true); }},
           ]} /> : <View style={styles.home}>
           {/* Services open from the 둘러보기 tab; home keeps three shortcuts. */}
-          <WalletHome tabbed openOrders={openOrders} openOrder={sale => { openPaymentList(); setShownOrder(sale); setShopping(true); }} services={[
+          <WalletHome tabbed openOrders={openOrders} openOrder={sale => {
+            // An order made from a store page belongs to the board account's own customer, and opens with its store.
+            const made = openOrders.find(row => row.sale === sale);
+            if (made && storeDirectory && orderPaymentPin() && made.customer === customerSubject(made.payer))
+              openStoreOrder({branch: made.branch, name: made.store ?? '매장', merchantId: made.merchantId}, sale);
+            else { openPaymentList(); setShownOrder(sale); setShopping(true); }
+          }} services={[
               {label: '매장 QR 결제', run: () => { openPaymentList(); setShopping(true); }},
               {label: '근처 매장', run: openNearbyOrders},
               {label: '여행 예약', run: () => { setTravel(true); }},

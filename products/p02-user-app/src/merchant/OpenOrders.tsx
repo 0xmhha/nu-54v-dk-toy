@@ -8,6 +8,7 @@ import {onReturnChanged, returnRecord, settleReturn} from '../wallet/boardReturn
 import {clockMargin, customerClient, offeredAnswers, openOrderLabel, refreshOpenOrders} from './customerClient.ts';
 import {awaitsStore, isOpenOrder, onOrdersChanged, orderRecords, type OpenOrder} from './orderRecords.ts';
 import {AmountLine, PickupTicket} from './paymentParts.tsx';
+import {customerSubject, openStoreAccess} from './storeAccess.ts';
 
 export type OrderPayer = {address: string; generation: number} | null;
 /** Paid by a board account this phone no longer uses. `null` means no account; undefined, not known yet. */
@@ -59,6 +60,14 @@ export function useOpenOrders(): OpenOrder[] {
         const raw = await storage.loadProfile('customer');
         if (live && raw && await returning()) await settleReturn(storage, customerClient(raw), () => Math.floor(Date.now() / 1000)).catch(() => {});
         if (live && raw && (await show()).length) await refreshOpenOrders(customerClient(raw));
+        // Orders made from a store page are read with the session each got from the board that paid it. One
+        // without a session keeps its last state until its page asks the board.
+        const entrance = live ? (await show()).filter(row => { try { return row.customer === customerSubject(row.payer); } catch { return false; } }) : [];
+        for (const branch of new Set(entrance.map(row => row.branch))) {
+          const {store, merchantId} = entrance.find(row => row.branch === branch)!;
+          const access = await openStoreAccess({branch, name: store ?? '매장', merchantId});
+          if (live && access) await refreshOpenOrders(access.client);
+        }
       } catch { /* The last known state stays on screen. */ } finally {
         asking = false;
         if (live) await plan(await show());

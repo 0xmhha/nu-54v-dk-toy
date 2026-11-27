@@ -42,7 +42,7 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
   scan?: () => Promise<string>;
   back: () => void;
   /** Opens the store's menu to order. Without it the page shows no order button. */
-  order?: (store: {branch: string; name: string}) => void;
+  order?: (store: {branch: string; name: string; merchantId?: string}) => void;
   /** A kiosk's payment QR read by the shortcut scanner goes to the payment screen. */
   payQr?: (raw: string) => void;
   /** A store to open first, from a shortcut QR read outside the app. */
@@ -137,7 +137,7 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
   if (view.kind === 'store') {
     const opened = view.opened;
     if (opened.kind === 'page') return <StorePageView page={opened.page} note={note} back={toFinder}
-      order={order && (() => order({branch: opened.page.branch, name: opened.page.name}))}
+      order={order && (() => order({branch: opened.page.branch, name: opened.page.name, ...(opened.page.merchantId ? {merchantId: opened.page.merchantId} : {})}))}
       call={phone => leave(() => outside.openURL(phoneLink(phone)), '전화 앱을 열지 못했습니다.')}
       map={address => leave(() => outside.openURL(mapLink(address)), '지도 앱을 열지 못했습니다. 주소를 길게 눌러 복사하세요.')} />;
     return <View style={styles.page}>

@@ -67,6 +67,8 @@ export class SessionEntrance {
 export type SessionProblem =
   | {kind: 'no-board'}
   | {kind: 'other-board'; expected: string; board: string}
+  /** The board of this account was registered again since the phone last tested it; the wallet tests it first. */
+  | {kind: 'board-changed'}
   /** The account cannot start here now: its board changed while an order of it is still open. */
   | {kind: 'held'}
   | {kind: 'busy'}
@@ -79,7 +81,7 @@ export type OpenedSession = {kind: 'session'; session: CustomerSession} | Sessio
  * which board is near.
  */
 export async function openCustomerSession(entrance: SessionEntrance | undefined, board: PickupBoard, expected: string,
-  scope: SessionScope): Promise<OpenedSession> {
+  scope: SessionScope, expectedGeneration?: string): Promise<OpenedSession> {
   if (!entrance) return {kind: 'unavailable'};
   let link: BoardLink;
   try {
@@ -89,6 +91,10 @@ export async function openCustomerSession(entrance: SessionEntrance | undefined,
   }
   try {
     if (link.account !== expected) return {kind: 'other-board', expected, board: link.account};
+    // The quote is issued for the generation sent with a checkout proof, and the board signs an order only for its
+    // own generation. So the generation sent is the one read from the board now, and it must be the one this phone
+    // tested: with another, the payment screens would refuse the quote as another account's.
+    if (scope.purpose === 'checkout' && expectedGeneration !== undefined && link.generation !== expectedGeneration) return {kind: 'board-changed'};
     // A challenge that ran out before the board answered is asked once more.
     for (let attempt = 0; ; attempt++) {
       const challenge = await entrance.challenge(scope);
