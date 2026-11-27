@@ -6,7 +6,7 @@ global PATH setup is needed. The vendored board package is passed as BOARD_ROOT
 because sysbuild resolves the board before the application CMakeLists runs.
 
 Usage:
-    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending] [--approtect] [--security-counter=N] [--official]]
+    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending [--secure-key]] [--approtect] [--security-counter=N] [--official]]
     python3 scripts/fw.py keygen PATH
     python3 scripts/fw.py reject-images OUT_DIR
     python3 scripts/fw.py flash
@@ -21,6 +21,9 @@ NU54_SIGNING_KEY. --approtect configures both images for debug lock (app/approte
 variants needs --pristine or a separate P01_BUILD_DIR.
 --spending makes the release app the screenless spending wallet (app/spending.conf) in place of HD
 recovery. It needs NU54_INSTALL_AUTHORITY_HEX and is never an --official image.
+--secure-key builds the spending wallet for the TrustZone target (.../cpuapp/ns): TF-M keeps the wallet
+key in the secure side (app/secure-key.conf and its two layout overlays). The image is checked on the
+host only. It gets no release manifest, and `flash` refuses it until the profile is qualified on a board.
 Signed builds record the verified bootloader and application outputs in release-manifest.json.
 --official requires --approtect, a monotonic security counter, a pinned signing key, and a clean source tree.
 
@@ -63,6 +66,8 @@ HERE = Path(__file__).resolve().parent
 PRODUCT = HERE.parent
 APP = PRODUCT / "app"
 BOARD = "nu54v_dk/nrf54l15/cpuapp"
+SECURE_BOARD = BOARD + "/ns"  # non-secure application beside TF-M
+SECURE_SIGNER = "cracen_ecdsa_sign_digest_deterministic"  # must link into TF-M, never into the application
 PYOCD_TARGET = "nrf54l"
 NCS_VERSION = os.environ.get("NCS_VERSION", "v3.4.2")
 NCS_DIR = Path(os.environ.get("NCS_DIR", f"/opt/nordic/ncs/{NCS_VERSION}"))
@@ -232,8 +237,8 @@ def release_manifest(official: bool, approtect: bool, public: Path, fingerprint:
 
 
 def build(pristine: bool, rental: bool, release: bool, approtect: bool, official: bool = False,
-          counter: int | None = None, spending: bool = False, *, test_cache: Path | None = None,
-          runner=None) -> int:
+          counter: int | None = None, spending: bool = False, *, secure_key: bool = False,
+          test_cache: Path | None = None, runner=None) -> int:
     if approtect and not release:
         sys.exit("--approtect only goes with --release")
     if official and not release:
@@ -250,7 +255,10 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
         if any(os.environ.get(name) for name in ("NU54_RECOVERY_OVERLAY", "NU54_LAB_WALLET_CHAINS",
                                                  "NU54_COMMISSIONED_WALLET_CHAINS")):
             sys.exit("--spending has no recovery accessory or other wallet chains")
-    args = ["west", "build", "-b", BOARD, str(APP), "-d", str(BUILD_DIR)]
+    if secure_key and (not spending or approtect or counter is not None):
+        sys.exit("--secure-key is the build-verified TrustZone spending profile: "
+                 "it requires --release --spending without --approtect or --security-counter")
+    args = ["west", "build", "-b", SECURE_BOARD if secure_key else BOARD, str(APP), "-d", str(BUILD_DIR)]
     if pristine:
         args += ["-p", "always"]
     cmake = [f"-DBOARD_ROOT={PRODUCT}"]
@@ -309,6 +317,10 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
             app_conf.append(pin_conf)
         if counter is not None:
             app_conf.append(APP / "counted-update.conf")
+        if secure_key:
+            app_conf.append(APP / "secure-key.conf")
+            cmake += [f"-Dapp_EXTRA_DTC_OVERLAY_FILE={APP / 'secure-key.overlay'}",
+                      f"-Dmcuboot_EXTRA_DTC_OVERLAY_FILE={APP / 'secure-key-mcuboot.overlay'}"]
         cmake += [
             f"-DSB_CONF_FILE={APP / 'sysbuild-release.conf'}",
             f"-DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"{key}\"",
@@ -334,9 +346,36 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
                 boot_conf.append(APP / "approtect.conf")
             cmake.append("-Dmcuboot_EXTRA_CONF_FILE=" + ";".join(str(p) for p in boot_conf))
         rc = west_build(mcuboot)
+        if rc == 0 and secure_key:
+            return secure_key_evidence(public)
         if rc == 0:
             release_manifest(official, approtect, public, fingerprint, counter, enrollment_pin, mbedtls, mcuboot)
         return rc
+
+
+def secure_key_evidence(public: Path) -> int:
+    """Host checks of a --secure-key build. It is not a release: no manifest is written.
+
+    The generated configuration is read back because a Kconfig value that does not take effect is
+    only a warning in the build log."""
+    app = BUILD_DIR / "app/zephyr"
+    config = set((app / ".config").read_text().splitlines())
+    required = {"CONFIG_NU54_SECURE_KEY=y", "CONFIG_BUILD_WITH_TFM=y", "CONFIG_TRUSTED_EXECUTION_NONSECURE=y",
+                "CONFIG_TFM_ITS_ENCRYPTED=y", "CONFIG_PSA_CRYPTO_DRIVER_CRACEN=y", "CONFIG_TFM_ITS_NUM_ASSETS=64"}
+    forbidden = {"CONFIG_SECURE_STORAGE=y", "CONFIG_MBEDTLS_PSA_CRYPTO_STORAGE_C=y"}
+    if not required <= config or forbidden & config:
+        sys.exit("Built configuration does not keep the wallet key in the TF-M secure side: "
+                 + ", ".join(sorted((required - config) | (forbidden & config))))
+    secure = BUILD_DIR / "app/tfm/bin/tfm_s.map"
+    if not secure.is_file() or SECURE_SIGNER not in secure.read_text():
+        sys.exit("TF-M secure image does not contain the wallet signing code")
+    if "cracen_" in (app / "zephyr.map").read_text():
+        sys.exit("The non-secure application links key-handling driver code")
+    if in_toolchain("python3", str(HERE / "verify_release_image.py"), imgtool(), str(public),
+                    str(app / "zephyr.signed.bin"), str(app / "zephyr.signed.hex")):
+        sys.exit("Built firmware signature verification failed")
+    print(f"Build-verified TrustZone spending image (no release manifest, not for flashing): {app / 'zephyr.signed.bin'}")
+    return 0
 
 
 def keygen(path: str) -> int:
@@ -351,6 +390,9 @@ def keygen(path: str) -> int:
 def flash() -> int:
     # A release build has MCUboot and the signed app as two images; other builds have one.
     boot = BUILD_DIR / "mcuboot" / "zephyr" / "zephyr.hex"
+    app_config = BUILD_DIR / "app" / "zephyr" / ".config"
+    if app_config.is_file() and "CONFIG_NU54_SECURE_KEY=y" in app_config.read_text().splitlines():
+        sys.exit("The --secure-key image is build-verified only and is not qualified for a board")
     if boot.exists():
         config = boot.parent / ".config"
         if not config.is_file():
@@ -410,6 +452,7 @@ def main(argv: list[str]) -> int:
             sys.exit("Use --security-counter=N for exactly one decimal counter")
         options = ("--pristine" in argv, "--rental" in argv, "--release" in argv,
                    "--approtect" in argv, "--official" in argv, int(counter_flags[0]) if counter_flags else None, "--spending" in argv)
+        secure_key = "--secure-key" in argv
         if "--test-capability-cache" in argv:
             if (not os.environ.get("P01_BUILD_DIR") or not BUILD_DIR.is_absolute()
                     or (BUILD_DIR.exists() and (not BUILD_DIR.is_dir() or any(BUILD_DIR.iterdir())))):
@@ -420,8 +463,8 @@ def main(argv: list[str]) -> int:
             finally:
                 sys.path.pop(0)
             with scoped_workspace("nu54-p01-capability-") as cache:
-                return build(*options, test_cache=cache, runner=run_command)
-        return build(*options)
+                return build(*options, secure_key=secure_key, test_cache=cache, runner=run_command)
+        return build(*options, secure_key=secure_key)
     if argv[0] in {"keygen", "reject-images"}:
         if len(argv) != 2:
             print(__doc__)

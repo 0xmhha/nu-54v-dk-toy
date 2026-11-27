@@ -1,0 +1,77 @@
+/* Layout of the --secure-key build: MCUboot, one combined TF-M secure/non-secure slot, the
+ * non-secure settings storage and the secure storage of TF-M. Build-verified only: not
+ * provisioned, not a release image, never flash. It differs from the layout of the installed
+ * boards, so no installed board can take it as an update.
+ *
+ *   0x000000 MCUboot                    62 KiB
+ *   0x010000 image-0                  1372 KiB (secure 128 KiB, then non-secure 1244 KiB)
+ *   0x167000 storage (non-secure)       32 KiB  Bluetooth and settings; no key, no wallet data
+ *   0x16f000 tfm-its (secure)           32 KiB  the wallet key and the wallet records, encrypted
+ *   0x177000 tfm-otp (secure)            8 KiB
+ *   0x179000 tfm-ps  (secure)           16 KiB  not used by this profile
+ */
+/delete-node/ &slot0_partition;
+/delete-node/ &slot0_ns_partition;
+/delete-node/ &tfm_ps_partition;
+/delete-node/ &tfm_its_partition;
+/delete-node/ &tfm_otp_partition;
+/delete-node/ &storage_partition;
+&cpuapp_rram {
+  partitions {
+    ranges;
+    #address-cells = <1>;
+    #size-cells = <1>;
+    boot_partition: partition@0 {
+      compatible = "zephyr,mapped-partition";
+      label = "mcuboot";
+      reg = <0x0 0xf800>;
+    };
+    slot0_partition: partition@10000 {
+      compatible = "zephyr,mapped-partition";
+      label = "image-0";
+      reg = <0x10000 0x157000>;
+      ranges = <0x0 0x10000 0x157000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      slot0_s_partition: partition@0 {
+        compatible = "zephyr,mapped-partition";
+        label = "image-0-secure";
+        reg = <0x0 0x20000>;
+      };
+      slot0_ns_partition: partition@20000 {
+        compatible = "zephyr,mapped-partition";
+        label = "image-0-nonsecure";
+        reg = <0x20000 0x137000>;
+      };
+    };
+    storage_partition: partition@167000 {
+      compatible = "zephyr,mapped-partition";
+      label = "storage";
+      reg = <0x167000 0x8000>;
+    };
+    tfm_storage_partition: partition@16f000 {
+      compatible = "zephyr,mapped-partition";
+      label = "tfm-storage";
+      reg = <0x16f000 0xe000>;
+      ranges = <0x0 0x16f000 0xe000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      tfm_its_partition: partition@0 { compatible = "zephyr,mapped-partition"; label = "tfm-its"; reg = <0x0 0x8000>; };
+      tfm_otp_partition: partition@8000 { compatible = "zephyr,mapped-partition"; label = "tfm-otp"; reg = <0x8000 0x2000>; };
+      tfm_ps_partition: partition@a000 { compatible = "zephyr,mapped-partition"; label = "tfm-ps"; reg = <0xa000 0x4000>; };
+    };
+  };
+};
+/* 64 KiB secure and 188 KiB non-secure SRAM. The last 4 KiB stay the board's retained RAM. */
+/delete-node/ &sram0_s;
+/delete-node/ &sram0_ns;
+&cpuapp_sram {
+  sram0_s: image_s@0 {
+    #address-cells = <1>; #size-cells = <1>;
+    reg = <0x0 0x10000>; ranges = <0x0 0x0 0x10000>;
+  };
+  sram0_ns: image_ns@10000 {
+    #address-cells = <1>; #size-cells = <1>;
+    reg = <0x10000 0x2f000>; ranges = <0x0 0x10000 0x2f000>;
+  };
+};
