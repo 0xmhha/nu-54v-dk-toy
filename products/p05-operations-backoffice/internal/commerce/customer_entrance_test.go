@@ -166,6 +166,85 @@ func TestCustomerSessionScope(t *testing.T) {
 	}
 }
 
+// The public menu and its photos are under the per-client limit, and photo parts have an allowance of their own.
+func TestPublicMenuRateLimit(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	photo := "/v2/customer/stores/" + branch + "/photos/" + strings.Repeat("a", 64) + "/0"
+	menu := "/v2/customer/stores/" + branch + "/menu/0"
+	send := func(mux *http.ServeMux, path, client string) int {
+		req := httptest.NewRequest("GET", path, nil)
+		req.RemoteAddr = client + ":4000"
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code
+	}
+	// Without a store behind it an allowed request ends as not found; a limited one never gets that far.
+	apart := http.NewServeMux()
+	HTTP{Customer: &CustomerEntrance{Limiter: NewRateLimiter(60, 2, clock), PhotoLimiter: NewRateLimiter(60, 1, clock)}}.RegisterCustomer(apart)
+	for i, want := range []int{http.StatusNotFound, http.StatusNotFound, http.StatusTooManyRequests} {
+		if code := send(apart, menu, "198.51.100.7"); code != want {
+			t.Fatalf("menu request %d: %d, want %d", i+1, code, want)
+		}
+	}
+	if code := send(apart, menu, "198.51.100.8"); code != http.StatusNotFound {
+		t.Fatalf("another client shares the limit: %d", code)
+	}
+	// The same client's photo parts are counted apart from its other requests, and limited too.
+	for i, want := range []int{http.StatusNotFound, http.StatusTooManyRequests} {
+		if code := send(apart, photo, "198.51.100.7"); code != want {
+			t.Fatalf("photo request %d: %d, want %d", i+1, code, want)
+		}
+	}
+	now = now.Add(time.Second) // one request back in each allowance
+	if send(apart, menu, "198.51.100.7") != http.StatusNotFound || send(apart, photo, "198.51.100.7") != http.StatusNotFound ||
+		send(apart, menu, "198.51.100.7") != http.StatusTooManyRequests || send(apart, photo, "198.51.100.7") != http.StatusTooManyRequests {
+		t.Fatal("the limits do not refill at their rates")
+	}
+	// A deployment that sets no photo limit keeps photos under the one limit.
+	shared := http.NewServeMux()
+	HTTP{Customer: &CustomerEntrance{Limiter: NewRateLimiter(60, 2, clock)}}.RegisterCustomer(shared)
+	if send(shared, photo, "198.51.100.9") != http.StatusNotFound || send(shared, menu, "198.51.100.9") != http.StatusNotFound ||
+		send(shared, photo, "198.51.100.9") != http.StatusTooManyRequests {
+		t.Fatal("photos escaped the entrance limit")
+	}
+}
+
+// Only the store list, a store page, a menu page and a menu photo are read without a proof. Everything a session
+// does answers not found without one, and the public reads take no other method, page form or query.
+func TestPublicMenuIsTheOnlyReadWithoutProof(t *testing.T) {
+	mux := http.NewServeMux()
+	HTTP{Customer: &CustomerEntrance{}}.RegisterCustomer(mux)
+	send := func(method, path, body string) int {
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, httptest.NewRequest(method, path, strings.NewReader(body)))
+		return reply.Code
+	}
+	for _, operation := range []string{"catalog.read", "order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock",
+		"payment.forward", "order.status", "order.answer", "order.list"} {
+		body := `{"command":{"version":2,"contract":"C3","operation":"` + operation + `","requestId":"` + branch + `","domainRef":"` + branch +
+			`","objectRef":"` + branch + `","expiresAt":4000000000,"body":{}}}`
+		if code := send("POST", "/v2/customer/commerce", body); code != http.StatusNotFound {
+			t.Fatalf("%s without a session answered %d", operation, code)
+		}
+	}
+	store := "/v2/customer/stores/" + branch
+	for _, path := range []string{store + "/menu", store + "/menu/01", store + "/menu/-1", store + "/menu/x", store + "/menu/32768", store + "/menu/0?page=1",
+		store + "/menu/0/0", store + "/orders", store + "/photos/" + strings.Repeat("a", 64), store + "/photos/" + strings.Repeat("A", 64) + "/0",
+		store + "/photos/" + strings.Repeat("a", 64) + "/153601", store + "/photos/" + strings.Repeat("a", 64) + "/00", "/v2/customer/stores/x/menu/0"} {
+		if code := send("GET", path, ""); code != http.StatusNotFound {
+			t.Fatalf("GET %s answered %d", path, code)
+		}
+	}
+	for _, path := range []string{store + "/menu/0", store + "/photos/" + strings.Repeat("a", 64) + "/0"} {
+		for _, method := range []string{"POST", "PUT", "DELETE"} {
+			if code := send(method, path, "{}"); code != http.StatusMethodNotAllowed && code != http.StatusNotFound {
+				t.Fatalf("%s %s answered %d", method, path, code)
+			}
+		}
+	}
+}
+
 // A store page tells the store's number in the order contract and the label of its token, and nothing else of the
 // payment profile. A store that is not paid through the order contract has no number to tell.
 func TestStorePagePaymentFields(t *testing.T) {

@@ -506,7 +506,10 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	var customer *commerce.CustomerEntrance
 	if customerAddr != "" {
 		// P05_CUSTOMER_OPERATOR_CONTACT is shown on every store page for payment and refund questions.
-		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil), OperatorContact: os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT")}
+		// Menu photo parts (18,000 bytes each, nine for a full photo) are counted apart: 120 a minute and 40 at once
+		// for each client, so a menu's small photos load in one go and the other requests keep their own allowance.
+		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil), PhotoLimiter: commerce.NewRateLimiter(120, 40, nil),
+			OperatorContact: os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT")}
 	}
 	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}

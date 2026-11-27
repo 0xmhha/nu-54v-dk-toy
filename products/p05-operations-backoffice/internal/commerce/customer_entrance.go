@@ -35,6 +35,8 @@ import (
 // address paid this ready order: a one-time QR token that staff scan on the order's page).
 type CustomerEntrance struct {
 	Limiter *RateLimiter
+	// PhotoLimiter is the limit of the public menu photo parts alone; nil leaves them under Limiter.
+	PhotoLimiter *RateLimiter
 	// Zero values take the defaults below. The order session cap is provisional (an owner decision).
 	ChallengeLifetime, CheckoutLifetime, OrderLifetime, PickupLifetime time.Duration
 	// RescanWindow is how long after a handover the same staff member's repeated scan gets the first answer again.
@@ -143,9 +145,10 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 	if h.Customer == nil {
 		return
 	}
-	limit := func(next http.HandlerFunc) http.Handler {
+	// The limiters are read when a request arrives, so a deployment may set them after the routes.
+	limited := func(limiter func() *RateLimiter, next http.HandlerFunc) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if h.Customer.Limiter != nil && !h.Customer.Limiter.Allow(clientKey(r)) {
+			if active := limiter(); active != nil && !active.Allow(clientKey(r)) {
 				w.Header().Set("Retry-After", "10")
 				writeJSON(w, http.StatusTooManyRequests, service.Reply{Status: "error", Error: service.Busy})
 				return
@@ -153,12 +156,25 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 			next(w, r)
 		})
 	}
+	limit := func(next http.HandlerFunc) http.Handler {
+		return limited(func() *RateLimiter { return h.Customer.Limiter }, next)
+	}
+	photos := func() *RateLimiter {
+		if h.Customer.PhotoLimiter != nil {
+			return h.Customer.PhotoLimiter
+		}
+		return h.Customer.Limiter
+	}
 	mux.Handle("POST /v2/customer/challenge", limit(h.customerChallenge))
 	mux.Handle("POST /v2/customer/proof", limit(h.customerProof))
 	mux.Handle("POST /v2/customer/commerce", limit(h.customerCommerce))
 	// The store list and a store page are read before any proof: public data only, under the same limit.
 	mux.Handle("GET /v2/customer/stores", limit(h.customerStores))
 	mux.Handle("GET /v2/customer/stores/{branch}", limit(h.customerStore))
+	// A store's menu and its photos are public too (menu_public.go). Nothing else is: every other request above
+	// needs a challenge, a proof or a session.
+	mux.Handle("GET /v2/customer/stores/{branch}/menu/{page}", limit(h.customerMenu))
+	mux.Handle("GET /v2/customer/stores/{branch}/photos/{photo}/{offset}", limited(photos, h.customerMenuPhoto))
 }
 
 func decodeStrict(w http.ResponseWriter, r *http.Request, limit int64, into any) bool {

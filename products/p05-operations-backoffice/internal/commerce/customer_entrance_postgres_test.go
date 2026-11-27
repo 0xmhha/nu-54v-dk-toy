@@ -9,13 +9,17 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -224,6 +228,117 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	command(session, "catalog.read", elsewhere, elsewhere, map[string]string{"page": "0"}, nil, 404) // another branch
 	command(session, "payer.status", shop, CustomerSubject(account), map[string]string{}, nil, 404)
 	command(strings.Repeat("ab", 32), "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
+
+	// --- the menu is public: read without a proof, the rows a session reads, and nothing held or made by reading ---
+	read := func(path string, want int) map[string]any {
+		t.Helper()
+		req, _ := http.NewRequestWithContext(ctx, "GET", customers.URL+path, nil)
+		reply, err := customer.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reply.Body.Close()
+		out, _ := io.ReadAll(reply.Body)
+		if reply.StatusCode != want {
+			t.Fatalf("%s: got %d, want %d: %s", path, reply.StatusCode, want, out)
+		}
+		var decoded map[string]any
+		_ = json.Unmarshal(out, &decoded)
+		return decoded
+	}
+	picture, small := bytes.Repeat([]byte{0x5a}, 20_000), bytes.Repeat([]byte{0x3c}, 900)
+	photo, thumb := hex.EncodeToString(hashOf(picture)), hex.EncodeToString(hashOf(small))
+	execute("INSERT INTO ledger.operator_branch_label VALUES ($1,$2)", shop, "여울 커피 "+shop[:8])
+	execute("INSERT INTO ledger.menu_category VALUES ($1,1,'warm',1,'{\"ko\":\"음료\",\"en\":\"Drinks\"}')", shop)
+	execute("INSERT INTO ledger.menu_sku_category VALUES ($1,1,'tea','warm')", shop)
+	execute("INSERT INTO ledger.menu_photo(branch_id,digest,thumb_digest,photo,thumb,uploaded_by,rights_confirmed_at) VALUES ($1,$2,$3,$4,$5,$6,now())",
+		shop, photo, thumb, picture, small, operator)
+	execute("INSERT INTO ledger.menu_sku_photo VALUES ($1,1,'tea',$2)", shop, photo)
+	footprint := func() string {
+		t.Helper()
+		var text string
+		if err := admin.QueryRow(ctx, `SELECT concat_ws('/',(SELECT available FROM ledger.stock WHERE branch_id=$1 AND sku='tea'),
+			(SELECT count(*) FROM ledger.order_checkout WHERE branch_id=$1),(SELECT count(*) FROM ledger.sale WHERE branch_id=$1),
+			(SELECT count(*) FROM ledger.commerce_grant WHERE branch_id=$1),(SELECT count(*) FROM ledger.customer_account),
+			(SELECT count(*) FROM ledger.customer_session),(SELECT count(*) FROM ledger.customer_challenge))`, shop).Scan(&text); err != nil {
+			t.Fatal(err)
+		}
+		return text
+	}
+	before := footprint()
+	menuKeys := []string{"catalog", "catalogVersion", "catalogOptions", "catalogPhotos", "shop", "orderState"}
+	sameMenu := func(when string) map[string]any {
+		t.Helper()
+		public, proven := read("/v2/customer/stores/"+shop+"/menu/0", 200), command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)
+		for key := range public {
+			if !slices.Contains(menuKeys, key) {
+				t.Fatalf("%s: the public menu gives out %q: %v", when, key, public)
+			}
+		}
+		for _, key := range menuKeys {
+			if !reflect.DeepEqual(public[key], proven[key]) {
+				t.Fatalf("%s: %s differs\npublic: %v\nsession: %v", when, key, public[key], proven[key])
+			}
+		}
+		return public
+	}
+	menu := sameMenu("published")
+	row := menu["catalog"].([]any)[0].(map[string]any)
+	if len(menu["catalog"].([]any)) != 1 || row["sku"] != "tea" || row["available"] != float64(5) || row["unitPrice"] != "300000" || row["category"] == nil ||
+		menu["shop"].(map[string]any)["branchLabel"] != "여울 커피 "+shop[:8] || menu["orderState"].(map[string]any)["mode"] != "open" ||
+		len(menu["catalogPhotos"].([]any)) != 1 || menu["catalogPhotos"].([]any)[0].(map[string]any)["thumb"] != thumb {
+		t.Fatalf("public menu: %v", menu)
+	}
+	// What the store marks sold out, and that it stopped taking orders, read the same without a proof.
+	execute("INSERT INTO ledger.menu_sold_out VALUES ($1,'tea',$2,now())", shop, operator)
+	execute("INSERT INTO ledger.branch_order_state(branch_id,mode,busy_minutes,changed_by,changed_at) VALUES ($1,'busy',20,$2,now())", shop, operator)
+	stopped := sameMenu("sold out and busy")
+	if stopped["catalog"].([]any)[0].(map[string]any)["available"] != float64(0) || stopped["orderState"].(map[string]any)["mode"] != "busy" {
+		t.Fatalf("sold out and busy: %v", stopped)
+	}
+	execute("DELETE FROM ledger.menu_sold_out WHERE branch_id=$1", shop)
+	execute("DELETE FROM ledger.branch_order_state WHERE branch_id=$1", shop)
+	// A page past the end is empty and says nothing more; a store without a store page has no public menu.
+	if past := read("/v2/customer/stores/"+shop+"/menu/1", 200); len(past["catalog"].([]any)) != 0 || past["shop"] != nil || past["orderState"] != nil {
+		t.Fatalf("page past the end: %v", past)
+	}
+	read("/v2/customer/stores/"+elsewhere+"/menu/0", 404)
+	read("/v2/customer/stores/"+fresh()+"/menu/0", 404)
+	// A photo comes in parts of at most 18,000 bytes, the same bytes a session reads; only a published one of this store.
+	var whole []byte
+	for offset := 0; offset < len(picture); {
+		public := read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/%d", shop, photo, offset), 200)["photo"].(map[string]any)
+		proven := command(session, "catalog.photo", shop, shop, map[string]string{"photo": photo, "offset": strconv.Itoa(offset)}, nil, 200)["photo"]
+		part, _ := base64.StdEncoding.DecodeString(public["data"].(string))
+		if !reflect.DeepEqual(map[string]any(public), proven) || public["size"] != float64(len(picture)) || len(part) == 0 || len(part) > 18_000 {
+			t.Fatalf("photo part at %d: %v", offset, public)
+		}
+		whole, offset = append(whole, part...), offset+len(part)
+	}
+	if !bytes.Equal(whole, picture) {
+		t.Fatal("the public photo is not the published one")
+	}
+	if small := read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, thumb), 200)["photo"].(map[string]any); small["size"] != float64(900) {
+		t.Fatalf("thumb: %v", small)
+	}
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/%d", shop, photo, len(picture)), 400)    // past the end
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, strings.Repeat("a", 64)), 400) // not a photo of this store
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", elsewhere, photo), 404)              // no store page, no photos
+	// Reading held no stock and made no order, customer, session or challenge.
+	if after := footprint(); after != before {
+		t.Fatalf("the public reads left a mark: %s, was %s", after, before)
+	}
+	// Without a session the cart, the claim, the quote and the status stay out of reach.
+	for _, operation := range []string{"order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock", "order.status"} {
+		envelope := map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: operation, RequestID: fresh(),
+			Domain: shop, Object: shop, ExpiresAt: time.Now().Unix() + 30, Body: map[string]string{}}}
+		call(customer, customers.URL+"/v2/customer/commerce", nil, envelope, 404)
+		call(customer, customers.URL+"/v2/customer/commerce", map[string]string{"Authorization": "Bearer "}, envelope, 404)
+	}
+	if after := footprint(); after != before {
+		t.Fatalf("requests without a session left a mark: %s, was %s", after, before)
+	}
+
 	sale := order(session, 200)["resultRef"].(string)
 	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a second unpaid hold for one account", got)
