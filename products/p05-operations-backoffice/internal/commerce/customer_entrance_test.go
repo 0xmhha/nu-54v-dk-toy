@@ -762,3 +762,24 @@ func TestOperatorContactIsOneVisibleLine(t *testing.T) {
 		t.Fatalf("no entrance has a contact: %q", got)
 	}
 }
+
+// A pickup proof that gives no QR says whether the order is still being made or was already handed over, and when.
+func TestPickupProofRefusalsAreDistinct(t *testing.T) {
+	const envelope = `{"requestId":"","requestDigest":"","status":"error","error":"CHECKOUT_CONFLICT",`
+	handed := time.Unix(1_764_207_060, 900_000_000)
+	for outcome, want := range map[string]string{"not_ready": `"reason":"not_ready"}`, "collected": `"reason":"collected","recordedAt":1764207060}`} {
+		status, refusal, known := proofRefusal(outcome, &handed)
+		if outcome == "not_ready" {
+			status, refusal, known = proofRefusal(outcome, nil)
+		}
+		raw, err := json.Marshal(refusal)
+		if err != nil || !known || status != http.StatusConflict || string(raw) != envelope+want {
+			t.Fatalf("%s: %d %s (%v)", outcome, status, raw, err)
+		}
+	}
+	for _, outcome := range []string{"", "ok", "mismatch", "already_used"} {
+		if _, _, known := proofRefusal(outcome, &handed); known {
+			t.Fatalf("%q is a pickup proof refusal", outcome)
+		}
+	}
+}

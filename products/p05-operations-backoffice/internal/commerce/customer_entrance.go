@@ -460,15 +460,20 @@ func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, customerError(err), nil)
 		return
 	}
+	if status, refusal, refused := proofRefusal(outcome, expires); refused {
+		writeJSON(w, status, refusal)
+		return
+	}
 	switch outcome {
 	case "mismatch":
 		errorResponse(w, service.Mismatch, nil)
 		return
-	case "not_ready":
-		errorResponse(w, service.CheckoutConflict, nil)
-		return
 	case "ok":
 	default:
+		errorResponse(w, service.Unknown, nil)
+		return
+	}
+	if expires == nil {
 		errorResponse(w, service.Unknown, nil)
 		return
 	}
@@ -482,6 +487,26 @@ func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
 		reply.Session, reply.Subject, reply.Tenant = hex.EncodeToString(token[:]), subject, *tenantRef
 	}
 	writeJSON(w, http.StatusOK, reply)
+}
+
+// proofRefusal answers a pickup proof whose order has no QR to give, naming which case it is so the app can say it:
+//
+//	not_ready  409 CHECKOUT_CONFLICT: the order is still being made; the customer waits
+//	collected  409 CHECKOUT_CONFLICT with recordedAt (Unix seconds): the order was already handed over then
+//
+// Both come only after the proof showed the account that paid the order.
+func proofRefusal(outcome string, at *time.Time) (int, pickupScanRefusal, bool) {
+	refusal := pickupScanRefusal{Reply: service.Reply{Status: "error", Error: service.CheckoutConflict}, Reason: outcome}
+	switch outcome {
+	case "not_ready":
+		return http.StatusConflict, refusal, true
+	case "collected":
+		if at != nil {
+			refusal.RecordedAt = at.Unix()
+		}
+		return http.StatusConflict, refusal, true
+	}
+	return 0, pickupScanRefusal{}, false
 }
 
 // customerSession is a live session read back from its token.
@@ -586,7 +611,8 @@ func (h HTTP) customerCommerce(w http.ResponseWriter, r *http.Request) {
 }
 
 // pickupScanRefusal is the service's error reply with the reason a pickup QR was refused, so the operations web can
-// say which. RecordedAt (Unix seconds) is the handover a used QR already recorded.
+// say which. RecordedAt (Unix seconds) is the handover a used QR already recorded. A refused pickup proof has the
+// same form (proofRefusal).
 type pickupScanRefusal struct {
 	service.Reply
 	Reason     string `json:"reason"`

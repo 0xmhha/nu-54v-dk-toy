@@ -93,3 +93,81 @@ BEGIN
         ||CASE WHEN again THEN jsonb_build_object('alreadyRecorded',true) ELSE '{}'::jsonb END);
 END
 $scan$;
+
+-- A pickup proof for an order that was already handed over says so. Migration 122 answered it not_ready, like an
+-- order still being made, so the app could not tell "wait" from "you already have it". This is the function of 122
+-- with one outcome added:
+--   collected (pickup only): the order was handed over; expires_ carries the time the handover was recorded, since
+--     this outcome has no expiry to tell. No pickup token is made.
+-- The other outcomes are unchanged: ok, mismatch (the account is not the one the purpose requires) and not_ready.
+CREATE OR REPLACE FUNCTION ledger.prove_customer_account(hash_ bytea,payer_ bytea,actor_ uuid,generation_ bigint,token_ bytea,
+    checkout_seconds_ integer,order_seconds_ integer,pickup_seconds_ integer)
+RETURNS TABLE(outcome_ text,purpose_ text,branch_ uuid,sale_ uuid,tenant_ uuid,expires_ timestamptz)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $prove$
+DECLARE c ledger.customer_challenge; known ledger.customer_account; tenant uuid; expiry timestamptz; prior ledger.payer_enrollment;
+    handed timestamptz;
+BEGIN
+    IF octet_length(payer_) IS DISTINCT FROM 20 OR octet_length(token_) IS DISTINCT FROM 32 OR actor_ IS NULL THEN
+        RAISE EXCEPTION 'invalid proof' USING ERRCODE='23514';
+    END IF;
+    UPDATE ledger.customer_challenge x SET used_at=clock_timestamp()
+        WHERE x.challenge_hash=hash_ AND x.used_at IS NULL AND x.expires_at>clock_timestamp() RETURNING x.* INTO c;
+    IF NOT FOUND THEN RAISE EXCEPTION 'challenge unavailable' USING ERRCODE='P0502'; END IF;
+    SELECT b.tenant_ref INTO STRICT tenant FROM ledger.branch b WHERE b.id=c.branch_id;
+
+    IF c.purpose='order' AND NOT EXISTS (SELECT FROM ledger.sale s JOIN ledger.quote_work q ON q.sale_id=s.id
+        WHERE s.id=c.sale_id AND s.branch_id=c.branch_id AND s.state IN ('checking','paid') AND q.signed_digest IS NOT NULL AND q.payer=payer_)
+    THEN
+        RETURN QUERY SELECT 'mismatch',c.purpose,c.branch_id,c.sale_id,tenant,NULL::timestamptz; RETURN;
+    END IF;
+    IF c.purpose='pickup' THEN
+        IF NOT EXISTS (SELECT FROM ledger.sale s JOIN ledger.payment p ON p.sale_id=s.id JOIN ledger.quote_work q ON q.sale_id=s.id
+            WHERE s.id=c.sale_id AND s.branch_id=c.branch_id AND s.state='paid' AND q.payer=payer_
+              AND p.payer='0x'||encode(payer_,'hex')) THEN
+            RETURN QUERY SELECT 'mismatch',c.purpose,c.branch_id,c.sale_id,tenant,NULL::timestamptz; RETURN;
+        END IF;
+        -- Only the account that paid learns that its order was handed over, and when.
+        SELECT k.updated_at INTO handed FROM ledger.travel_pickup_progress k WHERE k.sale_id=c.sale_id AND k.state='collected';
+        IF FOUND THEN
+            RETURN QUERY SELECT 'collected',c.purpose,c.branch_id,c.sale_id,tenant,handed; RETURN;
+        END IF;
+        IF NOT EXISTS (SELECT FROM ledger.travel_pickup_progress k WHERE k.sale_id=c.sale_id AND k.state='ready') THEN
+            RETURN QUERY SELECT 'not_ready',c.purpose,c.branch_id,c.sale_id,tenant,NULL::timestamptz; RETURN;
+        END IF;
+        expiry:=clock_timestamp()+make_interval(secs=>pickup_seconds_);
+        INSERT INTO ledger.pickup_token(token_hash,branch_id,sale_id,expires_at) VALUES(token_,c.branch_id,c.sale_id,expiry);
+        RETURN QUERY SELECT 'ok',c.purpose,c.branch_id,c.sale_id,tenant,expiry; RETURN;
+    END IF;
+
+    -- The derived subject belongs to this account only, and never to a store-issued grant.
+    SELECT * INTO known FROM ledger.customer_account a WHERE a.actor_id=actor_ OR a.payer=payer_ FOR UPDATE;
+    IF FOUND AND (known.actor_id,known.payer) IS DISTINCT FROM (actor_,payer_) THEN
+        RAISE EXCEPTION 'customer subject collision' USING ERRCODE='42501';
+    END IF;
+    IF NOT FOUND THEN
+        IF EXISTS (SELECT FROM ledger.commerce_grant g WHERE g.actor_id=actor_) THEN
+            RAISE EXCEPTION 'customer subject collision' USING ERRCODE='42501';
+        END IF;
+        INSERT INTO ledger.customer_account(actor_id,payer) VALUES(actor_,payer_);
+    END IF;
+
+    expiry:=clock_timestamp()+make_interval(secs=>CASE c.purpose WHEN 'checkout' THEN checkout_seconds_ ELSE order_seconds_ END);
+    INSERT INTO ledger.commerce_grant(branch_id,actor_id,role_code,valid_until) VALUES(c.branch_id,actor_,'customer',expiry)
+        ON CONFLICT (branch_id,actor_id) DO UPDATE SET valid_until=greatest(ledger.commerce_grant.valid_until,excluded.valid_until)
+        WHERE ledger.commerce_grant.role_code='customer';
+    IF NOT FOUND THEN RAISE EXCEPTION 'customer subject collision' USING ERRCODE='42501'; END IF;
+    IF c.purpose='checkout' THEN
+        IF generation_ IS NULL OR generation_<=0 THEN RAISE EXCEPTION 'board generation required' USING ERRCODE='23514'; END IF;
+        SELECT * INTO prior FROM ledger.payer_enrollment e WHERE (e.branch_id,e.actor_id)=(c.branch_id,actor_) FOR UPDATE;
+        IF FOUND AND prior.payer_generation<>generation_ AND ledger.payer_has_open_order(payer_) THEN
+            RAISE EXCEPTION 'the account still has an order' USING ERRCODE='P1060';
+        END IF;
+        INSERT INTO ledger.payer_enrollment VALUES(c.branch_id,actor_,payer_,generation_,1,expiry)
+            ON CONFLICT(branch_id,actor_id) DO UPDATE SET payer_generation=excluded.payer_generation,
+                expires_at=greatest(ledger.payer_enrollment.expires_at,excluded.expires_at);
+    END IF;
+    INSERT INTO ledger.customer_session(token_hash,branch_id,actor_id,purpose,sale_id,expires_at)
+        VALUES(token_,c.branch_id,actor_,c.purpose,c.sale_id,expiry);
+    RETURN QUERY SELECT 'ok',c.purpose,c.branch_id,c.sale_id,tenant,expiry;
+END
+$prove$;

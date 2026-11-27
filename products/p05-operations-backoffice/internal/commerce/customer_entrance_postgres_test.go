@@ -591,6 +591,9 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if got := prove(board, account, challenge("pickup", shop, sale), 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a pickup token for an order that is not ready", got)
 	}
+	if got := prove(board, account, challenge("pickup", shop, sale), 409); got["reason"] != "not_ready" || got["status"] != "error" || got["recordedAt"] != nil {
+		t.Fatal("an order that is not ready does not say so", got)
+	}
 	execute(`UPDATE ledger.travel_pickup_progress SET state='ready',revision=2 WHERE sale_id=$1`, sale)
 	prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("pickup", shop, sale), 400)
 	pickup := func() string {
@@ -691,6 +694,24 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 			+(SELECT count(*) FROM ledger.order_escrow_event WHERE sale_id=$1 AND kind='released')`, sale).Scan(&state, &delivers, &payouts); err != nil ||
 		state != "collected" || delivers != 1 || payouts != 0 {
 		t.Fatalf("scan recorded %q, %d delivery marks and %d payouts: %v", state, delivers, payouts, err)
+	}
+
+	// --- the order was handed over: a new pickup proof says so, with the time, and gives no QR; only to its payer ---
+	tokens := func() (count int) {
+		t.Helper()
+		if err := admin.QueryRow(ctx, "SELECT count(*) FROM ledger.pickup_token WHERE sale_id=$1", sale).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+	issued := tokens()
+	collected := prove(board, account, challenge("pickup", shop, sale), 409)
+	if at, _ := collected["recordedAt"].(float64); collected["status"] != "error" || collected["error"] != string(service.CheckoutConflict) ||
+		collected["reason"] != "collected" || at < recordedAt-1 || at > recordedAt+1 || collected["pickupToken"] != nil || tokens() != issued {
+		t.Fatalf("a pickup proof for an order already handed over: %v (handed over at %v)", collected, recordedAt)
+	}
+	if got := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("pickup", shop, sale), 400); got["error"] != string(service.Mismatch) || got["reason"] != nil {
+		t.Fatal("another account learned that the order was handed over", got)
 	}
 
 	// --- two scans of one QR at once record one handover: the same staff member gets the answer twice, once marked ---
