@@ -198,6 +198,11 @@ func (h HTTP) travel(w http.ResponseWriter, r *http.Request, principal service.P
 		travelFailure(w, http.StatusNotFound, "booking_unavailable")
 		return
 	}
+	// Only a hold carries amounts. At a won branch they are whole won, as menu prices are.
+	if token := h.Profiles[req.Branch].Token; req.Operation == "hold" && !(token.wholePrice(req.Deposit) && token.wholePrice(req.Balance)) {
+		travelFailure(w, http.StatusBadRequest, "invalid_booking")
+		return
+	}
 
 	if h.Store == nil {
 		travelFailure(w, http.StatusServiceUnavailable, "booking_unavailable")
