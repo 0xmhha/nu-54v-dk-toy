@@ -32,8 +32,52 @@ def text_section(name, address=0x12340):
             f"                0x{address:016x}                {name}\n")
 
 
+TFM_API = "modules/trusted-firmware-m/libtfm_api.a(tfm_crypto_api.c.obj)"
+PSA_CORE = "modules/nrf/subsys/nrf_security/src/core/nrf_oberon/libpsa_core.a(psa_crypto.c.obj)"
+
+
+def key_call(name, origin=TFM_API, address=0x55c88):
+    """A function section as the application's map prints it: the section, its input file, its symbol."""
+    return (f" .text.{name}\n                0x{address:08x}       0x58 {origin}\n"
+            f"                0x{address:08x}                {name}\n")
+
+
 SIGNER_PLACED = link_map(text_section(fw.SECURE_SIGNER))
-APP_WITHOUT_DRIVER = link_map(text_section("psa_sign_hash"))
+KEY_CALLS_FROM_TFM = key_call("psa_sign_hash") + key_call("psa_generate_key", address=0x55e04)
+APP_WITHOUT_DRIVER = link_map(KEY_CALLS_FROM_TFM)
+
+
+def intel_hex(*runs):
+    """Intel HEX text of (address, bytes) runs, with the record types of a signed image: 04, 00, 01."""
+    def record(kind, offset, data):
+        body = bytes([len(data), offset >> 8, offset & 0xff, kind]) + data
+        return ":" + (body + bytes([-sum(body) & 0xff])).hex().upper()
+
+    lines, upper = [], None
+    for start, data in runs:
+        for at in range(start, start + len(data), 16):
+            if at >> 16 != upper:
+                upper = at >> 16
+                lines.append(record(4, 0, upper.to_bytes(2, "big")))
+            lines.append(record(0, at & 0xffff, data[at - start:at - start + 16]))
+    return "\n".join([*lines, record(1, 0, b"")]) + "\n"
+
+
+def words(*values):
+    return b"".join(value.to_bytes(4, "little") for value in values)
+
+
+# The first words of the images of a default spending build and of a --secure-key build.
+VECTORS = words(0x2001f600, 0x00029805, 0x0004b5ab, 0x000297f1)
+MCUBOOT_HEADER = words(0x96f3b83d, 0, 0x800, 0x54ab8, 0, 0x300, 0, 0)
+BOOT_IMAGE = intel_hex((0x0, words(0x20005208, 0x00005995, 0x0000689f, 0x00005981)))
+APP_IMAGE = intel_hex((0x10000, MCUBOOT_HEADER), (0x10800, VECTORS))
+SINGLE_IMAGE = intel_hex((0x0, VECTORS))
+# TF-M behind the same header: its entry veneers (SG, then a branch) and the non-secure half 128 KiB in.
+SECURE_HALF = [(0x10800, words(0x20000858, 0x000136b1, 0x00013751, 0x0001e6d9)),
+               (0x10c80, words(0xe97fe97f, 0xbb84f006, 0xe97fe97f, 0xbb92f006))]
+NONSECURE_HALF = (0x30000, words(0x2002ee00, 0x00048f9d, 0x00064eb1, 0x00048f89))
+TFM_IMAGE = intel_hex((0x10000, MCUBOOT_HEADER), *SECURE_HALF, NONSECURE_HALF)
 
 
 def west_arguments(*flags):
@@ -135,11 +179,50 @@ class SecureKeyEvidenceTest(unittest.TestCase):
 
     def test_driver_code_the_linker_discarded_is_not_in_the_application(self):
         gone = text_section("cracen_init", address=0)
-        self.write(app_map=link_map(text_section("psa_sign_hash"), discarded=gone, dropped=gone))
+        self.write(app_map=link_map(KEY_CALLS_FROM_TFM, discarded=gone, dropped=gone))
         self.assertEqual(0, self.evidence())
         self.write(app_map=link_map(" .rodata.cracen_table\n                0x0000000000013000       0x20 libdriver.a(t.o)\n"))
         with self.assertRaisesRegex(SystemExit, "non-secure application"):
             self.evidence()
+
+    def test_rejects_key_calls_that_are_not_the_tfm_api(self):
+        """Without the driver the application could still sign in its own PSA core, as the default build does."""
+        other_directory = "app/libtfm_api.a(tfm_crypto_api.c.obj)"
+        similar_name = "modules/nrf/modules/trusted-firmware-m/libtfm_api_nrf.a(tfm_ioctl_ns_api.c.obj)"
+        for name, placed in (
+                ("psa_sign_hash", key_call("psa_sign_hash", PSA_CORE) + key_call("psa_generate_key")),
+                ("psa_generate_key", key_call("psa_sign_hash") + key_call("psa_generate_key", PSA_CORE)),
+                ("psa_sign_hash", key_call("psa_sign_hash", other_directory) + key_call("psa_generate_key")),
+                ("psa_sign_hash", key_call("psa_sign_hash", similar_name) + key_call("psa_generate_key")),
+                ("psa_sign_hash", key_call("psa_sign_hash", "app/libapp.a(wallet.c.obj)") + key_call("psa_generate_key")),
+                # Beside the definition of the TF-M API there is a second one.
+                ("psa_generate_key", KEY_CALLS_FROM_TFM + key_call("psa_generate_key", PSA_CORE, address=0x40a50)),
+                # No input section before the symbol says where it comes from.
+                ("psa_sign_hash", "                0x00055c88                psa_sign_hash\n" + key_call("psa_generate_key")),
+                # An output section begins between the library's section and the symbol.
+                ("psa_sign_hash", key_call("psa_generate_key") + ".gnu.sgstubs\n                0x00055e50       0x40\n"
+                                  "                0x00055e50                psa_sign_hash\n")):
+            with self.subTest(placed=placed):
+                self.write(app_map=link_map(placed))
+                with self.assertRaisesRegex(SystemExit, f"{name} .*TF-M API"):
+                    self.evidence()
+
+    def test_key_calls_the_linker_did_not_place_are_not_in_the_application(self):
+        gone = key_call("psa_sign_hash", address=0)
+        for name, app_map in (
+                ("psa_sign_hash", link_map(key_call("psa_generate_key"), discarded=gone)),
+                ("psa_sign_hash", link_map(key_call("psa_generate_key"), dropped=gone)),
+                ("psa_sign_hash", link_map(key_call("psa_generate_key"), dropped=key_call("psa_sign_hash"))),
+                # Named only as the reason an archive member was pulled in.
+                ("psa_sign_hash", link_map(key_call("psa_generate_key")).replace("libcrypto.a(sign.o)", TFM_API)),
+                # Other functions whose names only begin the same way.
+                ("psa_sign_hash", link_map(key_call("psa_sign_hash_start") + key_call("psa_generate_key"))),
+                ("psa_generate_key", link_map(key_call("psa_sign_hash") + key_call("psa_generate_key_internal"))),
+                ("psa_generate_key", link_map(key_call("psa_sign_hash")))):
+            with self.subTest(app_map=app_map):
+                self.write(app_map=app_map)
+                with self.assertRaisesRegex(SystemExit, f"{name} .*TF-M API.*not in the image"):
+                    self.evidence()
 
     def test_a_file_without_a_memory_map_is_no_evidence(self):
         for missing in ("secure", "app"):
@@ -158,11 +241,24 @@ class SecureKeyEvidenceTest(unittest.TestCase):
                 patch.object(fw, "in_toolchain", side_effect=AssertionError("must not flash")):
             return fw.main(["flash"])
 
-    def images(self):
+    def images(self, boot=BOOT_IMAGE, signed=APP_IMAGE, boot_config=""):
         """Everything `flash` would write, so only the refusal keeps it from the board."""
         (self.root / "mcuboot/zephyr").mkdir(parents=True)
-        for path in ("mcuboot/zephyr/zephyr.hex", "mcuboot/zephyr/.config", "app/zephyr/zephyr.signed.hex"):
-            (self.root / path).write_text("")
+        for path, text in (("mcuboot/zephyr/zephyr.hex", boot), ("mcuboot/zephyr/.config", boot_config),
+                           ("app/zephyr/zephyr.signed.hex", signed)):
+            (self.root / path).write_text(text)
+
+    def installed_configuration(self):
+        """What a build of the installed profile generates beside its images: no trace of TF-M."""
+        self.write(config="CONFIG_NU54_SPENDING_PROFILE=y\n")
+        shutil.rmtree(self.root / "app/tfm")
+        for cache in ("CMakeCache.txt", "app/CMakeCache.txt"):
+            (self.root / cache).write_text("BOARD:STRING=nu54v_dk/nrf54l15/cpuapp\nCACHED_BOARD:STRING=nu54v_dk/nrf54l15/cpuapp\n")
+
+    def written(self):
+        with patch.object(fw, "BUILD_DIR", self.root), patch.object(fw, "in_toolchain", return_value=0) as toolchain:
+            self.assertEqual(0, fw.main(["flash"]))
+        return [str(Path(call.args[-1]).relative_to(self.root)) for call in toolchain.call_args_list]
 
     def test_flash_refuses_the_build(self):
         self.images()
@@ -211,6 +307,73 @@ class SecureKeyEvidenceTest(unittest.TestCase):
             self.assertEqual(0, fw.main(["flash"]))
         self.assertEqual([str(self.root / "mcuboot/zephyr/zephyr.hex"), str(self.root / "app/zephyr/zephyr.signed.hex")],
                          [call.args[-1] for call in toolchain.call_args_list])
+
+    def test_flash_refuses_a_trustzone_image_beside_the_installed_configuration(self):
+        """The configuration, the board target and the missing app/tfm all say default; the image does not."""
+        self.installed_configuration()
+        self.images(signed=TFM_IMAGE, boot_config="# CONFIG_BASE_BOARD_IS_NON_SECURE is not set\n")
+        with self.assertRaisesRegex(SystemExit, "zephyr.signed.hex.*not qualified.*secure gateway.*0x10c80"):
+            self.flash()
+        # The secure half alone is enough, wherever it lies in the slot.
+        (self.root / "app/zephyr/zephyr.signed.hex").write_text(
+            intel_hex((0x10000, MCUBOOT_HEADER), (0x10800, VECTORS), (0x40002, words(0xe97fe97f, 0xbb84f006))))
+        with self.assertRaisesRegex(SystemExit, "not qualified.*secure gateway.*0x40002"):
+            self.flash()
+
+    def test_flash_refuses_a_bootloader_built_for_the_trustzone_target(self):
+        self.installed_configuration()
+        self.images(boot_config="CONFIG_SINGLE_APPLICATION_SLOT=y\nCONFIG_BASE_BOARD_IS_NON_SECURE=y\n")
+        with self.assertRaisesRegex(SystemExit, "not qualified.*CONFIG_BASE_BOARD_IS_NON_SECURE=y"):
+            self.flash()
+
+    def test_flash_refuses_an_image_outside_the_installed_layout(self):
+        self.installed_configuration()
+        slot_end = 0xc2000
+        for images in ({"signed": intel_hex(NONSECURE_HALF)},
+                       {"signed": intel_hex((0x10000, MCUBOOT_HEADER), (slot_end - 2, bytes(4)))},
+                       {"boot": intel_hex((0x0, VECTORS), (0xf7fe, bytes(4)))},
+                       {"boot": APP_IMAGE}):
+            with self.subTest(images=images):
+                shutil.rmtree(self.root / "mcuboot", ignore_errors=True)
+                self.images(**images)
+                with self.assertRaisesRegex(SystemExit, "not qualified.*covers"):
+                    self.flash()
+        shutil.rmtree(self.root / "mcuboot")
+        self.images(boot=intel_hex((0x0, VECTORS), (0xf7fc, bytes(4))),
+                    signed=intel_hex((0x10000, MCUBOOT_HEADER), (slot_end - 4, bytes(4))))
+        self.assertEqual(["mcuboot/zephyr/zephyr.hex", "app/zephyr/zephyr.signed.hex"], self.written())
+
+    def test_flash_refuses_an_image_it_cannot_read(self):
+        self.installed_configuration()
+        records = APP_IMAGE.splitlines()
+        for signed in ("", "\n", "not an image\n", ":00000001FF\n",
+                       # Cut off before the end record, a wrong checksum, a record after the end.
+                       "\n".join(records[:-1]) + "\n",
+                       APP_IMAGE.replace(records[1], records[1][:-2] + "00"),
+                       APP_IMAGE + records[1] + "\n",
+                       APP_IMAGE.replace(records[1], records[1][1:]),
+                       APP_IMAGE.replace(records[1], ":0100000600F9")):
+            with self.subTest(signed=signed):
+                shutil.rmtree(self.root / "mcuboot", ignore_errors=True)
+                self.images(signed=signed)
+                with self.assertRaisesRegex(SystemExit, "zephyr.signed.hex.*Intel HEX"):
+                    self.flash()
+
+    def test_flash_without_mcuboot_judges_the_single_image(self):
+        self.installed_configuration()
+        single, merged = self.root / "app/zephyr/zephyr.hex", self.root / "merged.hex"
+        single.write_text(SINGLE_IMAGE)
+        self.assertEqual(["app/zephyr/zephyr.hex"], self.written())
+        # Bytes like the instruction on an odd address are data, not code.
+        single.write_text(intel_hex((0x0, VECTORS + b"\x00" + words(0xe97fe97f) + b"\x00")))
+        self.assertEqual(["app/zephyr/zephyr.hex"], self.written())
+        merged.write_text(intel_hex(*SECURE_HALF, NONSECURE_HALF))
+        with self.assertRaisesRegex(SystemExit, "merged.hex.*not qualified.*secure gateway"):
+            self.flash()
+        merged.unlink()
+        single.write_text(intel_hex(NONSECURE_HALF))
+        with self.assertRaisesRegex(SystemExit, "zephyr.hex.*not qualified.*covers 0x30000"):
+            self.flash()
 
 
 if __name__ == "__main__":
