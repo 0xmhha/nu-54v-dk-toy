@@ -63,7 +63,11 @@ USER_APP = Inputs(
 
 
 class Unlisted(Exception):
-    """The sources cannot be listed."""
+    """The sources cannot be listed or read."""
+
+
+def unread(name, error):
+    return f"{name} cannot be read ({error.strerror or error}), so the app cannot be compared with its sources"
 
 
 def input_files(root, inputs):
@@ -108,10 +112,13 @@ def fingerprint(root, inputs):
     found = {}
     for name in input_files(root, inputs):
         path = Path(root) / name
-        if path.is_symlink():
-            found[name] = link_digest(path)
-        elif path.is_file():
-            found[name] = file_digest(path)
+        try:
+            if path.is_symlink():
+                found[name] = link_digest(path)
+            elif path.is_file():
+                found[name] = file_digest(path)
+        except OSError as error:
+            raise Unlisted(unread(name, error)) from error
     return found
 
 
@@ -154,9 +161,14 @@ def build(apk, root, inputs, command, directory):
         raise SystemExit(f"the debug app did not build: {error}") from error
     if not apk.is_file():
         raise SystemExit(f"the build left no debug app at {apk}")
-    if fingerprint(root, inputs) != before:
-        raise SystemExit("the app's sources changed while it was building: build again")
-    write_record(apk, before)
+    try:
+        if fingerprint(root, inputs) != before:
+            raise SystemExit("the app's sources changed while it was building: build again")
+        write_record(apk, before)
+    except Unlisted as error:
+        raise SystemExit(str(error)) from error
+    except OSError as error:  # the APK cannot be read or the record cannot be written
+        raise SystemExit(f"the build cannot be recorded: {error}") from error
 
 
 def stale(apk, root, inputs, installed=None):
@@ -176,7 +188,11 @@ def stale(apk, root, inputs, installed=None):
         return f"nothing records which sources {apk} was built from ({record_path(apk).name} is missing), so it may be an old build"
     except (OSError, ValueError, KeyError, TypeError):
         return f"{record_path(apk)} cannot be read, so {apk.name} may be an old build"
-    if file_digest(apk) != built:
+    try:
+        local = file_digest(apk)
+    except OSError as error:
+        return unread(apk, error)
+    if local != built:
         return f"{apk} was built again without its record, so its sources are not known"
     try:
         now = fingerprint(root, inputs)

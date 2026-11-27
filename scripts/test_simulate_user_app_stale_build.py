@@ -247,6 +247,32 @@ class BuildRecord(Repository):
         self.write("packages/protocol/c/include/new.h", "")
         self.assertIn(link, self.stale())
 
+    def unreadable(self, name):
+        """Reading this file fails as it does without the right to read it; a changed mode would not stop a test run as root."""
+        digest = build_record.file_digest
+        def refuse(path):
+            if Path(path) == self.root / name:
+                raise PermissionError(13, "Permission denied", str(path))
+            return digest(path)
+        return mock.patch.object(build_record, "file_digest", refuse)
+
+    def test_a_file_that_cannot_be_read_is_a_reason_and_not_a_traceback(self):
+        self.build()
+        with self.unreadable(KOTLIN):
+            self.assertIn(KOTLIN, reason := self.stale())
+            self.assertIn("cannot be read", reason)
+            self.assertIn("Permission denied", reason)
+            with self.assertRaises(SystemExit) as stopped:
+                self.build()
+            self.assertIn(KOTLIN, str(stopped.exception))
+            self.assertIn("cannot be read", str(stopped.exception))
+        with self.unreadable(simulation.APK):
+            self.assertIn("app-debug.apk cannot be read", self.stale())
+            with self.assertRaises(SystemExit) as stopped:
+                self.build()
+            self.assertIn("the build cannot be recorded", str(stopped.exception))
+            self.assertIn("app-debug.apk", str(stopped.exception))
+
     def test_modification_times_play_no_part(self):
         self.build()
         os.utime(self.root / KOTLIN, (2_000_000_000, 2_000_000_000))  # newer than the APK
