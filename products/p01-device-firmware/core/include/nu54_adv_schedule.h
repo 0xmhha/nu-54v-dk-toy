@@ -60,7 +60,44 @@ int64_t nu54_adv_schedule_wait_ms(const nu54_adv_schedule *schedule, int64_t now
  * event_nc is the charge of one advertising event in nanocoulombs, idle_na the current between
  * events in nanoamperes. Every event is counted at the shortest interval of its phase, and the
  * random delay the controller adds to each event is left out, so the real charge is lower.
+ * A result too large for 64 bits is UINT64_MAX, never a wrapped small number.
  */
 uint64_t nu54_adv_plan_charge_nah(const nu54_adv_plan *plan, uint32_t seconds, uint32_t event_nc, uint32_t idle_na);
+
+/* ---- which set the board advertises ---- */
+
+typedef enum {
+	NU54_ADV_SET_NONE = 0,
+	NU54_ADV_SET_PAYMENT,    /* SW4 window */
+	NU54_ADV_SET_PAIRING,    /* SW3 window; carries the payment service too */
+	NU54_ADV_SET_OWNER_FAST, /* owner wait, by itself */
+	NU54_ADV_SET_OWNER_SLOW,
+} nu54_adv_set;
+
+typedef struct {
+	unsigned connected, capacity; /* centrals connected now, and how many the board takes */
+	bool pairing, payment;        /* the button windows */
+	nu54_adv_phase owner_wait;    /* the owner-wait schedule at this moment */
+} nu54_adv_state;
+
+/* Nothing without a free connection slot, since advertising is connectable. Pairing wins over
+ * payment, and a button window wins over the owner wait. The owner wait goes on while a slot is
+ * free, also beside a connected central: one central that stays must not hide the board. */
+nu54_adv_set nu54_adv_select(const nu54_adv_state *state);
+
+/* A failed start is tried again a few times, each wait twice the one before, and then left until
+ * the next event (a connection, a button, a phase change) asks again. `failures` counts the failed
+ * starts in a row, from 1. Returns the wait in milliseconds, or -1 to give up. */
+#define NU54_ADV_RETRY_LIMIT 5
+int32_t nu54_adv_retry_delay_ms(unsigned failures);
+
+/*
+ * A board without an owner takes a central only for the installation or the owner's TLS session.
+ * One that does neither is disconnected, so that centrals which merely stay connected cannot use
+ * up the connection slots. idle_since_ms is when the central connected or was last seen in such
+ * an exchange. Returns the milliseconds it may still stay, 0 to disconnect it now, or -1 when
+ * limit_seconds is 0 (no limit).
+ */
+int64_t nu54_owner_wait_idle_left_ms(int64_t idle_since_ms, int64_t now_ms, uint32_t limit_seconds);
 
 #endif /* NU54_ADV_SCHEDULE_H */
