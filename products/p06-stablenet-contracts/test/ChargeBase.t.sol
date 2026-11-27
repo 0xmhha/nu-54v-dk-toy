@@ -111,6 +111,29 @@ abstract contract ChargeBase is Test {
         });
     }
 
+    // ---- the keys the steps below sign and send with; a test that replaces keys overrides them ----
+
+    function relayKey() internal view virtual returns (uint256) {
+        return RELAY_KEY;
+    }
+
+    function quoterKey() internal view virtual returns (uint256) {
+        return QUOTER_KEY;
+    }
+
+    function witnessKey() internal view virtual returns (uint256) {
+        return WITNESS_KEY;
+    }
+
+    function pauserKey() internal view virtual returns (uint256) {
+        return PAUSER_KEY;
+    }
+
+    /// Signer 1, 2 or 3 by index 0, 1 or 2. The first two sign whatever needs two signers.
+    function signerKey(uint256 index) internal view virtual returns (uint256) {
+        return [SIGNER1_KEY, SIGNER2_KEY, SIGNER3_KEY][index];
+    }
+
     function depositConfig(address pool_) internal view returns (ChargeDeposit.Config memory) {
         return ChargeDeposit.Config({
             usdc: address(usdc),
@@ -216,7 +239,7 @@ abstract contract ChargeBase is Test {
     }
 
     function quoteSignature(ChargeTypes.Quote memory quote) internal returns (bytes memory) {
-        return sign(QUOTER_KEY, idOf(quote));
+        return sign(quoterKey(), idOf(quote));
     }
 
     /// The one signature the traveller's wallet gives: an EIP-3009 authorization whose nonce is the quote.
@@ -251,7 +274,7 @@ abstract contract ChargeBase is Test {
         returns (bytes[2] memory signatures)
     {
         bytes32 digest = target.actionDigest(keccak256(bytes(kind)), subject, round, until);
-        signatures = [sign(SIGNER1_KEY, digest), sign(SIGNER2_KEY, digest)];
+        signatures = [sign(signerKey(0), digest), sign(signerKey(1), digest)];
     }
 
     // ---- steps of a top-up ----
@@ -260,7 +283,7 @@ abstract contract ChargeBase is Test {
         bytes memory quoteSig = quoteSignature(quote);
         bytes memory auth = authorization(quote, PAYER_KEY);
         toSource();
-        vm.prank(vm.addr(RELAY_KEY));
+        vm.prank(vm.addr(relayKey()));
         id = deposit.depositWithAuthorization(quote, quoteSig, auth);
     }
 
@@ -273,7 +296,7 @@ abstract contract ChargeBase is Test {
             WonPool.Confirmation({fast: fast, sourceBlockHash: SOURCE_BLOCK, until: block.timestamp + 1 hours});
         toWon();
         args.witnessSignature = sign(
-            WITNESS_KEY,
+            witnessKey(),
             pool.confirmationDigest(pool.payoutId(args.origin, quote), SOURCE_BLOCK, fast, args.confirmation.until)
         );
         vm.chainId(chain);
@@ -281,7 +304,7 @@ abstract contract ChargeBase is Test {
 
     function payWith(PayArgs memory args) internal {
         toWon();
-        vm.prank(vm.addr(RELAY_KEY));
+        vm.prank(vm.addr(relayKey()));
         pool.pay(args.origin, args.quote, args.quoteSignature, args.confirmation, args.witnessSignature);
     }
 
@@ -296,13 +319,13 @@ abstract contract ChargeBase is Test {
 
     function paidSignature(bytes32 id, uint256 until) internal returns (bytes memory) {
         toSource();
-        return sign(WITNESS_KEY, deposit.paidDigest(id, WON_BLOCK, until));
+        return sign(witnessKey(), deposit.paidDigest(id, WON_BLOCK, until));
     }
 
     function completeIt(bytes32 id) internal {
         uint256 until = block.timestamp + 1 hours;
         bytes memory signature = paidSignature(id, until);
-        vm.prank(vm.addr(RELAY_KEY));
+        vm.prank(vm.addr(relayKey()));
         deposit.complete(id, WON_BLOCK, until, signature);
     }
 
@@ -396,7 +419,7 @@ abstract contract ChargeBase is Test {
     function proposeExitOn(ChargeGovernance target) internal {
         uint256 until = block.timestamp + 1 days;
         target.proposeEmergencyExit(
-            until, exitSignatures(target, "proposeEmergencyExit", SIGNER1_KEY, SIGNER2_KEY, until)
+            until, exitSignatures(target, "proposeEmergencyExit", signerKey(0), signerKey(1), until)
         );
     }
 
