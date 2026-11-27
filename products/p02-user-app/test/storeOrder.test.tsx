@@ -928,7 +928,7 @@ describe('taking an unpaid cart back', () => {
     expect(button('저장한 주문 다시 확인')).toBeDefined();
   });
 
-  test('an order whose hold ran out is left without asking the board or the store, once that is certain', async () => {
+  test('an order whose hold ran out is left without asking the board, once the phone has no session and its clock says so', async () => {
     await toOrder();
     mockSessions.clear(); // the checkout session ended
     mockBoardNear = false; // and no board is near to prove the account again
@@ -939,12 +939,41 @@ describe('taking an unpaid cart back', () => {
     expect(cancels()).toHaveLength(1);
     expect(screen()).not.toContain('결제 요청이 나갔을 수 있어'); // nothing was sent: the page does not say it might have been
     expect(button('저장한 주문 다시 확인')).toBeDefined();
-    // Two minutes past it the hold is over for certain: the order is left here, with no proof and no request.
+    // Two minutes past it the hold is over by this phone's clock, and the store no longer knew its session: the
+    // order is left here, with no proof and no request.
     await tick(120_000);
     await press('새로 주문하기');
     expect(cancels()).toHaveLength(1);
     expect(mockProofs).toHaveLength(proofs);
-    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 결제 시간이 지나 매장에서 이미 닫혔습니다.');
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 결제 시간이 지난 것으로 보입니다. 매장의 취소 확인은 받지 않았습니다.');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(screen()).toContain('선택 1');
+  });
+
+  // The hold's end is the store's time, and the phone compares it with its own clock. A phone whose clock is ahead
+  // would take a cart for over that the store still holds: the account's one unpaid cart, and its stock.
+  test('a phone whose clock is ahead still takes the cart back at the store while its session lives', async () => {
+    await toOrder();
+    expect(mockStock).toBe(2);
+    await tick(236_000); // past the hold's end and the two minutes the clocks may differ, by this phone's clock
+    await press('새로 주문하기');
+    expect(cancels()).toEqual([{path: '/v2/customer/checkout/cancel', body: {saleRef: mockSale}, session: '01'.repeat(32)}]);
+    expect(mockStock).toBe(3);
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.');
+    expect(mockProofs).toEqual([mockPayer]); // the session that made the cart asked; the board was not
+  });
+
+  test('without a session the phone goes by its clock, and does not say the store closed the order', async () => {
+    await toOrder();
+    mockSessions.clear(); // the store no longer knows the session
+    mockBoardNear = false;
+    const proofs = mockProofs.length;
+    await tick(236_000);
+    await press('새로 주문하기');
+    expect(cancels()).toHaveLength(1); // asked once with the session the phone still held; the store did not know it
+    expect(mockProofs).toHaveLength(proofs); // the board is not asked to prove the account for an order this old
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 결제 시간이 지난 것으로 보입니다. 매장의 취소 확인은 받지 않았습니다. 매장이 아직 닫지 않았다면 곧 닫고, 그때까지는 새 주문이 접수되지 않을 수 있습니다.');
+    expect(screen()).not.toContain('이미 닫혔습니다');
     expect(button('저장한 주문 다시 확인')).toBeUndefined();
     expect(screen()).toContain('선택 1');
   });

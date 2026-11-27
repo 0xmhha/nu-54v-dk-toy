@@ -221,8 +221,10 @@ const now = () => Math.floor(Date.now() / 1000);
 /** How long after the hold's end the phone takes the hold for over: its clock and the store's may differ by this much. */
 const holdMargin = 120;
 /**
- * Whether the store's hold of the order on this page is over for certain: the time the store named for it, and the
- * time of a quote this phone holds for it, both passed more than two minutes ago. Without a known time it is not.
+ * Whether the store's hold of the order on this page is over by this phone's clock: the time the store named for it,
+ * and the time of a quote this phone holds for it, both passed more than two minutes ago. Without a known time it is
+ * not. A clock that is further ahead than that says "over" too early, so the store is asked first whenever it can be
+ * (startNew), and this alone never lets the page say that the store closed the order.
  */
 export function holdOver(point: {order?: string; holdUntil?: number} | undefined, payment: {order: {id: string}; quote: {expiresAt: number}} | undefined, at: number): boolean {
   if (!point?.order || point.holdUntil === undefined) return false;
@@ -2461,10 +2463,18 @@ export function CustomerOrders({
     const sent = await orderRecords(Http).list().then(rows => rows.some(row => row.sale === sale && row.stage !== 'failed'), () => true);
     if (!mounted.current || revision !== loadRevision.current) return;
     if (sent) throw new Error('ORDER_PENDING');
-    // A hold that ran out a while ago is over at the store without a word from this phone: the store releases the
-    // stock itself, and nothing was sent that could still pay the order (checked above). So the order is left here,
-    // and the board is not asked to prove its account just to cancel what is already over.
-    const taken = !storeAccess ? undefined : holdOver(point, approved, now()) ? 'expired' as const : await storeAccess.cancelCart(sale);
+    // The store is asked whenever this phone can ask without the board: the hold's end is the store's time, and a
+    // phone whose clock is ahead would otherwise forget a cart the store still holds. Only without a session does
+    // the phone go by its own clock (holdOver): such a hold is over at the store without a word from this phone,
+    // nothing was sent that could still pay the order (checked above), and the board is not asked to prove its
+    // account just to cancel it. What the page then says is the phone's reading, not the store's answer.
+    const over = holdOver(point, approved, now());
+    const taken = !storeAccess ? undefined
+      : over && !storeAccess.live({purpose: 'checkout', branch: storeAccess.store.branch}) ? 'expired' as const
+      : await storeAccess.cancelCart(sale).catch((error: unknown) => {
+        if (over && error instanceof SessionNeeded) return 'expired' as const; // the store no longer knew the session
+        throw error;
+      });
     if (!mounted.current || revision !== loadRevision.current) return;
     // A payment arrived or is being checked: the order stays, and its result is looked at first.
     if (taken === 'paid') throw new Error('ORDER_PENDING');
@@ -2481,7 +2491,7 @@ export function CustomerOrders({
     setOrderFocus(true);
     setCart(again ? selection : {});
     setMessage(`${again ? '새로 주문할 수 있습니다.' : '주문을 그만두었습니다.'} ${taken === 'released' ? '이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.'
-      : taken === 'expired' ? '이전 주문은 결제 시간이 지나 매장에서 이미 닫혔습니다.'
+      : taken === 'expired' ? '이전 주문은 결제 시간이 지난 것으로 보입니다. 매장의 취소 확인은 받지 않았습니다. 매장이 아직 닫지 않았다면 곧 닫고, 그때까지는 새 주문이 접수되지 않을 수 있습니다.'
       : taken === 'quote-issued' ? '이전 주문은 결제 견적이 나와 있어 취소되지 않았습니다. 견적 시간이 끝나면 매장이 닫고, 그때까지는 새 주문이 접수되지 않을 수 있습니다.'
       : '이전 주문은 결제되지 않았고 매장이 닫습니다.'}`);
   }
