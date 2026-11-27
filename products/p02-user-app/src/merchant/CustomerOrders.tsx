@@ -78,6 +78,8 @@ import {
   type CommerceQuote,
   paysThroughEscrow,
   type CommercePaymentProfile,
+  isWon,
+  type PaymentToken,
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import {StoreNotice, storeStopped} from './StoreNotice.tsx';
@@ -158,6 +160,8 @@ type Checkpoint = {
   deadline?: number;
   selection?: CommerceSelection;
   order?: string;
+  /** When the store stops holding this order's stock unless it is paid (seconds), as the store last said. */
+  holdUntil?: number;
 };
 const orderStateLabel: Record<CommerceOrder['state'], string> = {
   preview: '주문 확인 대기', issued: '견적 발행', checking: '지급 확인 중',
@@ -214,17 +218,36 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = f
     default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
   }
 }
+/** The smallest amount of a token the basket shows, in base units: one won, or one cent of a dollar token. */
+const shownUnit = (token: Pick<PaymentToken, 'decimals' | 'symbol'>) => 10n ** BigInt(isWon(token) ? token.decimals : Math.max(0, token.decimals - 2));
 /**
- * What a basket lacks, in base units, for the screen: counted in the smallest unit a screen shows (a cent, or a
- * hundredth of a won) and never less than what is missing, so that adding it is enough. A balance is cut off, never
- * rounded up (N31); what is missing is the other side of the same cut.
+ * What a basket lacks, in base units, for the screen: counted in the smallest unit the basket shows (a whole won, or
+ * a cent) and never less than what is missing, so that adding it is enough. A balance is cut off, never rounded up
+ * (N31); what is missing is the other side of the same cut. Won are whole on a screen, so a part of a won that is
+ * missing reads as one won.
  */
-export function missingUnits(required: bigint, balance: bigint, decimals: number): string {
-  const unit = 10n ** BigInt(Math.max(0, decimals - 2));
+export function missingUnits(required: bigint, balance: bigint, token: Pick<PaymentToken, 'decimals' | 'symbol'>): string {
+  const unit = shownUnit(token);
   const missing = required > balance ? required - balance : 0n;
   return ((missing + unit - 1n) / unit * unit).toString();
 }
+/** A balance as the basket shows it, in base units: cut off at a whole won, or at a cent. Never rounded up. */
+export function shownBalance(balance: bigint, token: Pick<PaymentToken, 'decimals' | 'symbol'>): string {
+  const unit = shownUnit(token);
+  return (balance / unit * unit).toString();
+}
 const now = () => Math.floor(Date.now() / 1000);
+/** How long after the hold's end the phone takes the hold for over: its clock and the store's may differ by this much. */
+const holdMargin = 120;
+/**
+ * Whether the store's hold of the order on this page is over for certain: the time the store named for it, and the
+ * time of a quote this phone holds for it, both passed more than two minutes ago. Without a known time it is not.
+ */
+export function holdOver(point: {order?: string; holdUntil?: number} | undefined, payment: {order: {id: string}; quote: {expiresAt: number}} | undefined, at: number): boolean {
+  if (!point?.order || point.holdUntil === undefined) return false;
+  const quoted = payment?.order.id === point.order ? payment.quote.expiresAt : 0;
+  return Math.max(point.holdUntil, quoted) + holdMargin < at;
+}
 const identifier =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -282,6 +305,7 @@ function checkpoint(raw: string, client: CommerceClient) {
     (point.terminal !== undefined && (point.route !== 'nearby' || !identifier.test(point.terminal))) ||
     (point.deadline !== undefined && (point.route !== 'nearby' || !Number.isSafeInteger(point.deadline) || point.deadline < 1)) ||
     (point.order !== undefined && !identifier.test(point.order)) ||
+    (point.holdUntil !== undefined && (point.order === undefined || !Number.isSafeInteger(point.holdUntil) || point.holdUntil < 1)) ||
     !/^0x[0-9a-f]{40}$/.test(point.asset)
   )
     throw new Error('ORDER_CHECKPOINT');
@@ -1129,7 +1153,24 @@ export function CustomerOrders({
    * exists, so the request is dropped and the basket stays. Only the limit on carts is counted before the server looks
    * at the request, so a request that had been sent before is kept for that one and asked again later.
    */
+  /**
+   * The cart of this request is closed at the store without a payment: it was taken back (and the app closed before
+   * it wrote that down), or its hold ran out. The request is over; the basket is ordered again with a new one.
+   */
+  async function cartReleased(check: Checkpoint) {
+    await save();
+    const basket = check.selection ?? cart;
+    if (basket !== cart) setCart(basket);
+    setOrder(undefined);
+    setOrderFocus(true);
+    setMessage('이전 주문은 결제되지 않은 채 매장에서 취소되었거나 결제 시간이 지나 닫혔습니다. 잡아 둔 재고는 없습니다. 장바구니를 확인하고 다시 주문하세요.');
+  }
+
   async function holdRefused(check: Checkpoint, refusal: CommerceHoldRefusal, first: boolean) {
+    if (refusal.reason === 'cart_released') {
+      await cartReleased(check);
+      return;
+    }
     if (refusal.reason === 'hold_limit' && !first) {
       setMessage('짧은 시간에 주문 요청이 많아 접수 여부를 확인하지 못했습니다. 조금 뒤 저장한 주문을 다시 확인하세요.');
       return;
@@ -1145,6 +1186,8 @@ export function CustomerOrders({
       setMessage('보드 잔액이 모자라 주문을 접수하지 않았습니다. 모자란 금액을 확인하고 지갑에서 충전하세요.');
     } else setMessage(refusal.reason === 'balance_unavailable'
       ? '매장 서버가 보드 잔액을 확인하지 못해 주문을 접수하지 않았습니다. 잠시 뒤 다시 시도하세요.'
+      // The store has no way to be paid by a board yet. Trying again does not change that; its operator has to.
+      : refusal.reason === 'orders_closed' ? '이 매장은 지금 보드 결제 주문을 받을 수 없습니다. 다시 시도해도 접수되지 않습니다. 매장이나 운영자에게 문의하세요.'
       : '짧은 시간에 주문 요청이 많아 주문을 접수하지 않았습니다. 조금 뒤 다시 시도하세요.');
   }
 
@@ -1237,7 +1280,21 @@ export function CustomerOrders({
       await save({ ...check, order: sale });
     }
     const found = await client.status(sale);
-    if (stillCurrent()) setOrder(found);
+    if (!stillCurrent()) return;
+    // An order of a store page that the store closed, with no payment of it at the store and none ever sent from
+    // this phone, was released: the same as the answer to its request sent again.
+    if (storeAccess && found.id === sale && found.state === 'closed' && !found.payment && !found.escrow &&
+        (!approved || approved.order.id !== sale || neverSent(approved)) &&
+        !(await orderRecords(Http!).list().then(rows => rows.some(row => row.sale === sale && row.stage !== 'failed'), () => true))) {
+      if (stillCurrent()) await cartReleased(check);
+      return;
+    }
+    setOrder(found);
+    // When the hold ends is written down with the order, so the order can be left after that time with no word
+    // from the store (startNew).
+    const holdUntil = Math.floor(Date.parse(found.expiresAt) / 1000);
+    if (storeAccess && found.id === sale && ['preview', 'issued'].includes(found.state) && Number.isSafeInteger(holdUntil) && holdUntil > 0 &&
+        point?.holdUntil !== holdUntil) await save({ ...check, order: sale, holdUntil });
   }
 
   function resetShop() {
@@ -2420,10 +2477,13 @@ export function CustomerOrders({
     if (!sale || !Http || !canStartNew()) throw new Error('ORDER_PENDING');
     const revision = loadRevision.current;
     // The record is written before a signature leaves; one that cannot be read counts as sent.
-    const sent = (await orderRecords(Http).list()).some(row => row.sale === sale && row.stage !== 'failed');
+    const sent = await orderRecords(Http).list().then(rows => rows.some(row => row.sale === sale && row.stage !== 'failed'), () => true);
     if (!mounted.current || revision !== loadRevision.current) return;
     if (sent) throw new Error('ORDER_PENDING');
-    const taken = storeAccess ? await storeAccess.cancelCart(sale) : undefined;
+    // A hold that ran out a while ago is over at the store without a word from this phone: the store releases the
+    // stock itself, and nothing was sent that could still pay the order (checked above). So the order is left here,
+    // and the board is not asked to prove its account just to cancel what is already over.
+    const taken = !storeAccess ? undefined : holdOver(point, approved, now()) ? 'expired' as const : await storeAccess.cancelCart(sale);
     if (!mounted.current || revision !== loadRevision.current) return;
     // A payment arrived or is being checked: the order stays, and its result is looked at first.
     if (taken === 'paid') throw new Error('ORDER_PENDING');
@@ -2440,9 +2500,24 @@ export function CustomerOrders({
     setOrderFocus(true);
     setCart(again ? selection : {});
     setMessage(`${again ? '새로 주문할 수 있습니다.' : '주문을 그만두었습니다.'} ${taken === 'released' ? '이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.'
+      : taken === 'expired' ? '이전 주문은 결제 시간이 지나 매장에서 이미 닫혔습니다.'
       : taken === 'quote-issued' ? '이전 주문은 결제 견적이 나와 있어 취소되지 않았습니다. 견적 시간이 끝나면 매장이 닫고, 그때까지는 새 주문이 접수되지 않을 수 있습니다.'
       : '이전 주문은 결제되지 않았고 매장이 닫습니다.'}`);
   }
+
+  /**
+   * Leaves the order, and says what is true when it cannot be left. Only an order whose payment may have gone out
+   * is "pending"; a cancel that did not reach the store is said as that.
+   */
+  async function leaveOrder(again: boolean) {
+    try {
+      await startNew(again);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'ORDER_PENDING') throw error;
+      if (mounted.current) setMessage(`이 주문의 결제 요청이 나갔을 수 있어 ${again ? '새로 주문할' : '그만둘'} 수 없습니다. 결과를 먼저 확인하세요.`);
+    }
+  }
+  const leaveFailed = '매장에 주문 취소를 전하지 못했습니다. 주문은 그대로 있습니다. 연결을 확인하고 다시 시도하세요.';
 
   function orderPaymentView(): OrderPaymentView | undefined {
     if (orderOutcome) return orderOutcome;
@@ -2799,7 +2874,7 @@ export function CustomerOrders({
           check: () => work(reconcilePayment, '아직 결과를 받지 못했습니다. 다시 결제하지 말고 잠시 뒤 확인하세요.'),
           resend: () => work(() => submitLock(approved!), '아직 보내지 못했습니다. 키오스크에 다시 연결하고 시도하세요.'),
           close: () => work(closeOrder, '결제 기록을 정리하지 못했습니다.'),
-          startNew: () => work(() => startNew(), '이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.'),
+          startNew: () => work(() => leaveOrder(true), leaveFailed),
         }} />
     </ScrollView>;
   }
@@ -3383,9 +3458,9 @@ export function CustomerOrders({
             // The numbers are the server's when it refused this basket for its balance, and the phone's own reading otherwise.
             const held = (serverShort?.balance ?? boardBalance) as bigint, needed = serverShort?.required ?? BigInt(total.amount);
             return <>
-              <Text style={s.text}>{`보드 잔액 · ${commerceCartAmount(held.toString(), policy.asset, policy)}`}</Text>
+              <Text style={s.text}>{`보드 잔액 · ${commerceCartAmount(shownBalance(held, paymentToken(policy)), policy.asset, policy)}`}</Text>
               {cartShort && <>
-                <Text style={s.text}>{`모자란 금액 · ${commerceCartAmount(missingUnits(needed, held, paymentToken(policy).decimals), policy.asset, policy)}`}</Text>
+                <Text style={s.text}>{`모자란 금액 · ${commerceCartAmount(missingUnits(needed, held, paymentToken(policy)), policy.asset, policy)}`}</Text>
                 <Text accessibilityRole="alert" style={s.text}>보드 잔액이 합계보다 적어 주문할 수 없습니다. 지갑에서 충전한 뒤 다시 확인하세요.</Text>
                 {openBoard && <Button label="충전하러 가기" variant="secondary" run={openBoard} />}
                 <Button label="잔액 다시 확인" variant="secondary" disabled={busy}
@@ -3464,10 +3539,10 @@ export function CustomerOrders({
             />
           )}
           {!nearbySoldOut && canStartNew() && <Button label="새로 주문하기" disabled={busy}
-            run={() => work(() => startNew(), '이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.')} />}
+            run={() => work(() => leaveOrder(true), leaveFailed)} />}
           {/* An order made from a store page holds its stock, and its account's one unpaid cart, until it is taken back. */}
           {!nearbySoldOut && storeAccess && canStartNew() && <Button label="주문 그만두기" variant="secondary" disabled={busy}
-            run={() => work(() => startNew(false), '이 주문의 결제 요청이 나갔을 수 있어 그만둘 수 없습니다. 결과를 먼저 확인하세요.')} />}
+            run={() => work(() => leaveOrder(false), leaveFailed)} />}
           </>}
           {order && (
             <View style={s.line}>

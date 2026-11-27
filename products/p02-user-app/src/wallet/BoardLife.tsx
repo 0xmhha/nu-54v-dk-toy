@@ -11,7 +11,6 @@ import {accountOpenOrders, configuredEntrance} from '../merchant/customerEntranc
 import {orderPaymentPin} from '../merchant/orderPaymentTrust.ts';
 import {orderRecords} from '../merchant/orderRecords.ts';
 import {ordersWithoutRegistration, routeWords} from '../merchant/orderRoute.ts';
-import {ownerPickupBoard} from '../merchant/pickupBoard.ts';
 import {recentStores} from '../merchant/storeDirectory.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
@@ -376,7 +375,10 @@ async function askResetBlock(stored: WalletStorage): Promise<ResetBlock> {
   if (!Http || !verified) return {orders: 0, returning: false, unreadable: false, server: 'none'};
   // A build that orders without a registration has no store credential to ask with: it asks the customer entrance,
   // with the board's own account proof, how many orders of the account are unfinished.
-  const entrance = ordersWithoutRegistration() ? () => accountOpenOrders(configuredEntrance(), ownerPickupBoard, verified.address) : undefined;
+  // The board's Bluetooth is loaded only where it is asked: a build of the earlier route never asks here.
+  const entrance = ordersWithoutRegistration()
+    ? () => accountOpenOrders(configuredEntrance(), (require('../merchant/pickupBoard.ts') as typeof import('../merchant/pickupBoard.ts')).ownerPickupBoard, verified.address)
+    : undefined;
   return readResetBlock(Http, orderRecords(Http), {payer: verified.address, generation: String(verified.generation)}, () =>
     credential().then(({client}) => client, error => {
       if (error instanceof Error && error.message === 'NO_CREDENTIAL') return undefined;

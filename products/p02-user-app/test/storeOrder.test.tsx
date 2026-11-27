@@ -6,7 +6,7 @@ import {
   accountProofDigest as mockProofDigest, bindServiceRequestV2 as mockBind, bytesToBig, bytesToHex as mockHex, hexToBytes as mockBytes, quoteV2Layout as q,
   recoverSigner as mockRecover, signDigest as mockSign, toBase64 as mockBase64, utf8Encode, type CommerceOrder, type ServiceRequestV2,
 } from '@nu54/protocol';
-import {CustomerOrders, missingUnits} from '../src/merchant/CustomerOrders';
+import {CustomerOrders, holdOver, missingUnits, shownBalance} from '../src/merchant/CustomerOrders';
 import {forgetEntranceWaits} from '../src/merchant/customerEntrance';
 import {customerSubject} from '../src/merchant/storeAccess';
 import {readProfiles} from '../src/wallet/readProfiles';
@@ -49,6 +49,9 @@ let mockHeld = false;
 // What the server answers to the next carts instead of holding them, and to a cart that is taken back.
 let mockHold: {status: number; retryAfter?: number; more: Record<string, unknown>} | undefined;
 let mockCancel: 'closed' | 'quote_issued' | 'paid' | 'gone' = 'closed';
+let mockClosedUnpaid = false;
+const mockCreateKeys: string[] = [];
+const mockKeys = () => mockCreateKeys;
 const mockCancels: {sale: string; session: string}[] = [];
 const mockMenuRow = (available: number) => ({sku: 'latte', optionKey: 'iced', label: '라떼', asset: mockIssued.asset, version: 1, unitPrice: mockMenuPrice,
   available, skuAvailable: available, expiresAt: new Date((mockNow + 3600) * 1000).toISOString()});
@@ -56,6 +59,7 @@ const mockLocks: (ServiceRequestV2 & {approvalSignature?: string})[] = [];
 const mockAnswers: ServiceRequestV2[] = [];
 
 function mockOrderNow(): CommerceOrder {
+  if (mockClosedUnpaid) return {...mockIssued, state: 'closed', revision: 1, quoteDigest: undefined, orderKey: undefined};
   if (mockStage === 'preview') return {...mockIssued, state: 'preview', revision: 0, quoteDigest: undefined, orderKey: undefined};
   if (mockStage === 'issued') return {...mockIssued, quoteDigest: mockQuoteFor(mockOrigin, mockQuoteChange).quoteDigest};
   return {...mockIssued, quoteDigest: undefined, orderKey: undefined, receiptRef: mockTerminal, state: 'paid', pickupNo: 17,
@@ -129,6 +133,7 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     // A session's menu is the public one with the counts of what is left.
     if (command.operation === 'catalog.read') return command.objectRef !== mockBranch ? answer(404, null) : answer(200, {...ok, shop: {branch: mockBranch, branchLabel: '그린 카페'},
       orderState: {mode: 'open'}, catalogVersion: 1, catalog: [mockMenuRow(mockStock)]});
+    if (command.operation === 'order.create') mockCreateKeys.push(command.idempotencyKey ?? "");
     if (command.operation === 'order.create' && mockHold)
       return answer(mockHold.status, {requestId, requestDigest, status: 'error', ...mockHold.more}, mockHold.retryAfter);
     if (command.operation === 'order.create') { mockStage = 'preview'; mockStock--; mockOrigin = command.objectRef; return answer(200, {...ok, resultRef: mockSale}); }
@@ -216,7 +221,7 @@ beforeEach(() => {
   mockSent.length = 0; mockJournals.clear(); mockProfileReads.length = 0; mockSessions.clear(); mockLocks.length = 0; mockAnswers.length = 0; mockProofs.length = 0;
   mockJournalDown = false;
   mockStage = 'none'; mockConfirmer = ''; mockOrigin = ''; mockStock = 3; mockMenuPrice = mockIssued.amount; mockSessionSeed = 1; mockEntranceDown = false; mockQuoteChange = undefined; mockHeld = false;
-  mockHold = undefined; mockCancel = 'closed'; mockCancels.length = 0;
+  mockHold = undefined; mockCancel = 'closed'; mockCancels.length = 0; mockClosedUnpaid = false; mockCreateKeys.length = 0;
   forgetEntranceWaits();
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset};
   Object.assign(mockChain, {merchant: {signer: mockPolicy.signer, beneficiary: mockPolicy.beneficiary, keyVersion: mockPolicy.keyVersion,
@@ -705,6 +710,60 @@ describe('a cart the store\'s server does not hold', () => {
     expect(mockProofs).toEqual([mockPayer]);
   });
 
+  test('a store that cannot be paid by a board says so, and does not say to try again shortly', async () => {
+    mockHold = {status: 409, more: {error: 'CHECKOUT_CONFLICT', reason: 'orders_closed'}};
+    await toOrder();
+    expect(screen()).toContain('이 매장은 지금 보드 결제 주문을 받을 수 없습니다. 다시 시도해도 접수되지 않습니다. 매장이나 운영자에게 문의하세요.');
+    expect(screen()).not.toContain('잠시 뒤 다시 시도');
+    expect(screen()).not.toContain('모자란 금액');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined(); // no request is kept: nothing is held and no order exists
+    expect(screen()).toContain('선택 1'); // the basket stays
+    expect(mockStock).toBe(3);
+    expect(mockProofs).toEqual([mockPayer]);
+  });
+
+  test('a cart the store released answers the request that made it, and the basket is ordered again with a new one', async () => {
+    // The app closed after it asked for the cart and before it wrote the order down; meanwhile the cart was taken
+    // back or its hold ran out. The same request sent again is told so, not handed the closed order.
+    await toOrder();
+    const first = mockSent.filter(item => item.operation === 'order.create').length;
+    const name = [...mockJournals.keys()].find(key => key.startsWith('customer-order-') && mockJournals.get(key)!.includes('"cart"'))!;
+    const kept = JSON.parse(mockJournals.get(name)!);
+    delete kept.order; delete kept.holdUntil;
+    mockJournals.set(name, JSON.stringify(kept));
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockHold = {status: 409, more: {error: 'CHECKOUT_CONFLICT', reason: 'cart_released'}};
+    await open();
+    await press('저장한 주문 다시 확인');
+    expect(mockSent.filter(item => item.operation === 'order.create').length).toBe(first + 1);
+    expect(screen()).toContain('이전 주문은 결제되지 않은 채 매장에서 취소되었거나 결제 시간이 지나 닫혔습니다. 잡아 둔 재고는 없습니다. 장바구니를 확인하고 다시 주문하세요.');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(screen()).toContain('합계 · 4.50 TestUSDC'); // the basket is back
+    expect(mockJournals.get(name)).toBe('null');
+    // The next request is a new one, with a key of its own: the server holds a new cart for it. (The random bytes
+    // of this test's phone are fixed, so they are changed here to tell a new key from the kept one.)
+    mockHold = undefined;
+    const {default: http} = jest.requireMock('../src/specs/NativeCommerceHttp.ts') as {default: {randomBytes: (length: number) => Promise<string>}};
+    jest.spyOn(http, 'randomBytes').mockImplementation(async length => mockBase64(new Uint8Array(length).fill(9)));
+    await press('주문 접수 요청');
+    const keys = mockKeys();
+    expect(keys.length).toBeGreaterThanOrEqual(2);
+    expect(keys[keys.length - 1]).not.toBe(keys[keys.length - 2]);
+  });
+
+  test('an order the store closed unpaid, found again after the app was closed, is not shown as an order to pay', async () => {
+    await toOrder();
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockClosedUnpaid = true; // taken back at the store; the app closed before it wrote that down
+    await open();
+    await press('저장한 주문 다시 확인');
+    expect(screen()).toContain('이전 주문은 결제되지 않은 채 매장에서 취소되었거나 결제 시간이 지나 닫혔습니다.');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(button('이 주문의 결제 내용 검토')).toBeUndefined();
+    expect(screen()).toContain('합계 · 4.50 TestUSDC'); // the basket is back
+    expect(button('주문 접수 요청')!.props.disabled).toBe(false);
+  });
+
   test('another unpaid cart of the same account is said as that', async () => {
     mockHold = {status: 409, more: {error: 'CHECKOUT_CONFLICT'}};
     await toOrder();
@@ -732,20 +791,42 @@ test('what is missing is counted in the unit the screen shows and is never less 
   const dollar = {name: 'NU54 Test USD', symbol: 'tUSDC', label: 'TestUSDC', decimals: 6};
   const won = {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2};
   const coin = {name: 'WKRC', symbol: 'WKRC', label: 'KRWC', decimals: 18, boardDecimals: 8};
-  const shown = (required: bigint, balance: bigint, token: typeof dollar) => tokenAmount(missingUnits(required, balance, token.decimals), token);
+  const shown = (required: bigint, balance: bigint, token: typeof dollar) => tokenAmount(missingUnits(required, balance, token), token);
   // Dollars: a balance is cut to the cent, so one base unit short reads as one cent short, and topping that up is enough.
   expect(shown(4_500_000n, 4_499_999n, dollar)).toBe('0.01 TestUSDC');
   expect(shown(4_500_000n, 4_490_000n, dollar)).toBe('0.01 TestUSDC');
   expect(shown(4_500_000n, 4_489_999n, dollar)).toBe('0.02 TestUSDC');
   expect(shown(9_000_000n, 0n, dollar)).toBe('9.00 TestUSDC');
-  // Won: whole won as they are; a token of 2 decimals has nothing to round.
+  // Won are whole on a screen: a part of a won that is missing reads as one won, never as "0.01원" and never as none.
   expect(shown(300_000n, 299_900n, won)).toBe('1원');
   expect(shown(1_250_000n, 0n, won)).toBe('12,500원');
-  expect(shown(300_000n, 299_999n, won)).toBe('0.01원');
-  // A token of 18 decimals is counted in the hundredth the screen shows.
-  expect(shown(3_000n * 10n ** 18n, 3_000n * 10n ** 18n - 1n, coin)).toBe('0.01원');
+  expect(shown(300_000n, 299_999n, won)).toBe('1원');
+  expect(shown(300_000n, 299_850n, won)).toBe('2원');
+  // A token of 18 decimals is counted in whole won too.
+  expect(shown(3_000n * 10n ** 18n, 3_000n * 10n ** 18n - 1n, coin)).toBe('1원');
   expect(shown(3_000n * 10n ** 18n, 2_000n * 10n ** 18n, coin)).toBe('1,000원');
-  expect(missingUnits(1n, 2n, 6)).toBe('0'); // nothing is missing
+  expect(missingUnits(1n, 2n, dollar)).toBe('0'); // nothing is missing
+  // The balance beside it is cut off at the same unit, so the two rows and the total agree: 2,999 won held and 1 won
+  // missing of 3,000, not 2,999.99 and 0.01.
+  const held = (balance: bigint, token: typeof dollar) => tokenAmount(shownBalance(balance, token), token);
+  expect(held(299_999n, won)).toBe('2,999원');
+  expect(held(300_000n, won)).toBe('3,000원');
+  expect(held(99n, won)).toBe('0원');
+  expect(held(3_000n * 10n ** 18n - 1n, coin)).toBe('2,999원');
+  expect(held(4_499_999n, dollar)).toBe('4.49 TestUSDC');
+});
+
+test('a hold is over only when its time is known and passed for certain', () => {
+  const sale = '0fbc54ef-2827-4ab5-bfcd-3a27611c3001';
+  expect(holdOver(undefined, undefined, 9_999)).toBe(false);
+  expect(holdOver({order: sale}, undefined, 9_999)).toBe(false); // the store never named a time
+  expect(holdOver({holdUntil: 1_000}, undefined, 9_999)).toBe(false); // no order yet
+  expect(holdOver({order: sale, holdUntil: 1_000}, undefined, 1_120)).toBe(false); // the clocks may differ by two minutes
+  expect(holdOver({order: sale, holdUntil: 1_000}, undefined, 1_121)).toBe(true);
+  // A quote this phone holds for the order keeps the order open until that quote ends too.
+  expect(holdOver({order: sale, holdUntil: 1_000}, {order: {id: sale}, quote: {expiresAt: 1_300}}, 1_400)).toBe(false);
+  expect(holdOver({order: sale, holdUntil: 1_000}, {order: {id: sale}, quote: {expiresAt: 1_300}}, 1_421)).toBe(true);
+  expect(holdOver({order: sale, holdUntil: 1_000}, {order: {id: 'another'}, quote: {expiresAt: 9_000}}, 1_121)).toBe(true);
 });
 
 describe('too many requests', () => {
@@ -844,6 +925,39 @@ describe('taking an unpaid cart back', () => {
     expect(mockStock).toBe(2);
     await press('주문 그만두기');
     expect(screen()).toContain('이 주문의 결제 요청이 나갔을 수 있어 그만둘 수 없습니다. 결과를 먼저 확인하세요.');
+    expect(button('저장한 주문 다시 확인')).toBeDefined();
+  });
+
+  test('an order whose hold ran out is left without asking the board or the store, once that is certain', async () => {
+    await toOrder();
+    mockSessions.clear(); // the checkout session ended
+    mockBoardNear = false; // and no board is near to prove the account again
+    const proofs = mockProofs.length;
+    // Right after the time the store named, the phone's clock may still be ahead of the store's: the cancel is asked.
+    await tick(115_000);
+    await press('새로 주문하기');
+    expect(cancels()).toHaveLength(1);
+    expect(screen()).not.toContain('결제 요청이 나갔을 수 있어'); // nothing was sent: the page does not say it might have been
+    expect(button('저장한 주문 다시 확인')).toBeDefined();
+    // Two minutes past it the hold is over for certain: the order is left here, with no proof and no request.
+    await tick(120_000);
+    await press('새로 주문하기');
+    expect(cancels()).toHaveLength(1);
+    expect(mockProofs).toHaveLength(proofs);
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 결제 시간이 지나 매장에서 이미 닫혔습니다.');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(screen()).toContain('선택 1');
+  });
+
+  test('a cancel that did not reach the store is said as that, not as a payment that may have gone out', async () => {
+    await toOrder();
+    const {default: http} = jest.requireMock('../src/specs/NativeCommerceHttp.ts') as {default: {customerRequest: (...args: string[]) => Promise<string>}};
+    const real = http.customerRequest;
+    jest.spyOn(http, 'customerRequest').mockImplementation(async (anchor, path, session, body) => path === '/v2/customer/checkout/cancel'
+      ? JSON.stringify({status: 500, body: 'oops'}) : real(anchor, path, session, body));
+    await press('주문 그만두기');
+    expect(screen()).toContain('매장에 주문 취소를 전하지 못했습니다. 주문은 그대로 있습니다. 연결을 확인하고 다시 시도하세요.');
+    expect(screen()).not.toContain('결제 요청이 나갔을 수 있어');
     expect(button('저장한 주문 다시 확인')).toBeDefined();
   });
 
