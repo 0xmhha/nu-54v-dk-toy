@@ -547,6 +547,25 @@ contract ChargeDepositTest is ChargeBase {
         deposit.contest(second, until, byPayer);
     }
 
+    function testAContestSignatureEndsAndCannotBeLong() public {
+        bytes32 id = depositIt(quoteFor(100e6, board));
+        completeIt(id);
+        uint256 tooLong = block.timestamp + 7 days + 1;
+        bytes memory long = sign(PAYER_KEY, deposit.contestDigest(id, tooLong));
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        deposit.contest(id, tooLong, long);
+        uint256 until = block.timestamp + 1 days;
+        bytes memory signature = sign(PAYER_KEY, deposit.contestDigest(id, until));
+        vm.warp(until); // one day after the completion: the contest itself is still open
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        deposit.contest(id, until, signature);
+        assertEq(uint8(state(id)), uint8(ChargeDeposit.State.Completed));
+        // The payer's own transaction needs no signature and no end.
+        vm.prank(payer);
+        deposit.contest(id, 0, "");
+        assertEq(uint8(state(id)), uint8(ChargeDeposit.State.Contested));
+    }
+
     function testContestClosesSevenDaysAfterCompletion() public {
         bytes32 id = depositIt(quoteFor(100e6, board));
         vm.prank(payer);
