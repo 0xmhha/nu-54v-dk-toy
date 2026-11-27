@@ -70,4 +70,34 @@ int nu54_install_accept(const uint8_t *bundle, size_t length, const uint8_t chal
 int nu54_install_quote(const nu54_install_policy *, const uint8_t *payload, size_t length,
 		       uint64_t now, nu54_v2_quote_policy *order);
 
+/* ---- a grant kept through a restart ---- */
+
+/* Checks a grant read back from storage. It must carry the authority's signature and be exactly
+ * the grant the floor was committed for: an older grant, or one whose commit did not complete,
+ * is not it. No challenge is asked for; the floor takes its place. */
+int nu54_install_restore(const uint8_t *bundle, size_t length, const uint8_t identity[65],
+			 const uint8_t payer[20], const nu54_install_floor *committed, nu54_install_hash,
+			 nu54_install_verify, nu54_install_policy *, size_t *ca_length, size_t *board_length);
+
+/* Whether a stored grant still belongs to the board's owner state. With an owner it must name the
+ * owner's generation. Without one (new, released by a reset, or revoked) it must name the next
+ * generation, the one the owner it admits will get. A reset raises the generation, so a grant
+ * from before a reset matches neither. */
+bool nu54_install_generation_current(uint64_t grant_generation, uint64_t board_generation, bool no_owner);
+
+/* The time the board keeps in storage: its trusted lower bound and how far the latest possible
+ * time was above it. */
+typedef struct {
+	uint64_t earliest, offset;
+} nu54_install_clock;
+
+/* The lower bound a restarted board continues from: the latest of what it saved and of its other
+ * floors. Time without power is not in it, so the board's clock is late by that much and never
+ * early. `saved` is NULL when nothing was saved. */
+uint64_t nu54_install_resume(const nu54_install_clock *saved, uint64_t floor_time, uint64_t replay_floor);
+
+/* Milliseconds until the time is saved next: every interval_seconds, and at the grant's end, so
+ * that a restart after the end finds the end in storage. `latest` is the latest possible time. */
+int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t interval_seconds);
+
 #endif

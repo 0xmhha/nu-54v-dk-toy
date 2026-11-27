@@ -21,6 +21,15 @@
 #define INSTALL_STORAGE_MARKER ((psa_storage_uid_t)0x5455)
 #define INSTALL_KEYS_WITNESS ((psa_storage_uid_t)0x5456)
 #define INSTALL_POLICY_WITNESS ((psa_storage_uid_t)0x5457)
+/* The grant itself, kept through a restart (spending profile): its length, the time the board
+ * saves, and the grant in parts of the size one storage item takes in every profile. */
+#define INSTALL_GRANT ((psa_storage_uid_t)0x5458)
+#define INSTALL_CLOCK ((psa_storage_uid_t)0x5459)
+#define INSTALL_GRANT_PART ((psa_storage_uid_t)0x5460)
+#define GRANT_PART_SIZE 128
+#define GRANT_PARTS ((NU54_INSTALL_BUNDLE_MAX + GRANT_PART_SIZE - 1) / GRANT_PART_SIZE)
+#define CLOCK_SAVE_SECONDS 600
+_Static_assert(INSTALL_GRANT_PART + GRANT_PARTS <= 0x5470, "the grant parts run into the next record");
 #define ID_ALG PSA_ALG_ECDSA(PSA_ALG_SHA_256)
 #define PAY_ALG PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256)
 #define PUBLIC_TYPE PSA_KEY_TYPE_ECC_PUBLIC_KEY(PSA_ECC_FAMILY_SECP_R1)
@@ -43,6 +52,11 @@ static nu54_install_floor floor;
 static int64_t challenge_birth, installed;
 static uint64_t max_offset, replay_floor;
 static bool offered, active;
+/* The trusted lower bound of the time at `installed`: the grant's own time, or after a restart
+ * the time the board had saved. */
+static uint64_t clock_base;
+static nu54_install_clock clock_saved; /* what storage holds; zero when nothing */
+static bool clock_sealed;              /* the end of the grant is in storage: nothing more to save */
 
 static int hash(const uint8_t *data, size_t length, uint8_t output[32])
 {
@@ -177,6 +191,71 @@ static int key_found(psa_key_id_t id, unsigned flag, unsigned *found)
 
 static bool policy_witnessed;
 
+static bool removed(psa_status_t status)
+{
+	return status == PSA_SUCCESS || status == PSA_ERROR_DOES_NOT_EXIST;
+}
+
+/* The saved time is a floor like the others: a record that cannot be read is not absence. */
+static int clock_load(void)
+{
+	unsigned found = 0;
+	clock_saved = (nu54_install_clock){0};
+	clock_sealed = false;
+	return storage_found(INSTALL_CLOCK, &clock_saved, sizeof(clock_saved), 1, &found);
+}
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static int clock_store(const nu54_install_clock *now)
+{
+	if (psa_its_set(INSTALL_CLOCK, sizeof(*now), now, PSA_STORAGE_FLAG_NONE) != PSA_SUCCESS) return -1;
+	clock_saved = *now;
+	return 0;
+}
+
+/* The length first, then the parts. The floor is written after them and is what commits the
+ * grant: until then the parts are a grant the board does not know. */
+static int grant_store(const uint8_t *bundle, size_t length)
+{
+	const uint32_t size = (uint32_t)length;
+	if (psa_its_set(INSTALL_GRANT, sizeof(size), &size, PSA_STORAGE_FLAG_NONE) != PSA_SUCCESS) return -1;
+	for (size_t part = 0, done = 0; done < length; ++part, done += GRANT_PART_SIZE) {
+		if (psa_its_set(INSTALL_GRANT_PART + part, MIN(GRANT_PART_SIZE, length - done), bundle + done,
+				PSA_STORAGE_FLAG_NONE) != PSA_SUCCESS) return -1;
+	}
+	return 0;
+}
+
+/* 0 read, 1 nothing usable. A grant that cannot be read back gives nothing, so it counts as none. */
+static int grant_read(uint8_t *bundle, size_t capacity, size_t *length)
+{
+	uint32_t size = 0;
+	size_t used;
+	if (psa_its_get(INSTALL_GRANT, 0, sizeof(size), &size, &used) != PSA_SUCCESS || used != sizeof(size) ||
+	    !size || size > capacity || size > NU54_INSTALL_BUNDLE_MAX) return 1;
+	for (size_t part = 0, done = 0; done < size; ++part, done += GRANT_PART_SIZE) {
+		const size_t wanted = MIN(GRANT_PART_SIZE, size - done);
+		if (psa_its_get(INSTALL_GRANT_PART + part, 0, wanted, bundle + done, &used) != PSA_SUCCESS ||
+		    used != wanted) return 1;
+	}
+	*length = size;
+	return 0;
+}
+#endif
+
+int device_install_forget(void)
+{
+	active = false;
+	offered = false;
+	clock_sealed = false;
+	/* The length goes first: without it the parts are no grant, wherever the power goes. */
+	bool done = removed(psa_its_remove(INSTALL_GRANT));
+	for (size_t part = 0; part < GRANT_PARTS; ++part) done &= removed(psa_its_remove(INSTALL_GRANT_PART + part));
+	done &= removed(psa_its_remove(INSTALL_CLOCK));
+	if (done) clock_saved = (nu54_install_clock){0};
+	return done ? 0 : -1;
+}
+
 int device_install_init(void)
 {
 	uint8_t key[65], paying_public[65];
@@ -190,6 +269,7 @@ int device_install_init(void)
 	    storage_found(INSTALL_REPLAY_FLOOR, &replay_floor, sizeof(replay_floor), NU54_INSTALL_FOUND_REPLAY, &found) ||
 	    key_found(INSTALL_ID, NU54_INSTALL_FOUND_ID, &found) ||
 	    key_found(INSTALL_PAYER, NU54_INSTALL_FOUND_PAYER, &found) ||
+	    clock_load() ||
 	    ((found & NU54_INSTALL_FOUND_FLOOR) && (!floor.revision || !floor.time || !floor.generation || floor.recovery[0] != 4)))
 		return -1;
 	enum nu54_install_boot_action action = nu54_install_boot(found);
@@ -257,7 +337,7 @@ bool device_install_distinct_station(const mbedtls_x509_crt *station)
 uint64_t device_install_earliest(void)
 {
 	if (!active) return 0;
-	return floor.time + (uint64_t)(k_uptime_get() - installed) / 1000u;
+	return clock_base + (uint64_t)(k_uptime_get() - installed) / 1000u;
 }
 
 int device_install_fence_wallet_expiry(uint64_t expiry)
@@ -284,22 +364,12 @@ uint64_t device_install_wallet_replay_floor(void)
 }
 
 
-int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *ca,
-			mbedtls_x509_crt *board, mbedtls_pk_context *key, device_tls_v2_profile profiles[2])
+/* The certificates and keys of a grant whose signature and fields are already accepted: the TLS
+ * configuration of both services. `latest` is the latest possible time now. */
+static int adopt(const uint8_t *bundle, size_t ca_length, size_t board_length, const nu54_install_policy *decoded,
+		 uint64_t latest, mbedtls_x509_crt *ca, mbedtls_x509_crt *board, mbedtls_pk_context *key,
+		 device_tls_v2_profile profiles[2])
 {
-	const int64_t age = k_uptime_get() - challenge_birth;
-	nu54_install_floor next;
-	nu54_install_policy decoded;
-	size_t ca_length, board_length;
-	if (!offered || age < 0 || age >= OFFER_TTL_MS ||
-	    nu54_install_accept(bundle, length, challenge, identity, payer, MAX(device_install_earliest(), replay_floor),
-				&floor, hash, device_install_verify_authority, &next, &decoded, &ca_length, &board_length))
-		return -1;
-	uint64_t offset = ((uint64_t)age + 999u) / 1000u;
-	uint64_t previous_upper = device_install_now();
-	if (previous_upper > next.time && previous_upper - next.time > offset)
-		offset = previous_upper - next.time;
-	if (decoded.not_after - next.time <= offset) return -1;
 	const uint8_t *certs = bundle + NU54_INSTALL_HEADER_SIZE;
 	int32_t tls_result = mbedtls_x509_crt_parse_der(ca, certs, ca_length);
 	if (!tls_result) tls_result = mbedtls_x509_crt_parse_der(board, certs + ca_length, board_length);
@@ -308,10 +378,10 @@ int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *
 	if (tls_result || hex2bin(pin, sizeof(pin) - 1, authority_point, sizeof(authority_point)) != sizeof(authority_point) ||
 	    (ca->pk_raw.len == sizeof(p256_spki_header) + sizeof(authority_point) &&
 	     !memcmp(ca->pk_raw.p, p256_spki_header, sizeof(p256_spki_header)) &&
-	     !memcmp(ca->pk_raw.p + sizeof(p256_spki_header), authority_point, sizeof(authority_point))) || !device_tls_v2_certificate_current(ca, next.time + offset) ||
-	    !device_tls_v2_certificate_current(board, next.time + offset) ||
-	    !device_tls_v2_certificate_current(ca, decoded.not_after - 1) ||
-	    !device_tls_v2_certificate_current(board, decoded.not_after - 1) ||
+	     !memcmp(ca->pk_raw.p + sizeof(p256_spki_header), authority_point, sizeof(authority_point))) || !device_tls_v2_certificate_current(ca, latest) ||
+	    !device_tls_v2_certificate_current(board, latest) ||
+	    !device_tls_v2_certificate_current(ca, decoded->not_after - 1) ||
+	    !device_tls_v2_certificate_current(board, decoded->not_after - 1) ||
 	    mbedtls_x509_crt_verify(board, ca, NULL, NULL, &verification_flags, NULL, NULL) ||
 	    board->pk_raw.len != sizeof(p256_spki_header) + sizeof(identity) ||
 	    memcmp(board->pk_raw.p, p256_spki_header, sizeof(p256_spki_header)) ||
@@ -320,12 +390,39 @@ int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *
 	    device_tls_v2_configure(&profiles[0], NU54_V2_MANAGEMENT, ca, board, key) ||
 	    device_tls_v2_configure(&profiles[1], NU54_V2_PAYMENT, ca, board, key)) return -1;
 	psa_key_id_t display_key;
-	if (import_public(decoded.display, &display_key)) return -1;
+	if (import_public(decoded->display, &display_key)) return -1;
 	if (psa_destroy_key(display_key) != PSA_SUCCESS) return -1;
-	if (import_public(decoded.recovery, &display_key)) return -1;
+	if (import_public(decoded->recovery, &display_key)) return -1;
 	if (psa_destroy_key(display_key) != PSA_SUCCESS ||
-	    !separate(decoded.display, decoded.owner, decoded.terminal) ||
-	    !separate(decoded.recovery, decoded.owner, decoded.terminal)) return -1;
+	    !separate(decoded->display, decoded->owner, decoded->terminal) ||
+	    !separate(decoded->recovery, decoded->owner, decoded->terminal)) return -1;
+	return 0;
+}
+
+int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *ca,
+			mbedtls_x509_crt *board, mbedtls_pk_context *key, device_tls_v2_profile profiles[2])
+{
+	const int64_t age = k_uptime_get() - challenge_birth;
+	nu54_install_floor next;
+	nu54_install_policy decoded;
+	size_t ca_length, board_length;
+	/* The time never goes back: not behind the running clock, a fenced expiry or the saved time. */
+	const uint64_t minimum = nu54_install_resume(&clock_saved, device_install_earliest(), replay_floor);
+	if (!offered || age < 0 || age >= OFFER_TTL_MS ||
+	    nu54_install_accept(bundle, length, challenge, identity, payer, minimum,
+				&floor, hash, device_install_verify_authority, &next, &decoded, &ca_length, &board_length))
+		return -1;
+	uint64_t offset = ((uint64_t)age + 999u) / 1000u;
+	uint64_t previous_upper = device_install_now();
+	if (previous_upper > next.time && previous_upper - next.time > offset)
+		offset = previous_upper - next.time;
+	if (decoded.not_after - next.time <= offset ||
+	    adopt(bundle, ca_length, board_length, &decoded, next.time + offset, ca, board, key, profiles)) return -1;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	/* Kept for the next start. A failure here commits nothing; the grant in use stays in use. */
+	const nu54_install_clock start = {next.time, offset};
+	if (grant_store(bundle, length) || clock_store(&start)) return -1;
+#endif
 	if (psa_its_set(INSTALL_FLOOR, sizeof(next), &next, PSA_STORAGE_FLAG_NONE) != PSA_SUCCESS ||
 	    (!policy_witnessed && put_witness(INSTALL_POLICY_WITNESS))) {
 		/* A write can fail after committing. Stop until reboot re-reads the durable floor. */
@@ -338,12 +435,58 @@ int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *
 	policy_witnessed = true;
 	floor = next;
 	policy = decoded;
+	clock_base = next.time;
 	installed = k_uptime_get();
 	max_offset = offset;
+	clock_sealed = false;
 	offered = false;
 	active = true;
 	return 0;
 }
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static bool no_owner(const nu54_vault *vault)
+{
+	return !vault->record.generation || (vault->record.flags & NU54_VAULT_REVOKED);
+}
+
+int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *ca, mbedtls_x509_crt *board,
+			   mbedtls_pk_context *key, device_tls_v2_profile profiles[2])
+{
+	const nu54_vault *vault = device_vault_owner();
+	nu54_install_policy decoded;
+	size_t length, ca_length, board_length;
+	/* Without the saved time the board does not know how far the grant has run. */
+	if (active || !authority || !vault->enabled || !clock_saved.earliest || grant_read(bundle, capacity, &length) ||
+	    nu54_install_restore(bundle, length, identity, payer, &floor, hash, device_install_verify_authority,
+				 &decoded, &ca_length, &board_length) ||
+	    !nu54_install_generation_current(decoded.payer_generation, vault->record.generation, no_owner(vault)))
+		return 1;
+	const uint64_t base = nu54_install_resume(&clock_saved, floor.time, replay_floor), offset = clock_saved.offset;
+	/* Ended by the board's own clock, which stood still without power and never ran ahead. */
+	if (base >= decoded.not_after || decoded.not_after - base <= offset ||
+	    adopt(bundle, ca_length, board_length, &decoded, base + offset, ca, board, key, profiles)) return 1;
+	policy = decoded;
+	clock_base = base;
+	installed = k_uptime_get();
+	max_offset = offset;
+	clock_sealed = false;
+	active = true;
+	return 0;
+}
+
+int64_t device_install_keep_time(void)
+{
+	if (!active || clock_sealed) return -1;
+	const nu54_install_clock now = {device_install_earliest(), max_offset};
+	/* A failed write is tried again at the next turn; the time in storage is then older, not wrong. */
+	if (now.earliest > clock_saved.earliest && !clock_store(&now) && now.earliest + now.offset >= policy.not_after) {
+		clock_sealed = true;
+		return -1;
+	}
+	return nu54_install_clock_wait_ms(now.earliest + now.offset, policy.not_after, CLOCK_SAVE_SECONDS);
+}
+#endif
 
 uint64_t device_install_now(void)
 {

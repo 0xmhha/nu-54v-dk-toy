@@ -12,6 +12,23 @@ int device_install_public_pins(uint8_t output[64]);
 bool device_install_distinct_station(const mbedtls_x509_crt *);
 int device_install_load(const uint8_t *, size_t, mbedtls_x509_crt *, mbedtls_x509_crt *,
 			mbedtls_pk_context *, device_tls_v2_profile [2]);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* The spending profile keeps the accepted grant in protected storage and uses it again after a
+ * restart, without the operator. Call restore once at start, after an interrupted reset was
+ * finished: 0 with the grant in use, 1 with none. `bundle` is working space for the grant. The
+ * stored grant must be the one the floor was committed for and must fit the owner's generation.
+ *
+ * The board has no clock that runs without power. It saves its time every ten minutes and at the
+ * grant's end (keep_time; returns the milliseconds to the next call, or -1 when there is nothing
+ * to keep) and continues from the saved time, so its clock is late by the time it was off and by
+ * what passed since the last save. It is never early. */
+int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *, mbedtls_x509_crt *,
+			   mbedtls_pk_context *, device_tls_v2_profile [2]);
+int64_t device_install_keep_time(void);
+#endif
+/* A factory reset: removes the stored grant and the saved time and ends the grant in use. The
+ * floors stay. Safe to repeat after a power cut. */
+int device_install_forget(void);
 const nu54_install_policy *device_install_policy(void);
 const uint8_t *device_install_payer(void);
 uint64_t device_install_now(void);

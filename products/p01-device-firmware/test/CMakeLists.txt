@@ -165,6 +165,23 @@ target_link_libraries(test_install PRIVATE nu54_crypto OpenSSL::Crypto)
 target_compile_options(test_install PRIVATE -Wall -Wextra -Werror)
 add_test(NAME enrollment_policy COMMAND test_install)
 
+# The grant kept through a restart: the board's storage and clock code over a fake flash.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c INSTALL_FLOOR INSTALL_REPLAY_FLOOR INSTALL_GRANT
+    INSTALL_CLOCK INSTALL_GRANT_PART GRANT_PART_SIZE GRANT_PARTS CLOCK_SAVE_SECONDS OFFER_TTL_MS storage_found
+    removed clock_load clock_store grant_store grant_read device_install_forget device_install_earliest
+    device_install_load no_owner device_install_restore device_install_keep_time device_install_now
+    device_install_policy
+  DEPENDS extract_c.py ../app/src/device_install.c VERBATIM)
+add_executable(test_install_store test_install_store.c ../core/src/nu54_install.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h)
+target_include_directories(test_install_store BEFORE PRIVATE fakes-spending ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_install_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
+target_link_libraries(test_install_store PRIVATE nu54_crypto)
+target_compile_options(test_install_store PRIVATE -Wall -Wextra -Werror)
+add_test(NAME install_store COMMAND test_install_store)
+
 add_executable(test_order test_order.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
   ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
 target_link_libraries(test_order PRIVATE nu54_crypto)
@@ -179,11 +196,18 @@ target_compile_options(test_spending PRIVATE -Wall -Wextra -Werror)
 add_test(NAME spending_actions COMMAND test_spending
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/wallet-return.vectors)
 
+# The reset removes the operator's stored grant with the board's own code.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_install_forget.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_install_forget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c INSTALL_GRANT INSTALL_CLOCK INSTALL_GRANT_PART
+    GRANT_PART_SIZE GRANT_PARTS removed device_install_forget
+  DEPENDS extract_c.py ../app/src/device_install.c VERBATIM)
 add_executable(test_spending_store test_spending_store.c ../app/src/device_spending.c ../app/src/device_order.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_install_forget.h
   ../core/src/nu54_spending.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
   ../core/src/nu54_local_approval.c ../core/src/nu54_vault.c ../core/src/nu54_pin_attempt.c
   ../core/src/nu54_pin_entry.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
-target_include_directories(test_spending_store BEFORE PRIVATE fakes-spending ../app/src)
+target_include_directories(test_spending_store BEFORE PRIVATE fakes-spending ../app/src ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(test_spending_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=100)
 target_link_libraries(test_spending_store PRIVATE nu54_crypto)
 target_compile_options(test_spending_store PRIVATE -Wall -Wextra -Werror)

@@ -88,6 +88,9 @@ K_MUTEX_DEFINE(pilot_lock);
 RING_BUF_DECLARE(pilot_rx, 8192);
 static struct bt_conn *connection;
 static struct k_work_delayable worker;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static struct k_work_delayable clock_worker;
+#endif
 static mbedtls_ssl_context tls;
 struct provisioned_tls {
 	mbedtls_x509_crt ca, board;
@@ -95,6 +98,7 @@ struct provisioned_tls {
 	device_tls_v2_profile profiles[2];
 };
 static struct provisioned_tls tls_banks[2];
+static void free_tls_bank(struct provisioned_tls *bank);
 static unsigned tls_bank;
 static nu54_v2_profile profile;
 static nu54_v2_link link;
@@ -1931,13 +1935,38 @@ bool device_pilot_recovery_window(void)
 	return available;
 }
 
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* Saves the board's time while a grant runs, so a restart continues from it. */
+static void keep_time(struct k_work *ignored)
+{
+	(void)ignored;
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	const int64_t wait = device_install_keep_time();
+	k_mutex_unlock(&pilot_lock);
+	if (wait >= 0) k_work_reschedule(&clock_worker, K_MSEC(wait));
+}
+#endif
+
 void device_pilot_init(void)
 {
 	mbedtls_ssl_init(&tls);
 	k_work_init_delayable(&worker, poll_tls);
 	initialized = device_install_init() == 0;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+	k_work_init_delayable(&clock_worker, keep_time);
+	/* The reset that a power cut interrupted is finished first: it removes the stored grant. */
 	initialized = initialized && device_spending_init() == 0;
+	if (initialized) {
+		struct provisioned_tls *bank = &tls_banks[tls_bank];
+		if (device_install_restore(install_bundle, sizeof(install_bundle), &bank->ca, &bank->board, &bank->key,
+					   bank->profiles) == 0) {
+			ready = true;
+			k_work_reschedule(&clock_worker, K_NO_WAIT);
+		} else {
+			free_tls_bank(bank);
+		}
+		mbedtls_platform_zeroize(install_bundle, sizeof(install_bundle));
+	}
 #endif
 	/* Bluetooth and its bond settings are loaded before this runs (pay_link_init). A commercial
 	 * board keeps no legacy bond, including one a power cut left behind after an owner change. */
@@ -2023,6 +2052,9 @@ static int apply_install(const uint8_t *bundle, size_t length)
 	free_tls_bank(&tls_banks[tls_bank]);
 	tls_bank = next;
 	ready = true;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	k_work_reschedule(&clock_worker, K_NO_WAIT);
+#endif
 	return 0;
 }
 

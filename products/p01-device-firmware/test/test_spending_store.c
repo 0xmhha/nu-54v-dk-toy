@@ -4,6 +4,7 @@
 #include "device_recovery_pin.h"
 #include "device_spending.h"
 #include "device_vault.h"
+#include "nu54_install.h"
 #include "nu54_pin_entry.h"
 #include "status_led.h"
 
@@ -158,6 +159,30 @@ psa_status_t psa_mac_verify(psa_key_id_t id, psa_algorithm_t alg, const uint8_t 
 /* Included so a simulated restart can clear its memory. */
 #include "../app/src/device_recovery_pin.c"
 
+/* The operator's stored grant: the board's own removal, over what an installation leaves. */
+static bool active, offered, clock_sealed;
+static nu54_install_clock clock_saved;
+int device_install_forget(void);
+#include "board_install_forget.h"
+
+static void install_grant(void)
+{
+	const uint8_t part[GRANT_PART_SIZE] = {1};
+	const uint32_t length = 2 * GRANT_PART_SIZE + 7;
+	clock_saved = (nu54_install_clock){.earliest = 500, .offset = 3};
+	assert(!psa_its_set(INSTALL_GRANT, sizeof(length), &length, 0));
+	for (unsigned i = 0; i < 3; ++i) assert(!psa_its_set(INSTALL_GRANT_PART + i, i < 2 ? sizeof(part) : 7, part, 0));
+	assert(!psa_its_set(INSTALL_GRANT_PART + GRANT_PARTS - 1, 1, part, 0)); /* the tail of an older, longer grant */
+	assert(!psa_its_set(INSTALL_CLOCK, sizeof(clock_saved), &clock_saved, 0));
+	active = true;
+}
+
+static void assert_no_grant(void)
+{
+	assert(!active && !clock_saved.earliest && !item(INSTALL_GRANT) && !item(INSTALL_CLOCK));
+	for (unsigned i = 0; i < GRANT_PARTS; ++i) assert(!item(INSTALL_GRANT_PART + i));
+}
+
 /* ---- vault over the same flash ---- */
 static nu54_vault vault;
 static int vault_read(void *context, unsigned record, void *data, size_t size)
@@ -218,6 +243,10 @@ static int boot(void)
 	const nu54_vault_storage io = {NULL, vault_read, vault_write, vault_key};
 	uptime = 1000;
 	wait_from = 0;
+	/* What device_install_init reads back; the grant itself is restored after this start. */
+	active = false;
+	clock_saved = (nu54_install_clock){0};
+	if (item(INSTALL_CLOCK)) memcpy(&clock_saved, item(INSTALL_CLOCK)->data, sizeof(clock_saved));
 	if (nu54_vault_open(&vault, &io)) return -1;
 	return device_spending_init();
 }
@@ -248,12 +277,14 @@ static void use_wallet(uint8_t address[20])
 	assert(!enter("1234", true));
 	assert(!device_spending_set_return(home));
 	assert(!device_order_store(3, &record) && !device_order_charge(86400 * 5, 70));
+	install_grant();
 }
 
 static void assert_fresh(uint64_t generation)
 {
 	uint8_t home[20];
 	assert_no_wallet(); /* the reset leaves no key, and the restart makes none */
+	assert_no_grant(); /* nor the operator's grant and the time saved for it */
 	assert(!device_spending_return_address(home));
 	assert(!item(0x5472) && !key(0x54a0) && !item(0x5553) && !item(0x5561) && !item(0x5570));
 	assert(vault.record.generation == generation && (vault.record.flags & NU54_VAULT_RELEASED));
@@ -288,6 +319,7 @@ static void test_reset_survives_power_loss_everywhere(void)
 				/* Nothing was erased: only possible when even the first mark was not written. */
 				assert(!after && step == 0 && !(vault.record.flags & NU54_VAULT_RELEASED));
 				assert(!memcmp(device_spending_address(), before, 20));
+				assert(item(INSTALL_GRANT) && item(INSTALL_CLOCK) && clock_saved.earliest == 500);
 			} else {
 				assert_fresh(generation + 1);
 			}

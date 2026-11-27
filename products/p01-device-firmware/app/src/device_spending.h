@@ -29,8 +29,8 @@ int device_spending_sign(const uint8_t digest[32], uint8_t signature[64]);
 bool device_spending_return_address(uint8_t address[20]);
 int device_spending_set_return(const uint8_t address[20]);
 
-/* Destroys the key, the PIN, the owner and every record, and succeeds only after the key store
- * confirmed that the key is gone. Safe to repeat after a power cut, and the next start repeats it
+/* Destroys the key, the PIN, the owner, every record and the operator's stored grant with the
+ * saved time, and succeeds only after the key store confirmed that the key is gone. Safe to repeat after a power cut, and the next start repeats it
  * until it succeeds. The caller reboots afterwards; that boot makes no key. */
 int device_spending_erase(void);
 

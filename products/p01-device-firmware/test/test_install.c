@@ -277,6 +277,186 @@ static int wire(void *opaque, const uint8_t *frame, size_t length)
 	return state->received == NU54_V2_ERROR ? -1 : 0;
 }
 
+/* A signed grant with one-byte certificates, as policy_tests builds it. */
+#define GRANT_SIZE (NU54_INSTALL_HEADER_SIZE + 2 + 64)
+static const uint8_t grant_identity[65] = {4, 5}, grant_payer[20] = {6};
+static void make_grant(uint8_t record[GRANT_SIZE], uint64_t revision, uint64_t generation, uint64_t time, uint64_t end)
+{
+	memset(record, 0, GRANT_SIZE);
+	memcpy(record, "N54Q", 4);
+	record[4] = 1; /* the challenge of the installation, long gone at a restart */
+	memcpy(record + 36, grant_identity, 65);
+	memcpy(record + 101, grant_payer, 20);
+	integer_at_u64(record + 121, time);
+	uint8_t *raw = record + 129;
+	integer_at_u64(raw, revision);
+	integer_at_u64(raw + 8, generation);
+	integer_at_u64(raw + 16, end);
+	byte_at_u64(raw + 24, 1);
+	byte_at_u64(raw + 32, 1);
+	byte_at_u64(raw + 40, 50);
+	raw[48] = NU54_V2_OWNER_ROLE;
+	memset(raw + 49, 1, NU54_INSTALL_POLICY_SIZE - 49);
+	raw[49 + 80 + 64] = 2;
+	raw[49 + 80 + 96] = 4;
+	raw[49 + 80 + 96 + 65] = 4;
+	raw[49 + 80 + 96 + 66] = 3;
+	raw[NU54_INSTALL_POLICY_SIZE + 1] = 1;
+	raw[NU54_INSTALL_POLICY_SIZE + 3] = 1;
+	seal(record, GRANT_SIZE);
+}
+
+static int accept_made(const uint8_t record[GRANT_SIZE], uint64_t minimum, const nu54_install_floor *old,
+		       nu54_install_floor *next, nu54_install_policy *policy)
+{
+	size_t ca, board;
+	return nu54_install_accept(record, GRANT_SIZE, record + 4, grant_identity, grant_payer, minimum, old, hash,
+				   test_authority, next, policy, &ca, &board);
+}
+
+static int restore_made(const uint8_t *record, size_t length, const nu54_install_floor *committed,
+			nu54_install_policy *policy)
+{
+	size_t ca, board;
+	return nu54_install_restore(record, length, grant_identity, grant_payer, committed, hash, test_authority,
+				    policy, &ca, &board);
+}
+
+/* One request of a phone whose clock is right, at a board whose clock is `late` seconds behind. */
+static bool late_board_takes(uint64_t late, uint64_t lifetime)
+{
+	const uint64_t real = UINT64_C(1800000000);
+	static const uint8_t body[1] = {3};
+	nu54_v2_link board, phone;
+	nu54_v2_journal_entry entries[2][4] = {0};
+	nu54_v2_journal board_journal = {entries[0], 4, hash, 0}, phone_journal = {entries[1], 4, hash, 0};
+	uint8_t epoch[16] = {1}, peer[32] = {2};
+	assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+	assert(!nu54_v2_link_init(&phone, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &phone_journal));
+	struct frames work = {.board = &board, .now = real - late};
+	nu54_v2_request request = {.command = NU54_V2_MANAGE, .id = {1}, .expires = real + lifetime,
+				   .payload = body, .payload_length = sizeof(body)};
+	return !nu54_v2_link_send(&phone, &request, wire, &work) && work.received == NU54_V2_NEW;
+}
+
+/* The grant kept through a restart (decisions of 2026-11-27): up to 31 days, bound to the floor
+ * and the generation, and a clock that continues from the saved time. */
+static void kept_grant_tests(void)
+{
+	const uint64_t issued = UINT64_C(1800000000), month = 31 * 86400;
+	uint8_t record[GRANT_SIZE], older[GRANT_SIZE];
+	nu54_install_floor empty = {0}, floor, next;
+	nu54_install_policy policy, restored;
+
+	/* The grant's period is what the operator wrote, up to 31 days and not a second more. */
+	assert(NU54_INSTALL_MAX_LEASE == 2678400);
+	make_grant(record, 1, 3, issued, issued + month + 1);
+	assert(accept_made(record, issued, &empty, &floor, &policy));
+	make_grant(record, 1, 3, issued, issued + 2 * 86400);
+	assert(!accept_made(record, issued, &empty, &floor, &policy) && policy.not_after == issued + 2 * 86400);
+	make_grant(record, 1, 3, issued, issued + month);
+	assert(!accept_made(record, issued, &empty, &floor, &policy) && policy.not_after == issued + month);
+	make_grant(record, 1, 3, UINT64_MAX - month + 1, UINT64_MAX); /* no 32-bit or wrapping arithmetic */
+	assert(!accept_made(record, issued, &empty, &next, &restored) && restored.not_after == UINT64_MAX);
+	make_grant(record, 1, 3, issued, issued + month);
+
+	/* At a restart the stored grant is taken without a challenge, and only if it is exactly the
+	 * grant the floor was committed for. */
+	memset(&restored, 0, sizeof(restored));
+	assert(!restore_made(record, GRANT_SIZE, &floor, &restored));
+	assert(restored.not_after == issued + month && restored.payer_generation == 3 && restored.revision == 1);
+	assert(restore_made(record, GRANT_SIZE, &empty, &restored)); /* no grant was ever committed */
+	assert(restore_made(record, GRANT_SIZE - 1, &floor, &restored) && restore_made(NULL, GRANT_SIZE, &floor, &restored));
+	assert(restore_made(record, 4, &floor, &restored));
+	record[GRANT_SIZE - 70] ^= 1; /* changed in storage: the authority's signature fails */
+	assert(restore_made(record, GRANT_SIZE, &floor, &restored));
+	record[GRANT_SIZE - 70] ^= 1;
+	record[36] ^= 1; /* a grant of another board */
+	seal(record, GRANT_SIZE);
+	assert(restore_made(record, GRANT_SIZE, &floor, &restored));
+	record[36] ^= 1;
+	seal(record, GRANT_SIZE);
+	assert(!restore_made(record, GRANT_SIZE, &floor, &restored));
+
+	/* A newer grant was committed afterwards: the older one put back into storage is refused. */
+	memcpy(older, record, GRANT_SIZE);
+	make_grant(record, 2, 3, issued + 3600, issued + 7200);
+	assert(!accept_made(record, issued + 3600, &floor, &next, &policy));
+	assert(restore_made(older, GRANT_SIZE, &next, &restored) && !restore_made(record, GRANT_SIZE, &next, &restored));
+	/* The parts of a grant were written and the power went before its floor: the floor still
+	 * names the grant before, so what storage holds is not the committed grant. */
+	assert(restore_made(record, GRANT_SIZE, &floor, &restored));
+	/* The same revision signed again with a longer period is another grant. */
+	make_grant(record, 2, 3, issued + 3600, issued + 3600 + month);
+	assert(restore_made(record, GRANT_SIZE, &next, &restored));
+	/* The floor was put back to an older time: the grant does not match it either. */
+	nu54_install_floor moved = next;
+	moved.time -= 1;
+	make_grant(record, 2, 3, issued + 3600, issued + 7200);
+	assert(restore_made(record, GRANT_SIZE, &moved, &restored));
+	moved = next;
+	moved.generation += 1;
+	assert(restore_made(record, GRANT_SIZE, &moved, &restored));
+
+	/* The generation: with an owner the grant names that generation; without one, the next. */
+	assert(nu54_install_generation_current(3, 3, false) && !nu54_install_generation_current(3, 3, true));
+	assert(nu54_install_generation_current(4, 3, true) && !nu54_install_generation_current(4, 3, false));
+	assert(nu54_install_generation_current(1, 0, true)); /* a new board waiting for its first owner */
+	/* A factory reset raised the generation from 3 to 4 and left no owner: the grant of the user
+	 * before (3) and one for the owner after next (6) are both ignored. */
+	assert(!nu54_install_generation_current(3, 4, true) && !nu54_install_generation_current(6, 4, true));
+	assert(!nu54_install_generation_current(2, 3, false) && !nu54_install_generation_current(0, 0, true));
+	assert(!nu54_install_generation_current(0, UINT64_MAX, true));
+
+	/* The clock of a restarted board: the latest of what it saved and of its floors, never less. */
+	nu54_install_clock saved = {.earliest = issued + 900, .offset = 4};
+	assert(nu54_install_resume(&saved, issued, 0) == issued + 900);
+	assert(nu54_install_resume(NULL, issued, 0) == issued && nu54_install_resume(NULL, issued, issued + 5) == issued + 5);
+	saved.earliest = issued - 100; /* an older saved time put back: the floors still hold */
+	assert(nu54_install_resume(&saved, issued, 0) == issued && nu54_install_resume(&saved, issued, issued + 7) == issued + 7);
+	/* Restarts in a row never move it back, and by themselves never forward. */
+	saved.earliest = issued + 900;
+	for (int i = 0; i < 5; ++i) {
+		const uint64_t resumed = nu54_install_resume(&saved, issued, 0);
+		assert(resumed == issued + 900);
+		saved.earliest = resumed;
+	}
+
+	/* When the time is saved next: every ten minutes, and at the end of the grant. */
+	assert(nu54_install_clock_wait_ms(issued, issued + month, 600) == 600000);
+	assert(nu54_install_clock_wait_ms(issued + month - 599, issued + month, 600) == 599000);
+	assert(nu54_install_clock_wait_ms(issued + month - 1, issued + month, 600) == 1000);
+	assert(nu54_install_clock_wait_ms(issued + month, issued + month, 600) == 1000);
+	assert(nu54_install_clock_wait_ms(UINT64_MAX, issued, 600) == 1000 && nu54_install_clock_wait_ms(0, UINT64_MAX, 0) == 1000);
+
+	/* An order may end with the grant and not after it. The store signs the order's end by the
+	 * calendar, so this holds whatever the board's own clock says, also one that stood still
+	 * while the board was off: payments stop at the calendar end of the grant. Only the fields
+	 * this check reads are filled in. */
+	uint8_t order[NU54_V2_SIGNED_SIZE] = {0};
+	const uint64_t order_end = issued + month - 30;
+	nu54_install_policy paying = {.not_after = order_end, .payer_role = NU54_V2_OWNER_ROLE, .merchant_key_version = 1,
+				      .beneficiary_version = 1};
+	nu54_v2_quote_policy staged;
+	order[NU54_V2_PAYER_ROLE_OFFSET + 31] = NU54_V2_OWNER_ROLE;
+	order[NU54_V2_MERCHANT_KEY_VERSION_OFFSET + 31] = order[NU54_V2_BENEFICIARY_VERSION_OFFSET + 31] = 1;
+	integer_at_u64(order + NU54_V2_EXPIRES_AT_OFFSET + 24, order_end);
+	assert(!nu54_install_quote(&paying, order, sizeof(order), order_end - 100, &staged)); /* ends with the grant */
+	paying.not_after = order_end - 1; /* the grant ends one second before the order */
+	assert(nu54_install_quote(&paying, order, sizeof(order), order_end - 100, &staged));
+	assert(nu54_install_quote(&paying, order, sizeof(order), issued, &staged)); /* a clock 31 days late */
+	assert(nu54_install_quote(&paying, order, sizeof(order), 1, &staged));
+	paying.not_after = order_end + 1000; /* and nothing is paid once the board's own clock reached the end */
+	assert(!nu54_install_quote(&paying, order, sizeof(order), order_end - 100, &staged));
+	assert(nu54_install_quote(&paying, order, sizeof(order), order_end + 1000, &staged));
+
+	/* What a late clock costs. The board's clock stood still while it was off, the phone's did
+	 * not. A request may end at most 300 s after the board's time, so a phone that gives its
+	 * requests 90 s is refused once the board is more than 210 s late. */
+	assert(late_board_takes(0, 90) && late_board_takes(210, 90) && !late_board_takes(211, 90));
+	assert(late_board_takes(299, 1) && !late_board_takes(300, 1));
+}
+
 static int present(void *opaque, const uint8_t *preimage, size_t length)
 {
 	return length == NU54_LOCAL_PREIMAGE_SIZE && !memcmp(opaque, preimage, length) ? 0 : -1;
@@ -689,6 +869,7 @@ int main(int argc, char **argv)
 	bootstrap_tests();
 	storage_boot_tests();
 	policy_tests();
+	kept_grant_tests();
 	receipt_tests();
 	if (argc == 4 && !strcmp(argv[1], "--refuse-review")) {
 		struct payment original, other;

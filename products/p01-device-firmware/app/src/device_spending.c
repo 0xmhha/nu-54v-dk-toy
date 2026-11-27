@@ -16,6 +16,9 @@
 #define SPEND_RETURN_UID ((psa_storage_uid_t)0x5572)
 #define SPEND_RESET_MARK UINT32_C(0x4e355257)
 
+/* device_install.h, whose other declarations need the TLS headers. */
+int device_install_forget(void);
+
 static uint8_t address[20];
 static bool ready;  /* the stored state was read and is consistent */
 static bool wallet; /* the key exists and `address` is its address */
@@ -113,7 +116,8 @@ int device_spending_erase(void)
 	forget_wallet();
 	if (store(SPEND_RESET_UID, &mark, sizeof(mark)) || !gone(psa_destroy_key(SPEND_KEY)) ||
 	    device_recovery_pin_erase() || device_order_erase() || !gone(psa_its_remove(SPEND_RETURN_UID)) ||
-	    !gone(psa_its_remove(SPEND_ADDRESS_UID)) || nu54_vault_release(device_vault_owner())) return -1;
+	    !gone(psa_its_remove(SPEND_ADDRESS_UID)) || device_install_forget() ||
+	    nu54_vault_release(device_vault_owner())) return -1;
 	/* The mark goes only after the key store says there is no key. Until then the reset is not
 	 * done: it reports a failure, and the next start comes back here before anything else. */
 	if (!key_absent()) return -1;

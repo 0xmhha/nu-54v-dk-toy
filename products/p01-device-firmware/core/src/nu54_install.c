@@ -132,6 +132,41 @@ int nu54_install_accept(const uint8_t *bundle, size_t length, const uint8_t chal
 	return 0;
 }
 
+int nu54_install_restore(const uint8_t *bundle, size_t length, const uint8_t identity[65],
+			 const uint8_t payer[20], const nu54_install_floor *committed, nu54_install_hash hash,
+			 nu54_install_verify verify, nu54_install_policy *policy, size_t *ca_length, size_t *board_length)
+{
+	nu54_install_floor stored;
+	if (!bundle || !committed || !committed->revision ||
+	    length < NU54_INSTALL_HEADER_SIZE + NU54_INSTALL_SIGNATURE_SIZE ||
+	    nu54_install_accept(bundle, length, bundle + 4, identity, payer, 0, committed, hash, verify, &stored,
+				policy, ca_length, board_length)) return -1;
+	return stored.revision == committed->revision && stored.time == committed->time &&
+	       stored.generation == committed->generation && !memcmp(stored.digest, committed->digest, 32) &&
+	       !memcmp(stored.recovery, committed->recovery, 65) ? 0 : -1;
+}
+
+bool nu54_install_generation_current(uint64_t grant_generation, uint64_t board_generation, bool no_owner)
+{
+	if (!grant_generation) return false;
+	if (!no_owner) return grant_generation == board_generation;
+	return board_generation != UINT64_MAX && grant_generation == board_generation + 1;
+}
+
+uint64_t nu54_install_resume(const nu54_install_clock *saved, uint64_t floor_time, uint64_t replay_floor)
+{
+	uint64_t time = floor_time > replay_floor ? floor_time : replay_floor;
+	return saved && saved->earliest > time ? saved->earliest : time;
+}
+
+int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t interval_seconds)
+{
+	uint64_t seconds = interval_seconds ? interval_seconds : 1;
+	if (latest < not_after && not_after - latest < seconds) seconds = not_after - latest;
+	else if (latest >= not_after) seconds = 1;
+	return (int64_t)seconds * 1000;
+}
+
 int nu54_install_quote(const nu54_install_policy *policy, const uint8_t *payload, size_t length,
 		       uint64_t now, nu54_v2_quote_policy *order)
 {
