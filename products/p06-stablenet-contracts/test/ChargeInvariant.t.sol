@@ -4,12 +4,14 @@ pragma solidity ^0.8.30;
 import {Test} from "forge-std/Test.sol";
 import {ChargeBase} from "./ChargeBase.t.sol";
 import {ChargeTypes} from "../src/charge/ChargeTypes.sol";
+import {ChargeGovernance} from "../src/charge/ChargeGovernance.sol";
 import {ChargeDeposit} from "../src/charge/ChargeDeposit.sol";
 import {WonPool} from "../src/charge/WonPool.sol";
 
 /// Drives both contracts with every key in play: deposits, payouts with and without a deposit behind them,
-/// completions, contests, answers, refunds, spending, stray coins and time. A call that the contracts refuse
-/// is simply skipped; what is recorded here is only what went through.
+/// completions, contests, answers, refunds, spending, stray coins and time; and between them the pauser
+/// stopping and narrowing, two signers undoing it, and pool withdrawals that go through or are cancelled.
+/// A call that the contracts refuse is simply skipped; what is recorded here is only what went through.
 contract ChargeHandler is ChargeBase {
     uint256[3] internal payerKeys = [uint256(0xB001), 0xB002, 0xB003];
     address[3] internal boards = [address(0xB0A2D1), address(0xB0A2D2), address(0xB0A2D3)];
@@ -21,7 +23,13 @@ contract ChargeHandler is ChargeBase {
     uint256 public stray;
     uint256 public spent;
     uint256 public paidWon;
+    uint256 public withdrawn;
     bool public limitBroken;
+    /// Something went through that a pause, a key that is off or a lowered limit forbids.
+    bool public stopBroken;
+    /// A cancelled change was applied.
+    bool public cancelBroken;
+    uint256 internal salts;
 
     struct Pay {
         uint256 at;
@@ -76,9 +84,11 @@ contract ChargeHandler is ChargeBase {
         bytes32 id = deposit.quoteDigest(quote);
         bytes memory quoteSig = sign(QUOTER_KEY, id);
         bytes memory auth = authorizationFor(quote, key, address(deposit), id);
+        bool stopped = deposit.depositsPaused() || deposit.quoter() == address(0) || quote.wonAmount > deposit.maxWon();
         try deposit.depositWithAuthorization(quote, quoteSig, auth) {
             ids.push(id);
             quotes[id] = quote;
+            if (stopped) stopBroken = true;
         } catch {}
     }
 
@@ -96,13 +106,30 @@ contract ChargeHandler is ChargeBase {
     function pay(ChargeTypes.Quote memory quote, bool fast) internal {
         PayArgs memory args = payArgs(quote, fast);
         toWon();
+        bool stopped = payStopped(quote, fast);
         vm.prank(vm.addr(RELAY_KEY));
         try pool.pay(args.origin, args.quote, args.quoteSignature, args.confirmation, args.witnessSignature) {
             payCount[idOf(quote)] += 1;
             paidWon += quote.wonAmount;
             pays.push(Pay(block.timestamp, quote.wonAmount, quote.board, quote.payer, fast));
             checkLimits(quote, fast);
+            if (stopped || overLimitsNow(quote, fast)) stopBroken = true;
         } catch {}
+    }
+
+    /// A payout must not go through while payouts are paused, a hot key is off, or over the limits as they
+    /// are now for one payout.
+    function payStopped(ChargeTypes.Quote memory quote, bool fast) internal view returns (bool) {
+        (uint256 perPayout,,, uint256 fastPerPayout,) = pool.limits();
+        return pool.paysPaused() || pool.relay() == address(0) || pool.quoter() == address(0)
+            || pool.witness() == address(0) || quote.wonAmount > perPayout || (fast && quote.wonAmount > fastPerPayout);
+    }
+
+    /// Right after a payout, what is counted for the day is within the limits as they are now.
+    function overLimitsNow(ChargeTypes.Quote memory quote, bool fast) internal view returns (bool) {
+        (, uint256 accountDaily, uint256 totalDaily,, uint256 fastDaily) = pool.limits();
+        return pool.usedTotal() > totalDaily || pool.usedByBoard(quote.board) > accountDaily
+            || pool.usedByPayer(quote.payer) > accountDaily || (fast && pool.usedFast() > fastDaily);
     }
 
     /// Adds up what went out in the 24 hours that end now, for the board, the wallet, the fast path and all.
@@ -135,8 +162,11 @@ contract ChargeHandler is ChargeBase {
             try deposit.completeBySigners(id, until, signatures) {} catch {}
         } else {
             bytes memory signature = sign(WITNESS_KEY, deposit.paidDigest(id, WON_BLOCK, until));
+            bool stopped = deposit.relay() == address(0) || deposit.witness() == address(0);
             vm.prank(vm.addr(RELAY_KEY));
-            try deposit.complete(id, WON_BLOCK, until, signature) {} catch {}
+            try deposit.complete(id, WON_BLOCK, until, signature) {
+                if (stopped) stopBroken = true;
+            } catch {}
         }
     }
 
@@ -196,6 +226,104 @@ contract ChargeHandler is ChargeBase {
         vm.warp(block.timestamp + bound(time, 1 minutes, 3 days));
     }
 
+    // ---- stopping, narrowing and the changes that wait a day ----
+
+    /// The pauser stops or narrows one thing on one of the two contracts.
+    function narrow(uint256 seed) external {
+        uint256 what = seed % 7;
+        uint256 rest = seed / 7;
+        if (what < 4) toSource();
+        else toWon();
+        vm.startPrank(vm.addr(PAUSER_KEY));
+        if (what == 0) {
+            deposit.pauseDeposits();
+        } else if (what == 1) {
+            try deposit.disableKey(ChargeGovernance.Key(rest % 3)) {} catch {}
+        } else if (what == 2) {
+            deposit.lowerLimit(bound(rest, MIN_WON, deposit.maxWon()));
+        } else if (what == 3) {
+            deposit.clearSpender();
+        } else if (what == 4) {
+            pool.pausePays();
+        } else if (what == 5) {
+            try pool.disableKey(ChargeGovernance.Key(rest % 3)) {} catch {}
+        } else {
+            (uint256 a, uint256 b, uint256 c, uint256 d, uint256 e) = pool.limits();
+            pool.lowerLimits(WonPool.Limits(a / 2, b / 2, c / 2, d / 2, e / 2));
+        }
+        vm.stopPrank();
+    }
+
+    /// Two signers undo every pause at once and, after a day, bring back every key that is off, the first
+    /// limits and the spender.
+    function restore() external {
+        uint256 until = block.timestamp + 1 hours;
+        toSource();
+        if (deposit.depositsPaused()) {
+            deposit.unpauseDeposits(until, two(deposit, "unpauseDeposits", 0, deposit.pauseRound(), until));
+        }
+        toWon();
+        if (pool.paysPaused()) pool.unpausePays(until, two(pool, "unpausePays", 0, pool.pauseRound(), until));
+
+        bytes32 salt = bytes32(++salts);
+        bool[3] memory offDeposit = keysOff(deposit);
+        bool[3] memory offPool = keysOff(pool);
+        bool limitLow = deposit.maxWon() != MAX_WON;
+        bool spenderGone = deposit.spender() == address(0);
+        (uint256 perPayout,, uint256 totalDaily,,) = pool.limits();
+        bool limitsLow = perPayout != MAX_WON || totalDaily != TOTAL_DAILY;
+        toSource();
+        for (uint256 k; k < 3; ++k) {
+            if (offDeposit[k]) proposeOn(deposit, "setKey", abi.encode(k, hotKey(k)), salt);
+        }
+        if (limitLow) proposeOn(deposit, "raiseLimit", abi.encode(MAX_WON), salt);
+        if (spenderGone) proposeOn(deposit, "setSpender", abi.encode(address(this)), salt);
+        toWon();
+        for (uint256 k; k < 3; ++k) {
+            if (offPool[k]) proposeOn(pool, "setKey", abi.encode(k, hotKey(k)), salt);
+        }
+        if (limitsLow) proposeOn(pool, "raiseLimits", abi.encode(limits()), salt);
+
+        vm.warp(block.timestamp + 24 hours);
+        for (uint256 k; k < 3; ++k) {
+            if (offDeposit[k]) deposit.setKey(ChargeGovernance.Key(k), hotKey(k), salt);
+            if (offPool[k]) pool.setKey(ChargeGovernance.Key(k), hotKey(k), salt);
+        }
+        if (limitLow) deposit.raiseLimit(MAX_WON, salt);
+        if (spenderGone) deposit.setSpender(address(this), salt);
+        if (limitsLow) pool.raiseLimits(limits(), salt);
+    }
+
+    function hotKey(uint256 k) internal pure returns (address) {
+        return vm.addr([RELAY_KEY, QUOTER_KEY, WITNESS_KEY][k]);
+    }
+
+    function keysOff(ChargeGovernance target) internal view returns (bool[3] memory) {
+        return [target.relay() == address(0), target.quoter() == address(0), target.witness() == address(0)];
+    }
+
+    /// Two signers take pool money out to the treasury. Or the pauser, or one signer, cancels the change
+    /// while it waits, and then nothing may leave.
+    function withdrawSome(uint256 amountSeed, uint256 cancelSeed) external {
+        toWon();
+        uint256 amount = bound(amountSeed, 1, 1_000 * WON);
+        bytes32 salt = bytes32(++salts);
+        bytes32 action = proposeOn(pool, "withdraw", abi.encode(amount), salt);
+        uint256 how = cancelSeed % 3;
+        if (how == 1) {
+            vm.prank(vm.addr(PAUSER_KEY));
+            pool.cancelProposal(action, 0, "");
+        } else if (how == 2) {
+            uint256 until = block.timestamp + 1 hours;
+            pool.cancelProposal(action, until, cancelSignature(pool, SIGNER3_KEY, action, until));
+        }
+        vm.warp(block.timestamp + 24 hours);
+        try pool.withdraw(amount, salt) {
+            withdrawn += amount;
+            if (how != 0) cancelBroken = true;
+        } catch {}
+    }
+
     // ---- what the invariants read ----
 
     function usdcOf(address account) external view returns (uint256) {
@@ -212,6 +340,10 @@ contract ChargeHandler is ChargeBase {
 
     function poolSize() external pure returns (uint256) {
         return POOL_SIZE;
+    }
+
+    function treasuryWon() external view returns (uint256) {
+        return assetBalance(treasury);
     }
 
     function dailyLimit() external pure returns (uint256) {
@@ -231,7 +363,7 @@ contract ChargeSettlementInvariantTest is Test {
         handler = new ChargeHandler();
         handler.installSpender();
         (deposit, pool) = handler.contracts();
-        bytes4[] memory selectors = new bytes4[](10);
+        bytes4[] memory selectors = new bytes4[](13);
         selectors[0] = handler.depositOne.selector;
         selectors[1] = handler.payOne.selector;
         selectors[2] = handler.payUnbacked.selector;
@@ -242,6 +374,9 @@ contract ChargeSettlementInvariantTest is Test {
         selectors[7] = handler.spendOne.selector;
         selectors[8] = handler.sendStray.selector;
         selectors[9] = handler.wait.selector;
+        selectors[10] = handler.narrow.selector;
+        selectors[11] = handler.restore.selector;
+        selectors[12] = handler.withdrawSome.selector;
         targetContract(address(handler));
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
@@ -278,18 +413,23 @@ contract ChargeSettlementInvariantTest is Test {
     }
 
     /// The pool pays each deposit number at most once, never more than it holds and never more than its
-    /// limits in any 24 hours, even for quotes that have no deposit behind them.
+    /// limits in any 24 hours, even for quotes that have no deposit behind them. Nothing goes through a
+    /// pause, a key that is off or a lowered limit, and its money leaves only to boards and, by a change
+    /// that was not cancelled, to the treasury.
     function invariant_poolPaysOncePerDepositAndWithinLimits() public view {
         for (uint256 i; i < handler.count(); ++i) {
             assertLe(handler.payCount(handler.ids(i)), 1);
         }
         assertFalse(handler.limitBroken());
+        assertFalse(handler.stopBroken());
+        assertFalse(handler.cancelBroken());
         assertLe(pool.usedTotal(), handler.dailyLimit());
         uint256 onBoards;
         for (uint256 i; i < 3; ++i) {
             onBoards += handler.wonOf(handler.boardAt(i));
         }
         assertEq(onBoards, handler.paidWon());
-        assertEq(handler.wonOf(address(pool)), handler.poolSize() - handler.paidWon());
+        assertEq(handler.wonOf(address(pool)), handler.poolSize() - handler.paidWon() - handler.withdrawn());
+        assertEq(handler.treasuryWon(), handler.withdrawn());
     }
 }
