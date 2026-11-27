@@ -125,6 +125,9 @@ import {isOpenOrder, orderRecords, type OpenOrder, type OrderItem} from './order
 import {useScreenProtection} from '../ui/screenProtection.ts';
 import {isFormerBoard, OpenOrderCard, OrderDetail} from './OpenOrders.tsx';
 import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} from './OrderPayment.tsx';
+import {configuredEntrance, issuePickupQr} from './customerEntrance.ts';
+import {ownerPickupBoard} from './pickupBoard.ts';
+import {PickupQrScreen} from './PickupQr.tsx';
 
 type RentalBoardReview = RentalReviewChallenge & {
   checkpoint: string;
@@ -377,6 +380,8 @@ export function CustomerOrders({
   const [openOrders, setOpenOrders] = useState<OpenOrder[]>([]);
   const page = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [detailSale, setDetailSale] = useState(initialOrder ?? '');
+  // The ready order whose pickup QR is on screen.
+  const [pickupSale, setPickupSale] = useState('');
   const [stranded, setStranded] = useState<OpenOrder[]>([]);
   const [boardAccount, setBoardAccount] = useState<{address: string; generation: number} | null>();
   const [boards, setBoards] = useState<{ handle: string; name: string }[]>([]);
@@ -706,7 +711,7 @@ export function CustomerOrders({
     if (message) page.current?.scrollTo({y: 0, animated: true});
   }, [message]);
 
-  const closeDetail = () => { setDetailSale(''); setOrder(undefined); setLookupOrder(undefined); setMessage(''); };
+  const closeDetail = () => { setDetailSale(''); setPickupSale(''); setOrder(undefined); setLookupOrder(undefined); setMessage(''); };
   const detailShown = useRef(false);
   detailShown.current = false;
   useEffect(() => {
@@ -2558,12 +2563,20 @@ export function CustomerOrders({
     const shown: OpenOrder = recordedDetail ?? {...otherDetail!.escrow!, sale: otherDetail!.id, branch: client.profile.branchRef, customer: client.profile.subjectRef,
       generation: '', asset: otherDetail!.asset, amount: otherDetail!.amount, sentAt: Math.floor(Date.parse(otherDetail!.payment?.includedAt ?? otherDetail!.expiresAt) / 1000),
       pickupNo: otherDetail!.pickupNo, pickup: otherDetail!.payment?.pickupStage};
+    const entrance = configuredEntrance();
+    // Once the store records the handover the order reads as collected, and the detail comes back by itself.
+    if (recordedDetail && pickupSale === shown.sale && shown.stage === 'locked' && shown.pickup === 'ready')
+      return <ScrollView contentContainerStyle={s.scroll}>
+        <PickupQrScreen key={shown.sale} order={shown} issue={entrance && (() => issuePickupQr(entrance, ownerPickupBoard, shown))}
+          back={() => setPickupSale('')} />
+      </ScrollView>;
     return <ScrollView contentContainerStyle={s.scroll}>
       <OrderDetail order={shown} amount={commerceAmount(shown.amount, shown.asset, policy)} money={units => commerceAmount(units, shown.asset, policy)} fresh={order?.id === shown.sale} mine={!!recordedDetail} former={isFormerBoard(shown, boardAccount)}
         busy={busy} message={message} now={now()} actions={{
           answer: action => work(() => answerOrder(action), '답을 보내지 못했습니다. 상태를 다시 확인하세요.'),
           refresh: () => work(() => openOrderDetail(shown.sale), orderOffline),
           back: closeDetail,
+          ...(entrance ? {pickupQr: () => setPickupSale(shown.sale)} : {}),
         }} />
     </ScrollView>;
   }

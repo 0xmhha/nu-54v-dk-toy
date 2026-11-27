@@ -90,13 +90,13 @@ export function remaining(seconds: number) {
   return [d && `${d}일`, h && `${h}시간`, !d && m && `${m}분`].filter(Boolean).join(' ');
 }
 
-function story(order: OpenOrder, now: number): string {
+function story(order: OpenOrder, now: number, pickupQr = false): string {
   switch (order.stage) {
     case 'locked':
       if (order.pickupNo === undefined) return '결제가 확정되었습니다. 주문번호를 기다리고 있습니다.';
       if (order.pickup === 'unfulfillable') return '매장이 이 주문을 준비할 수 없어 환불을 처리하고 있습니다.';
       if (order.pickup === 'collected') return '매장이 전달을 기록했습니다. 확정되면 받았는지 여기에서 묻습니다.';
-      if (order.pickup === 'ready') return '준비가 끝났습니다. 매장에서 주문번호를 보여 주고 받으세요.';
+      if (order.pickup === 'ready') return pickupQr ? '준비되었습니다. 카운터에서 수령 QR을 보여 주세요.' : '준비가 끝났습니다. 매장에서 주문번호를 보여 주고 받으세요.';
       return order.pickup === 'preparing' ? '매장이 준비하고 있습니다.' : '매장이 주문을 받았습니다.';
     case 'delivered':
       if (Math.abs(now - (order.claimableAt ?? 0)) <= clockMargin) return '매장이 전달했다고 알렸습니다. 확인 기간이 거의 끝났거나 막 끝났습니다. 받지 못했다면 지금 알려 주세요. 기간이 지났으면 서버가 받지 않습니다.';
@@ -130,7 +130,9 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
   /** The paying board account is gone, so a refund cannot be reached. */
   former?: boolean;
   busy?: boolean; message?: string; now: number;
-  actions: {answer: (action: OrderBuyerAction) => void; refresh: () => void; back: () => void};
+  actions: {answer: (action: OrderBuyerAction) => void; refresh: () => void; back: () => void;
+    /** Opens the pickup QR of a ready order; without it the order is collected by its number as before. */
+    pickupQr?: () => void};
 }) {
   const [asking, setAsking] = useState<OrderBuyerAction>();
   const [clock, setClock] = useState(now);
@@ -142,6 +144,7 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
     return () => clearInterval(timer);
   }, [order.stage]);
   const ended = order.stage === 'refunded' || order.stage === 'failed' || order.pickup === 'unfulfillable';
+  const qr = !!actions.pickupQr && mine && order.stage === 'locked' && order.pickup === 'ready' && order.pickupNo !== undefined;
   const step = stepOf(order);
   const given = order.pendingAction ?? order.answer?.action;
   const offered = !given && fresh && mine && order.stage ? offeredAnswers({
@@ -158,10 +161,14 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
           <View style={[styles.bar, index <= step && styles.barDone, index === step && styles.barNow]} />
           <Text style={[styles.stepText, index === step && styles.stepNow]}>{label}</Text>
         </View>)}</View>}
-      <Text style={type.body} accessibilityLiveRegion="polite">{story(order, clock)}</Text>
+      <Text style={type.body} accessibilityLiveRegion="polite">{story(order, clock, qr)}</Text>
       <AmountLine amount={amount} label="결제 금액" />
       <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
     </Card>
+    {qr && <>
+      <KitButton label="수령 QR 받기" run={actions.pickupQr!} disabled={busy} />
+      <Text style={type.small}>{`결제한 보드로 확인한 뒤 QR이 나옵니다. ${amount}은 주문 계약에 보관 중이고, 직원이 QR을 찍어 전달을 기록하면 받았는지 여기에서 묻습니다.`}</Text>
+    </>}
     {order.items && money && order.items.reduce((sum, item) => sum + BigInt(item.total), 0n).toString() === order.amount &&
       <Receipt items={order.items} money={money} taxFreeShop={order.taxFreeShop} />}
     {given && (order.pendingAction
