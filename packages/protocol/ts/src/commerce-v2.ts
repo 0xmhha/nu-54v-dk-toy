@@ -40,10 +40,15 @@ export class CommerceReservationError extends Error {
 /**
  * Why the cart of a proven board account held no stock (the customer entrance, before the reservation):
  * `balance_short` with the cart's amount and the account's balance in base units of the asset, `balance_unavailable`
- * when the server could not read the chain, and `hold_limit` when its address asked for too many carts. Nothing is
- * held and no order exists for the request, so the same cart can be asked for again.
+ * when the server could not read the chain, and `hold_limit` when the account asked for too many carts in a short
+ * time. Nothing is held and no order exists for the request, so the same cart can be asked for again.
+ *
+ * Two more say that asking again does not help. `orders_closed`: the store has no way to be paid by a board account
+ * until its operator changes that, so no cart of one is taken. `cart_released`: the cart this request key made
+ * earlier is closed without a payment (the customer took it back, or its hold ran out); nothing is held, and a new
+ * cart needs a new request key.
  */
-export type CommerceHoldReason = "balance_short" | "balance_unavailable" | "hold_limit";
+export type CommerceHoldReason = "balance_short" | "balance_unavailable" | "hold_limit" | "orders_closed" | "cart_released";
 export class CommerceHoldRefusal extends Error {
   readonly reason: CommerceHoldReason;
   /** Only with `balance_short`: what the cart costs and what the account holds, in base units. */
@@ -69,6 +74,10 @@ export function readHoldRefusal(reply: { error?: string; reason?: unknown; requi
   }
   if (reply.reason === "balance_unavailable" || reply.reason === "hold_limit") {
     if (reply.error !== "BUSY" || reply.required !== undefined || reply.balance !== undefined) throw new Error("BAD_RESPONSE");
+    return new CommerceHoldRefusal(reply.error, reply.reason);
+  }
+  if (reply.reason === "orders_closed" || reply.reason === "cart_released") {
+    if (reply.error !== "CHECKOUT_CONFLICT" || reply.required !== undefined || reply.balance !== undefined) throw new Error("BAD_RESPONSE");
     return new CommerceHoldRefusal(reply.error, reply.reason);
   }
   throw new Error("BAD_RESPONSE");

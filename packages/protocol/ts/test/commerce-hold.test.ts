@@ -50,6 +50,15 @@ test("a balance that could not be read and a limit on carts are told apart, with
     });
 });
 
+test("a store that takes no order of a board account and a cart that was released are told apart, with no numbers", async () => {
+  for (const reason of ["orders_closed", "cart_released"] as const)
+    await assert.rejects(reserve({ error: "CHECKOUT_CONFLICT", reason }), (error) => {
+      assert.ok(error instanceof CommerceHoldRefusal);
+      assert.deepEqual([error.message, error.reason, error.required, error.balance], ["CHECKOUT_CONFLICT", reason, undefined, undefined]);
+      return true;
+    });
+});
+
 test("a refusal that does not read is not a refusal the app can explain", async () => {
   for (const reply of [
     { error: "CHECKOUT_CONFLICT", reason: "balance_short", required: "300000", balance: "300000" }, // not short
@@ -63,6 +72,10 @@ test("a refusal that does not read is not a refusal the app can explain", async 
     { error: "CHECKOUT_CONFLICT", reason: "balance_unavailable" },
     { error: "CHECKOUT_CONFLICT", reason: "hold_limit" },
     { error: "BUSY", reason: "hold_limit", balance: "1" },
+    { error: "BUSY", reason: "orders_closed" },
+    { error: "BUSY", reason: "cart_released" },
+    { error: "CHECKOUT_CONFLICT", reason: "orders_closed", required: "1" },
+    { error: "CHECKOUT_CONFLICT", reason: "cart_released", balance: "1" },
     { error: "BUSY", reason: "later" },
     { error: "BUSY", reason: 7 },
   ])
