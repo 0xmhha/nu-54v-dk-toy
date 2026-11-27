@@ -45,8 +45,8 @@ import (
 // not under it), LiveLimiter (requests of checkout sessions; the session of a paid order is not under it) and
 // HoldLimiter (carts that held stock). A sender with many keys, each signing like a customer, cannot be told from
 // as many customers and can still use those three up: one new key every two seconds holds the session starts of its
-// address at their ceiling, and five unpaid sessions hold the checkout requests there. The customers who already paid are
-// not held back by either.
+// address at their ceiling, and five unpaid sessions hold the checkout requests there. The customers who already
+// paid are not held back by either.
 //
 // The memory of live sessions is this process's own: after a restart, or once an entry was pushed out, a session
 // is counted once like a token the server does not know (AddressLimiter) until its lookup found it live.

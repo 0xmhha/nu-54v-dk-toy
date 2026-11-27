@@ -54,6 +54,15 @@ func TestChallengeCarriesItsPurposeUnderTheServersTag(t *testing.T) {
 			t.Fatalf("a challenge was made for the store reference %q", reference)
 		}
 	}
+	// No challenge lives longer than five minutes, so one that says it does is not this server's, tag or no tag.
+	if far, _ := keys.mint(now, "checkout", branch, now.Add(maxChallengeLifetime+time.Second)); far != ([32]byte{}) {
+		if _, genuine := keys.open(now, far); genuine {
+			t.Fatal("a challenge that runs out more than five minutes from now is read")
+		}
+		if _, genuine := keys.open(now.Add(2*time.Second), far); !genuine {
+			t.Fatal("the same challenge is not read once its expiry is within five minutes")
+		}
+	}
 	// Another process has another key: after a restart no challenge given before is read.
 	var restarted challengeKeys
 	given, _ := keys.mint(now, "checkout", branch, expires)

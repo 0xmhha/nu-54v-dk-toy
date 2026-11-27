@@ -49,9 +49,14 @@ const (
 
 var challengePurposes = map[string]byte{"checkout": challengeCheckout, "order": challengeOrder, "pickup": challengePickup, "account": challengeAccount}
 
-// challengeKeyLife is how long one key signs new challenges. It is longer than any challenge lives (at most five
-// minutes, ledger.use_customer_challenge), so the key before the current one covers every challenge still valid.
-const challengeKeyLife = 10 * time.Minute
+const (
+	// maxChallengeLifetime is the longest a challenge may live, whatever a deployment sets. A challenge that says
+	// it runs out later than that from now is not one this server gave.
+	maxChallengeLifetime = 5 * time.Minute
+	// challengeKeyLife is how long one key signs new challenges. It is longer than any challenge lives, so the key
+	// before the current one covers every challenge still valid.
+	challengeKeyLife = 10 * time.Minute
+)
 
 // ticket is what a challenge says once its tag was checked.
 type ticket struct {
@@ -136,8 +141,9 @@ func (k *challengeKeys) mint(now time.Time, purpose, subject string, expires tim
 	return out, nil
 }
 
-// open reads a challenge this process gave. It reports false for anything else: another purpose code, or a tag
-// that is of neither key. It does not look at the expiry; the caller does, once it knows whose proof this is.
+// open reads a challenge this process gave. It reports false for anything else: another purpose code, a tag that
+// is of neither key, or an expiry further away than any challenge lives. It does not say whether the challenge ran
+// out; the caller does, once it knows whose proof this is.
 func (k *challengeKeys) open(now time.Time, challenge [32]byte) (ticket, bool) {
 	current, previous, err := k.keys(now)
 	if err != nil {
@@ -151,6 +157,9 @@ func (k *challengeKeys) open(now time.Time, challenge [32]byte) (ticket, bool) {
 		return ticket{}, false
 	}
 	out := ticket{expires: time.Unix(int64(binary.BigEndian.Uint32(challenge[1:5])), 0)}
+	if out.expires.After(now.Add(maxChallengeLifetime)) {
+		return ticket{}, false
+	}
 	for name, code := range challengePurposes {
 		if code == challenge[0] {
 			out.purpose = name

@@ -415,7 +415,7 @@ func (h HTTP) customerChallenge(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	now := h.Customer.now()
-	expires := now.Add(lifetime(h.Customer.ChallengeLifetime, defaultChallengeLifetime)).Truncate(time.Second)
+	expires := now.Add(min(lifetime(h.Customer.ChallengeLifetime, defaultChallengeLifetime), maxChallengeLifetime)).Truncate(time.Second)
 	challenge, err := h.Customer.keys.mint(now, in.Purpose, subject, expires)
 	if err != nil {
 		errorResponse(w, service.Unknown, nil)
