@@ -109,8 +109,19 @@ export async function settleReturn(storage: Storage, client: CommerceClient, now
 }
 
 /** Why a board key must stay for now, and what could not be found out. */
-export type ResetBlock = {orders: number; returning: boolean; /** Order or return records on this phone. */ unreadable: boolean; server: 'ok' | 'none' | 'failed'};
-export const resetBlocked = (block: ResetBlock) => block.orders > 0 || block.returning;
+export type ResetBlock = {orders: number; returning: boolean; /** Order or return records on this phone. */ unreadable: boolean; server: 'ok' | 'none' | 'failed';
+  /** Money of a top-up is still on its way to this account (topUpUnfinished). */ toppingUp?: boolean};
+export const resetBlocked = (block: ResetBlock) => block.orders > 0 || block.returning || !!block.toppingUp;
+
+/**
+ * Whether money of a top-up is still on its way to this board account. A reset before it arrives would send it to
+ * an account whose key is gone, so the reset and return pages wait for this the way they wait for an open order.
+ * The app keeps no top-up state yet (traveller-exchange.md), so the answer is no. The top-up flow answers here once
+ * it exists; nothing else needs to change for the pages to hold a reset back.
+ */
+export async function topUpUnfinished(_storage: Storage, _account: OrderAccount): Promise<boolean> {
+  return false;
+}
 export const resetUnknown = (block: ResetBlock) => block.unreadable || block.server === 'failed';
 
 const openEscrow = (order: CommerceOrder, account: OrderAccount) => order.escrow ?
@@ -118,10 +129,16 @@ const openEscrow = (order: CommerceOrder, account: OrderAccount) => order.escrow
 // More unknown orders than this are not asked one by one; the answer is then "not known".
 const asked = 60;
 
-/** Asks this phone's records and, with a store credential, the server. */
+/**
+ * Asks this phone's records and, with a store credential, the server. The records hold every order this phone paid
+ * with the account, also those made from a store page without a registration.
+ */
 export async function readResetBlock(storage: Storage, records: {list(): Promise<OpenOrder[]>}, account: OrderAccount,
-  connect: () => Promise<CommerceClient | undefined>): Promise<ResetBlock> {
+  connect: () => Promise<CommerceClient | undefined>, toppingUp: typeof topUpUnfinished = topUpUnfinished): Promise<ResetBlock> {
   const block: ResetBlock = {orders: 0, returning: false, unreadable: false, server: 'none'};
+  try {
+    if (await toppingUp(storage, account)) block.toppingUp = true;
+  } catch { block.unreadable = true; }
   let known: OpenOrder[] = [];
   const open = new Set<string>();
   try {

@@ -4,6 +4,7 @@ import {bytesToHex, fromBase64, fromBoard, type PaymentToken, type WalletSends} 
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
+import {routeWords} from '../merchant/orderRoute.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
@@ -23,9 +24,9 @@ const pinNote = '위 금액과 받는 주소를 확인한 뒤 SW1을 짧게 누�
 const sendDecimals = (token: PaymentToken) => Math.min(2, token.decimals);
 const decimalWords = (decimals: number) => ['없음', '한', '두', '세', '네', '다섯', '여섯'][decimals] ?? String(decimals);
 
-/** What the server's refusal of a transfer means. The rest is worded as for a return. */
+/** What the server's refusal of a transfer means, in the words of this build's route. The rest is worded as for a return. */
 export function sendFailure(error: unknown): string {
-  return ({
+  return routeWords(({
     UNSUPPORTED_CAPABILITY: '이 매장은 보내기를 중계하지 않습니다.',
     CHECKOUT_CONFLICT: '반납을 진행하고 있어 보낼 수 없습니다.',
     REPLAY_CONFLICT: '이미 보내는 중인 거래가 있습니다. 그 결과를 기다리세요.',
@@ -33,7 +34,7 @@ export function sendFailure(error: unknown): string {
     NO_CREDENTIAL: '먼저 매장 주문 등록이 필요합니다. 결제 탭에서 매장 담당자가 준 등록서를 입력하세요.',
     ...tokenFailures,
     SEND_EXPIRED: '보드가 승인한 시간이 지났습니다. 처음부터 다시 시도하세요. 빠져나간 돈은 없습니다.',
-  } as Record<string, string>)[error instanceof Error ? error.message : ''] ?? serverFailure(error);
+  } as Record<string, string>)[error instanceof Error ? error.message : ''] ?? serverFailure(error));
 }
 const boardWords = (error: unknown) => ({
   BOARD_NO_SEND: '이 보드의 펌웨어는 아직 보내기를 지원하지 않습니다. 빠져나간 돈은 없습니다.',
@@ -150,8 +151,8 @@ export function SendPage(props: BoardLifeProps) {
   if (!verified || !board) return <Notice body="먼저 보드 연결과 서명 시험을 마치세요." />;
   if (problem) return <><Notice body={problem} /><KitButton label="다시 확인" run={() => work(list, sendFailure)} disabled={props.busy} variant="secondary" /></>;
   if (!props.fixture && !held) return <Text style={type.body}>보내기를 확인하고 있습니다.</Text>;
-  if (props.storeRead === 'loading') return <Text style={type.body}>매장 등록을 확인하고 있습니다.</Text>;
-  if (!store) return <><Notice body="매장 등록을 확인하지 못했습니다. 등록했다면 다시 확인하고, 아니면 결제 탭에서 매장 담당자가 준 등록서를 입력하세요." />
+  if (props.storeRead === 'loading') return <Text style={type.body}>{routeWords('매장 등록을 확인하고 있습니다.')}</Text>;
+  if (!store) return <><Notice body={routeWords('매장 등록을 확인하지 못했습니다. 등록했다면 다시 확인하고, 아니면 결제 탭에서 매장 담당자가 준 등록서를 입력하세요.')} />
     <KitButton label="등록 다시 확인" run={() => props.readStore?.()} variant="secondary" disabled={props.busy} /></>;
   if (props.spending && !props.spending.sends) return <Notice title="아직 보낼 수 없습니다" body="연결한 보드의 펌웨어가 보내기를 지원하지 않습니다. 남은 돈은 반납으로 원래 지갑에 보낼 수 있습니다.">
     <KitButton label="반납 보기" run={() => props.go('return')} variant="secondary" /></Notice>;

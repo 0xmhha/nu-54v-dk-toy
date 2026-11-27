@@ -1,13 +1,16 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Image, StyleSheet, Text, TextInput, View} from 'react-native';
 import {
-  boardUnit, bytesToHex, dollarToken, fromBase64, paymentProfile, paymentToken, paysThroughEscrow, stableNetCoin, tokenAmount, type PayerEnrollment, type PaymentToken,
+  boardUnit, bytesToHex, dollarToken, fromBase64, payerEnrollChallenge, paymentProfile, paymentToken, paysThroughEscrow, stableNetCoin, tokenAmount, type PayerEnrollment, type PaymentToken,
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import type {Spec as NativeWallet} from '../specs/NativeOwnerWallet.ts';
 import {customerClient, walletId} from '../merchant/customerClient.ts';
+import {orderPaymentPin} from '../merchant/orderPaymentTrust.ts';
 import {orderRecords} from '../merchant/orderRecords.ts';
+import {ordersWithoutRegistration, routeWords} from '../merchant/orderRoute.ts';
+import {recentStores} from '../merchant/storeDirectory.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
@@ -74,7 +77,18 @@ export async function credential() {
 }
 const noCredential = '먼저 매장 주문 등록이 필요합니다. 결제 탭에서 매장 담당자가 준 등록서를 입력하세요.';
 const explain = (error: unknown, other: (error: unknown) => string) =>
-  error instanceof Error && error.message === 'NO_CREDENTIAL' ? noCredential : error instanceof Error && tokenFailures[error.message] || other(error);
+  routeWords(error instanceof Error && error.message === 'NO_CREDENTIAL' ? noCredential : error instanceof Error && tokenFailures[error.message] || other(error));
+
+/**
+ * The order contract of a build that orders without a registration: its token is the one a board of this build
+ * signs and holds, and its read server the one to ask. Undefined in a build of the earlier route, where a store's
+ * registration says both.
+ */
+const buildPayment = () => ordersWithoutRegistration() ? orderPaymentPin() : undefined;
+const buildStore = (): Store | undefined => {
+  const pin = buildPayment();
+  return pin && {asset: pin.asset.toLowerCase(), token: paymentToken(pin)};
+};
 
 const storeText = (units: bigint, store?: Store) => store ? tokenAmount(units, store.token) : unknownAmount.ko;
 const assetText = (units: bigint, asset: string, store?: Store) => store?.asset === asset.toLowerCase() ? tokenAmount(units, store.token) : unknownAmount.ko;
@@ -105,13 +119,14 @@ async function tokenBalance(props: Pick<BoardLifeProps, 'stored' | 'native' | 's
   const {verified, walletRead} = props.stored, native = props.native;
   if (!verified || !native) return undefined;
   try {
+    const pin = buildPayment();
     const policy = token && walletRead?.endpoints.stable ? undefined
-      : await credential().then(value => value.policy, error => { if (token) return undefined; throw error; });
-    const asset = token ?? policy!.asset;
-    const rpc = walletReadRpc(serverFor('stable', walletRead, {store: policy?.rpc}).server, (url, packet) => native.evmRpc(url, packet));
+      : await credential().then(value => value.policy, error => { if (token || pin) return undefined; throw error; });
+    const asset = token ?? (policy ?? pin)!.asset;
+    const rpc = walletReadRpc(serverFor('stable', walletRead, {store: policy?.rpc ?? pin?.rpc}).server, (url, packet) => native.evmRpc(url, packet));
     const read = async (tag: 'finalized' | 'latest') => BigInt((await readEvmReceiveBalance(rpc, '8283', readProfiles.stable.anchor,
       verified.address, asset, false, tag)).amount);
-    const store = policy ? storeOf(policy) : props.store, unit = store?.asset === asset.toLowerCase() ? boardUnit(store.token) : 1n;
+    const store = policy ? storeOf(policy) : props.store ?? buildStore(), unit = store?.asset === asset.toLowerCase() ? boardUnit(store.token) : 1n;
     const held = await read('finalized'), newest = await read('latest');
     const units = held - held % unit;
     return {units, latest: newest - newest % unit, text: assetText(units, asset, store), ...(held % unit || newest % unit ? {dust: true} : {})};
@@ -151,21 +166,25 @@ export function Notice({title, body, tone = 'wait', children}: {title?: string; 
 
 export type SetupStep = {label: string; detail: string; state: 'done' | 'now' | 'later'; optional?: true};
 /** The one line of first use. Every step is read from what is stored or reported, so it resumes anywhere. */
-export function setupSteps(stored: WalletStorage, hasEnrollment: boolean, payer?: PayerEnrollment | null, registered = false): SetupStep[] {
+/** The step of the earlier route that enrolls the board account at the phone's registered store. */
+export const storeEnrollmentStep = '매장 등록';
+export function setupSteps(stored: WalletStorage, hasEnrollment: boolean, payer?: PayerEnrollment | null, registered = false,
+  withoutRegistration = ordersWithoutRegistration()): SetupStep[] {
   const board = testedBoard(stored);
   const enrolled = !!board && payer?.payer === board.account && payer.generation === String(board.generation) && payer.expiresAt > now();
-  const done = [hasEnrollment && (!!stored.verified || registered), !!board, !!board?.returnAddress, enrolled, false];
-  const rows: [string, string][] = [
-    ['보드 연결과 PIN', '보드 버튼으로 이 휴대전화를 승인하고 PIN을 정합니다'],
-    ['서명 시험', '보드 계정의 서명을 확인합니다. 버튼은 누르지 않습니다'],
-    ['반납받을 주소', board?.returnAddress ? short(board.returnAddress) : '남은 돈을 돌려받을 원래 지갑 주소를 보드에 저장합니다'],
-    // No store registers a board: a store learns the account from the board's own proof when an order is asked for.
-    ['매장 등록', '따로 등록하지 않습니다. 매장에서 주문할 때 보드가 계정을 확인합니다'],
-    ['입금', '쓸 만큼만 원래 지갑에서 보냅니다'],
+  const rows: {label: string; detail: string; done: boolean; optional?: true}[] = [
+    {label: '보드 연결과 PIN', detail: '보드 버튼으로 이 휴대전화를 승인하고 PIN을 정합니다', done: hasEnrollment && (!!stored.verified || registered)},
+    {label: '서명 시험', detail: '보드 계정의 서명을 확인합니다. 버튼은 누르지 않습니다', done: !!board},
+    {label: '반납받을 주소', detail: board?.returnAddress ? short(board.returnAddress) : '남은 돈을 돌려받을 원래 지갑 주소를 보드에 저장합니다', done: !!board?.returnAddress},
+    // A build that orders without a registration has no such step: a store learns the account from the board's own
+    // proof when an order is asked for.
+    ...(withoutRegistration ? [] : [{label: storeEnrollmentStep, done: enrolled, optional: true as const,
+      detail: payer && board && !enrolled ? '다른 보드 계정이 등록되어 있습니다. 다시 등록하세요' : '결제할 매장에 보드 계정을 등록합니다. 나중에 해도 됩니다'}]),
+    {label: '입금', detail: '쓸 만큼만 원래 지갑에서 보냅니다', done: false},
   ];
-  const first = done.findIndex((value, index) => !value && index !== 3);
-  return rows.map(([label, detail], index) => ({label, detail, state: done[index] ? 'done' : index === first || (index === 3 && !!board) ? 'now' : 'later',
-    ...(index === 3 ? {optional: true as const} : {})}));
+  const first = rows.findIndex(row => !row.done && !row.optional);
+  return rows.map(({label, detail, done, optional}, index) => ({label, detail, state: done ? 'done' : index === first || (optional && !!board) ? 'now' : 'later',
+    ...(optional ? {optional} : {})}));
 }
 
 export function SetupList({steps}: {steps: SetupStep[]}) {
@@ -195,7 +214,7 @@ export function usePayer(active: boolean) {
 
 /** Setup progress on 내 보드. */
 export function SetupStatus({stored, hasEnrollment, registered, open, live = true}: {stored: WalletStorage; hasEnrollment: boolean; registered?: boolean; open: () => void; live?: boolean}) {
-  const {payer} = usePayer(live && !!testedBoard(stored));
+  const {payer} = usePayer(live && !!testedBoard(stored) && !ordersWithoutRegistration());
   return <View style={styles.group}><Text accessibilityRole="header" style={type.section}>보드 설정</Text>
     <SetupList steps={setupSteps(stored, hasEnrollment, payer, registered)} />
     <KitButton label="설정 열기" run={open} variant="secondary" /></View>;
@@ -203,7 +222,9 @@ export function SetupStatus({stored, hasEnrollment, registered, open, live = tru
 
 function SetupPage(props: BoardLifeProps) {
   const {stored, work, withBoard, commit, say} = props;
-  const {payer} = usePayer(!props.fixture);
+  // Only the earlier route enrolls a board at a store, so only it asks the store which board is enrolled.
+  const enrolls = !ordersWithoutRegistration();
+  const {payer, read, unregistered} = usePayer(!props.fixture && enrolls);
   const steps = setupSteps(stored, props.hasEnrollment, payer, props.registered);
   const board = testedBoard(stored), verified = stored.verified;
   const test = (handle: string) => work(async () => {
@@ -223,6 +244,24 @@ function SetupPage(props: BoardLifeProps) {
     });
     say('보드 서명을 확인했습니다. 이제 입금 주소를 볼 수 있습니다.');
   }, boardFailure);
+  const enroll = (handle: string) => work(async () => {
+    const {client} = await credential();
+    const key = await walletId();
+    const generation = BigInt(board!.generation);
+    const {signature} = await withBoard(handle, async session => {
+      const status = await session.maintenanceStatus();
+      if (status.generation !== generation) throw new Error('PAYMENT_BOARD_BINDING');
+      return session.proveAccount(board!.account, payerEnrollChallenge({tenantRef: client.profile.tenantRef, branchRef: client.profile.branchRef,
+        subjectRef: client.profile.subjectRef, payer: board!.account, generation, idempotencyKey: key}));
+    }).catch(error => { throw new Error(boardFailure(error)); });
+    await client.enrollPayer(board!.account, generation, signature, key).catch(async error => {
+      // A lost reply is settled by what the server reports, not by asking the board again.
+      const held = await read();
+      if (held?.payer !== board!.account || held.generation !== String(board!.generation)) throw new Error(serverFailure(error));
+    });
+    await read();
+    say('이 매장에 보드 계정을 등록했습니다.');
+  }, error => error instanceof Error && /[가-힣]/.test(error.message) ? error.message : explain(error, serverFailure));
   const step = steps.find(item => item.state === 'now' && !item.optional)?.label;
   return <>
     <SetupList steps={steps} />
@@ -233,6 +272,12 @@ function SetupPage(props: BoardLifeProps) {
     </>}
     {step === '반납받을 주소' && <KitButton label="반납받을 주소 등록" run={() => props.go('return-address')} disabled={props.busy} />}
     {step === '입금' && <KitButton label="입금 안내 보기" run={() => props.go('deposit')} disabled={props.busy} />}
+    {enrolls && board && steps.find(item => item.label === storeEnrollmentStep)?.state !== 'done' && <>
+      <Text style={type.section}>매장 등록</Text>
+      <Text style={type.body}>이 휴대전화의 주문 등록을 쓰는 매장에 보드 계정을 알립니다. 보드 버튼은 누르지 않습니다.</Text>
+      {unregistered && <KitButton label="결제 탭에서 주문 등록하기" run={props.orders} disabled={props.busy} variant="secondary" />}
+      <Chooser props={props} label="이 매장에 보드 등록" run={enroll} />
+    </>}
   </>;
 }
 
@@ -300,7 +345,7 @@ function DepositPage(props: BoardLifeProps) {
     }, boardFailure)} /></>;
   // The same address exists on every EVM network, and what arrives there on another one cannot be moved.
   const label = props.store?.token.label;
-  if (props.storeRead === 'loading') return <Text style={type.body}>매장 등록을 확인하고 있습니다.</Text>;
+  if (props.storeRead === 'loading') return <Text style={type.body}>{routeWords('매장 등록을 확인하고 있습니다.')}</Text>;
   if (props.store?.token.symbol !== dollarToken.symbol && !networkSeen) return <>
     {warning}
     <Notice tone="stop" title="StableNet 테스트넷으로만 보내세요" body={`${label ? `${label}는 StableNet 테스트넷에만 있습니다.` : '매장 등록을 확인하지 못해 이 보드가 쓰는 토큰을 알 수 없습니다. 확인하기 전에는 보내지 않는 것을 권장합니다.'} 다른 네트워크나 다른 토큰으로 보낸 것은 이 보드가 다시 보낼 수 없습니다. 시험용이며 실제 돈이 아닙니다.`} />
@@ -313,7 +358,7 @@ function DepositPage(props: BoardLifeProps) {
     <Text selectable style={styles.address}>{board.account}</Text>
     <KitButton label="주소 공유" run={() => props.copy(board.account)} variant="secondary" disabled={props.busy} />
     <Card><Row label="보드 계정 잔액" value={balance === undefined ? '확인하는 중' : balance?.text ?? '확인 안 됨'} />
-      {balance === null && <Text style={type.small}>네트워크 주소나 매장 등록이 없어 잔액을 읽지 못했습니다. 보낸 돈은 원래 지갑의 거래 기록에서 확인하세요.</Text>}</Card>
+      {balance === null && <Text style={type.small}>{routeWords('네트워크 주소나 매장 등록이 없어 잔액을 읽지 못했습니다. 보낸 돈은 원래 지갑의 거래 기록에서 확인하세요.')}</Text>}</Card>
     <KitButton label="잔액 다시 확인" run={() => props.work(async () => { await read(); }, () => '잔액을 확인하지 못했습니다.')} disabled={props.busy} variant="secondary" />
     {balance === null && <KitButton label="네트워크 주소 설정" run={() => props.go('networks')} disabled={props.busy} variant="secondary" />}
     {!board.returnAddress && <Notice body="반납받을 주소를 아직 저장하지 않았습니다. 입금하기 전에 저장하는 것을 권장합니다.">
@@ -365,9 +410,12 @@ async function erase(props: BoardLifeProps, run: () => Promise<void>) {
   }
 }
 
-/** Clears what the phone kept for the account of a board that was reset. Orders stay, under their former account. */
+/**
+ * Clears what the phone kept for the account of a board that was reset, and the stores it opened with it: the board
+ * may go to someone else. Orders stay, under their former account.
+ */
 async function finishReset(props: BoardLifeProps) {
-  if (Http) { await forgetReturn(Http); await forgetSend(Http); await pendingReset(Http).save(undefined); }
+  if (Http) { await forgetReturn(Http); await forgetSend(Http); await pendingReset(Http).save(undefined); await recentStores(Http).forget(); }
   await props.commit(withoutBoardAccount);
   props.go('setup');
   props.say('보드를 초기화했습니다. 다시 쓰려면 운영자 허가를 받은 뒤 처음부터 등록하세요.');
@@ -392,6 +440,8 @@ function useResetGate(props: BoardLifeProps) {
     : block.orders > 0 ? <OpenOrderNotice props={props} orders={block.orders} />
     : block.returning ? <Notice tone="stop" title="끝나지 않은 반납이 있습니다" body="반납이 확정되거나 실패할 때까지 초기화할 수 없습니다.">
       <KitButton label="반납 보기" run={() => props.go('return')} variant="secondary" /></Notice>
+    // No top-up state exists yet (boardReturn.ts topUpUnfinished); this is said once one does.
+    : block.toppingUp ? <Notice tone="stop" title="끝나지 않은 충전이 있습니다" body="충전한 돈이 보드 계정에 들어올 때까지 초기화할 수 없습니다." />
     : unknown && !accepted ? <Notice tone="stop" title="끝나지 않은 주문이 있는지 알 수 없습니다"
       body={`${block.unreadable ? '이 휴대전화의 주문 기록을 읽을 수 없습니다.' : '매장 서버에 확인하지 못했습니다.'} 끝나지 않은 주문이 있으면 그 환불금을 영영 받을 수 없습니다.`}>
       <KitButton label="다시 확인" run={() => { read().catch(() => {}); }} variant="secondary" disabled={props.busy} />
@@ -489,6 +539,7 @@ function ReturnPage(props: BoardLifeProps) {
     if (block.unreadable) return <Notice tone="stop" title="반납할 수 없습니다" body="주문 기록을 읽을 수 없어 끝나지 않은 주문이 있는지 알 수 없습니다. 지원을 요청하세요." />;
     if (block.orders > 0) return <OpenOrderNotice props={props} orders={block.orders} />;
     if (block.returning) return <Notice title="진행 중인 반납이 있습니다" body="매장 서버가 이 계정의 반납을 처리하고 있습니다. 끝난 뒤 다시 확인하세요." />;
+    if (block.toppingUp) return <Notice tone="stop" title="끝나지 않은 충전이 있습니다" body="충전한 돈이 보드 계정에 들어올 때까지 반납할 수 없습니다." />;
     if (unfinished(stored)) return <Notice tone="stop" title="반납할 수 없습니다" body="결과를 모르는 다른 전송이나 서명이 있습니다. 먼저 그 결과를 확인하세요." />;
     if (!board.returnAddress) return <Notice title="반납받을 주소가 없습니다" body="원래 지갑 주소를 보드에 먼저 저장하세요.">
       <KitButton label="반납받을 주소 등록" run={() => props.go('return-address')} variant="secondary" /></Notice>;
@@ -507,14 +558,14 @@ function ReturnPage(props: BoardLifeProps) {
       const nonce = bytesToHex(fromBase64(await Http!.randomBytes(32)), false);
       await keep(newReturn({payer: verified.address, generation: String(verified.generation), device: board.device, token: policy.asset, to: board.returnAddress!},
         money.units, nonce, await walletId(), now()));
-    }, error => error instanceof Error && error.message === 'PAYER_NOT_ENROLLED' ? '이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.'
+    }, error => error instanceof Error && error.message === 'PAYER_NOT_ENROLLED' ? routeWords('이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.')
       : error instanceof Error && error.message === 'RESET_BLOCKED' ? blockedText : explain(error, serverFailure));
     return <>
       <Text style={type.body}>남은 돈을 모두 원래 지갑으로 보내고, 확정된 뒤에 보드를 초기화합니다.</Text>
       <Card><AmountLine amount={balance === undefined ? '확인하는 중' : balance?.text ?? '확인 안 됨'} label="돌려받을 금액" />
         {balance?.dust && <Text style={type.small}>보드가 셀 수 있는 가장 작은 금액보다 작은 나머지는 보내지 못하고 남습니다.</Text>}
         <Text style={type.small}>받는 주소 (보드에 저장된 원래 지갑)</Text><Text selectable style={styles.address}>{board.returnAddress}</Text></Card>
-      {balance === null && <Notice body="보드 계정의 잔액을 확인할 수 없습니다. 네트워크 주소와 매장 등록을 확인하세요.">
+      {balance === null && <Notice body={routeWords('보드 계정의 잔액을 확인할 수 없습니다. 네트워크 주소와 매장 등록을 확인하세요.')}>
         <KitButton label="잔액 다시 확인" run={() => work(async () => { await read(); }, () => '잔액을 확인하지 못했습니다.')} variant="secondary" /></Notice>}
       <KitButton label={balance?.units === 0n ? '잔액 없이 초기화로 진행' : '반납 시작'} run={start} disabled={props.busy || !balance} />
     </>;
@@ -735,7 +786,8 @@ function useStore(fixture?: Store) {
   const [store, setStore] = useState(fixture), [storeRead, setRead] = useState<'loading' | 'done'>(fixture ? 'done' : 'loading');
   const live = useRef(true);
   const readStore = useCallback(() => {
-    registeredStore().catch(() => undefined).then(value => { if (live.current) { setStore(value); setRead('done'); } });
+    // Without a registration, a build that orders without one still knows its token: its order contract's.
+    registeredStore().catch(() => undefined).then(value => { if (live.current) { setStore(value ?? buildStore()); setRead('done'); } });
   }, []);
   useEffect(() => {
     live.current = true;

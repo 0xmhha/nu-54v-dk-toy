@@ -135,6 +135,10 @@ export const walletTabEnglish: Record<string, string> = {
   '보내 달라고 했습니다. 확정되면 지갑에 보입니다.': 'Requested. It is shown in the wallet once final.',
   '다른 보드 계정이 이 매장에 등록되어 있습니다. 설정에서 매장 등록을 다시 하세요.': 'Another board account is enrolled at this store. Enroll again in Settings.',
   '이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.': 'No board account is enrolled at this store. Enroll it in Settings first.',
+  // What a build that orders without a registration says in place of the sentences above (merchant/orderRoute.ts).
+  '매장 서버가 다른 보드 계정을 알고 있어 진행할 수 없습니다.': 'The store server knows another board account, so this cannot go on.',
+  '매장 서버가 이 보드 계정을 알지 못해 진행할 수 없습니다.': 'The store server does not know this board account, so this cannot go on.',
+  '이 앱에서는 아직 쓸 수 없는 기능입니다.': 'This is not available in this app yet.',
   '보드가 아직 이 토큰을 보낼 수 없어 받지 않습니다': 'Not taken: the board cannot send this token yet',
   '사용 안 함': 'Not used',
   '보내는 중': 'Sending',

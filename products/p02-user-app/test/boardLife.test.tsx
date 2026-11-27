@@ -252,20 +252,25 @@ describe('setup', () => {
     await press('서명 시험 하기');
     expect(message).toContain('먼저 등록하세요');
   });
-  test('there is no store enrollment button: a store learns the account from the board\'s proof at the order', async () => {
+  test('the store enrollment carries the board proof, and a lost reply is settled by the server', async () => {
     mockPayer = undefined;
+    mockReturnLost = true;
     await open('setup');
-    expect(button('이 매장에 보드 등록')).toBeUndefined();
-    expect(button('결제 탭에서 주문 등록하기')).toBeUndefined();
-    expect(text()).toContain('따로 등록하지 않습니다');
-    expect(mockSent).toEqual([]);
-    expect(mockCalls).not.toContain('payer.enroll');
+    await press('이 매장에 보드 등록');
+    expect(mockSent[0]).toMatchObject({operation: 'payer.enroll', body: {payer, generation: String(generation)}, approvalSignature: '11'.repeat(64) + '1b'});
+    expect(message).toContain('서버의 답을 받지 못했습니다');
+    mockPayer = {...account, expiresAt: now + 9999};
+    await press('이 매장에 보드 등록');
+    expect(message).toContain('등록했습니다');
+    expect(text()).toContain('4. 매장 등록, 완료');
   });
   test('without a store registration the rest of setup still works', async () => {
     mockEnrolled = false;
     await open('setup');
-    expect(button('이 매장에 보드 등록')).toBeUndefined();
+    expect(button('결제 탭에서 주문 등록하기')).toBeDefined();
     expect(button('입금 안내 보기')).toBeDefined();
+    await press('이 매장에 보드 등록');
+    expect(message).toContain('매장 주문 등록이 필요합니다');
   });
 });
 

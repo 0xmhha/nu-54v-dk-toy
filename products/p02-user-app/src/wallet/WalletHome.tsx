@@ -37,6 +37,7 @@ import {importRecoveryTrust} from './recoveryProof.ts';
 import {BoardStepPanel} from './BoardStepPanel.tsx';
 import {boardFailure, forgetReturn, pendingReset} from './boardReturn.ts';
 import {forgetSend} from './boardSend.ts';
+import {recentStores} from '../merchant/storeDirectory.ts';
 import {DemoWalletHome} from './DemoWalletHome.tsx';
 import type {OpenOrder} from '../merchant/orderRecords.ts';
 import {BoardLife, boardLifeTitles, SetupStatus, type BoardLifeScreen} from './BoardLife.tsx';
@@ -576,7 +577,7 @@ export function WalletHome({rental, orders, permission, honorExistingRental, onP
   }
 
   async function forgetBoardAccount() {
-    if (Http) { await forgetReturn(Http); await forgetSend(Http); await pendingReset(Http).save(undefined); }
+    if (Http) { await forgetReturn(Http); await forgetSend(Http); await pendingReset(Http).save(undefined); await recentStores(Http).forget(); }
     await commit(withoutBoardAccount);
     setSeenBoard(undefined); setSpending(undefined); setVerifiedIdleLock(undefined); setPolicyHandle('');
   }

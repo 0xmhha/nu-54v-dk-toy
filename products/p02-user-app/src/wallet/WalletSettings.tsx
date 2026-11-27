@@ -9,6 +9,7 @@ import {KitButton, Section, type ButtonVariant} from '../ui/kit.tsx';
 import {color, font} from '../ui/theme.ts';
 import {appVersion} from '../ui/version.ts';
 import {stableTestUsdc} from './walletEducationRate.ts';
+import {routeWords} from '../merchant/orderRoute.ts';
 
 export function WalletSettings({tabbed=false, spendingBoard=false, giveBack, registration, legal, backup, replacePhone, firmwareEvidence, assetNetworks, language, setLanguage, back, policyRoute, applied, idleLock, checkIdleLock, practice, pendingOrders, pendingEvm, pendingChain, device, pending, boardStatus, boardSuffix, recover, credentials, networks, privacy, policy, policyDecimals, policyFresh, policyFinalityFresh, policyFinalityPending, finalityEnroll, finalityReconcile, finalityResume, freshAsset, chooseAsset, initialize, change, changeSet, policyContacts, activate, readPolicy, policyReadAt, section, accessibility, diagnostics, rejectPractice, resetAccessibilityScroll, boardPage}: {
   boardPage?:()=>void;
@@ -139,7 +140,7 @@ export function WalletSettings({tabbed=false, spendingBoard=false, giveBack, reg
   if(section==='home')return <View style={styles.home}>
     <Section title={ko?'보드':'Board'} aside={boardStatus === 'active' ? (ko?'상태 확인됨':'Status verified')+(boardSuffix?' · '+boardSuffix:'') : (ko?'상태 미확인':'Status not checked')}>
       {boardPage && button(ko?'내 보드':'My board',boardPage,'row',ko?'상태, 한도, LED 신호':'Status, limits, LED signals')}
-      {registration && button(ko?'등록과 매장':'Enrollment and stores',registration,'row',ko?'서명 시험, 반납 주소, 매장 등록':'Signing test, return address, store enrollment')}
+      {registration && button(ko?'등록과 매장':'Enrollment and stores',registration,'row',routeWords(ko?'서명 시험, 반납 주소, 매장 등록':'Signing test, return address, store enrollment'))}
       {giveBack && button(ko?'반납과 초기화':'Return and reset',giveBack,'row',ko?'남은 돈을 원래 지갑으로 보냅니다':'Sends what is left to the original wallet')}
       {button(ko?'기기·업데이트':'Device and updates',device)}
       {!spendingBoard && readPolicy && button(ko?'한도와 잠금':'Limits and auto-lock',readPolicy)}
