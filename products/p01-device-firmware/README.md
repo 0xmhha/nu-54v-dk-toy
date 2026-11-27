@@ -310,17 +310,49 @@ spending profile keeps it in protected storage and takes it up again after a res
 grant the board committed, fits the owner's generation and has not ended. A factory reset removes it. The
 certificates in the grant have to last as long as the grant, and so does the phone's owner certificate.
 
-The board has no clock that runs without power. It saves its time every ten minutes and continues from
-the saved time, so after a restart its clock is late by the time it was off and by what passed since the
+The board has no clock that runs without power. It saves its time every hour
+(`CONFIG_NU54_CLOCK_SAVE_SECONDS`), when the phone moves it and when the grant ends, and continues from
+the saved time. After a restart its clock is late by the time it was off and by what passed since the
 last save. Two consequences:
 
-- The grant's period is counted in powered-on time. Payments still end at the calendar `not_after`: an
-  order that ends after it is refused, and the store signs the order's end by the calendar. Status, the
-  return address and a reset can go on until the board's own clock reaches the end.
-- A late clock refuses honest requests, because their end looks too far ahead (the limits in the table
-  below). More than 60 seconds late and orders are refused; more than 210 seconds and every request is.
-  Nothing but a new grant moves the clock forward, so after a longer time without power the operator
-  installs a new grant as before. This is an open question in the design.
+- Without the phone the grant's period is counted in powered-on time. Payments still end at the calendar
+  `not_after`: an order that ends after it is refused, and the store signs the order's end by the
+  calendar. Status, the return address and a reset can go on until the board's own clock reaches the end.
+- A late clock refuses honest requests. An order is refused as soon as the board's latest possible time
+  is before the time the store signed it, which is a matter of seconds; every other request is refused
+  when its end looks too far ahead (the table below). More than 210 seconds late and everything but the
+  time command is refused.
+
+**The phone sets the clock.** The registered owner's phone tells the board the time in its owner session,
+and the board moves its clock forward, never back and never to the grant's end or past it. No operator and
+no network are involved. The phone sends this first, right after the TLS handshake:
+
+| | |
+|---|---|
+| transport command | `clock`, code 8, on the management route, from the owner only |
+| request | `0x81`, the phone's time in seconds (8 bytes, big-endian). It must end within 95 s after that time; the phone gives it 90 s |
+| reply | `0x81`, result (1), the board's earliest and latest possible time and the grant's end (8 bytes each), the number of times the phone's time opened a later day under this grant (4) |
+| result | 1 moved; 2 not forward (the board is at that time or past it); 3 the grant's end or later. 2 and 3 change nothing |
+
+The board asks for neither the button nor the PIN, and takes the time only from the phone its vault holds
+as the owner, under a grant of that owner's generation, with no registration or recovery under way. It is
+the one command that reaches a board however late its clock is; the transport's 300-second rule still
+holds for every other command. The moved time is in storage before it is used. The latest possible time
+is then 5 s plus the age of the session above the time the phone sent, so the phone reads its clock after
+the handshake and sends the command before anything else.
+
+An owner certificate issued while the board was off is not valid yet by the board's late clock. The board
+then still opens the session for the pinned owner, and that session takes the time command and nothing
+else. When the certificate is valid at the new time the session goes on as usual; otherwise it ends after
+the reply. A certificate that has ended is refused as before.
+
+A move into a later day opens that day's total again; this is the accepted cost of the decision, and the
+count in the reply shows how often the phone did it. A phone whose clock is ahead takes the board with it:
+real orders then look ended to the board, and a new grant is refused until the calendar has caught up,
+because a grant's time must not be before the time the board has reached. See
+[the design](../../docs/content/commercial/architecture/board-secure-key-and-advertising.md) for what a
+holder of the phone can and cannot do. The phone side is not built yet; until it is, a board that was
+without power takes a new grant from the operator as before.
 
 For a new grant open SW4, take a fresh ticket and offer, and issue with a new `not_after` and a higher
 `revision`. Its time must not be before the time the board has reached. Keep `payer_generation` equal to
@@ -331,13 +363,17 @@ The time between the offer and the installed grant, at most 60 seconds, is how f
 possible time may run ahead while that grant is in use, also after a restart. A later grant does not
 shorten it, so run the commands without a pause. The phone allows for it:
 
-| Request | Phone sends | Board limit, from its latest possible time |
-|---|---|---|
-| status (3, 7), 0x7d, 0x7f, receipt status | 90 s | transport 300 s |
-| 0x79, running firmware, power, 0x70 to 0x72, 0x76 | 90 s | 95 s (10 s outside this profile) |
-| registration, 0x7a, 0x7c, 0x7e | 150 s | transport 300 s, and the 120 s session |
-| 0x7b | `validBefore`, at most 540 s ahead and 300 s as a request | 600 s from the board's earliest possible time |
-| order | quote expiry, at most 120 s left | 180 s from the board's earliest possible time |
+| Request | Phone sends | Board limit, from its latest possible time | Refused when the board is late by more than |
+|---|---|---|---|
+| order | quote expiry, at most 120 s left | not before the quote's time of issue; 180 s from the board's earliest possible time to the expiry | the age of the quote, a few seconds |
+| 0x79, running firmware, power, 0x70 to 0x72, 0x76 | 90 s | 95 s (10 s outside this profile) | 5 s |
+| 0x7b | `validBefore` 170 s ahead, and as long as a request | transport 300 s; 600 s from the board's earliest possible time | 130 s |
+| registration, 0x7a, 0x7c, 0x7e | 150 s | transport 300 s, and the 120 s session | 150 s |
+| status (3, 7), 0x7d, 0x7f, receipt status | 90 s | transport 300 s | 210 s |
+| time (transport command 8, 0x81) | 90 s | not ended by the board's time | never |
+
+"Late" is the calendar minus the board's latest possible time. The phone's values are those of
+`products/p02-user-app/src/wallet/ownerSession.ts` and `boardReturn.ts`.
 
 Nothing is accepted past its end: that is still judged by the latest possible time. The phone's clock may be
 off by 5 seconds. A request record lasts for its TLS session (128 of them); a frame of an earlier session is
@@ -405,7 +441,9 @@ current generation, in RAM. A new request replaces it, one attempt uses it up, a
 answer alone erases nothing: the board still checks the authority's signature over board, generation and
 value, and SW1 must be pressed. Within the 15 minutes any phone that can open an owner session may present
 it, so send the answer only to the owner. The board also refuses while a signed order can still execute,
-which takes up to 240 seconds and does not use the value up. The remaining balance is lost.
+which does not use the value up: up to 180 seconds for an order signed since the board started, and for one
+from before the restart until the board has run for 240 seconds. A time the phone tells does not shorten
+either. The remaining balance is lost.
 
 **Re-enrollment.** The board restarts without a grant. A reset of generation G makes G+1, and the next
 registration makes G+2. Issue the next grant with `payer_generation` G+2, a higher `revision`, the new
