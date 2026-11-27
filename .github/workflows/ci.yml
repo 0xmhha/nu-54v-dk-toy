@@ -226,6 +226,16 @@ jobs:
             --output "$RUNNER_TEMP/bundletool.jar"
           python3 scripts/verify_ci_inputs.py --file bundletool "$RUNNER_TEMP/bundletool.jar"
           echo "BUNDLETOOL_JAR=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+      - name: Fetch Gradle plugins ahead of the build
+        # The plugin portal now and then fails to serve a settings plugin, which ended the job in its first minute.
+        # This only fills Gradle's cache: the build below still decides whether the job passes.
+        run: |
+          cd "products/${{ matrix.product == 'p02' && 'p02-user-app' || 'p04-merchant-kiosk' }}/android"
+          for attempt in 1 2 3 4; do
+            if ./gradlew --no-daemon help > "$RUNNER_TEMP/gradle-plugins.log" 2>&1; then break; fi
+            tail -n 5 "$RUNNER_TEMP/gradle-plugins.log"
+            sleep 30
+          done
       - run: bash scripts/android/test_release.sh ${{ matrix.product }}
         env:
           NU54_ANDROID_EVIDENCE_DIR: ${{ runner.temp }}/android-evidence
