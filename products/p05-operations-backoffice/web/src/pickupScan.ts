@@ -3,6 +3,41 @@ import { parsePickupQr } from "@nu54/protocol";
 // The pickup QR check of one ready order (traveller-services.md chapter 9 item 8): staff open the order, scan the
 // customer's QR, and opsd records the handover only when the QR belongs to that order of this store.
 
+/** One of today's orders, as the store finds it by its number. */
+export type CheckedOrder = { sale: string; number: number; stage: string; items?: { label: string; option?: string; quantity: number }[] };
+/** What reading an order gave: the order, no such order today (or no right to see it), or no usable answer. */
+export type OrderRead = { kind: "found"; order: CheckedOrder } | { kind: "missing" } | { kind: "failed" };
+
+export const orderUrl = (branch: string, number: string) =>
+  `/v2/operations/state/${encodeURIComponent(branch)}/order?number=${encodeURIComponent(number)}`;
+
+/** The order in an answer, or nothing when the answer is not an order. */
+export function checkedOrder(body: unknown): CheckedOrder | undefined {
+  const order = body as Partial<CheckedOrder> | null;
+  if (!order || typeof order !== "object" || typeof order.sale !== "string" || !order.sale || !Number.isSafeInteger(order.number) ||
+      (order.number ?? 0) < 1 || typeof order.stage !== "string" || !order.stage || (order.items != null && !Array.isArray(order.items))) return undefined;
+  for (const line of order.items ?? [])
+    if (!line || typeof line.label !== "string" || !Number.isSafeInteger(line.quantity) || (line.option != null && typeof line.option !== "string")) return undefined;
+  return order as CheckedOrder;
+}
+
+/**
+ * Reads today's order by its number. An answer that cannot be read as an order (a page of a proxy, a body cut short,
+ * another shape) is `failed`, like no answer at all: the caller always has something to tell the staff.
+ */
+export async function readOrder(branch: string, number: string, get: typeof fetch = fetch): Promise<OrderRead> {
+  let reply: Response;
+  try {
+    reply = await get(orderUrl(branch, number), { credentials: "same-origin" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (reply.status === 404) return { kind: "missing" };
+  if (!reply.ok) return { kind: "failed" };
+  const order = checkedOrder(await reply.json().catch(() => null));
+  return order ? { kind: "found", order } : { kind: "failed" };
+}
+
 /** One line of the order as the scan answers it. `option` is the option's name when the menu gave one, else its key. */
 export type HandedLine = { label: string; option?: string; quantity: number };
 /** A recorded handover. `recordedAt` is the server's time of it; `alreadyRecorded` marks a repeated scan of the same QR. */

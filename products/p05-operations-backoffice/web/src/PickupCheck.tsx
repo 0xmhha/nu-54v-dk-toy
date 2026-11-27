@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { lineCount, lineName, scannedToken, sendPickupScan, type Handed, type Refusal } from "./pickupScan";
+import { lineCount, lineName, readOrder, scannedToken, sendPickupScan, type CheckedOrder, type Handed, type Refusal } from "./pickupScan";
 
-/** One of today's orders, as the store finds it by its number. */
-export type CheckedOrder = { sale: string; number: number; stage: string; items?: { label: string; option?: string; quantity: number }[] };
+export type { CheckedOrder } from "./pickupScan";
 
 const stageName: Record<string, string> = { accepted: "접수", preparing: "만드는 중", ready: "준비 완료", collected: "전달됨", unfulfillable: "준비할 수 없음으로 취소됨" };
-const orderUrl = (branch: string, number: string) => `/v2/operations/state/${encodeURIComponent(branch)}/order?number=${encodeURIComponent(number)}`;
 const clock = (zone: string, at = new Date()) =>
   new Intl.DateTimeFormat("ko-KR", { timeZone: zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at);
 
@@ -17,11 +15,13 @@ export function PickupCheck({ branch, zone }: { branch: string; zone: string }) 
   const [scanning, setScanning] = useState(false);
   const field = useRef<HTMLInputElement>(null);
 
-  async function find(value: string, quiet = false) {
+  /** Reads the order again. It never throws, and says whether the order on screen is now the server's. */
+  async function find(value: string, quiet = false): Promise<boolean> {
     if (!quiet) { setOrder(undefined); setNote(""); setScanning(false); }
-    const reply = await fetch(orderUrl(branch, value), { credentials: "same-origin" }).catch(() => undefined);
-    if (reply?.ok) setOrder(await reply.json());
-    else if (!quiet) setNote(reply?.status === 404 ? "오늘 이 번호의 주문을 찾지 못했습니다. 수령 확인 권한이 없을 때도 이렇게 보입니다." : "주문을 읽지 못했습니다. 다시 시도해 주세요.");
+    const read = await readOrder(branch, value);
+    if (read.kind === "found") { setOrder(read.order); return true; }
+    if (!quiet) setNote(read.kind === "missing" ? "오늘 이 번호의 주문을 찾지 못했습니다. 수령 확인 권한이 없을 때도 이렇게 보입니다." : "주문을 읽지 못했습니다. 다시 시도해 주세요.");
+    return false;
   }
   const next = () => { setScanning(false); setOrder(undefined); setNumber(""); setNote(""); field.current?.focus(); };
 
@@ -55,11 +55,12 @@ type DetectorClass = { new (options: { formats: string[] }): Detector; getSuppor
 const detectorClass = () => (globalThis as { BarcodeDetector?: DetectorClass }).BarcodeDetector;
 
 type Camera = "off" | "starting" | "on" | "unavailable" | "refused";
-type Result = { handed: Handed; at: Date } | { refused: Refusal; recordedAt?: Date };
+// `unread`: the order could not be read again after the refusal, so its stage on screen may be out of date.
+type Result = { handed: Handed; at: Date } | { refused: Refusal; recordedAt?: Date; unread?: boolean };
 
 /** Reads the pickup QR of the order that is open, from the camera or from a field a handheld scanner types into. */
 function PickupScanner({ branch, zone, order, reread, next }: {
-  branch: string; zone: string; order: CheckedOrder; reread: () => Promise<void>; next: () => void;
+  branch: string; zone: string; order: CheckedOrder; reread: () => Promise<boolean>; next: () => void;
 }) {
   const [camera, setCamera] = useState<Camera>("off");
   const [typed, setTyped] = useState("");
@@ -95,8 +96,11 @@ function PickupScanner({ branch, zone, order, reread, next }: {
       if (!live.current) return;
       if (outcome.kind === "handed") { setResult({ handed: outcome.handed, at: outcome.handed.recordedAt ?? new Date() }); return; }
       // A lost answer may still have recorded the handover, so the order is read again before anything is said.
-      await reread();
-      setResult({ refused: outcome.reason, recordedAt: outcome.recordedAt });
+      const fresh = await reread();
+      if (live.current) setResult({ refused: outcome.reason, recordedAt: outcome.recordedAt, unread: !fresh });
+    } catch {
+      // Whatever went wrong, the scan never ends without a word: nothing is known, so nothing is handed over.
+      if (live.current) setResult({ refused: "unanswered", unread: true });
     } finally {
       sending.current = false;
       if (live.current) setBusy(false);
@@ -178,21 +182,21 @@ function PickupScanner({ branch, zone, order, reread, next }: {
       <div className="pickup-result">
         <h3>방금 찍은 QR</h3>
         {handed.alreadyRecorded
-          ? <div className="handed again" role="status"><strong>{handed.pickupNo}번 · 이미 기록됨 · {clock(zone, at)}</strong><br />이 QR의 전달은 이 기기에서 이미 기록했습니다. 다시 기록하지 않았습니다. 이미 건넸다면 또 건네지 마세요.</div>
+          ? <div className="handed again" role="status"><strong>{handed.pickupNo}번 · 이미 기록됨 · {clock(zone, at)}</strong><br />이 QR의 전달은 같은 담당자가 조금 전에 이미 기록했습니다. 다시 기록하지 않았습니다. 이미 건넸다면 또 건네지 마세요.</div>
           : <div className="handed" role="status"><strong>{handed.pickupNo}번 · 건네 주세요</strong><br />결제한 보드로 확인한 손님입니다. {clock(zone, at)}에 전달을 기록했습니다.</div>}
         <ul className="live" aria-label="건넬 품목">
           {handed.items.map((line, index) => <li key={index}><strong>{lineName(line)}</strong> <small>{lineCount(line)}</small></li>)}
         </ul>
         <dl className="pickup-facts">
           <div><dt>결제 확정</dt><dd>확인됨</dd></div>
-          <div><dt>전달 기록</dt><dd>{clock(zone, at)} · 이 기기</dd></div>
+          <div><dt>전달 기록</dt><dd>{clock(zone, at)} · 지금 담당자</dd></div>
           <div><dt>매장이 받는 때</dt><dd>손님이 받았어요를 누르거나 확인 기간이 끝날 때</dd></div>
         </dl>
         <button className="secondary" onClick={next}>다음 손님 찍기</button>
       </div>
     );
   }
-  if (result) return <Refused order={order} reason={result.refused} recordedAt={result.recordedAt} zone={zone} again={again} />;
+  if (result) return <Refused order={order} reason={result.refused} recordedAt={result.recordedAt} unread={result.unread} zone={zone} again={again} />;
 
   return (
     <div className="pickup-scan">
@@ -229,19 +233,22 @@ const cases: { reason: Case; title: string; detail: (n: number, used?: string) =
 ];
 
 /** Do not hand over. The server names which of the five cases it is; an older server answers three of them alike. */
-function Refused({ order, reason, recordedAt, zone, again }: { order: CheckedOrder; reason: Refusal; recordedAt?: Date; zone: string; again: () => void }) {
+function Refused({ order, reason, recordedAt, unread, zone, again }: { order: CheckedOrder; reason: Refusal; recordedAt?: Date; unread?: boolean; zone: string; again: () => void }) {
+  // The order could not be read again: its stage on screen is from before the scan, so nothing is concluded from it.
+  const stale = unread && <p role="status">주문 상태를 다시 읽지 못했습니다. 화면의 주문 상태는 찍기 전의 것입니다. 건네기 전에 주문을 다시 열어 확인하세요.</p>;
   if (reason === "denied" || reason === "unanswered")
     return (
       <div className="pickup-result">
         <div className="refused" role="alert"><strong>건네지 마세요 · 확인하지 못했습니다</strong><br />
           {reason === "denied" ? "이 지점의 수령 확인 권한이 없거나, 이 서버에서 수령 QR 확인이 꺼져 있습니다."
-            : order.stage === "collected" ? "답을 받지 못했지만 이 주문은 전달이 기록되어 있습니다. 손님의 앱에서 상태를 함께 확인하세요."
+            : !unread && order.stage === "collected" ? "답을 받지 못했지만 이 주문은 전달이 기록되어 있습니다. 손님의 앱에서 상태를 함께 확인하세요."
             : "서버의 답을 받지 못했습니다. 다시 찍어 주세요."}</div>
+        {stale}
         <button onClick={again}>다시 찍기</button>
       </div>
     );
   // Without a named reason EXPIRED also means used: when the order now reads as handed over, that is the likely case.
-  const known: Case | undefined = reason !== "unusable" ? reason : order.stage === "collected" ? "already-used" : undefined;
+  const known: Case | undefined = reason !== "unusable" ? reason : !unread && order.stage === "collected" ? "already-used" : undefined;
   const used = recordedAt && clock(zone, recordedAt);
   return (
     <div className="pickup-result">
@@ -251,6 +258,7 @@ function Refused({ order, reason, recordedAt, zone, again }: { order: CheckedOrd
           : known === "other-store" ? "다른 매장의 주문입니다. 손님에게 결제한 매장을 확인해 달라고 하세요."
           : known === "not-ready" ? "아직 준비 완료가 아닙니다. 준비 완료를 누른 뒤 다시 찍으세요."
           : "손님에게 앱에서 수령 QR을 새로 받아 달라고 하세요."}</div>
+      {stale}
       <h3>이런 경우에 이 화면이 나옵니다</h3>
       <ul className="live" aria-label="쓸 수 없는 QR의 경우">
         {cases.map((item) => {

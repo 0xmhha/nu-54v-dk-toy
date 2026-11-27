@@ -143,7 +143,7 @@ async function main() {
     assert.deepEqual(await check.getByRole("list", { name: "건넬 품목" }).getByRole("listitem").allTextContents(),
       ["카페라떼 뜨겁게 크게 샷 추가 1개", "치즈케이크 1개"]);
     await check.getByText("손님이 받았어요를 누르거나 확인 기간이 끝날 때").waitFor();
-    await check.getByText("10:31 · 이 기기").waitFor();
+    await check.getByText("10:31 · 지금 담당자").waitFor();
     assert.equal(await live(page), 0, "the camera stops once the QR is read");
     await fits(page, "pickup-handed");
     await check.getByRole("button", { name: "다음 손님 찍기" }).click();
@@ -194,7 +194,7 @@ async function main() {
     await check.getByLabel(/^수령 QR 글자/).fill(qr);
     await check.getByRole("button", { name: "확인", exact: true }).click();
     await check.getByText("17번 · 이미 기록됨 · 10:31").waitFor();
-    await check.getByText("다시 기록하지 않았습니다.", { exact: false }).waitFor();
+    await check.getByText("이 QR의 전달은 같은 담당자가 조금 전에 이미 기록했습니다. 다시 기록하지 않았습니다.", { exact: false }).waitFor();
     assert.equal(await check.getByText("건네 주세요").count(), 0, "a repeated scan does not say to hand over again");
     await fits(page, "pickup-again");
     await check.getByRole("button", { name: "다음 손님 찍기" }).click();

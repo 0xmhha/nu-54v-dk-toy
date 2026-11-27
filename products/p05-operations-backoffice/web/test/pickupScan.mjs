@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { lineCount, lineName, pickupScanUrl, scanOutcome, scannedToken, sendPickupScan } from "../src/pickupScan.ts";
+import { checkedOrder, lineCount, lineName, orderUrl, pickupScanUrl, readOrder, scanOutcome, scannedToken, sendPickupScan } from "../src/pickupScan.ts";
 
 const token = "ab".repeat(32);
 const branch = "11111111-1111-4111-8111-111111111111";
@@ -64,3 +64,21 @@ assert.deepEqual(calls, [[`/v2/operations/pickup-scan/${branch}/${sale}`, { meth
 // No answer at all is not a refusal of the QR.
 assert.deepEqual(await sendPickupScan(branch, sale, token, async () => { throw new TypeError("offline"); }), { kind: "refused", reason: "unanswered" });
 assert.deepEqual(await sendPickupScan(branch, sale, token, async () => new Response("<html>", { status: 502 })), { kind: "refused", reason: "unanswered" });
+
+// Reading an order by its number: the order, no such order, or a failed read. An answer that is not an order is a
+// failed read and never an exception, so the page always has something to say.
+const found = { sale, number: 17, stage: "ready", items: [{ label: "카페라떼", option: "hot", quantity: 1 }] };
+assert.equal(orderUrl(branch, "17"), `/v2/operations/state/${branch}/order?number=17`);
+const reads = [];
+const get = (status, body) => async (url, init) => { reads.push([url, init]); return new Response(body, { status }); };
+assert.deepEqual(await readOrder(branch, "17", get(200, JSON.stringify(found))), { kind: "found", order: found });
+assert.deepEqual(reads, [[`/v2/operations/state/${branch}/order?number=17`, { credentials: "same-origin" }]]);
+assert.deepEqual(await readOrder(branch, "17", get(404, "Not Found")), { kind: "missing" });
+for (const [status, body] of [[200, "<html>gateway</html>"], [200, ""], [200, '{"sale":'], [200, "null"], [200, "[]"], [200, JSON.stringify({ ...found, sale: "" })],
+  [200, JSON.stringify({ ...found, number: "17" })], [200, JSON.stringify({ ...found, stage: 3 })], [200, JSON.stringify({ ...found, items: "x" })],
+  [200, JSON.stringify({ ...found, items: [{ label: 1, quantity: 1 }] })], [500, JSON.stringify(found)], [503, ""], [403, ""]])
+  assert.deepEqual(await readOrder(branch, "17", get(status, body)), { kind: "failed" }, `${status} ${body}`);
+assert.deepEqual(await readOrder(branch, "17", async () => { throw new TypeError("offline"); }), { kind: "failed" });
+assert.deepEqual(await readOrder(branch, "17", async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("cut short"); } })), { kind: "failed" });
+assert.deepEqual(checkedOrder({ sale, number: 3, stage: "collected" }), { sale, number: 3, stage: "collected" });
+assert.equal(checkedOrder({ sale, number: 0, stage: "ready" }), undefined);
