@@ -18,3 +18,4 @@ export * from "./terminal-device.ts";
 export * from "./network-list.ts";
 export * from "./private-presentation.ts";
 export * from "./commerce-pickup.ts";
+export * from "./pickup-qr.ts";
