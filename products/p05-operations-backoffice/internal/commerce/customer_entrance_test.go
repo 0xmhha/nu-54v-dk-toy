@@ -740,3 +740,19 @@ func TestEntranceTakesTheGateLast(t *testing.T) {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
 }
+
+// The operator's contact is one visible line: a value with a hidden or control character is not shown at all.
+func TestOperatorContactIsOneVisibleLine(t *testing.T) {
+	for value, want := range map[string]string{
+		" help@operator.example ": "help@operator.example", "02-555-0100 (평일 10~18시)": "02-555-0100 (평일 10~18시)",
+		"": "", "a\nb": "", "a\u0085b": "", "a\u200bb": "", "a\u202eb": "", "a\u2028b": "", "a\u2029b": "", "a\ufeffb": "", "a\u00adb": "",
+		"a\xffb": "", strings.Repeat("가", 121): "",
+	} {
+		if got := (&CustomerEntrance{OperatorContact: value}).contact(); got != want {
+			t.Fatalf("contact %q is shown as %q, want %q", value, got, want)
+		}
+	}
+	if got := (*CustomerEntrance)(nil).contact(); got != "" {
+		t.Fatalf("no entrance has a contact: %q", got)
+	}
+}

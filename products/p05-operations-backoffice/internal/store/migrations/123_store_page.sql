@@ -21,6 +21,20 @@ LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,pg_temp AS $hours$
         ELSE false END) END
 $hours$;
 
+-- Text a store publishes is one line of characters a customer can see. It holds no control character (Unicode
+-- category Cc), no format character (Cf: zero-width spaces and joiners, the marks that reorder text, the soft hyphen,
+-- the byte order mark, tags) and no line or paragraph separator (Zl, Zp): none of them shows, and they can make a
+-- page read as something the store did not write. The code points are listed, so the answer is the same under any
+-- locale of the database.
+CREATE FUNCTION ledger.store_text_plain(value text) RETURNS boolean
+LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,pg_temp AS $plain$
+    SELECT value !~ ('[\u0001-\u001F\u007F-\u009F'                                               -- Cc
+        || '\u00AD\u0600-\u0605\u061C\u06DD\u070F\u0890\u0891\u08E2\u180E\u200B-\u200F'    -- Cf
+        || '\u2028-\u202E'                                                                        -- Zl, Zp, Cf
+        || '\u2060-\u206F\uFEFF\uFFF9-\uFFFB\U000110BD\U000110CD\U00013430-\U0001343F'         -- Cf
+        || '\U0001BCA0-\U0001BCA3\U0001D173-\U0001D17A\U000E0001\U000E0020-\U000E007F]')        -- Cf
+$plain$;
+
 CREATE TABLE ledger.branch_store_page (
     branch_id uuid PRIMARY KEY REFERENCES ledger.branch,
     -- Published: customers can open the store's page and its menu. Off, both answer as a store that does not exist.
@@ -28,14 +42,14 @@ CREATE TABLE ledger.branch_store_page (
     -- A listed store appears in the app's store list; it matters only while the page is published. A published,
     -- unlisted store is opened by its shortcut QR.
     listed boolean NOT NULL,
-    kind text NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind !~ '[[:cntrl:]]' AND kind = btrim(kind)),
-    intro text NOT NULL CHECK (length(intro) <= 200 AND intro !~ '[[:cntrl:]]' AND intro = btrim(intro)),
-    address text NOT NULL CHECK (length(address) <= 200 AND address !~ '[[:cntrl:]]' AND address = btrim(address)),
-    directions text NOT NULL CHECK (length(directions) <= 200 AND directions !~ '[[:cntrl:]]' AND directions = btrim(directions)),
+    kind text NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND ledger.store_text_plain(kind) AND kind = btrim(kind)),
+    intro text NOT NULL CHECK (length(intro) <= 200 AND ledger.store_text_plain(intro) AND intro = btrim(intro)),
+    address text NOT NULL CHECK (length(address) <= 200 AND ledger.store_text_plain(address) AND address = btrim(address)),
+    directions text NOT NULL CHECK (length(directions) <= 200 AND ledger.store_text_plain(directions) AND directions = btrim(directions)),
     phone text NOT NULL CHECK (phone = '' OR phone ~ '^\+?[0-9][0-9 -]{5,18}[0-9]$'),
-    amenities text NOT NULL CHECK (length(amenities) <= 200 AND amenities !~ '[[:cntrl:]]' AND amenities = btrim(amenities)),
-    parking text NOT NULL CHECK (length(parking) <= 200 AND parking !~ '[[:cntrl:]]' AND parking = btrim(parking)),
-    closed_note text NOT NULL CHECK (length(closed_note) <= 120 AND closed_note !~ '[[:cntrl:]]' AND closed_note = btrim(closed_note)),
+    amenities text NOT NULL CHECK (length(amenities) <= 200 AND ledger.store_text_plain(amenities) AND amenities = btrim(amenities)),
+    parking text NOT NULL CHECK (length(parking) <= 200 AND ledger.store_text_plain(parking) AND parking = btrim(parking)),
+    closed_note text NOT NULL CHECK (length(closed_note) <= 120 AND ledger.store_text_plain(closed_note) AND closed_note = btrim(closed_note)),
     -- NULL: the store has not said its hours.
     hours jsonb CHECK (hours IS NULL OR ledger.store_hours_valid(hours)),
     changed_by uuid NOT NULL,
@@ -175,7 +189,7 @@ BEGIN
     RETURN ledger.operator_store_page(tenant, branch, actor);
 END $write$;
 
-REVOKE ALL ON FUNCTION ledger.store_hours_valid(jsonb), ledger.store_order_refusal(uuid, timestamptz), ledger.store_page_status(uuid), ledger.public_store_page(uuid),
+REVOKE ALL ON FUNCTION ledger.store_hours_valid(jsonb), ledger.store_text_plain(text), ledger.store_order_refusal(uuid, timestamptz), ledger.store_page_status(uuid), ledger.public_store_page(uuid),
     ledger.public_store_list(integer), ledger.operator_store_page(uuid, uuid, uuid),
     ledger.set_store_page(uuid, uuid, uuid, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ledger.public_store_page(uuid), ledger.public_store_list(integer),

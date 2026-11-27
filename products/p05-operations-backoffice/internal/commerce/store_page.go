@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
@@ -87,7 +88,9 @@ func (c *CustomerEntrance) contact() string {
 		return ""
 	}
 	text := strings.TrimSpace(c.OperatorContact)
-	if text == "" || utf8.RuneCountInString(text) > 120 || strings.ContainsFunc(text, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+	// One visible line, like the text a store writes: no control or format character, no line or paragraph separator.
+	if text == "" || utf8.RuneCountInString(text) > 120 || !utf8.ValidString(text) ||
+		strings.ContainsFunc(text, func(r rune) bool { return unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) }) {
 		return ""
 	}
 	return text

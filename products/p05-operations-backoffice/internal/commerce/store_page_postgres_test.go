@@ -232,10 +232,25 @@ func TestPostgresStorePage(t *testing.T) {
 		"no kind":                 func(p map[string]any) { p["kind"] = " " },
 		"long intro":              func(p map[string]any) { p["intro"] = strings.Repeat("가", 201) },
 		"control char":            func(p map[string]any) { p["address"] = "a\nb" },
-		"phone":                   func(p map[string]any) { p["phone"] = "call me" },
-		"six days":                func(p map[string]any) { p["hours"] = weekdays("10:00", "21:00")[:6] },
-		"bad time":                func(p map[string]any) { p["hours"] = weekdays("10:00", "24:00") },
-		"same time":               func(p map[string]any) { p["hours"] = weekdays("10:00", "10:00") },
+		// Characters that do not show: they hide text, reorder it or break the line on a customer's screen.
+		"zero width space":      func(p map[string]any) { p["kind"] = "카\u200b페" },
+		"zero width joiner":     func(p map[string]any) { p["intro"] = "a\u200db" },
+		"direction override":    func(p map[string]any) { p["intro"] = "환불 불가 \u202e다니됩 불환" },
+		"direction isolate":     func(p map[string]any) { p["directions"] = "a\u2066b\u2069" },
+		"left-to-right mark":    func(p map[string]any) { p["parking"] = "a\u200eb" },
+		"line separator":        func(p map[string]any) { p["address"] = "a\u2028b" },
+		"paragraph separator":   func(p map[string]any) { p["amenities"] = "a\u2029b" },
+		"soft hyphen":           func(p map[string]any) { p["closedNote"] = "a\u00adb" },
+		"byte order mark":       func(p map[string]any) { p["intro"] = "a\ufeffb" },
+		"word joiner":           func(p map[string]any) { p["intro"] = "a\u2060b" },
+		"tag character":         func(p map[string]any) { p["intro"] = "a\U000E0041b" },
+		"control above ASCII":   func(p map[string]any) { p["intro"] = "a\u0085b" },
+		"delete character":      func(p map[string]any) { p["intro"] = "a\u007fb" },
+		"format char at an end": func(p map[string]any) { p["kind"] = "카페\u200b" },
+		"phone":                 func(p map[string]any) { p["phone"] = "call me" },
+		"six days":              func(p map[string]any) { p["hours"] = weekdays("10:00", "21:00")[:6] },
+		"bad time":              func(p map[string]any) { p["hours"] = weekdays("10:00", "24:00") },
+		"same time":             func(p map[string]any) { p["hours"] = weekdays("10:00", "10:00") },
 		"extra hour key": func(p map[string]any) {
 			p["hours"].([]any)[6] = map[string]string{"opens": "10:00", "closes": "11:00", "note": "x"}
 		},
@@ -247,6 +262,13 @@ func TestPostgresStorePage(t *testing.T) {
 			t.Fatalf("%s: %v", name, got)
 		}
 	}
+	// What shows is kept as written: other scripts, accents, a symbol and a no-break space are not format characters.
+	shown := page()
+	shown["intro"], shown["amenities"], shown["directions"] = "Café №1 ☕ 営業中", "Wi\u2011Fi · 100\u00a0석", "شارع ١"
+	if kept := write(ownCert, cafe, shown, 200); kept["intro"] != "Café №1 ☕ 営業中" || kept["amenities"] != "Wi\u2011Fi · 100\u00a0석" || kept["directions"] != "شارع ١" {
+		t.Fatalf("visible text was changed: %v", kept)
+	}
+	write(ownCert, cafe, page(), 200)
 	own := send(staff(ownCert), "GET", server.URL+"/v2/operations/store-page/"+cafe, nil, nil, 200)
 	if own["kind"] != "카페" || own["published"] != true || own["listed"] != true || own["name"] != "여울 커피 "+suffix {
 		t.Fatalf("a refused change altered the page: %v", own)
