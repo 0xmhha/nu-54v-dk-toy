@@ -183,7 +183,6 @@ contract ChargeDepositTest is ChargeBase {
         expectDepositRevert(quoteFor(100e6, address(pool)), ChargeDeposit.InvalidQuote.selector);
     }
 
-    /// Only the built method is taken; the number is in the quote so a second method can be told apart later.
     function testOnlyTheAuthorizationMethodIsTaken() public {
         ChargeTypes.Quote memory quote = quoteFor(100e6, board);
         quote.method = 2;
@@ -345,7 +344,7 @@ contract ChargeDepositTest is ChargeBase {
         bytes32 action = keccak256(abi.encode(keccak256("raiseLimit"), MAX_WON, bytes32("salt")));
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         deposit.raiseLimit(MAX_WON, "salt");
-        proposeOn(deposit, action);
+        assertEq(proposeOn(deposit, "raiseLimit", abi.encode(MAX_WON), "salt"), action);
         vm.warp(block.timestamp + 24 hours - 1);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         deposit.raiseLimit(MAX_WON, "salt");
@@ -673,10 +672,9 @@ contract ChargeDepositTest is ChargeBase {
         deposit.spend(id, 1, stranger);
 
         Spender later = new Spender(deposit);
-        bytes32 keyAction = keccak256(abi.encode(keccak256("setSpender"), vm.addr(0xE0A), bytes32("salt")));
-        proposeOn(deposit, keyAction);
+        proposeOn(deposit, "setSpender", abi.encode(vm.addr(0xE0A)), "salt");
         bytes32 action = keccak256(abi.encode(keccak256("setSpender"), address(later), bytes32("salt")));
-        proposeOn(deposit, action);
+        assertEq(proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt"), action);
         vm.warp(block.timestamp + 24 hours);
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         deposit.setSpender(vm.addr(0xE0A), "salt"); // a plain key cannot be the spender
@@ -702,7 +700,7 @@ contract ChargeDepositTest is ChargeBase {
         bytes32 id = depositIt(quote);
         bytes32 open = depositIt(quoteFor(50e6, board));
         Spender later = new Spender(deposit);
-        proposeOn(deposit, keccak256(abi.encode(keccak256("setSpender"), address(later), bytes32("salt"))));
+        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt");
         vm.warp(block.timestamp + 24 hours);
         deposit.setSpender(address(later), "salt");
 

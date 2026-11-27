@@ -164,19 +164,21 @@ contract ChargeReplayTest is ChargeBase {
     // ---- signers ----
 
     function testSignerSignaturesAreForOneContractAndOneChain() public {
-        bytes32 action = keccak256(abi.encode(keccak256("setKey"), ChargeGovernance.Key.Relay, stranger, bytes32(0)));
+        bytes32 kind = keccak256("setKey");
+        bytes memory arguments = abi.encode(ChargeGovernance.Key.Relay, stranger);
+        bytes32 action = keccak256(abi.encode(kind, ChargeGovernance.Key.Relay, stranger, bytes32(0)));
         uint256 until = block.timestamp + 1 days;
         bytes[2] memory signatures = two(deposit, "propose", action, 0, until);
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
-        twinDeposit.propose(action, until, signatures);
+        twinDeposit.propose(kind, arguments, 0, until, signatures);
         toWon();
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
-        pool.propose(action, until, signatures);
+        pool.propose(kind, arguments, 0, until, signatures);
         vm.chainId(SOURCE_CHAIN + 1);
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
-        deposit.propose(action, until, signatures);
+        deposit.propose(kind, arguments, 0, until, signatures);
         toSource();
-        deposit.propose(action, until, signatures);
+        assertEq(deposit.propose(kind, arguments, 0, until, signatures), action);
     }
 
     function testARefundSignedForOneDeploymentDoesNotRefundOnTheTwin() public {

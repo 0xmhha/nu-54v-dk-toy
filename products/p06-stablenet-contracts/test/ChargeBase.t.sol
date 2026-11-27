@@ -332,10 +332,27 @@ abstract contract ChargeBase is Test {
         deposit.refundBySigners(id, WON_BLOCK, until, signatures);
     }
 
-    /// Two signers propose a change on a contract; the caller then waits and applies it.
-    function proposeOn(ChargeGovernance target, bytes32 action) internal {
+    /// Two signers propose a change on a contract; the caller then waits and applies it. `kind` is the name
+    /// of the changing function and `arguments` are its arguments without the salt.
+    function proposeOn(ChargeGovernance target, string memory kind, bytes memory arguments, bytes32 salt)
+        internal
+        returns (bytes32 action)
+    {
         uint256 until = block.timestamp + 1 days;
-        target.propose(action, until, two(target, "propose", action, target.generation(), until));
+        bytes32 kindHash = keccak256(bytes(kind));
+        action = target.actionOf(kindHash, arguments, salt);
+        uint256 round = target.proposalRound(kindHash, arguments);
+        target.propose(kindHash, arguments, salt, until, two(target, "propose", action, round, until));
+    }
+
+    /// One signer's signature that stops a waiting change.
+    function cancelSignature(ChargeGovernance target, uint256 key, bytes32 action, uint256 until)
+        internal
+        view
+        returns (bytes memory)
+    {
+        (,,, uint256 round) = target.proposals(action);
+        return sign(key, target.actionDigest(keccak256("cancel"), action, round, until));
     }
 
     function state(bytes32 id) internal view returns (ChargeDeposit.State) {

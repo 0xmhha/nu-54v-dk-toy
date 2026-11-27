@@ -9,14 +9,41 @@ import {WonPool} from "../src/charge/WonPool.sol";
 
 /// @notice The keys of both top-up contracts: one key narrows or stops, two signers and a day widen.
 contract ChargeGovernanceTest is ChargeBase {
+    event ChangeProposed(
+        bytes32 indexed action,
+        bytes32 indexed kind,
+        bytes arguments,
+        bytes32 salt,
+        uint256 round,
+        uint64 readyAt,
+        uint64 lapsesAt
+    );
+
+    bytes32 internal constant SET_KEY = keccak256("setKey");
+    bytes32 internal constant SET_SIGNER = keccak256("setSigner");
     address internal next = address(0xE0A);
 
+    function keyArgs(ChargeGovernance.Key which, address to) internal pure returns (bytes memory) {
+        return abi.encode(which, to);
+    }
+
+    function signerArgs(uint8 index, address to) internal pure returns (bytes memory) {
+        return abi.encode(index, to);
+    }
+
+    /// The number of a change is the hash of its kind, its arguments and its salt, in one ABI encoding.
     function keyAction(ChargeGovernance.Key which, address to, bytes32 salt) internal pure returns (bytes32) {
-        return keccak256(abi.encode(keccak256("setKey"), which, to, salt));
+        return keccak256(abi.encode(SET_KEY, which, to, salt));
     }
 
     function signerAction(uint8 index, address to, bytes32 salt) internal pure returns (bytes32) {
-        return keccak256(abi.encode(keccak256("setSigner"), index, to, salt));
+        return keccak256(abi.encode(SET_SIGNER, index, to, salt));
+    }
+
+    function proposeKey(ChargeGovernance.Key which, address to, bytes32 salt, uint256 until, bytes[2] memory signatures)
+        internal
+    {
+        deposit.propose(SET_KEY, keyArgs(which, to), salt, until, signatures);
     }
 
     /// The relay and the deposit-confirmation key are never the same address, at deployment or later.
@@ -51,6 +78,7 @@ contract ChargeGovernanceTest is ChargeBase {
 
     function testAChangeNeedsTwoDifferentSigners() public {
         bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
+        assertEq(deposit.actionOf(SET_KEY, keyArgs(ChargeGovernance.Key.Relay, next), "salt"), action);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         deposit.setKey(ChargeGovernance.Key.Relay, next, "salt"); // nobody proposed it
 
@@ -58,18 +86,107 @@ contract ChargeGovernanceTest is ChargeBase {
         bytes32 digest = deposit.actionDigest(keccak256("propose"), action, 0, until);
         bytes memory one = sign(SIGNER1_KEY, digest);
         vm.expectRevert(ChargeGovernance.SignersNotDistinct.selector);
-        deposit.propose(action, until, [one, one]);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, [one, one]);
         uint256[4] memory others = [RELAY_KEY, QUOTER_KEY, WITNESS_KEY, PAUSER_KEY];
         for (uint256 i; i < others.length; ++i) {
             vm.expectRevert(ChargeGovernance.Unauthorized.selector);
-            deposit.propose(action, until, [one, sign(others[i], digest)]);
+            proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, [one, sign(others[i], digest)]);
         }
-        deposit.propose(action, until, [sign(SIGNER3_KEY, digest), one]);
+        // The signatures are for one change: not for another key, another address or another salt.
+        bytes[2] memory signatures = [sign(SIGNER3_KEY, digest), one];
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        proposeKey(ChargeGovernance.Key.Quoter, next, "salt", until, signatures);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        proposeKey(ChargeGovernance.Key.Relay, stranger, "salt", until, signatures);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt 2", until, signatures);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures);
+    }
+
+    /// What waits for a day is readable: the event names the kind of change and carries its arguments.
+    function testAProposalSaysWhatItChanges() public {
+        bytes memory arguments = keyArgs(ChargeGovernance.Key.Relay, next);
+        bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
+        uint256 until = block.timestamp + 1 days;
+        bytes[2] memory signatures = two(deposit, "propose", action, 0, until);
+        vm.expectEmit(address(deposit));
+        emit ChangeProposed(
+            action,
+            SET_KEY,
+            arguments,
+            "salt",
+            0,
+            uint64(block.timestamp + 24 hours),
+            uint64(block.timestamp + 24 hours + 3 days)
+        );
+        assertEq(deposit.propose(SET_KEY, arguments, "salt", until, signatures), action);
+        (uint64 proposedAt, ChargeGovernance.ProposalState state_, ChargeGovernance.Seat replaces, uint256 round) =
+            deposit.proposals(action);
+        assertEq(proposedAt, block.timestamp);
+        assertEq(uint8(state_), uint8(ChargeGovernance.ProposalState.Pending));
+        assertEq(uint8(replaces), uint8(ChargeGovernance.Seat.None));
+        assertEq(round, 0);
+
+        // A change that takes the place of a key says whose.
+        bytes32 pauserAction = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Pauser, next), "salt");
+        (,, replaces,) = deposit.proposals(pauserAction);
+        assertEq(uint8(replaces), uint8(ChargeGovernance.Seat.Pauser));
+        for (uint8 i; i < 3; ++i) {
+            bytes32 signerAction_ = proposeOn(deposit, "setSigner", signerArgs(i, next), "salt");
+            assertEq(signerAction_, signerAction(i, next, "salt"));
+            (,, replaces,) = deposit.proposals(signerAction_);
+            assertEq(uint8(replaces), uint8(ChargeGovernance.Seat.Signer0) + i);
+        }
+    }
+
+    /// Nothing unreadable ever waits: a proposal must be a change this contract has, with arguments of the
+    /// right size that name a key or a signer that exists.
+    function testOnlyAChangeTheContractCanApplyIsProposed() public {
+        uint256 until = block.timestamp + 1 days;
+        bytes[2] memory none;
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("mint"), abi.encode(next), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("mint"), "", "salt", until, none); // unknown, with or without arguments
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_KEY, abi.encode(ChargeGovernance.Key.Relay), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_KEY, abi.encode(ChargeGovernance.Key.Relay, next, uint256(0)), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_KEY, abi.encode(uint256(4), next), "salt", until, none); // there are four keys
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_SIGNER, signerArgs(3, next), "salt", until, none); // there are three signers
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.proposalRound(SET_SIGNER, signerArgs(3, next));
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("setRates"), abi.encode(RATE), "salt", until, none);
+
+        // Each contract takes its own kinds and not those of the other.
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("withdraw"), abi.encode(uint256(1)), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("setSpender"), abi.encode(next, next), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("raiseLimit"), "", "salt", until, none);
+        proposeOn(deposit, "setSpender", abi.encode(next), "salt");
+        proposeOn(deposit, "raiseLimit", abi.encode(MAX_WON), "salt");
+        proposeOn(deposit, "setRates", abi.encode(RATE, RATE), "salt");
+        toWon();
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("setSpender"), abi.encode(next), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("raiseLimits"), abi.encode(MAX_WON), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("withdraw"), abi.encode(uint256(1), uint256(2)), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("addOrigin"), abi.encode(uint256(1)), "salt", until, none);
+        proposeOn(pool, "withdraw", abi.encode(uint256(1)), "salt");
+        proposeOn(pool, "raiseLimits", abi.encode(limits()), "salt");
+        proposeOn(pool, "addOrigin", abi.encode(uint256(10), next), "salt");
     }
 
     function testAChangeWaitsADayAndLapsesThreeDaysLater() public {
-        bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
-        proposeOn(deposit, action);
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
         uint256 proposedAt = block.timestamp;
         vm.warp(proposedAt + 24 hours - 1);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
@@ -89,9 +206,9 @@ contract ChargeGovernanceTest is ChargeBase {
         bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
         uint256 until = block.timestamp + 6 days;
         bytes[2] memory signatures = two(deposit, "propose", action, 0, until);
-        deposit.propose(action, until, signatures);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
-        deposit.propose(action, until, signatures); // already waiting
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures); // already waiting
 
         vm.prank(stranger);
         vm.expectRevert(ChargeTypes.InvalidSignature.selector);
@@ -99,7 +216,10 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.prank(vm.addr(PAUSER_KEY));
         deposit.cancelProposal(action, 0, "");
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
-        deposit.propose(action, until, signatures);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures);
+        vm.prank(vm.addr(PAUSER_KEY));
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.cancelProposal(action, 0, ""); // stopped once
         vm.warp(block.timestamp + 24 hours);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         deposit.setKey(ChargeGovernance.Key.Relay, next, "salt");
@@ -107,23 +227,28 @@ contract ChargeGovernanceTest is ChargeBase {
         // A change that lapsed needs a new salt and new signatures too.
         bytes32 second = keyAction(ChargeGovernance.Key.Relay, next, "salt 2");
         bytes[2] memory secondSignatures = two(deposit, "propose", second, 0, until);
-        deposit.propose(second, until, secondSignatures);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt 2", until, secondSignatures);
         vm.warp(block.timestamp + 4 days + 1);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
-        deposit.propose(second, until, secondSignatures);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt 2", until, secondSignatures);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         deposit.setKey(ChargeGovernance.Key.Relay, next, "salt 2");
     }
 
     function testOneSignerCancelsBySignature() public {
-        bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
-        proposeOn(deposit, action);
+        bytes32 action = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
         uint256 until = block.timestamp + 1 days;
         bytes32 digest = deposit.actionDigest(keccak256("cancel"), action, 0, until);
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
         deposit.cancelProposal(action, until, sign(RELAY_KEY, digest));
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         deposit.cancelProposal(action, block.timestamp, sign(SIGNER3_KEY, digest));
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        deposit.cancelProposal(action, block.timestamp + 7 days + 1, sign(SIGNER3_KEY, digest));
+        // The pauser's own signature is no signer's: with a signature the call is judged by the signature.
+        vm.prank(vm.addr(PAUSER_KEY));
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.cancelProposal(action, until, sign(PAUSER_KEY, digest));
         vm.prank(stranger);
         deposit.cancelProposal(action, until, sign(SIGNER3_KEY, digest));
         vm.warp(block.timestamp + 24 hours);
@@ -136,7 +261,7 @@ contract ChargeGovernanceTest is ChargeBase {
         bytes32 action = keyAction(ChargeGovernance.Key.Quoter, next, "salt");
         uint256 until = block.timestamp + 6 days;
         bytes[2] memory signatures = two(deposit, "propose", action, 0, until);
-        deposit.propose(action, until, signatures);
+        proposeKey(ChargeGovernance.Key.Quoter, next, "salt", until, signatures);
         vm.prank(stranger);
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
         deposit.disableKey(ChargeGovernance.Key.Relay);
@@ -147,17 +272,55 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.stopPrank();
         assertEq(deposit.relay(), address(0));
         assertEq(deposit.generation(), 1);
+        assertEq(deposit.signerGeneration(), 0);
 
         vm.warp(block.timestamp + 24 hours);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         deposit.setKey(ChargeGovernance.Key.Quoter, next, "salt");
+        bytes memory cancel = sign(SIGNER1_KEY, deposit.actionDigest(keccak256("cancel"), action, 0, until));
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.cancelProposal(action, until, cancel); // nothing waits any more
         // The same change can be proposed again, but only with signatures made after the switch.
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
-        deposit.propose(action, until, signatures);
-        proposeOn(deposit, action);
+        proposeKey(ChargeGovernance.Key.Quoter, next, "salt", until, signatures);
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Quoter, next), "salt");
         vm.warp(block.timestamp + 24 hours);
         deposit.setKey(ChargeGovernance.Key.Quoter, next, "salt");
         assertEq(deposit.quoter(), next);
+    }
+
+    /// Switching a key off voids every waiting change, so it works once per key: a key that is off cannot be
+    /// switched off again until two signers brought it back.
+    function testAKeyThatIsOffIsNotSwitchedOffAgain() public {
+        ChargeGovernance.Key[3] memory hot =
+            [ChargeGovernance.Key.Relay, ChargeGovernance.Key.Quoter, ChargeGovernance.Key.Witness];
+        vm.startPrank(vm.addr(PAUSER_KEY));
+        for (uint256 i; i < hot.length; ++i) {
+            deposit.disableKey(hot[i]);
+            assertEq(deposit.generation(), i + 1);
+            vm.expectRevert(ChargeGovernance.InvalidState.selector);
+            deposit.disableKey(hot[i]);
+        }
+        vm.stopPrank();
+        assertEq(deposit.generation(), 3);
+
+        bytes32 action = proposeOn(deposit, "setSpender", abi.encode(address(pool)), "salt");
+        for (uint256 i; i < hot.length; ++i) {
+            vm.prank(vm.addr(PAUSER_KEY));
+            vm.expectRevert(ChargeGovernance.InvalidState.selector);
+            deposit.disableKey(hot[i]);
+        }
+        (, ChargeGovernance.ProposalState state_,, uint256 round) = deposit.proposals(action);
+        assertEq(uint8(state_), uint8(ChargeGovernance.ProposalState.Pending));
+        assertEq(round, deposit.generation());
+
+        // Once two signers brought the relay back, it can be switched off again.
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        deposit.setKey(ChargeGovernance.Key.Relay, next, "salt");
+        vm.prank(vm.addr(PAUSER_KEY));
+        deposit.disableKey(ChargeGovernance.Key.Relay);
+        assertEq(deposit.generation(), 4);
     }
 
     function testAKeyThatIsOffComesBackOnlyByTwoSignersAndStaysDistinct() public {
@@ -166,11 +329,11 @@ contract ChargeGovernanceTest is ChargeBase {
         pool.disableKey(ChargeGovernance.Key.Witness);
         address relayKey = vm.addr(RELAY_KEY);
         // The confirmation key can never become the relay's own key, nor any other key in use.
-        proposeOn(pool, keyAction(ChargeGovernance.Key.Witness, relayKey, "salt"));
-        proposeOn(pool, keyAction(ChargeGovernance.Key.Witness, vm.addr(SIGNER2_KEY), "salt"));
-        proposeOn(pool, keyAction(ChargeGovernance.Key.Witness, address(0), "salt"));
-        proposeOn(pool, keyAction(ChargeGovernance.Key.Witness, next, "salt"));
-        proposeOn(pool, keyAction(ChargeGovernance.Key.Relay, next, "salt"));
+        proposeOn(pool, "setKey", keyArgs(ChargeGovernance.Key.Witness, relayKey), "salt");
+        proposeOn(pool, "setKey", keyArgs(ChargeGovernance.Key.Witness, vm.addr(SIGNER2_KEY)), "salt");
+        proposeOn(pool, "setKey", keyArgs(ChargeGovernance.Key.Witness, address(0)), "salt");
+        proposeOn(pool, "setKey", keyArgs(ChargeGovernance.Key.Witness, next), "salt");
+        proposeOn(pool, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
         vm.warp(block.timestamp + 24 hours);
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         pool.setKey(ChargeGovernance.Key.Witness, relayKey, "salt");
@@ -185,7 +348,7 @@ contract ChargeGovernanceTest is ChargeBase {
     }
 
     function testThePauserKeyIsReplaced() public {
-        proposeOn(deposit, keyAction(ChargeGovernance.Key.Pauser, next, "salt"));
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Pauser, next), "salt");
         vm.warp(block.timestamp + 24 hours);
         deposit.setKey(ChargeGovernance.Key.Pauser, next, "salt");
         vm.prank(vm.addr(PAUSER_KEY));
@@ -198,24 +361,26 @@ contract ChargeGovernanceTest is ChargeBase {
 
     function testAReplacedSignerNoLongerCounts() public {
         uint256 newKey = 0xA008;
-        proposeOn(deposit, signerAction(0, vm.addr(newKey), "salt"));
-        proposeOn(deposit, signerAction(3, next, "salt"));
-        proposeOn(deposit, signerAction(1, vm.addr(SIGNER3_KEY), "salt"));
+        proposeOn(deposit, "setSigner", signerArgs(0, vm.addr(newKey)), "salt");
+        proposeOn(deposit, "setSigner", signerArgs(1, vm.addr(SIGNER3_KEY)), "salt");
         vm.warp(block.timestamp + 24 hours);
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        deposit.setSigner(3, next, "salt"); // there are three signers
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setSigner(3, next, "salt"); // there are three signers, so this was never proposed
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         deposit.setSigner(1, vm.addr(SIGNER3_KEY), "salt"); // one person cannot hold two places
         deposit.setSigner(0, vm.addr(newKey), "salt");
         assertEq(deposit.signers(0), vm.addr(newKey));
         assertEq(deposit.generation(), 1);
+        assertEq(deposit.signerGeneration(), 1);
 
         bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
         uint256 until = block.timestamp + 1 days;
         bytes32 digest = deposit.actionDigest(keccak256("propose"), action, 1, until);
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
-        deposit.propose(action, until, [sign(SIGNER1_KEY, digest), sign(SIGNER2_KEY, digest)]);
-        deposit.propose(action, until, [sign(newKey, digest), sign(SIGNER2_KEY, digest)]);
+        proposeKey(
+            ChargeGovernance.Key.Relay, next, "salt", until, [sign(SIGNER1_KEY, digest), sign(SIGNER2_KEY, digest)]
+        );
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, [sign(newKey, digest), sign(SIGNER2_KEY, digest)]);
     }
 
     function testProposalSignaturesEndAndCannotBeLong() public {
@@ -223,11 +388,11 @@ contract ChargeGovernanceTest is ChargeBase {
         uint256 tooLong = block.timestamp + 7 days + 1;
         bytes[2] memory long = two(deposit, "propose", action, 0, tooLong);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
-        deposit.propose(action, tooLong, long);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", tooLong, long);
         uint256 until = block.timestamp + 1 days;
         bytes[2] memory signatures = two(deposit, "propose", action, 0, until);
         vm.warp(until);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
-        deposit.propose(action, until, signatures);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures);
     }
 }

@@ -193,7 +193,7 @@ contract ChargeOddTokensTest is ChargeBase {
     function testCallingBackDuringAPayoutMovesNothingElse() public {
         toWon();
         uint256 amount = 1_000_000 * WON;
-        proposeOn(oddPool, keccak256(abi.encode(keccak256("withdraw"), amount, bytes32("salt"))));
+        proposeOn(oddPool, "withdraw", abi.encode(amount), "salt");
         vm.warp(block.timestamp + 24 hours);
         ChargeTypes.Quote memory quote = oddQuote(100e6);
         PayArgs memory args = oddPayArgs(quote);

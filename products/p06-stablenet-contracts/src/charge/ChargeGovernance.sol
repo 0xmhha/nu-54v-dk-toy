@@ -13,6 +13,10 @@ import {ChargeTypes} from "./ChargeTypes.sol";
 ///
 /// Whatever widens (a higher limit, a wider rate range, a new key, money out of the pool) needs two signers and
 /// then a day of waiting, and lapses three days later. Whatever narrows or stops needs one key and no waiting.
+///
+/// A waiting change is stopped by the pauser or by one signer. The one exception keeps a single key in the
+/// wrong hands from staying for ever: the key whose place a change takes cannot stop that change. The pauser
+/// cannot cancel or void its own replacement, and a signer cannot cancel its own.
 abstract contract ChargeGovernance {
     enum Key {
         Relay,
@@ -36,10 +40,20 @@ abstract contract ChargeGovernance {
         address[3] signers;
     }
 
+    /// @notice Whose place a waiting change takes. That key alone cannot stop the change.
+    enum Seat {
+        None,
+        Pauser,
+        Signer0,
+        Signer1,
+        Signer2
+    }
+
     struct Proposal {
         uint64 proposedAt;
         ProposalState state;
-        uint256 generation;
+        Seat replaces;
+        uint256 round; // the generation it was proposed in; see `proposalRound`
     }
 
     /// @notice A proposed change waits this long.
@@ -60,8 +74,12 @@ abstract contract ChargeGovernance {
     address public witness;
     address public pauser;
     address[3] public signers;
-    /// @notice Grows when a signer changes or a key is switched off; every earlier proposal is then void.
+    /// @notice Grows when a signer changes or a key is switched off; every earlier proposal is then void,
+    /// except one that replaces the pauser.
     uint256 public generation;
+    /// @notice Grows only when a signer changes. A proposal that replaces the pauser is counted in this one,
+    /// so the pauser cannot void it by switching keys off.
+    uint256 public signerGeneration;
     /// @notice The quoted rate must lie in this range, in 0.01 won for one whole USDC.
     uint256 public minRate;
     uint256 public maxRate;
@@ -70,7 +88,17 @@ abstract contract ChargeGovernance {
 
     event KeyChanged(Key indexed which, address account);
     event SignerChanged(uint8 indexed index, address account);
-    event ChangeProposed(bytes32 indexed action, uint64 readyAt, uint64 lapsesAt);
+    /// @notice Everything a reviewer needs to see what waits: `kind` is the keccak256 of the name of the
+    /// changing function and `arguments` are its arguments without the salt, ABI-encoded.
+    event ChangeProposed(
+        bytes32 indexed action,
+        bytes32 indexed kind,
+        bytes arguments,
+        bytes32 salt,
+        uint256 round,
+        uint64 readyAt,
+        uint64 lapsesAt
+    );
     event ChangeCancelled(bytes32 indexed action);
     event ChangeApplied(bytes32 indexed action);
     event RatesChanged(uint256 minRate, uint256 maxRate);
@@ -129,36 +157,61 @@ abstract contract ChargeGovernance {
         );
     }
 
-    // ---- changes that widen: two signers, then a day ----
-
-    /// @notice Starts the wait of one change. `action` is the hash the changing function computes from its
-    /// arguments and a salt. Anyone may send it; the two signatures are what counts.
-    function propose(bytes32 action, uint256 until, bytes[2] calldata signatures) external {
-        Proposal storage proposal = proposals[action];
-        // Once per action and generation: a lapsed or cancelled change needs a new salt and new signatures.
-        if (proposal.state != ProposalState.None && proposal.generation == generation) revert InvalidState();
-        _checkTwo(PROPOSE, action, generation, until, signatures);
-        uint64 readyAt = uint64(block.timestamp) + CHANGE_DELAY;
-        proposals[action] =
-            Proposal({proposedAt: uint64(block.timestamp), state: ProposalState.Pending, generation: generation});
-        emit ChangeProposed(action, readyAt, readyAt + CHANGE_WINDOW);
+    /// @notice The number of one change: its kind, its arguments and a salt, which makes two equal changes
+    /// two numbers. It equals `keccak256(abi.encode(kind, arguments..., salt))`.
+    function actionOf(bytes32 kind, bytes memory arguments, bytes32 salt) public pure returns (bytes32) {
+        return keccak256(bytes.concat(kind, arguments, salt));
     }
 
-    /// @notice The pauser, or one signer by signature, stops a waiting change for good.
+    /// @notice The round two signers put into the proposal of a change, and one signer into its cancel.
+    /// Refuses a kind this contract does not have and arguments that are not of that kind.
+    function proposalRound(bytes32 kind, bytes calldata arguments) public view returns (uint256) {
+        return _roundOf(_seatOf(kind, arguments));
+    }
+
+    // ---- changes that widen: two signers, then a day ----
+
+    /// @notice Starts the wait of one change. `kind` is the keccak256 of the name of the changing function
+    /// and `arguments` are that function's arguments without the salt, ABI-encoded. Two signers sign
+    /// `actionDigest(keccak256("propose"), actionOf(kind, arguments, salt), proposalRound(kind, arguments),
+    /// until)`. Anyone may send it; the two signatures are what counts.
+    function propose(bytes32 kind, bytes calldata arguments, bytes32 salt, uint256 until, bytes[2] calldata signatures)
+        external
+        returns (bytes32 action)
+    {
+        Seat seat = _seatOf(kind, arguments);
+        uint256 round = _roundOf(seat);
+        action = actionOf(kind, arguments, salt);
+        // Once per action and round: a lapsed or cancelled change needs a new salt and new signatures.
+        if (proposals[action].state != ProposalState.None && proposals[action].round == round) revert InvalidState();
+        _checkTwo(PROPOSE, action, round, until, signatures);
+        uint64 readyAt = uint64(block.timestamp) + CHANGE_DELAY;
+        proposals[action] =
+            Proposal({proposedAt: uint64(block.timestamp), state: ProposalState.Pending, replaces: seat, round: round});
+        emit ChangeProposed(action, kind, arguments, salt, round, readyAt, readyAt + CHANGE_WINDOW);
+    }
+
+    /// @notice The pauser, or one signer by signature, stops a waiting change for good. Not the key whose
+    /// place the change takes: the pauser cannot stop its own replacement, nor a signer its own. The pauser
+    /// calls with an empty signature; a signer signs `actionDigest(keccak256("cancel"), action, round, until)`
+    /// with the round of the proposal, and anyone may send it.
     function cancelProposal(bytes32 action, uint256 until, bytes calldata signature) external {
         Proposal storage proposal = proposals[action];
-        if (proposal.state != ProposalState.Pending || proposal.generation != generation) revert InvalidState();
-        if (msg.sender != pauser) {
+        if (!_waits(proposal)) revert InvalidState();
+        if (msg.sender == pauser && signature.length == 0) {
+            if (proposal.replaces == Seat.Pauser) revert Unauthorized();
+        } else {
             _checkFresh(until);
-            address signer = ChargeTypes.recover(actionDigest(CANCEL, action, generation, until), signature);
-            if (!_isSigner(signer)) revert Unauthorized();
+            bytes32 hash = actionDigest(CANCEL, action, proposal.round, until);
+            Seat seat = _seatOfSigner(ChargeTypes.recover(hash, signature));
+            if (seat == Seat.None || seat == proposal.replaces) revert Unauthorized();
         }
         proposal.state = ProposalState.Cancelled;
         emit ChangeCancelled(action);
     }
 
     function setKey(Key which, address to, bytes32 salt) external {
-        _apply(keccak256(abi.encode(SET_KEY, which, to, salt)));
+        _apply(SET_KEY, abi.encode(which, to), salt);
         _checkUnused(to);
         if (which == Key.Relay) relay = to;
         else if (which == Key.Quoter) quoter = to;
@@ -168,16 +221,16 @@ abstract contract ChargeGovernance {
     }
 
     function setSigner(uint8 index, address to, bytes32 salt) external {
-        _apply(keccak256(abi.encode(SET_SIGNER, index, to, salt)));
-        if (index > 2) revert InvalidParameters();
+        _apply(SET_SIGNER, abi.encode(index, to), salt);
         _checkUnused(to);
         signers[index] = to;
         generation += 1;
+        signerGeneration += 1;
         emit SignerChanged(index, to);
     }
 
     function setRates(uint256 minRate_, uint256 maxRate_, bytes32 salt) external {
-        _apply(keccak256(abi.encode(SET_RATES, minRate_, maxRate_, salt)));
+        _apply(SET_RATES, abi.encode(minRate_, maxRate_), salt);
         if (minRate_ == 0 || minRate_ > maxRate_) revert InvalidParameters();
         minRate = minRate_;
         maxRate = maxRate_;
@@ -187,11 +240,23 @@ abstract contract ChargeGovernance {
     // ---- changes that narrow: the pauser alone ----
 
     /// @notice Switches off the relay, the quoter or the witness. Only two signers and a day bring a key back.
+    /// Every waiting change is void after it, except one that replaces the pauser. A key that is off cannot
+    /// be switched off again, so the pauser voids once for every key two signers brought back.
     function disableKey(Key which) external onlyPauser {
-        if (which == Key.Relay) relay = address(0);
-        else if (which == Key.Quoter) quoter = address(0);
-        else if (which == Key.Witness) witness = address(0);
-        else revert InvalidParameters();
+        address was;
+        if (which == Key.Relay) {
+            was = relay;
+            relay = address(0);
+        } else if (which == Key.Quoter) {
+            was = quoter;
+            quoter = address(0);
+        } else if (which == Key.Witness) {
+            was = witness;
+            witness = address(0);
+        } else {
+            revert InvalidParameters();
+        }
+        if (was == address(0)) revert InvalidState();
         generation += 1;
         emit KeyChanged(which, address(0));
     }
@@ -206,7 +271,45 @@ abstract contract ChargeGovernance {
     // ---- internals ----
 
     function _isSigner(address account) internal view returns (bool) {
-        return account == signers[0] || account == signers[1] || account == signers[2];
+        return _seatOfSigner(account) != Seat.None;
+    }
+
+    function _seatOfSigner(address account) private view returns (Seat) {
+        if (account == signers[0]) return Seat.Signer0;
+        if (account == signers[1]) return Seat.Signer1;
+        if (account == signers[2]) return Seat.Signer2;
+        return Seat.None;
+    }
+
+    /// @dev How many bytes the ABI-encoded arguments of a kind of change have; 0 for a kind this contract does
+    /// not have. Each contract adds its own kinds.
+    function _argumentsLength(bytes32 kind) internal pure virtual returns (uint256) {
+        return kind == SET_KEY || kind == SET_SIGNER || kind == SET_RATES ? 64 : 0;
+    }
+
+    /// @dev Whose place a change takes, read from its arguments when it is proposed. Only a change this
+    /// contract can apply is let in, so nothing unreadable ever waits.
+    function _seatOf(bytes32 kind, bytes calldata arguments) private pure returns (Seat) {
+        uint256 length = _argumentsLength(kind);
+        if (length == 0 || arguments.length != length) revert InvalidParameters();
+        if (kind != SET_KEY && kind != SET_SIGNER) return Seat.None;
+        uint256 first = uint256(bytes32(arguments[0:32]));
+        if (kind == SET_KEY) {
+            if (first > uint256(Key.Pauser)) revert InvalidParameters();
+            return first == uint256(Key.Pauser) ? Seat.Pauser : Seat.None;
+        }
+        if (first > 2) revert InvalidParameters();
+        return Seat(first + uint256(Seat.Signer0));
+    }
+
+    /// @dev The pauser moves `generation` by switching a key off. Its own replacement is therefore counted
+    /// in the generation that only a change of signers moves.
+    function _roundOf(Seat seat) private view returns (uint256) {
+        return seat == Seat.Pauser ? signerGeneration : generation;
+    }
+
+    function _waits(Proposal storage proposal) private view returns (bool) {
+        return proposal.state == ProposalState.Pending && proposal.round == _roundOf(proposal.replaces);
     }
 
     function _checkFresh(uint256 until) internal view {
@@ -225,9 +328,10 @@ abstract contract ChargeGovernance {
         if (!_isSigner(first) || !_isSigner(second)) revert Unauthorized();
     }
 
-    function _apply(bytes32 action) internal {
+    function _apply(bytes32 kind, bytes memory arguments, bytes32 salt) internal {
+        bytes32 action = actionOf(kind, arguments, salt);
         Proposal storage proposal = proposals[action];
-        if (proposal.state != ProposalState.Pending || proposal.generation != generation) revert InvalidState();
+        if (!_waits(proposal)) revert InvalidState();
         uint256 readyAt = uint256(proposal.proposedAt) + CHANGE_DELAY;
         if (block.timestamp < readyAt || block.timestamp > readyAt + CHANGE_WINDOW) revert InvalidTime();
         proposal.state = ProposalState.Applied;

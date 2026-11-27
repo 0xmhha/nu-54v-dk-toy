@@ -287,7 +287,8 @@ contract WonPoolTest is ChargeBase {
         ChargeTypes.Quote memory quote = quoteFor(100e6, board);
         PayArgs memory args = payArgs(quote, false);
         toWon();
-        proposeOn(pool, keccak256(abi.encode(keccak256("addOrigin"), uint256(10), second, bytes32("salt"))));
+        bytes32 action = keccak256(abi.encode(keccak256("addOrigin"), uint256(10), second, bytes32("salt")));
+        assertEq(proposeOn(pool, "addOrigin", abi.encode(uint256(10), second), "salt"), action);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         pool.addOrigin(10, second, "salt");
         vm.warp(block.timestamp + 24 hours);
@@ -508,7 +509,7 @@ contract WonPoolTest is ChargeBase {
         bytes32 action = keccak256(abi.encode(keccak256("raiseLimits"), limits(), bytes32("salt")));
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         pool.raiseLimits(limits(), "salt");
-        proposeOn(pool, action);
+        assertEq(proposeOn(pool, "raiseLimits", abi.encode(limits()), "salt"), action);
         vm.warp(block.timestamp + 24 hours - 1);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         pool.raiseLimits(limits(), "salt");
@@ -536,7 +537,8 @@ contract WonPoolTest is ChargeBase {
         pool.narrowRates(RATE, RATE);
 
         uint256 next = 140_000;
-        proposeOn(pool, keccak256(abi.encode(keccak256("setRates"), next, next, bytes32("salt"))));
+        bytes32 action = keccak256(abi.encode(keccak256("setRates"), next, next, bytes32("salt")));
+        assertEq(proposeOn(pool, "setRates", abi.encode(next, next), "salt"), action);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         pool.setRates(next, next, "salt");
         vm.warp(block.timestamp + 24 hours);
@@ -551,7 +553,7 @@ contract WonPoolTest is ChargeBase {
 
     function testAWiderRangeCanBeNarrowedByOneKey() public {
         toWon();
-        proposeOn(pool, keccak256(abi.encode(keccak256("setRates"), uint256(130_000), uint256(140_000), bytes32(0))));
+        proposeOn(pool, "setRates", abi.encode(uint256(130_000), uint256(140_000)), 0);
         vm.warp(block.timestamp + 24 hours);
         pool.setRates(130_000, 140_000, 0);
         vm.startPrank(vm.addr(PAUSER_KEY));
@@ -597,7 +599,7 @@ contract WonPoolTest is ChargeBase {
         bytes32 action = keccak256(abi.encode(keccak256("withdraw"), amount, bytes32("salt")));
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         pool.withdraw(amount, "salt");
-        proposeOn(pool, action);
+        assertEq(proposeOn(pool, "withdraw", abi.encode(amount), "salt"), action);
         vm.warp(block.timestamp + 24 hours - 1);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         pool.withdraw(amount, "salt");
@@ -618,7 +620,7 @@ contract WonPoolTest is ChargeBase {
         vm.prank(vm.addr(PAUSER_KEY));
         pool.pausePays();
         uint256 amount = POOL_SIZE * scale();
-        proposeOn(pool, keccak256(abi.encode(keccak256("withdraw"), amount, bytes32("salt"))));
+        proposeOn(pool, "withdraw", abi.encode(amount), "salt");
         vm.warp(block.timestamp + 24 hours);
         pool.withdraw(amount, "salt");
         assertEq(assetBalance(treasury), amount);

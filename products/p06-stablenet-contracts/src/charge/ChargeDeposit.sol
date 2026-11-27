@@ -397,7 +397,7 @@ contract ChargeDeposit is ChargeGovernance {
     }
 
     function setSpender(address to, bytes32 salt) external {
-        _apply(keccak256(abi.encode(SET_SPENDER, to, salt)));
+        _apply(SET_SPENDER, abi.encode(to), salt);
         // A contract or nothing: a key can never be the spender.
         if (to == address(this) || (to != address(0) && to.code.length == 0)) revert InvalidParameters();
         spender = to;
@@ -452,13 +452,17 @@ contract ChargeDeposit is ChargeGovernance {
     }
 
     function raiseLimit(uint256 maxWon_, bytes32 salt) external {
-        _apply(keccak256(abi.encode(RAISE_LIMIT, maxWon_, salt)));
+        _apply(RAISE_LIMIT, abi.encode(maxWon_), salt);
         if (maxWon_ < minWon) revert InvalidParameters();
         maxWon = maxWon_;
         emit LimitChanged(maxWon_);
     }
 
     // ---- internals ----
+
+    function _argumentsLength(bytes32 kind) internal pure override returns (uint256) {
+        return kind == SET_SPENDER || kind == RAISE_LIMIT ? 32 : super._argumentsLength(kind);
+    }
 
     function _complete(bytes32 id, Deposit storage record, bytes32 wonBlockHash, bool bySigners) private {
         record.state = State.Completed;

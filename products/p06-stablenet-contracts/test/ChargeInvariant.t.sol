@@ -40,7 +40,7 @@ contract ChargeHandler is ChargeBase {
     /// The place for the later re-exchange contract is filled with this handler, so spending is driven too.
     function installSpender() external {
         toSource();
-        proposeOn(deposit, keccak256(abi.encode(keccak256("setSpender"), address(this), bytes32(0))));
+        proposeOn(deposit, "setSpender", abi.encode(address(this)), 0);
         vm.warp(block.timestamp + 24 hours);
         deposit.setSpender(address(this), 0);
     }

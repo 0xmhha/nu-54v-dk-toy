@@ -284,7 +284,7 @@ contract WonPool is ChargeGovernance {
     }
 
     function raiseLimits(Limits calldata next, bytes32 salt) external {
-        _apply(keccak256(abi.encode(RAISE_LIMITS, next, salt)));
+        _apply(RAISE_LIMITS, abi.encode(next), salt);
         if (!_validLimits(next, minWon)) revert InvalidParameters();
         limits = next;
         emit LimitsChanged(next);
@@ -292,7 +292,7 @@ contract WonPool is ChargeGovernance {
 
     /// @notice A further deposit contract, for another source chain or deposit method.
     function addOrigin(uint256 sourceChainId, address deposit, bytes32 salt) external {
-        _apply(keccak256(abi.encode(ADD_ORIGIN, sourceChainId, deposit, salt)));
+        _apply(ADD_ORIGIN, abi.encode(sourceChainId, deposit), salt);
         if (sourceChainId == 0 || deposit == address(0)) revert InvalidParameters();
         origins[_originKey(sourceChainId, deposit)] = true;
         emit OriginSet(sourceChainId, deposit, true);
@@ -306,12 +306,19 @@ contract WonPool is ChargeGovernance {
     /// @notice Pool money leaves, other than as a payout, only to the treasury and only after two signers and
     /// a day. Putting money in needs nothing: send the asset to this address.
     function withdraw(uint256 assetAmount, bytes32 salt) external guarded {
-        _apply(keccak256(abi.encode(WITHDRAW, assetAmount, salt)));
+        _apply(WITHDRAW, abi.encode(assetAmount), salt);
         emit Withdrawn(treasury, assetAmount);
         _send(asset, treasury, assetAmount);
     }
 
     // ---- internals ----
+
+    function _argumentsLength(bytes32 kind) internal pure override returns (uint256) {
+        if (kind == WITHDRAW) return 32;
+        if (kind == ADD_ORIGIN) return 64;
+        if (kind == RAISE_LIMITS) return 160;
+        return super._argumentsLength(kind);
+    }
 
     /// @dev How the USDC arrived (`quote.method`) is the business of the deposit contract that took it; a
     /// deposit contract for another method is another origin.
