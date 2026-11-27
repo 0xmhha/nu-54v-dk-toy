@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -28,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 )
@@ -105,6 +107,14 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 	}
 	ownCert, strangerCert, colleagueCert := leaf(2, operator), leaf(3, stranger), leaf(4, colleague)
+	// A pickup terminal of this shop with its assignment: the certificate that hands orders over at the counter's own
+	// device. It does not scan a pickup QR.
+	counter := fresh()
+	execute("INSERT INTO ledger.commerce_grant(branch_id,actor_id,role_code,terminal_mode,valid_until) VALUES($1,$2,'terminal','menu',now()+interval '10 minutes')", shop, counter)
+	execute("INSERT INTO ledger.travel_pickup_terminal VALUES ($1,$2)", shop, counter)
+	counterCert := leaf(5, counter)
+	counterDigest := sha256.Sum256(counterCert.Certificate[0])
+	credentials[hex.EncodeToString(counterDigest[:])] = service.Principal{Tenant: tenant, Subject: counter, Role: "terminal", ExpiresAt: time.Now().Add(10 * time.Minute).Unix()}
 
 	asset := "0x" + strings.Repeat("2", 40)
 	certified, entrance := http.NewServeMux(), http.NewServeMux()
@@ -618,6 +628,22 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	scan(strangerCert, shop, sale, expired, 404) // and no reason either
 	call(staff(ownCert), server.URL+"/v2/operations/pickup-scan/"+shop+"/"+sale, map[string]string{"Origin": "https://elsewhere.example"},
 		map[string]string{"token": token}, 404) // not the operations web
+	// A pickup terminal holds the kitchen's handover authority and still does not scan a QR: the route is not found
+	// for it, the database refuses its role, and the token stays unused.
+	var assigned bool
+	if err := admin.QueryRow(ctx, "SELECT ledger.request_authority_live($1,$2,$3,'terminal',ARRAY['pickup_assignment'])", tenant, shop, counter).Scan(&assigned); err != nil || !assigned {
+		t.Fatal("the pickup terminal of this test has no assignment", assigned, err)
+	}
+	scan(counterCert, shop, sale, token, 404)
+	var denied *pgconn.PgError
+	if _, err := admin.Exec(ctx, "SELECT ledger.scan_pickup_token($1,$2,$3,'terminal',$4,$5,120)", tenant, shop, counter, sale, hashOfHex(t, token)); !errors.As(err, &denied) ||
+		denied.Code != "42501" || denied.Message != "a pickup QR is scanned by a store operator" {
+		t.Fatal("the database let a terminal scan a pickup QR", err)
+	}
+	var unused bool
+	if err := admin.QueryRow(ctx, "SELECT used_at IS NULL FROM ledger.pickup_token WHERE token_hash=$1", hashOfHex(t, token)).Scan(&unused); err != nil || !unused {
+		t.Fatal("a refused terminal used the token up", unused, err)
+	}
 	execute(`UPDATE ledger.travel_pickup_progress SET state='preparing' WHERE sale_id=$1`, sale)
 	refused(scan(ownCert, shop, sale, token, 409), service.CheckoutConflict, "not_ready")
 	execute(`UPDATE ledger.travel_pickup_progress SET state='ready' WHERE sale_id=$1`, sale)

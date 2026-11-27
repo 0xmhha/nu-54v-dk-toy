@@ -615,10 +615,14 @@ func pickupRefusal(outcome string, recordedAt int64) (int, pickupScanRefusal, bo
 
 // pickupScan records the handover of the order the staff opened, when its QR is scanned on that order's page of the
 // operations web. It does not release funds: the delivered mark starts the buyer's receipt window as before.
+//
+// Only an operator of the operations web with the handover authority (pickup_manage) scans a pickup QR (owner
+// decision). A kiosk or pickup terminal certificate is not found here, whatever it is assigned to; the database
+// refuses that role again.
 func (h HTTP) pickupScan(w http.ResponseWriter, r *http.Request) {
 	branchRef, sale := r.PathValue("branch"), r.PathValue("sale")
 	principal, _, exists := service.CurrentClientPrincipal(r.TLS, h.Credentials, time.Now())
-	if !exists || (principal.Role != "operator" && principal.Role != "terminal") || principal.ExpiresAt <= time.Now().Unix() ||
+	if !exists || principal.Role != "operator" || principal.ExpiresAt <= time.Now().Unix() ||
 		!operatorRef.MatchString(principal.Tenant) || !operatorRef.MatchString(principal.Subject) ||
 		!operatorRef.MatchString(branchRef) || !operatorRef.MatchString(sale) || h.Store == nil {
 		http.NotFound(w, r)
@@ -638,11 +642,7 @@ func (h HTTP) pickupScan(w http.ResponseWriter, r *http.Request) {
 	}
 	token, _ := hex.DecodeString(in.Token)
 	hash := sha256.Sum256(token)
-	capability := "pickup_manage"
-	if principal.Role == "terminal" {
-		capability = "pickup_assignment"
-	}
-	ctx := authority.Scope(r.Context(), principal, branchRef, capability)
+	ctx := authority.Scope(r.Context(), principal, branchRef, "pickup_manage")
 	var raw []byte
 	err := h.Store.db.QueryRow(ctx, "SELECT ledger.scan_pickup_token($1,$2,$3,$4,$5,$6,$7)",
 		principal.Tenant, branchRef, principal.Subject, principal.Role, sale, hash[:],
