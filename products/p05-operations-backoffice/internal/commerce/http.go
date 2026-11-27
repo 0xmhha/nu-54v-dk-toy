@@ -219,6 +219,7 @@ func (h HTTP) Register(mux *http.ServeMux) {
 	h.registerAccess(operators)
 	h.registerLegacy(operators)
 	h.registerFirmware(operators)
+	h.registerStorePage(operators)
 	if h.Customer != nil {
 		operators.HandleFunc("POST /v2/operations/pickup-scan/{branch}/{sale}", h.pickupScan)
 	}

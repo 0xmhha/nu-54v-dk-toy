@@ -505,7 +505,8 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	customerAddr := os.Getenv("P05_CUSTOMER_ADDR")
 	var customer *commerce.CustomerEntrance
 	if customerAddr != "" {
-		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil)}
+		// P05_CUSTOMER_OPERATOR_CONTACT is shown on every store page for payment and refund questions.
+		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil), OperatorContact: os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT")}
 	}
 	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}

@@ -39,6 +39,8 @@ type CustomerEntrance struct {
 	ChallengeLifetime, CheckoutLifetime, OrderLifetime, PickupLifetime time.Duration
 	// RescanWindow is how long after a handover the same staff member's repeated scan gets the first answer again.
 	RescanWindow time.Duration
+	// OperatorContact is what a store page shows for payment and refund questions; empty shows none.
+	OperatorContact string
 }
 
 const (
@@ -154,6 +156,9 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 	mux.Handle("POST /v2/customer/challenge", limit(h.customerChallenge))
 	mux.Handle("POST /v2/customer/proof", limit(h.customerProof))
 	mux.Handle("POST /v2/customer/commerce", limit(h.customerCommerce))
+	// The store list and a store page are read before any proof: public data only, under the same limit.
+	mux.Handle("GET /v2/customer/stores", limit(h.customerStores))
+	mux.Handle("GET /v2/customer/stores/{branch}", limit(h.customerStore))
 }
 
 func decodeStrict(w http.ResponseWriter, r *http.Request, limit int64, into any) bool {
