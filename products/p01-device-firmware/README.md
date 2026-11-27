@@ -330,16 +330,31 @@ no network are involved. The phone sends this first, right after the TLS handsha
 | | |
 |---|---|
 | transport command | `clock`, code 8, on the management route, from the owner only |
-| request | `0x81`, the phone's time in seconds (8 bytes, big-endian). It must end within 95 s after that time; the phone gives it 90 s |
+| request | `0x81`, the phone's time in seconds (8 bytes, big-endian). `time < expires <= time + 95`; the phone gives it 90 s. The expiry must also be later than the board's latest possible time, so a phone more than 90 s behind the board gets no answer |
 | reply | `0x81`, result (1), the board's earliest and latest possible time and the grant's end (8 bytes each), the number of times the phone's time opened a later day under this grant (4) |
-| result | 1 moved; 2 not forward (the board is at that time or past it); 3 the grant's end or later. 2 and 3 change nothing |
+| result | 1 took the time; 2 not ahead (the board is at that time or past it, or less than 3 s behind it); 3 the grant's end or later; 4 too late in the session; 5 press SW1. 2 to 5 change nothing, and all five are answers |
 
-The board asks for neither the button nor the PIN, and takes the time only from the phone its vault holds
-as the owner, under a grant of that owner's generation, with no registration or recovery under way. It is
-the one command that reaches a board however late its clock is; the transport's 300-second rule still
-holds for every other command. The moved time is in storage before it is used. The latest possible time
-is then 5 s plus the age of the session above the time the phone sent, so the phone reads its clock after
-the handshake and sends the command before anything else.
+The board takes the time only from the phone its vault holds as the owner, in a session bound as that
+owner's, under a grant of that owner's generation, with no registration or recovery under way. It asks for
+no PIN. It is the one command that reaches a board however late its clock is; the transport's 300-second
+rule still holds for every other command. The moved time is in storage before it is used.
+
+- **The interval.** A time that moves the clock makes the board's interval the phone's: from the time it
+  told to that time plus the session's age plus 5 s. So the phone reads its clock after the handshake and
+  sends the command before anything else. A session older than `CONFIG_NU54_CLOCK_SESSION_SECONDS` (15 s
+  by default, counted from the first byte, so the handshake is in it) is answered with result 4. **The
+  default is a guess: measure the handshake on a board and set it.** A time less than 3 s ahead moves
+  nothing and writes nothing; where the board's interval is wider than what the phone vouches for, it
+  only brings the latest possible time down.
+- **A day without a button.** Since its last start the board lets the phone move the clock forward by
+  `CONFIG_NU54_CLOCK_FREE_SECONDS` in total (one day by default; the count is in RAM). A move beyond that
+  is answered with result 5: the board blinks as for any button, waits for SW1 for as long as the request
+  runs (90 s), and on SW1 takes the request as of its arrival, adding the seconds it has run since. SW2,
+  any message and the end of the wait drop it. The phone hears nothing of the press and asks again in a
+  new session.
+- **Open orders.** A phone's time may be ahead of the calendar, so it never ends an approved order for
+  the board early: what is open when the clock moves stays open for up to 180 s of running time, and
+  that hold is saved with the moved time, so a restart keeps it (for at most 240 s after the start).
 
 An owner certificate issued while the board was off is not valid yet by the board's late clock. The board
 then still opens the session for the pinned owner, and that session takes the time command and nothing
@@ -347,21 +362,27 @@ else. When the certificate is valid at the new time the session goes on as usual
 the reply. A certificate that has ended is refused as before.
 
 A move into a later day opens that day's total again; this is the accepted cost of the decision, and the
-count in the reply shows how often the phone did it. A phone whose clock is ahead takes the board with it:
-real orders then look ended to the board, and a new grant is refused until the calendar has caught up,
-because a grant's time must not be before the time the board has reached. See
+count in the reply shows how often the phone did it. Without SW1 or a restart that is one day per start.
+A phone whose clock is ahead takes the board with it, by up to a day without a button: real orders then
+look ended to the board, and a new grant is refused while the board is ahead, because a grant's time must
+not be before the time the board has reached. A board that stays on does not come back from that by
+itself; it has to be off for as long as it is ahead. So the phone must compare its clock with network
+time before it sends. See
 [the design](../../docs/content/commercial/architecture/board-secure-key-and-advertising.md) for what a
-holder of the phone can and cannot do. The phone side is not built yet; until it is, a board that was
-without power takes a new grant from the operator as before.
+holder of the phone can and cannot do, and [the transport](../../packages/protocol/v2/transport.md) for
+what the phone must and must not do. The phone side is not built yet; until it is, a board that was
+without power takes a new grant from the operator as before. A board without an owner takes no time
+command at all: if it restarted before its owner registered, the operator installs the grant again.
 
 For a new grant open SW4, take a fresh ticket and offer, and issue with a new `not_after` and a higher
 `revision`. Its time must not be before the time the board has reached. Keep `payer_generation` equal to
 the generation the phone shows, or one above the board's generation while it has no owner. Only the same
 policy and certificates may keep their revision.
 
-The time between the offer and the installed grant, at most 60 seconds, is how far the board's latest
-possible time may run ahead while that grant is in use, also after a restart. A later grant does not
-shorten it, so run the commands without a pause. The phone allows for it:
+The time between the offer and the installed grant, less than 60 seconds, is how far the board's latest
+possible time runs ahead while that grant is in use, also after a restart, until the owner's phone tells
+the time or the next grant arrives: either sets the interval anew. Requests with less than that left to
+run are refused meanwhile, so run the commands without a pause. The phone allows for it:
 
 | Request | Phone sends | Board limit, from its latest possible time | Refused when the board is late by more than |
 |---|---|---|---|
@@ -370,7 +391,7 @@ shorten it, so run the commands without a pause. The phone allows for it:
 | 0x7b | `validBefore` 170 s ahead, and as long as a request | transport 300 s; 600 s from the board's earliest possible time | 130 s |
 | registration, 0x7a, 0x7c, 0x7e | 150 s | transport 300 s, and the 120 s session | 150 s |
 | status (3, 7), 0x7d, 0x7f, receipt status | 90 s | transport 300 s | 210 s |
-| time (transport command 8, 0x81) | 90 s | not ended by the board's time | never |
+| time (transport command 8, 0x81) | 90 s | not ended by the board's latest possible time | never for being late; a phone more than 90 s behind the board is cut off |
 
 "Late" is the calendar minus the board's latest possible time. The phone's values are those of
 `products/p02-user-app/src/wallet/ownerSession.ts` and `boardReturn.ts`.
