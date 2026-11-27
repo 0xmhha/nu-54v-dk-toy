@@ -425,4 +425,144 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
         proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures);
     }
+
+    // ---- what the server reads ----
+
+    function statusOf(bytes32 action) internal view returns (ChargeGovernance.Status) {
+        return deposit.proposalStatus(action);
+    }
+
+    function assertStatus(bytes32 action, ChargeGovernance.Status expected) internal view {
+        assertEq(uint8(statusOf(action)), uint8(expected));
+    }
+
+    function assertStillPending(bytes32 action) internal view {
+        (, ChargeGovernance.ProposalState stored,,) = deposit.proposals(action);
+        assertEq(uint8(stored), uint8(ChargeGovernance.ProposalState.Pending));
+    }
+
+    /// The stored state says `Pending` for a change that lapsed or was voided. The status reads the clock
+    /// and the rounds, so it says what applying would say.
+    function testTheStatusSaysWhereAChangeStands() public {
+        bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
+        assertStatus(action, ChargeGovernance.Status.None);
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
+        uint256 proposedAt = block.timestamp;
+        assertStatus(action, ChargeGovernance.Status.Waiting);
+        vm.warp(proposedAt + 24 hours - 1);
+        assertStatus(action, ChargeGovernance.Status.Waiting);
+        vm.warp(proposedAt + 24 hours);
+        assertStatus(action, ChargeGovernance.Status.Ready);
+        vm.warp(proposedAt + 24 hours + 3 days);
+        assertStatus(action, ChargeGovernance.Status.Ready);
+        uint256 ready = vm.snapshotState();
+        deposit.setKey(ChargeGovernance.Key.Relay, next, "salt");
+        assertStatus(action, ChargeGovernance.Status.Applied);
+        vm.revertToState(ready);
+        vm.prank(vm.addr(PAUSER_KEY));
+        deposit.cancelProposal(action, 0, "");
+        assertStatus(action, ChargeGovernance.Status.Cancelled);
+        vm.revertToState(ready);
+        vm.warp(proposedAt + 24 hours + 3 days + 1);
+        assertStatus(action, ChargeGovernance.Status.Void); // lapsed
+        assertStillPending(action);
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        deposit.setKey(ChargeGovernance.Key.Relay, next, "salt");
+    }
+
+    function testTheStatusOfAVoidedChangeIsVoidWhileItsStoredStateIsPending() public {
+        bytes32 relayChange = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
+        bytes32 pauserChange = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Pauser, next), "salt");
+        vm.prank(vm.addr(PAUSER_KEY));
+        deposit.disableKey(ChargeGovernance.Key.Quoter);
+        assertStatus(relayChange, ChargeGovernance.Status.Void);
+        assertStillPending(relayChange);
+        assertStatus(pauserChange, ChargeGovernance.Status.Waiting); // the pauser does not void its replacement
+
+        uint256 until = block.timestamp + 1 days;
+        bytes32 digest = deposit.actionDigest(keccak256("voidPauserReplacements"), 0, 0, until);
+        deposit.voidPauserReplacements(until, sign(SIGNER1_KEY, digest));
+        assertStatus(pauserChange, ChargeGovernance.Status.Void);
+        assertStillPending(pauserChange);
+        vm.warp(block.timestamp + 24 hours);
+        assertStatus(pauserChange, ChargeGovernance.Status.Void);
+        assertStatus(relayChange, ChargeGovernance.Status.Void);
+    }
+
+    /// The round a change is counted in is what a cancel signs and what the server stores with the change:
+    /// the round of the pauser's seat for a replacement of the pauser, the generation for every other.
+    function testAProposalIsAnnouncedWithTheRoundItCountsIn() public {
+        vm.startPrank(vm.addr(PAUSER_KEY));
+        deposit.disableKey(ChargeGovernance.Key.Relay);
+        deposit.disableKey(ChargeGovernance.Key.Quoter);
+        vm.stopPrank();
+        uint256 until = block.timestamp + 1 days;
+        bytes32 digest = deposit.actionDigest(keccak256("voidPauserReplacements"), 0, 0, until);
+        deposit.voidPauserReplacements(until, sign(SIGNER1_KEY, digest));
+        assertEq(deposit.generation(), 2);
+        assertEq(deposit.pauserRound(), 1);
+
+        bytes memory arguments = keyArgs(ChargeGovernance.Key.Relay, next);
+        bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
+        uint64 readyAt = uint64(block.timestamp + 24 hours);
+        bytes[2] memory signatures = two(deposit, "propose", action, 2, until);
+        vm.expectEmit(address(deposit));
+        emit ChangeProposed(action, SET_KEY, arguments, "salt", 2, readyAt, readyAt + 3 days);
+        deposit.propose(SET_KEY, arguments, "salt", until, signatures);
+        (,,, uint256 round) = deposit.proposals(action);
+        assertEq(round, 2);
+
+        arguments = keyArgs(ChargeGovernance.Key.Pauser, next);
+        action = keyAction(ChargeGovernance.Key.Pauser, next, "salt");
+        signatures = two(deposit, "propose", action, 1, until);
+        vm.expectEmit(address(deposit));
+        emit ChangeProposed(action, SET_KEY, arguments, "salt", 1, readyAt, readyAt + 3 days);
+        deposit.propose(SET_KEY, arguments, "salt", until, signatures);
+        (,,, round) = deposit.proposals(action);
+        assertEq(round, 1);
+
+        arguments = signerArgs(1, next);
+        action = signerAction(1, next, "salt");
+        signatures = two(deposit, "propose", action, 2, until);
+        vm.expectEmit(address(deposit));
+        emit ChangeProposed(action, SET_SIGNER, arguments, "salt", 2, readyAt, readyAt + 3 days);
+        deposit.propose(SET_SIGNER, arguments, "salt", until, signatures);
+    }
+
+    function testACancelIsAnnouncedWithTheSeatThatCancelled() public {
+        bytes32 action = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
+        uint256 before = vm.snapshotState();
+        vm.expectEmit(address(deposit));
+        emit ChargeGovernance.ChangeCancelled(action, ChargeGovernance.Seat.Pauser);
+        vm.prank(vm.addr(PAUSER_KEY));
+        deposit.cancelProposal(action, 0, "");
+
+        uint256[3] memory signerKeys = [SIGNER1_KEY, SIGNER2_KEY, SIGNER3_KEY];
+        uint256 until = block.timestamp + 1 days;
+        for (uint256 i; i < 3; ++i) {
+            vm.revertToState(before);
+            vm.expectEmit(address(deposit));
+            emit ChargeGovernance.ChangeCancelled(action, ChargeGovernance.Seat(i + 2));
+            deposit.cancelProposal(action, until, cancelSignature(deposit, signerKeys[i], action, until));
+        }
+    }
+
+    function testEveryChangeOfAKeyIsAnnounced() public {
+        vm.expectEmit(address(deposit));
+        emit ChargeGovernance.KeyChanged(ChargeGovernance.Key.Witness, address(0));
+        vm.prank(vm.addr(PAUSER_KEY));
+        deposit.disableKey(ChargeGovernance.Key.Witness);
+
+        bytes32 action = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Witness, next), "salt");
+        proposeOn(deposit, "setSigner", signerArgs(2, address(0xE0B)), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectEmit(address(deposit));
+        emit ChargeGovernance.ChangeApplied(action);
+        vm.expectEmit(address(deposit));
+        emit ChargeGovernance.KeyChanged(ChargeGovernance.Key.Witness, next);
+        deposit.setKey(ChargeGovernance.Key.Witness, next, "salt");
+        vm.expectEmit(address(deposit));
+        emit ChargeGovernance.SignerChanged(2, address(0xE0B));
+        deposit.setSigner(2, address(0xE0B), "salt");
+    }
 }

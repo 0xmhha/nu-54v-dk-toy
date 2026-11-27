@@ -32,6 +32,16 @@ abstract contract ChargeGovernance {
         Cancelled
     }
 
+    /// @notice What `proposalStatus` answers. `Void`: lapsed, or its round has passed.
+    enum Status {
+        None,
+        Waiting,
+        Ready,
+        Void,
+        Applied,
+        Cancelled
+    }
+
     struct Keys {
         address relay;
         address quoter;
@@ -101,7 +111,8 @@ abstract contract ChargeGovernance {
         uint64 readyAt,
         uint64 lapsesAt
     );
-    event ChangeCancelled(bytes32 indexed action);
+    /// @notice `by` is the seat that stopped it: the pauser or one of the three signers.
+    event ChangeCancelled(bytes32 indexed action, Seat by);
     event ChangeApplied(bytes32 indexed action);
     /// @notice Every proposal that replaces the pauser and was counted in `round` is void.
     event PauserReplacementsVoided(uint256 round, Seat by);
@@ -202,16 +213,27 @@ abstract contract ChargeGovernance {
     function cancelProposal(bytes32 action, uint256 until, bytes calldata signature) external {
         Proposal storage proposal = proposals[action];
         if (!_waits(proposal)) revert InvalidState();
-        if (msg.sender == pauser && signature.length == 0) {
-            if (proposal.replaces == Seat.Pauser) revert Unauthorized();
-        } else {
+        Seat by = Seat.Pauser;
+        if (msg.sender != pauser || signature.length != 0) {
             _checkFresh(until);
             bytes32 hash = actionDigest(CANCEL, action, proposal.round, until);
-            Seat seat = _seatOfSigner(ChargeTypes.recover(hash, signature));
-            if (seat == Seat.None || seat == proposal.replaces) revert Unauthorized();
+            by = _seatOfSigner(ChargeTypes.recover(hash, signature));
+            if (by == Seat.None) revert Unauthorized();
         }
+        if (by == proposal.replaces) revert Unauthorized();
         proposal.state = ProposalState.Cancelled;
-        emit ChangeCancelled(action);
+        emit ChangeCancelled(action, by);
+    }
+
+    /// @notice Where a change stands now. `proposals(action)` keeps answering `Pending` for a change that
+    /// lapsed or was voided; this reads the clock and the rounds as applying and cancelling do.
+    function proposalStatus(bytes32 action) external view returns (Status) {
+        Proposal storage proposal = proposals[action];
+        if (proposal.state == ProposalState.None) return Status.None;
+        if (proposal.state == ProposalState.Applied) return Status.Applied;
+        if (proposal.state == ProposalState.Cancelled) return Status.Cancelled;
+        if (proposal.round != _roundOf(proposal.replaces)) return Status.Void;
+        return _statusAt(proposal.proposedAt, CHANGE_DELAY, CHANGE_WINDOW);
     }
 
     /// @notice One signer stops every waiting replacement of the pauser at once, however many there are. It
@@ -334,6 +356,11 @@ abstract contract ChargeGovernance {
 
     function _waits(Proposal storage proposal) private view returns (bool) {
         return proposal.state == ProposalState.Pending && proposal.round == _roundOf(proposal.replaces);
+    }
+
+    function _statusAt(uint256 startedAt, uint256 delay, uint256 window) internal view returns (Status) {
+        if (block.timestamp < startedAt + delay) return Status.Waiting;
+        return block.timestamp > startedAt + delay + window ? Status.Void : Status.Ready;
     }
 
     function _checkFresh(uint256 until) internal view {
