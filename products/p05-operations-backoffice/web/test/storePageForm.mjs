@@ -33,6 +33,14 @@ const broken = (change) => storePageProblem({ ...form, ...change });
 assert.equal(broken({ intro: "가".repeat(201) }), "200자 안으로 줄여 주세요.");
 assert.equal(broken({ intro: "가".repeat(200) }), undefined);
 assert.equal(broken({ address: "a\nb" }), "줄바꿈은 넣을 수 없습니다.");
+assert.equal(broken({ address: "a\u0085b" }), "줄바꿈은 넣을 수 없습니다.");
+// Characters that do not show (Unicode Cf, Zl, Zp) are refused wherever they stand inside the text.
+const unseen = "보이지 않는 문자가 들어 있습니다. 다른 곳에서 붙여 넣은 글이라면 지우고 직접 적어 주세요.";
+for (const [field, value] of [["kind", "카\u200b페"], ["intro", "환불 불가 \u202e다니됩 불환"], ["address", "a\u2028b"], ["directions", "a\u2029b"],
+  ["amenities", "a\u00adb"], ["parking", "a\u200db"], ["closedNote", "a\ufeffb"], ["intro", "a\u2066b\u2069"], ["intro", "a\u{E0041}b"], ["intro", "a\u200eb"]])
+  assert.equal(broken({ [field]: value }), unseen, JSON.stringify([field, value]));
+// What shows stays allowed: other scripts, accents, a symbol and a no-break space.
+assert.equal(broken({ intro: "Café №1 ☕ 営業中", amenities: "Wi\u2011Fi · 100\u00a0석", directions: "شارع ١" }), undefined);
 assert.equal(broken({ phone: "전화 주세요" }), "전화번호는 숫자, 빈칸, 하이픈으로 적어 주세요.");
 assert.equal(broken({ phone: "+82 2-555-0100" }), undefined);
 assert.equal(broken({ days: form.days.map((d, i) => (i === 0 ? { ...d, closes: "10:00" } : d)) }), "월요일의 여는 시간과 닫는 시간이 같습니다.");

@@ -20,7 +20,10 @@ export type DayForm = { open: boolean; opens: string; closes: string };
 export type StorePageForm = Omit<StorePageWire, "hours"> & { hoursGiven: boolean; days: DayForm[] };
 
 const clock = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
-const control = /[\u0000-\u001f\u007f]/;
+// One visible line: no control character, and none of the characters that do not show but change what a customer
+// reads (zero-width and direction marks, the soft hyphen, the byte order mark, line and paragraph separators).
+const control = /\p{Cc}/u;
+const hidden = /[\p{Cf}\p{Zl}\p{Zp}]/u;
 const texts = { kind: 40, intro: 200, address: 200, directions: 200, amenities: 200, parking: 200, closedNote: 120 } as const;
 
 /** The form for a saved page. Days without hours start as 10:00 to 21:00, which is sent only once the day is open. */
@@ -40,6 +43,7 @@ export function storePageProblem(form: StorePageForm): string | undefined {
     const value = form[field].trim();
     if (Array.from(value).length > limit) return `${limit}자 안으로 줄여 주세요.`;
     if (control.test(value)) return "줄바꿈은 넣을 수 없습니다.";
+    if (hidden.test(value)) return "보이지 않는 문자가 들어 있습니다. 다른 곳에서 붙여 넣은 글이라면 지우고 직접 적어 주세요.";
   }
   const phone = form.phone.trim();
   if (phone && !/^\+?[0-9][0-9 -]{5,18}[0-9]$/.test(phone)) return "전화번호는 숫자, 빈칸, 하이픈으로 적어 주세요.";
