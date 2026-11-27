@@ -506,18 +506,31 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	var customer *commerce.CustomerEntrance
 	if customerAddr != "" {
 		// P05_CUSTOMER_OPERATOR_CONTACT is shown on every store page for payment and refund questions.
-		// Menu photo parts (18,000 bytes each, nine for a full photo) are counted apart: 120 a minute and 40 at once
-		// for each client, so a menu's small photos load in one go and the other requests keep their own allowance.
-		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil), PhotoLimiter: commerce.NewRateLimiter(120, 40, nil),
+		// Request limits, each with its own allowance so one kind cannot use up another's. Customers behind one
+		// address (a store's wireless network) share the first three, so those are sized for several at once.
+		//   proofs, per address: 20 at once, then 1 a second. A checkout, an order session and a pickup QR take two
+		//     requests each (challenge, proof); a session token the server does not know is counted here too.
+		//   public reads, per address: 120 at once, then 10 a second. Opening a store is the list, the page and at most
+		//     13 menu pages (600 rows, 50 a page), so eight customers can open the largest menu in the same moment.
+		//   menu photo parts, per address: 240 at once, then 20 a second. A menu has at most 200 photos; a small one is
+		//     one part of at most 18,000 bytes and a full one is nine, so at most about 360 KB a second for an address.
+		//   a session's requests, per session: 40 at once, then 2 a second. An order from cart to lock is about ten
+		//     requests, and the app asks for its status every 5 seconds at most.
+		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil), ReadLimiter: commerce.NewRateLimiter(600, 120, nil),
+			PhotoLimiter: commerce.NewRateLimiter(1200, 240, nil), SessionLimiter: commerce.NewRateLimiter(120, 40, nil),
 			OperatorContact: os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT")}
 	}
 	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}
 	handlers.Register(mux)
+	// The customer entrance is a second listener. When it stops serving for any reason but shutdown, opsd stops
+	// too: a process that answers staff but no customer must not look healthy.
+	var customerServer *http.Server
+	entranceFailed := make(chan error, 1)
 	if customer != nil {
 		entrance := http.NewServeMux()
 		handlers.RegisterCustomer(entrance)
-		customerServer := &http.Server{Addr: customerAddr, Handler: gate.Handler(entrance), BaseContext: func(net.Listener) context.Context { return lifetime },
+		customerServer = &http.Server{Addr: customerAddr, Handler: gate.Handler(entrance), BaseContext: func(net.Listener) context.Context { return lifetime },
 			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second, WriteTimeout: 10 * time.Second, MaxHeaderBytes: 8 << 10,
 			TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.NoClientCert, Certificates: []tls.Certificate{certificate}}}
 		listener, err := net.Listen("tcp", customerAddr)
@@ -527,25 +540,56 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 		go func() {
 			if err := customerServer.ServeTLS(listener, "", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("customer entrance stopped: %v", err)
+				entranceFailed <- err
 			}
 		}()
-		defer customerServer.Close()
+		// Refused requests leave one line every half minute: how many, and of which kind.
+		go func() {
+			tick := time.NewTicker(30 * time.Second)
+			defer tick.Stop()
+			for {
+				select {
+				case <-lifetime.Done():
+					return
+				case <-tick.C:
+					if counts := customer.Limited.Drain(); len(counts) != 0 {
+						log.Printf("customer entrance refused for rate in 30s: proof=%d read=%d photo=%d session=%d",
+							counts["proof"], counts["read"], counts["photo"], counts["session"])
+					}
+				}
+			}
+		}()
 	}
 	server := &http.Server{Addr: addr, Handler: gate.Handler(mux), BaseContext: func(net.Listener) context.Context { return lifetime }, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second,
 		WriteTimeout: 10 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert,
 			ClientCAs: roots, Certificates: []tls.Certificate{certificate}}}
-	shutdown := make(chan struct{})
+	shutdown := make(chan error, 1)
 	go func() {
-		defer close(shutdown)
-		<-lifetime.Done()
+		var failure error
+		select {
+		case <-lifetime.Done():
+		case failure = <-entranceFailed:
+		}
+		// Both listeners drain under the same deadline.
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		drained := make(chan struct{})
+		go func() {
+			defer close(drained)
+			if customerServer != nil {
+				_ = customerServer.Shutdown(ctx)
+			}
+		}()
 		_ = server.Shutdown(ctx)
+		<-drained
+		if failure != nil {
+			failure = fmt.Errorf("customer entrance stopped: %w", failure)
+		}
+		shutdown <- failure
 	}()
 	err = server.ListenAndServeTLS("", "")
 	if errors.Is(err, http.ErrServerClosed) {
-		<-shutdown
-		return nil
+		return <-shutdown
 	}
 	return err
 }
