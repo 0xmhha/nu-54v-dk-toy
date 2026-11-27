@@ -64,7 +64,7 @@ static BOOL journalName(NSString *name) {
 #ifndef NU54_TRAVEL_RECORDER
   if ([@[@"commerce-nearby-inbox-v2",@"commerce-denials-v2"] containsObject:name]) return YES;
 #endif
-  return [@[@"commerce-inbox-v2",@"customer-order-v2",@"customer-payment-v2",@"customer-qr-v2",@"terminal-payment-v2",@"terminal-mode-request-v2",@"terminal-mode-applied-v2",@"terminal-public-menu-v1",@"travel-pickup-kitchen-v1",@"subscription-alerts-v2",@"market-lab-8283-v1"] containsObject:name]
+  return [@[@"commerce-inbox-v2",@"customer-order-v2",@"customer-payment-v2",@"customer-qr-v2",@"customer-stores-v1",@"terminal-payment-v2",@"terminal-mode-request-v2",@"terminal-mode-applied-v2",@"terminal-public-menu-v1",@"travel-pickup-kitchen-v1",@"subscription-alerts-v2",@"market-lab-8283-v1"] containsObject:name]
       || ((name.length<=81) && [name rangeOfString:@"^(cloud-p03-[a-f0-9]{64}|travel-local-[a-f0-9-]{36}|travel-hold-[a-f0-9]{64}|pickup-v2-[a-f0-9]{64}|print-v1-[a-f0-9]{64}|pickup-legacy-[a-f0-9]{64}|customer-(order|payment|qr|legacy)-[a-f0-9]{64})$" options:NSRegularExpressionSearch].location!=NSNotFound);
 }
 static NSMutableDictionary *profileQuery(NSString *slot) {
