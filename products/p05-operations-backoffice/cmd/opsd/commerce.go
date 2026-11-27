@@ -500,8 +500,33 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	if err != nil {
 		return err
 	}
-	commerce.HTTP{NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
-		Signer: signer, Cipher: cipher}.Register(mux)
+	// P05_CUSTOMER_ADDR opens the customer entrance: no client certificate, an account proof from the paying board,
+	// and a per-client request limit. Without it opsd serves only the mutual TLS routes, as before.
+	customerAddr := os.Getenv("P05_CUSTOMER_ADDR")
+	var customer *commerce.CustomerEntrance
+	if customerAddr != "" {
+		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil)}
+	}
+	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
+		Signer: signer, Cipher: cipher}
+	handlers.Register(mux)
+	if customer != nil {
+		entrance := http.NewServeMux()
+		handlers.RegisterCustomer(entrance)
+		customerServer := &http.Server{Addr: customerAddr, Handler: gate.Handler(entrance), BaseContext: func(net.Listener) context.Context { return lifetime },
+			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second, WriteTimeout: 10 * time.Second, MaxHeaderBytes: 8 << 10,
+			TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.NoClientCert, Certificates: []tls.Certificate{certificate}}}
+		listener, err := net.Listen("tcp", customerAddr)
+		if err != nil {
+			return fmt.Errorf("customer entrance: %w", err)
+		}
+		go func() {
+			if err := customerServer.ServeTLS(listener, "", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("customer entrance stopped: %v", err)
+			}
+		}()
+		defer customerServer.Close()
+	}
 	server := &http.Server{Addr: addr, Handler: gate.Handler(mux), BaseContext: func(net.Listener) context.Context { return lifetime }, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second,
 		WriteTimeout: 10 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert,
 			ClientCAs: roots, Certificates: []tls.Certificate{certificate}}}
