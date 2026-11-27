@@ -171,3 +171,44 @@ BEGIN
     RETURN QUERY SELECT 'ok',c.purpose,c.branch_id,c.sale_id,tenant,expiry;
 END
 $prove$;
+
+-- A proven account takes back the cart it has not paid, so that changing the cart does not wait for the hold to run
+-- out (an account holds one unpaid cart at a time, migration 122). It is what ledger.reclaim_expired_order does when
+-- the hold runs out, done early by the cart's own customer, and under the same condition: the order is still a
+-- preview, so no quote of it was ever issued and nothing that could be paid exists. Its stock comes back and the
+-- order closes. Outcomes:
+--   cancelled     the hold is released now, or the order was already closed without a payment
+--   quote_issued  a quote was issued: the order ends with that quote, as before
+--   paid          a payment arrived or is being checked: paid orders are not cancelled here
+-- An order of another account, of another branch, or of a store-issued customer is no order at all (42501).
+CREATE FUNCTION ledger.cancel_customer_hold(tenant uuid, branch uuid, actor uuid, sale_ uuid) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $cancel$
+DECLARE
+    g ledger.commerce_grant := ledger.commerce_allowed(tenant, branch, actor);
+    s ledger.sale;
+BEGIN
+    IF g.role_code IS DISTINCT FROM 'customer' OR NOT EXISTS (SELECT FROM ledger.customer_account a WHERE a.actor_id = actor) THEN
+        RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='order scope denied';
+    END IF;
+    SELECT x.* INTO s FROM ledger.sale x JOIN ledger.order_checkout c ON c.sale_id = x.id
+      WHERE x.id = sale_ AND x.branch_id = branch AND x.origin = 'menu' AND c.creator = actor FOR UPDATE OF x;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='order scope denied';
+    END IF;
+    IF s.state = 'preview' THEN
+        PERFORM ledger.restore_order_stock(branch, s.id);
+        UPDATE ledger.sale SET state='closed', revision=revision+1 WHERE id = s.id;
+        RETURN 'cancelled';
+    END IF;
+    IF s.state = 'issued' THEN
+        RETURN 'quote_issued';
+    END IF;
+    IF s.state = 'closed' AND NOT EXISTS (SELECT FROM ledger.payment p WHERE p.sale_id = s.id) THEN
+        RETURN 'cancelled';
+    END IF;
+    RETURN 'paid';
+END
+$cancel$;
+
+REVOKE ALL ON FUNCTION ledger.cancel_customer_hold(uuid, uuid, uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ledger.cancel_customer_hold(uuid, uuid, uuid, uuid) TO nu54_p05_commerce;

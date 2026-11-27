@@ -234,6 +234,11 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 
 	// --- before payment: the session covers this branch, and one unpaid hold per account ---
 	session := checkout["session"].(string)
+	// The same account's checkout session of the other branch, proven when a check first needs it.
+	elsewhereOf := func() string {
+		t.Helper()
+		return prove(board, account, challenge("checkout", elsewhere, ""), 200)["session"].(string)
+	}
 	command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)
 	command(session, "catalog.read", elsewhere, elsewhere, map[string]string{"page": "0"}, nil, 404) // another branch
 	command(session, "payer.status", shop, CustomerSubject(account), map[string]string{}, nil, 404)
@@ -467,12 +472,46 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if status, _, got := tryOrder(session, fresh(), fresh()); status != 409 || got["reason"] != "balance_short" || got["balance"] != "0" {
 		t.Fatalf("a new cart of an emptied account: %d %v", status, got)
 	}
-	// That hold runs out and its stock comes back; the rest of the test orders with the balance for one tea.
-	execute("UPDATE ledger.order_checkout SET expires_at=now()-interval '1 second' WHERE sale_id=$1", held["resultRef"])
-	execute("SELECT ledger.reclaim_expired_order()")
 	funds.balance = big.NewInt(300_000)
 
-	sale := order(session, 200)["resultRef"].(string)
+	// --- the customer takes the unpaid cart back, and can hold another at once ---
+	cancelHold := func(session, saleRef string, want int) map[string]any {
+		t.Helper()
+		return call(customer, customers.URL+"/v2/customer/checkout/cancel", map[string]string{"Authorization": "Bearer " + session}, map[string]string{"saleRef": saleRef}, want)
+	}
+	firstCart := held["resultRef"].(string)
+	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) { // one unpaid cart at a time
+		t.Fatal("a second cart while the first is held", got)
+	}
+	outsider := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)["session"].(string)
+	away := elsewhereOf()
+	holding := footprint()
+	cancelHold(outsider, firstCart, 404) // another account's cart
+	cancelHold(away, firstCart, 404)     // the same account's session of another branch
+	cancelHold(session, fresh(), 404)    // no such order
+	cancelHold(strings.Repeat("ab", 32), firstCart, 404)
+	call(customer, customers.URL+"/v2/customer/checkout/cancel", map[string]string{"Authorization": "Bearer " + session}, map[string]string{"saleRef": "x"}, 400)
+	call(customer, customers.URL+"/v2/customer/checkout/cancel", map[string]string{"Authorization": "Bearer " + session},
+		map[string]string{"saleRef": firstCart, "branchRef": shop}, 400)
+	if after := footprint(); after != holding {
+		t.Fatalf("a refused cancel left a mark: %s, was %s", after, holding)
+	}
+	for i := 0; i < 2; i++ { // the same again is the same answer
+		if got := cancelHold(session, firstCart, 200); got["status"] != "ok" || got["saleRef"] != firstCart || got["state"] != "closed" || len(got) != 3 {
+			t.Fatalf("cancel %d: %v", i+1, got)
+		}
+	}
+	var closed string
+	var teaLeft, lines int
+	if err := admin.QueryRow(ctx, `SELECT (SELECT state FROM ledger.sale WHERE id=$1),(SELECT available FROM ledger.stock WHERE branch_id=$2 AND sku='tea'),
+		(SELECT count(*) FROM ledger.order_line WHERE sale_id=$1)`, firstCart, shop).Scan(&closed, &teaLeft, &lines); err != nil || closed != "closed" || teaLeft != 5 || lines != 1 {
+		t.Fatalf("after the cancel the order is %q with %d tea in stock and %d lines kept: %v", closed, teaLeft, lines, err)
+	}
+	if own := command(session, "order.status", shop, firstCart, map[string]string{}, nil, 200)["order"].(map[string]any); own["state"] != "closed" {
+		t.Fatalf("the cancelled cart reads %v", own)
+	}
+
+	sale := order(session, 200)["resultRef"].(string) // at once: the cancel freed the account's one hold
 	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a second unpaid hold for one account", got)
 	}
@@ -508,6 +547,15 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatal("the order is not the proven account's", holdsOf, err)
 	}
 
+	// --- once a quote was issued the cart is not taken back: it ends with that quote (seeded state) ---
+	execute("SET session_replication_role=replica")
+	execute(`UPDATE ledger.sale SET state='issued' WHERE id=$1`, sale)
+	execute("SET session_replication_role=origin")
+	quoted := footprint()
+	if got := cancelHold(session, sale, 409); got["error"] != string(service.CheckoutConflict) || got["reason"] != "quote_issued" || footprint() != quoted {
+		t.Fatalf("cancel after a quote was issued: %v (%s, was %s)", got, footprint(), quoted)
+	}
+
 	// --- the order is paid (seeded): quote signed for the account, payment, pickup number, escrow ---
 	execute("SET session_replication_role=replica")
 	execute(`UPDATE ledger.sale SET state='paid' WHERE id=$1`, sale)
@@ -541,6 +589,16 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatal(ordered)
 	}
 	orderSession := ordered["session"].(string)
+	// A paid order is not cancelled on this route, by either session of its account.
+	paidFor := footprint()
+	if got := cancelHold(session, sale, 409); got["error"] != string(service.CheckoutConflict) || got["reason"] != "paid" {
+		t.Fatalf("cancel of a paid order: %v", got)
+	}
+	cancelHold(orderSession, sale, 404)
+	var still string
+	if err := admin.QueryRow(ctx, "SELECT state FROM ledger.sale WHERE id=$1", sale).Scan(&still); err != nil || still != "paid" || footprint() != paidFor {
+		t.Fatalf("a refused cancel changed the paid order: %q %v (%s, was %s)", still, err, footprint(), paidFor)
+	}
 	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(orderSession, "order.status", shop, fresh(), map[string]string{}, nil, 404)
 	command(orderSession, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)

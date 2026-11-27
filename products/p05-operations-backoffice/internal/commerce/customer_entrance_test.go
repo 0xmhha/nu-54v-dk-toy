@@ -783,3 +783,56 @@ func TestPickupProofRefusalsAreDistinct(t *testing.T) {
 		}
 	}
 }
+
+// The cancel route takes a checkout session and nothing else, and its requests are counted like a session's others.
+func TestCustomerCancelNeedsACheckoutSession(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	reads := 0
+	limits := &CustomerEntrance{AddressLimiter: NewRateLimiter(60, 4, func() time.Time { return now })}
+	limits.lookup = func(_ context.Context, token []byte) (customerSession, error) {
+		reads++
+		switch token[0] {
+		case 0xaa:
+			return customerSession{Branch: branch, Actor: customerA, Purpose: "checkout", ExpiresAt: time.Now().Add(time.Minute)}, nil
+		case 0xbb:
+			return customerSession{Branch: branch, Actor: customerA, Purpose: "order", Sale: branch, ExpiresAt: time.Now().Add(time.Minute)}, nil
+		}
+		return customerSession{}, service.Forbidden
+	}
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux)
+	cancel := func(token, body string) int {
+		req := httptest.NewRequest("POST", "/v2/customer/checkout/cancel", strings.NewReader(body))
+		req.RemoteAddr = "198.51.100.7:4000"
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code
+	}
+	order := `{"saleRef":"6f1c1a52-4c39-4d1e-9d36-1f0b9b4d2a10"}`
+	if code := cancel("", order); code != http.StatusNotFound || reads != 0 {
+		t.Fatalf("no session: %d, %d session reads", code, reads)
+	}
+	if code := cancel(strings.Repeat("cd", 32), order); code != http.StatusNotFound {
+		t.Fatalf("an unknown session: %d", code)
+	}
+	if code := cancel("bb"+strings.Repeat("0", 62), order); code != http.StatusNotFound { // a paid order's session cancels nothing
+		t.Fatalf("an order session: %d", code)
+	}
+	// A checkout session without a store behind it ends as not found too; it was read, so it was let through.
+	if code := cancel("aa"+strings.Repeat("0", 62), order); code != http.StatusNotFound || reads != 3 {
+		t.Fatalf("a checkout session: %d, %d session reads", code, reads)
+	}
+	// The fifth request of the address is refused before its session is read.
+	if code := cancel("aa"+strings.Repeat("0", 62), order); code != http.StatusTooManyRequests || reads != 3 {
+		t.Fatalf("over the ceiling of the address: %d, %d session reads", code, reads)
+	}
+	if reply := httptest.NewRecorder(); true {
+		mux.ServeHTTP(reply, httptest.NewRequest("GET", "/v2/customer/checkout/cancel", nil))
+		if reply.Code != http.StatusMethodNotAllowed && reply.Code != http.StatusNotFound {
+			t.Fatalf("GET on the cancel route: %d", reply.Code)
+		}
+	}
+}

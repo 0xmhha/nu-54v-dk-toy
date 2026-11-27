@@ -318,8 +318,10 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 	mux.Handle("POST /v2/customer/proof", proof(h.customerProof))
 	// A request with a session token is counted for its address here, before the token is looked up, and for its
 	// session once that is known (customerCommerce).
-	mux.Handle("POST /v2/customer/commerce", limited("address",
-		func() *RateLimiter { return first(h.Customer.AddressLimiter, h.Customer.Limiter) }, h.customerCommerce))
+	sessions := func() *RateLimiter { return first(h.Customer.AddressLimiter, h.Customer.Limiter) }
+	mux.Handle("POST /v2/customer/commerce", limited("address", sessions, h.customerCommerce))
+	// A checkout session takes back the cart it has not paid. Counted like any other request of a session.
+	mux.Handle("POST /v2/customer/checkout/cancel", limited("address", sessions, h.customerCancel))
 	// The store list and a store page are read before any proof: public data only, under the same limit.
 	mux.Handle("GET /v2/customer/stores", limit(h.customerStores))
 	mux.Handle("GET /v2/customer/stores/{branch}", limit(h.customerStore))
@@ -518,8 +520,9 @@ type customerSession struct {
 }
 
 // What a checkout session may ask before payment, on an order of its own account at its branch: the cart, the
-// customer's own claim on it, the quote, and the board's signature for the sponsored lock. There is no customer
-// cancel in C3 (ledger.cancel_public_menu_order is the kiosk's); an unpaid order ends with its quote.
+// customer's own claim on it, the quote, and the board's signature for the sponsored lock. C3 has no customer cancel
+// (order.cancel-public is the kiosk's); a checkout session takes its unpaid cart back on a route of the entrance
+// (customerCancel), and an order whose quote was issued ends with that quote.
 var checkoutOperations = []string{"order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock", "payment.forward"}
 
 // checkoutReads is what a checkout session may read.
@@ -572,6 +575,66 @@ func (s *Store) customerSession(ctx context.Context, token []byte) (customerSess
 
 // customerCommerce runs one C3 envelope as the session's customer through the same handler as the certificate route.
 func (h HTTP) customerCommerce(w http.ResponseWriter, r *http.Request) {
+	session, live := h.liveSession(w, r)
+	if !live {
+		return
+	}
+	principal := service.Principal{Tenant: session.Tenant, Subject: session.Actor, Role: "customer", ExpiresAt: session.ExpiresAt.Unix()}
+	// Like a certificate route, writes commit only while the session still stands.
+	w, r, cancel := authority.Bound(r, session.ExpiresAt, func() bool { return time.Now().Before(session.ExpiresAt) }, w)
+	defer cancel()
+	h.serveFor(w, r, principal, &session)
+}
+
+// customerCancel takes back the unpaid cart of a checkout session, so the customer can change the cart without
+// waiting for the hold to run out:
+//
+//	POST /v2/customer/checkout/cancel   Authorization: Bearer <checkout session>   {"saleRef":"<order>"}
+//	200 {"status":"ok","saleRef":"<order>","state":"closed"}   the hold is released; the same again answers the same
+//	409 CHECKOUT_CONFLICT, reason "quote_issued"              a quote was issued: the order ends with that quote
+//	409 CHECKOUT_CONFLICT, reason "paid"                      a payment arrived or is being checked
+//	404                                                       not this account's order here, or not a checkout session
+//
+// It releases only an order no quote was issued for (ledger.cancel_customer_hold). A paid order is not cancelled
+// here: that is a refund, which the store decides.
+func (h HTTP) customerCancel(w http.ResponseWriter, r *http.Request) {
+	session, live := h.liveSession(w, r)
+	if !live {
+		return
+	}
+	var in struct {
+		Sale string `json:"saleRef"`
+	}
+	if session.Purpose != "checkout" || h.Store == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if !decodeStrict(w, r, 256, &in) || !operatorRef.MatchString(in.Sale) {
+		errorResponse(w, service.BadRequest, nil)
+		return
+	}
+	principal := service.Principal{Tenant: session.Tenant, Subject: session.Actor, Role: "customer", ExpiresAt: session.ExpiresAt.Unix()}
+	w, r, cancel := authority.Bound(r, session.ExpiresAt, func() bool { return time.Now().Before(session.ExpiresAt) }, w)
+	defer cancel()
+	var outcome string
+	if err := h.Store.db.QueryRow(authority.Scope(r.Context(), principal, session.Branch), "SELECT ledger.cancel_customer_hold($1,$2,$3,$4)",
+		session.Tenant, session.Branch, session.Actor, in.Sale).Scan(&outcome); err != nil {
+		errorResponse(w, customerError(err), nil)
+		return
+	}
+	switch outcome {
+	case "cancelled":
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "saleRef": in.Sale, "state": "closed"})
+	case "quote_issued", "paid":
+		writeJSON(w, http.StatusConflict, pickupScanRefusal{Reply: service.Reply{Status: "error", Error: service.CheckoutConflict}, Reason: outcome})
+	default:
+		errorResponse(w, service.Unknown, nil)
+	}
+}
+
+// liveSession reads the live session of the request's token and counts the request for it. When there is none, or
+// the session is over its limit, it has answered and reports false.
+func (h HTTP) liveSession(w http.ResponseWriter, r *http.Request) (customerSession, bool) {
 	value, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	token, err := hex.DecodeString(value)
 	// The address was counted before this handler (RegisterCustomer). A token the server does not know is a guess
@@ -591,25 +654,21 @@ func (h HTTP) customerCommerce(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found || err != nil || len(token) != 32 || hex.EncodeToString(token) != value || lookup == nil {
 		refuse()
-		return
+		return customerSession{}, false
 	}
 	session, err := lookup(r.Context(), token)
 	if err != nil || !time.Now().Before(session.ExpiresAt) {
 		refuse()
-		return
+		return customerSession{}, false
 	}
 	// A live session has its own allowance, whatever address it comes from.
 	if limiter := h.Customer.SessionLimiter; limiter != nil {
 		if allowed, wait := limiter.Take(session.Actor + "/" + session.Branch + "/" + session.Purpose + "/" + session.Sale); !allowed {
 			h.Customer.tooMany(w, "session", wait)
-			return
+			return customerSession{}, false
 		}
 	}
-	principal := service.Principal{Tenant: session.Tenant, Subject: session.Actor, Role: "customer", ExpiresAt: session.ExpiresAt.Unix()}
-	// Like a certificate route, writes commit only while the session still stands.
-	w, r, cancel := authority.Bound(r, session.ExpiresAt, func() bool { return time.Now().Before(session.ExpiresAt) }, w)
-	defer cancel()
-	h.serveFor(w, r, principal, &session)
+	return session, true
 }
 
 // pickupScanRefusal is the service's error reply with the reason a pickup QR was refused, so the operations web can
