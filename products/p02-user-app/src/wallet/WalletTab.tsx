@@ -202,7 +202,7 @@ export function WalletTab(props: Props) {
   if (token) return <><TokenPage t={t} row={row} token={token} amount={amounts[token.key]} hidden={hidden} language={props.language} busy={busy} receive={props.receive} send={props.send}
     forget={token.added ? () => { save(now => removeToken(now, token.added!)).then(close, () => {}); } : undefined} />{back}</>;
   const failed = tokens.length > 0 && tokens.every(item => amounts[item.key] === null);
-  const line = (at: number, state: string, units: string, asset: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : assetMoney(units, asset, advice?.registered, props.language)}`;
+  const line = (at: number, state: string, units: string, asset: string) => `${new Date(at * 1000).toLocaleString('ko-KR')} · ${state} · ${hidden ? '••••' : assetMoney(units, asset, advice?.registered, props.language, 'charge')}`;
   const canAdd = !row.custom && isEvmRow(row) && !!account && !!exchange;
   return <View style={styles.page} testID="wallet-tab">
     <Pressable accessibilityRole="button" accessibilityLabel={`${t('네트워크')} ${row.label}, ${t('바꾸기')}`} onPress={() => setPage('networks')}

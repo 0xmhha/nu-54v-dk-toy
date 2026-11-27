@@ -43,7 +43,7 @@ test('only the store\'s own token is worded as won', () => {
   expect(tokenText(amount, {symbol: 'KRWC', decimals: 18, won: true}, 'en')).toBe('₩900,000');
   expect(tokenText(amount, {symbol: 'KRWC', decimals: 18})).toBe('900,000.00');
   expect(tokenText('90000000', {symbol: 'tKRW', decimals: 2, won: true})).toBe('900,000원');
-  expect(tokenText((6_500n * wei - 1n).toString(), {symbol: 'KRWC', decimals: 18, won: true})).toBe('6,499.99원');
+  expect(tokenText((6_500n * wei - 1n).toString(), {symbol: 'KRWC', decimals: 18, won: true})).toBe('6,499원');
 });
 test('the faucet words the coin as the wallet does', async () => {
   const claims: string[] = [];

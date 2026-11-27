@@ -30,7 +30,7 @@ import {readProfiles, walletReadRpc} from './readProfiles.ts';
 import {networkRows, serverFor} from './networks.ts';
 import {registeredStore} from './registeredStore.ts';
 import {receiveQr} from './receivePresentation.ts';
-import {readToken, sameStore, storeOf, storeToken, tokensOf, unknownAmount, type Store, type ListedToken} from './tokens.ts';
+import {readToken, sameStore, shownUnits, storeOf, storeToken, tokensOf, unknownAmount, type Store, type ListedToken} from './tokens.ts';
 
 // Setting up, filling, returning and resetting a spending board. WalletHome owns the board link,
 // the protected profile and the busy state; these pages only run one step at a time over them.
@@ -91,8 +91,11 @@ const buildStore = (): Store | undefined => {
   return pin && {asset: pin.asset.toLowerCase(), token: paymentToken(pin)};
 };
 
-const storeText = (units: bigint, store?: Store) => store ? tokenAmount(units, store.token) : unknownAmount.ko;
-const assetText = (units: bigint, asset: string, store?: Store) => store?.asset === asset.toLowerCase() ? tokenAmount(units, store.token) : unknownAmount.ko;
+// What the board account holds, loses or gets back: whole won, cut off. What is returned is the exact balance.
+const storeText = (units: bigint, store?: Store) => store ? tokenAmount(shownUnits(units, store.token, 'balance'), store.token) : unknownAmount.ko;
+const assetText = (units: bigint, asset: string, store?: Store) => store?.asset === asset.toLowerCase() ? storeText(units, store) : unknownAmount.ko;
+/** There is money, and the screen shows none of it: less than one won. Buttons follow the exact amount, so the page says why. */
+const underOneWon = (units: bigint, store?: Store) => !!store && units > 0n && shownUnits(units, store.token, 'balance') === 0n;
 
 /** The token a transfer of this phone was made for. A registration with another store cannot name it. */
 export async function signingToken(asset: string): Promise<PaymentToken> {
@@ -570,6 +573,7 @@ function ReturnPage(props: BoardLifeProps) {
     return <>
       <Text style={type.body}>남은 돈을 모두 원래 지갑으로 보내고, 확정된 뒤에 보드를 초기화합니다.</Text>
       <Card><AmountLine amount={balance === undefined ? '확인하는 중' : balance?.text ?? '확인 안 됨'} label="돌려받을 금액" />
+        {balance && underOneWon(balance.units, props.store) && <Text style={type.small}>1원보다 적은 금액이 남아 있습니다. 화면에는 0원으로 보이지만 남은 금액을 그대로 보냅니다.</Text>}
         {balance?.dust && <Text style={type.small}>보드가 셀 수 있는 가장 작은 금액보다 작은 나머지는 보내지 못하고 남습니다.</Text>}
         <Text style={type.small}>받는 주소 (보드에 저장된 원래 지갑)</Text><Text selectable style={styles.address}>{board.returnAddress}</Text></Card>
       {balance === null && <Notice body={routeWords('보드 계정의 잔액을 확인할 수 없습니다. 네트워크 주소와 매장 등록을 확인하세요.')}>
@@ -667,7 +671,8 @@ function ResetPage(props: BoardLifeProps) {
   const [sure, setSure] = useState(false);
   const wait = props.spending?.pinWait ?? 0;
   const risk = [
-    balance && (balance.units > 0n || balance.latest > 0n) ? props.store ? `남은 돈 ${storeText(balance.units > balance.latest ? balance.units : balance.latest, props.store)}을 잃습니다.` : '보드 계정에 돈이 남아 있습니다. 금액은 확인하지 못했고, 초기화하면 모두 잃습니다.' : balance === null ? '남은 돈이 있는지 확인하지 못했습니다. 있으면 잃습니다.' : '',
+    balance && (balance.units > 0n || balance.latest > 0n) ? props.store ? underOneWon(balance.units > balance.latest ? balance.units : balance.latest, props.store) ? '1원보다 적은 돈이 남아 있습니다. 초기화하면 잃습니다.'
+      : `남은 돈 ${storeText(balance.units > balance.latest ? balance.units : balance.latest, props.store)}을 잃습니다.` : '보드 계정에 돈이 남아 있습니다. 금액은 확인하지 못했고, 초기화하면 모두 잃습니다.' : balance === null ? '남은 돈이 있는지 확인하지 못했습니다. 있으면 잃습니다.' : '',
     unfinished(stored) ? '결과를 모르는 다른 전송이나 서명이 있습니다.' : '',
   ].filter(Boolean);
   return <>

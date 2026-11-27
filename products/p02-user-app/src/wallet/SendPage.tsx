@@ -15,7 +15,7 @@ import {parseHumanAmount} from './evmRegistry.ts';
 import {normalizeEvmAddress} from './evmTransfer.ts';
 import {testedBoard} from './profile.ts';
 import {defaultReadState, readContact} from './readProfiles.ts';
-import {assetMoney, storeMoney} from './tokens.ts';
+import {assetMoney, storeMoney, type Shown} from './tokens.ts';
 
 const now = () => Math.floor(Date.now() / 1000);
 const pinNote = '위 금액과 받는 주소를 확인한 뒤 SW1을 짧게 누르고 보드 버튼으로 PIN을 입력하세요. 거절하려면 SW2를 누르세요.';
@@ -52,7 +52,8 @@ export function readRecipient(text: string) {
 
 /** 보내기: the store token to any address. The board signs it, the store relays it and pays the gas. */
 export function SendPage(props: BoardLifeProps) {
-  const {store} = props, money = (units: string | bigint) => storeMoney(units, store?.token);
+  // Whole won on the screen: what is held or left is cut off, what is sent is rounded up. The board signs `units`.
+  const {store} = props, money = (units: string | bigint, shown: Shown = 'balance') => storeMoney(units, store?.token, 'ko', shown);
   const {stored, work, withBoard, say} = props;
   const {verified} = stored, board = testedBoard(stored);
   const {balance, read} = useBalance(props);
@@ -98,7 +99,7 @@ export function SendPage(props: BoardLifeProps) {
 
   if (record) {
     const contact = stored.walletRead?.contacts.find(item => item.id === 'stable' && item.address === record.to);
-    const summary = <Card><AmountLine amount={assetMoney(record.amount, record.token, store)} label="보내는 금액" />
+    const summary = <Card><AmountLine amount={assetMoney(record.amount, record.token, store, 'ko', 'charge')} label="보내는 금액" />
       <Row label="네트워크" value="StableNet 테스트넷" /><Row label="수수료" value="매장이 냅니다" />
       <Text style={type.small}>{`받는 주소${contact ? ` · ${contact.name}` : ''}`}</Text><Text selectable style={styles.address}>{record.to}</Text></Card>;
     const drop = (text: string) => work(async () => { await keep(undefined); setReview(undefined); say(text); }, () => '보내기 기록을 바꾸지 못했습니다.');
@@ -181,7 +182,7 @@ export function SendPage(props: BoardLifeProps) {
   if (review) {
     const known = contacts.find(item => item.address === review.to), before = held?.sends.some(item => item.to === review.to && item.state === 'final');
     return <>
-      <Card><AmountLine amount={money(review.units)} label="보내는 금액" />
+      <Card><AmountLine amount={money(review.units, 'charge')} label="보내는 금액" />
         <Row label="네트워크" value="StableNet 테스트넷" /><Row label="수수료" value="매장이 냅니다" />
         <Row label="보낸 뒤 남는 금액" value={balance ? money(balance.units - review.units) : '확인 안 됨'} />
         <Text style={type.small}>{`받는 주소${known ? ` · ${known.name}` : ''}`}</Text><Text selectable style={styles.address}>{review.to}</Text></Card>

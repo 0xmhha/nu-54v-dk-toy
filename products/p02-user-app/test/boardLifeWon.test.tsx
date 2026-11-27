@@ -407,3 +407,55 @@ describe('the coin', () => {
     expect(mockSent[0].body.amount).toBe((300_000n * wei).toString());
   });
 });
+
+// Owner decision 2026-11-27: won are whole on the phone. Only the screen is whole: what is signed and sent is every base unit.
+describe('whole won on the screen, exact units to the board and the store', () => {
+  test('a balance with a part of a won reads cut off, and the return moves all of it', async () => {
+    mockBalance = '299999'; // 2,999.99 won
+    await open('return');
+    expect(text()).toContain('2,999원');
+    expect(text()).not.toContain('2,999.99');
+    await press('반납 시작');
+    expect((await record())?.amount).toBe('299999');
+    expect(text()).toContain('2,999원');
+    await press('보드로 승인');
+    expect(session.signReturn.mock.calls[0][1].amount).toBe(299_999n);
+    expect(mockSent[0]).toMatchObject({operation: 'wallet.return', body: {amount: '299999'}});
+  });
+  test('less than one won reads as none, is still returned, and the page says so', async () => {
+    mockBalance = '50';
+    await open('return');
+    expect(text()).toContain('0원');
+    expect(text()).toContain('1원보다 적은 금액이 남아 있습니다');
+    expect(!!button('잔액 없이 초기화로 진행')).toBe(false);
+    await press('반납 시작');
+    await press('보드로 승인');
+    expect(session.signReturn.mock.calls[0][1].amount).toBe(50n);
+    expect(mockSent[0]).toMatchObject({operation: 'wallet.return', body: {amount: '50'}});
+    mockJournals.clear();
+    await open('reset');
+    expect(text()).toContain('1원보다 적은 돈이 남아 있습니다');
+    expect(text()).not.toContain('남은 돈 0원');
+  });
+  test('no balance still offers the reset without a return', async () => {
+    mockBalance = '0';
+    await open('return');
+    expect(text()).not.toContain('1원보다 적은 금액');
+    expect(!!button('잔액 없이 초기화로 진행')).toBe(true);
+  });
+  test('a transfer is checked, signed and sent in exact units while the screen shows whole won', async () => {
+    mockBalance = '299999';
+    await start('3000');
+    expect(message).toBe('잔액보다 큰 금액입니다. 확정된 잔액은 2,999원입니다.');
+    await start('2999.99');
+    // What leaves the wallet is never shown as less than it is; what stays is never shown as more.
+    expect(text()).toContain('3,000원');
+    expect(text()).toContain('0원');
+    expect(text()).not.toMatch(/[0-9]\.[0-9]+원/);
+    await press('이 내용으로 보내기');
+    expect((await sendRecord(Http).load())!.amount).toBe('299999');
+    await press('보드로 승인');
+    expect(session.signSend.mock.calls[0][1].amount).toBe(299_999n);
+    expect(mockSent.at(-1)).toMatchObject({operation: 'wallet.send', body: {amount: '299999'}});
+  });
+});
