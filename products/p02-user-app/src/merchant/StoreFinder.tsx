@@ -12,7 +12,17 @@ import {hoursRows, recentStores, searchStores, storeNow, type RecentStore, type 
 // menu. The customer's location is never read. Nothing here needs a board or a registration at the store.
 
 type Recent = ReturnType<typeof recentStores>;
-type Listing = {kind: 'loading'} | {kind: 'stores'; stores: StoreSummary[]} | {kind: 'problem'; code: 'busy' | 'unavailable' | 'no-entrance'};
+/**
+ * `next`: the list goes on after this store. `more`: the page after it is being read, could not be read, or was not
+ * asked for because the finder read as many pages as it reads (`pages`).
+ */
+type Listing = {kind: 'loading'} | {kind: 'problem'; code: 'busy' | 'unavailable' | 'no-entrance'}
+  | {kind: 'stores'; stores: StoreSummary[]; next?: string; pages: number; more?: 'loading' | 'busy' | 'unavailable'};
+/**
+ * How many pages of the list the finder reads (200 stores each). A search by name reads them all, one after another,
+ * so that a store on a later page is found; past this many it says that it searched only a part.
+ */
+export const listPages = 10;
 type Opened = {kind: 'loading'; branch: string; name?: string} | {kind: 'page'; page: StorePage} | {kind: 'missing'} | {kind: 'problem'; branch: string; busy: boolean};
 type View_ = {kind: 'finder'} | {kind: 'bad-qr'} | {kind: 'store'; opened: Opened};
 
@@ -35,13 +45,7 @@ export const phoneLink = (phone: string) => `tel:${phone.replace(/[^0-9+]/g, '')
 const problemOf = (error: unknown) => error instanceof EntranceError && error.code === 'BUSY';
 
 /** What a row of the list says after the store's kind and address: only what keeps the customer from ordering now. */
-function listNote(store: StoreSummary) {
-  const now = storeNow(store);
-  if (now.dayOff) return '오늘 쉽니다';
-  if (store.status.mode === 'busy') return '바쁨';
-  if (store.status.mode === 'paused') return '주문 잠시 멈춤';
-  return now.shut ? now.line.split(' · ')[0] : '';
-}
+const listNote = (store: StoreSummary) => storeNow(store).note;
 
 export function StoreFinder({directory, recent = recentStores(), scan, back, order, payQr, initialBranch, outside = Linking, payment = boardPaymentLabel()}: {
   /** Undefined while this build has no entrance address. */
@@ -71,12 +75,33 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
     if (!directory) return;
     setListing({kind: 'loading'});
     try {
-      const stores = await directory.list();
-      if (live.current) setListing({kind: 'stores', stores});
+      const page = await directory.list();
+      if (live.current) setListing({kind: 'stores', stores: page.stores, next: page.next, pages: 1});
     } catch (error) {
       if (live.current) setListing({kind: 'problem', code: problemOf(error) ? 'busy' : 'unavailable'});
     }
   }, [directory]);
+
+  /** Reads the page after the last one. One page at a time; a page that could not be read is asked for by hand. */
+  const loadMore = useCallback(async (from: Extract<Listing, {kind: 'stores'}>) => {
+    if (!directory || !from.next || from.more === 'loading' || from.pages >= listPages) return;
+    setListing({...from, more: 'loading'});
+    try {
+      const page = await directory.list(from.next);
+      if (!live.current) return;
+      const known = new Set(from.stores.map(store => store.branch));
+      setListing({kind: 'stores', stores: [...from.stores, ...page.stores.filter(store => !known.has(store.branch))], next: page.next, pages: from.pages + 1});
+    } catch (error) {
+      if (live.current) setListing({...from, more: problemOf(error) ? 'busy' : 'unavailable'});
+    }
+  }, [directory]);
+
+  // A name is looked for in the whole list, not only in the pages read so far: while something is typed, the pages
+  // that follow are read one after another, up to `listPages`. A page that failed stops it until the customer asks.
+  const searching = query.trim() !== '';
+  useEffect(() => {
+    if (searching && listing.kind === 'stores' && listing.next && !listing.more && listing.pages < listPages) void loadMore(listing);
+  }, [searching, listing, loadMore]);
 
   const open = useCallback(async (branch: string, name?: string) => {
     setNote('');
@@ -168,6 +193,9 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
 
   const stores = listing.kind === 'stores' ? listing.stores : [];
   const found = searchStores(stores, query);
+  // More stores follow the ones read: being read now, not read yet, or past what the finder reads.
+  const rest = listing.kind === 'stores' && listing.next ? listing : undefined;
+  const restAll = rest && rest.pages >= listPages;
   const known = new Map(stores.map(store => [store.branch, store]));
   const shownRecents = searchStores(recents, query);
   return <View style={styles.page}>
@@ -191,7 +219,8 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
         {listing.code === 'no-entrance' ? '이 앱에는 매장 목록을 불러올 매장 서버 주소가 아직 없습니다. 매장의 바로가기 QR도 주소가 생긴 뒤에 열립니다.'
           : listing.code === 'busy' ? '요청이 많습니다. 잠시 뒤 다시 시도하세요.' : '매장 목록을 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.'}</Text></View>}
       {listing.kind === 'stores' && !stores.length && <View style={styles.cell}><Text style={type.body}>아직 목록에 올린 매장이 없습니다.</Text></View>}
-      {listing.kind === 'stores' && !!stores.length && !found.length && <View style={styles.cell}><Text style={type.body}>이 이름의 매장을 찾지 못했습니다.</Text></View>}
+      {listing.kind === 'stores' && !!stores.length && !found.length && !(rest && !restAll) &&
+        <View style={styles.cell}><Text style={type.body}>{restAll ? '앞쪽 매장에서는 이 이름의 매장을 찾지 못했습니다.' : '이 이름의 매장을 찾지 못했습니다.'}</Text></View>}
       {found.map(store => {
         const now = storeNow(store);
         return <View key={store.branch} style={styles.storeRow}>
@@ -203,6 +232,14 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
           {now.dayOff && <View style={styles.badge}><Text style={styles.badgeText}>휴무</Text></View>}
         </View>;
       })}
+      {/* The list is read a page at a time. What is shown is never called the whole list while more follows. */}
+      {rest && <View style={styles.cell}><Text accessibilityLiveRegion="polite" style={type.body}>
+        {rest.more === 'loading' ? (searching ? '나머지 매장에서도 찾고 있습니다.' : '매장을 더 불러오고 있습니다.')
+          : rest.more === 'busy' ? '요청이 많아 나머지 매장을 불러오지 못했습니다. 잠시 뒤 다시 시도하세요.'
+          : rest.more === 'unavailable' ? '나머지 매장을 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.'
+          : restAll ? `매장이 많아 앞쪽 ${stores.length}곳만 불러왔습니다. 찾는 매장이 없으면 매장 바로가기 QR로 여세요.`
+          : `매장 ${stores.length}곳을 불러왔습니다. 더 있습니다.`}</Text></View>}
+      {rest && !restAll && rest.more !== 'loading' && <KitButton variant="row" label="매장 더 보기" run={() => { void loadMore({...rest, more: undefined}); }} />}
     </Section>
     {listing.kind === 'problem' && listing.code !== 'no-entrance' && <KitButton label="다시 불러오기" run={() => { void load(); }} variant="secondary" />}
     <KitButton label="매장 바로가기 QR 찍기" run={() => { void scanShortcut(); }} variant="secondary" />
@@ -222,6 +259,7 @@ export function StorePageView({page, note, back, order, call, map, reserve, paym
   reserve?: () => void;
 }) {
   const now = storeNow(page);
+  // Why no order can be placed now is the server's reason, said as it is; the menu can still be read.
   const facts = [page.amenities && ['편의', page.amenities], page.parking && ['주차', page.parking],
     ['결제', payment ? `보드 결제 · ${payment}` : '보드 결제']].filter(Boolean) as [string, string][];
   return <View style={styles.page}>
@@ -229,7 +267,7 @@ export function StorePageView({page, note, back, order, call, map, reserve, paym
     <Text style={[type.body, now.shut && styles.shut]} accessibilityLabel={`지금 ${now.line}`}>{[page.kind, now.line].filter(Boolean).join(' · ')}</Text>
     {!!page.intro && <Text style={type.body}>{page.intro}</Text>}
     {order && <KitButton label={now.shut ? '메뉴만 보기' : '메뉴 보고 주문'} run={order} />}
-    {order && now.shut && <Text style={type.small}>지금은 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.</Text>}
+    {now.shut && <Text accessibilityRole="alert" style={type.small}>{`${now.why ?? '지금은 주문을 받지 않습니다.'}${order ? ' 메뉴는 볼 수 있습니다.' : ''}`}</Text>}
     {page.reservations && reserve && <KitButton label="예약" run={reserve} variant="secondary" />}
     {!!page.phone && <KitButton label="전화" detail={page.phone} run={() => call(page.phone!)} variant="secondary" />}
     {(!!page.address || !!page.directions) && <Section title="위치">

@@ -1,8 +1,8 @@
 import React from 'react';
 import Renderer from 'react-test-renderer';
 import {EntranceError} from '../src/merchant/customerEntrance';
-import {mapLink, phoneLink, StoreFinder, StorePageView} from '../src/merchant/StoreFinder';
-import {recentStores, type DayHours, type StoreDirectory, type StorePage, type StoreSummary} from '../src/merchant/storeDirectory';
+import {listPages, mapLink, phoneLink, StoreFinder, StorePageView} from '../src/merchant/StoreFinder';
+import {recentStores, type DayHours, type StoreDirectory, type StoreListPage, type StorePage, type StoreSummary} from '../src/merchant/storeDirectory';
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: null}));
@@ -11,18 +11,25 @@ const cafe = '0fbc54ef-2827-4ab5-bfcd-3a27611c3002', green = '0fbc54ef-2827-4ab5
 const day = {opens: '10:00', closes: '21:00'};
 const week: DayHours[] = [day, day, day, day, day, day, day];
 const now = {weekday: 4, time: '10:31'};
+const taking = {mode: 'open' as const, orderable: true, ...now};
+const closedDay = {mode: 'closed' as const, orderable: false, reason: 'closed_day' as const, ...now};
 const stores: StoreSummary[] = [
-  {branch: green, name: '그린 카페', kind: '카페', address: '시험시 초록로 2', hours: week, status: {mode: 'busy', busyMinutes: 25, ...now}},
-  {branch: bakery, name: '모퉁이 베이커리', kind: '베이커리', address: '시험시 모퉁이길 3', status: {mode: 'closed', ...now}},
-  {branch: cafe, name: '여울 커피', kind: '카페', address: '시험시 시험로 1', hours: week, status: {mode: 'open', ...now}},
+  {branch: green, name: '그린 카페', kind: '카페', address: '시험시 초록로 2', hours: week, status: {mode: 'busy', orderable: true, busyMinutes: 25, ...now}},
+  {branch: bakery, name: '모퉁이 베이커리', kind: '베이커리', address: '시험시 모퉁이길 3', status: closedDay},
+  {branch: cafe, name: '여울 커피', kind: '카페', address: '시험시 시험로 1', hours: week, status: taking},
 ];
 const page: StorePage = {...stores[2], intro: '직접 볶은 원두로 내립니다', directions: '역 2번 출구에서 걸어서 3분', phone: '02-555-0100',
   amenities: '무선 인터넷, 단체 이용', parking: '건물 뒤 2대', closedNote: '명절 당일', operatorContact: 'help@operator.example'};
 
-function directory(pages: Record<string, StorePage | Error> = {[cafe]: page}, list: StoreSummary[] | Error = stores) {
+/** `list` is the whole list, or the pages of it by the store each goes on from (`''` is the first). */
+function directory(pages: Record<string, StorePage | Error> = {[cafe]: page}, list: StoreSummary[] | Error | Record<string, StoreListPage | Error> = stores) {
   const asked: string[] = [];
   const value = {
-    list: jest.fn(async () => { if (list instanceof Error) throw list; return list; }),
+    list: jest.fn(async (after?: string): Promise<StoreListPage> => {
+      const found = list instanceof Error || Array.isArray(list) ? list : list[after ?? ''];
+      if (found instanceof Error) throw found;
+      return Array.isArray(found) ? {stores: found} : found;
+    }),
     page: jest.fn(async (branch: string) => {
       asked.push(branch);
       const found = pages[branch];
@@ -130,6 +137,65 @@ describe('finding a store', () => {
     expect(screen()).toContain('아직 목록에 올린 매장이 없습니다.');
   });
 
+  describe('a list longer than one page', () => {
+    const row = (n: number, name: string): StoreSummary => ({branch: `0fbc54ef-2827-4ab5-bfcd-3a27611c4${String(n).padStart(3, '0')}`, name, status: taking});
+    const first = [row(1, '가람 분식'), row(2, '나루 카페')], second = [row(3, '다온 국밥')], third = [row(4, '라온 빵집')];
+    const paged = (more: Record<string, StoreListPage | Error> = {}) => directory({}, {'': {stores: first, next: first[1].branch},
+      [first[1].branch]: {stores: second, next: second[0].branch}, [second[0].branch]: {stores: third}, ...more});
+    const names = () => buttons().filter(label => [...first, ...second, ...third].some(store => store.name === label));
+
+    test('is never shown as the whole list: it says that more follows and reads the next page when asked', async () => {
+      const stock = paged();
+      await render({directory: stock});
+      expect(names()).toEqual(['가람 분식', '나루 카페']);
+      expect(screen()).toContain('매장 2곳을 불러왔습니다. 더 있습니다.');
+      expect(stock.listed).toHaveBeenCalledTimes(1); // nothing more is read until it is asked for
+      await press('매장 더 보기');
+      expect(names()).toEqual(['가람 분식', '나루 카페', '다온 국밥']);
+      expect(stock.listed.mock.calls.map(call => call[0])).toEqual([undefined, first[1].branch]);
+      await press('매장 더 보기');
+      expect(names()).toEqual(['가람 분식', '나루 카페', '다온 국밥', '라온 빵집']);
+      expect(buttons()).not.toContain('매장 더 보기');
+      expect(screen()).not.toContain('더 있습니다');
+    });
+
+    test('a name is looked for on every page, and "not found" is said only of the whole list', async () => {
+      const stock = paged();
+      await render({directory: stock});
+      await type('빵집');
+      expect(stock.listed.mock.calls.map(call => call[0])).toEqual([undefined, first[1].branch, second[0].branch]);
+      expect(names()).toEqual(['라온 빵집']);
+      await type('떡집');
+      expect(screen()).toContain('이 이름의 매장을 찾지 못했습니다.');
+      expect(stock.listed).toHaveBeenCalledTimes(3); // the list is complete: nothing is read again
+    });
+
+    test('a page that cannot be read stops the search, says so instead of "not found", and is read again only by hand', async () => {
+      const stock = paged({[first[1].branch]: new EntranceError('BUSY', undefined, 3)});
+      await render({directory: stock});
+      await type('국밥');
+      expect(screen()).toContain('요청이 많아 나머지 매장을 불러오지 못했습니다. 잠시 뒤 다시 시도하세요.');
+      expect(screen()).not.toContain('이 이름의 매장을 찾지 못했습니다.');
+      await type('국');
+      await type('국밥');
+      expect(stock.listed).toHaveBeenCalledTimes(2); // typing more does not ask the busy server again
+      stock.listed.mockImplementationOnce(async () => ({stores: second}));
+      await press('매장 더 보기');
+      expect(names()).toEqual(['다온 국밥']);
+    });
+
+    test('reads at most a fixed number of pages and then says that it searched only a part', async () => {
+      const page_ = (n: number): StoreListPage => ({stores: [row(n, `매장 ${n}`)], next: row(n, '').branch});
+      const stock = directory({}, Object.fromEntries(Array.from({length: listPages + 5}, (_, n) => [n ? row(n, '').branch : '', page_(n + 1)])));
+      await render({directory: stock});
+      await type('없는 이름');
+      expect(stock.listed).toHaveBeenCalledTimes(listPages);
+      expect(screen()).toContain(`매장이 많아 앞쪽 ${listPages}곳만 불러왔습니다. 찾는 매장이 없으면 매장 바로가기 QR로 여세요.`);
+      expect(screen()).toContain('앞쪽 매장에서는 이 이름의 매장을 찾지 못했습니다.');
+      expect(buttons()).not.toContain('매장 더 보기');
+    });
+  });
+
   test('a build without the entrance address says so and asks nothing', async () => {
     await render({directory: undefined});
     expect(screen()).toContain('이 앱에는 매장 목록을 불러올 매장 서버 주소가 아직 없습니다.');
@@ -235,7 +301,7 @@ describe('the store page', () => {
   });
 
   test('a store that wrote nothing has its name, its order state and the way to its menu, and no empty rows', async () => {
-    await show({branch: cafe, name: '여울 커피', status: {mode: 'open', ...now}});
+    await show({branch: cafe, name: '여울 커피', status: taking});
     expect(screen()).toContain('주문 받는 중');
     expect(labels()).toEqual(['메뉴 보고 주문', '매장 찾기로']);
     for (const title of ['위치', '영업시간', '편의', '주차', '운영자 ']) expect(screen()).not.toContain(title);
@@ -250,13 +316,33 @@ describe('the store page', () => {
   });
 
   test('a busy store and a store that takes no order now say so', async () => {
-    await show({...page, status: {mode: 'busy', busyMinutes: 25, ...now}});
+    await show({...page, status: {mode: 'busy', orderable: true, busyMinutes: 25, ...now}});
     expect(screen()).toContain('카페 · 영업 중 · 바쁨, 약 25분 · 21:00에 영업 종료');
     expect(labels()).toContain('메뉴 보고 주문');
-    await show({...page, status: {mode: 'closed', ...now}});
+    await show({...page, status: closedDay});
     expect(screen()).toContain('카페 · 오늘 쉽니다');
     expect(labels()).toContain('메뉴만 보기');
-    expect(screen()).toContain('지금은 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.');
+    expect(screen()).toContain('오늘은 쉬는 날이라 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.');
+  });
+
+  test.each<[StorePage['status'], string, string]>([
+    [{mode: 'closed', orderable: false, reason: 'no_menu', ...now}, '카페 · 영업 중 · 판매 중인 메뉴 없음 · 21:00에 영업 종료', '지금 판매 중인 메뉴가 없어 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.'],
+    [{mode: 'closed', orderable: false, reason: 'outside_hours', ...now}, '카페 · 영업 중 · 지금은 주문 시간 아님 · 21:00에 영업 종료', '지금은 메뉴를 판매하는 시간이 아니라 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.'],
+    [{mode: 'paused', orderable: false, reason: 'paused', resumeAt: '11:00', ...now}, '카페 · 영업 중 · 주문 잠시 멈춤 · 11:00쯤 다시 받습니다 · 21:00에 영업 종료', '매장이 주문을 잠시 멈췄습니다. 11:00쯤 다시 받는다고 알렸습니다. 메뉴는 볼 수 있습니다.'],
+  ])('a store the server takes no order for says the server\'s reason and offers the menu only to read: %j', async (status, line, why) => {
+    await show({...page, status});
+    expect(screen()).toContain(line);
+    expect(screen()).toContain(why);
+    expect(labels()).toContain('메뉴만 보기');
+    expect(labels()).not.toContain('메뉴 보고 주문');
+    expect(screen()).not.toContain('오늘 쉽니다'); // a closed mode is not a day off
+  });
+
+  test('a store the server takes an order for is offered the order, whatever the hours it wrote say', async () => {
+    await show({...page, status: {...taking, time: '09:10'}});
+    expect(screen()).toContain('카페 · 영업 전 · 10:00에 영업 시작 · 주문 받는 중');
+    expect(labels()).toContain('메뉴 보고 주문');
+    expect(screen()).not.toContain('주문을 받지 않습니다');
   });
 
   test('a reservation button appears only for a store that takes reservations, when the app can make one', async () => {

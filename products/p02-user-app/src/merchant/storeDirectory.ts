@@ -1,6 +1,6 @@
 import Http from '../specs/NativeCommerceHttp.ts';
 import {approvedCustomerEntrance, type CustomerEntranceAnchor} from './customerEntranceDeployment.ts';
-import {EntranceError, entranceAnchor, nativeEntrance, type EntrancePost} from './customerEntrance.ts';
+import {EntranceError, entranceAnchor, entranceBusy, nativeEntrance, type EntrancePost, type EntranceReply} from './customerEntrance.ts';
 
 // The stores a customer can pick in the app (traveller-services.md chapter 9 items 6 and 7): the list of stores
 // that chose to be listed, and one store's page. Both are read from the customer entrance before any proof and
@@ -8,8 +8,17 @@ import {EntranceError, entranceAnchor, nativeEntrance, type EntrancePost} from '
 // absent, and the screens leave it out rather than fill it in.
 
 export type StoreMode = 'open' | 'busy' | 'paused' | 'closed';
-/** Whether the store takes orders now, and the store's own weekday (0 is Monday) and wall clock. */
-export type StoreStatus = {mode: StoreMode; busyMinutes?: number; resumeAt?: string; weekday: number; time: string};
+/**
+ * Why no order can be placed with the store now (opsd ledger.store_order_refusal): one of its closed days, the store
+ * paused its orders, no menu is on sale, or the menu is not on sale at this time of the day.
+ */
+export type StoreRefusal = 'closed_day' | 'paused' | 'no_menu' | 'outside_hours';
+/**
+ * Whether an order can be placed with the store now (`orderable`) and, when not, why (`reason`); and the store's own
+ * weekday (0 is Monday) and wall clock. `mode` is open or busy only while an order can be placed, paused while the
+ * store paused, and closed in every other case.
+ */
+export type StoreStatus = {mode: StoreMode; orderable: boolean; reason?: StoreRefusal; busyMinutes?: number; resumeAt?: string; weekday: number; time: string};
 export type DayHours = {opens: string; closes: string} | null;
 /** A row of the store list. `hours` is seven days from Monday; absent when the store has not said its hours. */
 export type StoreSummary = {branch: string; name: string; kind?: string; address?: string; hours?: DayHours[]; status: StoreStatus};
@@ -50,7 +59,13 @@ function status(value: unknown): StoreStatus {
       (raw.busyMinutes !== undefined && (!Number.isInteger(raw.busyMinutes) || raw.busyMinutes < 1 || raw.busyMinutes > 240)) ||
       (raw.resumeAt !== undefined && (typeof raw.resumeAt !== 'string' || !clock.test(raw.resumeAt))))
     throw new EntranceError('UNAVAILABLE');
-  return {mode: raw.mode!, weekday: raw.weekday!, time: raw.time,
+  // The server says in so many words whether an order can be placed, and the mode must agree with it: a status that
+  // reads open while no order can be placed is not shown.
+  const agrees = raw.orderable === true ? raw.reason === undefined && (raw.mode === 'open' || raw.mode === 'busy')
+    : raw.orderable === false && (raw.reason === 'paused' ? raw.mode === 'paused'
+      : ['closed_day', 'no_menu', 'outside_hours'].includes(raw.reason as string) && raw.mode === 'closed');
+  if (!agrees) throw new EntranceError('UNAVAILABLE');
+  return {mode: raw.mode!, orderable: raw.orderable!, ...(raw.reason ? {reason: raw.reason} : {}), weekday: raw.weekday!, time: raw.time,
     ...(raw.mode === 'busy' && raw.busyMinutes !== undefined ? {busyMinutes: raw.busyMinutes} : {}),
     ...(raw.mode === 'paused' && raw.resumeAt !== undefined ? {resumeAt: raw.resumeAt} : {})};
 }
@@ -74,21 +89,33 @@ function summary(value: unknown): StoreSummary {
     ...(week ? {hours: week} : {}), status: status(raw.status)};
 }
 
-function refusal(reply: {status: number}): EntranceError {
-  if (reply.status === 429 || reply.status === 503) return new EntranceError('BUSY');
+function refusal(reply: EntranceReply): EntranceError {
+  // Too many requests, or a server that cannot answer now: the same read is asked again later.
+  if (entranceBusy(reply) || reply.status === 503) return new EntranceError('BUSY', undefined, reply.retryAfter);
   if (reply.status === 400 || reply.status === 404) return new EntranceError('REFUSED');
   return new EntranceError('UNAVAILABLE');
 }
 
+/** One page of the store list. `next` is given back to read the page after it; without it the list is complete. */
+export type StoreListPage = {stores: StoreSummary[]; next?: string};
+
 export class StoreDirectory {
   constructor(private readonly post: EntrancePost) {}
 
-  /** The listed stores, in the server's order (by name). A row that does not read as a store is left out. */
-  async list(): Promise<StoreSummary[]> {
-    const reply = await this.post('/v2/customer/stores', '');
+  /**
+   * One page of the listed stores, in the server's order (by name): the first, or the one after `after` (the `next`
+   * of the page before). A row that does not read as a store is left out.
+   */
+  async list(after?: string): Promise<StoreListPage> {
+    if (after !== undefined && !uuid.test(after)) throw new EntranceError('REFUSED');
+    const reply = await this.post(after === undefined ? '/v2/customer/stores' : `/v2/customer/stores?after=${after}`, '');
     if (reply.status !== 200) throw refusal(reply);
-    const rows = (reply.body as {stores?: unknown} | null)?.stores;
-    if (!Array.isArray(rows) || rows.length > 200) throw new EntranceError('UNAVAILABLE');
+    const body = reply.body as {stores?: unknown; next?: unknown} | null;
+    const rows = body?.stores;
+    // A list that goes on names the store it goes on from; one that names the same store again would never end.
+    if (!Array.isArray(rows) || rows.length > 200 ||
+        (body!.next !== undefined && (typeof body!.next !== 'string' || !uuid.test(body!.next) || body!.next === after || !rows.length)))
+      throw new EntranceError('UNAVAILABLE');
     const stores: StoreSummary[] = [];
     for (const row of rows) {
       try {
@@ -96,7 +123,7 @@ export class StoreDirectory {
         if (!stores.some(known => known.branch === store.branch)) stores.push(store);
       } catch { /* one bad row does not hide the others */ }
     }
-    return stores;
+    return {stores, ...(body!.next === undefined ? {} : {next: body!.next as string})};
   }
 
   /** One store's page. REFUSED: no such store. The answer must be about the store that was asked for. */
@@ -132,29 +159,54 @@ export const searchStores = <T extends {name: string}>(stores: T[], query: strin
 };
 
 export type StoreNow = {
-  /** `영업 중 · 21:00에 영업 종료`, `오늘 쉽니다`, … as the store's own clock says. */
+  /** `영업 중 · 21:00에 영업 종료`, `오늘 쉽니다`, … as the store's own clock and the server's word on orders say. */
   line: string;
-  /** The store does not take an order now: a closed day, outside its hours, or paused. */
+  /** No order can be placed now, as the server says (`orderable` is false). */
   shut: boolean;
-  /** Closed for the whole day, which the list marks `휴무`. */
+  /** No order today: one of the store's closed days, or a weekday it is closed on. The list marks it `휴무`. */
   dayOff: boolean;
+  /** What keeps the customer from ordering now, in a word or two for a row of the list; empty when nothing does. */
+  note: string;
+  /** Why no order can be placed now, as a sentence for the store page; absent while one can. */
+  why?: string;
 };
 
-/** What the page and the list say about now. Without hours only the order state is said. */
+/** Why no order can be placed, as the store page says it. */
+export function refusalText(now: Pick<StoreStatus, 'reason' | 'resumeAt'>): string | undefined {
+  switch (now.reason) {
+    case 'closed_day': return '오늘은 쉬는 날이라 주문을 받지 않습니다.';
+    case 'paused': return now.resumeAt ? `매장이 주문을 잠시 멈췄습니다. ${now.resumeAt}쯤 다시 받는다고 알렸습니다.` : '매장이 주문을 잠시 멈췄습니다.';
+    case 'no_menu': return '지금 판매 중인 메뉴가 없어 주문을 받지 않습니다.';
+    case 'outside_hours': return '지금은 메뉴를 판매하는 시간이 아니라 주문을 받지 않습니다.';
+    default: return undefined;
+  }
+}
+
+/**
+ * What the page and the list say about now. Whether an order can be placed is the server's word alone (`orderable`
+ * and `reason`); the hours the store wrote only say when it is open. Without hours only the order state is said.
+ */
 export function storeNow(store: {status: StoreStatus; hours?: DayHours[]}): StoreNow {
-  const {mode, weekday, time, busyMinutes, resumeAt} = store.status;
-  if (mode === 'closed') return {line: '오늘 쉽니다', shut: true, dayOff: true};
-  const orders = mode === 'busy' ? (busyMinutes ? `바쁨, 약 ${busyMinutes}분` : '바쁨')
-    : mode === 'paused' ? (resumeAt ? `주문 잠시 멈춤 · ${resumeAt}쯤 다시 받습니다` : '주문 잠시 멈춤') : '';
-  if (!store.hours) return {line: orders || '주문 받는 중', shut: mode === 'paused', dayOff: false};
+  const {mode, orderable, reason, weekday, time, busyMinutes, resumeAt} = store.status;
+  const why = refusalText(store.status);
+  const told = (line: string, note: string, dayOff = false): StoreNow => ({line, shut: !orderable, dayOff, note, ...(why ? {why} : {})});
+  if (reason === 'closed_day') return told('오늘 쉽니다', '오늘 쉽니다', true);
+  // What the server says about ordering, in a word or two.
+  const [orders, short] = mode === 'busy' ? [busyMinutes ? `바쁨, 약 ${busyMinutes}분` : '바쁨', '바쁨']
+    : reason === 'paused' ? [resumeAt ? `주문 잠시 멈춤 · ${resumeAt}쯤 다시 받습니다` : '주문 잠시 멈춤', '주문 잠시 멈춤']
+    : reason === 'no_menu' ? ['판매 중인 메뉴 없음', '판매 중인 메뉴 없음']
+    : reason === 'outside_hours' ? ['지금은 주문 시간 아님', '지금은 주문 시간 아님'] : ['', ''];
+  if (!store.hours) return told(orders || '주문 받는 중', short);
   // Hours that run past midnight belong to the day they started on.
   const earlier = store.hours[(weekday + 6) % 7], today = store.hours[weekday];
   const until = earlier && earlier.closes < earlier.opens && time < earlier.closes ? earlier.closes
     : today && time >= today.opens && (today.closes < today.opens || time < today.closes) ? today.closes : undefined;
-  if (until) return {line: ['영업 중', orders, `${until}에 영업 종료`].filter(Boolean).join(' · '), shut: mode === 'paused', dayOff: false};
-  if (!today) return {line: '오늘 쉽니다', shut: true, dayOff: true};
-  if (time < today.opens) return {line: `영업 전 · ${today.opens}에 영업 시작`, shut: true, dayOff: false};
-  return {line: '영업 종료', shut: true, dayOff: false};
+  if (until) return told(['영업 중', orders, `${until}에 영업 종료`].filter(Boolean).join(' · '), short);
+  const closed = !today ? '오늘 쉽니다' : time < today.opens ? `영업 전 · ${today.opens}에 영업 시작` : '영업 종료';
+  // Outside the hours the store wrote, a server that still takes an order is believed: the line says both.
+  if (orderable) return told([closed, orders || '주문 받는 중'].join(' · '), short);
+  // A menu that is not on sale at this hour is the closed store the hours describe; another reason is said itself.
+  return told(closed, reason === 'outside_hours' ? closed.split(' · ')[0] : short, !today);
 }
 
 const weekdayNames = ['월', '화', '수', '목', '금', '토', '일'];

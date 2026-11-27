@@ -33,7 +33,7 @@ jest.mock('../src/merchant/customerEntranceDeployment.ts', () => ({__esModule: t
   get approvedOrderPayment() { return mockPin; }}));
 
 const cafe = '0fbc54ef-2827-4ab5-bfcd-3a27611c3002';
-const status = {mode: 'open', weekday: 4, time: '10:31', timezone: 'Asia/Seoul'};
+const status = {mode: 'open', orderable: true, weekday: 4, time: '10:31', timezone: 'Asia/Seoul'};
 const personal = JSON.stringify({version: 2, exercised: true, mode: 'personal',
   verified: {boardFingerprint: 'ab'.repeat(32), address: '0x' + '12'.repeat(20), generation: 3, network: '8283'}});
 
