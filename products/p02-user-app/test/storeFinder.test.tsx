@@ -17,7 +17,7 @@ const stores: StoreSummary[] = [
   {branch: cafe, name: '여울 커피', kind: '카페', address: '시험시 시험로 1', hours: week, status: {mode: 'open', ...now}},
 ];
 const page: StorePage = {...stores[2], intro: '직접 볶은 원두로 내립니다', directions: '역 2번 출구에서 걸어서 3분', phone: '02-555-0100',
-  amenities: '무선 인터넷, 단체 이용', parking: '건물 뒤 2대', closedNote: '명절 당일', paymentToken: 'tKRW', operatorContact: 'help@operator.example'};
+  amenities: '무선 인터넷, 단체 이용', parking: '건물 뒤 2대', closedNote: '명절 당일', operatorContact: 'help@operator.example'};
 
 function directory(pages: Record<string, StorePage | Error> = {[cafe]: page}, list: StoreSummary[] | Error = stores) {
   const asked: string[] = [];
@@ -94,6 +94,17 @@ describe('finding a store', () => {
     const row = tree.root.findAll(node => node.props.testID === `recent-${cafe}` && node.props.accessibilityRole === 'button')[0];
     expect(row.props.accessibilityHint).toBe('카페 · 영업 중 · 21:00에 영업 종료');
     expect(stock.listed).toHaveBeenCalledTimes(1);
+  });
+
+  test('the customer can empty the recent stores, and they stay empty', async () => {
+    const recent = phone(JSON.stringify([{branch: cafe, name: '여울 커피', kind: '카페'}]));
+    await render({recent});
+    expect(screen()).toContain('최근 매장');
+    await press('최근 매장 지우기');
+    expect(await recent.list()).toEqual([]);
+    expect(screen()).not.toContain('최근 매장');
+    expect(buttons()).not.toContain('최근 매장 지우기');
+    expect(buttons()).toContain('여울 커피'); // the store itself is still in the list of all stores
   });
 
   test('a store that is gone, a busy server and no answer each say what happened', async () => {
@@ -190,7 +201,7 @@ describe('finding a store', () => {
     await press('전화');
     expect(opened).toEqual([mapLink('시험시 시험로 1'), 'tel:025550100']);
     expect(mapLink('시험시 시험로 1', 'android')).toBe('geo:0,0?q=' + encodeURIComponent('시험시 시험로 1'));
-    expect(mapLink('a&b=c', 'ios')).toBe('http://maps.apple.com/?q=a%26b%3Dc');
+    expect(mapLink('a&b=c', 'ios')).toBe('https://maps.apple.com/?q=a%26b%3Dc');
     expect(phoneLink('+82 2-555-0100')).toBe('tel:+8225550100');
   });
 
@@ -214,7 +225,7 @@ describe('the store page', () => {
   afterEach(() => { Renderer.act(() => tree?.unmount()); });
 
   test('shows what the store wrote: kind and state, introduction, location, hours, facts and the operator', async () => {
-    await show(page);
+    await show(page, {payment: 'tKRW'});
     for (const text of ['여울 커피', '카페 · 영업 중 · 21:00에 영업 종료', '직접 볶은 원두로 내립니다', '시험시 시험로 1', '역 2번 출구에서 걸어서 3분',
       '영업시간', '매일', '10:00~21:00', '쉬는 날', '명절 당일', '매장 정보', '무선 인터넷, 단체 이용', '건물 뒤 2대', '보드 결제 · tKRW',
       '결제·환불 문의', 'help@operator.example', '음식 준비는 매장에, 결제와 환불은 운영자에게 묻습니다.'])
@@ -229,6 +240,13 @@ describe('the store page', () => {
     expect(labels()).toEqual(['메뉴 보고 주문', '매장 찾기로']);
     for (const title of ['위치', '영업시간', '편의', '주차', '운영자 ']) expect(screen()).not.toContain(title);
     expect(screen()).toContain('보드 결제');
+    expect(screen()).not.toContain('보드 결제 ·'); // a build without its order contract names no token
+  });
+
+  test('the token on the payment line is the build\'s, whatever a server says of it', async () => {
+    await show({...page, paymentToken: 'tUSD'} as StorePage, {payment: 'tKRW'});
+    expect(screen()).toContain('보드 결제 · tKRW');
+    expect(screen()).not.toContain('tUSD');
   });
 
   test('a busy store and a store that takes no order now say so', async () => {

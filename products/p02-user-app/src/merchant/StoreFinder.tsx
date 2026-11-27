@@ -1,9 +1,10 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Linking, Platform, StyleSheet, Text, TextInput, View} from 'react-native';
-import {readEntranceQr} from '@nu54/protocol';
+import {paymentToken, readEntranceQr} from '@nu54/protocol';
 import {Card, KitButton, Row, Section, TabHeader} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
 import {EntranceError} from './customerEntrance.ts';
+import {orderPaymentPin} from './orderPaymentTrust.ts';
 import {hoursRows, recentStores, searchStores, storeNow, type RecentStore, type StoreDirectory, type StorePage, type StoreSummary} from './storeDirectory.ts';
 
 // Finding a store and its store page (traveller-services.md chapter 9 items 6 and 7). The customer picks a store
@@ -20,7 +21,15 @@ export type Outside = {openURL(url: string): Promise<unknown>};
 
 /** The map link holds the store's address only: no coordinates of the phone and no name of the customer. */
 export const mapLink = (address: string, os = Platform.OS) =>
-  os === 'ios' ? `http://maps.apple.com/?q=${encodeURIComponent(address)}` : `geo:0,0?q=${encodeURIComponent(address)}`;
+  os === 'ios' ? `https://maps.apple.com/?q=${encodeURIComponent(address)}` : `geo:0,0?q=${encodeURIComponent(address)}`;
+/**
+ * How the token a board pays in is named on a store page: the label of the build's order contract token, never a
+ * word of a server. Undefined in a build without its order contract, where the phone's store registration says it.
+ */
+export function boardPaymentLabel(): string | undefined {
+  const pin = orderPaymentPin();
+  return pin && paymentToken(pin).label;
+}
 export const phoneLink = (phone: string) => `tel:${phone.replace(/[^0-9+]/g, '')}`;
 
 const problemOf = (error: unknown) => error instanceof EntranceError && error.code === 'BUSY';
@@ -34,7 +43,7 @@ function listNote(store: StoreSummary) {
   return now.shut ? now.line.split(' · ')[0] : '';
 }
 
-export function StoreFinder({directory, recent = recentStores(), scan, back, order, payQr, initialBranch, outside = Linking}: {
+export function StoreFinder({directory, recent = recentStores(), scan, back, order, payQr, initialBranch, outside = Linking, payment = boardPaymentLabel()}: {
   /** Undefined while this build has no entrance address. */
   directory?: StoreDirectory;
   recent?: Recent;
@@ -48,6 +57,8 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
   /** A store to open first, from a shortcut QR read outside the app. */
   initialBranch?: string;
   outside?: Outside;
+  /** The label of the token a board pays in at any store of this build. */
+  payment?: string;
 }) {
   const [view, setView] = useState<View_>({kind: 'finder'});
   const [listing, setListing] = useState<Listing>(directory ? {kind: 'loading'} : {kind: 'problem', code: 'no-entrance'});
@@ -136,7 +147,7 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
 
   if (view.kind === 'store') {
     const opened = view.opened;
-    if (opened.kind === 'page') return <StorePageView page={opened.page} note={note} back={toFinder}
+    if (opened.kind === 'page') return <StorePageView page={opened.page} note={note} back={toFinder} payment={payment}
       order={order && (() => order({branch: opened.page.branch, name: opened.page.name, ...(opened.page.merchantId ? {merchantId: opened.page.merchantId} : {})}))}
       call={phone => leave(() => outside.openURL(phoneLink(phone)), '전화 앱을 열지 못했습니다.')}
       map={address => leave(() => outside.openURL(mapLink(address)), '지도 앱을 열지 못했습니다. 주소를 길게 눌러 복사하세요.')} />;
@@ -171,6 +182,9 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
           testID={`recent-${store.branch}`} run={() => { void open(store.branch, store.name); }} />;
       })}
     </Section>}
+    {/* The list is kept on this phone only; the customer can empty it. */}
+    {recents.length > 0 && <KitButton label="최근 매장 지우기" variant="secondary"
+      run={() => { recent.forget().then(() => recent.list()).then(rows => { if (live.current) setRecents(rows); }).catch(() => {}); }} />}
     <Section title="모든 매장">
       {listing.kind === 'loading' && <View style={styles.cell}><Text accessibilityLiveRegion="polite" style={type.body}>매장 목록을 불러오고 있습니다.</Text></View>}
       {listing.kind === 'problem' && <View style={styles.cell}><Text accessibilityRole="alert" style={type.body}>
@@ -199,15 +213,17 @@ export function StoreFinder({directory, recent = recentStores(), scan, back, ord
 }
 
 /** One store's page: what the store wrote, and the way to its menu. A field the store left empty is not drawn. */
-export function StorePageView({page, note, back, order, call, map, reserve}: {
+export function StorePageView({page, note, back, order, call, map, reserve, payment}: {
   page: StorePage; note?: string; back: () => void;
+  /** The label of the build's token (boardPaymentLabel). */
+  payment?: string;
   order?: () => void; call: (phone: string) => void; map: (address: string) => void;
   /** Reservations belong to a later phase; the button needs both a page that takes them and a way to make one. */
   reserve?: () => void;
 }) {
   const now = storeNow(page);
   const facts = [page.amenities && ['편의', page.amenities], page.parking && ['주차', page.parking],
-    ['결제', page.paymentToken ? `보드 결제 · ${page.paymentToken}` : '보드 결제']].filter(Boolean) as [string, string][];
+    ['결제', payment ? `보드 결제 · ${payment}` : '보드 결제']].filter(Boolean) as [string, string][];
   return <View style={styles.page}>
     <Text accessibilityRole="header" style={type.title}>{page.name}</Text>
     <Text style={[type.body, now.shut && styles.shut]} accessibilityLabel={`지금 ${now.line}`}>{[page.kind, now.line].filter(Boolean).join(' · ')}</Text>

@@ -15,8 +15,6 @@ export type DayHours = {opens: string; closes: string} | null;
 export type StoreSummary = {branch: string; name: string; kind?: string; address?: string; hours?: DayHours[]; status: StoreStatus};
 export type StorePage = StoreSummary & {
   intro?: string; directions?: string; phone?: string; amenities?: string; parking?: string; closedNote?: string;
-  /** The token a board pays this store in, such as `tKRW`. */
-  paymentToken?: string;
   /**
    * The store's number in the order contract. It is all the app takes from a server about paying: the chain, the
    * contract and the token are those of the build, and the signer and beneficiary are read from that contract.
@@ -112,7 +110,8 @@ export class StoreDirectory {
     const optional: Partial<StorePage> = {
       intro: text(raw!.intro, 200), directions: text(raw!.directions, 200), phone: text(raw!.phone, 20), amenities: text(raw!.amenities, 200),
       parking: text(raw!.parking, 200), closedNote: text(raw!.closedNote, 120),
-      paymentToken: text(raw!.paymentToken, 24), merchantId: merchantNumber(raw!.merchantId), operatorContact: text(raw!.operatorContact, 120),
+      // The token a board pays in is the build's (orderPaymentTrust.ts). What a page says of it is not read.
+      merchantId: merchantNumber(raw!.merchantId), operatorContact: text(raw!.operatorContact, 120),
       reservations: raw!.reservations === true ? true : undefined,
     };
     if (optional.phone && !/^\+?[0-9][0-9 -]{5,18}[0-9]$/.test(optional.phone)) throw new EntranceError('UNAVAILABLE');

@@ -60,7 +60,9 @@ describe('a store page', () => {
     const {directory: stores, calls} = directory({[`/v2/customer/stores/${cafe}`]: {status: 200, body: full}});
     expect(await stores.page(cafe)).toEqual({branch: cafe, name: '여울 커피', kind: '카페', address: '시험시 시험로 1', hours: week, status: open,
       intro: '직접 볶은 원두로 내립니다', directions: '역 2번 출구에서 걸어서 3분', phone: '02-555-0100', amenities: '무선 인터넷',
-      parking: '건물 뒤 2대', closedNote: '매주 일요일', paymentToken: 'tKRW', operatorContact: 'help@operator.example'});
+      parking: '건물 뒤 2대', closedNote: '매주 일요일', operatorContact: 'help@operator.example'});
+    // An older server still names a token. It is not read: the token is the build's, never a server's word.
+    expect(full.paymentToken).toBe('tKRW');
     expect(calls).toEqual([[`/v2/customer/stores/${cafe}`, '', undefined]]);
     const bare = await directory({[`/v2/customer/stores/${cafe}`]: {status: 200, body: {branchRef: cafe, name: '여울 커피', status: open}}}).directory.page(cafe);
     expect(bare).toEqual({branch: cafe, name: '여울 커피', status: open});
@@ -87,7 +89,8 @@ describe('a store page', () => {
     const page = await answer({merchantId, contract: '0x' + '3'.repeat(40), escrow: '0x' + '3'.repeat(40), asset: '0x' + '2'.repeat(40), token: {decimals: 2},
       signer: '0x' + '5'.repeat(40), beneficiary: '0x' + '4'.repeat(40), chain: 1, chainId: 1, rpc: 'https://rpc.example', payment: {contract: '0x' + '3'.repeat(40)}});
     expect(Object.keys(page).sort()).toEqual(['address', 'amenities', 'branch', 'closedNote', 'directions', 'hours', 'intro', 'kind', 'merchantId', 'name',
-      'operatorContact', 'parking', 'paymentToken', 'phone', 'status']);
+      'operatorContact', 'parking', 'phone', 'status']);
+    expect(JSON.stringify(await answer({merchantId, paymentToken: 'tUSD'}))).not.toContain('tUSD');
     expect(JSON.stringify(page)).not.toMatch(/0x[0-9a-f]{40}|rpc\.example/);
     for (const bad of ['', '0'.repeat(64), merchantId.toUpperCase(), '0x' + merchantId, merchantId.slice(1), 7, null])
       await expect(answer({merchantId: bad})).rejects.toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
