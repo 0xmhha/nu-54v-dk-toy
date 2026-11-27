@@ -134,6 +134,7 @@ static void status_led_mode(bool on) { lamp_mode = on; }
 
 int ble_links_owner_wait(bool on);
 int ble_links_payment_mode(uint32_t seconds);
+bool ble_links_advertising(void);
 #include "board_links.h"
 
 /* ---- cases ---- */
@@ -274,12 +275,46 @@ static void test_window_survives_a_failed_start(void)
 	assert(on_air == AIR_WINDOW);
 }
 
+/* The phone app that asks for payment mode (device.paymentMode) is told whether the board
+ * advertises now. The window itself is the same as for the button: it opens in any case. */
+static void test_the_phone_learns_what_is_on_the_air(void)
+{
+	restart(false);
+	assert(!ble_links_advertising());
+	assert(!platform_payment_mode(NULL, 1, 120) && payment_mode && on_air == AIR_WINDOW && ble_links_advertising());
+	assert(!platform_payment_mode(NULL, 1, 120)); /* asked again while it advertises */
+	assert(!platform_payment_mode(NULL, 0, 0) && !payment_mode && on_air == AIR_NONE && !ble_links_advertising());
+
+	/* The controller cannot start: the answer says so, the window is open, and the retry serves it. */
+	restart(false);
+	start_failures = 3;
+	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN);
+	assert(payment_mode && lamp_mode && on_air == AIR_NONE && !ble_links_advertising());
+	advance(100);
+	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN && payment_mode); /* the retry failed as well */
+	start_failures = 0;
+	advance(250);
+	assert(on_air == AIR_WINDOW && ble_links_advertising() && !platform_payment_mode(NULL, 1, 120));
+	/* Turning it off is never a failure. */
+	start_failures = 5;
+	assert(!platform_payment_mode(NULL, 0, 0) && !payment_mode && !ble_links_advertising());
+
+	/* Both connection slots are taken: nothing is advertised, and the phone hears that. */
+	struct bt_conn first, second;
+	restart(false);
+	start_failures = 0;
+	connect(&first);
+	connect(&second);
+	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN && payment_mode && on_air == AIR_NONE);
+}
+
 int main(void)
 {
 	test_owner_wait_by_itself();
 	test_idle_centrals();
 	test_busy_air_does_not_stop_the_check();
 	test_window_survives_a_failed_start();
+	test_the_phone_learns_what_is_on_the_air();
 	puts("owner wait links ok");
 	return 0;
 }

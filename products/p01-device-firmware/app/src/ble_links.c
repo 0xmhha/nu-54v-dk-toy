@@ -473,6 +473,14 @@ int ble_links_payment_mode(uint32_t seconds)
 	return 0;
 }
 
+bool ble_links_advertising(void)
+{
+	k_mutex_lock(&adv_lock, K_FOREVER);
+	const bool on_air = advertising != NU54_ADV_SET_NONE;
+	k_mutex_unlock(&adv_lock);
+	return on_air;
+}
+
 /* ---------------------------------------------------------------- connections */
 
 static void connected(struct bt_conn *conn, uint8_t err)

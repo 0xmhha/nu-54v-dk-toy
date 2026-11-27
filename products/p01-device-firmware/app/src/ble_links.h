@@ -47,6 +47,10 @@ bool ble_links_listening(int link);
  * again at the next connection event. Always returns 0. */
 int ble_links_payment_mode(uint32_t seconds);
 
+/* Whether this module has an advertising set on the air right now. A window can be open without
+ * it: while a start is being tried again, or while every connection slot is taken. */
+bool ble_links_advertising(void);
+
 /* Pairing mode: accept a new bond for `seconds`, with the label passkey or Just Works. A failed
  * start of advertising is handled as in payment mode. */
 int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works);
