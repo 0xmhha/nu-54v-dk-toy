@@ -101,6 +101,7 @@ static const uint8_t wallet[20] = {1};
 static nu54_vault vault;
 static int32_t pin_wait;
 static bool order_open, right_pin, erased, send_fails, sign_fails, confirm_fails, enroll_fails;
+static bool vault_stops; /* the vault's write failed: it stops and no longer says who owns the board */
 static bool erase_fails;
 static unsigned keys_made, keys_withdrawn, confirms, owner_wait_stops;
 static jmp_buf restart;
@@ -146,7 +147,7 @@ int device_spending_erase(void)
 #define sys_reboot(how) longjmp(restart, how)
 #define nu54_sig_finish(digest, raw, address, out) (memset(out, 1, 65), sign_fails ? NU54_SIG_BAD_V : NU54_SIG_OK)
 #define nu54_owner_confirm(e, v, l, now, prompt, ok) \
-	((void)(v), ++confirms, (e)->proven = false, confirm_fails || !(ok) ? -1 : 0)
+	(++confirms, (e)->proven = false, (v)->enabled = (v)->enabled && !vault_stops, confirm_fails || !(ok) ? -1 : 0)
 #define nu54_owner_status(v, c, e, out) ((void)(c), memset(out, 0, NU54_OWNER_STATUS_SIZE) == NULL)
 /* A function, not an expression: the board code calls it as a statement and ignores the result. */
 static int link_send_stub(const void *reply) { (void)reply; return send_fails ? -1 : 0; }
@@ -447,6 +448,16 @@ static void test_first_owner_ends_the_owner_wait(void)
 		device_pilot_button(PROMPT, false);
 		failed_then_dark();
 		assert(!owner_wait_stops); /* still without an owner: the board keeps advertising */
+
+		/* The vault's write failed. The owner may be in storage all the same, and the vault says
+		 * nothing until the restart: the board stops advertising for a next owner and no longer
+		 * drops centrals that wait, as it would for a board that surely has none. */
+		first_owner(released);
+		confirm_fails = vault_stops = true;
+		approve();
+		failed_then_dark();
+		confirm_fails = vault_stops = false;
+		assert(owner_wait_stops == 1 && !vault.enabled);
 	}
 	ask(REGISTER); /* another phone of a board that has an owner */
 	owner_wait_stops = 0;

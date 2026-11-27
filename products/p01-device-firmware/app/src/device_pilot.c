@@ -1832,7 +1832,15 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		 * owner. A board without an owner holds no key, also after a factory reset. */
 		if (first_owner && device_spending_enroll()) goto failed;
 #endif
-		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) goto failed;
+		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) {
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+			/* A write that failed may have stored the owner all the same; the vault then stops
+			 * and says nothing until the restart. The board must not go on advertising for a
+			 * next owner, and dropping centrals that wait, as if it surely had none. */
+			if (first_owner && !(vault->enabled && owner_absent(vault))) (void)pay_link_owner_wait(false);
+#endif
+			goto failed;
+		}
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 		unowned_pin = false;
 #endif
