@@ -569,6 +569,8 @@ RCT_EXPORT_MODULE(CommerceHttp)
     NSURLSessionConfiguration *config=NSURLSessionConfiguration.ephemeralSessionConfiguration;
     config.TLSMinimumSupportedProtocolVersion=tls_protocol_version_TLSv13;
     config.TLSMaximumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    // No proxy of the system or of a network profile carries the request, as on Android (Proxy.NO_PROXY).
+    config.connectionProxyDictionary=@{};
     config.timeoutIntervalForResource=[path isEqual:@"/itineraries/generate"] ? 70 : 8;
     config.timeoutIntervalForRequest=config.timeoutIntervalForResource;
     config.HTTPShouldSetCookies=NO;
