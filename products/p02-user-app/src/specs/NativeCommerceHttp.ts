@@ -17,8 +17,9 @@ export interface Spec extends TurboModule {
   exchange(slot: string, envelope: string): Promise<string>;
   /**
    * One request to the customer entrance: no client certificate, and a server accepted only by `anchor`, the
-   * `{"origin","ca","pin"}` of this build. `session` is the token of `/v2/customer/commerce` and empty elsewhere; a
-   * store read is a GET with an empty body. Answers `{"status":n,"body":"…"}`.
+   * `{"origin","ca","pin"}` of this build. `session` is the token of `/v2/customer/commerce` and
+   * `/v2/customer/checkout/cancel` and empty elsewhere; a store read is a GET with an empty body. Answers
+   * `{"status":n,"body":"…"}`, with `"retryAfter":seconds` when the server sent a Retry-After.
    */
   customerRequest(anchor: string, path: string, session: string, body: string): Promise<string>;
 }

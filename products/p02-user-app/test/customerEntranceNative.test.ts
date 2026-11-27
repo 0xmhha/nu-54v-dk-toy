@@ -1,4 +1,4 @@
-import {configuredEntrance, CustomerEntrance, entranceAnchor, nativeEntrance} from '../src/merchant/customerEntrance';
+import {configuredEntrance, CustomerEntrance, entranceAnchor, forgetEntranceWaits, longestWait, nativeEntrance} from '../src/merchant/customerEntrance';
 
 const mockCustomerRequest = jest.fn<Promise<string>, [string, string, string, string]>();
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: {
@@ -13,7 +13,7 @@ const anchor = {origin: 'https://store.example:8444', ca, pin};
 const sent = JSON.stringify({origin: 'https://store.example:8444', ca, pin});
 
 describe('customer entrance over the native commerce module', () => {
-  beforeEach(() => mockCustomerRequest.mockReset());
+  beforeEach(() => { mockCustomerRequest.mockReset(); forgetEntranceWaits(); });
 
   test('sends the build anchor with the canonical https origin and hands back the status and the parsed body', async () => {
     const customerRequest = jest.fn(async (_anchor: string, _path: string, _session: string, _body: string) => answer(200, '{"ok":true}'));
@@ -37,6 +37,74 @@ describe('customer entrance over the native commerce module', () => {
     expect(await post('/v2/customer/proof', '{}')).toEqual({status: 429, body: {status: 'error', error: 'BUSY'}});
     expect(await post('/v2/customer/proof', '{}')).toEqual({status: 404, body: null});
     expect(await post('/v2/customer/proof', '{}')).toEqual({status: 503, body: null});
+  });
+
+  test('the next page of the store list and a cart taken back go out as they are, the cart with its session', async () => {
+    const customerRequest = jest.fn(async (_anchor: string, _path: string, _session: string, _body: string) => answer(200, '{}'));
+    const post = nativeEntrance(anchor, {customerRequest});
+    await post(`/v2/customer/stores?after=${branch}`, '');
+    await post('/v2/customer/checkout/cancel', JSON.stringify({saleRef: sale}), '5e'.repeat(32));
+    expect(customerRequest.mock.calls).toEqual([[sent, `/v2/customer/stores?after=${branch}`, '', ''],
+      [sent, '/v2/customer/checkout/cancel', '5e'.repeat(32), JSON.stringify({saleRef: sale})]]);
+  });
+
+  describe('the wait a server asks for', () => {
+    const busy = (retryAfter?: unknown, status = 429, more = {}) =>
+      JSON.stringify({status, body: JSON.stringify({requestId: '', requestDigest: '', status: 'error', error: 'BUSY', ...more}), ...(retryAfter === undefined ? {} : {retryAfter})});
+    beforeEach(() => { jest.useFakeTimers({now: 1_764_000_000_000}); });
+    afterEach(() => { jest.useRealTimers(); });
+
+    test('comes back with the refusal, in seconds, and never longer than the phone waits', async () => {
+      const replies = [busy(7), busy(100_000), busy(0), busy('7'), busy(1.5), busy()];
+      const customerRequest = jest.fn(async () => replies.shift()!);
+      const waits: unknown[] = [];
+      for (let n = 0; n < 6; n++) {
+        forgetEntranceWaits();
+        waits.push((await nativeEntrance(anchor, {customerRequest})('/v2/customer/proof', '{}')).retryAfter);
+      }
+      expect(waits).toEqual([7, longestWait, undefined, undefined, undefined, undefined]);
+    });
+
+    test.each([[429, 5], [503, 1]])('a %i for the rate holds the next request of its kind for the time asked, and the phone sends nothing until then', async (status, wait) => {
+      const customerRequest = jest.fn(async (_anchor: string, _path: string, _session: string, _body: string) => busy(wait, status));
+      const post = nativeEntrance(anchor, {customerRequest});
+      expect(await post('/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32))).toMatchObject({status, retryAfter: wait});
+      // Another entrance of the same build, as another screen makes one, waits out the same answer.
+      const other = nativeEntrance(anchor, {customerRequest});
+      await expect(other('/v2/customer/commerce', '{"command":"y"}', '5e'.repeat(32))).rejects.toMatchObject({code: 'BUSY', retryAfter: wait});
+      await expect(post('/v2/customer/checkout/cancel', '{"saleRef":"x"}', '5e'.repeat(32))).rejects.toMatchObject({code: 'BUSY'});
+      jest.advanceTimersByTime(wait * 1000 - 1);
+      await expect(post('/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32))).rejects.toMatchObject({code: 'BUSY', retryAfter: 1});
+      expect(customerRequest).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(1);
+      customerRequest.mockResolvedValueOnce(answer(200, '{}'));
+      expect(await post('/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32))).toEqual({status: 200, body: {}});
+      expect(customerRequest).toHaveBeenCalledTimes(2);
+    });
+
+    test('a wait is for the kind of request the server counts together, and for that server only', async () => {
+      const customerRequest = jest.fn(async (_anchor: string, path: string, _session: string, body: string) =>
+        path === '/v2/customer/challenge' && body.includes('checkout') ? busy(10) : answer(200, '{}'));
+      const post = nativeEntrance(anchor, {customerRequest});
+      await post('/v2/customer/challenge', JSON.stringify({purpose: 'checkout', branchRef: branch}));
+      // A new session waits; a pickup QR at the counter, a proof, the menu, a photo and the session's requests do not.
+      await expect(post('/v2/customer/challenge', JSON.stringify({purpose: 'order', branchRef: branch, saleRef: sale}))).rejects.toMatchObject({code: 'BUSY'});
+      for (const [path, body, session] of [['/v2/customer/challenge', JSON.stringify({purpose: 'pickup', branchRef: branch, saleRef: sale}), ''], ['/v2/customer/proof', '{}', ''],
+        ['/v2/customer/stores', '', ''], [`/v2/customer/stores/${branch}/menu/0`, '', ''], [`/v2/customer/stores/${branch}/photos/${'a'.repeat(64)}/0`, '', ''],
+        ['/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32)]] as const)
+        expect((await post(path, body, session)).status).toBe(200);
+      const elsewhere = nativeEntrance({...anchor, origin: 'https://other.example:8444'}, {customerRequest: async () => answer(200, '{}')});
+      expect((await elsewhere('/v2/customer/challenge', JSON.stringify({purpose: 'checkout', branchRef: branch}))).status).toBe(200);
+    });
+
+    test('a refusal that names a reason, and any other answer, holds nothing back', async () => {
+      const replies = [busy(10, 429, {reason: 'hold_limit'}), busy(3, 503, {reason: 'balance_unavailable'}), JSON.stringify({status: 404, body: 'Not Found', retryAfter: 9}),
+        JSON.stringify({status: 503, body: JSON.stringify({status: 'error', error: 'UNKNOWN_RESULT'}), retryAfter: 9}), busy(undefined), answer(200, '{}')];
+      const customerRequest = jest.fn(async () => replies.shift()!);
+      const post = nativeEntrance(anchor, {customerRequest});
+      for (let n = 0; n < 6; n++) await post('/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32));
+      expect(customerRequest).toHaveBeenCalledTimes(6);
+    });
   });
 
   test('no native method, a native failure and a malformed reply are all unavailable', async () => {

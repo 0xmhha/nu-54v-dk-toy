@@ -8,25 +8,58 @@ import {approvedCustomerEntrance, type CustomerEntranceAnchor} from './customerE
 // and for a ready order a pickup token that lives about 60 seconds. No client certificate and no enrollment: the
 // server is trusted by the anchor of this build alone.
 
-export type EntranceReply = {status: number; body: unknown};
-export type EntrancePath = '/v2/customer/challenge' | '/v2/customer/proof' | '/v2/customer/commerce' | '/v2/customer/stores'
-  | `/v2/customer/stores/${string}`;
-/** One request to the entrance. An empty body is a read; `session` goes only with `/v2/customer/commerce`. */
+/** `retryAfter`: the seconds the server asked to wait before the next request (its Retry-After), when it said so. */
+export type EntranceReply = {status: number; body: unknown; retryAfter?: number};
+export type EntrancePath = '/v2/customer/challenge' | '/v2/customer/proof' | '/v2/customer/commerce' | '/v2/customer/checkout/cancel'
+  | '/v2/customer/stores' | `/v2/customer/stores?after=${string}` | `/v2/customer/stores/${string}`;
+/**
+ * One request to the entrance. An empty body is a read; `session` goes only with `/v2/customer/commerce` and
+ * `/v2/customer/checkout/cancel`.
+ */
 export type EntrancePost = (path: EntrancePath, body: string, session?: string) => Promise<EntranceReply>;
 
 /**
  * Codes the screens act on. MISMATCH: the server did not accept the account proof for what was asked. COLLECTED: the
- * store already recorded the handover. REFUSED: the server answered and did not take the request. UNAVAILABLE: no
+ * store already recorded the handover. BUSY: the server has too many requests now and nothing else is known; the
+ * same request is sent again later. REFUSED: the server answered and did not take the request. UNAVAILABLE: no
  * entrance address, no answer, or an answer that is not the protocol.
  */
 export type EntranceCode = 'MISMATCH' | 'NOT_READY' | 'COLLECTED' | 'EXPIRED' | 'BUSY' | 'REFUSED' | 'UNAVAILABLE';
 export class EntranceError extends Error {
-  /** `at`: when the store recorded the handover, in seconds, when the server said so with COLLECTED. */
-  constructor(readonly code: EntranceCode, readonly at?: number) { super(`CUSTOMER_ENTRANCE_${code}`); }
+  /**
+   * `at`: when the store recorded the handover, in seconds, when the server said so with COLLECTED. `retryAfter`: the
+   * seconds the server asked to wait, with BUSY.
+   */
+  constructor(readonly code: EntranceCode, readonly at?: number, readonly retryAfter?: number) { super(`CUSTOMER_ENTRANCE_${code}`); }
 }
 
 /** The native half of the entrance connection (specs/NativeCommerceHttp.ts). */
 export type EntranceTransport = {customerRequest?: (anchor: string, path: string, session: string, body: string) => Promise<string>};
+
+/** Whether an answer is the server's "too many requests now": 429, or 503 with BUSY. It says nothing else. */
+export function entranceBusy(reply: EntranceReply): boolean {
+  return reply.status === 429 || (reply.status === 503 && (reply.body as {error?: unknown} | null)?.error === 'BUSY');
+}
+
+/** The longest wait a server's Retry-After is taken for, in seconds. The entrance asks for ten at most. */
+export const longestWait = 120;
+
+/**
+ * The requests the server counts together (opsd RegisterCustomer): a wait asked of one kind does not hold another.
+ * A challenge is counted by what it is for, since those that start a session have a limit of their own.
+ */
+function waitKind(path: string, body: string): string {
+  if (path === '/v2/customer/commerce' || path === '/v2/customer/checkout/cancel') return 'session';
+  if (path === '/v2/customer/proof') return 'proof';
+  if (path === '/v2/customer/challenge') return body.includes('"purpose":"pickup"') ? 'challenge-pickup' : 'challenge-session';
+  return /\/photos\//.test(path) ? 'photo' : 'read';
+}
+
+// When each kind of request may be sent to each server again (milliseconds). The phone waits out what the server asked
+// for: until then a request of that kind is answered here as busy and is not sent.
+const waits = new Map<string, number>();
+/** For tests: forgets every wait. */
+export function forgetEntranceWaits() { waits.clear(); }
 
 /** The pinned keys of an anchor: one, or the current one and the next. Undefined when they are not that. */
 export function entrancePins(pin: unknown): string[] | undefined {
@@ -55,8 +88,12 @@ export function entranceAnchor(anchor: CustomerEntranceAnchor | undefined): stri
 export function nativeEntrance(anchor: CustomerEntranceAnchor | undefined, http: EntranceTransport | null | undefined = Http): EntrancePost {
   const trust = entranceAnchor(anchor);
   if (!trust) return async () => { throw new EntranceError('UNAVAILABLE'); };
+  const origin = (JSON.parse(trust) as {origin: string}).origin;
   return async (path, body, session = '') => {
-    let reply: {status?: unknown; body?: unknown} | null;
+    const kind = `${origin} ${waitKind(path, body)}`;
+    const left = (waits.get(kind) ?? 0) - Date.now();
+    if (left > 0) throw new EntranceError('BUSY', undefined, Math.ceil(left / 1000));
+    let reply: {status?: unknown; body?: unknown; retryAfter?: unknown} | null;
     try {
       if (typeof http?.customerRequest !== 'function') throw new Error('no native entrance');
       reply = JSON.parse(await http.customerRequest(trust, path, session, body));
@@ -66,7 +103,13 @@ export function nativeEntrance(anchor: CustomerEntranceAnchor | undefined, http:
     if (!Number.isSafeInteger(reply?.status) || typeof reply?.body !== 'string') throw new EntranceError('UNAVAILABLE');
     let answer: unknown = null;
     try { answer = JSON.parse(reply.body); } catch { /* not JSON, such as a plain 404 */ }
-    return {status: reply.status as number, body: answer};
+    const result: EntranceReply = {status: reply.status as number, body: answer};
+    if (Number.isSafeInteger(reply.retryAfter) && (reply.retryAfter as number) > 0) result.retryAfter = Math.min(reply.retryAfter as number, longestWait);
+    // A refusal for the rate alone holds the next request of its kind. One that names a reason (a cart that was not
+    // held) is about that one request, and whoever sent it decides (storeAccess.ts).
+    if (entranceBusy(result) && result.retryAfter !== undefined && (answer as {reason?: unknown} | null)?.reason === undefined)
+      waits.set(kind, Date.now() + result.retryAfter * 1000);
+    return result;
   };
 }
 
@@ -87,7 +130,7 @@ export function entranceRefusal(reply: EntranceReply): EntranceError {
     return new EntranceError('NOT_READY');
   }
   if (reply.status === 400 && code === 'EXPIRED') return new EntranceError('EXPIRED');
-  if (reply.status === 429 || (reply.status === 503 && code === 'BUSY')) return new EntranceError('BUSY');
+  if (entranceBusy(reply)) return new EntranceError('BUSY', undefined, reply.retryAfter);
   if (reply.status === 400 || reply.status === 404) return new EntranceError('REFUSED');
   return new EntranceError('UNAVAILABLE');
 }
