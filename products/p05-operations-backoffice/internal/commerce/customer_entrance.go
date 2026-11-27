@@ -34,9 +34,18 @@ import (
 // account), "order" (the address paid this order: a session for that order only, until it ends) and "pickup" (the
 // address paid this ready order: a one-time QR token that staff scan on the order's page).
 type CustomerEntrance struct {
+	// Limiter is the strict limit of each address on what needs no session: a challenge, a proof, and a session
+	// token the server does not know. The limits below fall back to it when they are not set.
 	Limiter *RateLimiter
-	// PhotoLimiter is the limit of the public menu photo parts alone; nil leaves them under Limiter.
+	// ReadLimiter is the limit of each address on the public reads: the store list, a store page and a menu page.
+	ReadLimiter *RateLimiter
+	// PhotoLimiter is the limit of each address on public menu photo parts; nil leaves them under ReadLimiter.
 	PhotoLimiter *RateLimiter
+	// SessionLimiter is the limit of each live session on its own requests. Customers behind one address, such as a
+	// store's wireless network, do not share it. Nil counts a session's requests against its address.
+	SessionLimiter *RateLimiter
+	// Limited counts refused requests by kind; opsd logs it.
+	Limited LimitedCount
 	// Zero values take the defaults below. The order session cap is provisional (an owner decision).
 	ChallengeLifetime, CheckoutLifetime, OrderLifetime, PickupLifetime time.Duration
 	// RescanWindow is how long after a handover the same staff member's repeated scan gets the first answer again.
@@ -104,9 +113,16 @@ func NewRateLimiter(perMinute, burst int, now func() time.Time) *RateLimiter {
 }
 
 func (l *RateLimiter) Allow(key string) bool {
+	allowed, _ := l.Take(key)
+	return allowed
+}
+
+// Take is Allow with the time after which a refused client has one request again.
+func (l *RateLimiter) Take(key string) (bool, time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
+	oneRequest := time.Duration(float64(time.Second) / l.perSec)
 	b, ok := l.clients[key]
 	if !ok {
 		if len(l.clients) >= limiterClients {
@@ -116,7 +132,7 @@ func (l *RateLimiter) Allow(key string) bool {
 				}
 			}
 			if len(l.clients) >= limiterClients {
-				return false // every known client is still limited: refuse newcomers until some refill
+				return false, oneRequest // every known client is still limited: refuse newcomers until some refill
 			}
 		}
 		b = &bucket{tokens: l.burst, at: now}
@@ -125,10 +141,41 @@ func (l *RateLimiter) Allow(key string) bool {
 	b.tokens = min(l.burst, b.tokens+now.Sub(b.at).Seconds()*l.perSec)
 	b.at = now
 	if b.tokens < 1 {
-		return false
+		return false, time.Duration((1 - b.tokens) / l.perSec * float64(time.Second))
 	}
 	b.tokens--
-	return true
+	return true, 0
+}
+
+// LimitedCount counts the requests the entrance refused for their rate, by kind.
+type LimitedCount struct {
+	mu     sync.Mutex
+	counts map[string]int64
+}
+
+func (c *LimitedCount) add(kind string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.counts == nil {
+		c.counts = map[string]int64{}
+	}
+	c.counts[kind]++
+}
+
+// Drain returns the counts since the last call, by kind ("proof", "read", "photo", "session").
+func (c *LimitedCount) Drain() map[string]int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	counts := c.counts
+	c.counts = nil
+	return counts
+}
+
+// tooMany answers a rate refusal. Retry-After is the whole seconds until the client has one request again.
+func (c *CustomerEntrance) tooMany(w http.ResponseWriter, kind string, wait time.Duration) {
+	c.Limited.add(kind)
+	w.Header().Set("Retry-After", strconv.Itoa(max(1, int((wait+time.Second-1)/time.Second))))
+	writeJSON(w, http.StatusTooManyRequests, service.Reply{Status: "error", Error: service.Busy})
 }
 
 // clientKey is the peer address. Behind a proxy every customer shares the proxy's address (see the report).
@@ -146,35 +193,48 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		return
 	}
 	// The limiters are read when a request arrives, so a deployment may set them after the routes.
-	limited := func(limiter func() *RateLimiter, next http.HandlerFunc) http.Handler {
+	limited := func(kind string, limiter func() *RateLimiter, next http.HandlerFunc) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if active := limiter(); active != nil && !active.Allow(clientKey(r)) {
-				w.Header().Set("Retry-After", "10")
-				writeJSON(w, http.StatusTooManyRequests, service.Reply{Status: "error", Error: service.Busy})
-				return
+			if active := limiter(); active != nil {
+				if allowed, wait := active.Take(clientKey(r)); !allowed {
+					h.Customer.tooMany(w, kind, wait)
+					return
+				}
 			}
 			next(w, r)
 		})
 	}
-	limit := func(next http.HandlerFunc) http.Handler {
-		return limited(func() *RateLimiter { return h.Customer.Limiter }, next)
-	}
-	photos := func() *RateLimiter {
-		if h.Customer.PhotoLimiter != nil {
-			return h.Customer.PhotoLimiter
+	first := func(limiters ...*RateLimiter) *RateLimiter {
+		for _, limiter := range limiters {
+			if limiter != nil {
+				return limiter
+			}
 		}
-		return h.Customer.Limiter
+		return nil
 	}
-	mux.Handle("POST /v2/customer/challenge", limit(h.customerChallenge))
-	mux.Handle("POST /v2/customer/proof", limit(h.customerProof))
-	mux.Handle("POST /v2/customer/commerce", limit(h.customerCommerce))
+	proof := func(next http.HandlerFunc) http.Handler {
+		return limited("proof", func() *RateLimiter { return h.Customer.Limiter }, next)
+	}
+	limit := func(next http.HandlerFunc) http.Handler {
+		return limited("read", func() *RateLimiter { return first(h.Customer.ReadLimiter, h.Customer.Limiter) }, next)
+	}
+	photos := func() *RateLimiter { return first(h.Customer.PhotoLimiter, h.Customer.ReadLimiter, h.Customer.Limiter) }
+	// The listener's own health, outside every limit: it says nothing about a store or a customer.
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = io.WriteString(w, "ok\n")
+	})
+	mux.Handle("POST /v2/customer/challenge", proof(h.customerChallenge))
+	mux.Handle("POST /v2/customer/proof", proof(h.customerProof))
+	// A session's requests are counted for that session once it is known (customerCommerce).
+	mux.HandleFunc("POST /v2/customer/commerce", h.customerCommerce)
 	// The store list and a store page are read before any proof: public data only, under the same limit.
 	mux.Handle("GET /v2/customer/stores", limit(h.customerStores))
 	mux.Handle("GET /v2/customer/stores/{branch}", limit(h.customerStore))
 	// A store's menu and its photos are public too (menu_public.go). Nothing else is: every other request above
 	// needs a challenge, a proof or a session.
 	mux.Handle("GET /v2/customer/stores/{branch}/menu/{page}", limit(h.customerMenu))
-	mux.Handle("GET /v2/customer/stores/{branch}/photos/{photo}/{offset}", limited(photos, h.customerMenuPhoto))
+	mux.Handle("GET /v2/customer/stores/{branch}/photos/{photo}/{offset}", limited("photo", photos, h.customerMenuPhoto))
 }
 
 func decodeStrict(w http.ResponseWriter, r *http.Request, limit int64, into any) bool {
@@ -334,7 +394,9 @@ type customerSession struct {
 }
 
 // Before payment: the menu, the cart, the customer's own claim on it, the quote, the board's signature for the
-// sponsored lock, and the status of what this account ordered here. There is no customer cancel: C3 has none (see
+// sponsored lock, and the status of what this account ordered here. The status is meant to reach every order of the
+// same account at this store, paid ones too: the page that just paid follows its order to the pickup number with the
+// session it has, and the owner database answers only for the session's own customer. There is no customer cancel: C3 has none (see
 // ledger.cancel_public_menu_order, which is the kiosk's), so an unpaid order ends with its quote.
 var checkoutOperations = []string{"catalog.read", "catalog.photo", "order.create", "checkout.claim", "checkout.authorize", "quote.issue",
 	"order.lock", "payment.forward", "order.status"}
@@ -380,14 +442,35 @@ func (s *Store) customerSession(ctx context.Context, token []byte) (customerSess
 func (h HTTP) customerCommerce(w http.ResponseWriter, r *http.Request) {
 	value, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	token, err := hex.DecodeString(value)
-	if !found || err != nil || len(token) != 32 || hex.EncodeToString(token) != value || h.Store == nil {
+	// A token the server does not know is counted against the address, strictly: it is a guess or a stale session.
+	refuse := func() {
+		if h.Customer.Limiter != nil {
+			if allowed, wait := h.Customer.Limiter.Take(clientKey(r)); !allowed {
+				h.Customer.tooMany(w, "proof", wait)
+				return
+			}
+		}
 		http.NotFound(w, r)
+	}
+	if !found || err != nil || len(token) != 32 || hex.EncodeToString(token) != value || h.Store == nil {
+		refuse()
 		return
 	}
 	session, err := h.Store.customerSession(r.Context(), token)
 	if err != nil || !time.Now().Before(session.ExpiresAt) {
-		http.NotFound(w, r)
+		refuse()
 		return
+	}
+	// A live session has its own allowance, whatever address it comes from; without one set, its address has.
+	limiter, key := h.Customer.SessionLimiter, session.Actor+"/"+session.Branch+"/"+session.Purpose+"/"+session.Sale
+	if limiter == nil {
+		limiter, key = h.Customer.Limiter, clientKey(r)
+	}
+	if limiter != nil {
+		if allowed, wait := limiter.Take(key); !allowed {
+			h.Customer.tooMany(w, "session", wait)
+			return
+		}
 	}
 	principal := service.Principal{Tenant: session.Tenant, Subject: session.Actor, Role: "customer", ExpiresAt: session.ExpiresAt.Unix()}
 	// Like a certificate route, writes commit only while the session still stands.

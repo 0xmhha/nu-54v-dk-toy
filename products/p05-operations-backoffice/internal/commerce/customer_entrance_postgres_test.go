@@ -412,6 +412,33 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	command(orderSession, "order.status", shop, fresh(), map[string]string{}, nil, 404)
 	command(orderSession, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
 	order(orderSession, 404)
+	// The checkout session of the same account reads its paid order too, on purpose: the page that just paid follows
+	// the order to its pickup number with the session it has. It reads no order of another account or another store.
+	if own := command(session, "order.status", shop, sale, map[string]string{}, nil, 200)["order"].(map[string]any); own["id"] != sale || own["state"] != "paid" {
+		t.Fatalf("the paying account's checkout session does not read its paid order: %v", own)
+	}
+	otherSession := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)["session"].(string)
+	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	command(elsewhereSession, "order.status", elsewhere, sale, map[string]string{}, nil, 404)
+	command(elsewhereSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	// Each session has its own request allowance, and one session using its up does not limit another, though both
+	// come from one address. A token the server does not know is counted against the address.
+	h.Customer.SessionLimiter, h.Customer.Limiter = NewRateLimiter(60, 2, nil), NewRateLimiter(60, 3, nil)
+	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
+	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
+	command(session, "order.status", shop, sale, map[string]string{}, nil, 429)
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
+	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	for i, want := range []int{404, 404, 404, 429} {
+		if got := command(strings.Repeat("cd", 32), "order.status", shop, sale, map[string]string{}, nil, want); want == 429 && got["error"] != string(service.Busy) {
+			t.Fatalf("unknown token %d: %v", i, got)
+		}
+	}
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200) // a live session is not counted against its address
+	if counts := h.Customer.Limited.Drain(); counts["session"] != 1 || counts["proof"] != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	h.Customer.SessionLimiter, h.Customer.Limiter = nil, nil
 
 	// --- pickup: only when ready, only the payer, one use, short-lived, this branch and this order ---
 	if got := prove(board, account, challenge("pickup", shop, sale), 409); got["error"] != string(service.CheckoutConflict) {

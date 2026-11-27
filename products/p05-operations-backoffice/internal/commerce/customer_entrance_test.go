@@ -185,7 +185,8 @@ func TestPublicMenuRateLimit(t *testing.T) {
 	}
 	// Without a store behind it an allowed request ends as not found; a limited one never gets that far.
 	apart := http.NewServeMux()
-	HTTP{Customer: &CustomerEntrance{Limiter: NewRateLimiter(60, 2, clock), PhotoLimiter: NewRateLimiter(60, 1, clock)}}.RegisterCustomer(apart)
+	apartLimits := &CustomerEntrance{Limiter: NewRateLimiter(60, 1, clock), ReadLimiter: NewRateLimiter(60, 2, clock), PhotoLimiter: NewRateLimiter(60, 1, clock)}
+	HTTP{Customer: apartLimits}.RegisterCustomer(apart)
 	for i, want := range []int{http.StatusNotFound, http.StatusNotFound, http.StatusTooManyRequests} {
 		if code := send(apart, menu, "198.51.100.7"); code != want {
 			t.Fatalf("menu request %d: %d, want %d", i+1, code, want)
@@ -204,6 +205,44 @@ func TestPublicMenuRateLimit(t *testing.T) {
 	if send(apart, menu, "198.51.100.7") != http.StatusNotFound || send(apart, photo, "198.51.100.7") != http.StatusNotFound ||
 		send(apart, menu, "198.51.100.7") != http.StatusTooManyRequests || send(apart, photo, "198.51.100.7") != http.StatusTooManyRequests {
 		t.Fatal("the limits do not refill at their rates")
+	}
+	// Reading the menu did not use up what the same address needs to prove an account, and the reverse.
+	proving := func(mux *http.ServeMux, client string) (int, string) {
+		req := httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader("{"))
+		req.RemoteAddr = client + ":4000"
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code, reply.Header().Get("Retry-After")
+	}
+	if code, _ := proving(apart, "198.51.100.7"); code != http.StatusBadRequest {
+		t.Fatalf("a limited reader cannot prove its account: %d", code)
+	}
+	// Retry-After is the real wait: one request a second here, so one second, not a fixed ten.
+	if code, wait := proving(apart, "198.51.100.7"); code != http.StatusTooManyRequests || wait != "1" {
+		t.Fatalf("second proof at once: %d, Retry-After %q", code, wait)
+	}
+	now = now.Add(time.Second)
+	if send(apart, menu, "198.51.100.7") != http.StatusNotFound {
+		t.Fatal("a limited prover cannot read the menu")
+	}
+	// The health route is outside every limit, and each refusal was counted by its kind.
+	for i := 0; i < 5; i++ {
+		if code := send(apart, "/healthz", "198.51.100.7"); code != http.StatusOK {
+			t.Fatalf("health: %d", code)
+		}
+	}
+	if counts := apartLimits.Limited.Drain(); counts["read"] != 2 || counts["photo"] != 2 || counts["proof"] != 1 || counts["session"] != 0 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	if counts := apartLimits.Limited.Drain(); len(counts) != 0 {
+		t.Fatalf("the count was not drained: %v", counts)
+	}
+	slow := NewRateLimiter(6, 1, clock) // one request every ten seconds
+	if ok, _ := slow.Take("a"); !ok {
+		t.Fatal("first request refused")
+	}
+	if ok, wait := slow.Take("a"); ok || wait != 10*time.Second {
+		t.Fatalf("the wait is not the refill time: %v %v", ok, wait)
 	}
 	// A deployment that sets no photo limit keeps photos under the one limit.
 	shared := http.NewServeMux()
