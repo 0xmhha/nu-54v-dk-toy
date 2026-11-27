@@ -22,7 +22,7 @@ const catalog = {
 const state = { mode: "open", busyMinutes: null, resumeAt: null, changedBy: null, changedAt: null, today: "2026-11-27",
   closedDays: [], soldOut: [], log: [], autoKitchen: false };
 // What opsd keeps for the page; `refuse` makes the next save a refusal.
-let page = { name: "여울 커피", saved: false, listed: false, kind: "", intro: "", address: "", directions: "", phone: "", amenities: "",
+let page = { name: "여울 커피", saved: false, published: false, listed: false, kind: "", intro: "", address: "", directions: "", phone: "", amenities: "",
   parking: "", closedNote: "", hours: null, changedBy: null, changedAt: null };
 let refuse = false;
 const saves = [];
@@ -78,7 +78,8 @@ async function main() {
     const save = editor.getByRole("button", { name: "매장 화면 저장" });
 
     // Nothing saved yet: the name comes from the branch, and the page cannot be saved without the store's kind.
-    await editor.getByText("아직 저장한 매장 화면이 없습니다.", { exact: false }).waitFor();
+    await editor.getByText("아직 저장한 매장 화면이 없습니다. 공개하기 전에는 손님 앱에서 이 매장의 화면과 메뉴가 열리지 않습니다.").waitFor();
+    assert.equal(await editor.getByLabel("매장 화면 공개").isChecked(), false);
     await editor.getByText("여울 커피", { exact: true }).waitFor();
     await editor.getByText("매장 종류를 적어 주세요. 예: 카페").waitFor();
     assert.equal(await save.isDisabled(), true);
@@ -90,7 +91,11 @@ async function main() {
     await editor.getByText("전화번호는 숫자, 빈칸, 하이픈으로 적어 주세요.").waitFor();
     assert.equal(await save.isDisabled(), true);
     await editor.getByLabel("전화").fill("02-555-0100");
+    // Listing without publishing shows nothing to customers, and the editor says so until the page is made public.
     await editor.getByLabel("손님 앱의 매장 목록에 보이기").check();
+    await editor.getByText("매장 목록에는 매장 화면을 공개한 동안에만 보입니다.").waitFor();
+    await editor.getByLabel("매장 화면 공개").check();
+    assert.equal(await editor.getByText("매장 목록에는 매장 화면을 공개한 동안에만 보입니다.").count(), 0);
 
     // Hours: weekdays and Saturday open, Sunday closed; the lines customers will read are shown before the save.
     await editor.getByLabel("영업시간을 손님에게 보이기").check();
@@ -113,21 +118,27 @@ async function main() {
     await save.click();
     await editor.getByText("매장 화면을 저장했습니다.").waitFor();
     const day = { opens: "10:00", closes: "21:00" };
-    assert.deepEqual(saves.pop(), { type: "application/json", body: { listed: true, kind: "카페", intro: "직접 볶은 원두로 내립니다",
+    assert.deepEqual(saves.pop(), { type: "application/json", body: { published: true, listed: true, kind: "카페", intro: "직접 볶은 원두로 내립니다",
       address: "시험시 시험로 1", directions: "", phone: "02-555-0100", amenities: "", parking: "", closedNote: "",
       hours: [day, day, day, day, day, { opens: "11:00", closes: "20:00" }, null] } });
-    await editor.getByText("지금: 매장 목록에 보임 · 11월 27일 10:31에 저장").waitFor();
+    await editor.getByText("지금: 공개 · 매장 목록에 보임 · 11월 27일 10:31에 저장").waitFor();
     assert.equal(await editor.getByLabel("매장 종류").inputValue(), "카페");
 
     // Taking the hours and the listing back sends null hours and an unlisted page.
     await editor.getByLabel("영업시간을 손님에게 보이기").uncheck();
     await editor.getByLabel("손님 앱의 매장 목록에 보이기").uncheck();
     await save.click();
-    await editor.getByText("매장 목록에 안 보임 · 매장 바로가기 QR로만 열림", { exact: false }).waitFor();
+    await editor.getByText("지금: 공개 · 매장 목록에 안 보임 · 매장 바로가기 QR로만 열림", { exact: false }).waitFor();
     const last = saves.pop().body;
-    assert.deepEqual([last.listed, last.hours], [false, null]);
+    assert.deepEqual([last.published, last.listed, last.hours], [true, false, null]);
+
+    // Taking the page back: nothing of the store opens in the customer app any more.
+    await editor.getByLabel("매장 화면 공개").uncheck();
+    await save.click();
+    await editor.getByText("지금: 비공개 · 손님 앱에서 매장 화면과 메뉴가 열리지 않음", { exact: false }).waitFor();
+    assert.equal(saves.pop().body.published, false);
     assert.deepEqual(errors, []);
-    console.log("store page editor: required kind, phone and hours checks, hours preview, refused save, saved page, unlisted without hours, 390px and 2x text");
+    console.log("store page editor: required kind, phone and hours checks, hours preview, refused save, published and listed page, unlisted without hours, page taken back, 390px and 2x text");
   } finally {
     await browser.close();
     server.close();

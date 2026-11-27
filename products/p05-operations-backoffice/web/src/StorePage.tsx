@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hoursLines, storePageForm, storePageProblem, storePageWire, weekdays, type StorePageForm, type StorePageSaved } from "./storePageForm";
+import { hoursLines, storePageForm, storePageProblem, storePageReach, storePageWire, weekdays, type StorePageForm, type StorePageSaved } from "./storePageForm";
 
 const pageUrl = (branch: string) => `/v2/operations/store-page/${encodeURIComponent(branch)}`;
 
@@ -55,14 +55,17 @@ export function StorePage({ branch, zone }: { branch: string; zone: string }) {
   return (
     <section aria-labelledby="store-page">
       <h2 id="store-page">매장 화면</h2>
-      <p>손님 앱의 매장 목록과 매장 화면에 보이는 내용입니다. 여기에 적은 것만 보이고, 비워 둔 칸은 손님 화면에서 빠집니다. 리뷰와 평점은 없습니다.</p>
+      <p>손님 앱의 매장 목록과 매장 화면에 보이는 내용입니다. 매장 화면 공개를 켠 동안에만 손님에게 보이며, 여기에 적은 것만 보이고 비워 둔 칸은 손님 화면에서 빠집니다. 리뷰와 평점은 없습니다.</p>
       {saved.name
         ? <p>매장 이름: <strong>{saved.name}</strong> (지점 이름에서 바꿉니다)</p>
         : <p className="warning">지점 이름이 아직 없습니다. 지점 이름을 먼저 저장해야 매장 화면을 낼 수 있습니다.</p>}
       {saved.saved && saved.changedAt
-        ? <p>지금: {saved.listed ? "매장 목록에 보임" : "매장 목록에 안 보임 · 매장 바로가기 QR로만 열림"} · {when(saved.changedAt, zone)}에 저장</p>
-        : <p>아직 저장한 매장 화면이 없습니다. 손님에게는 매장 이름과 주문 받기 상태만 보입니다.</p>}
+        ? <p>지금: {storePageReach(saved)} · {when(saved.changedAt, zone)}에 저장</p>
+        : <p>아직 저장한 매장 화면이 없습니다. 공개하기 전에는 손님 앱에서 이 매장의 화면과 메뉴가 열리지 않습니다.</p>}
+      <label><input type="checkbox" checked={form.published} onChange={(e) => set({ published: e.target.checked })} /> 매장 화면 공개</label>
+      <p>공개를 켜고 저장하면 손님 앱에서 이 매장의 화면과 메뉴가 열립니다. 끄고 저장하면 매장 바로가기 QR로도 열리지 않습니다. 이미 받은 주문은 그대로 진행됩니다.</p>
       <label><input type="checkbox" checked={form.listed} onChange={(e) => set({ listed: e.target.checked })} /> 손님 앱의 매장 목록에 보이기</label>
+      {form.listed && !form.published && <p className="warning">매장 목록에는 매장 화면을 공개한 동안에만 보입니다.</p>}
       {text("매장 종류", "kind", 40, "예: 카페")}
       {text("소개", "intro", 200, "매장을 한두 줄로 소개해 주세요")}
       {text("주소", "address", 200, "손님이 복사하거나 지도 앱으로 여는 주소")}

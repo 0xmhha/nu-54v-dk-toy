@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { hoursLines, storePageForm, storePageProblem, storePageWire } from "../src/storePageForm.ts";
+import { hoursLines, storePageForm, storePageProblem, storePageReach, storePageWire } from "../src/storePageForm.ts";
 
 const day = { opens: "10:00", closes: "21:00" };
-const saved = { listed: true, kind: "카페", intro: "직접 볶은 원두", address: "시험시 시험로 1", directions: "", phone: "02-555-0100",
+const saved = { published: true, listed: true, kind: "카페", intro: "직접 볶은 원두", address: "시험시 시험로 1", directions: "", phone: "02-555-0100",
   amenities: "무선 인터넷", parking: "", closedNote: "매주 일요일", hours: [day, day, day, day, day, { opens: "11:00", closes: "20:00" }, null] };
 
 // A saved page goes to the form and back unchanged.
@@ -13,8 +13,16 @@ assert.equal(storePageProblem(form), undefined);
 assert.deepEqual(storePageWire(form), saved);
 
 // A page never saved: no hours are sent until the store gives them, and text is trimmed.
-const empty = storePageForm({ listed: false, kind: "", intro: "", address: "", directions: "", phone: "", amenities: "", parking: "", closedNote: "", hours: null });
+const empty = storePageForm({ published: false, listed: false, kind: "", intro: "", address: "", directions: "", phone: "", amenities: "", parking: "", closedNote: "", hours: null });
 assert.equal(empty.hoursGiven, false);
+// A page is not public until the store says so, and what is sent says it either way.
+assert.equal(empty.published, false);
+assert.equal(storePageWire({ ...empty, kind: "카페" }).published, false);
+assert.equal(storePageWire({ ...empty, kind: "카페", published: true, listed: true }).published, true);
+assert.equal(storePageReach({ published: false, listed: false }), "비공개 · 손님 앱에서 매장 화면과 메뉴가 열리지 않음");
+assert.equal(storePageReach({ published: false, listed: true }), "비공개 · 손님 앱에서 매장 화면과 메뉴가 열리지 않음");
+assert.equal(storePageReach({ published: true, listed: true }), "공개 · 매장 목록에 보임");
+assert.equal(storePageReach({ published: true, listed: false }), "공개 · 매장 목록에 안 보임 · 매장 바로가기 QR로만 열림");
 assert.equal(storePageProblem(empty), "매장 종류를 적어 주세요. 예: 카페");
 assert.deepEqual(storePageWire({ ...empty, kind: " 카페 ", intro: " 소개 " }).hours, null);
 assert.equal(storePageWire({ ...empty, kind: " 카페 " }).kind, "카페");

@@ -1,12 +1,16 @@
 // The store page a store writes for the customer app (traveller-services.md chapter 9 item 7): its kind,
-// introduction, address, hours, phone and amenities, and whether it appears in the app's store list. opsd checks every
-// field again; the checks here only say what is wrong before the save.
+// introduction, address, hours, phone and amenities, whether the page is public and whether it appears in the app's
+// store list. opsd checks every field again; the checks here only say what is wrong before the save.
+//
+// `published` is the store's own switch, off until the store turns it on: while it is off the customer app opens
+// neither the store's page nor its menu, with or without the store's shortcut QR. `listed` matters only while the
+// page is published.
 
 /** One weekday: closed, or open between two wall-clock times of the store's own zone. */
 export type DayHours = { opens: string; closes: string } | null;
 /** The page as opsd keeps it. `hours` is seven days from Monday, or null when the store has not said its hours. */
 export type StorePageWire = {
-  listed: boolean; kind: string; intro: string; address: string; directions: string; phone: string;
+  published: boolean; listed: boolean; kind: string; intro: string; address: string; directions: string; phone: string;
   amenities: string; parking: string; closedNote: string; hours: DayHours[] | null;
 };
 export type StorePageSaved = StorePageWire & { name: string | null; saved: boolean; changedBy?: string | null; changedAt?: string | null };
@@ -52,11 +56,16 @@ export function storePageProblem(form: StorePageForm): string | undefined {
 export function storePageWire(form: StorePageForm): StorePageWire {
   const text = (value: string) => value.trim();
   return {
-    listed: form.listed, kind: text(form.kind), intro: text(form.intro), address: text(form.address), directions: text(form.directions),
+    published: form.published, listed: form.listed, kind: text(form.kind), intro: text(form.intro), address: text(form.address), directions: text(form.directions),
     phone: text(form.phone), amenities: text(form.amenities), parking: text(form.parking), closedNote: text(form.closedNote),
     hours: form.hoursGiven ? form.days.map((day) => (day.open ? { opens: day.opens, closes: day.closes } : null)) : null,
   };
 }
+
+/** Who can open the store's page in the customer app, as the editor says it. */
+export const storePageReach = (page: Pick<StorePageWire, "published" | "listed">) =>
+  !page.published ? "비공개 · 손님 앱에서 매장 화면과 메뉴가 열리지 않음"
+    : page.listed ? "공개 · 매장 목록에 보임" : "공개 · 매장 목록에 안 보임 · 매장 바로가기 QR로만 열림";
 
 /** "평일 10:00~21:00" style lines: neighbouring weekdays with the same hours are read together. */
 export function hoursLines(hours: DayHours[]): { days: string; time: string }[] {
