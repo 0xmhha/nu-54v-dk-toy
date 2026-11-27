@@ -20,11 +20,14 @@ import sys
 class Inputs:
     """The files a build reads: everything below `take`, without what is below `leave`, except what is below `keep`.
 
-    `installed` pairs each lockfile with the copy of it that the package manager keeps of its last install.
+    `written` names, as git ignore patterns from the root, the new files below `take` that are no source: what the
+    build, the editor and the machine write. `installed` pairs each lockfile with the copy of it that the package
+    manager keeps of its last install.
     """
     take: tuple
     leave: tuple = ()
     keep: tuple = ()
+    written: tuple = ()
     installed: tuple = ()
 
     def has(self, name):
@@ -47,6 +50,11 @@ USER_APP = Inputs(
            "packages/protocol/platform/test",
            "products/p02-user-app/ios", "packages/protocol/platform/ios", "packages/protocol/platform/Nu54ProtocolMobile.podspec"),
     keep=("products/p02-user-app/src/specs",),  # the build generates native code from these
+    # The ignore rules of the repository are not used: they name build/, out/, cache/, dist/ and bin/ wherever they lie,
+    # and a new package of that name is a source. The build directories are named by their place instead.
+    written=(*(f"/products/p02-user-app/android/{name}/" for name in ("build", "app/build", "app/.cxx", ".gradle", ".kotlin")),
+             "node_modules/", ".idea/", "*.iml", "*.hprof", ".DS_Store",
+             "local.properties", "*.keystore"),  # where this machine keeps the SDK, and keys that are not the tracked debug key
     # The build takes native code from node_modules, which no digest here covers. pnpm writes the lockfile it installed
     # from to node_modules/.pnpm/lock.yaml; that file is pnpm's own and not a documented interface. An install of a part
     # of the workspace (--filter) writes a part of the lockfile and is refused here, and files edited inside
@@ -59,10 +67,10 @@ class Unlisted(Exception):
 
 
 def input_files(root, inputs):
-    """Tracked and new files of the working tree that the build reads; ignored files are build output."""
+    """Tracked and new files of the working tree that the build reads."""
     try:
-        listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", *inputs.take],
-                                capture_output=True, check=True)
+        listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", *(f"--exclude={pattern}" for pattern in inputs.written),
+                                 "--", *inputs.take], capture_output=True, check=True)
     except (OSError, subprocess.CalledProcessError) as error:
         detail = getattr(error, "stderr", b"") or str(error).encode()
         raise Unlisted(f"git cannot list the app's sources in {root}: {detail.decode(errors='replace').strip()}") from error

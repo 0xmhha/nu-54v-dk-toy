@@ -88,7 +88,8 @@ class Repository(unittest.TestCase):
         for name, text in {
                 MANIFEST: "<manifest><uses-permission android:name='android.permission.POST_NOTIFICATIONS'/></manifest>\n",
                 KOTLIN: "class SubscriptionAlertsModule\n", SPEC: "export interface Spec {}\n", SHARED: "// shared\n", CONSTRAINTS: "// constraints\n",
-                LOCK: "lockfileVersion: '9.0'\n", ".gitignore": "node_modules/\n", f"{APP}/.gitignore": "build/\n", f"{APP}/README.md": "# App\n", f"{APP}/src/wallet/Home.tsx": "export {};\n",
+                LOCK: "lockfileVersion: '9.0'\n", ".gitignore": "node_modules/\nbuild/\nout/\ncache/\ndist/\nbin/\n.gradle/\nlocal.properties\n.DS_Store\n",
+                f"{APP}/.gitignore": "build/\n.cxx/\n.kotlin/\n.idea\n*.iml\n", f"{APP}/README.md": "# App\n", f"{APP}/src/wallet/Home.tsx": "export {};\n",
                 f"{APP}/test/home.test.tsx": "test('home', () => {});\n", f"{APP}/ios/NU54Renter/AppDelegate.swift": "// ios\n",
                 f"{APP}/android/app/src/androidTest/java/com/nu54renter/ble/OwnerTlsLab.kt": "class OwnerTlsLab\n",
                 "docs/content/commercial/traveller-services.md": "# Services\n", "scripts/android/market/run-orders.sh": "true\n"}.items():
@@ -185,6 +186,27 @@ class BuildRecord(Repository):
         self.build()
         self.write(f"{APP}/react-native.config.js", "module.exports = {};\n")
         self.assertIn(f"{APP}/react-native.config.js", self.stale())
+
+    def test_a_new_source_in_a_directory_named_like_build_output_counts(self):
+        """The ignore rules of the repository name build, out, cache, dist and bin wherever they lie."""
+        for directory in ("build", "out", "cache", "dist", "bin"):
+            with self.subTest(directory):
+                self.build()
+                new = f"{APP}/android/app/src/main/java/com/nu54renter/{directory}/Entry.kt"
+                self.write(new, "class Entry\n")
+                self.assertIn(new, self.stale())
+        self.build()
+        self.write("packages/protocol/platform/android/com/nu54/protocol/cache/Frames.kt", "class Frames\n")
+        self.assertIn("packages/protocol/platform/android/com/nu54/protocol/cache/Frames.kt", self.stale())
+
+    def test_what_a_build_or_an_editor_writes_is_no_input(self):
+        self.build()
+        for name in (f"{APP}/android/app/build/generated/source/codegen/Spec.java", f"{APP}/android/build/reports/problems.html", f"{APP}/android/.gradle/8.14/fileHashes.bin",
+                     f"{APP}/android/.kotlin/sessions/kotlin-compiler.salive", f"{APP}/android/app/.cxx/Debug/x86_64/build.ninja", f"{APP}/node_modules/react-native/index.js",
+                     "packages/protocol/platform/node_modules/typescript/index.js", f"{APP}/android/local.properties", f"{APP}/android/.idea/workspace.xml",
+                     f"{APP}/android/app/app.iml", f"{APP}/android/app/src/main/.DS_Store", f"{APP}/android/java_pid1.hprof"):
+            self.write(name, "written\n")
+            self.assertIsNone(self.stale(), name)
 
     def test_modification_times_play_no_part(self):
         self.build()
