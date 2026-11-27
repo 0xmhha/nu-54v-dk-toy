@@ -79,10 +79,10 @@ make -C products/p01-device-firmware test HOST_BUILD=/tmp/nu54-w12-host-build
 
 | 상수 | 값 | 쓰는 곳 |
 |---|---|---|
-| `approvedCustomerEntrance` | `origin`(opsd `P05_CUSTOMER_ADDR`의 https 주소), `ca`(서버 인증서를 발급한 CA, DER의 base64), `pin`(서버 인증서 공개키 SPKI의 SHA-256, 소문자 16진수 64자) | 매장 목록, 매장 화면, 메뉴, 계정 증명, 세션 요청. 시스템 인증서 저장소는 쓰지 않는다 |
+| `approvedCustomerEntrance` | `origin`(opsd `P05_CUSTOMER_ADDR`의 https 주소), `ca`(서버 인증서를 발급한 CA, DER의 base64), `pin`(서버 인증서 공개키 SPKI의 SHA-256, 소문자 16진수 64자. 서버 키를 바꾸는 동안에는 `["지금 키", "다음 키"]`처럼 두 개까지) | 매장 목록, 매장 화면, 메뉴, 계정 증명, 세션 요청. 시스템 인증서 저장소는 쓰지 않는다 |
 | `approvedOrderPayment` | `chain`(8283), `contract`(주문 계약 `OrderEscrow` 주소), `asset`(그 계약의 토큰 주소), `token`(이름·기호·화면 이름·자릿수. 없으면 달러 시험 토큰), `rpc`(체인을 읽을 주소. 소유자가 고른 서버가 먼저다) | 견적 검증. 서버는 매장의 계약 번호(`merchantId`)만 알려 주고, 앱은 이 계약에서 그 번호의 견적 서명자와 받는 주소를 읽는다 |
 
-빌드할 때 묶는 방법은 하나다. 아래 모양의 JSON 파일을 만들고 그 경로를 `NU54_CUSTOMER_ORDER_BUILD`에 넣어 번들한다(`build-tools/customer-order-build.js`, `babel.config.js`). 값이 형식에 맞지 않으면 번들이 멈춘다. `payment`는 빼도 되고(목록만 보는 빌드), `entrance` 없이 `payment`만 넣을 수는 없다. 필드 이름은 매장 등록서의 `payment` 항목과 같으므로, 로컬 배포 기록의 `chain`·`contract`·`asset`·`token`·`rpc`를 그대로 옮긴다. 체인의 첫 블록은 앱이 이미 가진 값(`src/wallet/readProfiles.ts`의 `stable.anchor`)을 쓴다.
+빌드할 때 묶는 방법은 하나다. 아래 모양의 JSON 파일을 만들고 그 경로를 `NU54_CUSTOMER_ORDER_BUILD`에 넣어 번들한다(`build-tools/customer-order-build.js`, `babel.config.js`). 값이 형식에 맞지 않으면 번들이 멈춘다. 앱은 시작할 때 같은 값을 다시 검사하고, 거절한 값은 없는 값으로 다룬다(목록이 안 보이거나 주문을 받지 않는다). 그래서 앱이 거절할 값은 번들에서 먼저 멈추게 했다: 주소 형식, 토큰의 이름·기호·화면 이름·자릿수(9자리 이상이면 `boardDecimals` 2~8), KRWC(`WKRC`)와 그 주소의 짝, `origin`의 호스트와 포트. 두 검사가 어긋나지 않는지는 `test/customerOrderBuild.test.js`가 견준다. `payment`는 빼도 되고(목록만 보는 빌드. 이 빌드는 매장 화면은 보여 주고 주문은 예전처럼 매장 등록으로 받는다), `entrance` 없이 `payment`만 넣을 수는 없다. 둘 다 묶은 빌드만 매장 등록 없이 주문하고, 그 빌드에서는 주문 등록과 보드의 매장 등록을 묻는 화면과 문구가 나오지 않는다(`src/merchant/orderRoute.ts`). 필드 이름은 매장 등록서의 `payment` 항목과 같으므로, 로컬 배포 기록의 `chain`·`contract`·`asset`·`token`·`rpc`를 그대로 옮긴다. 체인의 첫 블록은 앱이 이미 가진 값(`src/wallet/readProfiles.ts`의 `stable.anchor`)을 쓴다.
 
 ```json
 {
@@ -96,14 +96,24 @@ make -C products/p01-device-firmware test HOST_BUILD=/tmp/nu54-w12-host-build
 openssl x509 -in ca.pem -outform der | base64 | tr -d '\n'                                             # ca
 openssl x509 -in server.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256   # pin
 NU54_CUSTOMER_ORDER_BUILD=/path/to/order-build.json npx react-native start --reset-cache               # 로컬 시험 번들
-pnpm -C products/p02-user-app test customerOrderBuild orderPaymentTrust storeOrder                     # 묶는 도구, 검증, 주문 흐름
+pnpm -C products/p02-user-app test customerOrderBuild orderPaymentTrust storeOrder journalNames        # 묶는 도구, 검증, 주문 흐름, 저널 이름
 ```
 
 다시 배포해야 하는 때:
 
-- 서버 인증서의 키를 바꾸면 `pin`이 달라진다. 새 키로 바꾸기 전에 새 `pin`을 묶은 앱을 먼저 내야 하고, 옛 앱은 새 서버에 연결하지 못한다. 같은 키로 인증서만 다시 받으면 `pin`은 그대로다.
+- 서버 인증서의 키를 바꾸면 `pin`이 달라진다. 순서는 이렇다. (1) `pin`에 지금 키와 다음 키를 함께 묶은 앱을 낸다. (2) 그 앱이 퍼진 뒤 서버 키를 바꾼다. (3) 다음 배포에서 옛 키를 뺀다. `pin`을 하나만 묶은 옛 앱은 키가 바뀐 서버에 연결하지 못한다. 같은 키로 인증서만 다시 받으면 `pin`은 그대로다.
 - CA를 바꾸면 `ca`가, 서버 주소를 바꾸면 `origin`이 달라져 앱을 다시 내야 한다.
 - 주문 계약을 새로 배포하거나 토큰을 바꾸면 `contract`·`asset`·`token`이 달라져 앱을 다시 내야 한다. 옛 앱은 새 계약의 견적을 거절한다.
 - 매장의 견적 서명 키나 받는 주소를 바꾸는 것(`configureMerchant`)은 앱을 다시 내지 않는다. 앱이 결제 때마다 계약에서 읽는다. 확정된 블록을 읽으므로 바꾼 직후 잠깐은 옛 값으로 검증해 새 견적을 거절할 수 있다.
+
+플랫폼마다 다른 점(`packages/protocol/platform/android/com/nu54/protocol/CommerceHttp.kt`, `platform/ios/CommerceHttp.h`). 서버를 준비할 때 더 좁은 쪽에 맞춘다.
+
+| 항목 | Android | iOS | 서버가 할 일 |
+|---|---|---|---|
+| `pin`으로 묶을 수 있는 키 | 종류와 상관없이 인증서 공개키(SPKI)의 SHA-256 | P-256(ECDSA) 키만. 다른 종류의 키는 `pin` 값이 맞아도 연결하지 않는다 | 입구 인증서의 키를 P-256으로 만든다 |
+| 서버가 클라이언트 인증서를 요청할 때 | 인증서 없이 계속한다. 받아 줄지는 서버가 정한다 | 연결을 끊고 응답 없음으로 다룬다 | 입구에서는 클라이언트 인증서를 요청하지 않는다 |
+| UTF-8이 아닌 응답 본문 | 읽지 못한 바이트를 대체 문자로 바꿔 넘긴다(대개 JSON으로 읽히지 않아 본문 없음이 된다) | 응답 없음으로 다룬다 | 본문은 UTF-8 JSON으로만 보낸다 |
+| 프록시 | 쓰지 않는다 | 쓰지 않는다 | 없음 |
+| 저널 이름 | 목록과 패턴이 같다. `test/journalNames.test.ts`가 두 소스와 시험용 저널을 견준다 | 같다. 길이는 82자까지 | 없음 |
 
 남는 위험: 서버가 등록된 다른 매장의 번호를 주면 그 매장의 견적이 검증을 통과한다. 돈은 같은 주문 계약에 잠기고 이의로 돌려받는다. 체인을 읽는 서버(`rpc` 또는 소유자가 고른 서버)가 거짓 기록을 주는 경우도 같은 범위다. 운영자 서명 매장 프로필은 실제 자산 전에 더한다([유즈케이스 점검과 결정](../../docs/content/commercial/use-case-review.md) 9장).
