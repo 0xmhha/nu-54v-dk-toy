@@ -461,7 +461,12 @@ func (h HTTP) serveFor(w http.ResponseWriter, r *http.Request, principal service
 			err = service.BadRequest
 		}
 	case "order.create":
-		if err = checkCart(bound, outer.Cart); err == nil {
+		err = checkCart(bound, outer.Cart)
+		if err == nil && session != nil {
+			// A proven account: its balance is read from the chain immediately before the hold (customer_funds.go).
+			err = h.beforeHold(ctx, clientKey(r), bound, *outer.Cart)
+		}
+		if err == nil {
 			out.ResultRef, err = h.Store.Reserve(ctx, bound, *outer.Cart)
 		}
 	case "order.nearby-result":
@@ -695,6 +700,11 @@ func (h HTTP) issueWithReview(ctx context.Context, bound service.Bound, review *
 }
 
 func errorResponse(w http.ResponseWriter, err error, bound *service.Bound) {
+	var unheld *holdRefusal
+	if bound != nil && errors.As(err, &unheld) {
+		unheld.write(w, *bound)
+		return
+	}
 	var rejection *reservationRejection
 	if bound != nil && errors.As(err, &rejection) {
 		reply := service.Outcome(*bound, "error")

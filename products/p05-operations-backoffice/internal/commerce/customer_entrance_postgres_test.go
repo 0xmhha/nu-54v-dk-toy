@@ -339,6 +339,85 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatalf("requests without a session left a mark: %s, was %s", after, before)
 	}
 
+	// --- a cart holds stock only when its proven account can pay it as the chain stands now ---
+	tryOrder := func(session, ref, key string) (int, string, map[string]any) {
+		t.Helper()
+		cart := Cart{Origin: "menu", OriginRef: ref, MenuVersion: 1, Items: []Item{{SKU: "tea", Option: "standard", Qty: 1}}}
+		packed, _ := json.Marshal(cart)
+		digest := sha256.Sum256(packed)
+		raw, _ := json.Marshal(map[string]any{"cart": cart, "command": service.Request{Version: 2, Contract: "C3", Operation: "order.create",
+			RequestID: fresh(), Domain: shop, Object: ref, ExpiresAt: time.Now().Unix() + 30, IdempotencyKey: key,
+			Body: map[string]string{"asset": asset, "quantity": "1", "intentDigest": hex.EncodeToString(digest[:])}}})
+		req, _ := http.NewRequestWithContext(ctx, "POST", customers.URL+"/v2/customer/commerce", bytes.NewReader(raw))
+		req.Header.Set("Authorization", "Bearer "+session)
+		reply, err := customer.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reply.Body.Close()
+		var decoded map[string]any
+		_ = json.NewDecoder(reply.Body).Decode(&decoded)
+		return reply.StatusCode, reply.Header.Get("Retry-After"), decoded
+	}
+	unheld := footprint()
+	unread := func(when string) {
+		t.Helper()
+		status, retry, got := tryOrder(session, fresh(), fresh())
+		if status != 503 || retry != "3" || got["status"] != "error" || got["error"] != string(service.Busy) || got["reason"] != "balance_unavailable" ||
+			got["requestId"] == "" || got["required"] != nil || got["balance"] != nil {
+			t.Fatalf("%s: %d, Retry-After %q, %v", when, status, retry, got)
+		}
+		if after := footprint(); after != unheld {
+			t.Fatalf("%s: a refused cart left a mark: %s, was %s", when, after, unheld)
+		}
+	}
+	unread("no chain reader") // a cart is not held on trust
+	funds := &fakeFunds{asset: common.HexToAddress(asset), err: fmt.Errorf("rpc down")}
+	h.Customer.Funds = funds
+	unread("the chain cannot be read")
+	funds.err, funds.balance = nil, big.NewInt(299_999) // the tea costs 300000 base units
+	status, retry, short := tryOrder(session, fresh(), fresh())
+	if status != 409 || retry != "" || short["error"] != string(service.CheckoutConflict) || short["reason"] != "balance_short" ||
+		short["required"] != "300000" || short["balance"] != "299999" || short["requestDigest"] == "" || short["resultRef"] != nil {
+		t.Fatalf("a balance one unit short: %d %v", status, short)
+	}
+	if asked := funds.asked[len(funds.asked)-1]; asked != shop+"/"+strings.ToLower(account.Hex()) || footprint() != unheld {
+		t.Fatalf("asked %s; footprint %s, was %s", asked, footprint(), unheld)
+	}
+	// An address starts a limited number of carts in a time window, whatever the balance says.
+	h.Customer.HoldLimiter = NewRateLimiter(6, 1, nil)
+	if status, _, got := tryOrder(session, fresh(), fresh()); status != 409 || got["reason"] != "balance_short" {
+		t.Fatalf("the first cart of the window: %d %v", status, got)
+	}
+	asks := len(funds.asked)
+	if status, retry, got := tryOrder(session, fresh(), fresh()); status != 429 || retry != "10" || got["error"] != string(service.Busy) ||
+		got["reason"] != "hold_limit" || len(funds.asked) != asks {
+		t.Fatalf("a second cart in the window: %d, Retry-After %q, %v", status, retry, got)
+	}
+	if counts := h.Customer.Limited.Drain(); counts["hold"] != 1 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	h.Customer.HoldLimiter = nil
+	// Enough, to the unit: the cart is held. The same request again reads its first answer without another look at
+	// the balance, so a retry after the payment is not refused for the money that payment took.
+	funds.balance = big.NewInt(300_000)
+	firstRef, firstKey := fresh(), fresh()
+	status, _, held := tryOrder(session, firstRef, firstKey)
+	if status != 200 || held["resultRef"] == nil || footprint() == unheld {
+		t.Fatalf("a cart its account can pay: %d %v", status, held)
+	}
+	funds.balance, asks = big.NewInt(0), len(funds.asked)
+	if status, _, again := tryOrder(session, firstRef, firstKey); status != 200 || again["resultRef"] != held["resultRef"] || len(funds.asked) != asks {
+		t.Fatalf("the same request again: %d %v (%d balance reads)", status, again, len(funds.asked)-asks)
+	}
+	if status, _, got := tryOrder(session, fresh(), fresh()); status != 409 || got["reason"] != "balance_short" || got["balance"] != "0" {
+		t.Fatalf("a new cart of an emptied account: %d %v", status, got)
+	}
+	// That hold runs out and its stock comes back; the rest of the test orders with the balance for one tea.
+	execute("UPDATE ledger.order_checkout SET expires_at=now()-interval '1 second' WHERE sale_id=$1", held["resultRef"])
+	execute("SELECT ledger.reclaim_expired_order()")
+	funds.balance = big.NewInt(300_000)
+
 	sale := order(session, 200)["resultRef"].(string)
 	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a second unpaid hold for one account", got)

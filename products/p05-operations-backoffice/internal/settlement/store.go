@@ -67,6 +67,8 @@ type Forwarder struct {
 	// Faucet is nil where no store offers test tokens. GasAccount is shown to an operator.
 	Faucet     *Faucet
 	GasAccount common.Address
+	// Balances reads an account's balance of a token from the chain (AccountBalance). PayerBalance uses it.
+	Balances func(ctx context.Context, token, account common.Address) (*big.Int, error)
 }
 
 // Paused reports a branch whose deployment or token was refused at start.

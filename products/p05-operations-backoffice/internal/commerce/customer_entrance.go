@@ -58,6 +58,12 @@ type CustomerEntrance struct {
 	// and so on the sessions and the new proven accounts one address starts in a time window. Pickup challenges are
 	// not counted: they end in a QR, and a waiting customer renews it every minute.
 	StartLimiter *RateLimiter
+	// HoldLimiter is the limit of each address on the carts its sessions ask to hold. One proven account holds one
+	// unpaid cart at a time (migration 122); this bounds how many accounts of one address hold stock at once.
+	HoldLimiter *RateLimiter
+	// Funds reads a proven account's balance before its cart holds stock (customer_funds.go). Without it no cart
+	// of a proven account is held.
+	Funds PayerFunds
 	// Gate, when set, wraps what a request does once it is admitted. opsd passes the recovery gate, whose lease
 	// holds a connection of the control database for as long as the handler runs. A request enters it only after
 	// its address passed the rate limit, its body was read and it took a place in InFlight, so a refused request,
@@ -192,7 +198,8 @@ func (c *LimitedCount) add(kind string) {
 
 // Drain returns the counts since the last call, by kind: "proof", "read", "photo", "address" (the ceiling of one
 // address over session requests), "session" (one session's own limit), "unknown" (session tokens the server does not
-// know), "start" (challenges that can end in a session) and "busy" (no place among the requests served at once).
+// know), "start" (challenges that can end in a session), "hold" (carts an address asked to hold) and "busy" (no
+// place among the requests served at once).
 func (c *LimitedCount) Drain() map[string]int64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
