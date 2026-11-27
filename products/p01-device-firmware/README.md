@@ -300,15 +300,36 @@ python3 scripts/enroll_board.py install "$board_address" grant.bin --station-key
 
 The phone registers with SW1 and a new PIN entered twice. The board then has generation 1. This
 registration is also when the board makes the wallet key: a board without an owner, new or reset, holds
-none, and its status answers carry a zero address until then.
+none, and its status answers carry a zero address until then. A board that never had an owner (generation
+0) does not answer the owner status (op 7) at all; the wallet status (0x7f) answers with the zero address.
+Such a board holds no PIN either: a registration that does not complete takes back the PIN it set, and a
+start without an owner removes any PIN it finds.
 
-**Grant per boot.** A grant lives in RAM, for at most 24 hours. After each restart open SW4 again, take a
-fresh ticket and offer, and issue with a new `not_after` and a higher `revision`. Keep `payer_generation`
-equal to the generation the phone shows. Only the same policy and certificates may keep their revision.
+**Grant through restarts.** A grant runs until its `not_after`, at most 31 days after it was issued. The
+spending profile keeps it in protected storage and takes it up again after a restart, if it is still the
+grant the board committed, fits the owner's generation and has not ended. A factory reset removes it. The
+certificates in the grant have to last as long as the grant, and so does the phone's owner certificate.
+
+The board has no clock that runs without power. It saves its time every ten minutes and continues from
+the saved time, so after a restart its clock is late by the time it was off and by what passed since the
+last save. Two consequences:
+
+- The grant's period is counted in powered-on time. Payments still end at the calendar `not_after`: an
+  order that ends after it is refused, and the store signs the order's end by the calendar. Status, the
+  return address and a reset can go on until the board's own clock reaches the end.
+- A late clock refuses honest requests, because their end looks too far ahead (the limits in the table
+  below). More than 60 seconds late and orders are refused; more than 210 seconds and every request is.
+  Nothing but a new grant moves the clock forward, so after a longer time without power the operator
+  installs a new grant as before. This is an open question in the design.
+
+For a new grant open SW4, take a fresh ticket and offer, and issue with a new `not_after` and a higher
+`revision`. Its time must not be before the time the board has reached. Keep `payer_generation` equal to
+the generation the phone shows, or one above the board's generation while it has no owner. Only the same
+policy and certificates may keep their revision.
 
 The time between the offer and the installed grant, at most 60 seconds, is how far the board's latest
-possible time may run ahead until the next restart. A later grant in the same boot does not shorten it, so
-run the commands without a pause. The phone allows for it:
+possible time may run ahead while that grant is in use, also after a restart. A later grant does not
+shorten it, so run the commands without a pause. The phone allows for it:
 
 | Request | Phone sends | Board limit, from its latest possible time |
 |---|---|---|
@@ -331,8 +352,11 @@ advertises only after a button, as before. The power figures are estimates until
 
 The board takes two centrals. While it has no owner it goes on advertising as long as one slot is free,
 and it disconnects a central that starts neither the installation ticket nor a TLS session within 30
-seconds (`CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS`, counted again from the end of each attempt). A tool that
-connects and waits longer than that has to connect again.
+seconds (`CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS`, counted again from the end of each attempt; a ticket that
+was started counts for 15 seconds). A tool that connects and waits longer than that has to connect again.
+This drops idle centrals. It does not stop a central that means to block the board by reconnecting, by
+stalling a TLS start for its 120 seconds, or by rewriting the first ticket fragment while the SW4 window
+is open.
 
 **Long standby (not measured).** `--release --spending --standby` builds the application without the UART
 driver (`app/standby.conf`). The board default keeps that driver, and it leaves its receiver running, which
@@ -349,19 +373,23 @@ P01_BUILD_DIR=/tmp/p01-secure-key python3 scripts/fw.py build --release --spendi
 
 The build checks the generated configuration (TF-M, encrypted storage and persistent PSA keys), that the
 linker placed the signing code only in the TF-M image, and the MCUboot signature. It writes no release
-manifest. `fw.py flash` refuses every TF-M build, whichever option or board target shows it, and any build
-directory without its generated configuration. Its flash layout differs from the installed boards, so it
+manifest. `fw.py flash` refuses every TF-M build, whichever option or board target shows it, any build
+directory without its generated configuration, and any image that holds a secure gateway instruction or
+lies outside the installed layout, whatever the files beside it say. Its flash layout differs from the installed boards, so it
 is never an update for them. Nobody has run it on a board.
 
 **Reset.** The owner resets in the app (SW1 and PIN) or with the buttons: SW2 and SW3 for 5 seconds, the
 PIN, then SW1 long within 10 seconds. Every reset reports success only after the key store confirmed
 that the wallet key is gone; otherwise the lamp shows a failure and the next start tries again. The
 operator's signed reset is the reset of the return desk, and the one for a forgotten PIN. It also runs on
-a board that was reset before, where it erases nothing and confirms again that no key is left:
+a board that was reset before. There it goes through the whole reset again: the key, the PIN and the
+order records are already gone, a grant installed since then is removed with its saved time, and the
+board confirms again that no key is left:
 
 1. The board needs a current grant. On the enrolled phone, open the reset screen. On another phone with an
    owner certificate of the same CA, hold SW3 first. That window lasts 120 seconds and is needed again for
-   the answer.
+   the answer. A board that was reset before has no SW3 window: only the phone its grant names as the
+   owner can ask.
 2. Compare the request's board id with `device` in the commissioning record, then sign it:
 
    ```sh
