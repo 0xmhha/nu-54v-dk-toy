@@ -172,6 +172,7 @@ const read: Record<string, () => Promise<void> | void> = {
     const refusal = await reserve('hold-balance-short');
     expect(refusal).toBeInstanceOf(CommerceHoldRefusal);
     expect(refusal).toMatchObject({message: 'CHECKOUT_CONFLICT', reason: 'balance_short', required: '300000', balance: '299999'});
+    expect(reply('hold-balance-short')).toMatchObject({status: 409});
     expect(reply('hold-balance-short').retryAfter).toBeUndefined();
   },
   'hold-balance-unavailable': async () => {
@@ -201,13 +202,19 @@ const read: Record<string, () => Promise<void> | void> = {
     const refusal = await reserve('hold-cart-released');
     expect(refusal).toBeInstanceOf(CommerceHoldRefusal);
     expect(refusal).toMatchObject({message: 'CHECKOUT_CONFLICT', reason: 'cart_released', required: undefined, balance: undefined});
+    // The status is part of the answer: 404 would read as a session that ended (the board would be asked to prove the
+    // account again), 429 or 503 as "again shortly". 409 is neither, and names no time to wait.
+    expect(reply('hold-cart-released')).toMatchObject({status: 409});
     expect(reply('hold-cart-released').retryAfter).toBeUndefined();
+    expect(entranceBusy(reply('hold-cart-released'))).toBe(false);
+    expect(await heldBack('hold-cart-released')).toBe(false); // the new request the app makes is sent at once
   },
   'hold-other-cart': async () => {
     // One unpaid cart for each account: the plain code, with no reason and no numbers.
     const refusal = await reserve('hold-other-cart');
     expect(refusal).not.toBeInstanceOf(CommerceHoldRefusal);
     expect(refusal).toMatchObject({message: 'CHECKOUT_CONFLICT'});
+    expect(reply('hold-other-cart')).toMatchObject({status: 409});
   },
 
   // --- an unpaid cart taken back ---
