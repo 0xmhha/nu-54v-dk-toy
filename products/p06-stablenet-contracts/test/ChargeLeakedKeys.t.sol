@@ -308,6 +308,89 @@ contract ChargeLeakedKeysTest is ChargeBase {
         assertEq(usdc.balanceOf(payer), 1_000_000e6);
     }
 
+    // ---- many replacements of the pauser at once ----
+
+    /// Two signers in the wrong hands flood the pauser's seat with twenty replacements. The honest pauser can
+    /// stop none of them. One signature of the third signer stops them all; nothing else is touched.
+    function testOneSignatureStopsTwentyPauserReplacements() public {
+        toWon();
+        for (uint256 i; i < 20; ++i) {
+            proposeOn(pool, "setKey", abi.encode(ChargeGovernance.Key.Pauser, vm.addr(0xC000 + i)), bytes32(i));
+        }
+        bytes32 seventh =
+            pool.actionOf(SET_KEY, abi.encode(ChargeGovernance.Key.Pauser, vm.addr(0xC007)), bytes32(uint256(7)));
+        proposeOn(pool, "withdraw", abi.encode(uint256(1)), "salt");
+        cancelByPauser(pool, seventh, ChargeGovernance.Unauthorized.selector);
+
+        // Only a signer: not the pauser, by transaction or by signature, and no other key.
+        uint256 until = block.timestamp + 6 days;
+        bytes32 digest = pool.actionDigest(keccak256("voidPauserReplacements"), 0, 0, until);
+        vm.prank(pauser);
+        vm.expectRevert(ChargeTypes.InvalidSignature.selector);
+        pool.voidPauserReplacements(until, "");
+        uint256[4] memory others = [PAUSER_KEY, RELAY_KEY, QUOTER_KEY, WITNESS_KEY];
+        for (uint256 i; i < others.length; ++i) {
+            vm.prank(pauser);
+            vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+            pool.voidPauserReplacements(until, sign(others[i], digest));
+        }
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        pool.voidPauserReplacements(block.timestamp, sign(SIGNER3_KEY, digest));
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        pool.voidPauserReplacements(block.timestamp + 7 days + 1, sign(SIGNER3_KEY, digest));
+
+        // Each of the three signers can, as each can cancel one such change.
+        for (uint256 i; i < 3; ++i) {
+            uint256 before = vm.snapshotState();
+            vm.expectEmit(address(pool));
+            emit ChargeGovernance.PauserReplacementsVoided(0, ChargeGovernance.Seat(i + 2));
+            vm.prank(stranger);
+            pool.voidPauserReplacements(until, sign(signerKeys[i], digest));
+            assertEq(pool.pauserRound(), 1);
+            assertEq(pool.generation(), 0);
+            vm.revertToState(before);
+        }
+        pool.voidPauserReplacements(until, sign(SIGNER3_KEY, digest));
+
+        vm.warp(block.timestamp + 24 hours);
+        for (uint256 i; i < 20; ++i) {
+            vm.expectRevert(ChargeGovernance.InvalidState.selector);
+            pool.setKey(ChargeGovernance.Key.Pauser, vm.addr(0xC000 + i), bytes32(i));
+        }
+        assertEq(pool.pauser(), pauser);
+        pool.withdraw(1, "salt"); // a change for no seat is not touched
+        assertEq(assetBalance(treasury), 1);
+
+        // The next flood is counted in the next round and needs a second signature; the first is used up.
+        proposeOn(pool, "setKey", abi.encode(ChargeGovernance.Key.Pauser, next), "again");
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        pool.voidPauserReplacements(until, sign(SIGNER3_KEY, digest));
+        until = block.timestamp + 1 days;
+        pool.voidPauserReplacements(
+            until, sign(SIGNER3_KEY, pool.actionDigest(keccak256("voidPauserReplacements"), 0, 1, until))
+        );
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        pool.setKey(ChargeGovernance.Key.Pauser, next, "again");
+    }
+
+    /// Without that signature the third signer has to cancel twenty changes one by one, and the one it
+    /// misses goes through a day later: the two leaked signers then hold the pauser as well.
+    function testOneMissedCancelOutOfTwentyHandsOverThePauser() public {
+        toWon();
+        bytes32[] memory flood = new bytes32[](20);
+        for (uint256 i; i < 20; ++i) {
+            flood[i] =
+                proposeOn(pool, "setKey", abi.encode(ChargeGovernance.Key.Pauser, vm.addr(0xC000 + i)), bytes32(i));
+        }
+        for (uint256 i; i < 20; ++i) {
+            if (i != 13) cancelBy(pool, SIGNER3_KEY, flood[i], 0);
+        }
+        vm.warp(block.timestamp + 24 hours);
+        pool.setKey(ChargeGovernance.Key.Pauser, vm.addr(0xC00D), bytes32(uint256(13)));
+        assertEq(pool.pauser(), vm.addr(0xC00D));
+    }
+
     // ---- what needs no key ----
 
     /// With every hot key off, deposits stopped, the spender cleared and the limit at its lowest, a deposit

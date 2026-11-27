@@ -181,6 +181,55 @@ contract ChargeReplayTest is ChargeBase {
         assertEq(deposit.propose(kind, arguments, 0, until, signatures), action);
     }
 
+    /// The one signature that voids every replacement of the pauser is for one contract, one chain and one
+    /// round of that seat. It is no cancel of a single change, and a cancel is no such signature.
+    function testAVoidOfPauserReplacementsIsForOneContractOneChainAndOneRound() public {
+        bytes32 kind = keccak256("voidPauserReplacements");
+        bytes memory arguments = abi.encode(ChargeGovernance.Key.Pauser, stranger);
+        uint256 until = block.timestamp + 6 days;
+        bytes memory signature = sign(SIGNER3_KEY, deposit.actionDigest(kind, 0, 0, until));
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        twinDeposit.voidPauserReplacements(until, signature);
+        toWon();
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        pool.voidPauserReplacements(until, signature);
+        vm.chainId(SOURCE_CHAIN + 1);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.voidPauserReplacements(until, signature);
+        toSource();
+
+        bytes32 action = proposeOn(deposit, "setKey", arguments, "salt");
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.cancelProposal(action, until, signature);
+        bytes memory cancel = cancelSignature(deposit, SIGNER3_KEY, action, until);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.voidPauserReplacements(until, cancel);
+        // A signature made for the next round does not work in this one.
+        bytes memory later = sign(SIGNER3_KEY, deposit.actionDigest(kind, 0, 1, until));
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.voidPauserReplacements(until, later);
+
+        deposit.voidPauserReplacements(until, signature);
+        assertEq(deposit.pauserRound(), 1);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.cancelProposal(action, until, cancel); // void already
+        // Used once: the same signature does not void what is proposed after it.
+        bytes32 second = proposeOn(deposit, "setKey", arguments, "salt 2");
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.voidPauserReplacements(until, signature);
+        deposit.voidPauserReplacements(until, later);
+        assertEq(deposit.pauserRound(), 2);
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setKey(ChargeGovernance.Key.Pauser, stranger, "salt");
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setKey(ChargeGovernance.Key.Pauser, stranger, "salt 2");
+        assertEq(second, deposit.actionOf(keccak256("setKey"), arguments, "salt 2"));
+        // The twin and the pool were never touched.
+        assertEq(twinDeposit.pauserRound(), 0);
+        assertEq(pool.pauserRound(), 0);
+    }
+
     function testARefundSignedForOneDeploymentDoesNotRefundOnTheTwin() public {
         ChargeTypes.Quote memory quote = quoteFor(100e6, board);
         bytes32 id = depositIt(quote);

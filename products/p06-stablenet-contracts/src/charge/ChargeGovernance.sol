@@ -65,6 +65,7 @@ abstract contract ChargeGovernance {
 
     bytes32 internal constant PROPOSE = keccak256("propose");
     bytes32 internal constant CANCEL = keccak256("cancel");
+    bytes32 internal constant VOID_PAUSER = keccak256("voidPauserReplacements");
     bytes32 internal constant SET_KEY = keccak256("setKey");
     bytes32 internal constant SET_SIGNER = keccak256("setSigner");
     bytes32 internal constant SET_RATES = keccak256("setRates");
@@ -78,8 +79,8 @@ abstract contract ChargeGovernance {
     /// except one that replaces the pauser.
     uint256 public generation;
     /// @notice The round of the pauser's seat. A proposal that replaces the pauser is counted in this one, so
-    /// the pauser cannot void it by switching keys off. It grows when a signer changes and when a replacement
-    /// of the pauser is applied: every other proposal for that seat is then void.
+    /// the pauser cannot void it by switching keys off. It grows when a signer changes, when a replacement of
+    /// the pauser is applied and when one signer voids them all: every proposal for that seat is then void.
     uint256 public pauserRound;
     /// @notice The quoted rate must lie in this range, in 0.01 won for one whole USDC.
     uint256 public minRate;
@@ -102,6 +103,8 @@ abstract contract ChargeGovernance {
     );
     event ChangeCancelled(bytes32 indexed action);
     event ChangeApplied(bytes32 indexed action);
+    /// @notice Every proposal that replaces the pauser and was counted in `round` is void.
+    event PauserReplacementsVoided(uint256 round, Seat by);
     event RatesChanged(uint256 minRate, uint256 maxRate);
 
     error Unauthorized();
@@ -209,6 +212,19 @@ abstract contract ChargeGovernance {
         }
         proposal.state = ProposalState.Cancelled;
         emit ChangeCancelled(action);
+    }
+
+    /// @notice One signer stops every waiting replacement of the pauser at once, however many there are. It
+    /// is no new power: a signer already stops each of them one by one, and the pauser can stop none of
+    /// them. The signer signs `actionDigest(keccak256("voidPauserReplacements"), 0, pauserRound, until)` and
+    /// anyone may send it. The round then moves, so the signature works once.
+    function voidPauserReplacements(uint256 until, bytes calldata signature) external {
+        _checkFresh(until);
+        uint256 round = pauserRound;
+        Seat seat = _seatOfSigner(ChargeTypes.recover(actionDigest(VOID_PAUSER, bytes32(0), round, until), signature));
+        if (seat == Seat.None) revert Unauthorized();
+        pauserRound = round + 1;
+        emit PauserReplacementsVoided(round, seat);
     }
 
     function setKey(Key which, address to, bytes32 salt) external {
