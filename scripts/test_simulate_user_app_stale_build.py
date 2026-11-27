@@ -31,6 +31,12 @@ CONSTRAINTS = "scripts/android/runtime-constraints.gradle"
 LOCK = "pnpm-lock.yaml"
 INSTALLED_LOCK = "node_modules/.pnpm/lock.yaml"
 REMEDY = "rebuild with --build, or pass --allow-stale-app"
+# Declares two of the three permissions the simulation grants, one of them for old Android versions only.
+MANIFEST_XML = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:maxSdkVersion="30" />
+</manifest>
+'''
 
 # Packs the native sources and the Gradle properties of its environment into the "APK", so a build from other sources
 # or with other properties is another file.
@@ -93,7 +99,7 @@ class Repository(unittest.TestCase):
         self.root = Path(storage.name).resolve() / "repo"
         self.apk = self.root / simulation.APK
         for name, text in {
-                MANIFEST: "<manifest><uses-permission android:name='android.permission.POST_NOTIFICATIONS'/></manifest>\n",
+                MANIFEST: MANIFEST_XML,
                 KOTLIN: "class SubscriptionAlertsModule\n", SPEC: "export interface Spec {}\n", SHARED: "// shared\n", CONSTRAINTS: "// constraints\n",
                 LOCK: "lockfileVersion: '9.0'\n", ".gitignore": "node_modules/\nbuild/\nout/\ncache/\ndist/\nbin/\n.gradle/\nlocal.properties\n.DS_Store\n",
                 f"{APP}/.gitignore": "build/\n.cxx/\n.kotlin/\n.idea\n*.iml\n", f"{APP}/README.md": "# App\n", f"{APP}/src/wallet/Home.tsx": "export {};\n",
@@ -453,6 +459,24 @@ class InstalledApp(unittest.TestCase):
         self.assertFalse(build_record.undeclared(granted(255, b"java.lang.IllegalArgumentException: Unknown permission: android.permission.POST_NOTIFICATIONS")))
         self.assertFalse(build_record.undeclared(granted(0, b"")))
 
+    def test_a_refused_grant_tells_of_another_build_only_when_the_manifest_declares_the_permission(self):
+        def refused(permission):
+            return subprocess.CompletedProcess([], 255, b"", f"java.lang.SecurityException: Package com.nu54renter has not requested permission {permission}".encode())
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "AndroidManifest.xml"
+            manifest.write_text(MANIFEST_XML)
+            reason = build_record.lacks(refused("android.permission.POST_NOTIFICATIONS"), manifest, "android.permission.POST_NOTIFICATIONS")
+            self.assertIn("does not declare POST_NOTIFICATIONS, which AndroidManifest.xml does", reason)
+            self.assertNotIn("old build", reason)
+            self.assertIsNone(build_record.lacks(refused("android.permission.BLUETOOTH_CONNECT"), manifest, "android.permission.BLUETOOTH_CONNECT"))  # not declared
+            self.assertIsNone(build_record.lacks(refused("android.permission.BLUETOOTH_SCAN"), manifest, "android.permission.BLUETOOTH_SCAN"))  # not on this Android
+            self.assertIsNone(build_record.lacks(subprocess.CompletedProcess([], 0, b"", b""), manifest, "android.permission.POST_NOTIFICATIONS"))
+            self.assertIsNone(build_record.lacks(subprocess.CompletedProcess([], 255, b"", b"Unknown permission"), manifest, "android.permission.POST_NOTIFICATIONS"))
+            manifest.write_text("<manifest")
+            self.assertIn("AndroidManifest.xml cannot be read", build_record.lacks(refused("android.permission.POST_NOTIFICATIONS"), manifest, "android.permission.POST_NOTIFICATIONS"))
+            manifest.unlink()
+            self.assertIn("AndroidManifest.xml cannot be read", build_record.lacks(refused("android.permission.POST_NOTIFICATIONS"), manifest, "android.permission.POST_NOTIFICATIONS"))
+
 
 class RealRepository(unittest.TestCase):
     def test_the_rules_name_the_real_build_inputs(self):
@@ -575,6 +599,13 @@ class Emulator(Repository):
         result, printed = self.emulator(allow_stale=True)
         self.assertIn("does not declare POST_NOTIFICATIONS", result)
         self.assertIn("STALE APP ALLOWED", printed)
+
+    def test_a_permission_that_the_sources_do_not_declare_either_does_not_stop_the_run(self):
+        self.emulator(build=True)
+        (self.device / "undeclared").write_text("android.permission.BLUETOOTH_CONNECT\nandroid.permission.BLUETOOTH_SCAN\n")
+        result, printed = self.emulator()
+        self.assertEqual(result, "", printed)
+        self.assertNotIn("STALE", printed)
 
     def test_a_build_that_fails_installs_nothing(self):
         self.write(f"{APP}/android/fail-the-build", "")

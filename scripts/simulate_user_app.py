@@ -28,6 +28,7 @@ SIMULATOR = flow.FLOW / "simulator"
 APP = flow.ROOT / "products/p02-user-app"
 PACKAGE = "com.nu54renter"
 APK = "products/p02-user-app/android/app/build/outputs/apk/debug/app-debug.apk"
+MANIFEST = "products/p02-user-app/android/app/src/main/AndroidManifest.xml"
 REMEDY = "rebuild and install it with --build, or pass --allow-stale-app to run against the old build on purpose"
 HOST, BUNDLER = 8790, 8785  # not 8081, where the apps of other projects look for a bundler
 MINUTES = 45
@@ -71,8 +72,8 @@ def emulator(serial, build=False, allow_stale=False, root=flow.ROOT):
     if run("shell", f"run-as {PACKAGE} sh -c 'mkdir -p shared_prefs && echo \"{setting}\" > shared_prefs/{PACKAGE}_preferences.xml'").returncode:
         raise SystemExit("the installed app is not a debug build")
     for permission in ("BLUETOOTH_CONNECT", "BLUETOOTH_SCAN", "POST_NOTIFICATIONS"):
-        if build_record.undeclared(run("shell", "pm", "grant", PACKAGE, "android.permission." + permission)):
-            stale = build_record.admit(f"the installed app does not declare {permission}, which these sources do: it is an old build", allow_stale, REMEDY) or stale
+        permission = "android.permission." + permission
+        stale = build_record.admit(build_record.lacks(run("shell", "pm", "grant", PACKAGE, permission), root / MANIFEST, permission), allow_stale, REMEDY) or stale
     return run, stale
 
 

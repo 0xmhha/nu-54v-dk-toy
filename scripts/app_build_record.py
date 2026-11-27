@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from xml.etree import ElementTree
 
 
 @dataclass(frozen=True)
@@ -261,6 +262,25 @@ def installed_digest(adb, package):
 def undeclared(granted):
     """Whether `pm grant` failed because the installed app's manifest lacks the permission."""
     return bool(granted.returncode) and b"has not requested permission" in granted.stdout + granted.stderr
+
+
+def lacks(granted, manifest, permission):
+    """Why a refused `pm grant` shows that the installed app was not built from this manifest, or None.
+
+    It shows that only when the manifest of the sources declares the permission for every Android version. A
+    permission that the sources do not declare either, or only up to some version, says nothing about the build.
+    """
+    if not undeclared(granted):
+        return None
+    name = "{http://schemas.android.com/apk/res/android}"
+    try:
+        declared = any(element.get(name + "name") == permission and element.get(name + "maxSdkVersion") is None
+                       for element in ElementTree.parse(manifest).getroot().iter() if element.tag in ("uses-permission", "uses-permission-sdk-23"))
+    except (OSError, ElementTree.ParseError) as error:
+        return f"{manifest} cannot be read ({error}), so the installed app, which does not declare {permission}, cannot be compared with it"
+    if not declared:
+        return None
+    return f"the installed app does not declare {permission.rpartition('.')[2]}, which {manifest.name} does: it was built from another manifest"
 
 
 def admit(reason, allow, remedy, out=None):
