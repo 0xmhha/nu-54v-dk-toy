@@ -36,15 +36,17 @@ import (
 //	an account        a proof with the account's own signature over a challenge of this server is counted for that
 //	                  account at its address (AccountLimiter, and StartLimiter for the sessions it starts). One
 //	                  account cannot use up another's.
-//	a session         a request with a session token the entrance lately saw live is counted under the ceiling of
-//	                  live sessions (LiveLimiter), which made-up tokens cannot reach, and for its own session once
-//	                  the token was looked up (SessionLimiter).
+//	a session         a request with a session token the entrance lately saw live is counted for that session first
+//	                  (SessionLimiter), from memory; a request its own session refuses is not counted for the
+//	                  address.
 //
-// What the customers of an address still share is counted only for requests that passed the above: Limiter (proofs
-// that start a checkout session or ask about an account; a proof for an order the account paid is not under it),
-// LiveLimiter and HoldLimiter (carts that held stock). A sender with many keys, each signing like a customer, cannot
-// be told from as many customers and can still use those up: one new key every two seconds holds the session starts
-// of its address at their ceiling.
+// What the customers of an address still share is small and is counted only for requests that passed the above:
+// Limiter (proofs that start a checkout session or ask about an account; a proof for an order the account paid is
+// not under it), LiveLimiter (requests of checkout sessions; the session of a paid order is not under it) and
+// HoldLimiter (carts that held stock). A sender with many keys, each signing like a customer, cannot be told from
+// as many customers and can still use those three up: one new key every two seconds holds the session starts of its
+// address at their ceiling, and five unpaid sessions hold the checkout requests there. The customers who already paid are
+// not held back by either.
 //
 // The memory of live sessions is this process's own: after a restart, or once an entry was pushed out, a session
 // is counted once like a token the server does not know (AddressLimiter) until its lookup found it live.
@@ -71,9 +73,10 @@ import (
 //	AddressLimiter  requests whose session token was not lately seen live, per address, before the token is read:
 //	                60 at once, then 1 a second. After a restart every session is counted here once; a made-up token
 //	                is counted here every time.
-//	LiveLimiter     requests of sessions lately seen live, per address: 200 at once, then 10 a second: 20 customers
-//	                going from cart to lock in one moment (ten requests each), or 50 following an order.
-//	SessionLimiter  a session's own requests: 40 at once, then 2 a second.
+//	SessionLimiter  a session's own requests: 40 at once, then 2 a second, counted before anything of its address.
+//	LiveLimiter     requests of checkout sessions lately seen live, per address, once the session's own allowance
+//	                let them through: 200 at once, then 10 a second: 20 customers going from cart to lock in one
+//	                moment (ten requests each). The session of a paid order is not counted here.
 //	UnknownLimiter  session tokens the server did not know, per address, after the lookup: 10 at once, then 1
 //	                every 5 seconds.
 //	HoldAttempts    carts an account asks to hold, per account at its address: 6 at once, then 1 every 20 seconds.
@@ -279,8 +282,8 @@ func (s customerSession) limitKey() string {
 	return s.Actor + "/" + s.Branch + "/" + s.Purpose + "/" + s.Sale
 }
 
-// sawLive notes that the session of this token hash is live. What is remembered is the session's purpose and the
-// key of its own allowance.
+// sawLive notes that the session of this token hash is live, so its next request is counted for the session before
+// anything else. What is remembered is the session's purpose and the key of its own allowance.
 func (c *CustomerEntrance) sawLive(hash [32]byte, session customerSession) {
 	now := c.now()
 	// The session ends by the database's clock; what is left of it is measured on the entrance's own.

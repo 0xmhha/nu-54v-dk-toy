@@ -499,8 +499,9 @@ func TestSessionTokenIsNotLookedUpOnceTheAddressIsLimited(t *testing.T) {
 	}
 }
 
-// Each live session has its own allowance and all sessions of one address share that address's ceiling, so opening
-// more sessions gives an address no more requests.
+// Each live session has its own allowance and all checkout sessions of one address share that address's ceiling,
+// so opening more sessions gives an address no more requests. A request its own session refuses is not counted for
+// the address: one session that asks too often uses up its own allowance and nobody else's.
 func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	clock := func() time.Time { return now }
@@ -514,6 +515,17 @@ func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
 			t.Fatalf("request %d of one session: %d, want %d", i+1, code, want)
 		}
 	}
+	// The refused request was answered from memory: it read nothing and took nothing from its address, however
+	// often it is sent.
+	before := *reads
+	for i := 0; i < 50; i++ {
+		if code, _ := send(home, live(1)); code != http.StatusTooManyRequests {
+			t.Fatalf("request %d of a session over its own limit: %d", i+4, code)
+		}
+	}
+	if *reads != before {
+		t.Fatalf("requests a session's own limit refused were read: %d, was %d", *reads, before)
+	}
 	if code, _ := send(home, live(2)); code != http.StatusBadRequest {
 		t.Fatalf("a second session shares the first one's limit: %d", code)
 	}
@@ -521,12 +533,16 @@ func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
 	if code, _ := send(other, live(1)); code != http.StatusTooManyRequests {
 		t.Fatalf("a limited session got another allowance from another address: %d", code)
 	}
-	// Six requests of the address are used (four above, two here). Sessions that never asked anything are refused
-	// now, before any read: the address is at its ceiling.
+	// Six requests of the address are used: the two the first session was answered, one of the second, and three
+	// here. The 51 its own session refused are not among them. Sessions that never asked anything are refused now,
+	// before any read: the address is at its ceiling.
 	send(home, live(3))
 	send(home, live(4))
-	before := *reads
-	for i := 5; i < 30; i++ {
+	if code, _ := send(home, live(5)); code != http.StatusBadRequest {
+		t.Fatalf("the sixth request of the address: %d", code)
+	}
+	before = *reads
+	for i := 6; i < 31; i++ {
 		if code, _ := send(home, live(i)); code != http.StatusTooManyRequests {
 			t.Fatalf("session %d took its address past the ceiling: %d", i, code)
 		}
@@ -534,10 +550,18 @@ func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
 	if *reads != before {
 		t.Fatalf("sessions over the ceiling were read: %d, was %d", *reads, before)
 	}
-	if code, _ := send(other, live(5)); code != http.StatusBadRequest {
+	// A session the address's ceiling refused keeps its own allowance: it is served as soon as the address is.
+	if code, _ := send(home, live(5)); code != http.StatusTooManyRequests {
+		t.Fatalf("a known session passed the ceiling of its address: %d", code)
+	}
+	now = now.Add(time.Second)
+	if code, _ := send(home, live(5)); code != http.StatusBadRequest {
+		t.Fatalf("the session lost its own allowance to a refusal of its address: %d", code)
+	}
+	if code, _ := send(other, live(6)); code != http.StatusBadRequest {
 		t.Fatalf("another address is under the first one's ceiling: %d", code)
 	}
-	if counts := limits.Limited.Drain(); counts["session"] != 2 || counts["address"] != 25 || len(counts) != 2 {
+	if counts := limits.Limited.Drain(); counts["session"] != 52 || counts["address"] != 26 || len(counts) != 2 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
 }

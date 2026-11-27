@@ -874,6 +874,66 @@ func TestPostgresFreeChallengesDoNotStopCustomers(t *testing.T) {
 	}
 }
 
+// One session that paid nothing must not use up what the customers of its address need. It asks a hundred times a
+// second for half a minute. A customer who paid follows the order twice a second, and a customer who is about to
+// pay reads the menu twice a second.
+func TestPostgresOneFreeSessionDoesNotStopCustomers(t *testing.T) {
+	f := newEntranceFixture(t, "flood")
+	payer, buyer := mustKey(t), mustKey(t)
+	f.funds.balances[crypto.PubkeyToAddress(payer.PublicKey)] = big.NewInt(300_000)
+	_, first := f.checkout(payer)
+	if first.status != 200 {
+		t.Fatalf("the paying customer's session: %d %s", first.status, first.raw)
+	}
+	held := f.order(first.body["session"].(string), f.fresh(), f.fresh())
+	if held.status != 200 {
+		t.Fatalf("the paying customer's cart: %d %s", held.status, held.raw)
+	}
+	sale := held.body["resultRef"].(string)
+	f.paid(sale, payer)
+	following := f.prove(payer, f.challenge("order", sale), "")
+	if following.status != 200 {
+		t.Fatalf("the order session: %d %s", following.status, following.raw)
+	}
+	paid := following.body["session"].(string)
+	_, second := f.checkout(buyer)
+	_, free := f.checkout(mustKey(t))
+	if second.status != 200 || free.status != 200 {
+		t.Fatalf("sessions: %d %s, %d %s", second.status, second.raw, free.status, free.raw)
+	}
+	buying, sender := second.body["session"].(string), free.body["session"].(string)
+	f.pass(time.Minute)
+	followed, read, asked, answered := 0, 0, 0, 0
+	for i := 0; i < 3000; i++ {
+		switch reply := f.command(sender, "catalog.read", f.shop, "", map[string]string{"page": "0"}, nil); reply.status {
+		case 200:
+			answered++
+		case 429:
+		default:
+			t.Fatalf("request %d of the free session: %d %s", i+1, reply.status, reply.raw)
+		}
+		f.pass(10 * time.Millisecond)
+		if i%50 == 49 {
+			asked++
+			if status := f.command(paid, "order.status", sale, "", map[string]string{}, nil); status.status == 200 {
+				followed++
+			}
+			if menu := f.command(buying, "catalog.read", f.shop, "", map[string]string{"page": "0"}, nil); menu.status == 200 {
+				read++
+			}
+		}
+	}
+	t.Logf("one free session at 100 a second for 30 seconds (%d answered): the customer who paid was served %d of %d, the customer about to pay %d of %d; refusals by kind %v",
+		answered, followed, asked, read, asked, f.h.Customer.Limited.Drain())
+	if followed != asked || read != asked || asked != 60 {
+		t.Fatalf("the customer who paid was served %d of %d and the customer about to pay %d of %d", followed, asked, read, asked)
+	}
+	// The free session got its own allowance and no more: 40 at once, then 2 a second.
+	if answered > 40+2*30+2 {
+		t.Fatalf("the free session was answered %d times in 30 seconds", answered)
+	}
+}
+
 // A customer the server has no memory of pays nothing for the failed attempts of someone else. The sender keeps
 // the failed attempts of the address used up: twelve bodies that do not read at once, then one every five seconds,
 // each just before a customer asks. Twenty-four customers start a session right after a restart, at a store nobody

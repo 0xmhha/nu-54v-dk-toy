@@ -666,14 +666,18 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
 	command(elsewhereSession, "order.status", elsewhere, sale, map[string]string{}, nil, 404)
 	command(elsewhereSession, "order.status", shop, sale, map[string]string{}, nil, 404)
-	// Each session has its own request allowance, and one session using its up does not limit another, though both
-	// come from one address. A token the server does not know has an allowance of its own, apart from the proofs of
-	// its address. Every request with a token counts toward the ceiling of its address, which ends them all.
+	// Each session has its own request allowance, counted before anything of its address: one session using its up
+	// does not limit another, though both come from one address, and a request its own session refuses takes
+	// nothing from the address. A token the server does not know has an allowance of its own, apart from the proofs
+	// of its address. Checkout sessions share the ceiling of their address; the session of a paid order is not
+	// under it, so the customer who paid is answered while the address is at its ceiling.
 	h.Customer.SessionLimiter, h.Customer.UnknownLimiter = NewRateLimiter(60, 2, nil), NewRateLimiter(60, 2, nil)
-	h.Customer.AddressLimiter, h.Customer.Limiter, h.Customer.StartLimiter = NewRateLimiter(60, 9, nil), NewRateLimiter(60, 1, nil), NewRateLimiter(60, 1, nil)
+	h.Customer.AddressLimiter, h.Customer.Limiter, h.Customer.StartLimiter = NewRateLimiter(60, 7, nil), NewRateLimiter(60, 1, nil), NewRateLimiter(60, 1, nil)
 	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
-	command(session, "order.status", shop, sale, map[string]string{}, nil, 429)
+	for i := 0; i < 20; i++ { // its own limit, and none of these is a request of the address
+		command(session, "order.status", shop, sale, map[string]string{}, nil, 429)
+	}
 	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
 	for i, want := range []int{404, 404, 429} {
@@ -681,10 +685,12 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 			t.Fatalf("unknown token %d: %v", i, got)
 		}
 	}
-	challenge("pickup", shop, sale)                                                  // the unknown tokens left the address its proof
-	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200) // the ninth request of the address
-	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 429) // its ceiling, though the session has an allowance left
-	if counts := h.Customer.Limited.Drain(); counts["session"] != 1 || counts["unknown"] != 1 || counts["address"] != 1 || len(counts) != 3 {
+	challenge("pickup", shop, sale)                                                           // the unknown tokens left the address its proof
+	command(elsewhereSession, "order.status", elsewhere, sale, map[string]string{}, nil, 404) // the seventh request of the address
+	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 429)          // its ceiling, though the session has an allowance left
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)          // the paid order is still answered
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 429)          // until its own allowance is used
+	if counts := h.Customer.Limited.Drain(); counts["session"] != 21 || counts["unknown"] != 1 || counts["address"] != 1 || len(counts) != 3 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
 	// One session start in the window for this account at this address, counted when a proof gives the session.

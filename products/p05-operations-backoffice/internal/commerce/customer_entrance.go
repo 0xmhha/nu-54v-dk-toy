@@ -69,13 +69,13 @@ type CustomerEntrance struct {
 	// seen live. It is counted before the token is looked up, so a refused request never reaches the database, and
 	// no number of made-up tokens takes one address past it.
 	AddressLimiter *RateLimiter
-	// LiveLimiter is the ceiling of each address over requests whose session token was lately live: given by a
-	// proof of this process, or found live by an earlier lookup. Made-up tokens cannot use it up, so they do not
-	// stop a customer who is paying; opening more sessions gives an address no more requests either. Nil counts
-	// those requests under AddressLimiter too.
+	// LiveLimiter is the ceiling of each address over the requests of checkout sessions lately seen live: given by
+	// a proof of this process, or found live by an earlier lookup. It is counted after the session's own allowance,
+	// so a session that asks too often uses up its own and not the address's. The session of a paid order is not
+	// under it. Nil counts those requests under AddressLimiter.
 	LiveLimiter *RateLimiter
-	// SessionLimiter is the limit of each live session on its own requests, counted after the lookup. Customers
-	// behind one address, such as a store's wireless network, do not share it; they share AddressLimiter.
+	// SessionLimiter is the limit of each live session on its own requests. For a session lately seen live it is
+	// counted first, from memory; for any other after the lookup found it.
 	SessionLimiter *RateLimiter
 	// UnknownLimiter is the limit of each address on session tokens the server does not know: a guess or a stale
 	// session. It is apart from Limiter, so phones with expired sessions behind one address do not use up the
@@ -125,8 +125,8 @@ type CustomerEntrance struct {
 	// keys sign the challenges the entrance gives (customer_challenge.go).
 	keys challengeKeys
 	// live is the session tokens the entrance lately saw live, each with its purpose and the key of its own
-	// allowance. It is bounded and is forgotten with the process; a session it does not know is only counted more
-	// strictly, never refused for that.
+	// allowance, so a request of one is counted for its session before the database is read. It is bounded and is
+	// forgotten with the process; a session it does not know is only counted more strictly, never refused for that.
 	live recentSet
 }
 
@@ -186,7 +186,7 @@ func (c *LimitedCount) add(kind string) {
 // (proof requests of an address), "failed" (failed attempts of an address), "account" (one account's proofs),
 // "proof" (proofs of an address that start a checkout session or ask about an account), "start" (sessions one
 // account started), "read", "photo", "address" (session tokens of an address not lately seen live), "live" (the
-// ceiling of an address over its live sessions), "session" (one session's own limit), "unknown" (session tokens
+// ceiling of an address over its checkout sessions), "session" (one session's own limit), "unknown" (session tokens
 // the server does not know), "hold" (carts an account asked to hold, or an address came to hold), "balance" (no
 // place among the balance reads) and "busy" (no place among the requests served at once).
 func (c *LimitedCount) Drain() map[string]int64 {
@@ -300,19 +300,45 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 	// are before they are let through (customer_limits.go).
 	mux.Handle("POST /v2/customer/challenge", h.Customer.challenges(h.customerChallenge))
 	mux.Handle("POST /v2/customer/proof", h.Customer.proofs(h.customerProof))
-	// A request with a session token is counted for its address here, before the token is looked up, and for its
-	// session once that is known (customerCommerce). A token lately seen live has the ceiling of live sessions;
-	// any other has the stricter one of tokens the server may not know.
+	// A request with a session token. A token lately seen live is counted for its session first, from memory, and
+	// a request its own session refuses is counted nowhere else; a checkout session is then counted under the
+	// ceiling of its address, and the session of a paid order is not. Any other token is counted for its address
+	// before it is looked up, under the stricter ceiling of tokens the server may not know, and for its session
+	// once the lookup found it (liveSession).
 	sessions := func(next http.HandlerFunc) http.Handler {
 		admitted := h.Customer.admitted(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			limiter, kind := first(h.Customer.AddressLimiter, h.Customer.Limiter), "address"
-			if hash, ok := bearerHash(r); ok && h.Customer.LiveLimiter != nil && h.Customer.live.has(string(hash[:]), h.Customer.now()) {
-				limiter, kind = h.Customer.LiveLimiter, "live"
+			c := h.Customer
+			address := clientKey(r)
+			if hash, ok := bearerHash(r); ok {
+				if note, known := c.live.get(string(hash[:]), c.now()); known {
+					purpose, own, _ := strings.Cut(note, ":")
+					if c.SessionLimiter != nil {
+						if allowed, wait := c.SessionLimiter.Take(own); !allowed {
+							c.tooMany(w, "session", wait)
+							return
+						}
+					}
+					ceiling, kind := c.LiveLimiter, "live"
+					if ceiling == nil {
+						ceiling, kind = first(c.AddressLimiter, c.Limiter), "address"
+					}
+					if purpose != "order" && ceiling != nil {
+						if allowed, wait := ceiling.Take(address); !allowed {
+							if c.SessionLimiter != nil {
+								c.SessionLimiter.Refund(own) // refused for its address, not for itself
+							}
+							c.tooMany(w, kind, wait)
+							return
+						}
+					}
+					admitted.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), countedSession{}, own)))
+					return
+				}
 			}
-			if limiter != nil {
-				if allowed, wait := limiter.Take(clientKey(r)); !allowed {
-					h.Customer.tooMany(w, kind, wait)
+			if limiter := first(c.AddressLimiter, c.Limiter); limiter != nil {
+				if allowed, wait := limiter.Take(address); !allowed {
+					c.tooMany(w, "address", wait)
 					return
 				}
 			}
@@ -648,8 +674,13 @@ func (h HTTP) customerCancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// liveSession reads the live session of the request's token and counts the request for it. When there is none, or
-// the session is over its limit, it has answered and reports false.
+// countedSession marks a request whose session was counted from memory before it was admitted: its value is the
+// key the session's own allowance was counted under.
+type countedSession struct{}
+
+// liveSession reads the live session of the request's token and counts the request for it, unless that was done
+// from memory before the request was admitted. When there is none, or the session is over its limit, it has
+// answered and reports false.
 func (h HTTP) liveSession(w http.ResponseWriter, r *http.Request) (customerSession, bool) {
 	value, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	token, err := hex.DecodeString(value)
@@ -680,11 +711,14 @@ func (h HTTP) liveSession(w http.ResponseWriter, r *http.Request) (customerSessi
 		return customerSession{}, false
 	}
 	h.Customer.sawLive(hash, session)
-	// A live session has its own allowance, whatever address it comes from.
-	if limiter := h.Customer.SessionLimiter; limiter != nil {
-		if allowed, wait := limiter.Take(session.limitKey()); !allowed {
-			h.Customer.tooMany(w, "session", wait)
-			return customerSession{}, false
+	// A live session has its own allowance, whatever address it comes from. One that was counted from memory under
+	// the same key is not counted twice.
+	if counted, _ := r.Context().Value(countedSession{}).(string); counted != session.limitKey() {
+		if limiter := h.Customer.SessionLimiter; limiter != nil {
+			if allowed, wait := limiter.Take(session.limitKey()); !allowed {
+				h.Customer.tooMany(w, "session", wait)
+				return customerSession{}, false
+			}
 		}
 	}
 	return session, true
