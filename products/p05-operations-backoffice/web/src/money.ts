@@ -19,6 +19,18 @@ export const isWon = (token: Pick<BranchToken, "symbol">) => token.symbol === "t
 
 const dollar: BranchToken = { name: "NU54 Test USD", symbol: "tUSDC", label: "TestUSDC", decimals: 6 };
 
+/**
+ * A refund an operator typed, in base units, or undefined while it is not an amount. Won is typed in whole won;
+ * any other token keeps the six decimals of the dollar token. The server checks the same.
+ */
+export function refundUnits(amount: string, token?: Pick<BranchToken, "symbol" | "decimals">) {
+  const won = token && isWon(token) ? token : undefined;
+  if (!(won ? /^[1-9][0-9]{0,34}$/ : /^(0|[1-9][0-9]{0,34})(\.[0-9]{1,6})?$/).test(amount)) return undefined;
+  const [whole, fraction = ""] = amount.split(".");
+  const value = BigInt(whole + fraction.padEnd(won ? won.decimals : 6, "0"));
+  return value > 0n ? value.toString() : undefined;
+}
+
 /** Dollars and cents. The rest is cut off, never rounded. */
 export function dollarText(units: string, decimals: number) {
   const value = BigInt(units);

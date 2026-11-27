@@ -4,7 +4,7 @@ import {
   financeRequest,
   formatFinanceAmount,
 } from "./Finance";
-import { replyToken, type Branded } from "./money";
+import { isWon, refundUnits, replyToken, type Branded } from "./money";
 
 type Adjustment = {
   id: string;
@@ -86,13 +86,6 @@ const states: Record<string, string> = {
 };
 const uuid = /^[0-9a-f-]{36}$/;
 
-function toUnits(amount: string) {
-  if (!/^(0|[1-9][0-9]{0,34})(\.[0-9]{1,6})?$/.test(amount)) return undefined;
-  const [whole, fraction = ""] = amount.split(".");
-  const value = BigInt(whole + fraction.padEnd(6, "0"));
-  return value > 0n ? value.toString() : undefined;
-}
-
 export function RefundConsole({ branchId }: { branchId: string }) {
   const [saleId, setSale] = useState("");
   const [queue, setQueue] = useState<QueuePage>();
@@ -111,8 +104,9 @@ export function RefundConsole({ branchId }: { branchId: string }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const active = useRef(false);
-  const format = (units: string) =>
-    formatFinanceAmount(units, replyToken(review, review?.asset));
+  const refundToken = replyToken(review, review?.asset);
+  const wonRefund = !!refundToken && isWon(refundToken);
+  const format = (units: string) => formatFinanceAmount(units, refundToken);
   const formatItem = (units: string, item: QueueItem) =>
     formatFinanceAmount(units, replyToken(queue, item.asset));
 
@@ -343,10 +337,12 @@ export function RefundConsole({ branchId }: { branchId: string }) {
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
-                  const value = toUnits(amount);
+                  const value = refundUnits(amount, refundToken);
                   if (!value || BigInt(value) > BigInt(review.available)) {
                     setStatus(
-                      "신청 가능액 안에서 금액과 소수 자릿수를 확인하세요."
+                      wonRefund
+                        ? "신청 가능액 안에서 원화 환불 금액을 원 단위로 입력하세요."
+                        : "신청 가능액 안에서 금액과 소수 자릿수를 확인하세요."
                     );
                     return;
                   }
@@ -358,7 +354,7 @@ export function RefundConsole({ branchId }: { branchId: string }) {
                 }}
               >
                 <label>
-                  환불 금액 (TestUSDC)
+                  환불 금액 ({wonRefund ? "원" : "TestUSDC"})
                   <input
                     inputMode="decimal"
                     value={amount}

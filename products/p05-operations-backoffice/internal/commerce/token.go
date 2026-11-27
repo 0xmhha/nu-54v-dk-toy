@@ -56,6 +56,17 @@ func (t Token) wholePrice(baseUnits string) bool {
 	return !t.won() || multiple(baseUnits, t.Decimals)
 }
 
+// WholeAmount is wholePrice for the amounts outside the menu: booking terms and refunds.
+func (t Token) WholeAmount(baseUnits string) bool { return t.wholePrice(baseUnits) }
+
+// WholeUnit is one won in base units, as the ledger is told it. Empty for a token that is not won.
+func (t Token) WholeUnit() string {
+	if !t.won() {
+		return ""
+	}
+	return new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(t.Decimals)), nil).String()
+}
+
 // shownPrice accepts an operator's price only when every screen shows all of it: whole won, or dollars and cents.
 func (t Token) shownPrice(baseUnits string) bool {
 	token := t.OrDollar()

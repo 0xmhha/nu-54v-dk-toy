@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { baseUnits, namedToken, rememberTokens, replyToken, tokenMoney } from "../src/money.ts";
+import { baseUnits, namedToken, refundUnits, rememberTokens, replyToken, tokenMoney } from "../src/money.ts";
 
 const won = { name: "NU54 Test KRW", symbol: "tKRW", label: "tKRW", decimals: 2 };
 assert.equal(tokenMoney("6500000"), "6.50 TestUSDC");
@@ -30,3 +30,14 @@ assert.equal(tokenMoney("6500000", baseUnits), "6,500,000 기본 단위");
 // The token of a refused branch is not a token.
 rememberTokens([{ asset: "0xc3", token: baseUnits }]);
 assert.equal(namedToken("0xc3"), undefined);
+
+// A refund an operator types: whole won for a won token, as opsd takes it; the dollar token keeps its six decimals.
+assert.equal(refundUnits("16667", won), "1666700");
+assert.equal(refundUnits("16667", coin), "16667" + "0".repeat(18));
+for (const bad of ["16666.5", "16666.50", "0", "", "abc", "-1", "016667"])
+  assert.equal(refundUnits(bad, won), undefined);
+assert.equal(refundUnits("16666.5", coin), undefined);
+assert.equal(refundUnits("3.5"), "3500000");
+assert.equal(refundUnits("0.000001"), "1");
+assert.equal(refundUnits("3.5", baseUnits), "3500000");
+for (const bad of ["0", "0.0000001", "abc"]) assert.equal(refundUnits(bad), undefined);

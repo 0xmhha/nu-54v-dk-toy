@@ -275,6 +275,11 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 		return err
 	}
 	defer store.Close()
+	// The ledger checks and rounds won amounts itself (migration 127), so it is told what one won is before any
+	// request is served. A dollar-only deployment declares nothing.
+	if err := store.DeclareWholeAmounts(ctx, profiles); err != nil {
+		return fmt.Errorf("the ledger did not take the whole unit of a won asset (is migration 127 applied, and was the asset declared with this unit?): %w", err)
+	}
 	poll, stop := context.WithCancel(context.Background())
 	defer stop()
 	go func() {
