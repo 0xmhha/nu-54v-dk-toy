@@ -29,6 +29,7 @@ SPEC = f"{APP}/src/specs/NativeSubscriptionAlerts.ts"
 SHARED = "packages/protocol/platform/android/nu54-mobile.gradle"
 CONSTRAINTS = "scripts/android/runtime-constraints.gradle"
 LOCK = "pnpm-lock.yaml"
+INSTALLED_LOCK = "node_modules/.pnpm/lock.yaml"
 REMEDY = "rebuild with --build, or pass --allow-stale-app"
 
 # Packs the native sources into the "APK", so a build from other sources is another file.
@@ -87,13 +88,14 @@ class Repository(unittest.TestCase):
         for name, text in {
                 MANIFEST: "<manifest><uses-permission android:name='android.permission.POST_NOTIFICATIONS'/></manifest>\n",
                 KOTLIN: "class SubscriptionAlertsModule\n", SPEC: "export interface Spec {}\n", SHARED: "// shared\n", CONSTRAINTS: "// constraints\n",
-                LOCK: "lockfileVersion: '9.0'\n", f"{APP}/.gitignore": "build/\n", f"{APP}/README.md": "# App\n", f"{APP}/src/wallet/Home.tsx": "export {};\n",
+                LOCK: "lockfileVersion: '9.0'\n", ".gitignore": "node_modules/\n", f"{APP}/.gitignore": "build/\n", f"{APP}/README.md": "# App\n", f"{APP}/src/wallet/Home.tsx": "export {};\n",
                 f"{APP}/test/home.test.tsx": "test('home', () => {});\n", f"{APP}/ios/NU54Renter/AppDelegate.swift": "// ios\n",
                 f"{APP}/android/app/src/androidTest/java/com/nu54renter/ble/OwnerTlsLab.kt": "class OwnerTlsLab\n",
                 "docs/content/commercial/traveller-services.md": "# Services\n", "scripts/android/market/run-orders.sh": "true\n"}.items():
             self.write(name, text)
         self.write(f"{APP}/android/gradlew", GRADLEW)
         (self.root / APP / "android/gradlew").chmod(0o755)
+        self.install()
         # Not the developer's git settings: a hook or signing set up there has no place in this repository.
         env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
         for command in (["init", "-q"], ["add", "-A"], ["-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "sources"]):
@@ -103,6 +105,10 @@ class Repository(unittest.TestCase):
         path = self.root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
+
+    def install(self):
+        """What `pnpm install` leaves behind: its copy of the lockfile that node_modules was made from."""
+        self.write(INSTALLED_LOCK, (self.root / LOCK).read_text())
 
     def build(self):
         build_record.build(self.apk, self.root, build_record.USER_APP, ["./gradlew", ":app:assembleDebug"], self.root / APP / "android")
@@ -128,6 +134,7 @@ class BuildRecord(Repository):
         new = f"{APP}/android/app/src/main/java/com/nu54renter/ble/NewModule.kt"
         for name in (MANIFEST, SPEC, SHARED, CONSTRAINTS, LOCK, f"{APP}/android/gradlew", new, f"{APP}/native/market/wallet.c"):
             with self.subTest(name):
+                self.install()
                 self.build()
                 self.write(name, "changed\n" if name != f"{APP}/android/gradlew" else GRADLEW + "# changed\n")
                 self.assertIn(name, self.stale())
@@ -219,6 +226,30 @@ class BuildRecord(Repository):
             self.build()
         self.assertIn("changed while it was building", str(stopped.exception))
         self.assertIn("nothing records which sources", self.stale())
+
+    def test_node_modules_that_the_lockfile_does_not_name_refuse_the_build(self):
+        self.write(LOCK, "lockfileVersion: '9.0'\n# pulled: another native dependency\n")
+        for missing in (False, True):
+            if missing:
+                (self.root / INSTALLED_LOCK).unlink()
+            with self.assertRaises(SystemExit) as stopped:
+                self.build()
+            self.assertIn("pnpm install", str(stopped.exception))
+            self.assertIn(INSTALLED_LOCK, str(stopped.exception))
+            self.assertFalse(self.apk.exists(), "the build ran")
+        self.install()
+        self.build()
+        self.assertIsNone(self.stale())
+
+    def test_node_modules_installed_from_another_lockfile_since_the_build_are_stale(self):
+        self.build()
+        self.write(INSTALLED_LOCK, "lockfileVersion: '9.0'\n# installed on another branch\n")
+        self.assertIn("pnpm install", reason := self.stale())
+        self.assertIn(INSTALLED_LOCK, reason)
+        (self.root / INSTALLED_LOCK).unlink()
+        self.assertIn("pnpm install", self.stale())
+        self.install()
+        self.assertIsNone(self.stale())
 
     def test_the_override_lets_a_stale_app_through_with_a_warning(self):
         out = io.StringIO()

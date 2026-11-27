@@ -18,10 +18,14 @@ import sys
 
 @dataclass(frozen=True)
 class Inputs:
-    """The files a build reads: everything below `take`, without what is below `leave`, except what is below `keep`."""
+    """The files a build reads: everything below `take`, without what is below `leave`, except what is below `keep`.
+
+    `installed` pairs each lockfile with the copy of it that the package manager keeps of its last install.
+    """
     take: tuple
     leave: tuple = ()
     keep: tuple = ()
+    installed: tuple = ()
 
     def has(self, name):
         def below(places):
@@ -42,7 +46,12 @@ USER_APP = Inputs(
                ".eslintrc.js", ".prettierrc.js", ".watchmanconfig", "Makefile", "test", "android/app/src/androidTest")),
            "packages/protocol/platform/test",
            "products/p02-user-app/ios", "packages/protocol/platform/ios", "packages/protocol/platform/Nu54ProtocolMobile.podspec"),
-    keep=("products/p02-user-app/src/specs",))  # the build generates native code from these
+    keep=("products/p02-user-app/src/specs",),  # the build generates native code from these
+    # The build takes native code from node_modules, which no digest here covers. pnpm writes the lockfile it installed
+    # from to node_modules/.pnpm/lock.yaml; that file is pnpm's own and not a documented interface. An install of a part
+    # of the workspace (--filter) writes a part of the lockfile and is refused here, and files edited inside
+    # node_modules by hand are not seen.
+    installed=(("pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml"),))
 
 
 class Unlisted(Exception):
@@ -80,6 +89,18 @@ def fingerprint(root, inputs):
     return found
 
 
+def uninstalled(root, inputs):
+    """Why node_modules does not hold what the lockfile names, or None."""
+    for lock, copy in inputs.installed:
+        try:
+            same = (Path(root) / lock).read_bytes() == (Path(root) / copy).read_bytes()
+        except OSError:
+            same = False
+        if not same:
+            return f"node_modules does not hold what {lock} names ({copy} is missing or differs): run `pnpm install` first"
+    return None
+
+
 def record_path(apk):
     return apk.with_name(apk.name + ".inputs.json")
 
@@ -98,6 +119,8 @@ def build(apk, root, inputs, command, directory):
         before = fingerprint(root, inputs)
     except Unlisted as error:
         raise SystemExit(str(error)) from error
+    if reason := uninstalled(root, inputs):
+        raise SystemExit(reason)
     record_path(apk).unlink(missing_ok=True)  # also leaves the output directory as the last build left it
     try:
         subprocess.run(command, cwd=directory, check=True)
@@ -137,6 +160,8 @@ def stale(apk, root, inputs, installed=None):
     if changed:
         more = f" and {len(changed) - 5} more" if len(changed) > 5 else ""
         return f"the debug app is older than its sources: {len(changed)} changed since it was built ({', '.join(changed[:5])}{more})"
+    if reason := uninstalled(root, inputs):  # the bundler serves the screens' dependencies from node_modules
+        return reason
     if installed is not None:
         on_device = installed()
         if on_device is None:
