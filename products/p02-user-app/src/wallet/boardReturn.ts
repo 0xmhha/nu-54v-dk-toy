@@ -136,11 +136,13 @@ const asked = 60;
  * those made from a store page without a registration; but a phone that was set up again, or another phone, holds
  * none of them, so the records alone never say "no order is open".
  *
- * With a store credential the server is asked through it (`connect`). A build that orders without a registration
- * has none; it asks the customer entrance how many orders of the account are unfinished (`askEntrance`, the board's
- * account proof and the number alone). The number held back is the larger of what the phone knows and what the
- * server counts: the same order is on both sides, so they are not added. When the entrance could not be asked the
- * answer is "not known" (`server: 'failed'`), which the pages treat as they do on the earlier route.
+ * With a store credential the server is asked through it (`connect`). That route knows only the orders of the
+ * customer the store issued. A build that orders without a registration asks the customer entrance how many orders
+ * of the account are unfinished (`askEntrance`, the board's account proof and the number alone), and it asks
+ * whether or not the phone still holds a registration: an order made from a store page is not among the orders the
+ * registration lists. The number held back is the largest of what the phone knows and what either route counts: the
+ * same order is on every side, so they are not added. When a route that was asked did not answer, the answer is
+ * "not known" (`server: 'failed'`) whatever the other said, which the pages treat as they do on the earlier route.
  */
 export async function readResetBlock(storage: Storage, records: {list(): Promise<OpenOrder[]>}, account: OrderAccount,
   connect: () => Promise<CommerceClient | undefined>, toppingUp: typeof topUpUnfinished = topUpUnfinished,
@@ -177,10 +179,10 @@ export async function readResetBlock(storage: Storage, records: {list(): Promise
     }
   } catch { block.server = 'failed'; }
   block.orders = open.size;
-  if (askEntrance && block.server === 'none') {
+  if (askEntrance) {
     try {
       block.orders = Math.max(open.size, await askEntrance());
-      block.server = 'ok';
+      if (block.server === 'none') block.server = 'ok';
     } catch (error) {
       block.server = 'failed';
       if (error instanceof AccountAskError && error.reason === 'no-board') block.boardAway = true;

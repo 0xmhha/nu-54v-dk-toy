@@ -329,6 +329,35 @@ describe('a reset on a phone that kept no record of the account\'s orders', () =
     expect([earlier.orders, earlier.server, resetUnknown(earlier)]).toEqual([1, 'none', false]);
   });
 
+  // A phone of a build that orders without a registration may still hold a registration of the earlier route. That
+  // route knows only the orders of the customer the store issued, so its "none" is no answer for the account: the
+  // entrance is asked whenever it can be, the larger number holds, and either side that did not answer is "not known".
+  test('a registration this phone still holds does not answer for the account: the entrance is asked as well', async () => {
+    const ask = (count: number | Error) => async () => { if (count instanceof Error) throw count; return count; };
+    const registered = (open: string[], down = false) => async () => ({
+      walletReturn: async () => undefined,
+      orders: async () => { if (down) throw new Error('offline'); return open.map(id => ({id, state: 'checking'})); },
+      status: async (id: string) => ({id, state: 'checking'}),
+    }) as never;
+    const read = (connect: ReturnType<typeof registered>, entrance: ReturnType<typeof ask>) => readResetBlock(Http, orderRecords(Http), account, connect, undefined, entrance);
+    const seen = (block: Awaited<ReturnType<typeof read>>) => [block.orders, block.server, resetBlocked(block), resetUnknown(block)];
+    // Both answered. The registration knows none; the account has an order made from a store page.
+    expect(seen(await read(registered([]), ask(1)))).toEqual([1, 'ok', true, false]);
+    expect(seen(await read(registered([]), ask(0)))).toEqual([0, 'ok', false, false]);
+    // The larger number holds, whichever side counted it.
+    expect(seen(await read(registered([sale]), ask(0)))).toEqual([1, 'ok', true, false]);
+    expect(seen(await read(registered([sale]), ask(3)))).toEqual([3, 'ok', true, false]);
+    // The registration answered none, the entrance did not answer: not known, not "none".
+    expect(seen(await read(registered([]), ask(new AccountAskError('server'))))).toEqual([0, 'failed', false, true]);
+    const away = await read(registered([]), ask(new AccountAskError('no-board')));
+    expect([...seen(away), away.boardAway]).toEqual([0, 'failed', false, true, true]);
+    // The registration did not answer, the entrance did: what it counts holds, and "none" from it alone is not known.
+    expect(seen(await read(registered([], true), ask(2)))).toEqual([2, 'failed', true, true]);
+    expect(seen(await read(registered([], true), ask(0)))).toEqual([0, 'failed', false, true]);
+    // Neither answered.
+    expect(seen(await read(registered([], true), ask(new AccountAskError('server'))))).toEqual([0, 'failed', false, true]);
+  });
+
   test('the answer is the number alone, and anything else is not an answer', async () => {
     expect(readOpenOrders({status: 200, body: {purpose: 'account', openOrders: 0}})).toBe(0);
     expect(readOpenOrders({status: 200, body: {purpose: 'account', openOrders: 12}})).toBe(12);
