@@ -265,6 +265,12 @@ export type CommercePrice = {
   unitPrice: string;
   available: number;
   skuAvailable?: number;
+  /**
+   * Set by the reader of a menu that tells no count of stock (the public menu of the customer entrance), never by a
+   * server: `available` and `skuAvailable` then say only sold out (0) or on sale, and no screen shows them as a number
+   * of items left.
+   */
+  uncounted?: true;
   metadata?: CommerceMenuMetadata;
   category?: CommerceCategory;
   /** One entry for each group, in the store's order. Absent for a product with a single list of options. */
