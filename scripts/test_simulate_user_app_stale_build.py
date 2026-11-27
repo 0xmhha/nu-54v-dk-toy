@@ -5,7 +5,7 @@ Runs on a small repository with a stand-in Gradle wrapper and a stand-in adb; no
 Run it with `python3 -B scripts/test_simulate_user_app_stale_build.py`.
 """
 
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import nullcontext, redirect_stderr, redirect_stdout
 import hashlib
 import io
 import os
@@ -20,6 +20,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import app_build_record as build_record
 import simulate_user_app as simulation
+import simulate_user_app_walk as simulation_walk
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = "products/p02-user-app"
@@ -497,8 +498,8 @@ class RealRepository(unittest.TestCase):
             self.assertTrue((ROOT / name).exists(), name)
 
 
-class Emulator(Repository):
-    """simulate_user_app.emulator() against the stand-in adb."""
+class Device(Repository):
+    """The stand-in adb and what its emulator holds."""
 
     def setUp(self):
         super().setUp()
@@ -512,6 +513,13 @@ class Emulator(Repository):
         patched.start()
         self.addCleanup(patched.stop)
 
+    def calls(self):
+        return (self.device / "calls").read_text().splitlines()
+
+
+class Emulator(Device):
+    """simulate_user_app.emulator() against the stand-in adb."""
+
     def emulator(self, **options):
         """What emulator() returned or the message it stopped with, and what it printed."""
         (self.device / "calls").write_text("")
@@ -522,9 +530,6 @@ class Emulator(Repository):
             except SystemExit as stopped:
                 result = stopped
         return result, out.getvalue() + err.getvalue()
-
-    def calls(self):
-        return (self.device / "calls").read_text().splitlines()
 
     def assertStopped(self, result, word):
         self.assertIsInstance(result, SystemExit)
@@ -612,6 +617,76 @@ class Emulator(Repository):
         result, _ = self.emulator(build=True)
         self.assertIn("did not build", str(result))
         self.assertFalse([call for call in self.calls() if call.startswith("install")])
+
+
+class Run(Device):
+    """simulate_user_app.main() against the stand-in adb. The world is not started and the walk is a count of failed flows."""
+
+    def setUp(self):
+        super().setUp()
+        self.evidence = self.root.parent / "evidence"
+
+    def run_simulation(self, *arguments, failed=0):
+        """What main() ended with (None when it returned), what it printed, and what each walk was started with."""
+        (self.device / "calls").write_text("")
+        walks, printed, emulator = [], io.StringIO(), simulation.emulator
+
+        class Walk:
+            def __init__(self, *started):
+                walks.append(started)
+
+            def run(self):
+                return failed
+
+        with mock.patch.object(simulation, "emulator", lambda *given: emulator(*given, root=self.root)), \
+                mock.patch.object(simulation, "world", lambda args, adb: nullcontext(mock.Mock())), \
+                mock.patch.object(simulation_walk, "Walk", Walk), redirect_stdout(printed), redirect_stderr(printed):
+            try:
+                ended = simulation.main(["emulator-5554", *arguments])
+            except SystemExit as stopped:
+                ended = stopped.code
+        return ended, printed.getvalue(), walks
+
+    def make_stale(self):
+        self.assertIsNone(self.run_simulation("--build")[0])
+        self.write(KOTLIN, "class SubscriptionAlertsModule { fun ready() {} }\n")
+
+    def test_a_walk_of_a_current_app_passes_without_a_mark(self):
+        ended, printed, walks = self.run_simulation("--build", "--walk", str(self.evidence))
+        self.assertIsNone(ended)
+        self.assertEqual(printed.splitlines()[-1], "PASS user app")
+        self.assertNotIn("STALE", printed)
+        self.assertEqual(list(self.evidence.iterdir()), [])
+        self.assertEqual(len(walks), 1)
+
+    def test_a_failed_walk_of_a_current_app_fails_without_a_mark(self):
+        ended, printed, _ = self.run_simulation("--build", "--walk", str(self.evidence), failed=2)
+        self.assertEqual(ended, f"FAIL user app: 2 flows failed; see {self.evidence}")
+        self.assertNotIn("PASS user app", printed)
+
+    def test_a_walk_of_an_allowed_stale_app_is_marked_on_its_result_line_and_in_its_directory(self):
+        self.make_stale()
+        ended, printed, walks = self.run_simulation("--walk", str(self.evidence), "--allow-stale-app")
+        self.assertEqual(printed.splitlines()[-1], "PASS user app (STALE APP ALLOWED: not a result for the current sources)")
+        self.assertIn("STALE APP ALLOWED: the debug app is older than its sources", printed)
+        self.assertIn("older than its sources: 1 changed", marker := (self.evidence / "STALE-APP.txt").read_text())
+        self.assertIn(KOTLIN, marker)
+        self.assertEqual(len(walks), 1)
+
+    def test_a_failed_walk_of_an_allowed_stale_app_is_marked_too(self):
+        self.make_stale()
+        ended, printed, _ = self.run_simulation("--walk", str(self.evidence), "--allow-stale-app", failed=3)
+        self.assertEqual(ended, f"FAIL user app (STALE APP ALLOWED: not a result for the current sources): 3 flows failed; see {self.evidence}")
+        self.assertNotIn("PASS user app", printed)
+        self.assertIn(KOTLIN, (self.evidence / "STALE-APP.txt").read_text())
+
+    def test_a_stale_app_stops_the_run_before_the_walk(self):
+        self.make_stale()
+        ended, printed, walks = self.run_simulation("--walk", str(self.evidence))
+        self.assertIn("older than its sources", ended)
+        self.assertIn("--allow-stale-app", ended)
+        self.assertNotIn("PASS", printed)
+        self.assertEqual(walks, [])
 
 
 if __name__ == "__main__":

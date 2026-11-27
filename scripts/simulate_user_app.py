@@ -7,6 +7,7 @@ See integration-workspace.md.
 """
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,7 @@ PACKAGE = "com.nu54renter"
 APK = "products/p02-user-app/android/app/build/outputs/apk/debug/app-debug.apk"
 MANIFEST = "products/p02-user-app/android/app/src/main/AndroidManifest.xml"
 REMEDY = "rebuild and install it with --build, or pass --allow-stale-app to run against the old build on purpose"
+STALE_MARK = " (STALE APP ALLOWED: not a result for the current sources)"  # on every result line of a run let through
 HOST, BUNDLER = 8790, 8785  # not 8081, where the apps of other projects look for a bundler
 MINUTES = 45
 
@@ -88,28 +90,9 @@ def wait_for(process, log, word, seconds):
     raise SystemExit(f"{word} never came\n{log.read_text(errors='replace')[-4000:]}")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("serial", nargs="?", help="the emulator, for example emulator-5554")
-    parser.add_argument("--walk", type=Path, metavar="DIRECTORY", help="walk through the flows and keep screenshots in this new directory")
-    parser.add_argument("--step", nargs=2, metavar=("NAME", "JSON"), help="take one step in a running simulation, for example --step order '{\"quantity\":2}'")
-    parser.add_argument("--postgres-bin", type=Path, default=os.environ.get("POSTGRES_BIN"), help="directory with the PostgreSQL tools")
-    parser.add_argument("--token", choices=("usd", "won", "krwc"), default="usd", help="the store's token")
-    parser.add_argument("--build", action="store_true", help="build the debug app from the current sources, record what it was built from and install it")
-    parser.add_argument("--allow-stale-app", action="store_true", help="run although the installed app is not known to be built from the current sources; the result says so")
-    args = parser.parse_args()
-    if args.step:
-        print(json.dumps(step(args.step[0], **json.loads(args.step[1])), ensure_ascii=False, indent=1))
-        return
-    if not args.serial:
-        parser.error("name the emulator")
-    if args.walk:
-        args.walk = args.walk.absolute()
-        args.walk.mkdir(parents=True)
-    adb, stale = emulator(args.serial, args.build, args.allow_stale_app)
-    mark = " (STALE APP ALLOWED: not a result for the current sources)" if stale else ""
-    if stale and args.walk:
-        (args.walk / "STALE-APP.txt").write_text(stale + "\n")
+@contextmanager
+def world(args, adb):
+    """The board, the kiosk and the store, the bundler, and the app started among them. Gives the host's process."""
     tools = flow.postgres_tools(args.postgres_bin)
     with integration_workspace("nu54-app-", str(tools / "pg_ctl"), "data", flow.secure_env()) as (scratch, env):
         shared = run_command(["go", "env", "GOCACHE"], env=flow.secure_env(), capture_output=True, text=True, check=True).stdout.strip()
@@ -140,14 +123,40 @@ def main():
             adb("shell", "am", "force-stop", PACKAGE)
             adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
             print(f"Ready for {MINUTES - 2} minutes. The app is starting on {args.serial}; the first bundle takes a minute.", flush=True)
-            if args.walk:
-                from simulate_user_app_walk import Walk
-                if failed := Walk(adb, step, args.walk, args.token).run():
-                    raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
-                print(f"PASS user app{mark}", flush=True)
-            else:
-                print("Take steps from another terminal with --step. Interrupt to end.", flush=True)
-                host.child.wait()
+            yield host
+
+
+def main(arguments=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("serial", nargs="?", help="the emulator, for example emulator-5554")
+    parser.add_argument("--walk", type=Path, metavar="DIRECTORY", help="walk through the flows and keep screenshots in this new directory")
+    parser.add_argument("--step", nargs=2, metavar=("NAME", "JSON"), help="take one step in a running simulation, for example --step order '{\"quantity\":2}'")
+    parser.add_argument("--postgres-bin", type=Path, default=os.environ.get("POSTGRES_BIN"), help="directory with the PostgreSQL tools")
+    parser.add_argument("--token", choices=("usd", "won", "krwc"), default="usd", help="the store's token")
+    parser.add_argument("--build", action="store_true", help="build the debug app from the current sources, record what it was built from and install it")
+    parser.add_argument("--allow-stale-app", action="store_true", help="run although the installed app is not known to be built from the current sources; the result says so")
+    args = parser.parse_args(arguments)
+    if args.step:
+        print(json.dumps(step(args.step[0], **json.loads(args.step[1])), ensure_ascii=False, indent=1))
+        return
+    if not args.serial:
+        parser.error("name the emulator")
+    if args.walk:
+        args.walk = args.walk.absolute()
+        args.walk.mkdir(parents=True)
+    adb, stale = emulator(args.serial, args.build, args.allow_stale_app)
+    mark = STALE_MARK if stale else ""
+    if stale and args.walk:
+        (args.walk / "STALE-APP.txt").write_text(stale + "\n")
+    with world(args, adb) as host:
+        if args.walk:
+            from simulate_user_app_walk import Walk
+            if failed := Walk(adb, step, args.walk, args.token).run():
+                raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
+            print(f"PASS user app{mark}", flush=True)
+        else:
+            print("Take steps from another terminal with --step. Interrupt to end.", flush=True)
+            host.child.wait()
 
 
 if __name__ == "__main__":
