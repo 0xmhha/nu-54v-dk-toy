@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StyleSheet, Text, TextInput, View} from 'react-native';
-import {bytesToHex, fromBase64, fromBoard, type PaymentToken, type WalletSends} from '@nu54/protocol';
+import {bytesToHex, fromBase64, fromBoard, isWon, type PaymentToken, type WalletSends} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
@@ -15,14 +15,20 @@ import {parseHumanAmount} from './evmRegistry.ts';
 import {normalizeEvmAddress} from './evmTransfer.ts';
 import {testedBoard} from './profile.ts';
 import {defaultReadState, readContact} from './readProfiles.ts';
-import {assetMoney, storeMoney, type Shown} from './tokens.ts';
+import {assetMoney, shownUnits, storeMoney, type Shown} from './tokens.ts';
 
 const now = () => Math.floor(Date.now() / 1000);
 const pinNote = '위 금액과 받는 주소를 확인한 뒤 SW1을 짧게 누르고 보드 버튼으로 PIN을 입력하세요. 거절하려면 SW2를 누르세요.';
 
-/** Dollars are typed in cents, as the screens show them; a token with fewer decimals in all of them. */
-const sendDecimals = (token: PaymentToken) => Math.min(2, token.decimals);
+/**
+ * How an amount is typed: as the screens show it. Won are whole (owner decision 2026-11-27), so a won amount is
+ * digits alone and the number typed is the number signed and sent. Dollars are typed in cents; a dollar token with
+ * fewer decimals in all of them.
+ */
+const sendDecimals = (token: PaymentToken) => isWon(token) ? 0 : Math.min(2, token.decimals);
 const decimalWords = (decimals: number) => ['없음', '한', '두', '세', '네', '다섯', '여섯'][decimals] ?? String(decimals);
+/** Said where a won amount is typed or pasted with anything but digits: it is refused, never cut to whole won. */
+const wholeWonOnly = '원화는 1원 단위로만 보낼 수 있습니다. 소수점 없이 숫자만 입력하세요.';
 
 /** What the server's refusal of a transfer means, in the words of this build's route. The rest is worded as for a return. */
 export function sendFailure(error: unknown): string {
@@ -52,7 +58,8 @@ export function readRecipient(text: string) {
 
 /** 보내기: the store token to any address. The board signs it, the store relays it and pays the gas. */
 export function SendPage(props: BoardLifeProps) {
-  // Whole won on the screen: what is held or left is cut off, what is sent is rounded up. The board signs `units`.
+  // Whole won on the screen: what is held or left is cut off. What is sent is typed in whole won, so the number
+  // shown is the number the board signs (`units`); a record kept from before that rule is shown rounded up.
   const {store} = props, money = (units: string | bigint, shown: Shown = 'balance') => storeMoney(units, store?.token, 'ko', shown);
   const {stored, work, withBoard, say} = props;
   const {verified} = stored, board = testedBoard(stored);
@@ -158,6 +165,13 @@ export function SendPage(props: BoardLifeProps) {
   if (props.spending && !props.spending.sends) return <Notice title="아직 보낼 수 없습니다" body="연결한 보드의 펌웨어가 보내기를 지원하지 않습니다. 남은 돈은 반납으로 원래 지갑에 보낼 수 있습니다.">
     <KitButton label="반납 보기" run={() => props.go('return')} variant="secondary" /></Notice>;
   const contacts = (stored.walletRead?.contacts ?? []).filter(item => item.id === 'stable');
+  const won = isWon(store.token);
+  // A won amount takes digits alone. Anything else, typed or pasted, leaves what was there and says why.
+  const typeAmount = (value: string) => {
+    if (won && !/^[0-9]*$/.test(value)) { say(wholeWonOnly); return; }
+    if (won) say('');
+    setAmount(value);
+  };
   const inspect = () => {
     try {
       const target = readRecipient(to);
@@ -169,7 +183,8 @@ export function SendPage(props: BoardLifeProps) {
       say('');
       setReview({to: target, units});
     } catch (error) {
-      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(sendDecimals(store.token)) + ' 자리까지 입력할 수 있습니다.');
+      say(error instanceof Error && error.message.startsWith('EVM_RECIPIENT') ? '받는 주소가 맞지 않습니다. 다시 복사하거나 QR을 읽으세요.'
+        : won ? '금액이 맞지 않습니다. 원화는 1원 단위로 숫자만 입력하세요.' : '금액이 맞지 않습니다. 소수점 아래 ' + decimalWords(sendDecimals(store.token)) + ' 자리까지 입력할 수 있습니다.');
     }
   };
   const scan = async () => {
@@ -185,6 +200,8 @@ export function SendPage(props: BoardLifeProps) {
       <Card><AmountLine amount={money(review.units, 'charge')} label="보내는 금액" />
         <Row label="네트워크" value="StableNet 테스트넷" /><Row label="수수료" value="매장이 냅니다" />
         <Row label="보낸 뒤 남는 금액" value={balance ? money(balance.units - review.units) : '확인 안 됨'} />
+        {balance && balance.units > review.units && shownUnits(balance.units - review.units, store.token, 'balance') === 0n &&
+          <Text style={type.small}>1원보다 적은 금액이 남습니다. 보내기로는 보낼 수 없고, 반납할 때 함께 보냅니다.</Text>}
         <Text style={type.small}>{`받는 주소${known ? ` · ${known.name}` : ''}`}</Text><Text selectable style={styles.address}>{review.to}</Text></Card>
       {!known && !before && <Notice title="처음 보내는 주소입니다" body="앞 여섯 글자와 뒤 네 글자를 받는 사람과 확인하세요. 보낸 돈은 되돌릴 수 없습니다." />}
       {!known && <><TextInput accessibilityLabel="주소록 이름" placeholder="주소록 이름 (선택)" placeholderTextColor={inputPlaceholder} value={label} onChangeText={setLabel}
@@ -226,8 +243,8 @@ export function SendPage(props: BoardLifeProps) {
     {!!contacts.length && <View style={styles.list}>{contacts.map(item => <KitButton key={item.address} label={item.name} detail={`${item.address.slice(0, 8)}…${item.address.slice(-4)}`}
       variant="row" disabled={props.busy} run={() => { setTo(item.address); say(''); }} />)}</View>}
     <Text style={styles.label}>금액</Text>
-    <TextInput accessibilityLabel="금액" placeholder="0.00" placeholderTextColor={inputPlaceholder} value={amount} onChangeText={setAmount} style={styles.input}
-      maxLength={24} keyboardType="decimal-pad" editable={!props.busy} />
+    <TextInput accessibilityLabel="금액" placeholder={won ? '0' : '0.00'} placeholderTextColor={inputPlaceholder} value={amount} onChangeText={typeAmount} style={styles.input}
+      maxLength={24} keyboardType={won ? 'number-pad' : 'decimal-pad'} editable={!props.busy} />
     <KitButton label="다음" run={inspect} disabled={props.busy || !to.trim() || !amount.trim() || (!!held && held.remaining < 1)} />
     {!!held && held.remaining < 1 && <Notice body="오늘 보낼 수 있는 횟수를 다 썼습니다. 24시간이 지나면 다시 보낼 수 있습니다." />}
   </>;
