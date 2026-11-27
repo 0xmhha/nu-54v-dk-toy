@@ -6,7 +6,9 @@
 #define NU54_INSTALL_CHALLENGE_SIZE 32
 #define NU54_INSTALL_PUBLIC_SIZE 65
 #define NU54_INSTALL_SIGNATURE_SIZE 64
-#define NU54_INSTALL_MAX_LEASE 86400
+/* The longest a grant may run, from its own time to its end: 31 days. The operator writes the
+ * actual end into the grant. */
+#define NU54_INSTALL_MAX_LEASE (31 * 86400)
 #define NU54_INSTALL_POLICY_SIZE 355
 #define NU54_INSTALL_HEADER_SIZE (4 + 32 + 65 + 20 + 8 + NU54_INSTALL_POLICY_SIZE + 4)
 #define NU54_INSTALL_BUNDLE_MAX 1600

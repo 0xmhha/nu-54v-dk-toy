@@ -1,6 +1,7 @@
 """enroll_board.py for the spending profile against the board's own checks, with throwaway keys."""
 
 import hashlib
+import datetime
 import json
 from pathlib import Path
 import re
@@ -17,7 +18,7 @@ from cryptography.x509.oid import NameOID
 
 from test_runtime_enrollment import SCRIPTS, cert, key
 from extract_c import definition
-from enroll_board import point, private_key, reset_request, signed, spki
+from enroll_board import MAX_LEASE_SECONDS, point, private_key, reset_request, signed, spki
 
 ROOT = Path(__file__).resolve().parents[3]
 TOOL = [sys.executable, str(SCRIPTS / "enroll_board.py")]
@@ -174,18 +175,21 @@ class GrantTest(Operator):
 
     def setUp(self):
         super().setUp()
-        ca = key()
-        issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "P01 local test CA")])
+        self.ca_key = key()
         self.ca = self.paths / "ca.pem"
-        self.ca.write_bytes(cert(issuer, issuer, ca.public_key(), ca, root=True))
         self.board = key()
         self.board_key = save(self.paths / "board.key", self.board)
         self.leaf = self.paths / "board.pem"
-        self.leaf.write_bytes(cert(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "P01 test board")]), issuer,
-                                   self.board.public_key(), ca))
+        self.certificates(datetime.timedelta(hours=2))
         self.keys = {role: public(self.paths / f"{role}.pub", key()) for role in ("display", "recovery")}
         self.payer, self.device = secrets.token_bytes(20), secrets.token_bytes(32)
         self.boots = 0
+
+    def certificates(self, lifetime):
+        issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "P01 local test CA")])
+        self.ca.write_bytes(cert(issuer, issuer, self.ca_key.public_key(), self.ca_key, root=True, lifetime=lifetime))
+        self.leaf.write_bytes(cert(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "P01 test board")]), issuer,
+                                   self.board.public_key(), self.ca_key, lifetime=lifetime))
 
     def boot(self, *extra, check=True, keys=None, **changed):
         """A new boot offers a new challenge, and the issuer answers it with a grant."""
@@ -222,7 +226,24 @@ class GrantTest(Operator):
         self.assertEqual([line(1), line(1), line(3), line(3)],
                          self.installed(first, second_boot, after_reset, third_boot))
 
-    def test_a_grant_is_for_one_boot(self):
+    def test_the_period_is_the_operators_up_to_31_days(self):
+        header = (SCRIPTS.parent / "core/include/nu54_install.h").read_text()
+        days, seconds = re.search(r"^#define NU54_INSTALL_MAX_LEASE \((\d+) \* (\d+)\)$", header, re.MULTILINE).groups()
+        self.assertEqual(31 * 86400, MAX_LEASE_SECONDS)
+        self.assertEqual(MAX_LEASE_SECONDS, int(days) * int(seconds))  # the tool and the board agree
+        # The certificates in the grant must last as long as the grant; two hours do not.
+        self.assertNotEqual(0, self.boot("--spending", check=False, not_after=int(time.time()) + 3 * 86400))
+        self.certificates(datetime.timedelta(days=32))
+        week = self.boot("--spending", not_after=int(time.time()) + 7 * 86400)
+        longest = self.boot("--spending", revision=2, not_after=int(time.time()) + MAX_LEASE_SECONDS)
+        line = "role=1 testnet=1 generation=1 cap=30000000"
+        self.assertEqual([line, line], self.installed(week, longest))
+        self.assertNotEqual(0, self.boot("--spending", check=False, revision=3,
+                                         not_after=int(time.time()) + MAX_LEASE_SECONDS + 60))
+
+    def test_a_grant_cannot_be_installed_again(self):
+        # The board keeps its grant through a restart itself. Sending the same grant once more, in
+        # answer to another offer, is refused: an installation needs a grant made for that offer.
         first, again = self.boot("--spending"), self.boot("--spending", revision=2)
         self.assertEqual("refused", self.installed(first, (again[0], first[1]))[1])
 

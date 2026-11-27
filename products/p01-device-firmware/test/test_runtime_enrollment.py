@@ -24,11 +24,11 @@ def key():
     return ec.generate_private_key(ec.SECP256R1())
 
 
-def cert(subject, issuer, public_key, authority, root=False):
+def cert(subject, issuer, public_key, authority, root=False, lifetime=datetime.timedelta(hours=2)):
     now = datetime.datetime.now(datetime.timezone.utc)
     builder = (x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(public_key)
                .serial_number(x509.random_serial_number()).not_valid_before(now - datetime.timedelta(minutes=1))
-               .not_valid_after(now + datetime.timedelta(hours=2))
+               .not_valid_after(now + lifetime)
                .add_extension(x509.BasicConstraints(ca=root, path_length=None), critical=True))
     if not root:
         builder = builder.add_extension(x509.SubjectAlternativeName([
