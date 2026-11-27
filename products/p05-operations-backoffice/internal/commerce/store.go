@@ -58,6 +58,20 @@ func Open(ctx context.Context, url string) (*Store, error) {
 
 func (s *Store) Close() { s.db.Close() }
 
+// DeclareWholeAmounts tells the ledger what one won of each won branch's asset is, so that the ledger's own checks
+// and the refunds it computes are in whole won. opsd repeats it at every start; a declared unit never changes.
+func (s *Store) DeclareWholeAmounts(ctx context.Context, profiles map[string]Profile) error {
+	for _, profile := range profiles {
+		if unit := profile.Token.WholeUnit(); unit != "" {
+			if _, err := s.db.Exec(ctx, "SELECT ledger.declare_whole_amount(lower($1),$2::text::numeric)",
+				profile.Asset.Hex(), unit); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 type Item struct {
 	SKU    string `json:"sku"`
 	Option string `json:"option_key"`
