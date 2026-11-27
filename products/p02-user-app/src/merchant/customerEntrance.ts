@@ -45,9 +45,10 @@ export function entranceBusy(reply: EntranceReply): boolean {
 export const longestWait = 120;
 
 /**
- * The requests the server counts together (opsd customer_limits.go): a wait asked of one kind does not hold another.
- * A challenge and a proof are counted under one allowance of the address, whatever they are for; the sessions an
- * account starts are counted with its proofs, so a wait asked of a proof holds the next challenge too.
+ * The requests the phone waits for together (opsd customer_limits.go): a wait asked of one kind does not hold another.
+ * The server counts a challenge and a proof apart (a challenge for its address; a proof for its account, and a
+ * session start for its address too), but for the app they are one step: a challenge is of no use while its proof
+ * would be told to wait, so a wait asked of either holds both.
  */
 function waitKind(path: string): string {
   if (path === '/v2/customer/commerce' || path === '/v2/customer/checkout/cancel') return 'session';
