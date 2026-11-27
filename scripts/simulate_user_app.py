@@ -32,6 +32,7 @@ APK = "products/p02-user-app/android/app/build/outputs/apk/debug/app-debug.apk"
 MANIFEST = "products/p02-user-app/android/app/src/main/AndroidManifest.xml"
 REMEDY = "rebuild and install it with --build, or pass --allow-stale-app to run against the old build on purpose"
 STALE_MARK = " (STALE APP ALLOWED: not a result for the current sources)"  # on every result line of a run let through
+STALE_EXIT = 3  # how such a run ends when nothing failed, so that a script cannot take it for a pass; a failure ends with 1
 HOST, BUNDLER = 8790, 8785  # not 8081, where the apps of other projects look for a bundler
 MINUTES = 45
 
@@ -134,7 +135,8 @@ def main(arguments=None):
     parser.add_argument("--postgres-bin", type=Path, default=os.environ.get("POSTGRES_BIN"), help="directory with the PostgreSQL tools")
     parser.add_argument("--token", choices=("usd", "won", "krwc"), default="usd", help="the store's token")
     parser.add_argument("--build", action="store_true", help="build the debug app from the current sources, record what it was built from and install it")
-    parser.add_argument("--allow-stale-app", action="store_true", help="run although the installed app is not known to be built from the current sources; the result says so")
+    parser.add_argument("--allow-stale-app", action="store_true", help="run although the installed app is not known to be built from the current sources; "
+                        f"every result line then says STALE APP ALLOWED and a run without a failure ends with {STALE_EXIT} instead of 0")
     args = parser.parse_args(arguments)
     if args.step:
         print(json.dumps(step(args.step[0], **json.loads(args.step[1])), ensure_ascii=False, indent=1))
@@ -154,12 +156,14 @@ def main(arguments=None):
     with world(args, adb) as host:
         if args.walk:
             from simulate_user_app_walk import Walk
-            if failed := Walk(adb, step, args.walk, args.token).run():
+            if failed := Walk(adb, step, args.walk, args.token, mark).run():
                 raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
             print(f"PASS user app{mark}", flush=True)
         else:
             print("Take steps from another terminal with --step. Interrupt to end.", flush=True)
             host.child.wait()
+    if stale:
+        raise SystemExit(STALE_EXIT)
 
 
 if __name__ == "__main__":

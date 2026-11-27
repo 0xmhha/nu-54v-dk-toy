@@ -619,6 +619,58 @@ class Emulator(Device):
         self.assertFalse([call for call in self.calls() if call.startswith("install")])
 
 
+class FlowLines(unittest.TestCase):
+    """The line the walk prints for each flow. The flows need an emulator and are stood in for; run() is the real one."""
+
+    def lines(self, mark):
+        def adb(*args):
+            crashed = b"E/AndroidRuntime( 4242): FATAL EXCEPTION: main\n" if args[0] == "logcat" and "-d" in args else b""
+            return subprocess.CompletedProcess(args, 0, b"Physical size: 1080x2400\n" if args[1:] == ("wm", "size") else crashed, b"")
+
+        class Walk(simulation_walk.Walk):
+            def wait_for_app(self, words=()):
+                pass
+
+            def shot(self, name):
+                pass
+
+            def flows(self):
+                def agree():
+                    pass
+
+                def set_up():
+                    pass
+
+                def deposit():
+                    pass
+
+                def pay():
+                    raise AssertionError("no receipt")
+                return (agree, set_up, deposit, pay)
+
+        printed = io.StringIO()
+        with redirect_stdout(printed):
+            failed = Walk(adb, lambda name, **values: None, Path("unused"), "usd", *mark).run()
+        return failed, printed.getvalue().splitlines()
+
+    def test_a_walk_of_an_allowed_stale_app_marks_every_line(self):
+        mark = " (STALE APP ALLOWED: not a result for the current sources)"
+        failed, lines = self.lines([mark])
+        self.assertEqual(failed, 2)
+        self.assertEqual(lines[:4], [f"PASS agree{mark} (0s)", f"PASS set up{mark} (0s)", f"PASS deposit{mark} (0s)", f"FAIL pay{mark}: no receipt"])
+        self.assertEqual(lines[4], f"FAIL app errors{mark}:")
+        self.assertEqual([line for line in lines if line.startswith(("PASS", "FAIL")) and mark not in line], [])
+
+    def test_a_walk_of_a_current_app_has_plain_lines(self):
+        failed, lines = self.lines([])
+        self.assertEqual(lines[:5], ["PASS agree (0s)", "PASS set up (0s)", "PASS deposit (0s)", "FAIL pay: no receipt", "FAIL app errors:"])
+
+    def test_the_walk_still_names_its_sixteen_flows(self):
+        walk = simulation_walk.Walk(lambda *args: subprocess.CompletedProcess(args, 0, b"1080x2400", b""), None, Path("unused"))
+        self.assertEqual([flow.__name__ for flow in walk.flows()][:3], ["agree", "set_up", "deposit"])
+        self.assertEqual(len(walk.flows()), 16)
+
+
 class Run(Device):
     """simulate_user_app.main() against the stand-in adb. The world is not started and the walk is a count of failed flows."""
 
@@ -687,6 +739,26 @@ class Run(Device):
         self.assertIn("--allow-stale-app", ended)
         self.assertNotIn("PASS", printed)
         self.assertEqual(walks, [])
+
+    def test_a_run_that_only_passed_with_a_stale_app_allowed_ends_with_its_own_code(self):
+        self.make_stale()
+        ended, printed, walks = self.run_simulation("--walk", str(self.evidence), "--allow-stale-app")
+        self.assertEqual(ended, 3)
+        self.assertEqual(printed.splitlines()[-1], "PASS user app (STALE APP ALLOWED: not a result for the current sources)")
+        self.assertEqual(walks[0][-1], " (STALE APP ALLOWED: not a result for the current sources)")
+        self.assertEqual(self.run_simulation("--allow-stale-app")[0], 3)  # without a walk: the steps of another terminal
+        self.assertIsInstance(self.run_simulation("--walk", str(self.evidence) + "-2", "--allow-stale-app", failed=1)[0], str)  # a failure stays a failure
+
+    def test_a_current_app_ends_with_zero_also_when_a_stale_one_was_allowed(self):
+        ended, printed, walks = self.run_simulation("--build", "--walk", str(self.evidence), "--allow-stale-app")
+        self.assertIsNone(ended)
+        self.assertEqual(printed.splitlines()[-1], "PASS user app")
+        self.assertEqual(walks[0][-1], "")
+
+    def test_help_names_the_code(self):
+        ended, printed, _ = self.run_simulation("--help")
+        self.assertEqual(ended, 0)
+        self.assertRegex(" ".join(printed.split()), r"--allow-stale-app .*ends with 3")
 
     def test_a_refused_run_can_be_repeated_with_the_same_directory(self):
         self.make_stale()

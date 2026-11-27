@@ -10,8 +10,9 @@ TABS = ("홈", "결제", "지갑", "둘러보기", "설정")
 
 
 class Walk:
-    def __init__(self, adb, step, evidence, token="usd"):
+    def __init__(self, adb, step, evidence, token="usd", mark=""):
         self.adb, self.step, self.evidence = adb, step, evidence
+        self.mark = mark  # goes on every result line, for a run that an old app was let into
         size = re.search(rb"(\d+)x(\d+)", self.shell("wm", "size"))
         self.width, self.height = int(size[1]), int(size[2])
         self.failed = 0
@@ -513,6 +514,9 @@ class Walk:
         self.tap("홈")
         self.sees("보드 연결이 필요합니다")
 
+    def flows(self):
+        return (self.agree, self.set_up, self.deposit, self.tokens, self.faucet, self.network_settings, self.settings, self.send, self.pay, self.refuse, self.over_limit, self.no_board, self.lost_connection, self.options, self.inner_pages, self.give_back)
+
     def run(self):
         self.adb("logcat", "-c")
         scales = ("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
@@ -521,25 +525,25 @@ class Walk:
             self.shell("settings", "put", "global", name, "0")
         try:
             self.wait_for_app(("동의하고 시작",))
-            flows = (self.agree, self.set_up, self.deposit, self.tokens, self.faucet, self.network_settings, self.settings, self.send, self.pay, self.refuse, self.over_limit, self.no_board, self.lost_connection, self.options, self.inner_pages, self.give_back)
+            flows = self.flows()
             for flow in flows:
                 name, at = flow.__name__.replace("_", " "), time.monotonic()
                 try:
                     self.step("board", change={"answer": "press", "dropAfterSigning": False})
                     self.step("around", change={"board": True, "kiosk": True})
                     flow()
-                    print(f"PASS {name} ({time.monotonic() - at:.0f}s)", flush=True)
+                    print(f"PASS {name}{self.mark} ({time.monotonic() - at:.0f}s)", flush=True)
                 except Exception as error:
                     self.failed += 1
                     self.shot("FAILED-" + flow.__name__)
-                    print(f"FAIL {name}: {error}", flush=True)
+                    print(f"FAIL {name}{self.mark}: {error}", flush=True)
                     if flow in flows[:3]:
                         break  # the rest needs a board with money
             log = self.adb("logcat", "-d", "-v", "brief").stdout.decode(errors="replace")
             crashes = [line for line in log.splitlines() if re.search(r"AndroidRuntime.*FATAL|ANR in " + PACKAGE + r"|E/ReactNativeJS", line)]
             if crashes:
                 self.failed += 1
-                print("FAIL app errors:\n" + "\n".join(line[:300] for line in crashes[:5]), flush=True)
+                print(f"FAIL app errors{self.mark}:\n" + "\n".join(line[:300] for line in crashes[:5]), flush=True)
         finally:
             for name, value in before.items():
                 self.shell("settings", *(("delete", "global", name) if value == "null" else ("put", "global", name, value)))
