@@ -460,6 +460,12 @@ func (h FinanceHTTP) serve(w http.ResponseWriter, r *http.Request) {
 			h.refundBlocked(ctx, w, "REFUND_DESTINATION_HELD")
 			return
 		}
+		// A won refund is whole won; the ledger checks the same. Only all that is left of a payment may end in a
+		// part of a won, so that a payment stored with one is never refunded above what was paid.
+		if left, _ := status["available"].(string); !h.Targets[in.Branch].Token.WholeAmount(in.Amount) && in.Amount != left {
+			http.Error(w, "invalid refund request", http.StatusBadRequest)
+			return
+		}
 		var id string
 		err = h.Store.db.QueryRow(ctx, "SELECT ledger.reserve_console_refund($1,$2,$3,$4,$5,$6::text::numeric,$7)::text",
 			principal.Tenant, in.Branch, principal.Subject, in.Sale, in.Key, in.Amount, in.Reason).Scan(&id)
