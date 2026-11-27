@@ -97,7 +97,7 @@ static psa_key_id_t authority = 1;
 static nu54_install_policy policy;
 static nu54_install_floor floor;
 static int64_t challenge_birth, installed, uptime = 5000;
-static uint64_t max_offset, replay_floor, clock_base;
+static uint64_t max_offset, replay_floor, clock_base, clock_moved;
 static bool offered, active, clock_sealed, policy_witnessed;
 static nu54_install_clock clock_saved;
 static nu54_vault vault = {.enabled = true};
@@ -144,7 +144,7 @@ int device_install_load(const uint8_t *, size_t, mbedtls_x509_crt *, mbedtls_x50
 int device_install_restore(uint8_t *, size_t, mbedtls_x509_crt *, mbedtls_x509_crt *, mbedtls_pk_context *,
 			   device_tls_v2_profile [2]);
 int64_t device_install_keep_time(void);
-int device_install_set_time(uint64_t, uint64_t, uint64_t, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+int device_install_set_time(const nu54_install_clock_told *, bool, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
 uint64_t device_install_order_hold(void);
 int device_install_fence_wallet_expiry(uint64_t);
 const nu54_install_policy *device_install_policy(void);
@@ -206,7 +206,7 @@ static int restart(void)
 	memset(&policy, 0, sizeof(policy));
 	memset(&floor, 0, sizeof(floor));
 	installed = 0;
-	max_offset = replay_floor = clock_base = 0;
+	max_offset = replay_floor = clock_base = clock_moved = 0;
 	offered = active = false;
 	uptime = 5000;
 	assert(!storage_found(INSTALL_FLOOR, &floor, sizeof(floor), 1, &found));

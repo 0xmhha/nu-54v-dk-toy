@@ -31,10 +31,17 @@ int64_t device_install_keep_time(void);
  * before it is used. Returns one of the results of nu54_install_clock_set with the reply written,
  * or -1. After NU54_CLOCK_MOVED the latest possible time may be earlier than it was.
  *
+ * Since its last start the board lets the phone move the clock by CONFIG_NU54_CLOCK_FREE_SECONDS
+ * at the most without SW1; a move beyond that returns NU54_CLOCK_BUTTON and changes nothing. With
+ * `button` the caller says that SW1 was pressed for this message. The message is then taken as of
+ * the moment it arrived: the board adds the seconds it has run since to the phone's time, and the
+ * distance to the latest possible time is the one the message had on arrival. So a message that
+ * waited for the button brings no older time than one that did not wait, and no wider interval.
+ *
  * `hold_seconds` is the running time for which an order that is open now must stay open whatever
  * the new time says (device_order_hold_seconds). It is saved in the same write as the time, so
  * that a restart right after the move keeps it. */
-int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds, uint64_t hold_seconds,
+int device_install_set_time(const nu54_install_clock_told *told, bool button, uint64_t hold_seconds,
 			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE]);
 /* The running time, in seconds, that is left of the hold the storage has. Asked once at start,
  * with or without a grant in use; a restart found the time it saved last, so this is at least

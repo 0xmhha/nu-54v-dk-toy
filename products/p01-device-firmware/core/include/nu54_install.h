@@ -103,7 +103,7 @@ uint64_t nu54_install_resume(const nu54_install_clock *saved, uint64_t floor_tim
  * that a restart after the end finds the end in storage. `latest` is the latest possible time. */
 int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t interval_seconds);
 
-/* ---- the owner's phone tells a restarted board the time (decision of 2026-11-27) ---- */
+/* ---- the owner's phone tells a restarted board the time (decisions of 2026-11-27) ---- */
 
 /* Request: op, the phone's time as eight big-endian bytes, in a NU54_V2_CLOCK message.
  * Reply: op, result, the board's earliest and latest possible time, the grant's end (8 each),
@@ -124,19 +124,33 @@ _Static_assert(NU54_CLOCK_STEP_SECONDS > 1 && NU54_CLOCK_STEP_SECONDS <= NU54_CL
 	       "the smallest step lies within the phone's allowance");
 /* MOVED: the board took the time, and `next` is its new interval. NOT_FORWARD: its time is as
  * late or later, or the difference is below the step. PAST_END: the time is at or after the
- * grant's end. LATE: the message came too late in its session to say what the time is. All but
- * MOVED change nothing. */
-enum { NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3, NU54_CLOCK_LATE = 4 };
+ * grant's end. LATE: the message came too late in its session to say what the time is. BUTTON:
+ * the move is more than the phone may make by itself and needs SW1 on the board. All but MOVED
+ * change nothing. */
+enum {
+	NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3, NU54_CLOCK_LATE = 4,
+	NU54_CLOCK_BUTTON = 5
+};
 
 /* One message with the phone's time, and what the board knows about it. */
 typedef struct {
 	uint64_t time, expires;   /* the phone's time and the end of the message that carries it */
 	uint64_t session_seconds; /* how long the board had had the session when the message arrived */
+	uint64_t moved_seconds;   /* how far the phone moved the lower bound since this start, without SW1 */
+	bool button;              /* SW1 was pressed for this message */
 } nu54_install_clock_word;
 
-/* What the build allows the phone's word: the oldest session it may come in. */
+/* The same message as the board received it and keeps it while it waits for SW1: the time as the
+ * phone told it, and the board's running time, in milliseconds, at which the message arrived. */
 typedef struct {
-	uint64_t session_seconds;
+	uint64_t time, expires, session_seconds;
+	int64_t received;
+} nu54_install_clock_told;
+
+/* What the build allows the phone's word: the oldest session it may come in, and how far it may
+ * move the lower bound forward in one start without SW1, all its messages together. */
+typedef struct {
+	uint64_t session_seconds, free_seconds;
 } nu54_install_clock_limits;
 
 /* Decides on the time a registered owner's phone tells in an authenticated session.
@@ -155,6 +169,13 @@ typedef struct {
  * A time that does not move the lower bound, and is not behind it by more than the phone's
  * allowance, still brings the latest possible time down to what the phone vouches for, if that is
  * a step or more. That is how an interval a slow grant left wide becomes narrow again.
+ *
+ * The phone's time may be wrong, or not the owner's will: whoever holds the phone needs neither
+ * the board nor the PIN to send it. So since its last start the board lets the phone move the
+ * lower bound by `free_seconds` at the most without SW1 (decision of 2026-11-27), counted over
+ * all messages and not per message. A move that would take the count past that is answered with
+ * BUTTON and changes nothing; the same move with SW1 pressed is taken and is not counted. A
+ * restart begins the count anew: it takes a hand on the board as the button does.
  *
  * Returns -1 for a message that is not well formed, else one of the results above. `next` is
  * written for NU54_CLOCK_MOVED only; its hold is the current one, and the caller sets the new. */

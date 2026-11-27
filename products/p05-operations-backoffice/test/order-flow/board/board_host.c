@@ -313,7 +313,7 @@ bool status_led_locate(bool start) { (void)start; return false; }
 static nu54_install_policy operator_grant; /* what the operator signs next: the `policy` command */
 static nu54_install_policy policy;         /* the grant in use */
 static int64_t installed;
-static uint64_t max_offset, clock_base;
+static uint64_t max_offset, clock_base, clock_moved;
 static bool offered, active, clock_sealed;
 static nu54_install_clock clock_saved;
 int device_install_forget(void);
@@ -321,7 +321,7 @@ uint64_t device_install_earliest(void);
 uint64_t device_install_now(void);
 const nu54_install_policy *device_install_policy(void);
 int64_t device_install_keep_time(void);
-int device_install_set_time(uint64_t, uint64_t, uint64_t, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+int device_install_set_time(const nu54_install_clock_told *, bool, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
 uint64_t device_install_order_hold(void);
 /* The grant's time is a lower bound and lies 2 seconds back here. */
 #define GRANT_LAG 2
@@ -403,6 +403,11 @@ static bool display_confirmed;
 static unsigned order_slot;
 static uint64_t order_amount, order_expires;
 static nu54_spend_action spend_action;
+static struct {
+	nu54_install_clock_told told;
+	int64_t until;
+	bool pending;
+} clock_wait;
 static uint8_t reset_nonce[32];
 static uint64_t reset_nonce_generation;
 static int64_t reset_nonce_until;
@@ -500,7 +505,7 @@ static void boot(void)
 	reset_nonce_until = 0;
 	memset(&policy, 0, sizeof(policy));
 	installed = 0;
-	max_offset = clock_base = 0;
+	max_offset = clock_base = clock_moved = 0; /* what the phone moved is counted per start */
 	active = offered = ready = false;
 	enrollment_window = recovery_window = 0;
 	clock_worker = -1;
@@ -673,8 +678,12 @@ int main(void)
 			clock_worker = -1;
 			keep_time(NULL);
 		}
-		/* poll_tls: a session ends after 120 seconds, or when its grant runs out. */
-		if (connection && (!device_install_policy() || !session_live(k_uptime_get()))) { reset_link(); ended(); }
+		/* poll_tls: a session ends after 120 seconds, when its grant runs out, or when a time that
+		 * waits for SW1 has ended by its own word. */
+		if (connection && (!device_install_policy() || !session_live(k_uptime_get()) || clock_wait_over(k_uptime_get()))) {
+			reset_link();
+			ended();
+		}
 		if (!readable) continue;
 		ssize_t got = read(STDIN_FILENO, line + used, sizeof(line) - used - 1);
 		if (got <= 0) return 0; /* the test ended */

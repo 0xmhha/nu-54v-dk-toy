@@ -78,7 +78,6 @@ struct bt_conn {int unused;};
 /* How often the lock is held: the lamp's work queue stands still behind a held lock. */
 #define k_mutex_lock(lock, timeout) ((void)++*(lock))
 #define k_mutex_unlock(lock) ((void)--*(lock))
-static int pilot_lock;
 static atomic_t pending_prompt;
 static int32_t atomic_get(const atomic_t *value) { return *value; }
 static void atomic_set(atomic_t *value, int32_t next) { *value = next; }
@@ -109,6 +108,14 @@ static int64_t pin_at;
 static unsigned stored;
 static board_button_event_t early[2];
 static unsigned early_count;
+/* A time from the owner's phone that waits for SW1 (clock_request in device_pilot.c). What the
+ * clock does with it is in test_clock_sync.c. Here it is the button code's turn, and the lamp's. */
+static struct {
+	bool pending;
+} clock_wait;
+static int clock_took; /* what clock_button answers to SW1: 0 moved, 1 moved and the session ends, -1 not moved */
+static unsigned clock_presses, clock_refusals;
+static bool clock_during_pin; /* the phone's time arrives while the PIN of a button reset is entered */
 
 static nu54_vault *device_vault_owner(void) { return &vault; }
 static int pay_link_waiting(void) { return 0; }
@@ -174,6 +181,15 @@ static void reset_link(void)
 	pending_prompt = 0;
 	memset(&spend_action, 0, sizeof(spend_action));
 	memset(&approval, 0, sizeof(approval));
+	clock_wait.pending = false;
+}
+static int pilot_lock;
+static int clock_button(bool approved)
+{
+	assert(pilot_lock == 1 && clock_wait.pending);
+	clock_wait.pending = false;
+	approved ? ++clock_presses : ++clock_refusals;
+	return approved ? clock_took : -1;
 }
 /* The result of a reset is shown for these four seconds, so the lock must be free by now. */
 static void k_msleep(int milliseconds)
@@ -206,6 +222,7 @@ int device_recovery_pin(bool virgin)
 		return -1;
 	}
 	assert(!early_count); /* an early press is no digit */
+	if (clock_during_pin) clock_wait.pending = true;
 	pin_at = uptime;
 	status_led_pin(STATUS_PIN_START);
 	advance(900);
@@ -597,9 +614,75 @@ static void test_button_reset(void)
 	initialized = ready = true;
 }
 
+/* SW1 for a time the owner's phone told (decision of 2026-11-27): the waiting lamp of every other
+ * wait, the press shown, no PIN, and then dark. */
+static void ask_clock(void)
+{
+	start();
+	vault = (nu54_vault){.enabled = true, .record.generation = 1};
+	memset(&approval, 0, sizeof(approval));
+	memset(&spend_action, 0, sizeof(spend_action));
+	memset(&enrollment, 0, sizeof(enrollment));
+	clock_wait.pending = true;
+	pending_prompt = (atomic_t)PROMPT;
+	status_led_waiting(true);
+	advance(50);
+	pin_at = 0;
+	clock_presses = clock_refusals = 0;
+}
+
+static void test_clock_at_the_button(void)
+{
+	/* Taken: the press is shown for 0.6 s, no PIN is asked for, nothing fails, the wait is over. */
+	for (int ends = 0; ends < 2; ++ends) { /* and the same where the session ends with the moved clock */
+		ask_clock();
+		clock_took = ends;
+		const unsigned from = steps;
+		device_pilot_button(PROMPT, true);
+		assert(clock_presses == 1 && !clock_refusals && !pin_at && !pending_prompt && !clock_wait.pending && !pilot_lock);
+		advance(3000);
+		assert(!lamp && !pending_work && steps == from + 1);
+		assert(trace[from] >= 50 + STATUS_LED_PRESSED_MS && trace[from] < 50 + STATUS_LED_PRESSED_MS + 250);
+	}
+	/* Not taken, SW1 too late or on a board that changed meanwhile: the failure pattern. */
+	ask_clock();
+	clock_took = -1;
+	device_pilot_button(PROMPT, true);
+	assert(clock_presses == 1 && !pin_at && !pending_prompt);
+	failed_then_dark();
+	/* SW2 drops it: no press is shown, the failure pattern, and the wait is over. */
+	ask_clock();
+	clock_took = 0;
+	device_pilot_button(PROMPT, false);
+	assert(!clock_presses && clock_refusals == 1 && !pin_at && !pending_prompt && !clock_wait.pending);
+	failed_then_dark();
+	/* A press for another prompt is not for this wait. */
+	ask_clock();
+	device_pilot_button(PROMPT + 1, true);
+	assert(!clock_presses && !clock_refusals && clock_wait.pending && pending_prompt == (atomic_t)PROMPT);
+	reset_link();
+
+	/* The reset from the buttons does not start while a time waits for SW1, and does not go
+	 * through when one arrived while its PIN was entered. */
+	right_pin = true;
+	erased = false;
+	ask_clock();
+	device_pilot_button_reset();
+	assert(!pin_at && !erased && clock_wait.pending && pending_prompt); /* refused before the PIN */
+	reset_link();
+	start();
+	clock_during_pin = true;
+	device_pilot_button_reset();
+	clock_during_pin = false;
+	assert(pin_at && !erased && clock_wait.pending);
+	failed_then_dark();
+	reset_link();
+}
+
 int main(void)
 {
 	test_answers();
+	test_clock_at_the_button();
 	test_first_owner_makes_the_key();
 	test_unfinished_registration_takes_the_pin_back();
 	test_first_owner_ends_the_owner_wait();

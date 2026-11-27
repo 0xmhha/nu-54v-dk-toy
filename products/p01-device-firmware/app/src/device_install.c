@@ -35,6 +35,7 @@
 #define GRANT_PARTS ((NU54_INSTALL_BUNDLE_MAX + GRANT_PART_SIZE - 1) / GRANT_PART_SIZE)
 #define CLOCK_SAVE_SECONDS CONFIG_NU54_CLOCK_SAVE_SECONDS
 #define CLOCK_SESSION_SECONDS CONFIG_NU54_CLOCK_SESSION_SECONDS
+#define CLOCK_FREE_SECONDS CONFIG_NU54_CLOCK_FREE_SECONDS
 _Static_assert(INSTALL_GRANT_PART + GRANT_PARTS <= 0x5470, "the grant parts run into the next record");
 /* A part is exactly as large as one item of the default profile's storage may be: there is no
  * margin, so a smaller item limit must fail the build and not the installation. */
@@ -71,6 +72,11 @@ static bool offered, active;
 static uint64_t clock_base;
 static nu54_install_clock clock_saved; /* what storage holds; zero when nothing */
 static bool clock_sealed;              /* the end of the grant is in storage: nothing more to save */
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* How far the owner's phone has moved the lower bound since this start without SW1. In RAM on
+ * purpose: a restart, which takes a hand on the board as the button does, begins it anew. */
+static uint64_t clock_moved;
+#endif
 
 static int hash(const uint8_t *data, size_t length, uint8_t output[32])
 {
@@ -530,31 +536,41 @@ int64_t device_install_keep_time(void)
 /* The registered owner's phone tells the time (core/include/nu54_install.h). The caller has
  * checked who asks. A time that moves the clock is in storage before the board uses it, so a
  * restart goes on from it and a write that fails moves nothing. Returns the result of
- * nu54_install_clock_set with the reply written, or -1.
+ * nu54_install_clock_set with the reply written, or -1. What `button` and `told->received` mean
+ * is in device_install.h.
  *
  * The phone's time may be ahead of the calendar. An order that is open by the board's time before
  * the move is therefore held open for `hold_seconds` of running time after it. The hold is written
  * as a board time, in the same record and the same write as the moved time: whatever a restart
  * finds, it finds both or neither. */
-int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds, uint64_t hold_seconds,
+int device_install_set_time(const nu54_install_clock_told *told, bool button, uint64_t hold_seconds,
 			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE])
 {
-	if (!device_install_policy()) return -1;
+	if (!told || !device_install_policy()) return -1;
+	const int64_t uptime = k_uptime_get(), received = told->received < uptime ? told->received : uptime;
+	/* A message that waited for SW1 stands for the time it told plus the whole seconds the board
+	 * has run since it arrived. One that is taken at once has waited for none. */
+	const uint64_t waited = (uint64_t)(uptime - received) / 1000u;
+	if (told->time > UINT64_MAX - waited) return -1;
 	const uint64_t earliest = device_install_earliest();
 	nu54_install_clock clock = {earliest, max_offset, clock_saved.phone_days, hold_after(earliest)}, next;
-	const nu54_install_clock_word word = {.time = time, .expires = expires, .session_seconds = session_seconds};
-	static const nu54_install_clock_limits limits = {.session_seconds = CLOCK_SESSION_SECONDS};
+	const nu54_install_clock_word word = {.time = told->time + waited, .expires = told->expires,
+		.session_seconds = told->session_seconds, .moved_seconds = clock_moved, .button = button};
+	static const nu54_install_clock_limits limits = {.session_seconds = CLOCK_SESSION_SECONDS,
+							 .free_seconds = CLOCK_FREE_SECONDS};
 	const int result = nu54_install_clock_set(&clock, policy.not_after, &word, &limits, &next);
 	if (result < 0) return -1;
 	if (result == NU54_CLOCK_MOVED) {
-		const bool forward = next.earliest > clock.earliest;
+		const uint64_t step = next.earliest - clock.earliest;
 		/* Only a lower bound that moved can end an order early. */
-		if (forward)
+		if (step)
 			next.hold = !hold_seconds ? 0 : hold_seconds > UINT64_MAX - next.earliest ? UINT64_MAX : next.earliest + hold_seconds;
 		if (clock_store(&next)) return -1;
-		if (forward) {
+		if (step) {
+			/* The board's time runs on from the second the message's time stands for. */
 			clock_base = next.earliest;
-			installed = k_uptime_get();
+			installed = received + (int64_t)waited * 1000;
+			if (!button) clock_moved += step;
 		}
 		max_offset = next.offset;
 		/* What was saved already says that the grant ended: nothing more is written for it. */

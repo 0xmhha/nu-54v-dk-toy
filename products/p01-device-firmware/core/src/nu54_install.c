@@ -175,6 +175,15 @@ static void put_integer(uint8_t *out, size_t length, uint64_t value)
 	}
 }
 
+/* The one place that says when the phone's word alone is not enough: a move that takes what the
+ * phone moved since this start past the allowance needs SW1. Any further rule about how far a
+ * phone may move the clock belongs here. */
+static bool needs_button(const nu54_install_clock_word *word, const nu54_install_clock_limits *limits, uint64_t step)
+{
+	if (word->button) return false;
+	return word->moved_seconds > limits->free_seconds || step > limits->free_seconds - word->moved_seconds;
+}
+
 int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, const nu54_install_clock_word *word,
 			   const nu54_install_clock_limits *limits, nu54_install_clock *next)
 {
@@ -200,6 +209,7 @@ int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after
 		next->offset = offset;
 		return NU54_CLOCK_MOVED;
 	}
+	if (needs_button(word, limits, time - earliest)) return NU54_CLOCK_BUTTON;
 	const bool later_day = time / 86400u > earliest / 86400u;
 	*next = (nu54_install_clock){.earliest = time, .offset = vouched,
 		.phone_days = current->phone_days + (later_day && current->phone_days != UINT64_MAX), .hold = current->hold};

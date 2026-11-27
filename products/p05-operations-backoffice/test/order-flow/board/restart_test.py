@@ -13,6 +13,8 @@ import time
 PHONE = "5a" * 32
 POLICY = " ".join(["policy", "11" * 20, "22" * 20, "33" * 20, "44" * 20, "55" * 32, PHONE])
 ZERO = "00" * 20
+EPOCH = "e1" * 16
+MANAGEMENT, MANAGE, CLOCK = 1, 1, 8  # the route and two commands of packages/protocol/v2/transport.md
 
 
 class Board:
@@ -54,6 +56,17 @@ class Board:
             self.ask("close")
         return opened
 
+    def asks(self, command, payload, expires):
+        """One request of the phone in a session of its own (packages/protocol/v2/transport.md): "out" or "ended"."""
+        if self.ask(f"connect {EPOCH} {PHONE}", "open", "denied") != "open":
+            return "denied"
+        body = bytes([command]) + bytes([command, 9] + [0] * 14) + expires.to_bytes(8, "big") + payload
+        frame = bytes.fromhex(EPOCH) + (0).to_bytes(4, "big") + bytes([0, 1]) + body
+        answer = self.ask("data " + (bytes([MANAGEMENT]) + len(frame).to_bytes(2, "big") + frame).hex(), "out", "ended")
+        if answer != "ended":
+            self.ask("close")
+        return answer.split(" ")[0]
+
 
 def check(what, passed):
     if not passed:
@@ -73,6 +86,12 @@ def main(program):
     earliest, latest = board.clock
     check("the time of the grant, four seconds wide", latest - earliest == 4 and abs(time.time() - 2 - earliest) < 2)
     check("a session under the grant", board.connects())
+    # The time command is for the registered owner's phone. This board has none, so the phone the grant names for
+    # the registration is answered when it asks for the status, and is not when it tells the time.
+    now = int(time.time())
+    check("the phone of the grant is answered", board.asks(MANAGE, bytes([3]), now + 60) == "out")
+    check("a board without an owner does not take the time", board.asks(CLOCK, bytes([0x81]) + (now + 5).to_bytes(8, "big"), now + 95) == "ended")
+    check("and its time is what it was", board.clock == (earliest, latest))
 
     time.sleep(2.2)
     again, account, generation = board.boot()

@@ -35,6 +35,14 @@ static atomic_t pending_prompt;
 static unsigned order_slot, managed, clock_turns;
 static uint64_t order_amount, order_expires;
 static int tls, clock_worker;
+static struct {
+	nu54_install_clock_told told;
+	int64_t until;
+	bool pending;
+} clock_wait;
+static int radio, *connection; /* the Bluetooth link of the session, as the board holds it */
+static unsigned prompts, lamp_waits;
+static uint32_t shown_prompt;
 
 /* The phone's clock, which is the calendar unless a case says the phone is wrong. The board does
  * not see it. */
@@ -53,8 +61,8 @@ static uint8_t epoch[16];
 static uint64_t trusted_now(void) { return device_install_now(); }
 static int pay_link_waiting(void) { return 0; }
 static void atomic_set(atomic_t *value, int32_t next) { *value = next; }
-static void board_io_set_prompt(uint32_t prompt) { (void)prompt; }
-static void status_led_waiting(bool on) { (void)on; }
+static void board_io_set_prompt(uint32_t prompt) { shown_prompt = prompt; prompts += prompt != 0; }
+static void status_led_waiting(bool on) { lamp_waits += on; }
 static void k_work_reschedule(int *work, int delay) { (void)work; (void)delay; ++clock_turns; }
 static uint64_t sys_get_be64(const uint8_t *in)
 {
@@ -99,7 +107,10 @@ static void end_session(void)
 	nu54_v2_link_close(&link);
 	nu54_local_approval_cancel(&approval);
 	memset(&spend_action, 0, sizeof(spend_action));
+	memset(&clock_wait, 0, sizeof(clock_wait));
 	memset(&enrollment, 0, sizeof(enrollment));
+	connection = NULL;
+	shown_prompt = 0;
 	order_slot = 0;
 	order_amount = order_expires = 0;
 	pending_prompt = 0;
@@ -158,13 +169,42 @@ static int bind_session(const nu54_vault *, const uint8_t *, uint64_t);
 static int frame(const uint8_t *, size_t);
 #include "board_clock.h"
 
+#define FREE ((uint64_t)CONFIG_NU54_CLOCK_FREE_SECONDS)
+static const nu54_install_clock_limits build_limits = {.session_seconds = CONFIG_NU54_CLOCK_SESSION_SECONDS,
+							.free_seconds = CONFIG_NU54_CLOCK_FREE_SECONDS};
+
 /* The rule with the limits of this build, for a message that came `age` seconds into its session. */
 static int rule(const nu54_install_clock *current, uint64_t end, uint64_t time, uint64_t expires, uint64_t age,
 		nu54_install_clock *next)
 {
 	const nu54_install_clock_word word = {.time = time, .expires = expires, .session_seconds = age};
-	static const nu54_install_clock_limits limits = {.session_seconds = CONFIG_NU54_CLOCK_SESSION_SECONDS};
-	return nu54_install_clock_set(current, end, &word, &limits, next);
+	return nu54_install_clock_set(current, end, &word, &build_limits, next);
+}
+
+/* The same for a phone that has moved the clock by `moved` seconds since the board's start, with
+ * SW1 pressed for this message or not. */
+static int rule_after(const nu54_install_clock *current, uint64_t end, uint64_t time, uint64_t moved, bool button,
+		      nu54_install_clock *next)
+{
+	const nu54_install_clock_word word = {.time = time, .expires = time + 90, .moved_seconds = moved, .button = button};
+	return nu54_install_clock_set(current, end, &word, &build_limits, next);
+}
+
+/* The board's side of a button while a time waits for it, as device_pilot_button: SW1 or SW2.
+ * Returns what clock_button returns. */
+static int button(bool approved)
+{
+	assert(clock_wait.pending && pending_prompt && connection);
+	const int took = clock_button(approved);
+	if (took) end_session(); /* failed: reset_link */
+	else pending_prompt = 0, shown_prompt = 0; /* answered */
+	return took;
+}
+
+/* The TLS work item, which looks at the session every 25 ms (poll_tls). */
+static void board_polls(void)
+{
+	if (connection && (!device_install_policy() || clock_wait_over(uptime))) end_session();
 }
 
 /* The operator's grant arrives `took` milliseconds after the board's offer, as on the board: the
@@ -214,6 +254,7 @@ static int connect_as(const uint8_t key[32], uint64_t from, uint64_t until)
 	presented.until = until;
 	session_began = uptime;
 	if (trusted_now() >= current->not_after || bind_session(&vault, pin, trusted_now())) return -1;
+	connection = &radio;
 	memset(journal_slots, 0, sizeof(journal_slots)); /* journal_new_session */
 	/* `real` is this phone's clock, and some cases set it wrong. Its own records start anew. */
 	memset(phone_slots, 0, sizeof(phone_slots));
@@ -430,8 +471,11 @@ static void test_the_rule(void)
 	/* A message that is not well formed is not answered, late or not. */
 	assert(rule(&clock, end, now + 1000, now + 1000, limit + 1, &next) == -1);
 
-	/* Never to the grant's end or past it. */
-	assert(rule(&clock, end, end - 1, end + 89, 0, &next) == NU54_CLOCK_MOVED && next.earliest == end - 1);
+	/* Never to the grant's end or past it. (The board is within a day of the end here: a move of
+	 * ten days is more than the phone makes by itself, see test_the_phone_alone_moves_a_day.) */
+	const nu54_install_clock last_day = {.earliest = end - 3600, .offset = 2, .phone_days = 4};
+	assert(rule(&last_day, end, end - 1, end + 89, 0, &next) == NU54_CLOCK_MOVED && next.earliest == end - 1);
+	assert(rule(&clock, end, end - 1, end + 89, 0, &next) == NU54_CLOCK_BUTTON);
 	next = (nu54_install_clock){0};
 	assert(rule(&clock, end, end, end + 90, 0, &next) == NU54_CLOCK_PAST_END);
 	assert(rule(&clock, end, end + 40 * DAY, end + 40 * DAY + 90, 0, &next) == NU54_CLOCK_PAST_END);
@@ -454,7 +498,8 @@ static void test_the_rule(void)
 	const uint64_t midnight = (now / DAY + 1) * DAY;
 	assert(rule(&clock, end, midnight - 1, midnight + 80, 0, &next) == NU54_CLOCK_MOVED && next.phone_days == 4);
 	assert(rule(&clock, end, midnight, midnight + 90, 0, &next) == NU54_CLOCK_MOVED && next.phone_days == 5);
-	assert(rule(&clock, end, midnight + 3 * DAY, midnight + 3 * DAY + 90, 0, &next) == NU54_CLOCK_MOVED);
+	assert(rule(&clock, end, midnight + 3 * DAY, midnight + 3 * DAY + 90, 0, &next) == NU54_CLOCK_BUTTON);
+	assert(rule_after(&clock, end, midnight + 3 * DAY, 0, true, &next) == NU54_CLOCK_MOVED); /* with SW1 */
 	assert(next.phone_days == 5);
 
 	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
@@ -483,7 +528,7 @@ static void test_the_rule(void)
  * phone told the time. */
 static void test_orders_work_again(void)
 {
-	static const uint64_t late[] = {0, 5, 6, 60, 600, 3 * 3600, 3 * DAY, 31 * DAY - 3600 - 600};
+	static const uint64_t late[] = {0, 5, 6, 60, 600, 3 * 3600, FREE, FREE + 1, 3 * DAY, 31 * DAY - 3600 - 600};
 	for (size_t i = 0; i < sizeof(late) / sizeof(late[0]); ++i) {
 		/* The store signed the order three seconds ago. The board's latest possible time is
 		 * `late - 2` behind the calendar, so the order is refused once the board is more than
@@ -500,7 +545,17 @@ static void test_orders_work_again(void)
 		assert(!connect_phone());
 		clock_turns = 0;
 		assert(!tell_time(real));
-		const struct told now = told();
+		struct told now = told();
+		if (late[i] > FREE) {
+			/* Off for more than a day: the phone alone does not move the board that far (decision of
+			 * 2026-11-27). The answer says so, nothing has changed, and the board waits for SW1.
+			 * Its owner presses it, and the time is taken. */
+			assert(now.result == NU54_CLOCK_BUTTON && !clock_turns && pending_prompt && clock_wait.pending);
+			assert(now.earliest == real - late[i] && now.latest == now.earliest + 2 && now.end == board_end && !now.days);
+			assert(!button(true) && !pending_prompt);
+			now = (struct told){NU54_CLOCK_MOVED, device_install_earliest(), device_install_now(), board_end,
+					    (uint32_t)clock_saved.phone_days};
+		}
 		if (late[i]) {
 			assert(now.result == NU54_CLOCK_MOVED && clock_turns == 1);
 			assert(now.earliest == real && now.latest == real + NU54_CLOCK_PHONE_SECONDS);
@@ -575,11 +630,14 @@ static void test_what_is_refused(void)
 	/* The last seconds of the grant are taken, and the grant has then ended by the board's time:
 	 * its latest possible time is past the end. Nothing more is written or moved for it. */
 	real = board_end - 3;
-	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && told().earliest == real);
-	assert(told().latest == real + NU54_CLOCK_PHONE_SECONDS && told().latest > board_end);
+	/* That is four weeks ahead of the board, so SW1 is asked for (decision of 2026-11-27). */
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && told().earliest == before);
+	assert(!button(true) && device_install_earliest() == real);
+	assert(device_install_now() == real + NU54_CLOCK_PHONE_SECONDS && device_install_now() > board_end);
 	assert(!device_install_policy() && device_install_keep_time() == -1 && connect_phone() == -1);
 	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
-	assert(device_install_set_time(board_end - 2, board_end + 80, 0, 0, reply) == -1 && device_install_earliest() == board_end - 3);
+	const nu54_install_clock_told again = {.time = board_end - 2, .expires = board_end + 80, .received = uptime};
+	assert(device_install_set_time(&again, true, 0, reply) == -1 && device_install_earliest() == board_end - 3);
 	assert(board_restart() == 1 && !device_install_policy());
 
 	/* A message that claims a time and lives on long after it: refused whole. */
@@ -674,8 +732,10 @@ static void test_who_may_tell(void)
 	profile = NU54_V2_MANAGEMENT;
 	link.peer = NU54_V2_TERMINAL;
 	assert(clock_request(&direct, device_install_policy()) == -1 && device_install_earliest() == before);
-	/* The same phone, with none of that in the way. */
-	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	/* The same phone, with none of that in the way. The board is three days late, which is more
+	 * than the phone moves by itself: it is answered, and SW1 takes the time. */
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && device_install_earliest() == before);
+	assert(!button(true) && device_install_earliest() == real);
 
 	/* A board without an owner: new, or released by a factory reset. The grant's phone gets a
 	 * session to register, and that session does not tell the time. */
@@ -768,9 +828,19 @@ static void test_certificate_issued_while_off(void)
 		assert(phone_asks(command, body, 1, device_install_now() + 60) == -1 && !managed && !answered);
 	}
 	assert(device_install_earliest() == calendar - 3 * DAY);
-	/* It tells the time. The certificate is valid at that time, so the session goes on as any. */
+	/* It tells the time. Three days are more than the phone moves by itself, so the board asks
+	 * for SW1, and the session stays what it was while it waits: it may tell the time and nothing
+	 * else. With SW1 the time is taken, the certificate is valid at it, and the session goes on
+	 * as any. */
+	assert(!connect_as(phone_key, issued, expires) && clock_only);
+	assert(!tell_time(real) && told().result == NU54_CLOCK_BUTTON && clock_only && !link.closed);
+	assert(!button(true) && !clock_only && device_install_earliest() == real);
+	assert(!status() && managed == 1 && !pay() && approval.pending);
+	/* A board that is late by less than a day needs no button for the same. */
+	late_board(20 * 3600);
 	assert(!connect_as(phone_key, issued, expires) && clock_only);
 	assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED && !clock_only);
+	managed = 0;
 	assert(!status() && managed == 1 && !pay() && approval.pending);
 
 	/* A time that does not reach the certificate's start: the clock moves, as it is forward and
@@ -778,7 +848,8 @@ static void test_certificate_issued_while_off(void)
 	late_board(3 * DAY);
 	real = issued - 600; /* this phone's clock is behind its own certificate */
 	assert(!connect_as(phone_key, issued, expires) && clock_only);
-	assert(tell_time(real) == -1 && told().result == NU54_CLOCK_MOVED && link.closed);
+	assert(!tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	assert(button(true) == 1 && link.closed); /* the clock moved, and the session ends with it */
 	assert(device_install_earliest() == issued - 600);
 	/* The board's time and "not forward": answered, and the early session still ends. */
 	assert(!connect_as(phone_key, issued, expires) && clock_only);
@@ -794,8 +865,14 @@ static void test_certificate_issued_while_off(void)
 	/* One that ended by the calendar while the board's clock stood still: the session opens by
 	 * the board's clock, the phone tells the time, and the session ends with the answer. */
 	assert(!connect_as(phone_key, 1, calendar - DAY) && !clock_only);
-	assert(tell_time(real) == -1 && told().result == NU54_CLOCK_MOVED && link.closed);
+	assert(!tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	assert(button(true) == 1 && link.closed && device_install_earliest() == real);
 	assert(connect_as(phone_key, 1, calendar - DAY) == -1);
+	/* Without the button: the board is 20 hours late and the certificate ended an hour ago. */
+	late_board(20 * 3600);
+	assert(!connect_as(phone_key, 1, calendar - 3600) && !clock_only);
+	assert(tell_time(real) == -1 && told().result == NU54_CLOCK_MOVED && link.closed);
+	assert(connect_as(phone_key, 1, calendar - 3600) == -1);
 
 	/* Early or not, the key must be the owner's. */
 	late_board(3 * DAY);
@@ -867,12 +944,15 @@ static void test_unreadable_saved_time(void)
 }
 
 /* The accepted behaviour: a move into a later day opens that day's total, once per move, and the
- * board counts how often the phone did that under the grant. */
+ * board counts how often the phone did that under the grant. Since the decision of 2026-11-27 the
+ * phone alone moves the clock by a day per start at the most, so it opens one later day by itself;
+ * every further one takes SW1 on the board, or a restart. */
 static void test_a_later_day_opens(void)
 {
 	uint8_t record[GRANT_SIZE];
 	const uint64_t cap = CONFIG_NU54_SPENDING_DAILY_CAP, midnight = (calendar / DAY + 1) * DAY;
-	late_board(3 * 3600);
+	assert(midnight - calendar > 100 && midnight - calendar < DAY - 100); /* what the cases below count on */
+	late_board(0);
 	assert(!device_order_erase());
 	assert(!connect_phone() && !tell_time(real) && told().days == 0);
 	/* The whole day's total is spent. */
@@ -887,31 +967,61 @@ static void test_a_later_day_opens(void)
 	assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED && told().days == 1);
 	assert(device_order_daily_left(device_install_earliest()) == cap);
 	assert(!device_order_charge(device_install_earliest(), cap));
-	/* Three days at once open one total, not three. */
-	real = midnight + 3 * DAY + 5;
-	assert(!connect_phone() && !tell_time(real) && told().days == 2);
+	/* That was the phone's day. The day after it is out of its reach in this start: the board
+	 * asks for SW1, nothing has moved, and the total stays spent. */
+	real = midnight + DAY;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && told().days == 1);
+	assert(device_install_earliest() == midnight && !device_order_daily_left(device_install_earliest()));
+	/* However the phone cuts the way into pieces: an hour at a time, each in a session of its own. */
+	unsigned taken = 0;
+	for (uint64_t at = midnight + 3600; at <= midnight + DAY; at += 3600) {
+		real = at;
+		assert(!connect_phone() && !tell_time(at));
+		assert(told().result == NU54_CLOCK_MOVED || told().result == NU54_CLOCK_BUTTON);
+		taken += told().result == NU54_CLOCK_MOVED;
+	}
+	assert(taken && told().result == NU54_CLOCK_BUTTON && told().days == 1);
+	assert(device_install_earliest() < midnight + DAY && device_install_earliest() / DAY == midnight / DAY);
+	assert(!device_order_daily_left(device_install_earliest()));
+	/* A restart takes a hand on the board as the button does, and the count of what the phone
+	 * moved begins anew: one more day, to the second. */
+	const uint64_t reached = device_install_earliest();
+	assert(board_restart() == 0 && device_install_earliest() == reached);
+	real = reached + FREE;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && told().days == 2);
+	assert(device_order_daily_left(device_install_earliest()) == cap && !device_order_charge(device_install_earliest(), cap));
+	/* Three days at once take SW1, and open one total, not three. */
+	real = (real / DAY + 1) * DAY + 3 * DAY + 5;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && told().days == 2);
+	assert(!device_order_daily_left(device_install_earliest()));
+	assert(!button(true) && device_install_earliest() == real && clock_saved.phone_days == 3);
 	assert(device_order_daily_left(device_install_earliest()) == cap && !device_order_charge(device_install_earliest(), cap));
 	assert(device_order_charge(device_install_earliest(), 1));
 	/* The count is kept with the time: through the periodic save and a restart. */
 	on_for(1300);
-	assert(board_restart() == 0 && clock_saved.phone_days == 2);
-	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && told().days == 2);
+	assert(board_restart() == 0 && clock_saved.phone_days == 3);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && told().days == 3);
 	/* A day the board reached by running opens the total without the count. */
 	on_for(DAY);
 	assert(device_order_daily_left(device_install_earliest()) == cap);
-	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_NOT_FORWARD && told().days == 2);
-	/* The period bounds it: every move goes forward and stops before the grant's end, so the
-	 * phone can open a later day at most once per day the grant still has. */
-	unsigned moves = 0;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_NOT_FORWARD && told().days == 3);
+	/* The period bounds it: every move goes forward and stops before the grant's end, so a later
+	 * day opens at most once per day the grant still has. Of all those days the phone opens one
+	 * by itself in this start. The others take SW1 each. */
+	unsigned moves = 0, by_itself = 0;
 	for (uint64_t day = real / DAY + 1; day * DAY < board_end && device_install_policy(); ++day) {
 		real = day * DAY;
-		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+		assert(!connect_phone() && !tell_time(real));
+		if (told().result == NU54_CLOCK_MOVED) ++by_itself;
+		else assert(told().result == NU54_CLOCK_BUTTON && !button(true));
+		assert(device_install_earliest() == real);
 		++moves;
 	}
-	assert(moves > 20 && moves <= 31 && told().days == 2 + moves);
-	/* A new grant starts the count again. */
-	late_board(3 * DAY);
-	assert(!connect_phone() && !tell_time(real) && told().days == 1);
+	assert(moves > 15 && moves <= 31 && by_itself == 1 && clock_saved.phone_days == 3 + moves);
+	/* A new grant starts the count of the days again. */
+	late_board(0);
+	real = midnight;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && told().days == 1);
 	make_grant(record, 2, 1, real + 10, real + 10 * DAY);
 	assert(!install(record) && !clock_saved.phone_days);
 	grant_names_the_store();
@@ -920,14 +1030,42 @@ static void test_a_later_day_opens(void)
 }
 
 /* What the rule costs when the phone's clock is ahead of the calendar, by mistake or on purpose.
- * Not a risk the decision names; it follows from "forward only" and is recorded as it is. */
+ * It follows from "forward only" and is recorded as it is. Since the decision of 2026-11-27 the
+ * phone alone takes the board a day ahead per start at the most; further takes SW1. */
 static void test_a_phone_that_is_ahead(void)
 {
 	uint8_t record[GRANT_SIZE];
+
+	/* A phone that is five days ahead, and nobody at the board: the board asks for SW1, and until
+	 * then nothing has moved. A phone and a store whose clocks are right go on as before. */
+	late_board(0);
+	real = calendar + 5 * DAY;
+	writes = 0;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && !writes);
+	assert(device_install_earliest() == calendar && device_install_now() == calendar + 2);
+	real = calendar;
+	assert(!connect_phone() && !status() && !pay() && approval.pending);
+	/* A day ahead is what such a phone still does by itself, in one message or in many, and a
+	 * board that stays on does not come back from it: nothing moves a clock back. */
+	late_board(0);
+	real = calendar + FREE;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && device_install_earliest() == real);
+	real = calendar;
+	assert(!connect_phone() && pay() == -1 && !approval.pending);
+	assert(!connect_phone() && status() == -1);
+	on_for(3600);
+	assert(device_install_earliest() == real + FREE && !connect_phone() && status() == -1);
+	/* It comes back when the calendar has caught up: here after a day without power. */
+	assert(board_restart() == 0);
+	real += FREE;
+	assert(!connect_phone() && !status() && !tell_time(real) && told().result == NU54_CLOCK_NOT_FORWARD);
+
+	/* With SW1, by whoever has the phone and stands at the board, five days as before. */
 	for (int fenced = 0; fenced < 2; ++fenced) {
 		late_board(3 * 3600);
 		real = calendar + 5 * DAY;
-		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+		assert(!button(true));
 		const uint64_t reached = device_install_earliest();
 		assert(reached == calendar + 5 * DAY && device_install_policy());
 		/* A phone and a store whose clocks are right: their requests have ended for the board. */
@@ -1106,7 +1244,8 @@ static void test_open_orders_through_restarts(void)
 	record.expires = device_install_earliest() + 117;
 	assert(!device_order_store(1, &record));
 	real = board_end - 2;
-	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !device_install_policy());
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON); /* weeks ahead: SW1 */
+	assert(!button(true) && !device_install_policy());
 	assert(board_restart() == 1 && device_install_order_hold() == NU54_ORDER_MAX_SECONDS);
 	assert(device_order_open(device_install_earliest(), uptime));
 	/* A hold is never longer than one order life of running time, whatever storage says. */
@@ -1315,6 +1454,196 @@ static void test_the_latest_time_comes_down(void)
 	assert(operator_installs(record, 2000) && journal.trusted_time == kept && device_install_now() == real);
 }
 
+/* The decision of 2026-11-27 on how far the phone alone moves the clock: by a day (the build's
+ * CONFIG_NU54_CLOCK_FREE_SECONDS) since the board's last start, all its messages together. A move
+ * beyond that takes SW1 on the board. */
+static void test_the_phone_alone_moves_a_day(void)
+{
+	const uint64_t now = UINT64_C(1800000000), end = now + 31 * DAY;
+	const nu54_install_clock clock = {.earliest = now, .offset = 2}, wide = {.earliest = now, .offset = 60};
+	nu54_install_clock next = {0};
+
+	/* ---- the rule ---- */
+	/* The allowance exactly, and a second over it. */
+	assert(rule_after(&clock, end, now + FREE, 0, false, &next) == NU54_CLOCK_MOVED && next.earliest == now + FREE);
+	next = (nu54_install_clock){0};
+	assert(rule_after(&clock, end, now + FREE + 1, 0, false, &next) == NU54_CLOCK_BUTTON && !next.earliest);
+	/* What the phone moved before in this start counts. */
+	assert(rule_after(&clock, end, now + 3600, FREE - 3600, false, &next) == NU54_CLOCK_MOVED);
+	next = (nu54_install_clock){0};
+	assert(rule_after(&clock, end, now + 3601, FREE - 3600, false, &next) == NU54_CLOCK_BUTTON);
+	assert(rule_after(&clock, end, now + NU54_CLOCK_STEP_SECONDS, FREE, false, &next) == NU54_CLOCK_BUTTON);
+	assert(rule_after(&clock, end, now + NU54_CLOCK_STEP_SECONDS, FREE + 1, false, &next) == NU54_CLOCK_BUTTON);
+	assert(rule_after(&clock, end, now + NU54_CLOCK_STEP_SECONDS, UINT64_MAX, false, &next) == NU54_CLOCK_BUTTON);
+	assert(!next.earliest);
+	/* With SW1 the same moves are taken, up to the grant's end and never to it. */
+	assert(rule_after(&clock, end, now + FREE + 1, 0, true, &next) == NU54_CLOCK_MOVED && next.earliest == now + FREE + 1);
+	assert(rule_after(&clock, end, end - 1, FREE, true, &next) == NU54_CLOCK_MOVED && next.earliest == end - 1);
+	assert(rule_after(&clock, end, end, FREE, true, &next) == NU54_CLOCK_PAST_END);
+	/* A time at the grant's end or past it is answered as that, and no button is asked for. */
+	assert(rule_after(&clock, end, end + DAY, 0, false, &next) == NU54_CLOCK_PAST_END);
+	/* What does not move the lower bound takes no button, however much the phone moved before. */
+	assert(rule_after(&wide, end, now, FREE, false, &next) == NU54_CLOCK_MOVED);
+	assert(next.earliest == now && next.offset == NU54_CLOCK_PHONE_SECONDS);
+	assert(rule_after(&clock, end, now + 1, FREE, false, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(rule_after(&clock, end, now - 60, FREE, false, &next) == NU54_CLOCK_NOT_FORWARD);
+	/* An allowance of zero asks for SW1 for every move. */
+	const nu54_install_clock_limits none = {.session_seconds = CONFIG_NU54_CLOCK_SESSION_SECONDS, .free_seconds = 0};
+	nu54_install_clock_word word = {.time = now + NU54_CLOCK_STEP_SECONDS, .expires = now + 90};
+	assert(nu54_install_clock_set(&clock, end, &word, &none, &next) == NU54_CLOCK_BUTTON);
+	word.button = true;
+	assert(nu54_install_clock_set(&clock, end, &word, &none, &next) == NU54_CLOCK_MOVED);
+
+	/* ---- on the board ---- */
+	/* Off for a day to the second: the phone alone, and nothing is asked of the owner. */
+	late_board(FREE);
+	prompts = lamp_waits = 0;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && device_install_earliest() == real);
+	assert(!prompts && !lamp_waits && !pending_prompt && !clock_wait.pending && clock_moved == FREE);
+	/* That was the allowance of this start: the next step asks for SW1. */
+	assert(!connect_phone() && !tell_time(real + NU54_CLOCK_STEP_SECONDS) && told().result == NU54_CLOCK_BUTTON);
+
+	/* Off for a second longer. The answer says "press the button" and carries the board's time as
+	 * it is. Nothing is written and nothing has moved, and the board waits with the prompt and the
+	 * lamp of every other wait. */
+	late_board(FREE + 1);
+	const uint64_t before = device_install_earliest();
+	const struct item saved = *item(INSTALL_CLOCK);
+	assert(!connect_phone());
+	uptime += 4000; /* the handshake and the phone took four seconds */
+	real += 4;
+	prompts = lamp_waits = writes = clock_turns = 0;
+	assert(!tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	assert(told().earliest == before + 4 && told().latest == before + 4 + 2 && told().end == board_end && !told().days);
+	assert(!writes && !clock_turns && !memcmp(item(INSTALL_CLOCK), &saved, sizeof(saved)) && !clock_moved);
+	assert(prompts == 1 && lamp_waits == 1 && pending_prompt && shown_prompt == (uint32_t)pending_prompt);
+	assert(((uint32_t)pending_prompt & NU54_PILOT_PROMPT_MASK) && clock_wait.pending && !link.closed);
+	/* The owner takes twenty seconds to reach the board. SW1 takes the message as of its arrival:
+	 * the board counted the seconds since, so the time is not the stale one the message carries,
+	 * and the interval is as wide as on arrival, the session's four seconds and the phone's five. */
+	uptime += 20400;
+	real += 20;
+	board_polls();
+	assert(clock_wait.pending && !button(true) && !pending_prompt && !shown_prompt && !clock_wait.pending);
+	assert(writes == 1 && clock_turns == 1);
+	assert(device_install_earliest() == real && device_install_now() == real + 4 + NU54_CLOCK_PHONE_SECONDS);
+	/* The session goes on and the order is taken. */
+	assert(!status() && !pay() && approval.pending);
+	/* A move with SW1 is not counted against the phone: it still has its day in this start. */
+	assert(!clock_moved);
+	real += FREE;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && clock_moved == FREE);
+	assert(!connect_phone() && !tell_time(real + NU54_CLOCK_STEP_SECONDS) && told().result == NU54_CLOCK_BUTTON);
+	/* The time is in storage as every moved time. */
+	assert(board_restart() == 0 && device_install_earliest() == real);
+
+	/* SW2 drops the time: nothing has moved, and the session ends as after every refusal. */
+	late_board(2 * DAY);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	writes = 0;
+	assert(button(false) == -1 && link.closed && !writes && !clock_wait.pending && !pending_prompt);
+	assert(device_install_earliest() == calendar - 2 * DAY);
+
+	/* The board waits for as long as the message has to run by its own word, 90 seconds from the
+	 * time it carries. A moment before that SW1 still takes it. */
+	late_board(2 * DAY);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	uptime += 89999;
+	real += 89;
+	board_polls();
+	assert(clock_wait.pending && !button(true) && device_install_earliest() == real);
+	/* At its end the board drops it by itself and ends the session. */
+	late_board(2 * DAY);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	uptime += 90000;
+	board_polls();
+	assert(!clock_wait.pending && !pending_prompt && link.closed && device_install_earliest() == calendar - 2 * DAY + 90);
+	/* A press that comes before the board looked is refused all the same. */
+	late_board(2 * DAY);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	uptime += 90000;
+	writes = 0;
+	assert(button(true) == -1 && link.closed && !writes && device_install_earliest() == calendar - 2 * DAY + 90);
+	/* A message that runs for ten seconds waits for ten. */
+	late_board(2 * DAY);
+	assert(!connect_phone() && !tell(real, real + 10) && told().result == NU54_CLOCK_BUTTON);
+	uptime += 9999;
+	board_polls();
+	assert(clock_wait.pending);
+	uptime += 1;
+	board_polls();
+	assert(!clock_wait.pending && link.closed);
+
+	/* While the board waits, every message ends the session and the wait with it, another time
+	 * command included. The board is on time here, so it is not its clock that refuses them. */
+	for (int kind = 0; kind < 3; ++kind) {
+		late_board(FREE);
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !status());
+		assert(!tell_time(real + 10) && told().result == NU54_CLOCK_BUTTON && clock_wait.pending);
+		managed = 0;
+		const int took = kind == 0 ? tell_time(real + 10) : kind == 1 ? status() : pay();
+		assert(took == -1 && !answered && !managed && link.closed && !clock_wait.pending && !pending_prompt);
+		assert(!approval.pending && device_install_earliest() == real);
+	}
+
+	/* When SW1 comes, the board must still be what it was when it took the message. */
+	for (int state = 0; state < 7; ++state) {
+		late_board(2 * DAY);
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+		if (state == 0) vault.record.flags = NU54_VAULT_REVOKED;    /* the owner was revoked */
+		else if (state == 1) vault.enabled = false;                 /* the vault stopped */
+		else if (state == 2) policy.payer_generation = 2;           /* another generation's grant */
+		else if (state == 3) recovering = true;                     /* a recovery */
+		else if (state == 4) link.peer_identity[3] ^= 1;            /* not the owner's session */
+		else if (state == 5) connection = NULL;                     /* the link is gone */
+		else active = false;                                        /* the grant is gone */
+		writes = 0;
+		assert(clock_button(true) == -1 && !writes && !clock_wait.pending);
+		end_session();
+		vault.enabled = active = true;
+		vault.record.flags = 0;
+		policy.payer_generation = 1;
+		assert(device_install_earliest() == calendar - 2 * DAY);
+	}
+
+	/* An order that is open when SW1 moves the clock is held open as with every move, and through
+	 * a restart. */
+	nu54_order_record record = {.outcome = NU54_ORDER_APPROVED};
+	late_board(2 * DAY);
+	assert(!device_order_erase());
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record));
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && !device_install_order_hold());
+	uptime += 3000;
+	real += 3;
+	assert(!button(true) && device_install_earliest() > record.expires);
+	assert(device_order_open(device_install_earliest(), uptime) && device_install_order_hold() == NU54_ORDER_MAX_SECONDS);
+	assert(board_restart() == 0 && device_order_open(device_install_earliest(), uptime));
+
+	/* A message that came too late in its session is answered as that, and no button is asked for. */
+	late_board(2 * DAY);
+	assert(!connect_phone());
+	uptime += (CONFIG_NU54_CLOCK_SESSION_SECONDS + 1) * 1000;
+	assert(!tell_time(real) && told().result == NU54_CLOCK_LATE && !clock_wait.pending && !pending_prompt);
+
+	/* Many small moves add up to the allowance, and the one after them asks for SW1. A restart
+	 * begins the count anew: it takes a hand on the board as the button does. */
+	late_board(3 * 3600);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && clock_moved == 3 * 3600);
+	unsigned messages = 1;
+	while (clock_moved + 3600 <= FREE) {
+		real += 3600;
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+		++messages;
+	}
+	assert(clock_moved == FREE && messages == 22);
+	real += NU54_CLOCK_STEP_SECONDS;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON && clock_moved == FREE);
+	assert(device_install_earliest() == real - NU54_CLOCK_STEP_SECONDS);
+	assert(board_restart() == 0 && !clock_moved);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && clock_moved == NU54_CLOCK_STEP_SECONDS);
+}
+
 /* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
  * the grant goes with it, and an approved order counts as open for one order life of running time,
  * as it does on every board that does not know the time. */
@@ -1370,6 +1699,7 @@ int main(int argc, char **argv)
 	test_open_orders_through_restarts();
 	test_small_steps_write_nothing();
 	test_the_latest_time_comes_down();
+	test_the_phone_alone_moves_a_day();
 	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;

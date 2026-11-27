@@ -193,6 +193,21 @@ config NU54_CLOCK_SESSION_SECONDS
 	  plus a margin. The upper bound keeps the widest interval the phone can leave (this plus
 	  five seconds) under the 90 seconds of the phone's short requests.
 
+config NU54_CLOCK_FREE_SECONDS
+	int "Seconds the owner's phone may move the clock forward per start without SW1"
+	depends on NU54_SPENDING_PROFILE
+	range 0 2678400
+	default 86400
+	help
+	  The time command needs neither a button nor the PIN, so whoever holds the owner's phone
+	  can send it. Since its last start the board therefore lets the phone move its clock
+	  forward by this many seconds at the most, all time commands together; a move beyond that
+	  is answered with "press the button" and is taken only after SW1 on the board. The count
+	  is kept in RAM and begins anew with every start. With the default of one day, a board
+	  that was off for longer than a day asks for SW1 once when its owner connects again, and a
+	  phone alone can put a board that stays on at most one day ahead of the calendar. Zero
+	  asks for SW1 for every move.
+
 source "Kconfig.zephyr"
 
 config NU54_SECURE_KEY
