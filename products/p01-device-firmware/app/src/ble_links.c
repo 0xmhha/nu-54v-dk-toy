@@ -14,6 +14,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
+#include "nu54_adv_schedule.h"
 #include "nu54_frame.h"
 #include "nu54_protocol.h"
 #include "status_led.h"
@@ -28,6 +29,9 @@ typedef struct {
 	struct bt_conn *conn;
 	uint64_t epoch;
 	uint8_t tx_sequence; /* send side only (session work queue) */
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	int64_t idle_since; /* owner wait: connected, or last seen in an installation or TLS exchange */
+#endif
 } link_t;
 
 static link_t links[LINK_MAX];
@@ -211,42 +215,219 @@ static const struct bt_data ad_pilot[] = {
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, UUID128(NU54_PILOT_SERVICE_UUID_PARTS)),
 };
 
-typedef enum { ADV_NONE, ADV_PAYMENT, ADV_PAIRING } adv_set_t;
-static adv_set_t advertising; /* the set on air */
+/* The Bluetooth threads (connections), the system work queue (timers) and the main thread
+ * (buttons) all change what is advertised. The lock makes one of them at a time decide and act,
+ * and guards the set on air, the two button modes and the count of failed starts.
+ *
+ * The holder waits inside the lock for the controller to answer a start or a stop. The system
+ * work queue may wait for the lock at that moment, so the host must not need that queue to send
+ * the command: it has to send from its own thread. */
+BUILD_ASSERT(IS_ENABLED(CONFIG_BT_TX_PROCESSOR_THREAD),
+	     "advertising is started under a lock the system work queue also takes");
+static K_MUTEX_DEFINE(adv_lock);
+static nu54_adv_set advertising; /* the set on air */
+static unsigned adv_failures;    /* failed starts in a row */
+static void adv_retry(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(adv_retry_work, adv_retry);
 
-/* Advertises the set the modes call for while a connection slot is free; pairing wins when both
- * are on (it carries the service UUID too). A change of set restarts advertising. */
-static int advertise(void)
+static void set_mode(bool *mode, bool on)
 {
-	bool free_slot = false;
+	k_mutex_lock(&adv_lock, K_FOREVER);
+	*mode = on;
+	k_mutex_unlock(&adv_lock);
+}
+
+/* Owner wait: the schedule a board without an owner advertises on by itself. The start and the
+ * end come from other threads than the Bluetooth callbacks that read it. */
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+BUILD_ASSERT(CONFIG_NU54_OWNER_WAIT_TOTAL_SECONDS == 0 ||
+	     CONFIG_NU54_OWNER_WAIT_FAST_SECONDS <= CONFIG_NU54_OWNER_WAIT_TOTAL_SECONDS,
+	     "the fast phase is part of the total time");
+static nu54_adv_schedule owner_wait;
+static bool owner_absent; /* set by ble_links_owner_wait; stays when the schedule ends by itself */
+static void owner_wait_turn(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(owner_wait_timer, owner_wait_turn);
+static void idle_guard(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(idle_guard_work, idle_guard);
+#endif
+
+/* The phase of the owner wait now and its interval range. */
+static nu54_adv_phase owner_wait_phase(uint16_t *min, uint16_t *max)
+{
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	const int64_t now = k_uptime_get();
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	nu54_adv_phase phase = nu54_adv_schedule_phase(&owner_wait, now);
+	(void)nu54_adv_schedule_interval(&owner_wait, now, min, max);
+	k_spin_unlock(&links_lock, key);
+	return phase;
+#else
+	(void)min;
+	(void)max;
+	return NU54_ADV_OFF;
+#endif
+}
+
+static int start_set(nu54_adv_set set, uint16_t owner_min, uint16_t owner_max)
+{
+	if (set == NU54_ADV_SET_OWNER_FAST || set == NU54_ADV_SET_OWNER_SLOW)
+		/* General discoverable and connectable, like the button window, at the schedule's interval. */
+		return bt_le_adv_start(BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, owner_min, owner_max, NULL), ad_pilot,
+				       ARRAY_SIZE(ad_pilot), NULL, 0);
+	if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active())
+		return bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pilot, ARRAY_SIZE(ad_pilot), NULL, 0);
+	return set == NU54_ADV_SET_PAIRING
+		       ? bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pairing, ARRAY_SIZE(ad_pairing), sd_pairing, ARRAY_SIZE(sd_pairing))
+		       : bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_payment, ARRAY_SIZE(ad_payment), NULL, 0);
+}
+
+/* Advertises the set core/nu54_adv_schedule.h selects; a change of set restarts advertising.
+ * `connected`: a new connection just ended the connectable advertising that was on air.
+ * `again`: this is a retry of a failed start. Any other call begins a new series of retries. */
+static int advertise_as(bool connected, bool again)
+{
+	nu54_adv_state state = {.capacity = LINK_MAX};
 	for (int i = 0; i < LINK_MAX; i++) {
 		struct bt_conn *c = link_conn(i);
-		free_slot |= c == NULL;
 		if (c) {
+			state.connected++;
 			bt_conn_unref(c);
 		}
 	}
-	adv_set_t want = !free_slot ? ADV_NONE : pairing_mode ? ADV_PAIRING : payment_mode ? ADV_PAYMENT : ADV_NONE;
-	if (want == advertising) {
-		return 0;
+	uint16_t owner_min = 0, owner_max = 0;
+	int err = 0;
+	k_mutex_lock(&adv_lock, K_FOREVER);
+	if (connected) advertising = NU54_ADV_SET_NONE;
+	if (!again) adv_failures = 0;
+	state.pairing = pairing_mode;
+	state.payment = payment_mode;
+	state.owner_wait = owner_wait_phase(&owner_min, &owner_max);
+	const nu54_adv_set want = nu54_adv_select(&state);
+	if (want != advertising) {
+		(void)bt_le_adv_stop();
+		advertising = NU54_ADV_SET_NONE;
+		if (want != NU54_ADV_SET_NONE) {
+			err = start_set(want, owner_min, owner_max);
+			if (err == -EALREADY) {
+				/* The controller advertises a set this module lost track of. On air it may be
+				 * another set than the wanted one, so stop it and start once more. */
+				(void)bt_le_adv_stop();
+				err = start_set(want, owner_min, owner_max);
+			}
+		}
+		if (!err && want != NU54_ADV_SET_NONE) {
+			advertising = want;
+			LOG_INF("advertising for %s", want == NU54_ADV_SET_PAIRING ? "pairing" :
+				want == NU54_ADV_SET_PAYMENT ? "payment" :
+				want == NU54_ADV_SET_OWNER_FAST ? "the next owner (fast)" : "the next owner (slow)");
+		}
 	}
-	bt_le_adv_stop();
-	advertising = ADV_NONE;
-	if (want == ADV_NONE) {
-		return 0;
+	if (!err) adv_failures = 0;
+	const int32_t retry = err ? nu54_adv_retry_delay_ms(++adv_failures) : -1;
+	k_mutex_unlock(&adv_lock);
+	/* A start can fail for a moment, as right after a disconnection while the stack still holds
+	 * the connection. Without a retry the board would stay silent until the next event. */
+	if (retry >= 0) k_work_reschedule(&adv_retry_work, K_MSEC(retry));
+	else if (err) LOG_ERR("advertising failed (%d): waiting for the next event", err);
+	return err;
+}
+
+static int advertise(void)
+{
+	return advertise_as(false, false);
+}
+
+static void adv_retry(struct k_work *w)
+{
+	(void)w;
+	(void)advertise_as(false, true);
+}
+
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+/* The schedule started, ended or changed phase: advertise at the interval of now, or stop. */
+static void owner_wait_turn(struct k_work *w)
+{
+	(void)w;
+	const int64_t now = k_uptime_get();
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	bool ended = owner_wait.running && nu54_adv_schedule_phase(&owner_wait, now) == NU54_ADV_OFF;
+	int64_t wait = nu54_adv_schedule_wait_ms(&owner_wait, now);
+	if (ended) nu54_adv_schedule_stop(&owner_wait);
+	k_spin_unlock(&links_lock, key);
+	if (ended) LOG_INF("owner wait ended: hold SW4 to advertise again");
+	(void)advertise(); /* a failed start is retried by advertise_as */
+	if (wait >= 0) k_work_reschedule(&owner_wait_timer, K_MSEC(wait));
+}
+
+/* A board without an owner drops a central that neither installs nor opens the owner's TLS session
+ * (core/nu54_adv_schedule.h). It looks once a second while such a board has a central. */
+static void idle_guard(struct k_work *w)
+{
+	(void)w;
+	const int64_t now = k_uptime_get();
+	bool watching = false;
+	for (int i = 0; i < LINK_MAX; i++) {
+		k_spinlock_key_t key = k_spin_lock(&links_lock);
+		const bool absent = owner_absent;
+		struct bt_conn *c = absent && links[i].conn ? bt_conn_ref(links[i].conn) : NULL;
+		int64_t since = links[i].idle_since;
+		k_spin_unlock(&links_lock, key);
+		if (!c) continue;
+		watching = true;
+		switch (nu54_owner_wait_idle_verdict(absent, device_pilot_engaged(c), since, now,
+						     CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS)) {
+		case NU54_IDLE_RESTART:
+			key = k_spin_lock(&links_lock);
+			if (links[i].conn == c) links[i].idle_since = now;
+			k_spin_unlock(&links_lock, key);
+			break;
+		case NU54_IDLE_DROP:
+			LOG_INF("link %d: no installation or owner session, disconnecting", i);
+			(void)bt_conn_disconnect(c, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+			break;
+		default:
+			break;
+		}
+		bt_conn_unref(c);
 	}
-	int err;
-	if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active())
-		err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pilot, ARRAY_SIZE(ad_pilot), NULL, 0);
-	else err = want == ADV_PAIRING
-			  ? bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pairing, ARRAY_SIZE(ad_pairing), sd_pairing, ARRAY_SIZE(sd_pairing))
-			  : bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_payment, ARRAY_SIZE(ad_payment), NULL, 0);
-	if (err && err != -EALREADY) {
-		return err;
+	/* Scheduled, not rescheduled, here and where a central connects: a check that is already
+	 * waiting keeps its time, so centrals that connect more often than once a second cannot put
+	 * it off for ever. */
+	if (watching) k_work_schedule(&idle_guard_work, K_SECONDS(1));
+}
+#endif
+
+int ble_links_owner_wait(bool on)
+{
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	static const nu54_adv_plan plan = {
+		.fast_seconds = CONFIG_NU54_OWNER_WAIT_FAST_SECONDS,
+		.total_seconds = CONFIG_NU54_OWNER_WAIT_TOTAL_SECONDS,
+		.fast_min = CONFIG_NU54_OWNER_WAIT_FAST_INTERVAL_MIN,
+		.fast_max = CONFIG_NU54_OWNER_WAIT_FAST_INTERVAL_MAX,
+		.slow_min = CONFIG_NU54_OWNER_WAIT_SLOW_INTERVAL_MIN,
+		.slow_max = CONFIG_NU54_OWNER_WAIT_SLOW_INTERVAL_MAX,
+	};
+	bool running = false;
+	const int64_t now = k_uptime_get();
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	if (on) running = nu54_adv_schedule_start(&owner_wait, &plan, now);
+	else nu54_adv_schedule_stop(&owner_wait);
+	if (on && !owner_absent) {
+		/* A central that was already there gets the whole time from now. */
+		for (int i = 0; i < LINK_MAX; i++) links[i].idle_since = now;
 	}
-	advertising = want;
-	LOG_INF("advertising for %s", want == ADV_PAIRING ? "pairing" : "payment");
+	owner_absent = on;
+	k_spin_unlock(&links_lock, key);
+	if (on && CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS > 0) k_work_schedule(&idle_guard_work, K_SECONDS(1));
+	if (on && !running) return -EINVAL;
+	if (on) LOG_INF("owner wait: advertising for the next owner");
+	/* The timer advertises the first phase and follows the later ones. */
+	k_work_reschedule(&owner_wait_timer, K_NO_WAIT);
 	return 0;
+#else
+	return on ? -ENOTSUP : 0;
+#endif
 }
 
 /* A mode ended: advertise what is left, or stop. */
@@ -258,7 +439,7 @@ static void stop_advertising_if_idle(void)
 static void mode_end(struct k_work *w)
 {
 	(void)w;
-	payment_mode = false;
+	set_mode(&payment_mode, false);
 	stop_advertising_if_idle();
 	status_led_mode(false);
 	LOG_INF("payment mode ended");
@@ -267,7 +448,7 @@ static void mode_end(struct k_work *w)
 static void pairing_end(struct k_work *w)
 {
 	(void)w;
-	pairing_mode = false;
+	set_mode(&pairing_mode, false);
 	stop_advertising_if_idle();
 	status_led_pairing(false);
 	LOG_INF("pairing mode ended");
@@ -280,17 +461,26 @@ int ble_links_payment_mode(uint32_t seconds)
 		mode_end(NULL);
 		return 0;
 	}
-	payment_mode = true;
+	set_mode(&payment_mode, true);
+	/* A start that fails is tried again (advertise_as), and the retry reads the mode. So the
+	 * window opens whatever the first start says; a failure of a moment would otherwise lose the
+	 * button press. */
 	int err = advertise();
-	if (err) {
-		payment_mode = false;
-		LOG_ERR("advertising failed (%d)", err);
-		return err;
-	}
+	if (err) LOG_WRN("advertising failed (%d): the window stays open for the retries", err);
 	status_led_mode(true);
 	k_work_reschedule(&mode_timer, K_SECONDS(seconds));
 	LOG_INF("payment mode for %u s", seconds);
 	return 0;
+}
+
+bool ble_links_payment_advertising(void)
+{
+	k_mutex_lock(&adv_lock, K_FOREVER);
+	/* Pairing comes before payment (nu54_adv_select), and the board's own advertising for its
+	 * next owner is another set again: neither is what the payment window advertises. */
+	const bool on_air = advertising == NU54_ADV_SET_PAYMENT;
+	k_mutex_unlock(&adv_lock);
+	return on_air;
 }
 
 /* ---------------------------------------------------------------- connections */
@@ -309,11 +499,18 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 	uint64_t epoch = ++next_link_epoch;
 	links[i] = (link_t){.conn = bt_conn_ref(conn), .epoch = epoch};
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	links[i].idle_since = k_uptime_get();
+	const bool guard = owner_absent && CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS > 0;
+#endif
 	k_spin_unlock(&links_lock, key);
 	LOG_INF("central connected (link %d)", i);
 	handlers->connected(i, epoch);
-	advertising = ADV_NONE; /* a connection stops connectable advertising */
-	advertise();            /* room for the other central */
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	if (guard) k_work_schedule(&idle_guard_work, K_SECONDS(1));
+#endif
+	/* A connection stops connectable advertising; start again while there is room for another central. */
+	(void)advertise_as(true, false);
 }
 
 /* An UNPROVISIONED device keeps a (Just Works) bond only while that central sets it up. When the
@@ -473,13 +670,10 @@ int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works)
 {
 	pairing_passkey = passkey;
 	auth_select(just_works);
-	pairing_mode = true;
+	set_mode(&pairing_mode, true);
+	/* As in payment mode: the retries of a failed start serve this window. */
 	int err = advertise();
-	if (err) {
-		pairing_mode = false;
-		LOG_ERR("advertising failed (%d)", err);
-		return err;
-	}
+	if (err) LOG_WRN("advertising failed (%d): the window stays open for the retries", err);
 	status_led_pairing(true);
 	k_work_reschedule(&pairing_timer, K_SECONDS(seconds));
 	LOG_INF("pairing mode for %u s (%s)", seconds, just_works ? "Just Works" : "label passkey");

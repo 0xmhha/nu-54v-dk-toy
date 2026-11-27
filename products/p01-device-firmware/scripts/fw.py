@@ -6,7 +6,7 @@ global PATH setup is needed. The vendored board package is passed as BOARD_ROOT
 because sysbuild resolves the board before the application CMakeLists runs.
 
 Usage:
-    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending] [--approtect] [--security-counter=N] [--official]]
+    python3 -B scripts/fw.py build [--pristine] [--test-capability-cache] [--rental | --release [--spending [--secure-key] [--standby]] [--approtect] [--security-counter=N] [--official]]
     python3 scripts/fw.py keygen PATH
     python3 scripts/fw.py reject-images OUT_DIR
     python3 scripts/fw.py flash
@@ -21,6 +21,12 @@ NU54_SIGNING_KEY. --approtect configures both images for debug lock (app/approte
 variants needs --pristine or a separate P01_BUILD_DIR.
 --spending makes the release app the screenless spending wallet (app/spending.conf) in place of HD
 recovery. It needs NU54_INSTALL_AUTHORITY_HEX and is never an --official image.
+--secure-key builds the spending wallet for the TrustZone target (.../cpuapp/ns): TF-M keeps the wallet
+key in the secure side (app/secure-key.conf and its two layout overlays). The image is checked on the
+host only. It gets no release manifest, and `flash` refuses it until the profile is qualified on a board.
+--standby builds the spending wallet without the UART driver in the application (app/standby.conf), so
+that the driver's always-on receiver does not keep the board awake while it waits. MCUboot keeps its UART
+for serial recovery. The effect on the current is not measured yet.
 Signed builds record the verified bootloader and application outputs in release-manifest.json.
 --official requires --approtect, a monotonic security counter, a pinned signing key, and a clean source tree.
 
@@ -63,11 +69,47 @@ HERE = Path(__file__).resolve().parent
 PRODUCT = HERE.parent
 APP = PRODUCT / "app"
 BOARD = "nu54v_dk/nrf54l15/cpuapp"
+SECURE_BOARD = BOARD + "/ns"  # non-secure application beside TF-M
+SECURE_SIGNER = "cracen_ecdsa_sign_digest_deterministic"  # must link into TF-M, never into the application
+TFM_API_LIBRARY = "modules/trusted-firmware-m/libtfm_api.a"  # the non-secure PSA client: each call crosses into TF-M
+TFM_API_CALLS = ("psa_sign_hash", "psa_generate_key")  # the application must take these from that library
+# Code that signs with a key in the memory of whoever calls it: libsecp256k1's ECDSA and Schnorr signers
+# (its parsing and verifying functions begin with the same letters and stay), Oberon's software ECDSA,
+# Ed25519 and Ed448 and the signers of its PSA driver, p256-m, the usual Ed25519 names (ed25519_sign,
+# crypto_sign), micro-ecc and the classic Mbed TLS ECDSA. None of it belongs in the application of a
+# --secure-key build.
+#
+# This is a list of names, not a property of the code. A signer under a name that is not here, one that
+# was renamed or one that was written into the application passes. What the check does show is that
+# none of the signers this SDK and this repository bring along was linked into the application.
+SOFTWARE_SIGNERS = re.compile(r"secp256k1_ecdsa_sign(?:_recoverable)?|secp256k1_schnorrsig_sign\w*|"
+                              r"ocrypto_ecdsa_\w*sign\w*|ocrypto_ed(?:25519|448)(?:ph)?_sign\w*|"
+                              r"oberon_(?:ecdsa|eddsa)_sign\w*|oberon_sign_(?:hash|message)\w*|"
+                              r"p256_ecdsa_sign|ed25519_sign\w*|crypto_sign(?:_ed25519)?(?:_detached)?|"
+                              r"uECC_sign\w*|mbedtls_ecdsa_sign\w*|mbedtls_ecdsa_write_signature\w*")
+# Where `flash` may write, from the SoC's default partitions: MCUboot in the first 62 KiB, the signed
+# application in the 712 KiB slot at 0x10000, and without MCUboot one image from the start of the
+# flash up to the settings storage.
+BOOT_AREA = (0x0, 0xf800)
+APP_SLOT = (0x10000, 0xc2000)
+SINGLE_IMAGE_AREA = (0x0, 0x174000)
+SECURE_GATEWAY = bytes.fromhex("7fe97fe9")  # the SG instruction (0xe97f 0xe97f) as the flash holds it
 PYOCD_TARGET = "nrf54l"
 NCS_VERSION = os.environ.get("NCS_VERSION", "v3.4.2")
 NCS_DIR = Path(os.environ.get("NCS_DIR", f"/opt/nordic/ncs/{NCS_VERSION}"))
 REPO = PRODUCT.parents[1]
-BUILD_DIR = Path(os.environ.get("P01_BUILD_DIR", PRODUCT / "build"))
+
+
+def build_directory(raw: str | None) -> Path:
+    """The build directory as one absolute path.
+
+    This script reads and judges the directory from where it was started, while west and the flasher
+    run in the SDK directory (`in_toolchain`). A relative P01_BUILD_DIR would name two directories:
+    the one that was judged and the one that is built or flashed."""
+    return Path(raw).expanduser().resolve() if raw else PRODUCT / "build"
+
+
+BUILD_DIR = build_directory(os.environ.get("P01_BUILD_DIR"))
 RELEASE_POLICY = HERE / "release-policy.json"
 
 
@@ -232,8 +274,8 @@ def release_manifest(official: bool, approtect: bool, public: Path, fingerprint:
 
 
 def build(pristine: bool, rental: bool, release: bool, approtect: bool, official: bool = False,
-          counter: int | None = None, spending: bool = False, *, test_cache: Path | None = None,
-          runner=None) -> int:
+          counter: int | None = None, spending: bool = False, *, secure_key: bool = False, standby: bool = False,
+          test_cache: Path | None = None, runner=None) -> int:
     if approtect and not release:
         sys.exit("--approtect only goes with --release")
     if official and not release:
@@ -250,7 +292,13 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
         if any(os.environ.get(name) for name in ("NU54_RECOVERY_OVERLAY", "NU54_LAB_WALLET_CHAINS",
                                                  "NU54_COMMISSIONED_WALLET_CHAINS")):
             sys.exit("--spending has no recovery accessory or other wallet chains")
-    args = ["west", "build", "-b", BOARD, str(APP), "-d", str(BUILD_DIR)]
+    if secure_key and (not spending or approtect or counter is not None):
+        sys.exit("--secure-key is the build-verified TrustZone spending profile: "
+                 "it requires --release --spending without --approtect or --security-counter")
+    if standby and (not spending or counter is not None):
+        sys.exit("--standby turns the application's UART driver off: it requires --release --spending "
+                 "without --security-counter, whose update path uses that UART")
+    args = ["west", "build", "-b", SECURE_BOARD if secure_key else BOARD, str(APP), "-d", str(BUILD_DIR)]
     if pristine:
         args += ["-p", "always"]
     cmake = [f"-DBOARD_ROOT={PRODUCT}"]
@@ -309,6 +357,12 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
             app_conf.append(pin_conf)
         if counter is not None:
             app_conf.append(APP / "counted-update.conf")
+        if standby:
+            app_conf.append(APP / "standby.conf")
+        if secure_key:
+            app_conf.append(APP / "secure-key.conf")
+            cmake += [f"-Dapp_EXTRA_DTC_OVERLAY_FILE={APP / 'secure-key.overlay'}",
+                      f"-Dmcuboot_EXTRA_DTC_OVERLAY_FILE={APP / 'secure-key-mcuboot.overlay'}"]
         cmake += [
             f"-DSB_CONF_FILE={APP / 'sysbuild-release.conf'}",
             f"-DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"{key}\"",
@@ -334,9 +388,117 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
                 boot_conf.append(APP / "approtect.conf")
             cmake.append("-Dmcuboot_EXTRA_CONF_FILE=" + ";".join(str(p) for p in boot_conf))
         rc = west_build(mcuboot)
+        if rc == 0 and standby:
+            standby_evidence()
+        if rc == 0 and secure_key:
+            return secure_key_evidence(public)
         if rc == 0:
             release_manifest(official, approtect, public, fingerprint, counter, enrollment_pin, mbedtls, mcuboot)
         return rc
+
+
+def standby_evidence() -> None:
+    """A --standby build must really be without the UART driver and the console.
+
+    Read back from the generated configuration, because a value that does not take effect is only a
+    warning in the build log. It says nothing about the current: that has to be measured."""
+    config = set((BUILD_DIR / "app/zephyr/.config").read_text().splitlines())
+    left = sorted({"CONFIG_SERIAL=y", "CONFIG_UART_NRFX_UARTE=y", "CONFIG_UART_CONSOLE=y", "CONFIG_CONSOLE=y",
+                   "CONFIG_LOG=y"} & config)
+    if left:
+        sys.exit("Built configuration keeps what --standby turns off: " + ", ".join(left))
+
+
+def memory_map(link_map: Path) -> str:
+    """The memory map of a GNU ld map, without /DISCARD/: the only part that says what is in the image."""
+    text = link_map.read_text(errors="replace") if link_map.is_file() else ""
+    _, marker, placed = text.partition("\nLinker script and memory map\n")
+    if not marker:
+        sys.exit(f"{link_map} is not a linker map with a memory map")
+    return re.sub(r"^/DISCARD/[ \t]*\n(?:[ \t]+\S.*\n|[ \t]*\n)*", "", placed, flags=re.MULTILINE)
+
+
+def placed_in_image(link_map: Path, name: str) -> bool:
+    """Whether a GNU ld map places code or data named `name...` in the image.
+
+    Only the memory map counts. The listings before it name archive members that were pulled in and
+    input sections the linker discarded, so a name found there says nothing about the image. Inside
+    the memory map a section must have an address and a size, and /DISCARD/ is left out."""
+    placed = memory_map(link_map)
+    used = r"0x0*[1-9a-fA-F][0-9a-fA-F]*"
+    section = rf"^[ \t]*\.[\w.$]*\.{re.escape(name)}[\w.$]*\s+{used}\s+{used}\s"
+    symbol = rf"^[ \t]+{used}[ \t]+{re.escape(name)}\w*[ \t]*$"
+    return bool(re.search(section, placed, re.MULTILINE) or re.search(symbol, placed, re.MULTILINE))
+
+
+def software_signers(link_map: Path) -> list[str]:
+    """Functions of SOFTWARE_SIGNERS that a GNU ld map places in the image, by code section or by symbol.
+
+    Only code counts. The strings of a function the linker threw away can stay behind in a section
+    of its name (.rodata.<function>.str1.1), and they sign nothing."""
+    placed = memory_map(link_map)
+    used = r"0x0*[1-9a-fA-F][0-9a-fA-F]*"
+    sections = re.findall(rf"^[ \t]*\.text\.([\w$]+)(?:\.[\w.$]*)?\s+{used}\s+{used}\s", placed, re.MULTILINE)
+    symbols = re.findall(rf"^[ \t]+{used}[ \t]+([\w$]+)[ \t]*$", placed, re.MULTILINE)
+    return sorted({name for name in (*sections, *symbols) if SOFTWARE_SIGNERS.fullmatch(name)})
+
+
+def defined_by(link_map: Path, symbol: str) -> set[str]:
+    """The input files whose sections define `symbol` in the image, as a GNU ld map names them.
+
+    The map prints an input section with its address, size and file, then the symbols in it. The
+    same part counts as in `placed_in_image`, and the section must have an address and a size. A
+    definition that follows no such section is kept as an unnamed input, so it cannot pass as the
+    expected one."""
+    used = r"0x0*[1-9a-fA-F][0-9a-fA-F]*"
+    files, file = set(), None
+    for line in memory_map(link_map).splitlines():
+        section = re.fullmatch(rf"[ \t]+(?:\.\S+[ \t]+)?{used}[ \t]+{used}[ \t]+(\S.*?)[ \t]*", line)
+        if section:
+            file = section[1]
+        elif re.fullmatch(rf"[ \t]+0x[0-9a-fA-F]+[ \t]+{re.escape(symbol)}[ \t]*", line):
+            files.add(file or "an input the map does not name")
+        elif not re.fullmatch(r"[ \t]+0x[0-9a-fA-F]+[ \t]+(?!0x)[\w.$]+[ \t]*", line):
+            file = None  # anything but a further symbol ends the section
+    return files
+
+
+def secure_key_evidence(public: Path) -> int:
+    """Host checks of a --secure-key build. It is not a release: no manifest is written.
+
+    The generated configuration is read back because a Kconfig value that does not take effect is
+    only a warning in the build log."""
+    app = BUILD_DIR / "app/zephyr"
+    config = set((app / ".config").read_text().splitlines())
+    # Without MBEDTLS_PSA_CRYPTO_STORAGE_C the SDK builds TF-M with CRYPTO_STORAGE_DISABLED: the
+    # secure side would then hold no persistent key at all.
+    required = {"CONFIG_NU54_SECURE_KEY=y", "CONFIG_BUILD_WITH_TFM=y", "CONFIG_TRUSTED_EXECUTION_NONSECURE=y",
+                "CONFIG_TFM_ITS_ENCRYPTED=y", "CONFIG_PSA_CRYPTO_DRIVER_CRACEN=y", "CONFIG_TFM_ITS_NUM_ASSETS=64",
+                "CONFIG_MBEDTLS_PSA_CRYPTO_STORAGE_C=y"}
+    forbidden = {"CONFIG_SECURE_STORAGE=y"}
+    if not required <= config or forbidden & config:
+        sys.exit("Built configuration does not keep the wallet key in the TF-M secure side: "
+                 + ", ".join(sorted((required - config) | (forbidden & config))))
+    if not placed_in_image(BUILD_DIR / "app/tfm/bin/tfm_s.map", SECURE_SIGNER):
+        sys.exit("TF-M secure image does not contain the wallet signing code")
+    if placed_in_image(app / "zephyr.map", "cracen_"):
+        sys.exit("The non-secure application links key-handling driver code")
+    signers = software_signers(app / "zephyr.map")
+    if signers:
+        sys.exit("The non-secure application links code that signs with a key of its own: " + ", ".join(signers))
+    # No driver in the application does not yet say who signs: a PSA core of its own would, with the
+    # key in non-secure memory. The two calls must be the ones that hand over to TF-M.
+    for name in TFM_API_CALLS:
+        files = defined_by(app / "zephyr.map", name)
+        other = sorted(file for file in files if not ("/" + file.partition("(")[0]).endswith("/" + TFM_API_LIBRARY))
+        if other or not files:
+            sys.exit(f"The application's {name} is not the TF-M API call into the secure side: "
+                     + (", ".join(other) or "not in the image"))
+    if in_toolchain("python3", str(HERE / "verify_release_image.py"), imgtool(), str(public),
+                    str(app / "zephyr.signed.bin"), str(app / "zephyr.signed.hex")):
+        sys.exit("Built firmware signature verification failed")
+    print(f"Build-verified TrustZone spending image (no release manifest, not for flashing): {app / 'zephyr.signed.bin'}")
+    return 0
 
 
 def keygen(path: str) -> int:
@@ -348,23 +510,133 @@ def keygen(path: str) -> int:
     return in_toolchain("python3", imgtool(), "keygen", "-k", str(key.resolve()), "-t", "ed25519")
 
 
+def trustzone_build() -> str | None:
+    """Why the build directory holds a TrustZone (TF-M) image, or None.
+
+    No such image is qualified for a board, so `flash` refuses all of them. One option of the
+    application is not enough to tell: a --secure-key build whose own option did not take effect is
+    still a TF-M image. A directory without the generated configuration cannot be judged. MCUboot's
+    configuration counts too: the SDK notes there that the target is non-secure, while the slot it
+    was built for is only in its devicetree."""
+    app_config = BUILD_DIR / "app" / "zephyr" / ".config"
+    if not app_config.is_file():
+        sys.exit("Application configuration missing; rebuild before flashing")
+    config = set(app_config.read_text().splitlines())
+    for option in ("CONFIG_NU54_SECURE_KEY=y", "CONFIG_BUILD_WITH_TFM=y", "CONFIG_TRUSTED_EXECUTION_NONSECURE=y"):
+        if option in config:
+            return option
+    boot_config = BUILD_DIR / "mcuboot" / "zephyr" / ".config"
+    if boot_config.is_file() and "CONFIG_BASE_BOARD_IS_NON_SECURE=y" in boot_config.read_text().splitlines():
+        return f"CONFIG_BASE_BOARD_IS_NON_SECURE=y in {boot_config.relative_to(BUILD_DIR)}"
+    for cache in (BUILD_DIR / "CMakeCache.txt", BUILD_DIR / "app" / "CMakeCache.txt"):
+        boards = re.findall(r"^(?:CACHED_)?BOARD:[A-Z]+=(.*)$", cache.read_text(), re.MULTILINE) if cache.is_file() else []
+        if any(board.strip().endswith("/ns") for board in boards):
+            return f"board target .../ns in {cache.relative_to(BUILD_DIR)}"
+    if (BUILD_DIR / "app" / "tfm").exists():
+        return "TF-M build output app/tfm"
+    return None
+
+
+def hex_runs(hex_file: Path) -> list[tuple[int, bytearray]]:
+    """Start address and bytes of each contiguous run of an Intel HEX file.
+
+    Read here, without the toolchain, so that `flash` can judge what it is about to write. A file
+    that is not complete, well-formed Intel HEX with data in it cannot be judged."""
+    runs: list[tuple[int, bytearray]] = []
+    base, complete = 0, False
+    try:
+        for line in hex_file.read_text().split():
+            record = bytes.fromhex(line.removeprefix(":"))
+            kind, data = record[3], record[4:-1]
+            if not line.startswith(":") or complete or len(record) != record[0] + 5 or sum(record) & 0xff:
+                raise ValueError(line)
+            address = base + int.from_bytes(record[1:3], "big")
+            # Data that goes back in the address space could put the two halves of one instruction
+            # into runs that are no neighbours, or write an address twice. The tools that make the
+            # images write ascending addresses, so anything else is not judged at all.
+            if kind == 0 and runs and address < runs[-1][0] + len(runs[-1][1]):
+                raise ValueError(line)
+            if kind == 0 and runs and runs[-1][0] + len(runs[-1][1]) == address:
+                runs[-1][1].extend(data)
+            elif kind == 0:
+                runs.append((address, bytearray(data)))
+            elif kind == 1:
+                complete = True
+            elif kind in (2, 4):  # the upper address bits of the records that follow
+                base = int.from_bytes(data, "big") << (4 if kind == 2 else 16)
+            elif kind not in (3, 5):  # 3 and 5 name an entry point and place no data
+                raise ValueError(line)
+    except (ValueError, IndexError):
+        complete = False
+    if not complete or not runs:
+        sys.exit(f"{hex_file} is not a complete Intel HEX image with ascending addresses; rebuild before flashing")
+    return runs
+
+
+def unqualified_image(hex_file: Path, area: tuple[int, int], boots: tuple[int, int] | None = None) -> str | None:
+    """Why the bytes `flash` would write are not an image of the installed layout, or None.
+
+    The generated configuration can be from another build than the image beside it, so the image
+    itself is read. Its addresses alone do not tell: a TF-M image starts where the default
+    application starts and fits the same slot. What it cannot be without is the secure gateway
+    instruction, the entry the non-secure side calls, and an image without TrustZone has none.
+
+    `boots` is given for MCUboot: the slot it must have been built to start. MCUboot of another
+    layout has no gateway and fits the same area, but its flash map names another slot: start and
+    size as two little-endian words. MCUboot of the --secure-key layout names 0x10000 and 0x157000."""
+    runs = hex_runs(hex_file)
+    for start, data in runs:
+        at = data.find(SECURE_GATEWAY)
+        while at >= 0 and (start + at) % 2:  # an instruction starts on an even address
+            at = data.find(SECURE_GATEWAY, at + 1)
+        if at >= 0:
+            return f"secure gateway code of a TrustZone image at 0x{start + at:x}"
+    first, end = min(start for start, _ in runs), max(start + len(data) for start, data in runs)
+    if first != area[0] or end > area[1]:
+        return f"it covers 0x{first:x}-0x{end:x}, the installed layout has 0x{area[0]:x}-0x{area[1]:x} for it"
+    if boots is not None:
+        slot = boots[0].to_bytes(4, "little") + (boots[1] - boots[0]).to_bytes(4, "little")
+        named = False
+        for start, data in runs:
+            at = data.find(slot)
+            while at >= 0 and (start + at) % 4:  # the flash map is a table of words
+                at = data.find(slot, at + 1)
+            named = named or at >= 0
+        if not named:
+            return (f"its flash map does not name the installed application slot 0x{boots[0]:x}-0x{boots[1]:x}: "
+                    "MCUboot of another layout")
+    return None
+
+
 def flash() -> int:
     # A release build has MCUboot and the signed app as two images; other builds have one.
     boot = BUILD_DIR / "mcuboot" / "zephyr" / "zephyr.hex"
+    found = trustzone_build()
+    if found:
+        sys.exit(f"TrustZone images are build-verified only and are not qualified for a board ({found})")
     if boot.exists():
         config = boot.parent / ".config"
         if not config.is_file():
             sys.exit("MCUboot configuration missing; rebuild before flashing")
         if "CONFIG_MCUBOOT_HW_DOWNGRADE_PREVENTION=y" in config.read_text().splitlines():
             sys.exit("Hardware-counter firmware requires separately authorized manufacturing provisioning")
-        images = [boot, BUILD_DIR / "app" / "zephyr" / "zephyr.signed.hex"]
+        images = [(boot, BOOT_AREA, APP_SLOT), (BUILD_DIR / "app" / "zephyr" / "zephyr.signed.hex", APP_SLOT, None)]
     else:
         merged = BUILD_DIR / "merged.hex"
-        images = [merged if merged.exists() else BUILD_DIR / "app" / "zephyr" / "zephyr.hex"]
-    for hex_file in images:
+        images = [(merged if merged.exists() else BUILD_DIR / "app" / "zephyr" / "zephyr.hex", SINGLE_IMAGE_AREA, None)]
+    for hex_file, _, _ in images:
         if not hex_file.exists():
             sys.exit(f"{hex_file} missing; run build first")
-    for hex_file in images:
+        # The flasher runs in another directory than this script.
+        if not hex_file.is_absolute():
+            sys.exit(f"{hex_file} is not an absolute path; set P01_BUILD_DIR to one")
+    # Every image is judged before the first one is written.
+    for hex_file, area, boots in images:
+        found = unqualified_image(hex_file, area, boots)
+        if found:
+            sys.exit(f"{hex_file.relative_to(BUILD_DIR)} is not an image of the installed layout and is "
+                     f"not qualified for a board ({found})")
+    for hex_file, _, _ in images:
         rc = in_toolchain("pyocd", "flash", "-t", PYOCD_TARGET, str(hex_file))
         if rc:
             return rc
@@ -410,6 +682,8 @@ def main(argv: list[str]) -> int:
             sys.exit("Use --security-counter=N for exactly one decimal counter")
         options = ("--pristine" in argv, "--rental" in argv, "--release" in argv,
                    "--approtect" in argv, "--official" in argv, int(counter_flags[0]) if counter_flags else None, "--spending" in argv)
+        secure_key = "--secure-key" in argv
+        standby = "--standby" in argv
         if "--test-capability-cache" in argv:
             if (not os.environ.get("P01_BUILD_DIR") or not BUILD_DIR.is_absolute()
                     or (BUILD_DIR.exists() and (not BUILD_DIR.is_dir() or any(BUILD_DIR.iterdir())))):
@@ -420,8 +694,8 @@ def main(argv: list[str]) -> int:
             finally:
                 sys.path.pop(0)
             with scoped_workspace("nu54-p01-capability-") as cache:
-                return build(*options, test_cache=cache, runner=run_command)
-        return build(*options)
+                return build(*options, secure_key=secure_key, standby=standby, test_cache=cache, runner=run_command)
+        return build(*options, secure_key=secure_key, standby=standby)
     if argv[0] in {"keygen", "reject-images"}:
         if len(argv) != 2:
             print(__doc__)

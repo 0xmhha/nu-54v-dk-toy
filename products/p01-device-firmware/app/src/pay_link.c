@@ -459,13 +459,24 @@ int pay_link_pairing_mode(uint32_t seconds)
 	return ble_links_pairing_mode(seconds, device.passkey, unprovisioned);
 }
 
+int pay_link_owner_wait(bool on)
+{
+	return ble_links_owner_wait(on);
+}
+
 /* ---------------------------------------------------------------- init */
 
 /* device.paymentMode from the phone app (payment-protocol.md 3, P02-FR-08); on the work queue. */
 static int platform_payment_mode(void *ctx, int on, uint32_t seconds)
 {
 	(void)ctx;
-	return ble_links_payment_mode(on ? seconds : 0);
+	const int err = ble_links_payment_mode(on ? seconds : 0);
+	/* The window opens whatever the first start of the advertising says, so that a button press
+	 * is never lost. The phone that asked is told what is on the air now: its "accepted" must
+	 * not stand for advertising that did not start, nor for the advertising of pairing mode,
+	 * which comes first. The window stays open and the start is tried again, or follows when
+	 * pairing ends, so the phone may simply ask once more. */
+	return err ? err : on && !ble_links_payment_advertising() ? -EAGAIN : 0;
 }
 
 int pay_link_init(void)

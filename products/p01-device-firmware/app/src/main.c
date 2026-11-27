@@ -149,6 +149,11 @@ int main(void)
 	/* Week-7 development mapping (design 3): SW4 long press enters payment mode, SW1 approves,
 	 * SW2 rejects. The final layout comes with the PIN LED guidance design. */
 	LOG_INF("ready: long-press SW4 for payment mode, SW3 for pairing; SW1 approves, SW2 rejects");
+	/* A commercial board without an owner (new, or restarted by a factory reset) gets ready for
+	 * the next one by itself. The enrollment window and every approval stay on the buttons. */
+	if (IS_ENABLED(CONFIG_NU54_OWNER_WAIT_ADV) && device_pilot_owner_absent() && pay_link_owner_wait(true) != 0) {
+		LOG_WRN("owner wait unavailable: hold SW4 to advertise");
+	}
 
 	while (true) {
 		board_button_event_t ev;
@@ -168,7 +173,10 @@ int main(void)
 		if (ev.button == 2 && ev.event == NU54_BTN_LONG && device_hd_physical(ev.prompt)) continue;
 #endif
 		if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && (ev.prompt & NU54_PILOT_PROMPT_MASK)) {
-			if (ev.event == NU54_BTN_CLICK && ev.button <= 1) device_pilot_button(ev.prompt, ev.button == 0);
+			if (ev.event == NU54_BTN_CLICK && ev.button <= 1) {
+				/* Registers the first owner, and then stops the owner wait itself. */
+				device_pilot_button(ev.prompt, ev.button == 0);
+			}
 			continue;
 		}
 		if (pin_entry.active && ev.prompt == pin_prompt) {
@@ -188,6 +196,8 @@ int main(void)
 			status_led_clear();
 			if (IS_ENABLED(CONFIG_NU54_PILOT_TLS)) device_pilot_enrollment_window();
 			pay_link_payment_mode(120);
+			/* Without an owner the button also starts the owner wait again after it ended. */
+			if (IS_ENABLED(CONFIG_NU54_OWNER_WAIT_ADV) && device_pilot_owner_absent()) (void)pay_link_owner_wait(true);
 		} else if (ev.button == 2 && ev.event == NU54_BTN_LONG) {
 			if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active()) {
 				if (device_pilot_recovery_window()) pay_link_payment_mode(120);

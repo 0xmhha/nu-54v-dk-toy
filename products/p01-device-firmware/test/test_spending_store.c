@@ -4,6 +4,7 @@
 #include "device_recovery_pin.h"
 #include "device_spending.h"
 #include "device_vault.h"
+#include "nu54_install.h"
 #include "nu54_pin_entry.h"
 #include "status_led.h"
 
@@ -25,6 +26,7 @@ static int writes_left = -1; /* -1: power stays on */
 static bool power_after;     /* the write lands and then the power goes */
 static jmp_buf power;
 static bool read_fails;
+static bool key_stays; /* the key store says "destroyed" and keeps the key */
 
 static bool cut(void)
 {
@@ -110,6 +112,7 @@ psa_status_t psa_generate_key(const psa_key_attributes_t *attrs, psa_key_id_t *i
 psa_status_t psa_destroy_key(psa_key_id_t id)
 {
 	if (!key(id)) return PSA_ERROR_INVALID_HANDLE;
+	if (key_stays && id == 0x54b2) return PSA_SUCCESS;
 	WRITE(memset(key(id), 0, sizeof(struct key)));
 	return PSA_SUCCESS;
 }
@@ -155,6 +158,30 @@ psa_status_t psa_mac_verify(psa_key_id_t id, psa_algorithm_t alg, const uint8_t 
 
 /* Included so a simulated restart can clear its memory. */
 #include "../app/src/device_recovery_pin.c"
+
+/* The operator's stored grant: the board's own removal, over what an installation leaves. */
+static bool active, offered, clock_sealed;
+static nu54_install_clock clock_saved;
+int device_install_forget(void);
+#include "board_install_forget.h"
+
+static void install_grant(void)
+{
+	const uint8_t part[GRANT_PART_SIZE] = {1};
+	const uint32_t length = 2 * GRANT_PART_SIZE + 7;
+	clock_saved = (nu54_install_clock){.earliest = 500, .offset = 3};
+	assert(!psa_its_set(INSTALL_GRANT, sizeof(length), &length, 0));
+	for (unsigned i = 0; i < 3; ++i) assert(!psa_its_set(INSTALL_GRANT_PART + i, i < 2 ? sizeof(part) : 7, part, 0));
+	assert(!psa_its_set(INSTALL_GRANT_PART + GRANT_PARTS - 1, 1, part, 0)); /* the tail of an older, longer grant */
+	assert(!psa_its_set(INSTALL_CLOCK, sizeof(clock_saved), &clock_saved, 0));
+	active = true;
+}
+
+static void assert_no_grant(void)
+{
+	assert(!active && !clock_saved.earliest && !item(INSTALL_GRANT) && !item(INSTALL_CLOCK));
+	for (unsigned i = 0; i < GRANT_PARTS; ++i) assert(!item(INSTALL_GRANT_PART + i));
+}
 
 /* ---- vault over the same flash ---- */
 static nu54_vault vault;
@@ -216,8 +243,29 @@ static int boot(void)
 	const nu54_vault_storage io = {NULL, vault_read, vault_write, vault_key};
 	uptime = 1000;
 	wait_from = 0;
+	/* What device_install_init reads back; the grant itself is restored after this start. */
+	active = false;
+	clock_saved = (nu54_install_clock){0};
+	if (item(INSTALL_CLOCK)) memcpy(&clock_saved, item(INSTALL_CLOCK)->data, sizeof(clock_saved));
 	if (nu54_vault_open(&vault, &io)) return -1;
 	return device_spending_init();
+}
+
+/* A board without an owner: nothing of a wallet, in memory or on flash. */
+static void assert_no_wallet(void)
+{
+	uint8_t digest[32] = {0}, signature[64], home[20];
+	assert(!device_spending_address() && !key(0x54b2) && !item(0x5571));
+	assert(device_spending_sign(digest, signature) && !device_spending_return_address(home));
+}
+
+/* What the board does when the first owner registers: the key, then the owner. */
+static void register_owner(const uint8_t owner[32], uint8_t address[20])
+{
+	assert_no_wallet();
+	assert(!device_spending_enroll());
+	memcpy(address, device_spending_address(), 20);
+	assert(!nu54_vault_rebind(&vault, vault.record.generation, owner));
 }
 
 static void use_wallet(uint8_t address[20])
@@ -225,18 +273,18 @@ static void use_wallet(uint8_t address[20])
 	const uint8_t owner[32] = {1}, home[20] = {9};
 	nu54_order_record record = {.expires = 500, .outcome = NU54_ORDER_APPROVED};
 	assert(!boot());
-	memcpy(address, device_spending_address(), 20);
-	assert(!nu54_vault_rebind(&vault, vault.record.generation, owner));
+	register_owner(owner, address);
 	assert(!enter("1234", true));
 	assert(!device_spending_set_return(home));
 	assert(!device_order_store(3, &record) && !device_order_charge(86400 * 5, 70));
+	install_grant();
 }
 
-static void assert_fresh(const uint8_t before[20], uint64_t generation)
+static void assert_fresh(uint64_t generation)
 {
 	uint8_t home[20];
-	const uint8_t *address = device_spending_address();
-	assert(address && memcmp(address, before, 20)); /* a different key */
+	assert_no_wallet(); /* the reset leaves no key, and the restart makes none */
+	assert_no_grant(); /* nor the operator's grant and the time saved for it */
 	assert(!device_spending_return_address(home));
 	assert(!item(0x5472) && !key(0x54a0) && !item(0x5553) && !item(0x5561) && !item(0x5570));
 	assert(vault.record.generation == generation && (vault.record.flags & NU54_VAULT_RELEASED));
@@ -267,11 +315,13 @@ static void test_reset_survives_power_loss_everywhere(void)
 			if (!setjmp(power)) (void)boot();
 			writes_left = -1;
 			assert(!boot());
-			if (!memcmp(device_spending_address(), before, 20)) {
+			if (device_spending_address()) {
 				/* Nothing was erased: only possible when even the first mark was not written. */
 				assert(!after && step == 0 && !(vault.record.flags & NU54_VAULT_RELEASED));
+				assert(!memcmp(device_spending_address(), before, 20));
+				assert(item(INSTALL_GRANT) && item(INSTALL_CLOCK) && clock_saved.earliest == 500);
 			} else {
-				assert_fresh(before, generation + 1);
+				assert_fresh(generation + 1);
 			}
 			++cuts;
 			if (finished) break;
@@ -290,9 +340,237 @@ static void test_first_boot_survives_power_loss(void)
 			writes_left = step;
 			if (!setjmp(power)) (void)boot();
 			writes_left = -1;
-			assert(!boot() && device_spending_address());
+			assert(!boot());
+			assert_no_wallet(); /* a new board makes no key by itself */
 		}
 	}
+}
+
+/* The key is made right before the owner is stored. Wherever the power goes, the next start finds
+ * either no owner and no key, or the owner with the key that was made for it. */
+static void test_registration_survives_power_loss(void)
+{
+	const uint8_t owner[32] = {3};
+	unsigned cuts = 0;
+	for (int released = 0; released < 2; ++released) {
+		for (int after = 0; after < 2; ++after) {
+			for (int step = 0;; ++step) {
+				uint8_t made[20] = {0};
+				memset(&flash, 0, sizeof(flash));
+				if (released) {
+					use_wallet(made);
+					assert(!device_spending_erase());
+				}
+				assert(!boot());
+				const uint64_t generation = vault.record.generation;
+				power_after = after;
+				writes_left = step;
+				volatile bool finished = false;
+				if (!setjmp(power)) {
+					register_owner(owner, made);
+					finished = true;
+				}
+				writes_left = 1; /* a second loss while the start repairs */
+				if (!setjmp(power)) (void)boot();
+				writes_left = -1;
+				assert(!boot());
+				if (vault.record.generation == generation) {
+					assert_no_wallet();
+					assert(!finished);
+				} else {
+					assert(vault.record.generation == generation + 1 && !vault.record.flags);
+					assert(device_spending_address() && key(0x54b2) && item(0x5571));
+					assert(!memcmp(item(0x5571)->data, device_spending_address(), 20));
+				}
+				++cuts;
+				if (finished) break;
+				assert(step < 20);
+			}
+		}
+	}
+	printf("registration cut at %u points\n", cuts);
+}
+
+static void test_key_only_for_the_first_owner(void)
+{
+	uint8_t first[20], other[20];
+	const uint8_t owner[32] = {4};
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot());
+	register_owner(owner, first);
+	assert(device_spending_enroll()); /* an owner exists: the wallet is never replaced */
+	assert(!memcmp(device_spending_address(), first, 20));
+	assert(!boot() && !memcmp(device_spending_address(), first, 20));
+	assert(device_spending_enroll() && !memcmp(device_spending_address(), first, 20));
+
+	/* The vault did not take the owner: the key that was made for it goes at once. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !device_spending_enroll() && key(0x54b2));
+	device_spending_withdraw();
+	assert_no_wallet();
+	assert(!device_spending_enroll()); /* and the next try makes another one */
+	memcpy(other, device_spending_address(), 20);
+	assert(memcmp(other, first, 20));
+
+	/* A vault that stopped after a failed write may hold the owner: the key stays for the restart. */
+	vault.enabled = false;
+	device_spending_withdraw();
+	assert(!device_spending_address() && key(0x54b2) && device_spending_enroll());
+	assert(!boot());
+	assert_no_wallet(); /* flash holds no owner, so the start removes the key */
+
+	/* A board of firmware that made the key at start: no owner, a key and its recorded address. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !device_spending_enroll());
+	assert(!boot());
+	assert_no_wallet();
+}
+
+/* What the board does for a first owner, in its order: the PIN, the key, the owner. A step that
+ * fails takes the key and the PIN back (device_pilot_button). */
+static int register_with_pin(const uint8_t owner[32], const char *pin, bool vault_takes)
+{
+	if (enter(pin, true)) {
+		device_spending_withdraw();
+		return -1;
+	}
+	if (device_spending_enroll() || !vault_takes || nu54_vault_rebind(&vault, vault.record.generation, owner)) {
+		device_spending_withdraw();
+		return -1;
+	}
+	return 0;
+}
+
+static void assert_no_pin(void)
+{
+	assert(!item(0x5472) && !key(0x54a0) && device_recovery_pin_wait() == 0);
+}
+
+/* A board without an owner keeps no PIN: the next person could not know it and could never
+ * register. Before this rule a first registration that failed after the PIN entry left the PIN. */
+static void test_unowned_board_keeps_no_pin(void)
+{
+	const uint8_t first[32] = {5}, second[32] = {6};
+	for (int released = 0; released < 2; ++released) {
+		uint8_t made[20];
+		memset(&flash, 0, sizeof(flash));
+		if (released) {
+			use_wallet(made);
+			assert(!device_spending_erase());
+		}
+		assert(!boot());
+		/* The PIN is set, the key is made, and the vault does not take the owner. */
+		assert(register_with_pin(first, "1234", false));
+		assert_no_wallet();
+		assert_no_pin();
+		assert(!boot());
+		assert_no_wallet();
+		assert_no_pin();
+		/* Another person sets another PIN and registers. */
+		assert(!register_with_pin(second, "5678", true));
+		assert(!enter("5678", false) && enter("1234", false));
+		assert(!boot() && device_spending_address() && !enter("5678", false)); /* with an owner the PIN stays */
+	}
+
+	/* A PIN found at start on a board without an owner: a power cut after the PIN entry, or
+	 * firmware from before this rule. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true) && item(0x5472) && key(0x54a0));
+	assert(!boot());
+	assert_no_pin();
+	assert(!enter("5678", true) && !enter("5678", false));
+
+	/* Only the PIN key was made before the power went. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true));
+	memset(item(0x5472), 0, sizeof(struct item));
+	assert(!boot());
+	assert_no_pin();
+
+	/* A vault that stopped after a failed write may hold the owner: the PIN stays for the restart,
+	 * which finds no owner on flash and removes it. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true) && !device_spending_enroll());
+	vault.enabled = false;
+	device_spending_withdraw();
+	assert(item(0x5472) && key(0x54a0) && key(0x54b2));
+	assert(!boot());
+	assert_no_wallet();
+	assert_no_pin();
+
+	/* The start does not go on while a PIN without an owner cannot be removed. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true));
+	read_fails = true;
+	assert(boot());
+	read_fails = false;
+	assert(!boot());
+	assert_no_pin();
+}
+
+/* The same through a power cut at every write of a first registration, completed or taken back:
+ * the next start finds the owner with the PIN that was entered, or no owner and no PIN. */
+static void test_first_registration_with_pin_survives_power_loss(void)
+{
+	const uint8_t owner[32] = {7};
+	unsigned cuts = 0;
+	for (int takes = 0; takes < 2; ++takes) {
+		for (int after = 0; after < 2; ++after) {
+			for (int step = 0;; ++step) {
+				memset(&flash, 0, sizeof(flash));
+				assert(!boot());
+				const uint64_t generation = vault.record.generation;
+				power_after = after;
+				writes_left = step;
+				volatile bool finished = false;
+				if (!setjmp(power)) {
+					(void)register_with_pin(owner, "1234", takes);
+					finished = true;
+				}
+				writes_left = 1; /* a second loss while the start repairs */
+				if (!setjmp(power)) (void)boot();
+				writes_left = -1;
+				assert(!boot());
+				if (vault.record.generation == generation) {
+					assert_no_wallet();
+					assert_no_pin();
+					assert(!enter("5678", true)); /* the next person's PIN is taken */
+				} else {
+					assert(takes && device_spending_address() && !enter("1234", false));
+				}
+				++cuts;
+				if (finished) break;
+				assert(step < 30);
+			}
+		}
+	}
+	printf("registration with a PIN cut at %u points\n", cuts);
+}
+
+/* A reset is done only when the key store itself says the key is gone. */
+static void test_reset_fails_while_the_key_is_there(void)
+{
+	uint8_t before[20];
+	memset(&flash, 0, sizeof(flash));
+	use_wallet(before);
+	uint64_t generation = vault.record.generation;
+	key_stays = true;
+	assert(device_spending_erase() && !device_spending_address());
+	assert(item(0x5570) && key(0x54b2)); /* the mark stays, so the next start goes on */
+	assert(boot() && !device_spending_address() && device_spending_enroll());
+	assert(item(0x5570));
+	key_stays = false;
+	assert(!boot());
+	assert_fresh(generation + 1);
+
+	/* The same check when the start finds a key without an owner. */
+	assert(!device_spending_enroll());
+	key_stays = true;
+	assert(boot() && !device_spending_address() && device_spending_enroll());
+	device_spending_withdraw(); /* a failed removal stops the wallet until the restart */
+	key_stays = false;
+	assert(!boot());
+	assert_no_wallet();
 }
 
 static void test_reset_then_new_owner(void)
@@ -302,15 +580,16 @@ static void test_reset_then_new_owner(void)
 	memset(&flash, 0, sizeof(flash));
 	use_wallet(first);
 	uint64_t generation = vault.record.generation;
-	assert(!device_spending_erase() && !device_spending_address());
-	uint8_t digest[32] = {0}, signature[64];
-	assert(device_spending_sign(digest, signature)); /* nothing signs until the restart */
+	assert(!device_spending_erase());
+	assert_no_wallet(); /* gone at once, before the restart */
+	assert(device_spending_enroll()); /* and nothing is made until the restart */
 	assert(!boot());
-	assert_fresh(first, generation + 1);
+	assert_fresh(generation + 1);
 	assert(!device_spending_erase() && !boot()); /* resetting an empty wallet is harmless */
 	assert(vault.record.generation == generation + 1);
-	memcpy(second, device_spending_address(), 20);
-	assert(!nu54_vault_rebind(&vault, vault.record.generation, owner));
+	assert_fresh(generation + 1);
+	register_owner(owner, second);
+	assert(memcmp(first, second, 20)); /* the next owner gets another key */
 	assert(vault.record.generation == generation + 2 && !vault.record.flags);
 	assert(!enter("5678", true) && enter("1234", false) && !enter("5678", false));
 	assert(!boot() && !memcmp(device_spending_address(), second, 20)); /* stays after a restart */
@@ -349,6 +628,8 @@ static void test_return_address_is_set_once(void)
 	const uint8_t other[20] = {8};
 	memset(&flash, 0, sizeof(flash));
 	assert(!boot());
+	assert(device_spending_set_return(other)); /* no wallet before the first owner */
+	assert(!device_spending_enroll());
 	assert(device_spending_set_return(device_spending_address())); /* not to itself */
 	use_wallet(before);
 	assert(device_spending_return_address(home) && home[0] == 9);
@@ -403,14 +684,54 @@ static void test_open_orders_hold_a_reset_back(void)
 	assert(!device_order_store(1, &record) && !device_order_open(499, 0));
 }
 
+/* A grant kept through a restart brings a clock that is late by what the board lost, so by that
+ * clock an order from before the restart looks open for longer than it can execute. Such an order
+ * holds a reset and a return back for one order life of running time, whatever the clock says.
+ * An order answered since the start is judged by the clock that ran with it. */
+static void test_orders_of_an_earlier_start(void)
+{
+	nu54_order_record record = {.expires = 1500, .outcome = NU54_ORDER_APPROVED};
+	memset(&flash, 0, sizeof(flash));
+	device_order_start();
+	assert(!device_order_store(1, &record));
+	assert(device_order_open(1499, 1 << 30) && !device_order_open(1500, 1 << 30));
+	device_order_start(); /* a restart; the board continues from a time 700 seconds before the order's end */
+	assert(device_order_open(800, 0) && device_order_open(800, NU54_SPEND_ORDER_LIFE_MS - 1));
+	assert(!device_order_open(800, NU54_SPEND_ORDER_LIFE_MS) && !device_order_open(1500, 0));
+
+	/* The owner's phone moves the clock past the order's end. The order stays open for as long as
+	 * it could have run: to the end of the first order life for one from before the start. */
+	device_order_hold_open(800, 1000);
+	assert(device_order_open(9000, NU54_SPEND_ORDER_LIFE_MS - 1) && !device_order_open(9000, NU54_SPEND_ORDER_LIFE_MS));
+	/* And for the longest an order runs, from the move on, for one answered since the start. */
+	device_order_start();
+	record.expires = 20000;
+	assert(!device_order_store(2, &record) && device_order_open(19999, 500000) && !device_order_open(20000, 500000));
+	device_order_hold_open(19990, 500000);
+	assert(device_order_open(90000, 500000 + NU54_ORDER_MAX_SECONDS * 1000 - 1));
+	assert(!device_order_open(90000, 500000 + NU54_ORDER_MAX_SECONDS * 1000));
+	/* Nothing was open at the move: nothing is held. */
+	device_order_start();
+	device_order_hold_open(20000, 1000);
+	assert(!device_order_open(20000, 1001));
+	device_order_start();
+}
+
 int main(void)
 {
+	assert(device_spending_enroll() && !device_spending_address()); /* nothing before the stored state was read */
 	test_first_boot_survives_power_loss();
+	test_registration_survives_power_loss();
+	test_key_only_for_the_first_owner();
+	test_unowned_board_keeps_no_pin();
+	test_first_registration_with_pin_survives_power_loss();
+	test_reset_fails_while_the_key_is_there();
 	test_reset_then_new_owner();
 	test_lost_key_is_not_replaced();
 	test_return_address_is_set_once();
 	test_wrong_pins_wait_and_never_erase();
 	test_open_orders_hold_a_reset_back();
+	test_orders_of_an_earlier_start();
 	test_reset_survives_power_loss_everywhere();
 	puts("spending store ok");
 	return 0;

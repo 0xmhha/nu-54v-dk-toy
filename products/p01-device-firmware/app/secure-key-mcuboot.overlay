@@ -1,0 +1,4 @@
+/* MCUboot's view of the --secure-key layout (secure-key.overlay): one combined slot.
+ * Build-verified only, never flash. */
+/delete-node/ &slot1_partition;
+&slot0_partition { reg = <0x10000 0x157000>; };

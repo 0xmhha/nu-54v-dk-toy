@@ -69,7 +69,8 @@ static bool allowed(nu54_v2_profile profile, nu54_v2_role role, nu54_v2_command 
         (profile == NU54_V2_PAYMENT && command == NU54_V2_RENTAL_REVIEW);
     if (role != profiles[profile].initiator) return false;
     if (command == NU54_V2_STATUS) return true;
-    if (profile == NU54_V2_MANAGEMENT) return command == NU54_V2_MANAGE || command == NU54_V2_PAY_PREPARE;
+    if (profile == NU54_V2_MANAGEMENT)
+        return command == NU54_V2_MANAGE || command == NU54_V2_PAY_PREPARE || command == NU54_V2_CLOCK;
     if (profile == NU54_V2_PAYMENT) return command == NU54_V2_PAY_PREPARE;
     return command == NU54_V2_NEARBY_SUBMIT;
 }
@@ -253,6 +254,10 @@ static nu54_v2_result journal_record(nu54_v2_link *link, const nu54_v2_request *
     }
     if (!available) return NU54_V2_ERROR;
     available->retain_until = request->expires > UINT64_MAX - MAX_TTL ? UINT64_MAX : request->expires + MAX_TTL;
+    /* The time command may end any time ahead. Its record is kept no longer than the record of any
+     * other request can be, so that it cannot hold a place in the journal for ever. */
+    if (request->command == NU54_V2_CLOCK && available->retain_until - now > 2 * MAX_TTL)
+        available->retain_until = now + 2 * MAX_TTL;
     available->profile = link->profile;
     memcpy(available->id, request->id, sizeof(available->id));
     memcpy(available->peer, link->peer_identity, sizeof(available->peer));
@@ -288,7 +293,8 @@ nu54_v2_result nu54_v2_link_receive(nu54_v2_link *link, const uint8_t *frame, si
         !allowed(link->profile, link->peer, out->command)) return fail(link);
     memcpy(out->id, link->body + 1, sizeof(out->id));
     out->expires = read_be(link->body + 17, 8);
-    if (out->expires <= now || out->expires - now > MAX_TTL) return fail(link);
+    /* The time command comes from a peer whose clock is ahead of a board that was without power. */
+    if (out->expires <= now || (out->command != NU54_V2_CLOCK && out->expires - now > MAX_TTL)) return fail(link);
     out->payload = link->body + BODY_HEADER;
     out->payload_length = link->size - BODY_HEADER;
     if (!matches_outstanding(link, out)) return fail(link);

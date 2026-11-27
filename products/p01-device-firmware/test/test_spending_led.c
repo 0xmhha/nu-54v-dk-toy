@@ -4,6 +4,7 @@
 #include "device_order.h"
 #include "device_recovery_pin.h"
 #include "device_spending.h"
+#include "nu54_adv_schedule.h"
 #include "nu54_install.h"
 #include "nu54_keccak.h"
 #include "nu54_owner.h"
@@ -12,6 +13,7 @@
 #include "../core/include/nu54_owner_idle.h"
 
 #include <assert.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <string.h>
 #include <zephyr/kernel.h>
@@ -72,9 +74,10 @@ struct bt_conn {int unused;};
 #define NU54_PILOT_PROMPT_MASK UINT32_C(0x80000000)
 #define PROMPT (NU54_PILOT_PROMPT_MASK | 1)
 #define K_FOREVER 0
-#define k_mutex_lock(lock, timeout) ((void)(lock))
-#define k_mutex_unlock(lock) ((void)(lock))
-static int pilot_lock;
+#define CONFIG_NU54_OWNER_WAIT_ADV 1
+/* How often the lock is held: the lamp's work queue stands still behind a held lock. */
+#define k_mutex_lock(lock, timeout) ((void)++*(lock))
+#define k_mutex_unlock(lock) ((void)--*(lock))
 static atomic_t pending_prompt;
 static int32_t atomic_get(const atomic_t *value) { return *value; }
 static void atomic_set(atomic_t *value, int32_t next) { *value = next; }
@@ -84,21 +87,35 @@ static nu54_local_approval approval;
 static nu54_spend_action spend_action;
 static nu54_v2_link link;
 static nu54_install_policy policy;
-static struct bt_conn phone, *connection = &phone;
+static struct bt_conn phone, *connection = &phone, *ticket_peer, *display_connection;
+static int64_t install_deadline, enrollment_window;
+static bool initialized = true, ready = true;
 static const nu54_owner_crypto owner_crypto;
 static bool recovering, display_confirmed = true;
 static int64_t recovery_window;
 static unsigned order_slot = 1;
-static uint64_t order_amount = 1, order_expires = NOW + 100;
+static uint64_t order_amount = 1, order_expires = NOW + 100, order_life = 100;
 static const uint8_t wallet[20] = {1};
 
 static nu54_vault vault;
 static int32_t pin_wait;
-static bool order_open, right_pin, erased, send_fails, sign_fails, confirm_fails;
+static bool order_open, right_pin, erased, send_fails, sign_fails, confirm_fails, enroll_fails;
+static bool vault_stops; /* the vault's write failed: it stops and no longer says who owns the board */
+static bool erase_fails;
+static unsigned keys_made, keys_withdrawn, confirms, owner_wait_stops;
+static jmp_buf restart;
 static int64_t pin_at;
 static unsigned stored;
 static board_button_event_t early[2];
 static unsigned early_count;
+/* A time from the owner's phone that waits for SW1 (clock_request in device_pilot.c). What the
+ * clock does with it is in test_clock_sync.c. Here it is the button code's turn, and the lamp's. */
+static struct {
+	bool pending;
+} clock_wait;
+static int clock_took; /* what clock_button answers to SW1: 0 moved, 1 moved and the session ends, -1 not moved */
+static unsigned clock_presses, clock_refusals;
+static bool clock_during_pin; /* the phone's time arrives while the PIN of a button reset is entered */
 
 static nu54_vault *device_vault_owner(void) { return &vault; }
 static int pay_link_waiting(void) { return 0; }
@@ -109,12 +126,38 @@ static const nu54_install_policy *device_install_policy(void) { return &policy; 
 #define device_order_open(earliest, now) (order_open)
 #define device_order_charge(earliest, amount) ((amount) ? 0 : -1)
 #define device_order_store(slot, record) (stored = (record)->outcome, 0)
+/* What the hold of an approved order does is in test_clock_sync.c. */
+#define device_install_hold_order(seconds) ((void)(seconds), 0)
+#define device_order_hold_approved(uptime, seconds) ((void)(seconds))
 #define device_spending_address() (wallet)
 #define device_spending_return_address(out) (memset(out, 2, 20) != NULL)
 #define device_spending_set_return(address) (0)
 #define device_spending_sign(digest, raw) (memset(raw, 1, 64) == NULL)
+/* The key is made before the vault is asked to take the owner. */
+int device_spending_enroll(void)
+{
+	assert(!confirms);
+	if (!enroll_fails) ++keys_made;
+	return enroll_fails ? -1 : 0;
+}
+void device_spending_withdraw(void) { ++keys_withdrawn; }
+/* The board stops advertising by itself; nothing in this code may turn it on. */
+static int pay_link_owner_wait(bool on)
+{
+	assert(!on);
+	++owner_wait_stops;
+	return 0;
+}
+int device_spending_erase(void)
+{
+	erased = true;
+	return erase_fails ? -1 : 0;
+}
+#define SYS_REBOOT_COLD 1
+#define sys_reboot(how) longjmp(restart, how)
 #define nu54_sig_finish(digest, raw, address, out) (memset(out, 1, 65), sign_fails ? NU54_SIG_BAD_V : NU54_SIG_OK)
-#define nu54_owner_confirm(e, v, l, now, prompt, ok) ((void)(v), (e)->proven = false, confirm_fails || !(ok) ? -1 : 0)
+#define nu54_owner_confirm(e, v, l, now, prompt, ok) \
+	(++confirms, (e)->proven = false, (v)->enabled = (v)->enabled && !vault_stops, confirm_fails || !(ok) ? -1 : 0)
 #define nu54_owner_status(v, c, e, out) ((void)(c), memset(out, 0, NU54_OWNER_STATUS_SIZE) == NULL)
 /* A function, not an expression: the board code calls it as a statement and ignores the result. */
 static int link_send_stub(const void *reply) { (void)reply; return send_fails ? -1 : 0; }
@@ -135,19 +178,29 @@ static int hash(const uint8_t *data, size_t length, uint8_t out[32])
 	return 0;
 }
 static bool session_live(int64_t now) { return now > 0; }
+static unsigned link_resets;
 static void reset_link(void)
 {
+	++link_resets;
 	if (pending_prompt) status_led_waiting(false); /* as reset_link does */
 	pending_prompt = 0;
 	memset(&spend_action, 0, sizeof(spend_action));
 	memset(&approval, 0, sizeof(approval));
+	clock_wait.pending = false;
 }
-static void spending_erase_and_reboot(void)
+static int pilot_lock;
+static int clock_button(bool approved)
 {
-	erased = true;
-	status_led_clear();
-	status_led_reset_done();
-	advance(4000);
+	assert(pilot_lock == 1 && clock_wait.pending);
+	clock_wait.pending = false;
+	approved ? ++clock_presses : ++clock_refusals;
+	return approved ? clock_took : -1;
+}
+/* The result of a reset is shown for these four seconds, so the lock must be free by now. */
+static void k_msleep(int milliseconds)
+{
+	assert(!pilot_lock);
+	advance(milliseconds);
 }
 
 int board_button_wait(board_button_event_t *out, int32_t timeout)
@@ -174,6 +227,7 @@ int device_recovery_pin(bool virgin)
 		return -1;
 	}
 	assert(!early_count); /* an early press is no digit */
+	if (clock_during_pin) clock_wait.pending = true;
 	pin_at = uptime;
 	status_led_pin(STATUS_PIN_START);
 	advance(900);
@@ -185,6 +239,7 @@ int device_recovery_pin(bool virgin)
 
 void device_pilot_button_reset(void);
 void device_pilot_button(uint32_t prompt, bool approved);
+bool device_pilot_engaged(const struct bt_conn *conn);
 #include "board_buttons.h"
 
 /* ---- cases ---- */
@@ -302,6 +357,210 @@ static void test_answers(void)
 	send_fails = false;
 }
 
+/* Decision of 2026-11-27: the wallet key is made when the first owner registers, not at start. */
+static void first_owner(bool released)
+{
+	ask(REGISTER);
+	vault.record.generation = released ? 3 : 0;
+	vault.record.flags = released ? NU54_VAULT_REVOKED | NU54_VAULT_RELEASED : 0;
+	keys_made = keys_withdrawn = confirms = 0;
+}
+
+static void test_first_owner_makes_the_key(void)
+{
+	right_pin = true;
+	for (int released = 0; released < 2; ++released) {
+		first_owner(released);
+		approve();
+		advance(3000);
+		assert(keys_made == 1 && confirms == 1 && !keys_withdrawn);
+
+		first_owner(released); /* the vault did not take the owner: the key goes again */
+		confirm_fails = true;
+		approve();
+		failed_then_dark();
+		confirm_fails = false;
+		assert(keys_made == 1 && confirms == 1 && keys_withdrawn == 1);
+
+		first_owner(released); /* no key, so the vault is not asked; the PIN that was set goes again */
+		enroll_fails = true;
+		approve();
+		failed_then_dark();
+		enroll_fails = false;
+		assert(!keys_made && !confirms && keys_withdrawn == 1);
+
+		first_owner(released);
+		right_pin = false;
+		approve();
+		failed_then_dark();
+		right_pin = true;
+		assert(!keys_made && !confirms);
+
+		first_owner(released);
+		device_pilot_button(PROMPT, false);
+		failed_then_dark();
+		assert(!keys_made && !keys_withdrawn);
+	}
+	ask(REGISTER); /* the board has an owner: another phone takes over the same wallet */
+	keys_made = keys_withdrawn = confirms = 0;
+	approve();
+	advance(3000);
+	assert(!keys_made && confirms == 1 && !keys_withdrawn);
+}
+
+/* A board without an owner keeps no PIN. The PIN is set before the key and the owner, so every
+ * way a first registration can stop after it must take the PIN back (device_spending_withdraw
+ * removes the PIN and the key; test_spending_store.c). */
+static void test_unfinished_registration_takes_the_pin_back(void)
+{
+	right_pin = true;
+	for (int released = 0; released < 2; ++released) {
+		first_owner(released); /* the request ran out while the PIN was entered */
+		link.pending_expiry = NOW;
+		approve();
+		failed_then_dark();
+		assert(keys_withdrawn == 1 && !keys_made && !confirms);
+
+		first_owner(released); /* the vault did not take the owner */
+		confirm_fails = true;
+		approve();
+		failed_then_dark();
+		confirm_fails = false;
+		assert(keys_withdrawn == 1);
+
+		first_owner(released); /* the PIN entry itself did not complete */
+		right_pin = false;
+		approve();
+		failed_then_dark();
+		right_pin = true;
+		assert(keys_withdrawn == 1);
+
+		first_owner(released); /* done: nothing is taken back */
+		approve();
+		advance(3000);
+		assert(!keys_withdrawn && keys_made == 1);
+	}
+	ask(REGISTER); /* an owner exists and its PIN was checked, not set: it stays whatever happens */
+	keys_withdrawn = 0;
+	confirm_fails = true;
+	approve();
+	failed_then_dark();
+	confirm_fails = false;
+	assert(!keys_withdrawn);
+}
+
+/* Only the registration of a first owner ends the owner wait, and only when it is done. */
+static void test_first_owner_ends_the_owner_wait(void)
+{
+	right_pin = true;
+	for (int released = 0; released < 2; ++released) {
+		first_owner(released);
+		owner_wait_stops = 0;
+		approve();
+		advance(3000);
+		assert(owner_wait_stops == 1);
+
+		first_owner(released);
+		owner_wait_stops = 0;
+		confirm_fails = true;
+		approve();
+		failed_then_dark();
+		confirm_fails = false;
+		first_owner(released);
+		device_pilot_button(PROMPT, false);
+		failed_then_dark();
+		assert(!owner_wait_stops); /* still without an owner: the board keeps advertising */
+
+		/* The vault's write failed. The owner may be in storage all the same, and the vault says
+		 * nothing until the restart: the board stops advertising for a next owner and no longer
+		 * drops centrals that wait, as it would for a board that surely has none. */
+		first_owner(released);
+		confirm_fails = vault_stops = true;
+		approve();
+		failed_then_dark();
+		confirm_fails = vault_stops = false;
+		assert(owner_wait_stops == 1 && !vault.enabled);
+	}
+	ask(REGISTER); /* another phone of a board that has an owner */
+	owner_wait_stops = 0;
+	approve();
+	advance(3000);
+	assert(!owner_wait_stops);
+}
+
+/* The operator's signed reset at the SW1 step. It needs no PIN. A board that a reset released
+ * carries the revoked flag too and must still be reset; one whose owner was only revoked (a lost
+ * phone) must not, also when that happened after the request was taken. */
+static bool operator_reset(uint8_t flags)
+{
+	uint8_t body[97] = {NU54_SPEND_OPERATOR_RESET_OP, 7};
+	nu54_v2_request request = {.command = NU54_V2_MANAGE, .expires = NOW + 60, .payload = body, .payload_length = sizeof(body)};
+	ask(SET_RETURN);
+	memset(&spend_action, 0, sizeof(spend_action));
+	vault.record.generation = 3;
+	assert(!nu54_spend_stage(&spend_action, &link, &request, NOW, NOW, 3, PROMPT));
+	vault.record.flags = flags;
+	erased = false;
+	pilot_lock = 0;
+	if (!setjmp(restart)) {
+		device_pilot_button(PROMPT, true);
+		assert(!pin_at && !erased); /* refused without asking for a PIN */
+		failed_then_dark();
+		return false;
+	}
+	assert(!pin_at && erased && !pilot_lock);
+	return true;
+}
+
+static void test_operator_reset_at_the_button(void)
+{
+	assert(operator_reset(0)); /* a board with its owner */
+	assert(flashes(steps - 3, DONE, 2));
+	assert(operator_reset(NU54_VAULT_REVOKED | NU54_VAULT_RELEASED)); /* released by an earlier reset */
+	assert(flashes(steps - 3, DONE, 2));
+	assert(!operator_reset(NU54_VAULT_REVOKED)); /* the owner's phone was revoked meanwhile */
+	initialized = ready = true;
+}
+
+/* The result of a reset is shown while the lock is free, and nothing starts before the restart. */
+static void test_reset_result_is_shown(void)
+{
+	right_pin = true;
+	ask(ORDER);
+	reset_link();
+	erased = false;
+	erase_fails = true; /* the erase did not finish: the failure pattern, and the restart goes on */
+	pilot_lock = 0;
+	enrollment_window = uptime + 1000;
+	start();
+	if (!setjmp(restart)) {
+		device_pilot_button_reset();
+		assert(false);
+	}
+	assert(erased && !pilot_lock && !initialized && !ready && !enrollment_window);
+	assert(steps >= 5 && flashes(steps - 5, FAILED, 3));
+	erase_fails = false;
+	initialized = ready = true;
+}
+
+static void test_central_in_an_exchange(void)
+{
+	struct bt_conn other = {0}, third = {0};
+	assert(device_pilot_engaged(&phone) && !device_pilot_engaged(&other) && !device_pilot_engaged(NULL));
+	display_connection = &other;
+	assert(device_pilot_engaged(&other));
+	display_connection = NULL;
+	/* A central that started a ticket and never finished it. */
+	ticket_peer = &third;
+	install_deadline = uptime + 15000;
+	assert(device_pilot_engaged(&third));
+	uptime += 14999;
+	assert(device_pilot_engaged(&third));
+	uptime += 1;
+	assert(!device_pilot_engaged(&third) && device_pilot_engaged(&phone));
+	ticket_peer = NULL;
+}
+
 static void test_early_presses(void)
 {
 	right_pin = true;
@@ -351,15 +610,115 @@ static void test_button_reset(void)
 	assert(!erased);
 	right_pin = true;
 	start();
+	pilot_lock = 0;
+	if (!setjmp(restart)) {
+		device_pilot_button_reset(); /* ends in the restart */
+		assert(false);
+	}
+	assert(erased && !pilot_lock && flashes(steps - 3, DONE, 2));
+	initialized = ready = true;
+}
+
+/* A registration that completes ends the session it came in, for a first owner and for a phone
+ * that takes a board over. No later message of that session can therefore find the new owner: the
+ * session of the independent audit's fourth finding, which was bound before the board had an
+ * owner and then told the time, does not come about (test_clock_sync.c,
+ * test_a_session_from_before_the_owner). */
+static void test_registration_ends_its_session(void)
+{
+	right_pin = true;
+	for (int released = 0; released < 2; ++released) {
+		first_owner(released);
+		link_resets = 0;
+		approve();
+		advance(3000);
+		assert(confirms == 1 && keys_made == 1 && link_resets == 1 && !pending_prompt);
+	}
+	ask(REGISTER);
+	confirms = link_resets = 0;
+	approve();
+	advance(3000);
+	assert(confirms == 1 && link_resets == 1 && !pending_prompt);
+}
+
+/* SW1 for a time the owner's phone told (decision of 2026-11-27): the waiting lamp of every other
+ * wait, the press shown, no PIN, and then dark. */
+static void ask_clock(void)
+{
+	start();
+	vault = (nu54_vault){.enabled = true, .record.generation = 1};
+	memset(&approval, 0, sizeof(approval));
+	memset(&spend_action, 0, sizeof(spend_action));
+	memset(&enrollment, 0, sizeof(enrollment));
+	clock_wait.pending = true;
+	pending_prompt = (atomic_t)PROMPT;
+	status_led_waiting(true);
+	advance(50);
+	pin_at = 0;
+	clock_presses = clock_refusals = 0;
+}
+
+static void test_clock_at_the_button(void)
+{
+	/* Taken: the press is shown for 0.6 s, no PIN is asked for, nothing fails, the wait is over. */
+	for (int ends = 0; ends < 2; ++ends) { /* and the same where the session ends with the moved clock */
+		ask_clock();
+		clock_took = ends;
+		const unsigned from = steps;
+		device_pilot_button(PROMPT, true);
+		assert(clock_presses == 1 && !clock_refusals && !pin_at && !pending_prompt && !clock_wait.pending && !pilot_lock);
+		advance(3000);
+		assert(!lamp && !pending_work && steps == from + 1);
+		assert(trace[from] >= 50 + STATUS_LED_PRESSED_MS && trace[from] < 50 + STATUS_LED_PRESSED_MS + 250);
+	}
+	/* Not taken, SW1 too late or on a board that changed meanwhile: the failure pattern. */
+	ask_clock();
+	clock_took = -1;
+	device_pilot_button(PROMPT, true);
+	assert(clock_presses == 1 && !pin_at && !pending_prompt);
+	failed_then_dark();
+	/* SW2 drops it: no press is shown, the failure pattern, and the wait is over. */
+	ask_clock();
+	clock_took = 0;
+	device_pilot_button(PROMPT, false);
+	assert(!clock_presses && clock_refusals == 1 && !pin_at && !pending_prompt && !clock_wait.pending);
+	failed_then_dark();
+	/* A press for another prompt is not for this wait. */
+	ask_clock();
+	device_pilot_button(PROMPT + 1, true);
+	assert(!clock_presses && !clock_refusals && clock_wait.pending && pending_prompt == (atomic_t)PROMPT);
+	reset_link();
+
+	/* The reset from the buttons does not start while a time waits for SW1, and does not go
+	 * through when one arrived while its PIN was entered. */
+	right_pin = true;
+	erased = false;
+	ask_clock();
 	device_pilot_button_reset();
-	assert(erased && flashes(steps - 3, DONE, 2));
+	assert(!pin_at && !erased && clock_wait.pending && pending_prompt); /* refused before the PIN */
+	reset_link();
+	start();
+	clock_during_pin = true;
+	device_pilot_button_reset();
+	clock_during_pin = false;
+	assert(pin_at && !erased && clock_wait.pending);
+	failed_then_dark();
+	reset_link();
 }
 
 int main(void)
 {
 	test_answers();
+	test_clock_at_the_button();
+	test_registration_ends_its_session();
+	test_first_owner_makes_the_key();
+	test_unfinished_registration_takes_the_pin_back();
+	test_first_owner_ends_the_owner_wait();
 	test_early_presses();
 	test_next_request();
 	test_button_reset();
+	test_operator_reset_at_the_button();
+	test_reset_result_is_shown();
+	test_central_in_an_exchange();
 	return 0;
 }

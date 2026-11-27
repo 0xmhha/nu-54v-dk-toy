@@ -228,6 +228,11 @@ def publish_w10_commissioning(grant_path, grant, publication_path, publication):
             raise
 
 
+# The longest a grant may run, as the board checks it (NU54_INSTALL_MAX_LEASE in
+# core/include/nu54_install.h). The policy file names the actual end.
+MAX_LEASE_SECONDS = 31 * 86400
+
+
 def issue(args):
     raw = args.offer.read_bytes()
     identity = checked_offer(raw, args.board_pin, args.device)
@@ -240,7 +245,8 @@ def issue(args):
     cap = 30_000_000 if args.commercial_testnet else 1_000_000
     if getattr(args, "spending", False) and (not args.commercial_testnet or policy["payer_role"] != 1):
         raise ValueError("The spending profile needs --commercial-testnet and payer_role 1")
-    if not 0 < policy["not_after"] - now <= 86400 or policy["max_amount"] > cap or policy["payer_role"] not in (1, 2):
+    if (not 0 < policy["not_after"] - now <= MAX_LEASE_SECONDS or policy["max_amount"] > cap
+            or policy["payer_role"] not in (1, 2)):
         raise ValueError("Invalid policy expiry, payer role, or profile cap")
     attributes = struct.pack(">6QB", *(policy[name] for name in settings), policy["payer_role"])
     attributes += b"".join(exact_hex(policy[name], 20) for name in ("contract", "token", "beneficiary", "merchant_signer"))

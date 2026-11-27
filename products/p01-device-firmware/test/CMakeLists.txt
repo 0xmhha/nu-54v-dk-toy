@@ -165,6 +165,79 @@ target_link_libraries(test_install PRIVATE nu54_crypto OpenSSL::Crypto)
 target_compile_options(test_install PRIVATE -Wall -Wextra -Werror)
 add_test(NAME enrollment_policy COMMAND test_install)
 
+# The grant kept through a restart: the board's storage and clock code over a fake flash.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c INSTALL_FLOOR INSTALL_REPLAY_FLOOR INSTALL_GRANT
+    INSTALL_CLOCK INSTALL_GRANT_PART GRANT_PART_SIZE GRANT_PARTS CLOCK_SAVE_SECONDS CLOCK_SESSION_SECONDS
+    CLOCK_FREE_SECONDS OFFER_TTL_MS storage_found removed clock_load clock_store grant_store grant_read device_install_forget device_install_earliest
+    device_install_fence_wallet_expiry device_install_load no_owner device_install_restore
+    hold_after device_install_keep_time device_install_set_time device_install_hold_order device_install_order_hold
+    device_install_now device_install_policy
+  DEPENDS extract_c.py ../app/src/device_install.c VERBATIM)
+add_executable(test_install_store test_install_store.c install_store_fixture.h ../core/src/nu54_install.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h)
+target_include_directories(test_install_store BEFORE PRIVATE fakes-spending ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_install_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_CLOCK_SAVE_SECONDS=600
+  CONFIG_NU54_CLOCK_SESSION_SECONDS=15 CONFIG_NU54_CLOCK_FREE_SECONDS=86400)
+target_link_libraries(test_install_store PRIVATE nu54_crypto)
+target_compile_options(test_install_store PRIVATE -Wall -Wextra -Werror)
+add_test(NAME install_store COMMAND test_install_store)
+
+# The owner's phone sets a restarted board's clock: the board's clock, storage, session and order
+# code with the real transport and a store's signed order.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c journal_new_session journal_follow_time clock_teller clock_take
+    clock_session_goes_on clock_request clock_wait_over clock_button order_request order_button frame bind_session
+    resume_order_hold apply_install
+  DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
+add_executable(test_clock_sync test_clock_sync.c install_store_fixture.h ../app/src/device_order.c
+  ../core/src/nu54_install.c ../core/src/nu54_order.c ../core/src/nu54_spending.c ../core/src/nu54_owner.c
+  ../core/src/nu54_vault.c ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c
+  ../../../packages/protocol/c/src/nu54_quote_v2.c ../../../packages/protocol/c/src/nu54_transport_v2.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h)
+target_include_directories(test_clock_sync BEFORE PRIVATE fakes-spending ../app/src ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_clock_sync PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_CLOCK_SAVE_SECONDS=600
+  CONFIG_NU54_SPENDING_DAILY_CAP=20000000 CONFIG_NU54_CLOCK_SESSION_SECONDS=15
+  CONFIG_NU54_CLOCK_FREE_SECONDS=86400)
+target_link_libraries(test_clock_sync PRIVATE nu54_crypto)
+target_compile_options(test_clock_sync PRIVATE -Wall -Wextra -Werror)
+add_test(NAME clock_sync COMMAND test_clock_sync
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/order-lock.vectors)
+
+# What the board asks of a peer's certificates before it binds a session: its own functions over a
+# stand-in for Mbed TLS, so that this runs without the pinned library (test_mbedtls_peer.sh has it).
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_tls_bind.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_tls_bind.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_tls_v2.c role_certificate epoch_seconds certificate_window
+    device_tls_v2_certificate_current peer_pin device_tls_v2_bind
+  DEPENDS extract_c.py ../app/src/device_tls_v2.c VERBATIM)
+add_executable(test_tls_bind test_tls_bind.c ${CMAKE_CURRENT_BINARY_DIR}/board_tls_bind.h ../core/src/nu54_install.c
+  ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c
+  ../../../packages/protocol/c/src/nu54_transport_v2.c)
+target_include_directories(test_tls_bind PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(test_tls_bind PRIVATE nu54_crypto)
+target_compile_options(test_tls_bind PRIVATE -Wall -Wextra -Werror)
+add_test(NAME tls_bind COMMAND test_tls_bind)
+
+# How a session is opened, bound, fed and ended: the board's own functions over stand-ins for
+# Bluetooth and TLS.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c reset_display_input reset_install_input reset_link session_live
+    journal_new_session clock_wait_over stream bind_session poll_tls resume_order_hold device_pilot_init receive_bytes
+  DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
+add_executable(test_pilot_session test_pilot_session.c ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
+  ../core/src/nu54_install.c ../core/src/nu54_owner.c ../core/src/nu54_vault.c
+  ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c
+  ../../../packages/protocol/c/src/nu54_transport_v2.c)
+target_include_directories(test_pilot_session PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_pilot_session PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
+target_link_libraries(test_pilot_session PRIVATE nu54_crypto)
+target_compile_options(test_pilot_session PRIVATE -Wall -Wextra -Werror)
+add_test(NAME pilot_session COMMAND test_pilot_session)
+
 add_executable(test_order test_order.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
   ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
 target_link_libraries(test_order PRIVATE nu54_crypto)
@@ -179,11 +252,18 @@ target_compile_options(test_spending PRIVATE -Wall -Wextra -Werror)
 add_test(NAME spending_actions COMMAND test_spending
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/wallet-return.vectors)
 
+# The reset removes the operator's stored grant with the board's own code.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_install_forget.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_install_forget.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c INSTALL_GRANT INSTALL_CLOCK INSTALL_GRANT_PART
+    GRANT_PART_SIZE GRANT_PARTS removed device_install_forget
+  DEPENDS extract_c.py ../app/src/device_install.c VERBATIM)
 add_executable(test_spending_store test_spending_store.c ../app/src/device_spending.c ../app/src/device_order.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_install_forget.h
   ../core/src/nu54_spending.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
   ../core/src/nu54_local_approval.c ../core/src/nu54_vault.c ../core/src/nu54_pin_attempt.c
   ../core/src/nu54_pin_entry.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
-target_include_directories(test_spending_store BEFORE PRIVATE fakes-spending ../app/src)
+target_include_directories(test_spending_store BEFORE PRIVATE fakes-spending ../app/src ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(test_spending_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_SPENDING_DAILY_CAP=100)
 target_link_libraries(test_spending_store PRIVATE nu54_crypto)
 target_compile_options(test_spending_store PRIVATE -Wall -Wextra -Werror)
@@ -191,11 +271,11 @@ add_test(NAME spending_store COMMAND test_spending_store)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c pilot_pin spending_button order_button device_pilot_button_reset
-    device_pilot_button
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c owner_absent reset_of_released pilot_pin spending_erase_and_reboot spending_button
+    order_button device_pilot_button_reset device_pilot_button device_pilot_engaged
   DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
 add_executable(test_spending_led test_spending_led.c ../app/src/status_led.c ../core/src/nu54_spending.c
-  ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h)
+  ../core/src/nu54_adv_schedule.c ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h)
 target_include_directories(test_spending_led PRIVATE ../app/src fakes-status-led ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(test_spending_led PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
 target_link_libraries(test_spending_led PRIVATE nu54_crypto)
@@ -222,7 +302,8 @@ target_compile_options(test_owner_journal_pilot PRIVATE -Wno-unused-function)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c hash import_public verify device_install_verify_authority
-    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c RESET_NONCE_MS reset_nonce_issue spending_request
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c RESET_NONCE_MS reset_nonce_issue reset_of_released
+    spending_request
   DEPENDS extract_c.py ../app/src/device_install.c ../app/src/device_pilot.c VERBATIM)
 add_executable(spending_operator_host spending_operator_host.c ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
   ../core/src/nu54_spending.c ../core/src/nu54_install.c ../core/src/nu54_owner.c ../core/src/nu54_vault.c
@@ -380,3 +461,28 @@ add_executable(test_firmware_power test_firmware_power.c ../core/src/nu54_firmwa
 target_include_directories(test_firmware_power PRIVATE ../core/include)
 target_compile_options(test_firmware_power PRIVATE -Wall -Wextra -Werror)
 add_test(NAME firmware_power_readonly COMMAND test_firmware_power)
+
+# The low-power advertising schedule of a board that waits for its next owner.
+add_executable(test_adv_schedule test_adv_schedule.c ../core/src/nu54_adv_schedule.c)
+target_include_directories(test_adv_schedule PRIVATE ../core/include)
+target_compile_options(test_adv_schedule PRIVATE -Wall -Wextra -Werror)
+add_test(NAME adv_schedule COMMAND test_adv_schedule)
+
+# The advertising and connection code of the board itself, over a fake controller.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_links.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_links.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/ble_links.c set_mode owner_wait_phase start_set advertise_as advertise
+    adv_retry owner_wait_turn idle_guard ble_links_owner_wait stop_advertising_if_idle mode_end
+    ble_links_payment_mode ble_links_payment_advertising connected
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/pay_link.c platform_payment_mode
+  DEPENDS extract_c.py ../app/src/ble_links.c ../app/src/pay_link.c VERBATIM)
+add_executable(test_owner_wait_links test_owner_wait_links.c ../core/src/nu54_adv_schedule.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_links.h)
+target_include_directories(test_owner_wait_links PRIVATE ../core/include ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_options(test_owner_wait_links PRIVATE -Wall -Wextra -Werror)
+add_test(NAME owner_wait_links COMMAND test_owner_wait_links)
+
+# The board of the order flow (scripts/test_order_flow.py) is made of the app sources by name. It
+# is built and started here, where those sources are tested, so that a change to them cannot break
+# it unnoticed: nothing else that runs without PostgreSQL and a chain compiles it.
+add_subdirectory(../../p05-operations-backoffice/test/order-flow/board order-flow-board)

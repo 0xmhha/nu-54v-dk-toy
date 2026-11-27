@@ -34,6 +34,7 @@ _Static_assert(NU54_EVM_SIWE_OP != NU54_CHAIN_XPUB_OP, "Each management request 
 #include "nu54_pilot.h"
 #include "nu54_owner.h"
 #include "nu54_owner_idle.h"
+#include "nu54_adv_schedule.h"
 #include <mbedtls/pk.h>
 #include <mbedtls/platform_util.h>
 #include "nu54_keccak.h"
@@ -87,6 +88,9 @@ K_MUTEX_DEFINE(pilot_lock);
 RING_BUF_DECLARE(pilot_rx, 8192);
 static struct bt_conn *connection;
 static struct k_work_delayable worker;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static struct k_work_delayable clock_worker;
+#endif
 static mbedtls_ssl_context tls;
 struct provisioned_tls {
 	mbedtls_x509_crt ca, board;
@@ -94,6 +98,7 @@ struct provisioned_tls {
 	device_tls_v2_profile profiles[2];
 };
 static struct provisioned_tls tls_banks[2];
+static void free_tls_bank(struct provisioned_tls *bank);
 static unsigned tls_bank;
 static nu54_v2_profile profile;
 static nu54_v2_link link;
@@ -133,13 +138,26 @@ static const nu54_owner_crypto owner_crypto = {owner_random, hash, owner_verify}
 static nu54_v2_journal journal = {journal_slots, ARRAY_SIZE(journal_slots), hash, 0};
 static bool initialized, ready, bound, recovering;
 static int64_t deadline, enrollment_window, recovery_window;
+/* The owner's certificate is not valid yet by a clock that may be late: this session may tell the
+ * time and nothing else (nu54_install_session_admits). */
+static bool clock_only;
+static device_tls_v2_validity session_validity; /* of the owner's certificates, where they were asked for */
+static int64_t session_began;                   /* uptime at the first byte of this TLS session */
 static nu54_owner_idle owner_idle;
 static uint8_t display_challenge[32], active_quote[NU54_V2_SIGNED_SIZE];
 static bool display_confirmed;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 static unsigned order_slot;
 static uint64_t order_amount, order_expires;
+static uint64_t order_life; /* seconds from the order's issue to its end, as the store signed them */
 static nu54_spend_action spend_action;
+/* A time the owner's phone told that waits for SW1 (clock_request): the message as it arrived,
+ * and the running time at which it ends by its own word. Gone with the session. */
+static struct {
+	nu54_install_clock_told told;
+	int64_t until;
+	bool pending;
+} clock_wait;
 /* One at a time, in RAM, kept across sessions so that the operator has time to answer. */
 #define RESET_NONCE_MS (15 * 60 * 1000)
 static uint8_t reset_nonce[32];
@@ -248,7 +266,9 @@ static void reset_link(void)
 	order_slot = 0;
 	order_amount = 0;
 	order_expires = 0;
+	order_life = 0;
 	memset(&spend_action, 0, sizeof(spend_action));
+	memset(&clock_wait, 0, sizeof(clock_wait));
 #endif
 	memset(active_quote, 0, sizeof(active_quote));
 	memset(display_challenge, 0, sizeof(display_challenge));
@@ -278,6 +298,8 @@ static void reset_link(void)
 	ring_buf_reset(&pilot_rx);
 	bound = false;
 	recovering = false;
+	clock_only = false;
+	session_validity = (device_tls_v2_validity){0};
 	wire_length = 0;
 	if (connection) bt_conn_unref(connection);
 	connection = NULL;
@@ -466,6 +488,12 @@ static void report_legacy_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE])
 	nu54_owner_status_bonds(status, ble_links_bond_count() == 0);
 }
 
+/* New, or released by a factory reset: the grant's phone may register as the owner. */
+static bool owner_absent(const nu54_vault *vault)
+{
+	return !vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED);
+}
+
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 static int reset_nonce_issue(uint64_t generation)
 {
@@ -486,14 +514,37 @@ static void journal_new_session(void)
 	memset(journal_slots, 0, sizeof(journal_slots));
 }
 
+/* The board's latest possible time can come down: with a fresh grant, and when the owner's phone
+ * tells the time (core/include/nu54_install.h). The transport takes a time below its watermark
+ * for a clock that ran backwards and closes the link. So where the time came down, the journal
+ * begins anew at the corrected time, as it does with every session of this profile. Its records
+ * are not what keeps an action from happening twice here (journal_new_session). */
+static void journal_follow_time(void)
+{
+	if (trusted_now() >= journal.trusted_time) return;
+	journal_new_session();
+	journal.trusted_time = 0;
+}
+
+/* The operator's signed reset also runs on a board that a reset already released. Such a board
+ * has no owner, no wallet key, no PIN and no order records. The reset goes through all of it
+ * again: it removes a grant that was installed since, with its saved time, raises nothing, and
+ * shows again that no key is left. */
+static bool reset_of_released(uint8_t op, const nu54_vault *vault)
+{
+	return op == NU54_SPEND_OPERATOR_RESET_OP && (vault->record.flags & NU54_VAULT_RELEASED);
+}
+
 static int spending_request(const nu54_v2_request *request, uint64_t now, const nu54_vault *vault)
 {
 	uint8_t board[32], statement[NU54_SPEND_OPERATOR_STATEMENT_SIZE], known[20];
 	const uint8_t op = request->payload[0];
 	const bool operator_reset = op == NU54_SPEND_OPERATOR_RESET_OP;
-	/* Only the operator's signed reset works for a phone that is not the enrolled owner. */
+	/* Only the operator's signed reset works for a phone that is not the enrolled owner. Every
+	 * other action needs an owner and the wallet key the owner's registration made. */
 	if (enrollment.issued || !vault->enabled || !vault->record.generation ||
-	    (vault->record.flags & NU54_VAULT_REVOKED) || !device_spending_address() ||
+	    (!reset_of_released(op, vault) &&
+	     ((vault->record.flags & NU54_VAULT_REVOKED) || !device_spending_address())) ||
 	    (!operator_reset && (recovering ||
 	      memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)))) ||
 	    next_prompt == (NU54_PILOT_PROMPT_MASK >> 1) - 1) return -1;
@@ -517,14 +568,23 @@ static int spending_request(const nu54_v2_request *request, uint64_t now, const 
 	return 0;
 }
 
-/* Runs with the pilot lock held and does not return. */
+/* Called with the pilot lock held once, and does not return. */
 static void spending_erase_and_reboot(void)
 {
 	/* An unfinished erase leaves its mark, and the restart continues it. */
 	const bool erased = device_spending_erase() == 0;
+	/* Nothing starts any more in this boot: no session, no installation, no window. */
+	initialized = false;
+	ready = false;
+	enrollment_window = 0;
+	recovery_window = 0;
 	status_led_clear();
 	if (erased) status_led_reset_done();
 	else status_led_event(NU54_EVENT_REFUSED);
+	/* The lamp runs on the system work queue. The TLS work item of the session that asked for the
+	 * reset is still queued there and waits for this lock, so the lock is given up while the
+	 * result is shown. */
+	k_mutex_unlock(&pilot_lock);
 	k_msleep(4000);
 	sys_reboot(SYS_REBOOT_COLD);
 }
@@ -547,7 +607,8 @@ static int spending_button(uint32_t prompt, bool approved)
 	/* The operator resets a board whose PIN is forgotten, so only that action skips the PIN. */
 	int pin = spend_action.op == NU54_SPEND_OPERATOR_RESET_OP ? 0 : pilot_pin(false, prompt);
 	if (pin || prompt != (uint32_t)atomic_get(&pending_prompt) || !connection || pay_link_waiting() ||
-	    !device_install_policy() || !vault->enabled || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    !device_install_policy() || !vault->enabled ||
+	    ((vault->record.flags & NU54_VAULT_REVOKED) && !reset_of_released(spend_action.op, vault)) ||
 	    (recovering && k_uptime_get() >= recovery_window) ||
 	    !nu54_spend_consume(&spend_action, &link, trusted_now(), vault->record.generation, prompt, &action)) return -1;
 	if (action.op == NU54_SPEND_SET_RETURN_OP) {
@@ -586,8 +647,8 @@ void device_pilot_button_reset(void)
 	const nu54_vault *vault = device_vault_owner();
 	/* A revoked owner's board can still be reset by whoever knows its PIN; nothing else could free it. */
 	bool allowed = vault->enabled && vault->record.generation && !(vault->record.flags & NU54_VAULT_RELEASED) &&
-		       !approval.pending && !enrollment.issued && !spend_action.pending && !pay_link_waiting() &&
-		       !device_order_open(device_install_earliest(), k_uptime_get());
+		       !approval.pending && !enrollment.issued && !spend_action.pending && !clock_wait.pending &&
+		       !pay_link_waiting() && !device_order_open(device_install_earliest(), k_uptime_get());
 	if (allowed) reset_link();
 	k_mutex_unlock(&pilot_lock);
 	if (!allowed || device_recovery_pin(false)) {
@@ -610,7 +671,8 @@ void device_pilot_button_reset(void)
 	}
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 	/* A phone may have connected while the PIN was entered. */
-	if (!approval.pending && !spend_action.pending && !device_order_open(device_install_earliest(), k_uptime_get())) {
+	if (!approval.pending && !spend_action.pending && !clock_wait.pending &&
+	    !device_order_open(device_install_earliest(), k_uptime_get())) {
 		reset_link();
 		spending_erase_and_reboot();
 	} else {
@@ -892,9 +954,10 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		uint8_t answer[NU54_SPEND_STATUS_SIZE] = {NU54_SPEND_STATUS_OP};
 		const uint8_t *account = device_spending_address();
 		int32_t wait = device_recovery_pin_wait();
-		if (request->payload_length != 1 || !account || wait < 0) return -1;
+		/* A board without an owner has no wallet yet and answers with the zero account. */
+		if (request->payload_length != 1 || wait < 0 ||
+		    nu54_spend_status_account(account, owner_absent(vault), answer + 2)) return -1;
 		answer[1] = device_spending_return_address(answer + 22);
-		memcpy(answer + 2, account, 20);
 		sys_put_be64(policy->allowlist.max_amount, answer + 42);
 		sys_put_be64(CONFIG_NU54_SPENDING_DAILY_CAP, answer + 50);
 		sys_put_be32((uint32_t)wait, answer + 58);
@@ -1113,8 +1176,10 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 			return -1;
 		}
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-		if (!device_spending_address()) return -1;
-		memcpy(status + NU54_OWNER_STATUS_SIZE, device_spending_address(), 20);
+		/* The wallet key is made when the first owner registers. Until then the status carries
+		 * twenty zero bytes in place of the address. */
+		if (nu54_spend_status_account(device_spending_address(), owner_absent(vault),
+					      status + NU54_OWNER_STATUS_SIZE)) return -1;
 		break;
 #endif
 		if (vault->record.flags & NU54_VAULT_PERSONAL)
@@ -1286,6 +1351,7 @@ static int order_request(nu54_v2_request *request, int state, uint64_t now, cons
 	if (found != NU54_PILOT_RECEIPT_NEW) return -1;
 	order_amount = sys_get_be64(quote + NU54_V2_AMOUNT_OFFSET + 24);
 	order_expires = sys_get_be64(quote + NU54_V2_EXPIRES_AT_OFFSET + 24);
+	order_life = order_expires - sys_get_be64(quote + NU54_V2_ISSUED_AT_OFFSET + 24);
 	if (!device_order_within_daily(device_install_earliest(), order_amount)) return -1;
 	if (state == NU54_V2_NEW && link.approval_generation &&
 	    link.approval_generation == vault->record.generation && trusted_now() < request->expires) {
@@ -1333,11 +1399,130 @@ static int order_button(uint32_t prompt, bool approved, bool *approval_stored)
 	    device_order_charge(device_install_earliest(), order_amount) ||
 	    nu54_pilot_complete(&approval, &link, policy->payer_generation, trusted_now(), prompt, NU54_LOCAL_APPROVE,
 				payer, sign, payer, record.signature)) return -1;
+	/* The record ends with the order, by the store's calendar. The board's time may be ahead of
+	 * that since the owner's phone moved it, and would then end the order early for a return or a
+	 * reset. So the order is also held open for as long as the store let it run, in running time
+	 * from now. The hold is in storage before the signature is stored or sent: where that write
+	 * fails the phone gets no signature, now or by asking again, and a restart never finds the
+	 * record without the hold. */
+	const uint64_t hold = order_life < NU54_ORDER_MAX_SECONDS ? order_life : NU54_ORDER_MAX_SECONDS;
+	if (device_install_hold_order(hold)) return -1;
+	device_order_hold_approved(k_uptime_get(), hold);
 	record.outcome = NU54_ORDER_APPROVED;
 	if (device_order_store(order_slot, &record)) return -1;
 	*approval_stored = true;
 	status_led_event(NU54_EVENT_SIGNED);
 	return send_receipt(&reply, record.signature, sizeof(record.signature));
+}
+#endif
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* The registered owner's phone tells a board that was without power the time (decisions of
+ * 2026-11-27; core/include/nu54_install.h). It is asked for no PIN, and for SW1 only where the
+ * move is more than the phone may make by itself in one start: the board cannot take an order, a
+ * return or a reset before its clock is right, and each of those still asks for SW1 and the PIN.
+ *
+ * Who may tell the time: the phone whose key the vault holds as the owner, in a TLS session bound
+ * to that key as the owner's (bind_session noted the period of its certificates), under a grant of
+ * the owner's generation, and not while a registration or a recovery is under way.
+ *
+ * A session that was bound while the board had no owner has no such period. The board ends it the
+ * moment a registration completes (device_pilot_button), so none should ever ask. Were one to ask,
+ * the board could not judge afterwards whether it may go on, and so it does not take the time from
+ * it at all: nothing moves before the session ends. */
+static bool clock_teller(const nu54_vault *vault, const nu54_install_policy *policy)
+{
+	return profile == NU54_V2_MANAGEMENT && link.peer == NU54_V2_OWNER && !recovering && !enrollment.issued &&
+	       vault->enabled && vault->record.generation && !(vault->record.flags & NU54_VAULT_REVOKED) &&
+	       !memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) &&
+	       policy->payer_generation == vault->record.generation && session_validity.until;
+}
+
+/* Hands the phone's time to the clock, with SW1 pressed for it or not, and lets everything that
+ * depends on the time follow a clock that moved. Returns what device_install_set_time returns. */
+static int clock_take(const nu54_install_clock_told *told, bool button, uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE])
+{
+	const int64_t uptime = k_uptime_get();
+	const uint64_t before = device_install_earliest();
+	/* Judged by the time before the move: the new time must not end an open order early, in this
+	 * start or after a restart. The hold goes into storage with the moved time. */
+	const int result = device_install_set_time(told, button, device_order_hold_seconds(before, uptime), reply);
+	if (result == NU54_CLOCK_MOVED) {
+		if (device_install_earliest() > before) device_order_hold_open(before, uptime);
+		journal_follow_time(); /* the latest possible time may have come down */
+		k_work_reschedule(&clock_worker, K_NO_WAIT);
+	}
+	return result;
+}
+
+/* After the clock was looked at: the session goes on only with certificates that are valid at the
+ * time the board has now. An early one may have become valid, and a jump may have passed the end
+ * of another. */
+static int clock_session_goes_on(void)
+{
+	if (nu54_install_certificate_window(session_validity.from, session_validity.until, trusted_now()) !=
+	    NU54_CERTIFICATE_CURRENT) return -1;
+	clock_only = false;
+	return 0;
+}
+
+/* The caller has refused the message while anything waits for a button. */
+static int clock_request(nu54_v2_request *request, const nu54_install_policy *policy)
+{
+	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
+	if (!clock_teller(device_vault_owner(), policy) || request->payload_length != NU54_CLOCK_SET_REQUEST_SIZE ||
+	    request->payload[0] != NU54_CLOCK_SET_OP) return -1;
+	const int64_t uptime = k_uptime_get();
+	/* The phone read its clock after this session began. */
+	const nu54_install_clock_told told = {.time = sys_get_be64(request->payload + 1), .expires = request->expires,
+		.session_seconds = uptime > session_began ? ((uint64_t)(uptime - session_began) + 999u) / 1000u : 0,
+		.received = uptime};
+	const int result = clock_take(&told, false, reply);
+	if (result < 0) return -1;
+	if (result == NU54_CLOCK_BUTTON) {
+		/* The move is more than the phone may make by itself. The answer says so and nothing has
+		 * changed; the board now waits for SW1 as it does for an order, with the same lamp, for as
+		 * long as the message has to run by its own word (clock_button). */
+		if (next_prompt == (NU54_PILOT_PROMPT_MASK >> 1) - 1) return -1;
+		const uint32_t prompt = NU54_PILOT_PROMPT_MASK | ++next_prompt;
+		clock_wait.told = told;
+		clock_wait.until = uptime + (int64_t)(told.expires - told.time) * 1000;
+		clock_wait.pending = true;
+		atomic_set(&pending_prompt, (atomic_val_t)prompt);
+		board_io_set_prompt(prompt);
+		status_led_waiting(true);
+	}
+	request->command = NU54_V2_REPLY;
+	request->payload = reply;
+	request->payload_length = sizeof(reply);
+	if (nu54_v2_link_send(&link, request, send_frame, NULL)) return -1;
+	/* While the board waits for SW1 the session stays as it is: one that may only tell the time
+	 * still may do nothing else, and any message ends it (frame). */
+	return result == NU54_CLOCK_BUTTON ? 0 : clock_session_goes_on();
+}
+
+/* A time that waits for SW1 is dropped when its message has ended by its own word (poll_tls). */
+static bool clock_wait_over(int64_t uptime)
+{
+	return clock_wait.pending && uptime >= clock_wait.until;
+}
+
+/* SW1 or SW2 for a time that waits for the button. SW1 takes the message as of its arrival, which
+ * is why nothing stale comes in and the interval is no wider than without the wait
+ * (device_install.h). The phone was answered when the message came and hears nothing now; it asks
+ * again. Returns 0 where the clock moved and the session goes on, 1 where it moved and the session
+ * ends with it, and -1 where nothing moved: SW2, a press after the message's end, or a board that
+ * is no longer in the state in which the message was taken. */
+static int clock_button(bool approved)
+{
+	const nu54_install_clock_told told = clock_wait.told;
+	const bool late = clock_wait_over(k_uptime_get());
+	const nu54_install_policy *policy = device_install_policy();
+	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
+	memset(&clock_wait, 0, sizeof(clock_wait));
+	if (!approved || late || !connection || !policy || pay_link_waiting() ||
+	    !clock_teller(device_vault_owner(), policy) || clock_take(&told, true, reply) != NU54_CLOCK_MOVED) return -1;
+	return clock_session_goes_on() ? 1 : 0;
 }
 #endif
 
@@ -1350,8 +1535,16 @@ static int frame(const uint8_t *data, size_t length)
 	if (rc == NU54_V2_MORE) return 0;
 	if (rc < 0 || pay_link_waiting() || !policy || enrollment.proven || approval.pending) return -1;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-	if (spend_action.pending) return -1;
+	if (spend_action.pending || clock_wait.pending) return -1;
 #endif
+	if (!nu54_install_session_admits(clock_only, request.command)) return -1;
+	if (request.command == NU54_V2_CLOCK) {
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		return clock_request(&request, policy);
+#else
+		return -1; /* only the profile that keeps its grant through a restart has a late clock */
+#endif
+	}
 #if defined(CONFIG_NU54_WALLET_CHAINS)
 	if (chains.pending) return -1;
 #endif
@@ -1502,6 +1695,25 @@ static int poll_install(int64_t now)
 	return 0;
 }
 
+/* Binds the session that just finished its handshake to the pinned peer. `now` is the board's
+ * latest possible time.
+ *
+ * A board that was without power is behind the calendar, so the certificate of its registered
+ * owner may have been issued after the time the board has reached. That owner, and nobody else,
+ * is then still let in, to tell the time and for nothing else (clock_only). */
+static int bind_session(const nu54_vault *vault, const uint8_t *pin, uint64_t now)
+{
+	device_tls_v2_validity *early = NULL;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (profile == NU54_V2_MANAGEMENT && pin == vault->record.owner) early = &session_validity;
+#else
+	(void)vault;
+#endif
+	if (device_tls_v2_bind(&tls, &link, profile, pin, &journal, now, early)) return -1;
+	clock_only = early && nu54_install_certificate_window(early->from, early->until, now) != NU54_CERTIFICATE_CURRENT;
+	return 0;
+}
+
 static void poll_tls(struct k_work *ignored)
 {
 	(void)ignored;
@@ -1513,6 +1725,9 @@ static void poll_tls(struct k_work *ignored)
 	}
 	const nu54_install_policy *policy = device_install_policy();
 	if (!policy || !session_live(k_uptime_get()) || (approval.pending && pay_link_waiting())) goto failed;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (clock_wait_over(k_uptime_get())) goto failed;
+#endif
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_LIMITS_PSA)
 	if (limits_approval.pending && (pay_link_waiting() || trusted_now() >= limits_approval.intent.expires)) goto failed;
 #if defined(CONFIG_NU54_EXPERIMENTAL_OWNER_FINALITY_ONLY)
@@ -1535,10 +1750,10 @@ static void poll_tls(struct k_work *ignored)
 		if (k_uptime_get() < recovery_window) {
 			if (profile != NU54_V2_MANAGEMENT || !vault->record.generation ||
 			    (vault->record.flags & NU54_VAULT_REVOKED) ||
-			    device_tls_v2_bind(&tls, &link, profile, NULL, &journal, trusted_now()) ||
+			    device_tls_v2_bind(&tls, &link, profile, NULL, &journal, trusted_now(), NULL) ||
 			    !memcmp(pin, link.peer_identity, 32)) goto failed;
 			recovering = true;
-		} else if (device_tls_v2_bind(&tls, &link, profile, pin, &journal, trusted_now())) goto failed;
+		} else if (bind_session(vault, pin, trusted_now())) goto failed;
 		bound = true;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 		journal_new_session();
@@ -1586,6 +1801,7 @@ void device_pilot_button(uint32_t prompt, bool approved)
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 	bool done_well = false; /* the session ends, but nothing was refused */
+	bool unowned_pin = false; /* the PIN was set for a first owner the vault has not taken */
 #endif
 	if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
 	if (owner_idle.generation) {
@@ -1705,10 +1921,10 @@ void device_pilot_button(uint32_t prompt, bool approved)
 	if (enrollment.proven) {
 		if (recovering && (!enrollment.independent || k_uptime_get() >= recovery_window)) goto failed;
 		if (approved) {
-			bool virgin = !recovering && (!device_vault_owner()->record.generation ||
-						      (device_vault_owner()->record.flags & NU54_VAULT_RELEASED));
+			bool virgin = !recovering && owner_absent(device_vault_owner());
 			int pin = pilot_pin(virgin, prompt);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+			unowned_pin = virgin;
 			if (pin) status_led_event(NU54_EVENT_REFUSED);
 #endif
 			if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
@@ -1717,8 +1933,31 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		}
 		nu54_vault *vault = device_vault_owner();
 		uint64_t now = trusted_now();
-		if (link.pending_expiry <= now ||
-		    nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) goto failed;
+		if (link.pending_expiry <= now) goto failed;
+		const bool first_owner = approved && !recovering && vault->enabled && owner_absent(vault);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		/* The wallet key is made here, for the first owner, right before the vault takes that
+		 * owner. A board without an owner holds no key, also after a factory reset. */
+		if (first_owner && device_spending_enroll()) goto failed;
+#endif
+		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) {
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+			/* A write that failed may have stored the owner all the same; the vault then stops
+			 * and says nothing until the restart. The board must not go on advertising for a
+			 * next owner, and dropping centrals that wait, as if it surely had none. */
+			if (first_owner && !(vault->enabled && owner_absent(vault))) (void)pay_link_owner_wait(false);
+#endif
+			goto failed;
+		}
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		unowned_pin = false;
+#endif
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+		/* Only this registers an owner. With one the board stops advertising by itself. */
+		if (first_owner) (void)pay_link_owner_wait(false);
+#else
+		(void)first_owner;
+#endif
 		uint8_t status[NU54_OWNER_STATUS_SIZE];
 		/* The owner changed: no bond may outlive the previous owner phone. This runs on the TLS
 		 * work item, off the Bluetooth thread, and the phone in session holds no bond. */
@@ -1738,6 +1977,12 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		goto failed; /* A changed generation retires the authenticated session. */
 	}
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (clock_wait.pending) {
+		const int took = clock_button(approved);
+		if (!took) goto answered;
+		done_well = took > 0; /* the clock moved, and the session ends by its certificate */
+		goto failed;
+	}
 	if (spend_action.pending) {
 		if (spending_button(prompt, approved)) goto failed;
 		goto answered;
@@ -1808,6 +2053,11 @@ failed:
 	if (!done_well) status_led_event(NU54_EVENT_REFUSED);
 #endif
 done:
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	/* The registration did not complete, wherever it stopped: the board still has no owner, so it
+	 * keeps neither the key nor the PIN that were set for one. The next person sets a new PIN. */
+	if (unowned_pin) device_spending_withdraw();
+#endif
 	k_mutex_unlock(&pilot_lock);
 }
 
@@ -1817,6 +2067,27 @@ bool device_pilot_waiting(void)
 }
 
 bool device_pilot_active(void) { return device_install_required(); }
+
+bool device_pilot_owner_absent(void)
+{
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	const nu54_vault *vault = device_vault_owner();
+	/* A vault that stopped after a failed write does not say who owns the board. */
+	bool absent = initialized && device_pilot_active() && vault->enabled && owner_absent(vault);
+	k_mutex_unlock(&pilot_lock);
+	return absent;
+}
+
+bool device_pilot_engaged(const struct bt_conn *conn)
+{
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	/* The session and the installation end by their own deadlines. A ticket that was started is
+	 * only cleared by the next write, so its deadline is applied here. */
+	bool engaged = conn && nu54_owner_wait_engaged(conn == connection, conn == display_connection,
+						       conn == ticket_peer, k_uptime_get(), install_deadline);
+	k_mutex_unlock(&pilot_lock);
+	return engaged;
+}
 
 void device_pilot_enrollment_window(void)
 {
@@ -1860,13 +2131,46 @@ bool device_pilot_recovery_window(void)
 	return available;
 }
 
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* Saves the board's time while a grant runs, so a restart continues from it. */
+static void keep_time(struct k_work *ignored)
+{
+	(void)ignored;
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	const int64_t wait = device_install_keep_time();
+	k_mutex_unlock(&pilot_lock);
+	if (wait >= 0) k_work_reschedule(&clock_worker, K_MSEC(wait));
+}
+
+/* Once at start, after the stored grant was looked for, with or without one found: an order that
+ * was open when the owner's phone moved the clock stays open through the restart. */
+static void resume_order_hold(void)
+{
+	device_order_resume(k_uptime_get(), device_install_order_hold());
+}
+#endif
+
 void device_pilot_init(void)
 {
 	mbedtls_ssl_init(&tls);
 	k_work_init_delayable(&worker, poll_tls);
 	initialized = device_install_init() == 0;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+	k_work_init_delayable(&clock_worker, keep_time);
+	/* The reset that a power cut interrupted is finished first: it removes the stored grant. */
 	initialized = initialized && device_spending_init() == 0;
+	if (initialized) {
+		struct provisioned_tls *bank = &tls_banks[tls_bank];
+		if (device_install_restore(install_bundle, sizeof(install_bundle), &bank->ca, &bank->board, &bank->key,
+					   bank->profiles) == 0) {
+			ready = true;
+			k_work_reschedule(&clock_worker, K_NO_WAIT);
+		} else {
+			free_tls_bank(bank);
+		}
+		mbedtls_platform_zeroize(install_bundle, sizeof(install_bundle));
+		resume_order_hold();
+	}
 #endif
 	/* Bluetooth and its bond settings are loaded before this runs (pay_link_init). A commercial
 	 * board keeps no legacy bond, including one a power cut left behind after an owner change. */
@@ -1889,7 +2193,8 @@ static ssize_t receive_bytes(struct bt_conn *conn, const struct bt_gatt_attr *at
 		profile = (nu54_v2_profile)bytes[0];
 		if (mbedtls_ssl_setup(&tls, &tls_banks[tls_bank].profiles[profile - 1].config)) goto done;
 		connection = bt_conn_ref(conn);
-		deadline = k_uptime_get() + PILOT_TIMEOUT_MS;
+		session_began = k_uptime_get();
+		deadline = session_began + PILOT_TIMEOUT_MS;
 		mbedtls_ssl_set_bio(&tls, NULL, push, pull, NULL);
 		++bytes;
 	} else if (connection != conn) goto done;
@@ -1952,6 +2257,10 @@ static int apply_install(const uint8_t *bundle, size_t length)
 	free_tls_bank(&tls_banks[tls_bank]);
 	tls_bank = next;
 	ready = true;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	journal_follow_time(); /* a fresh grant sets the latest possible time, also to an earlier one */
+	k_work_reschedule(&clock_worker, K_NO_WAIT);
+#endif
 	return 0;
 }
 

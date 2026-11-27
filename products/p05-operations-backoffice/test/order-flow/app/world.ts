@@ -162,6 +162,13 @@ export const ownerWallet = {
   },
 };
 export const anchor = {hash: ''};
+/** Whether the board lets the owner's phone open a session now, which it does only under a grant. */
+export async function boardOpens() {
+  const open = await board.connect(epochOf(), phoneFingerprint);
+  board.connected = false;
+  if (open) await board.command('close');
+  return open;
+}
 
 export async function startBoard(authorityPoint: string) {
   if (!board.device) await board.wait('booted');

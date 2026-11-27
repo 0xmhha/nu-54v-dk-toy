@@ -1,13 +1,20 @@
 /* The spending wallet board on the host. The session, order, return and reset code comes from the
- * firmware (see CMakeLists.txt). Played here: flash, keys and hashes (PSA), Bluetooth and TLS
- * (stdin and stdout), the PIN, the buttons, the lamp, and the grant the operator installs per boot.
+ * firmware (see CMakeLists.txt), and so does the keeping of the operator's grant and of the time
+ * in storage. Played here: flash, keys and hashes (PSA), Bluetooth and TLS (stdin and stdout), the
+ * PIN, the buttons, the lamp, and the operator's grant, which carries no signature and no
+ * certificates here.
+ *
+ * As on the board, a restart keeps the grant and goes on from the time saved last, so its clock is
+ * late; a factory reset removes the grant; and the wallet key exists only while there is an owner.
  *
  * Commands, one per line:
  *   policy ESCROW TOKEN BENEFICIARY SIGNER MERCHANT PHONE   hex; what the grant pins
- *   grant SECONDS AHEAD | nogrant  a grant for this boot, or none; AHEAD is how far the board's latest
- *                                possible time leads, which is how long the operator took to sign
+ *   grant SECONDS AHEAD | nogrant  the operator installs a grant that runs for SECONDS, or the grant
+ *                                in use ends for this start; AHEAD is how long the operator took
+ *                                to sign. Answers "refused" where the board would not take it
  *   authority POINT              the pinned installation authority (P-256, uncompressed)
- *   connect EPOCH PEER           a TLS session of the phone with this SPKI SHA-256
+ *   connect EPOCH PEER [FROM UNTIL]  a TLS session of the phone with this SPKI SHA-256, whose
+ *                                certificates are valid in this period (always, if not given)
  *   data HEX                     bytes the phone wrote; the first one of a session is the route
  *   close                        the Bluetooth link ended
  *   press | refuse | wrongpin    SW1 and the PIN, SW2, SW1 and a wrong PIN
@@ -15,7 +22,11 @@
  *                                know yet, which ../app/board.ts plays ("signature HEX")
  *   boot                         power cycle
  * Answers: "out HEX" bytes to the phone, "prompt" a button is awaited, "lamp N" an event,
- * "ended" the board left the session, "erased", "booted DEVICE ACCOUNT GENERATION", "ok". */
+ * "ended" the board left the session, "erased", "booted DEVICE ACCOUNT GENERATION", "ok",
+ * "account HEX" the wallet key was made or removed (zeros without one; said before the phone
+ * hears of it), "owner-wait N" the board started (1) or stopped (0) advertising for an owner,
+ * "clock EARLIEST LATEST" the board's time after a start or a grant (zeros without a grant).
+ * A start says its clock and its owner wait first and "booted" last. */
 #include "device_firmware_power.h"
 #include "device_key.h"
 #include "device_order.h"
@@ -80,10 +91,10 @@ int64_t k_uptime_get(void) { return monotonic() - boot_at + 1; }
 static void k_msleep(int64_t milliseconds) { (void)milliseconds; }
 
 /* ---- flash ---- */
-static struct {uint64_t uid; size_t size; uint8_t data[160];} flash[96];
+static struct {uint64_t uid; size_t size; uint8_t data[160];} flash[128];
 static int find(uint64_t uid)
 {
-	for (int i = 0; i < 96; ++i)
+	for (int i = 0; i < 128; ++i)
 		if (flash[i].uid == uid) return i;
 	return -1;
 }
@@ -167,6 +178,20 @@ psa_status_t psa_sign_hash(psa_key_id_t id, psa_algorithm_t algorithm, const uin
 	return PSA_SUCCESS;
 }
 
+/* A board without an owner has no wallet key. The fixture is told when that changes. */
+static uint8_t told_account[20];
+static const uint8_t *account_now(void)
+{
+	static const uint8_t none[20];
+	return device_spending_address() ? device_spending_address() : none;
+}
+static void tell_account(void)
+{
+	if (!memcmp(told_account, account_now(), 20)) return;
+	memcpy(told_account, account_now(), 20);
+	say_bytes("account", told_account, 20);
+}
+
 /* ---- hashes and the P-256 keys of the phone and the installation authority, by OpenSSL ---- */
 static int hash(const uint8_t *data, size_t length, uint8_t digest[32]) { return SHA256(data, length, digest) ? 0 : -1; }
 static int owner_random(uint8_t *data, size_t length) { return RAND_bytes(data, (int)length) == 1 ? 0 : -1; }
@@ -248,6 +273,18 @@ static int ble_links_unpair_all(void) { return 0; }
 static int ble_links_bond_count(void) { return 0; }
 static int pay_link_waiting(void) { return 0; }
 
+/* ---- the owner wait (pay_link.c, ble_links.c) ----
+ * There is no radio here, so no advertising set, schedule or central. What is kept is whether the
+ * board would be advertising for its next owner; main() starts it and device_pilot_button ends it. */
+static bool owner_wait;
+static int pay_link_owner_wait(bool on)
+{
+	if (on != owner_wait) say("owner-wait %d", (int)on);
+	owner_wait = on;
+	return 0;
+}
+static bool device_pilot_active(void) { return true; } /* a commercial board: its authority is pinned */
+
 /* ---- the PIN, buttons and lamp ---- */
 static bool pin_is_right = true;
 int device_recovery_pin(bool virgin) { (void)virgin; return pin_is_right ? 0 : -1; }
@@ -267,20 +304,28 @@ void status_led_clear(void) {}
 void status_led_reset_done(void) { say("erased"); }
 bool status_led_locate(bool start) { (void)start; return false; }
 
-/* ---- the grant of this boot (device_install.c): trusted time and the pinned store ---- */
-static nu54_install_policy grant;
-static bool granted;
-static uint64_t granted_time;
-static int64_t granted_uptime;
-static uint64_t device_install_earliest(void) { return granted ? granted_time + (uint64_t)(k_uptime_get() - granted_uptime) / 1000u : 0; }
+/* ---- the grant (device_install.c) ----
+ * The state of device_install.c. Its storage and clock functions are extracted from the source
+ * (board_pilot.h): the grant in parts, the saved time, their removal by a reset, the clock the
+ * phone sets. device_install_load and device_install_restore are played further down, because
+ * they open a signed record with certificates, which this operator's grant is not. */
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+static nu54_install_policy operator_grant; /* what the operator signs next: the `policy` command */
+static nu54_install_policy policy;         /* the grant in use */
+static int64_t installed;
+static uint64_t max_offset, clock_base, clock_moved;
+static bool offered, active, clock_sealed;
+static nu54_install_clock clock_saved;
+int device_install_forget(void);
+uint64_t device_install_earliest(void);
+uint64_t device_install_now(void);
+const nu54_install_policy *device_install_policy(void);
+int64_t device_install_keep_time(void);
+int device_install_set_time(const nu54_install_clock_told *, bool, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+int device_install_hold_order(uint64_t);
+uint64_t device_install_order_hold(void);
 /* The grant's time is a lower bound and lies 2 seconds back here. */
 #define GRANT_LAG 2
-static uint64_t max_offset;
-static uint64_t device_install_now(void) { return granted ? device_install_earliest() + max_offset : 0; }
-static const nu54_install_policy *device_install_policy(void)
-{
-	return granted && device_install_now() < grant.not_after ? &grant : NULL;
-}
 
 /* ---- the state of device_pilot.c, and what its functions use of Zephyr and mbed TLS ---- */
 #define PILOT_REFUSAL_UID ((psa_storage_uid_t)0x5530)
@@ -292,6 +337,8 @@ static const nu54_install_policy *device_install_policy(void)
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define IS_ENABLED(x) 1
 #define K_FOREVER 0
+#define K_NO_WAIT 0
+#define K_MSEC(milliseconds) (milliseconds)
 #define k_mutex_lock(lock, timeout) ((void)(lock))
 #define k_mutex_unlock(lock) ((void)(lock))
 typedef int32_t atomic_val_t;
@@ -317,9 +364,19 @@ struct bt_conn {int unused;};
 static int mbedtls_ssl_write(const int *context, const uint8_t *data, size_t length)
 {
 	(void)context;
+	tell_account();
 	say_bytes("out", data, length);
 	return (int)length;
 }
+/* The one delayed work item: the uptime at which the time is saved next, or -1. The loop of main
+ * runs it (keep_time). */
+struct k_work;
+static int64_t clock_worker = -1;
+static void k_work_reschedule(int64_t *work, int64_t delay) { *work = k_uptime_get() + delay; }
+/* device_tls_v2.h */
+typedef struct {
+	uint64_t from, until;
+} device_tls_v2_validity;
 static jmp_buf restart;
 #define SYS_REBOOT_COLD 0
 static void sys_reboot(int kind) { (void)kind; longjmp(restart, 1); }
@@ -335,15 +392,23 @@ static unsigned refusal_slot, receipt_slot;
 static nu54_owner_enrollment enrollment;
 static nu54_v2_journal_entry journal_slots[128];
 static nu54_v2_journal journal = {journal_slots, ARRAY_SIZE(journal_slots), hash, 0};
-static bool bound, recovering;
-static int64_t deadline, recovery_window;
+static bool initialized, ready, bound, recovering;
+static int64_t deadline, enrollment_window, recovery_window;
+static bool clock_only;
+static device_tls_v2_validity session_validity;
+static int64_t session_began;
 static nu54_owner_idle owner_idle;
 static uint8_t display_challenge[32], active_quote[NU54_V2_SIGNED_SIZE], display_signature[64], rental_review_hash[32];
 static size_t display_used;
 static bool display_confirmed;
 static unsigned order_slot;
-static uint64_t order_amount, order_expires;
+static uint64_t order_amount, order_expires, order_life;
 static nu54_spend_action spend_action;
+static struct {
+	nu54_install_clock_told told;
+	int64_t until;
+	bool pending;
+} clock_wait;
 static uint8_t reset_nonce[32];
 static uint64_t reset_nonce_generation;
 static int64_t reset_nonce_until;
@@ -356,6 +421,24 @@ static size_t wire_length;
 static uint32_t next_prompt;
 static atomic_t pending_prompt;
 static uint64_t trusted_now(void) { return device_install_now(); }
+
+/* device_tls_v2.c: the TLS session `connect` names. The phone has proven the key with this
+ * fingerprint, and its certificates are valid in this period. As on the board, a certificate that
+ * has ended is refused, and one that is not valid yet is left to the caller only where the caller
+ * asks for the period, which it does for the pinned owner alone. */
+static uint8_t tls_epoch[NU54_V2_EPOCH_SIZE], tls_peer[NU54_V2_PEER_SIZE];
+static device_tls_v2_validity tls_period;
+static int device_tls_v2_bind(const int *context, nu54_v2_link *session, nu54_v2_profile route,
+			      const uint8_t expected_peer[NU54_V2_PEER_SIZE], nu54_v2_journal *entries, uint64_t now,
+			      device_tls_v2_validity *validity)
+{
+	(void)context;
+	const int window = nu54_install_certificate_window(tls_period.from, tls_period.until, now);
+	if (!expected_peer || route != NU54_V2_MANAGEMENT || memcmp(tls_peer, expected_peer, sizeof(tls_peer)) ||
+	    window == NU54_CERTIFICATE_REFUSED || (window == NU54_CERTIFICATE_EARLY && !validity)) return -1;
+	if (validity) *validity = tls_period;
+	return nu54_v2_link_init(session, route, NU54_V2_BOARD, tls_epoch, tls_peer, entries);
+}
 static int reclaim_receipt(nu54_v2_request *, const nu54_vault *);
 static bool payment_generation_current(const nu54_install_policy *policy);
 static bool payment_address(const nu54_install_policy *policy, uint8_t address[20]);
@@ -382,6 +465,37 @@ static size_t unhex(const char *text, uint8_t *out, size_t capacity)
 
 static void exact(const char *text, uint8_t *out, size_t length) { assert(text && unhex(text, out, length) == length); }
 
+/* device_install_restore, for this operator's grant: no signature, no certificates and no floor
+ * to hold it against. The rest is the board's: nothing without the saved time, the grant must
+ * fit the owner's generation, the clock goes on from the saved time, and a grant that has ended
+ * by it is not taken up. 0 with the grant in use, 1 with none. */
+static int restore_grant(void)
+{
+	const nu54_vault *vault = device_vault_owner();
+	uint8_t record[sizeof(nu54_install_policy)];
+	nu54_install_policy decoded;
+	size_t length;
+	if (active || !vault->enabled || !clock_saved.earliest || grant_read(record, sizeof(record), &length) ||
+	    length != sizeof(decoded)) return 1;
+	memcpy(&decoded, record, sizeof(decoded));
+	if (!nu54_install_generation_current(decoded.payer_generation, vault->record.generation, no_owner(vault))) return 1;
+	const uint64_t base = nu54_install_resume(&clock_saved, 0, device_install_wallet_replay_floor()), offset = clock_saved.offset;
+	if (base >= decoded.not_after || decoded.not_after - base <= offset) return 1;
+	policy = decoded;
+	clock_base = base;
+	installed = k_uptime_get();
+	max_offset = offset;
+	clock_sealed = false;
+	active = true;
+	return 0;
+}
+
+static void say_clock(void)
+{
+	say("clock %llu %llu", (unsigned long long)device_install_earliest(), (unsigned long long)device_install_now());
+}
+
+/* A start: memory is gone and storage is read, in the order of device_pilot_init and main. */
 static void boot(void)
 {
 	uint8_t device[32];
@@ -390,15 +504,34 @@ static void boot(void)
 	memset(journal_slots, 0, sizeof(journal_slots));
 	journal.trusted_time = 0;
 	reset_nonce_until = 0;
-	granted = false;
+	memset(&policy, 0, sizeof(policy));
+	installed = 0;
+	max_offset = clock_base = clock_moved = 0; /* what the phone moved is counted per start */
+	active = offered = ready = false;
+	enrollment_window = recovery_window = 0;
+	clock_worker = -1;
+	owner_wait = false;
 	boot_at = monotonic();
-	assert(!device_vault_load() && !device_spending_init());
+	assert(!device_vault_load());
+	/* device_install_init reads the saved time; an interrupted reset is finished before the grant
+	 * is looked for, and removes it. */
+	initialized = clock_load() == 0 && device_spending_init() == 0;
+	assert(initialized);
+	if (restore_grant() == 0) {
+		ready = true;
+		k_work_reschedule(&clock_worker, K_NO_WAIT);
+	}
+	resume_order_hold();
+	say_clock();
+	/* main(): a board without an owner gets ready for the next one by itself. */
+	if (device_pilot_owner_absent()) (void)pay_link_owner_wait(true);
 	vault = device_vault_owner();
 	assert(!hash(vault->record.identity, sizeof(vault->record.identity), device));
+	memcpy(told_account, account_now(), 20);
 	printf("booted ");
 	for (int i = 0; i < 32; ++i) printf("%02x", device[i]);
 	printf(" ");
-	for (int i = 0; i < 20; ++i) printf("%02x", device_spending_address()[i]);
+	for (int i = 0; i < 20; ++i) printf("%02x", told_account[i]);
 	say(" %llu", (unsigned long long)vault->record.generation);
 }
 
@@ -420,25 +553,27 @@ static void receive(uint8_t *data, size_t length)
 	if (stream(bytes, length)) { reset_link(); ended(); }
 }
 
-static void start(const char *epoch_text, const char *peer_text)
+static void start(const char *epoch_text, const char *peer_text, const char *from, const char *until)
 {
-	uint8_t epoch[16], peer[32];
 	const uint8_t *pin;
-	exact(epoch_text, epoch, sizeof(epoch));
-	exact(peer_text, peer, sizeof(peer));
 	if (connection) reset_link();
-	const nu54_install_policy *policy = device_install_policy();
-	/* device_tls_v2.c: without a grant there is no TLS, and the peer is the pinned phone. */
-	if (!policy || !nu54_owner_session_pin(device_vault_owner(), policy->owner, &pin) || memcmp(pin, peer, sizeof(peer)) ||
-	    nu54_v2_link_init(&link, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &journal)) {
+	exact(epoch_text, tls_epoch, sizeof(tls_epoch));
+	exact(peer_text, tls_peer, sizeof(tls_peer));
+	tls_period = (device_tls_v2_validity){from ? strtoull(from, NULL, 10) : 0, until ? strtoull(until, NULL, 10) : UINT64_MAX};
+	const nu54_install_policy *granted = device_install_policy();
+	const nu54_vault *vault = device_vault_owner();
+	/* poll_tls: without a grant there is no TLS, the peer is the pinned phone, and the registered
+	 * owner alone may come with a certificate that is not valid yet by a late clock. */
+	profile = NU54_V2_MANAGEMENT;
+	if (!ready || !granted || !nu54_owner_session_pin(vault, granted->owner, &pin) || bind_session(vault, pin, trusted_now())) {
 		say("denied");
 		return;
 	}
 	connection = &phone;
-	profile = NU54_V2_MANAGEMENT;
 	bound = false;
 	journal_new_session();
-	deadline = k_uptime_get() + PILOT_TIMEOUT_MS;
+	session_began = k_uptime_get();
+	deadline = session_began + PILOT_TIMEOUT_MS;
 	say("open");
 }
 
@@ -447,20 +582,41 @@ static void button(bool approved, bool right)
 	pin_is_right = right;
 	device_pilot_button((uint32_t)atomic_get(&pending_prompt), approved);
 	pin_is_right = true;
+	tell_account(); /* a registration that did not complete took its key back */
 	ended();
 }
 
-static void give_grant(const char *seconds, const char *ahead)
+/* device_install_load and apply_install, for this operator's grant (see restore_grant). The
+ * board's own: the lower bound of the time never goes back, a fresh grant sets the latest possible
+ * time to how long it took to arrive, whatever the board had before, a grant must outlast the
+ * distance between the two, the grant and its time are in storage before the board uses them, and
+ * the transport's journal follows a latest possible time that came down. */
+static bool give_grant(const char *seconds, const char *ahead)
 {
 	const nu54_vault *vault = device_vault_owner();
+	const uint64_t age = strtoull(ahead, NULL, 10), time_of_grant = (uint64_t)time(NULL) - GRANT_LAG;
+	const uint64_t minimum = nu54_install_resume(&clock_saved, device_install_earliest(), device_install_wallet_replay_floor());
+	nu54_install_policy decoded = operator_grant;
 	/* enroll_board.py pins the generation the next registration gets, or the registered one. */
-	bool owned = vault->record.generation && !(vault->record.flags & NU54_VAULT_REVOKED);
-	grant.payer_generation = vault->record.generation + !owned;
-	granted_time = (uint64_t)time(NULL) - GRANT_LAG;
-	max_offset = GRANT_LAG + strtoull(ahead, NULL, 10);
-	granted_uptime = k_uptime_get();
-	grant.not_after = granted_time + strtoull(seconds, NULL, 10);
-	granted = true;
+	decoded.payer_generation = vault->record.generation + no_owner(vault);
+	decoded.not_after = time_of_grant + strtoull(seconds, NULL, 10);
+	const uint64_t offset = GRANT_LAG + age;
+	if (!initialized || age * 1000 >= OFFER_TTL_MS || time_of_grant < minimum || decoded.not_after <= time_of_grant ||
+	    decoded.not_after - time_of_grant > NU54_INSTALL_MAX_LEASE || decoded.not_after - time_of_grant <= offset) return false;
+	const nu54_install_clock begin = {.earliest = time_of_grant, .offset = offset};
+	if (grant_store((const uint8_t *)&decoded, sizeof(decoded)) || clock_store(&begin)) return false;
+	policy = decoded;
+	clock_base = time_of_grant;
+	installed = k_uptime_get();
+	max_offset = offset;
+	clock_sealed = false;
+	offered = false;
+	active = true;
+	ready = true;
+	journal_follow_time(); /* apply_install */
+	k_work_reschedule(&clock_worker, K_NO_WAIT);
+	say_clock();
+	return true;
 }
 
 static void command(char *line)
@@ -469,21 +625,22 @@ static void command(char *line)
 	for (int i = 0; i < 6; ++i) arguments[i] = strtok(NULL, " \n");
 	if (!word) return;
 	if (!strcmp(word, "policy")) {
-		grant = (nu54_install_policy){.revision = 1, .merchant_key_version = 1, .beneficiary_version = 1,
+		operator_grant = (nu54_install_policy){.revision = 1, .merchant_key_version = 1, .beneficiary_version = 1,
 			.allowlist.max_amount = NU54_PILOT_TESTUSDC2_CAP, .allowlist.commercial_testnet = true, .payer_role = NU54_V2_OWNER_ROLE};
-		exact(arguments[0], grant.allowlist.contract, 20);
-		exact(arguments[1], grant.allowlist.token, 20);
-		exact(arguments[2], grant.allowlist.beneficiary, 20);
-		exact(arguments[3], grant.merchant_signer, 20);
-		exact(arguments[4], grant.merchant, 32);
-		exact(arguments[5], grant.owner, 32);
-	} else if (!strcmp(word, "grant")) give_grant(arguments[0], arguments[1]);
-	else if (!strcmp(word, "nogrant")) granted = false;
+		exact(arguments[0], operator_grant.allowlist.contract, 20);
+		exact(arguments[1], operator_grant.allowlist.token, 20);
+		exact(arguments[2], operator_grant.allowlist.beneficiary, 20);
+		exact(arguments[3], operator_grant.merchant_signer, 20);
+		exact(arguments[4], operator_grant.merchant, 32);
+		exact(arguments[5], operator_grant.owner, 32);
+	} else if (!strcmp(word, "grant")) {
+		if (!give_grant(arguments[0], arguments[1])) { say("refused"); return; }
+	} else if (!strcmp(word, "nogrant")) active = false;
 	else if (!strcmp(word, "authority")) {
 		uint8_t point[65];
 		exact(arguments[0], point, sizeof(point));
 		assert(!import_public(point, &authority));
-	} else if (!strcmp(word, "connect")) { start(arguments[0], arguments[1]); return; }
+	} else if (!strcmp(word, "connect")) { start(arguments[0], arguments[1], arguments[2], arguments[3]); return; }
 	else if (!strcmp(word, "data")) {
 		static uint8_t bytes[4096];
 		receive(bytes, unhex(arguments[0], bytes, sizeof(bytes)));
@@ -515,11 +672,20 @@ int main(void)
 	boot();
 	for (;;) {
 		struct pollfd input = {.fd = STDIN_FILENO, .events = POLLIN};
-		int ready = poll(&input, 1, 100);
-		if (ready < 0) return 1;
-		/* poll_tls: a session ends after 120 seconds, or when its grant runs out. */
-		if (connection && (!device_install_policy() || !session_live(k_uptime_get()))) { reset_link(); ended(); }
-		if (!ready) continue;
+		int readable = poll(&input, 1, 100);
+		if (readable < 0) return 1;
+		/* The system work queue: the time is saved while a grant runs. */
+		if (clock_worker >= 0 && k_uptime_get() >= clock_worker) {
+			clock_worker = -1;
+			keep_time(NULL);
+		}
+		/* poll_tls: a session ends after 120 seconds, when its grant runs out, or when a time that
+		 * waits for SW1 has ended by its own word. */
+		if (connection && (!device_install_policy() || !session_live(k_uptime_get()) || clock_wait_over(k_uptime_get()))) {
+			reset_link();
+			ended();
+		}
+		if (!readable) continue;
 		ssize_t got = read(STDIN_FILENO, line + used, sizeof(line) - used - 1);
 		if (got <= 0) return 0; /* the test ended */
 		used += (size_t)got;

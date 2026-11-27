@@ -86,10 +86,10 @@ static int64_t reset_nonce_until, uptime = 1;
 static bool recovering, random_fails;
 static uint32_t next_prompt, shown;
 static atomic_val_t pending_prompt;
-static bool waiting, order_open;
+static bool waiting, order_open, no_wallet;
 static const uint8_t account[20] = {1};
 
-static const uint8_t *device_spending_address(void) { return account; }
+static const uint8_t *device_spending_address(void) { return no_wallet ? NULL : account; }
 static bool device_spending_return_address(uint8_t out[20]) { return memset(out, 0, 20) == NULL; }
 static bool device_order_open(uint64_t earliest, int64_t at) { return earliest && at && order_open; }
 static uint64_t device_install_earliest(void) { return NOW; }
@@ -195,6 +195,16 @@ static void reset_nonce_rules(const nu54_v2_request *request, nu54_vault *vault)
 	vault->record.flags = NU54_VAULT_REVOKED;
 	assert(attempt(request, vault));
 	vault->record.flags = 0;
+
+	/* A board that a reset already released has no owner and no wallet key. The operator's reset
+	 * still runs there; with an owner, a missing wallet refuses it. */
+	no_wallet = true;
+	assert(attempt(request, vault));
+	assert(!reset_nonce_issue(generation));
+	vault->record.flags = NU54_VAULT_REVOKED | NU54_VAULT_RELEASED;
+	assert(!attempt(request, vault));
+	vault->record.flags = 0;
+	no_wallet = false;
 }
 
 /* authority point, board identity, generation, live nonce, then the answer's nonce and signature:

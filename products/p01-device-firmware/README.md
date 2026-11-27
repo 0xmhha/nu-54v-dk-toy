@@ -298,34 +298,160 @@ python3 scripts/enroll_board.py install "$board_address" grant.bin --station-key
   --ticket "$station_dir/station.ticket" --board-pin "$board_spki_sha256" --device "$device_id"
 ```
 
-The phone registers with SW1 and a new PIN entered twice. The board then has generation 1.
+The phone registers with SW1 and a new PIN entered twice. The board then has generation 1. This
+registration is also when the board makes the wallet key: a board without an owner, new or reset, holds
+none, and its status answers carry a zero address until then. A board that never had an owner (generation
+0) does not answer the owner status (op 7) at all; the wallet status (0x7f) answers with the zero address.
+Such a board holds no PIN either: a registration that does not complete takes back the PIN it set, and a
+start without an owner removes any PIN it finds.
 
-**Grant per boot.** A grant lives in RAM, for at most 24 hours. After each restart open SW4 again, take a
-fresh ticket and offer, and issue with a new `not_after` and a higher `revision`. Keep `payer_generation`
-equal to the generation the phone shows. Only the same policy and certificates may keep their revision.
+**Grant through restarts.** A grant runs until its `not_after`, at most 31 days after it was issued. The
+spending profile keeps it in protected storage and takes it up again after a restart, if it is still the
+grant the board committed, fits the owner's generation and has not ended. A factory reset removes it. The
+certificates in the grant have to last as long as the grant, and so does the phone's owner certificate.
 
-The time between the offer and the installed grant, at most 60 seconds, is how far the board's latest
-possible time may run ahead until the next restart. A later grant in the same boot does not shorten it, so
-run the commands without a pause. The phone allows for it:
+The board has no clock that runs without power. It saves its time every hour
+(`CONFIG_NU54_CLOCK_SAVE_SECONDS`), when the phone moves it and when the grant ends, and continues from
+the saved time. After a restart its clock is late by the time it was off and by what passed since the
+last save. Two consequences:
 
-| Request | Phone sends | Board limit, from its latest possible time |
-|---|---|---|
-| status (3, 7), 0x7d, 0x7f, receipt status | 90 s | transport 300 s |
-| 0x79, running firmware, power, 0x70 to 0x72, 0x76 | 90 s | 95 s (10 s outside this profile) |
-| registration, 0x7a, 0x7c, 0x7e | 150 s | transport 300 s, and the 120 s session |
-| 0x7b | `validBefore`, at most 540 s ahead and 300 s as a request | 600 s from the board's earliest possible time |
-| order | quote expiry, at most 120 s left | 180 s from the board's earliest possible time |
+- Without the phone the grant's period is counted in powered-on time. Payments still end at the calendar
+  `not_after`: an order that ends after it is refused, and the store signs the order's end by the
+  calendar. Status, the return address and a reset can go on until the board's own clock reaches the end.
+- A late clock refuses honest requests. An order is refused as soon as the board's latest possible time
+  is before the time the store signed it, which is a matter of seconds; every other request is refused
+  when its end looks too far ahead (the table below). More than 210 seconds late and everything but the
+  time command is refused.
+
+**The phone sets the clock.** The registered owner's phone tells the board the time in its owner session,
+and the board moves its clock forward, never back and never to the grant's end or past it. No operator and
+no network are involved. The phone sends this first, right after the TLS handshake:
+
+| | |
+|---|---|
+| transport command | `clock`, code 8, on the management route, from the owner only |
+| request | `0x81`, the phone's time in seconds (8 bytes, big-endian). `time < expires <= time + 95`; the phone gives it 90 s. The expiry must also be later than the board's latest possible time, so a phone more than 90 s behind the board gets no answer |
+| reply | `0x81`, result (1), the board's earliest and latest possible time and the grant's end (8 bytes each), the number of times the phone's time opened a later day under this grant (4) |
+| result | 1 took the time; 2 not ahead (the board is at that time or past it, or less than 3 s behind it); 3 the grant's end or later; 4 too late in the session; 5 press SW1. 2 to 5 change nothing, and all five are answers |
+
+The board takes the time only from the phone its vault holds as the owner, in a session bound as that
+owner's, under a grant of that owner's generation, with no registration or recovery under way. It asks for
+no PIN. It is the one command that reaches a board however late its clock is; the transport's 300-second
+rule still holds for every other command. The moved time is in storage before it is used.
+
+- **The interval.** A time that moves the clock makes the board's interval the phone's: from the time it
+  told to that time plus the session's age plus 5 s. So the phone reads its clock after the handshake and
+  sends the command before anything else. A session older than `CONFIG_NU54_CLOCK_SESSION_SECONDS` (15 s
+  by default, counted from the first byte, so the handshake is in it) is answered with result 4. **The
+  default is a guess: measure the handshake on a board and set it.** A time less than 3 s ahead moves
+  nothing and writes nothing; where the board's interval is wider than what the phone vouches for, it
+  only brings the latest possible time down.
+- **A day without a button.** Since its last start the board lets the phone move the clock forward by
+  `CONFIG_NU54_CLOCK_FREE_SECONDS` in total (one day by default; the count is in RAM). A move beyond that
+  is answered with result 5: the board blinks as for any button, waits for SW1 for as long as the request
+  runs (90 s), and on SW1 takes the request as of its arrival, adding the seconds it has run since. SW2,
+  any message and the end of the wait drop it. The phone hears nothing of the press and asks again in a
+  new session.
+- **Open orders.** A phone's time may be ahead of the calendar, so the board does not judge an approved
+  order by that time alone. What is open when the clock moves stays open for up to 180 s of running
+  time, and that hold is saved with the moved time. An order that is approved after the move stays open
+  from its approval for the running time between its issue and its end, as the store signed them (180 s
+  at the most; the board refuses an order that its store lets run for longer). That hold is saved with
+  the board's time before the signature is stored or sent: one more write per approved order, and an
+  approval whose write fails gives no signature. A restart keeps either hold (for at most 240 s after
+  the start).
+
+An owner certificate issued while the board was off is not valid yet by the board's late clock. The board
+then still opens the session for the pinned owner, and that session takes the time command and nothing
+else. When the certificate is valid at the new time the session goes on as usual; otherwise it ends after
+the reply. A certificate that has ended is refused as before.
+
+A move into a later day opens that day's total again; this is the accepted cost of the decision, and the
+count in the reply shows how often the phone did it. Without SW1 or a restart that is one day per start.
+A phone whose clock is ahead takes the board with it, by up to a day without a button: real orders then
+look ended to the board, and a new grant is refused while the board is ahead, because a grant's time must
+not be before the time the board has reached. A board that stays on does not come back from that by
+itself; it has to be off for as long as it is ahead. So the phone must compare its clock with network
+time before it sends. See
+[the design](../../docs/content/commercial/architecture/board-secure-key-and-advertising.md) for what a
+holder of the phone can and cannot do, and [the transport](../../packages/protocol/v2/transport.md) for
+what the phone must and must not do. The phone side is not built yet; until it is, a board that was
+without power takes a new grant from the operator as before. A board without an owner takes no time
+command at all: if it restarted before its owner registered, the operator installs the grant again.
+
+For a new grant open SW4, take a fresh ticket and offer, and issue with a new `not_after` and a higher
+`revision`. Its time must not be before the time the board has reached. Keep `payer_generation` equal to
+the generation the phone shows, or one above the board's generation while it has no owner. Only the same
+policy and certificates may keep their revision.
+
+The time between the offer and the installed grant, less than 60 seconds, is how far the board's latest
+possible time runs ahead while that grant is in use, also after a restart, until the owner's phone tells
+the time or the next grant arrives: either sets the interval anew. Requests with less than that left to
+run are refused meanwhile, so run the commands without a pause. The phone allows for it:
+
+| Request | Phone sends | Board limit, from its latest possible time | Refused when the board is late by more than |
+|---|---|---|---|
+| order | quote expiry, at most 120 s left | not before the quote's time of issue; 180 s from the board's earliest possible time to the expiry | the age of the quote, a few seconds |
+| 0x79, running firmware, power, 0x70 to 0x72, 0x76 | 90 s | 95 s (10 s outside this profile) | 5 s |
+| 0x7b | `validBefore` 170 s ahead, and as long as a request | transport 300 s; 600 s from the board's earliest possible time | 130 s |
+| registration, 0x7a, 0x7c, 0x7e | 150 s | transport 300 s, and the 120 s session | 150 s |
+| status (3, 7), 0x7d, 0x7f, receipt status | 90 s | transport 300 s | 210 s |
+| time (transport command 8, 0x81) | 90 s | not ended by the board's latest possible time | never for being late; a phone more than 90 s behind the board is cut off |
+
+"Late" is the calendar minus the board's latest possible time. The phone's values are those of
+`products/p02-user-app/src/wallet/ownerSession.ts` and `boardReturn.ts`.
 
 Nothing is accepted past its end: that is still judged by the latest possible time. The phone's clock may be
 off by 5 seconds. A request record lasts for its TLS session (128 of them); a frame of an earlier session is
 refused by its epoch and counter, and answered orders stay in protected storage.
 
+**After a reset: owner wait.** A board without an owner starts advertising the owner service by itself:
+30 s at 100 to 150 ms, then at 1 to 1.2 s until three hours have passed (`CONFIG_NU54_OWNER_WAIT_*` in
+`app/Kconfig`). It stops when an owner registers, and SW4 starts it again. Advertising opens nothing: the
+grant still needs the SW4 window, and registration needs SW1 and a new PIN. A board with an owner
+advertises only after a button, as before. The power figures are estimates until measured; see
+[the design](../../docs/content/commercial/architecture/board-secure-key-and-advertising.md).
+
+The board takes two centrals. While it has no owner it goes on advertising as long as one slot is free,
+and it disconnects a central that starts neither the installation ticket nor a TLS session within 30
+seconds (`CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS`, counted again from the end of each attempt; a ticket that
+was started counts for 15 seconds). A tool that connects and waits longer than that has to connect again.
+This drops idle centrals. It does not stop a central that means to block the board by reconnecting, by
+stalling a TLS start for its 120 seconds, or by rewriting the first ticket fragment while the SW4 window
+is open.
+
+**Long standby (not measured).** `--release --spending --standby` builds the application without the UART
+driver (`app/standby.conf`). The board default keeps that driver, and it leaves its receiver running, which
+keeps the high-frequency clock on between advertising events. MCUboot keeps its UART for serial recovery.
+The option cannot be combined with `--security-counter`, whose update path uses the application's UART.
+Whether the board then sleeps, and at what current, has to be measured on a board.
+
+**TrustZone build (not for a board yet).** `--secure-key` builds the same profile for
+`nu54v_dk/nrf54l15/cpuapp/ns`, where TF-M generates, uses and stores the wallet key in the secure side:
+
+```sh
+P01_BUILD_DIR=/tmp/p01-secure-key python3 scripts/fw.py build --release --spending --secure-key --pristine
+```
+
+The build checks the generated configuration (TF-M, encrypted storage and persistent PSA keys), that the
+linker placed the signing code only in the TF-M image, and the MCUboot signature. It writes no release
+manifest. `fw.py flash` refuses every TF-M build, whichever option or board target shows it, any build
+directory without its generated configuration, and any image that holds a secure gateway instruction or
+lies outside the installed layout, whatever the files beside it say. Its flash layout differs from the installed boards, so it
+is never an update for them. Nobody has run it on a board.
+
 **Reset.** The owner resets in the app (SW1 and PIN) or with the buttons: SW2 and SW3 for 5 seconds, the
-PIN, then SW1 long within 10 seconds. The operator signs a reset only for a forgotten PIN:
+PIN, then SW1 long within 10 seconds. Every reset reports success only after the key store confirmed
+that the wallet key is gone; otherwise the lamp shows a failure and the next start tries again. The
+operator's signed reset is the reset of the return desk, and the one for a forgotten PIN. It also runs on
+a board that was reset before. There it goes through the whole reset again: the key, the PIN and the
+order records are already gone, a grant installed since then is removed with its saved time, and the
+board confirms again that no key is left:
 
 1. The board needs a current grant. On the enrolled phone, open the reset screen. On another phone with an
    owner certificate of the same CA, hold SW3 first. That window lasts 120 seconds and is needed again for
-   the answer.
+   the answer. A board that was reset before has no SW3 window: only the phone its grant names as the
+   owner can ask.
 2. Compare the request's board id with `device` in the commissioning record, then sign it:
 
    ```sh
@@ -341,7 +467,9 @@ current generation, in RAM. A new request replaces it, one attempt uses it up, a
 answer alone erases nothing: the board still checks the authority's signature over board, generation and
 value, and SW1 must be pressed. Within the 15 minutes any phone that can open an owner session may present
 it, so send the answer only to the owner. The board also refuses while a signed order can still execute,
-which takes up to 240 seconds and does not use the value up. The remaining balance is lost.
+which does not use the value up: up to 180 seconds for an order signed since the board started, and for one
+from before the restart until the board has run for 240 seconds. A time the phone tells does not shorten
+either. The remaining balance is lost.
 
 **Re-enrollment.** The board restarts without a grant. A reset of generation G makes G+1, and the next
 registration makes G+2. Issue the next grant with `payer_generation` G+2, a higher `revision`, the new

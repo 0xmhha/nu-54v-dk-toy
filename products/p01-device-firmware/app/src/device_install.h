@@ -12,6 +12,50 @@ int device_install_public_pins(uint8_t output[64]);
 bool device_install_distinct_station(const mbedtls_x509_crt *);
 int device_install_load(const uint8_t *, size_t, mbedtls_x509_crt *, mbedtls_x509_crt *,
 			mbedtls_pk_context *, device_tls_v2_profile [2]);
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* The spending profile keeps the accepted grant in protected storage and uses it again after a
+ * restart, without the operator. Call restore once at start, after an interrupted reset was
+ * finished: 0 with the grant in use, 1 with none. `bundle` is working space for the grant. The
+ * stored grant must be the one the floor was committed for and must fit the owner's generation.
+ *
+ * The board has no clock that runs without power. It saves its time every
+ * CONFIG_NU54_CLOCK_SAVE_SECONDS and at the grant's end (keep_time; returns the milliseconds to the
+ * next call, or -1 when there is nothing to keep) and continues from the saved time, so its clock
+ * is late by the time it was off and by what passed since the last save. Without the phone it is
+ * never early. */
+int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *, mbedtls_x509_crt *,
+			   mbedtls_pk_context *, device_tls_v2_profile [2]);
+int64_t device_install_keep_time(void);
+/* The registered owner's phone tells the time; the caller has checked who asks. Forward only,
+ * before the grant's end, not from a session older than CONFIG_NU54_CLOCK_SESSION_SECONDS, saved
+ * before it is used. Returns one of the results of nu54_install_clock_set with the reply written,
+ * or -1. After NU54_CLOCK_MOVED the latest possible time may be earlier than it was.
+ *
+ * Since its last start the board lets the phone move the clock by CONFIG_NU54_CLOCK_FREE_SECONDS
+ * at the most without SW1; a move beyond that returns NU54_CLOCK_BUTTON and changes nothing. With
+ * `button` the caller says that SW1 was pressed for this message. The message is then taken as of
+ * the moment it arrived: the board adds the seconds it has run since to the phone's time, and the
+ * distance to the latest possible time is the one the message had on arrival. So a message that
+ * waited for the button brings no older time than one that did not wait, and no wider interval.
+ *
+ * `hold_seconds` is the running time for which an order that is open now must stay open whatever
+ * the new time says (device_order_hold_seconds). It is saved in the same write as the time, so
+ * that a restart right after the move keeps it. */
+int device_install_set_time(const nu54_install_clock_told *told, bool button, uint64_t hold_seconds,
+			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE]);
+/* Call when an order is approved, before its signature is stored or sent: the order must count as
+ * open for `hold_seconds` of running time from now, whatever the time says later and through a
+ * restart (device_order_hold_approved has the reason). Saved as a board time with the time the
+ * board has now. Returns -1 when the storage refuses the write; the caller then approves nothing. */
+int device_install_hold_order(uint64_t hold_seconds);
+/* The running time, in seconds, that is left of the hold the storage has. Asked once at start,
+ * with or without a grant in use; a restart found the time it saved last, so this is at least
+ * what was left when the power went. */
+uint64_t device_install_order_hold(void);
+#endif
+/* A factory reset: removes the stored grant and the saved time and ends the grant in use. The
+ * floors stay. Safe to repeat after a power cut. */
+int device_install_forget(void);
 const nu54_install_policy *device_install_policy(void);
 const uint8_t *device_install_payer(void);
 uint64_t device_install_now(void);

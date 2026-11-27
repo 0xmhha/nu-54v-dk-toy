@@ -42,11 +42,27 @@ bool ble_links_rental_peer(int link, uint64_t expected_epoch, uint8_t peer[BLE_R
 /* Link subscribed to TX notifications. */
 bool ble_links_listening(int link);
 
-/* Payment mode: advertise the payment service for `seconds`; 0 ends it. */
+/* Payment mode: advertise the payment service for `seconds`; 0 ends it. The window opens also
+ * when advertising cannot start at once: the start is tried again for about three seconds, and
+ * again at the next connection event. Always returns 0. */
 int ble_links_payment_mode(uint32_t seconds);
 
-/* Pairing mode: accept a new bond for `seconds`, with the label passkey or Just Works. */
+/* Whether the advertising of the payment window is on the air right now. A window can be open
+ * without it: while a start is being tried again, while every connection slot is taken, and while
+ * pairing mode advertises, which comes first. */
+bool ble_links_payment_advertising(void);
+
+/* Pairing mode: accept a new bond for `seconds`, with the label passkey or Just Works. A failed
+ * start of advertising is handled as in payment mode. */
 int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works);
+
+/* Owner wait (CONFIG_NU54_OWNER_WAIT_ADV): a commercial board without an owner advertises the
+ * owner service by itself, fast first and then slowly, while a connection slot is free and no
+ * button mode is on. It also drops a central that neither installs nor opens the owner's TLS
+ * session within CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS, also after the schedule ended by itself.
+ * `on` starts the schedule from its fast phase; off ends both. Without the option, turning it on
+ * returns -ENOTSUP. */
+int ble_links_owner_wait(bool on);
 
 /* Remove every bond (device.reset). Safe before Bluetooth is up. */
 int ble_links_unpair_all(void);

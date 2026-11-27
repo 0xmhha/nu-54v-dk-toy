@@ -19,6 +19,8 @@ test:
 _host-test: build
 	ctest --test-dir "$(HOST_BUILD)" --output-on-failure
 	python3 scripts/test_fw_release.py
+	python3 scripts/test_fw_secure_key.py
+	python3 scripts/test_fw_standby.py
 	python3 -m unittest discover -s scripts -p test_verify_board_release.py
 	go run test/evm_vectors.go "$(HOST_BUILD)/test_evm"
 	python3 test/test_evm_service.py

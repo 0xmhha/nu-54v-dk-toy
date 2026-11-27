@@ -7,17 +7,31 @@
  * floors stay through a reset: removing them would leave a board that refuses to boot its
  * commercial service, and they hold nothing of the user. All callers hold the pilot lock. */
 
-/* After the vault and the install state are loaded. Finishes an interrupted reset first. */
+/* A board without an owner holds no wallet key and no PIN. The key is made when the first owner
+ * registers and destroyed by a reset; it is never made at start. */
+
+/* After the vault and the install state are loaded. Finishes an interrupted reset first. Without
+ * an owner it removes any key and any PIN it finds; with one, a missing key fails and is not
+ * replaced. */
 int device_spending_init(void);
-const uint8_t *device_spending_address(void); /* NULL until init succeeded */
+/* Makes the key for the first owner. Call it while the board has no owner, right before the vault
+ * takes one. A power cut in between leaves a key and a PIN without an owner, which the next start
+ * removes. */
+int device_spending_enroll(void);
+/* The registration of a first owner did not complete: removes the key and the PIN that were set
+ * for it, so the next person starts with a board that asks for no earlier PIN. Call it for every
+ * such attempt that set the PIN, whether or not the key was made. */
+void device_spending_withdraw(void);
+const uint8_t *device_spending_address(void); /* NULL without a wallet: no owner yet, or init failed */
 int device_spending_sign(const uint8_t digest[32], uint8_t signature[64]);
 
 /* Set once. Only a reset clears it, so a phone taken over later cannot move the money elsewhere. */
 bool device_spending_return_address(uint8_t address[20]);
 int device_spending_set_return(const uint8_t address[20]);
 
-/* Destroys the key, the PIN, the owner and every record. Safe to repeat after a power cut. The
- * caller reboots afterwards; a new key is made on that boot. */
+/* Destroys the key, the PIN, the owner, every record and the operator's stored grant with the
+ * saved time, and succeeds only after the key store confirmed that the key is gone. Safe to repeat after a power cut, and the next start repeats it
+ * until it succeeds. The caller reboots afterwards; that boot makes no key. */
 int device_spending_erase(void);
 
 #endif

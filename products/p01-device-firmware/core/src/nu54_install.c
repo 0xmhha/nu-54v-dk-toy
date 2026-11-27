@@ -132,6 +132,113 @@ int nu54_install_accept(const uint8_t *bundle, size_t length, const uint8_t chal
 	return 0;
 }
 
+int nu54_install_restore(const uint8_t *bundle, size_t length, const uint8_t identity[65],
+			 const uint8_t payer[20], const nu54_install_floor *committed, nu54_install_hash hash,
+			 nu54_install_verify verify, nu54_install_policy *policy, size_t *ca_length, size_t *board_length)
+{
+	nu54_install_floor stored;
+	if (!bundle || !committed || !committed->revision ||
+	    length < NU54_INSTALL_HEADER_SIZE + NU54_INSTALL_SIGNATURE_SIZE ||
+	    nu54_install_accept(bundle, length, bundle + 4, identity, payer, 0, committed, hash, verify, &stored,
+				policy, ca_length, board_length)) return -1;
+	return stored.revision == committed->revision && stored.time == committed->time &&
+	       stored.generation == committed->generation && !memcmp(stored.digest, committed->digest, 32) &&
+	       !memcmp(stored.recovery, committed->recovery, 65) ? 0 : -1;
+}
+
+bool nu54_install_generation_current(uint64_t grant_generation, uint64_t board_generation, bool no_owner)
+{
+	if (!grant_generation) return false;
+	if (!no_owner) return grant_generation == board_generation;
+	return board_generation != UINT64_MAX && grant_generation == board_generation + 1;
+}
+
+uint64_t nu54_install_resume(const nu54_install_clock *saved, uint64_t floor_time, uint64_t replay_floor)
+{
+	uint64_t time = floor_time > replay_floor ? floor_time : replay_floor;
+	return saved && saved->earliest > time ? saved->earliest : time;
+}
+
+int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t interval_seconds)
+{
+	uint64_t seconds = interval_seconds ? interval_seconds : 1;
+	if (latest < not_after && not_after - latest < seconds) seconds = not_after - latest;
+	else if (latest >= not_after) seconds = 1;
+	return (int64_t)seconds * 1000;
+}
+
+static void put_integer(uint8_t *out, size_t length, uint64_t value)
+{
+	while (length) {
+		out[--length] = (uint8_t)value;
+		value >>= 8;
+	}
+}
+
+/* The one place that says when the phone's word alone is not enough: a move that takes what the
+ * phone moved since this start past the allowance needs SW1. Any further rule about how far a
+ * phone may move the clock belongs here. */
+static bool needs_button(const nu54_install_clock_word *word, const nu54_install_clock_limits *limits, uint64_t step)
+{
+	if (word->button) return false;
+	return word->moved_seconds > limits->free_seconds || step > limits->free_seconds - word->moved_seconds;
+}
+
+int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, const nu54_install_clock_word *word,
+			   const nu54_install_clock_limits *limits, nu54_install_clock *next)
+{
+	if (!current || !word || !limits || !next || !current->earliest || !word->time || word->expires <= word->time ||
+	    word->expires - word->time > NU54_PILOT_BRIEF_SECONDS) return -1;
+	/* The older the session, the less the message says about the time now. */
+	if (word->session_seconds > limits->session_seconds) return NU54_CLOCK_LATE;
+	const uint64_t time = word->time, earliest = current->earliest;
+	if (time >= not_after) return NU54_CLOCK_PAST_END;
+	const uint64_t latest = current->offset > UINT64_MAX - earliest ? UINT64_MAX : earliest + current->offset;
+	/* What the phone vouches for above its time. */
+	const uint64_t vouched = word->session_seconds > UINT64_MAX - NU54_CLOCK_PHONE_SECONDS ? UINT64_MAX :
+				 word->session_seconds + NU54_CLOCK_PHONE_SECONDS;
+	if (time <= latest && (time <= earliest || time - earliest < NU54_CLOCK_STEP_SECONDS)) {
+		/* Less than a step ahead and inside the board's interval, or behind it: the lower bound
+		 * stays. A phone that is behind by more than its allowance contradicts the board and
+		 * brings nothing down either. */
+		if (time < earliest && earliest - time > NU54_CLOCK_PHONE_SECONDS) return NU54_CLOCK_NOT_FORWARD;
+		const uint64_t ahead = time > earliest ? time - earliest : 0;
+		const uint64_t offset = vouched > UINT64_MAX - ahead ? UINT64_MAX : ahead + vouched;
+		if (current->offset < offset || current->offset - offset < NU54_CLOCK_STEP_SECONDS) return NU54_CLOCK_NOT_FORWARD;
+		*next = *current;
+		next->offset = offset;
+		return NU54_CLOCK_MOVED;
+	}
+	if (needs_button(word, limits, time - earliest)) return NU54_CLOCK_BUTTON;
+	const bool later_day = time / 86400u > earliest / 86400u;
+	*next = (nu54_install_clock){.earliest = time, .offset = vouched,
+		.phone_days = current->phone_days + (later_day && current->phone_days != UINT64_MAX), .hold = current->hold};
+	return NU54_CLOCK_MOVED;
+}
+
+void nu54_install_clock_reply(int result, const nu54_install_clock *clock, uint64_t not_after,
+			      uint8_t out[NU54_CLOCK_SET_REPLY_SIZE])
+{
+	const uint64_t latest = clock->offset > UINT64_MAX - clock->earliest ? UINT64_MAX : clock->earliest + clock->offset;
+	out[0] = NU54_CLOCK_SET_OP;
+	out[1] = (uint8_t)result;
+	put_integer(out + 2, 8, clock->earliest);
+	put_integer(out + 10, 8, latest);
+	put_integer(out + 18, 8, not_after);
+	put_integer(out + 26, 4, clock->phone_days > UINT32_MAX ? UINT32_MAX : clock->phone_days);
+}
+
+int nu54_install_certificate_window(uint64_t from, uint64_t until, uint64_t now)
+{
+	if (!now || now >= until || from >= until) return NU54_CERTIFICATE_REFUSED;
+	return from <= now ? NU54_CERTIFICATE_CURRENT : NU54_CERTIFICATE_EARLY;
+}
+
+bool nu54_install_session_admits(bool clock_only, nu54_v2_command command)
+{
+	return !clock_only || command == NU54_V2_CLOCK;
+}
+
 int nu54_install_quote(const nu54_install_policy *policy, const uint8_t *payload, size_t length,
 		       uint64_t now, nu54_v2_quote_policy *order)
 {

@@ -95,7 +95,136 @@ config NU54_SPENDING_DAILY_CAP
 	range 1 2000000000
 	default 100000000
 
+config NU54_OWNER_WAIT_ADV
+	bool "Advertise by itself while the board has no owner"
+	depends on NU54_PILOT_TLS
+	default y if NU54_SPENDING_PROFILE
+	help
+	  A commercial board without an owner (new, or after a factory reset) advertises the owner
+	  service by itself, so the next owner's phone finds it without a button. It starts fast and
+	  goes on slowly to save the battery (core/nu54_adv_schedule.h). A connection alone opens
+	  nothing: the board still asks for the operator's grant, SW1 and a new PIN. The enrollment
+	  window stays on SW4. A board with an owner advertises only after a button, as before.
+
+if NU54_OWNER_WAIT_ADV
+
+config NU54_OWNER_WAIT_FAST_SECONDS
+	int "Seconds of fast advertising after the board starts without an owner"
+	range 0 300
+	default 30
+	help
+	  0 starts with the slow interval. It may not be longer than the total time.
+
+config NU54_OWNER_WAIT_TOTAL_SECONDS
+	int "Seconds until a board without an owner stops advertising (0: never)"
+	range 0 604800
+	default 10800
+	help
+	  After this time the board is silent until SW4 is held. Longer finds the board later at the
+	  cost of the battery; the budget is in board-secure-key-and-advertising.md.
+
+config NU54_OWNER_WAIT_IDLE_SECONDS
+	int "Seconds a board without an owner keeps a central that does nothing (0: no limit)"
+	range 0 600
+	default 30
+	help
+	  The board takes two centrals. One that connects and neither starts the installation
+	  ticket nor a TLS session is disconnected after this time, counted from the connection or
+	  from the end of its last attempt, so that idle centrals cannot keep both slots and hide
+	  the board from the next owner and from the SW4 window. A ticket that was started
+	  counts as an attempt for 15 seconds. A central that keeps starting attempts, or
+	  keeps reconnecting, is not stopped by this: idle centrals are dropped, a central
+	  that means to block the board is not.
+
+config NU54_OWNER_WAIT_FAST_INTERVAL_MIN
+	int "Shortest fast advertising interval, in 0.625 ms"
+	range 32 16384
+	default 160
+
+config NU54_OWNER_WAIT_FAST_INTERVAL_MAX
+	int "Longest fast advertising interval, in 0.625 ms"
+	range NU54_OWNER_WAIT_FAST_INTERVAL_MIN 16384
+	default 240
+
+config NU54_OWNER_WAIT_SLOW_INTERVAL_MIN
+	int "Shortest slow advertising interval, in 0.625 ms"
+	range NU54_OWNER_WAIT_FAST_INTERVAL_MAX 16384
+	default 1600
+
+config NU54_OWNER_WAIT_SLOW_INTERVAL_MAX
+	int "Longest slow advertising interval, in 0.625 ms"
+	range NU54_OWNER_WAIT_SLOW_INTERVAL_MIN 16384
+	default 1920
+
+endif # NU54_OWNER_WAIT_ADV
+
+config NU54_CLOCK_SAVE_SECONDS
+	int "Seconds between two saves of the board's time while a grant runs"
+	depends on NU54_SPENDING_PROFILE
+	range 60 86400
+	default 3600
+	help
+	  The spending profile keeps the operator's grant through a restart and continues from the
+	  time it saved last. Each save is one write to protected storage. A restart loses what
+	  passed since the last save, and the owner's phone sets the clock again at its next
+	  session (the time command), so the interval does not decide whether payments work after
+	  a restart. It decides how much of the grant's period a restart gives back in board time,
+	  and how often the storage is written. The time is also saved when the phone moves it and
+	  when the grant ends. One hour is 24 writes a day.
+
+config NU54_CLOCK_SESSION_SECONDS
+	int "Oldest session, in seconds, in which the owner's phone may still tell the time"
+	depends on NU54_SPENDING_PROFILE
+	range 1 60
+	default 15
+	help
+	  The owner's phone tells a restarted board the time (the time command). The board counts
+	  from the first byte of the TLS session, so the count includes the handshake. The phone
+	  read its clock some time after that, so the board's latest possible time becomes the
+	  phone's time plus the session's age plus five seconds. A message that arrives later than
+	  this limit is answered with "too late in the session" and moves nothing: its time would
+	  widen the board's interval by its age, and every request that has less than that left to
+	  run would then be refused.
+
+	  The default is a guess, set low on purpose. NOT MEASURED ON A BOARD: if the handshake over
+	  Bluetooth takes longer than this on the real board, every time command is answered "too
+	  late" and a restarted board stays late until the operator's next grant. Measure the time
+	  from the first write to the answer of the time command on the board and set this to that
+	  plus a margin. The upper bound keeps the widest interval the phone can leave (this plus
+	  five seconds) under the 90 seconds of the phone's short requests.
+
+config NU54_CLOCK_FREE_SECONDS
+	int "Seconds the owner's phone may move the clock forward per start without SW1"
+	depends on NU54_SPENDING_PROFILE
+	range 0 2678400
+	default 86400
+	help
+	  The time command needs neither a button nor the PIN, so whoever holds the owner's phone
+	  can send it. Since its last start the board therefore lets the phone move its clock
+	  forward by this many seconds at the most, all time commands together; a move beyond that
+	  is answered with "press the button" and is taken only after SW1 on the board. The count
+	  is kept in RAM and begins anew with every start. With the default of one day, a board
+	  that was off for longer than a day asks for SW1 once when its owner connects again, and a
+	  phone alone can put a board that stays on at most one day ahead of the calendar. Zero
+	  asks for SW1 for every move.
+
 source "Kconfig.zephyr"
+
+config NU54_SECURE_KEY
+	bool "Keep the spending wallet key in the TF-M secure side"
+	default n
+	depends on NU54_SPENDING_PROFILE && BUILD_WITH_TFM && TFM_PARTITION_CRYPTO
+	depends on TFM_PARTITION_INTERNAL_TRUSTED_STORAGE && TFM_ITS_ENCRYPTED && !SECURE_STORAGE
+	depends on MBEDTLS_PSA_CRYPTO_STORAGE_C
+	help
+	  The wallet key is generated and used by TF-M's crypto partition and stored in the
+	  encrypted Internal Trusted Storage of the secure side (Arm TrustZone). The application
+	  is the non-secure image and can ask for a signature, the public key or the key's
+	  destruction, never for the key. Outside a TF-M build with encrypted storage and
+	  persistent PSA keys the option does not take effect, and Kconfig only warns about
+	  that: the build goes on. What stops such a build is the evidence check of
+	  scripts/fw.py build --secure-key, which reads the generated configuration back.
+	  Build-verified only; see app/secure-key.conf.
 
 config NU54_EXPERIMENTAL_PMIC_VIN_READ
 	bool "Read qualified NU-54DK-C PMIC input status"
