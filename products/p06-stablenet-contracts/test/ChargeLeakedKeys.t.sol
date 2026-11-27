@@ -121,7 +121,7 @@ contract ChargeLeakedKeysTest is ChargeBase {
         bytes32 id = depositIt(quote);
         payIt(quote, false);
         completeIt(id);
-        bytes32 spenderChange = proposeOn(deposit, "setSpender", abi.encode(address(this)), "salt");
+        bytes32 spenderChange = proposeOn(deposit, "setSpender", spenderArgs(address(this)), "salt");
         bytes32 replacement = proposePauser(deposit);
         cancelByPauser(deposit, spenderChange, 0);
         cancelByPauser(deposit, replacement, ChargeGovernance.Unauthorized.selector);
@@ -134,12 +134,12 @@ contract ChargeLeakedKeysTest is ChargeBase {
 
         vm.warp(block.timestamp + 24 hours);
         deposit.setKey(ChargeGovernance.Key.Pauser, next, "salt");
-        proposeOn(deposit, "setSpender", abi.encode(address(this)), "salt 2");
+        proposeOn(deposit, "setSpender", spenderArgs(address(this)), "salt 2");
         vm.prank(pauser);
         vm.expectRevert(ChargeGovernance.Unauthorized.selector);
         deposit.clearSpender();
         vm.warp(block.timestamp + 24 hours);
-        deposit.setSpender(address(this), "salt 2");
+        deposit.setSpender(address(this), address(this).codehash, "salt 2");
         vm.warp(block.timestamp + 7 days);
         deposit.spend(id, 100e6, treasury);
         assertEq(usdc.balanceOf(treasury), 100e6);

@@ -156,7 +156,7 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         deposit.proposalRound(SET_SIGNER, abi.encode(uint8(1), topBit));
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        deposit.propose(keccak256("setSpender"), abi.encode(unclean), "salt", until, none);
+        deposit.propose(keccak256("setSpender"), abi.encode(unclean, bytes32(0)), "salt", until, none);
         toWon();
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         pool.propose(keccak256("addOrigin"), abi.encode(uint256(10), unclean), "salt", until, none);
@@ -230,10 +230,10 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         deposit.propose(keccak256("withdraw"), abi.encode(uint256(1)), "salt", until, none);
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        deposit.propose(keccak256("setSpender"), abi.encode(next, next), "salt", until, none);
+        deposit.propose(keccak256("setSpender"), abi.encode(next), "salt", until, none);
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         deposit.propose(keccak256("raiseLimit"), "", "salt", until, none);
-        proposeOn(deposit, "setSpender", abi.encode(next), "salt");
+        proposeOn(deposit, "setSpender", spenderArgs(address(pool)), "salt");
         proposeOn(deposit, "raiseLimit", abi.encode(MAX_WON), "salt");
         proposeOn(deposit, "setRates", abi.encode(RATE, RATE), "salt");
         toWon();
@@ -372,7 +372,7 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.stopPrank();
         assertEq(deposit.generation(), 3);
 
-        bytes32 action = proposeOn(deposit, "setSpender", abi.encode(address(pool)), "salt");
+        bytes32 action = proposeOn(deposit, "setSpender", spenderArgs(address(pool)), "salt");
         for (uint256 i; i < hot.length; ++i) {
             vm.prank(vm.addr(PAUSER_KEY));
             vm.expectRevert(ChargeGovernance.InvalidState.selector);

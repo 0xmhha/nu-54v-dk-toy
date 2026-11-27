@@ -701,13 +701,17 @@ contract ChargeDepositTest is ChargeBase {
         deposit.spend(id, 1, stranger);
 
         Spender later = new Spender(deposit);
-        proposeOn(deposit, "setSpender", abi.encode(vm.addr(0xE0A)), "salt");
-        bytes32 action = keccak256(abi.encode(keccak256("setSpender"), address(later), bytes32("salt")));
-        assertEq(proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt"), action);
+        // A plain key cannot be the spender: it is not even proposed.
+        expectProposeRevert(
+            deposit, "setSpender", spenderArgs(vm.addr(0xE0A)), ChargeGovernance.InvalidParameters.selector
+        );
+        bytes32 codeHash = address(later).codehash;
+        bytes32 action = keccak256(abi.encode(keccak256("setSpender"), address(later), codeHash, bytes32("salt")));
+        assertEq(proposeOn(deposit, "setSpender", spenderArgs(address(later)), "salt"), action);
         vm.warp(block.timestamp + 24 hours);
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        deposit.setSpender(vm.addr(0xE0A), "salt"); // a plain key cannot be the spender
-        deposit.setSpender(address(later), "salt");
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setSpender(address(later), bytes32(0), "salt"); // another hash was never proposed
+        deposit.setSpender(address(later), codeHash, "salt");
 
         later.spend(id, 60e6, stranger);
         assertEq(usdc.balanceOf(stranger), 60e6);
@@ -729,9 +733,9 @@ contract ChargeDepositTest is ChargeBase {
         bytes32 id = depositIt(quote);
         bytes32 open = depositIt(quoteFor(50e6, board));
         Spender later = new Spender(deposit);
-        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt");
+        proposeOn(deposit, "setSpender", spenderArgs(address(later)), "salt");
         vm.warp(block.timestamp + 24 hours);
-        deposit.setSpender(address(later), "salt");
+        deposit.setSpender(address(later), address(later).codehash, "salt");
 
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         later.spend(open, 1, stranger);
@@ -758,13 +762,13 @@ contract ChargeDepositTest is ChargeBase {
         payIt(quote, false);
         completeIt(id);
         Spender later = new Spender(deposit);
-        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt");
+        proposeOn(deposit, "setSpender", spenderArgs(address(later)), "salt");
         vm.warp(block.timestamp + 8 days);
         vm.expectRevert(ChargeGovernance.InvalidTime.selector);
-        deposit.setSpender(address(later), "salt"); // lapsed
-        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt 2");
+        deposit.setSpender(address(later), address(later).codehash, "salt"); // lapsed
+        proposeOn(deposit, "setSpender", spenderArgs(address(later)), "salt 2");
         vm.warp(block.timestamp + 24 hours);
-        deposit.setSpender(address(later), "salt 2");
+        deposit.setSpender(address(later), address(later).codehash, "salt 2");
         later.spend(id, 10e6, stranger);
 
         vm.prank(stranger);
@@ -784,10 +788,10 @@ contract ChargeDepositTest is ChargeBase {
         assertEq(deposit.depositOf(id).left, 90e6);
 
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
-        deposit.setSpender(address(later), "salt 2"); // the old change does not bring it back
-        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt 3");
+        deposit.setSpender(address(later), address(later).codehash, "salt 2"); // the old change does not bring it back
+        proposeOn(deposit, "setSpender", spenderArgs(address(later)), "salt 3");
         vm.warp(block.timestamp + 24 hours);
-        deposit.setSpender(address(later), "salt 3");
+        deposit.setSpender(address(later), address(later).codehash, "salt 3");
         later.spend(id, 90e6, stranger);
         assertEq(usdc.balanceOf(stranger), 100e6);
     }
@@ -801,19 +805,50 @@ contract ChargeDepositTest is ChargeBase {
         assertEq(lent.code.length, 23);
         address shortCode = address(0xC0DE);
         vm.etch(shortCode, hex"00"); // a contract, however short: only the lent mark is refused
-        proposeOn(deposit, "setSpender", abi.encode(lent), "salt");
-        proposeOn(deposit, "setSpender", abi.encode(shortCode), "salt");
-        proposeOn(deposit, "setSpender", abi.encode(address(deposit)), "salt");
-        proposeOn(deposit, "setSpender", abi.encode(address(0)), "salt");
+        bytes4 refused = ChargeGovernance.InvalidParameters.selector;
+        expectProposeRevert(deposit, "setSpender", spenderArgs(lent), refused);
+        expectProposeRevert(deposit, "setSpender", spenderArgs(address(deposit)), refused);
+        expectProposeRevert(deposit, "setSpender", abi.encode(address(0), bytes32("hash")), refused);
+        proposeOn(deposit, "setSpender", spenderArgs(shortCode), "salt");
+        proposeOn(deposit, "setSpender", spenderArgs(address(0)), "salt");
         vm.warp(block.timestamp + 24 hours);
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        deposit.setSpender(lent, "salt");
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        deposit.setSpender(address(deposit), "salt");
-        deposit.setSpender(shortCode, "salt");
+        deposit.setSpender(shortCode, shortCode.codehash, "salt");
         assertEq(deposit.spender(), shortCode);
-        deposit.setSpender(address(0), "salt"); // two signers may also empty the place
+        deposit.setSpender(address(0), 0, "salt"); // two signers may also empty the place
         assertEq(deposit.spender(), address(0));
+    }
+
+    /// The proposal names the hash of the code that was read. Nothing is proposed for an address that has
+    /// no code yet or other code, and when the day is over the address must still hold that code: nothing
+    /// can be deployed there, exchanged or lent out while the change waits.
+    function testTheSpenderMustHoldTheCodeThatWasProposed() public {
+        Spender later = new Spender(deposit);
+        address place = address(0xC0DE);
+        bytes32 codeHash = address(later).codehash;
+        bytes4 refused = ChargeGovernance.InvalidParameters.selector;
+        expectProposeRevert(deposit, "setSpender", abi.encode(place, codeHash), refused); // nothing is there yet
+        expectProposeRevert(deposit, "setSpender", abi.encode(place, keccak256("")), refused);
+        expectProposeRevert(deposit, "setSpender", abi.encode(place, bytes32(0)), refused);
+        vm.etch(place, address(later).code);
+        assertEq(place.codehash, codeHash);
+        expectProposeRevert(deposit, "setSpender", abi.encode(place, keccak256("other code")), refused);
+        proposeOn(deposit, "setSpender", abi.encode(place, codeHash), "salt");
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 ready = vm.snapshotState();
+        vm.etch(place, hex"00"); // other code
+        vm.expectRevert(refused);
+        deposit.setSpender(place, codeHash, "salt");
+        vm.etch(place, ""); // no code
+        vm.expectRevert(refused);
+        deposit.setSpender(place, codeHash, "salt");
+        vm.etch(place, abi.encodePacked(hex"ef0100", address(later))); // a key account lent to that code
+        vm.expectRevert(refused);
+        deposit.setSpender(place, codeHash, "salt");
+        assertEq(deposit.spender(), address(0));
+        vm.revertToState(ready);
+        deposit.setSpender(place, codeHash, "salt");
+        assertEq(deposit.spender(), place);
     }
 
     // ---- coins sent by mistake ----

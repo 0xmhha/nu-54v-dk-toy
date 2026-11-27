@@ -399,10 +399,14 @@ contract ChargeDeposit is ChargeGovernance {
 
     /// @notice A deployed contract or nothing. An account without code is a key, and so is an account whose
     /// code only names the contract a key lent it to (EIP-7702): that key can lend it elsewhere at any time.
-    /// What a deployed contract lets its own keys do is for the two signers to read during the day of waiting.
-    function setSpender(address to, bytes32 salt) external {
-        _apply(SET_SPENDER, abi.encode(to), salt);
-        if (to == address(this) || (to != address(0) && !_isContract(to))) revert InvalidParameters();
+    /// The proposal names the hash of the code that was read. The code must be there with that hash when the
+    /// change is proposed and still when it is applied, so nothing can be deployed or exchanged at that
+    /// address during the day of waiting. `(0, 0)` empties the place. What the code lets its own keys do, and
+    /// whether it can change what it does without changing its code (a proxy, a delegated call), the contract
+    /// cannot tell: that is for whoever signs or reviews the proposal to read.
+    function setSpender(address to, bytes32 codeHash, bytes32 salt) external {
+        _apply(SET_SPENDER, abi.encode(to, codeHash), salt);
+        if (!_canSpend(to, codeHash)) revert InvalidParameters();
         spender = to;
         emit SpenderChanged(to);
     }
@@ -470,9 +474,21 @@ contract ChargeDeposit is ChargeGovernance {
     // ---- internals ----
 
     function _shape(bytes32 kind) internal pure override returns (uint256, uint256) {
-        if (kind == SET_SPENDER) return (32, 1);
+        if (kind == SET_SPENDER) return (64, 1);
         if (kind == RAISE_LIMIT) return (32, 0);
         return super._shape(kind);
+    }
+
+    function _checkProposed(bytes32 kind, bytes calldata arguments) internal view override {
+        if (kind != SET_SPENDER) return;
+        (address to, bytes32 codeHash) = abi.decode(arguments, (address, bytes32));
+        if (!_canSpend(to, codeHash)) revert InvalidParameters();
+    }
+
+    /// @dev Nothing, named with no hash; or a deployed contract other than this one whose code has the hash.
+    function _canSpend(address to, bytes32 codeHash) private view returns (bool) {
+        if (to == address(0)) return codeHash == bytes32(0);
+        return to != address(this) && _isContract(to) && to.codehash == codeHash;
     }
 
     /// @dev Code that starts with 0xef0100 is the mark of a lent key account (EIP-7702), not a contract. No

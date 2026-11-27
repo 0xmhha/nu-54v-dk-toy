@@ -198,6 +198,7 @@ abstract contract ChargeGovernance {
         returns (bytes32 action)
     {
         Seat seat = _seatOf(kind, arguments);
+        _checkProposed(kind, arguments);
         uint256 round = _roundOf(seat);
         action = actionOf(kind, arguments, salt);
         // Once per action and round: a lapsed or cancelled change needs a new salt and new signatures.
@@ -339,11 +340,14 @@ abstract contract ChargeGovernance {
         if (kind == SET_RATES) return (64, 0);
     }
 
+    /// @dev What a contract checks of a change already when it is proposed, beyond the shape of its arguments.
+    function _checkProposed(bytes32 kind, bytes calldata arguments) internal view virtual {}
+
     /// @dev Whose place a change takes, read from its arguments when it is proposed. Only arguments that the
     /// changing function would encode itself are let in: a kind this contract has, the right length, a key
     /// or signer that exists and an address with nothing above its 20 bytes. So every waiting change names
-    /// one call that exists. Whether that call then succeeds (a new key that is free, a rate above zero, a
-    /// spender with code) is checked when it is applied: such a change waits and fails then.
+    /// one call that exists. Whether that call then succeeds (a new key that is free, a rate above zero) is
+    /// checked when it is applied: such a change waits and fails then.
     function _seatOf(bytes32 kind, bytes calldata arguments) private pure returns (Seat) {
         (uint256 length, uint256 addressWord) = _shape(kind);
         if (length == 0 || arguments.length != length) revert InvalidParameters();

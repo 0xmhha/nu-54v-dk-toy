@@ -48,9 +48,9 @@ contract ChargeHandler is ChargeBase {
     /// The place for the later re-exchange contract is filled with this handler, so spending is driven too.
     function installSpender() external {
         toSource();
-        proposeOn(deposit, "setSpender", abi.encode(address(this)), 0);
+        proposeOn(deposit, "setSpender", spenderArgs(address(this)), 0);
         vm.warp(block.timestamp + 24 hours);
-        deposit.setSpender(address(this), 0);
+        deposit.setSpender(address(this), address(this).codehash, 0);
     }
 
     function count() external view returns (uint256) {
@@ -277,7 +277,7 @@ contract ChargeHandler is ChargeBase {
             if (offDeposit[k]) proposeOn(deposit, "setKey", abi.encode(k, hotKey(k)), salt);
         }
         if (limitLow) proposeOn(deposit, "raiseLimit", abi.encode(MAX_WON), salt);
-        if (spenderGone) proposeOn(deposit, "setSpender", abi.encode(address(this)), salt);
+        if (spenderGone) proposeOn(deposit, "setSpender", spenderArgs(address(this)), salt);
         toWon();
         for (uint256 k; k < 3; ++k) {
             if (offPool[k]) proposeOn(pool, "setKey", abi.encode(k, hotKey(k)), salt);
@@ -290,7 +290,7 @@ contract ChargeHandler is ChargeBase {
             if (offPool[k]) pool.setKey(ChargeGovernance.Key(k), hotKey(k), salt);
         }
         if (limitLow) deposit.raiseLimit(MAX_WON, salt);
-        if (spenderGone) deposit.setSpender(address(this), salt);
+        if (spenderGone) deposit.setSpender(address(this), address(this).codehash, salt);
         if (limitsLow) pool.raiseLimits(limits(), salt);
     }
 

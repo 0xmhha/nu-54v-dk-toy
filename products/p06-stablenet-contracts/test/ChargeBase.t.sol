@@ -345,6 +345,23 @@ abstract contract ChargeBase is Test {
         target.propose(kindHash, arguments, salt, until, two(target, "propose", action, round, until));
     }
 
+    /// The arguments of `setSpender`: a contract with the hash of its code as it is now, or nothing.
+    function spenderArgs(address to) internal view returns (bytes memory) {
+        return abi.encode(to, to == address(0) ? bytes32(0) : to.codehash);
+    }
+
+    /// A change for no seat that the contract refuses when it is proposed, with two good signatures.
+    function expectProposeRevert(ChargeGovernance target, string memory kind, bytes memory arguments, bytes4 refusal)
+        internal
+    {
+        uint256 until = block.timestamp + 1 days;
+        bytes32 kindHash = keccak256(bytes(kind));
+        bytes32 action = target.actionOf(kindHash, arguments, "salt");
+        bytes[2] memory signatures = two(target, "propose", action, target.generation(), until);
+        vm.expectRevert(refusal);
+        target.propose(kindHash, arguments, "salt", until, signatures);
+    }
+
     /// One signer's signature that stops a waiting change.
     function cancelSignature(ChargeGovernance target, uint256 key, bytes32 action, uint256 until)
         internal
