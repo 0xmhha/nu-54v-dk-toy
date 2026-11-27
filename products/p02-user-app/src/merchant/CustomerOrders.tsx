@@ -50,7 +50,6 @@ import {
   parseOrderLocator,
   readShopIdentity,
   paymentProfile,
-  preparePresentedPayment,
   verifyPresentedGasSponsor,
   verifyPresentedRentalEscrow,
   verifyPresentedRentalReviewAuthority,
@@ -111,6 +110,7 @@ import {
   paymentReviewStop,
   paymentCheckpoint,
   type PaymentCheckpoint,
+  reviewedPayment,
   type PaymentReviewStop,
 } from './paymentCheckpoint.ts';
 
@@ -1306,7 +1306,7 @@ export function CustomerOrders({
     setOrderBlocked(undefined);
     if (escrow && quote.expiresAt <= now()) return block('expired');
     if (escrow && BigInt(sale.amount) > BigInt(policy.maxBaseUnits)) return block('over-limit');
-    const payment = preparePresentedPayment(quote, sale, policy, now(), {
+    const payment = reviewedPayment(quote, sale, policy, now(), {
       branch: client.profile.branchRef,
       customer: client.profile.subjectRef,
       ...expected,
@@ -1465,7 +1465,7 @@ export function CustomerOrders({
     }
     if (!matchesReviewedOrder(entry, current) || quote.signedQuote !== entry.quote.signedQuote)
       throw new Error('PAYMENT_ORDER_STATE');
-    preparePresentedPayment(quote, current, policy, now(), entry.scope);
+    reviewedPayment(quote, current, policy, now(), entry.scope);
     if (!mounted.current || revision !== loadRevision.current) throw new Error('PAYMENT_REVIEW_CHANGED');
     return {...entry, quote};
   }
@@ -1490,7 +1490,7 @@ export function CustomerOrders({
     if (!current()) return;
     const refreshed = await freshSponsorship(entry, undefined, {request: expected.request, challenge: expected.challenge});
     if (!current()) return;
-    const verified = preparePresentedPayment(refreshed.quote, refreshed.order, policy, now(), refreshed.scope);
+    const verified = reviewedPayment(refreshed.quote, refreshed.order, policy, now(), refreshed.scope);
     const sponsorship = verifyPresentedGasSponsor(refreshed.quote, refreshed.order, policy, now(), refreshed.scope);
     const authority = verifyPresentedRentalReviewAuthority(refreshed.quote, refreshed.order, policy, now(), refreshed.scope, expected);
     const expiresAt = Math.min(authority.expiresAt, sponsorship.expiresAt);
@@ -1554,7 +1554,7 @@ export function CustomerOrders({
       await observePayment(live, client);
       return;
     }
-    const payment = preparePresentedPayment(entry.quote, live, policy, now(), entry.scope);
+    const payment = reviewedPayment(entry.quote, live, policy, now(), entry.scope);
     const receipt = hexToBytes(review.receipt);
     const reply = await review.terminal.request({
       op: 'rental-decision', branch: entry.branch, key: entry.submitKey, order: entry.order.id,
@@ -1591,7 +1591,7 @@ export function CustomerOrders({
       !(await permission())
     )
       throw new Error('PAYMENT_BOARD_REQUIRED');
-    const verified = preparePresentedPayment(
+    const verified = reviewedPayment(
       approved.quote,
       approved.order,
       policy,
@@ -1636,7 +1636,7 @@ export function CustomerOrders({
     const entry = approved;
     if (!entry?.confirmer || !OwnerWallet || !policy || paymentReviewStop(entry, now())) throw new Error('PAYMENT_BOARD_REQUIRED');
     const revision = loadRevision.current;
-    const payment = preparePresentedPayment(entry.quote, entry.order, policy, now(), entry.scope);
+    const payment = reviewedPayment(entry.quote, entry.order, policy, now(), entry.scope);
     const local = decodeWalletStorage(await OwnerWallet.loadProfile());
     if (!local.enrollment || local.verified?.address !== payment.payer || BigInt(local.verified.generation) !== payment.generation) {
       setOrderBoard({request: entry.request, block: 'wrong-account'});
@@ -1731,7 +1731,7 @@ export function CustomerOrders({
         await keepPayment({...reviewed, reviewStop: current.state === 'checking' ? 'interrupted' : 'changed'});
         return;
       }
-      const payment = preparePresentedPayment(reviewed.quote, current, policy, now(), reviewed.scope);
+      const payment = reviewedPayment(reviewed.quote, current, policy, now(), reviewed.scope);
       if (needsMerchantSponsorship(reviewed)) {
         const before = verifyPresentedGasSponsor(reviewed.quote, current, policy, now(), reviewed.scope);
         try {
@@ -1986,7 +1986,7 @@ export function CustomerOrders({
 
   /** The board account the reviewed order is paid from. */
   function orderAccount(entry: PaymentCheckpoint) {
-    const {payer, generation} = preparePresentedPayment(entry.quote, entry.order, policy!, entry.quote.expiresAt - 1, entry.scope);
+    const {payer, generation} = reviewedPayment(entry.quote, entry.order, policy!, entry.quote.expiresAt - 1, entry.scope);
     return {payer, generation: generation.toString()};
   }
 
@@ -2059,7 +2059,7 @@ export function CustomerOrders({
     if (!policy || !Http) throw new Error('PAYMENT_PROFILE');
     const revision = loadRevision.current;
     const escrow = view.escrow;
-    const payment = preparePresentedPayment(entry.quote, entry.order, policy, entry.quote.expiresAt - 1, entry.scope);
+    const payment = reviewedPayment(entry.quote, entry.order, policy, entry.quote.expiresAt - 1, entry.scope);
     if (view.id !== entry.order.id || view.asset !== entry.order.asset || view.amount !== entry.order.amount ||
         (escrow && (!validOrderEscrowStatus(escrow) || escrow.confirmer !== entry.confirmer || escrow.payer !== payment.payer ||
           escrow.orderKey !== entry.quote.orderKey || escrow.escrow !== policy.contract)))
@@ -2470,7 +2470,7 @@ export function CustomerOrders({
     if (!approved || !policy || (approved.reviewStop !== undefined)) return undefined;
     try {
       const verificationTime = approved.authorization ? approved.quote.expiresAt - 1 : Math.max(reviewClock, now());
-      return preparePresentedPayment(approved.quote, approved.order, policy, verificationTime, approved.scope);
+      return reviewedPayment(approved.quote, approved.order, policy, verificationTime, approved.scope);
     } catch {
       return undefined;
     }

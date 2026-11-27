@@ -79,6 +79,20 @@ describe('a store page', () => {
     expect(calls).toEqual([]);
   });
 
+  test('takes the store\'s contract merchant number, and no address, token contract, signer or chain a page names', async () => {
+    const answer = (more: object) => directory({[`/v2/customer/stores/${cafe}`]: {status: 200, body: {...full, ...more}}}).directory.page(cafe);
+    const merchantId = 'e1' + '0'.repeat(60) + '07';
+    expect((await answer({merchantId})).merchantId).toBe(merchantId);
+    // What a server might add about where the money goes is not read, whatever it is called.
+    const page = await answer({merchantId, contract: '0x' + '3'.repeat(40), escrow: '0x' + '3'.repeat(40), asset: '0x' + '2'.repeat(40), token: {decimals: 2},
+      signer: '0x' + '5'.repeat(40), beneficiary: '0x' + '4'.repeat(40), chain: 1, chainId: 1, rpc: 'https://rpc.example', payment: {contract: '0x' + '3'.repeat(40)}});
+    expect(Object.keys(page).sort()).toEqual(['address', 'amenities', 'branch', 'closedNote', 'directions', 'hours', 'intro', 'kind', 'merchantId', 'name',
+      'operatorContact', 'parking', 'paymentToken', 'phone', 'status']);
+    expect(JSON.stringify(page)).not.toMatch(/0x[0-9a-f]{40}|rpc\.example/);
+    for (const bad of ['', '0'.repeat(64), merchantId.toUpperCase(), '0x' + merchantId, merchantId.slice(1), 7, null])
+      await expect(answer({merchantId: bad})).rejects.toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
+  });
+
   test('a reservation button needs the page to say so', async () => {
     const answer = async (reservations: unknown) =>
       (await directory({[`/v2/customer/stores/${cafe}`]: {status: 200, body: {...full, reservations}}}).directory.page(cafe)).reservations;
