@@ -34,6 +34,8 @@ contract ChargeVectorsTest is Test {
     address internal constant TREASURY = address(0x2006);
     address internal constant NEW_PAUSER = address(0x2007);
     address internal constant STRAY_SENDER = address(0x2008);
+    /// Stands for the later spender. Its code is the one byte 0x00, so its code hash is the same everywhere.
+    address internal constant SPENDER = address(0x2009);
     uint256 internal constant STRAY_AMOUNT = 5e6;
     bytes32 internal constant STRAY_TX = keccak256("stray transaction");
     uint256 internal constant STRAY_LOG = 3;
@@ -41,7 +43,9 @@ contract ChargeVectorsTest is Test {
     uint256 internal constant WITHDRAWAL = 100_000_000;
     bytes32 internal constant PAUSER_SALT = bytes32(uint256(0x52));
     bytes32 internal constant WITHDRAW_SALT = bytes32(uint256(0x53));
+    bytes32 internal constant SPENDER_SALT = bytes32(uint256(0x54));
     bytes32 internal constant SET_KEY = keccak256("setKey");
+    bytes32 internal constant SET_SPENDER = keccak256("setSpender");
     bytes32 internal constant WITHDRAW = keccak256("withdraw");
     /// The fixed test rate as of 2026-11-27: 1 USDC = 1,345.00 won.
     uint256 internal constant RATE = 134_500;
@@ -95,6 +99,7 @@ contract ChargeVectorsTest is Test {
             maxRate: RATE
         });
         deployCodeTo("ChargeDeposit.sol:ChargeDeposit", abi.encode(keys, depositValues), DEPOSIT);
+        vm.etch(SPENDER, hex"00");
 
         vm.chainId(WON_CHAIN);
         deployCodeTo("TestKRW3009.sol:TestKRW3009", abi.encode(address(this)), WON);
@@ -152,6 +157,7 @@ contract ChargeVectorsTest is Test {
     Signed internal contested;
     Signed internal confirmedFinal;
     Signed internal cancelled;
+    Signed internal voided;
     mapping(string => TwoSigned) internal actions;
 
     function pauserArguments() internal pure returns (bytes memory) {
@@ -165,6 +171,20 @@ contract ChargeVectorsTest is Test {
 
     function withdrawAction() internal pure returns (bytes32) {
         return keccak256(abi.encode(WITHDRAW, WITHDRAWAL, WITHDRAW_SALT));
+    }
+
+    /// The arguments of `setSpender`: the contract and the hash of its code.
+    function spenderArguments() internal pure returns (bytes memory) {
+        return abi.encode(SPENDER, keccak256(hex"00"));
+    }
+
+    function spenderAction() internal pure returns (bytes32) {
+        return keccak256(abi.encode(SET_SPENDER, SPENDER, keccak256(hex"00"), SPENDER_SALT));
+    }
+
+    /// What the signatures of an emergency exit are about: the treasury as a 32-byte word.
+    function exitSubject() internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(TREASURY)));
     }
 
     function straySubject() internal pure returns (bytes32) {
@@ -214,6 +234,12 @@ contract ChargeVectorsTest is Test {
         // signer other than the one it replaces cancels it in the same round.
         actions["proposePauser"] = twoSigned(domain, place, action("propose", pauserAction(), 0));
         cancelled = signedBy(SIGNER3_KEY, domain, action("cancel", pauserAction(), 0), place);
+        // One signer voids every waiting replacement of the pauser, in the round of the pauser's seat.
+        voided = signedBy(SIGNER3_KEY, domain, action("voidPauserReplacements", 0, 0), place);
+        // The emergency exit is proposed in the round of the exit and cancelled in the round after it.
+        actions["proposeExit"] = twoSigned(domain, place, action("proposeEmergencyExit", exitSubject(), 0));
+        actions["cancelExit"] = twoSigned(domain, place, action("cancelEmergencyExit", exitSubject(), 1));
+        actions["proposeSpender"] = twoSigned(domain, place, action("propose", spenderAction(), 0));
     }
 
     function signOnThePoolChain() internal {
@@ -233,10 +259,54 @@ contract ChargeVectorsTest is Test {
         bytes memory place = abi.encode(WON_CHAIN, POOL);
         actions["unpausePays"] = twoSigned(pool.domainSeparator(), place, action("unpausePays", 0, 1));
         actions["proposeWithdraw"] = twoSigned(pool.domainSeparator(), place, action("propose", withdrawAction(), 0));
+        actions["proposeExitPool"] =
+            twoSigned(pool.domainSeparator(), place, action("proposeEmergencyExit", exitSubject(), 0));
+        actions["cancelExitPool"] =
+            twoSigned(pool.domainSeparator(), place, action("cancelEmergencyExit", exitSubject(), 1));
     }
 
     function file() internal view returns (string memory) {
+        return string.concat(firstLines(), laterLines());
+    }
+
+    function firstLines() internal view returns (string memory) {
         return string.concat(topUpLines(), finalLines(), signerLines(), pauserLines(), cancelLines(), withdrawLines());
+    }
+
+    /// Added after the first 63 lines, which stay as they were: the bulk void, the emergency exit of both
+    /// contracts and a change of the spender.
+    function laterLines() internal view returns (string memory) {
+        return string.concat(voidLines(), exitLines(), spenderLines());
+    }
+
+    function voidLines() internal view returns (string memory) {
+        return string.concat(
+            line("voidPauser", voided.message),
+            line("voidPauserPreimage", voided.preimage),
+            line("voidPauserSigner", abi.encodePacked(vm.addr(SIGNER3_KEY))),
+            line("voidPauserSignature", voided.signature)
+        );
+    }
+
+    /// `exitSubject` is the subject of all four: the treasury as a 32-byte word.
+    function exitLines() internal view returns (string memory) {
+        return string.concat(
+            line("exitSubject", abi.encodePacked(exitSubject())),
+            actionLines("proposeExit"),
+            actionLines("cancelExit"),
+            actionLines("proposeExitPool"),
+            actionLines("cancelExitPool")
+        );
+    }
+
+    function spenderLines() internal view returns (string memory) {
+        return string.concat(
+            line("proposeSpenderKind", abi.encodePacked(SET_SPENDER)),
+            line("proposeSpenderArguments", spenderArguments()),
+            line("proposeSpenderSalt", abi.encodePacked(SPENDER_SALT)),
+            line("proposeSpenderAction", abi.encodePacked(spenderAction())),
+            actionLines("proposeSpender")
+        );
     }
 
     function topUpLines() internal view returns (string memory) {
@@ -476,6 +546,53 @@ contract ChargeVectorsTest is Test {
         vm.chainId(WON_CHAIN);
         pool.withdraw(WITHDRAWAL, WITHDRAW_SALT);
         assertEq(TestKRW3009(WON).balanceOf(TREASURY), WITHDRAWAL);
+    }
+
+    /// The signatures added after the first 63 lines, each used the way the contracts take it.
+    function testExitVoidAndSpenderVectorsMatchTheFileAndAreAccepted() public {
+        signOnTheSourceChain();
+        signOnThePoolChain();
+        assertEq(vm.readFile(FILE), file(), "regenerate the vector");
+        vm.chainId(SOURCE_CHAIN);
+
+        // One signer voids the waiting replacement of the pauser; a day later it cannot be applied.
+        deposit.propose(SET_KEY, pauserArguments(), PAUSER_SALT, UNTIL, both("proposePauser"));
+        assertEq(deposit.pauserRound(), 0);
+        deposit.voidPauserReplacements(UNTIL, voided.signature);
+        assertEq(deposit.pauserRound(), 1);
+
+        // A change of the spender names the contract and the hash of its code.
+        assertEq(SPENDER.codehash, keccak256(hex"00"));
+        assertEq(
+            deposit.propose(SET_SPENDER, spenderArguments(), SPENDER_SALT, UNTIL, both("proposeSpender")),
+            spenderAction()
+        );
+
+        // The exit of the deposit contract is proposed in round 0 and cancelled in round 1.
+        assertEq(bytes32(uint256(uint160(deposit.treasury()))), exitSubject());
+        assertEq(deposit.exitRound(), 0);
+        deposit.proposeEmergencyExit(UNTIL, both("proposeExit"));
+        assertEq(deposit.exitRound(), 1);
+        deposit.cancelEmergencyExit(UNTIL, both("cancelExit"));
+        assertEq(uint8(deposit.emergencyExitStatus()), uint8(ChargeGovernance.Status.None));
+
+        vm.warp(NOW + 24 hours);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setKey(ChargeGovernance.Key.Pauser, NEW_PAUSER, PAUSER_SALT);
+        deposit.setSpender(SPENDER, keccak256(hex"00"), SPENDER_SALT);
+        assertEq(deposit.spender(), SPENDER);
+
+        // The exit of the pool: cancelled by two signers, or open seven days later and used by anyone.
+        vm.warp(NOW);
+        vm.chainId(WON_CHAIN);
+        pool.proposeEmergencyExit(UNTIL, both("proposeExitPool"));
+        uint256 proposed = vm.snapshotState();
+        pool.cancelEmergencyExit(UNTIL, both("cancelExitPool"));
+        assertEq(uint8(pool.emergencyExitStatus()), uint8(ChargeGovernance.Status.None));
+        vm.revertToState(proposed);
+        vm.warp(NOW + 7 days);
+        pool.emergencyExit();
+        assertEq(TestKRW3009(WON).balanceOf(TREASURY), 500_000_000);
     }
 
     function action(string memory kind, bytes32 subject, uint256 round) internal pure returns (bytes memory) {
