@@ -45,13 +45,13 @@ export function entranceBusy(reply: EntranceReply): boolean {
 export const longestWait = 120;
 
 /**
- * The requests the server counts together (opsd RegisterCustomer): a wait asked of one kind does not hold another.
- * A challenge is counted by what it is for, since those that start a session have a limit of their own.
+ * The requests the server counts together (opsd customer_limits.go): a wait asked of one kind does not hold another.
+ * A challenge and a proof are counted under one allowance of the address, whatever they are for; the sessions an
+ * account starts are counted with its proofs, so a wait asked of a proof holds the next challenge too.
  */
-function waitKind(path: string, body: string): string {
+function waitKind(path: string): string {
   if (path === '/v2/customer/commerce' || path === '/v2/customer/checkout/cancel') return 'session';
-  if (path === '/v2/customer/proof') return 'proof';
-  if (path === '/v2/customer/challenge') return body.includes('"purpose":"pickup"') ? 'challenge-pickup' : 'challenge-session';
+  if (path === '/v2/customer/proof' || path === '/v2/customer/challenge') return 'proof';
   return /\/photos\//.test(path) ? 'photo' : 'read';
 }
 
@@ -90,7 +90,7 @@ export function nativeEntrance(anchor: CustomerEntranceAnchor | undefined, http:
   if (!trust) return async () => { throw new EntranceError('UNAVAILABLE'); };
   const origin = (JSON.parse(trust) as {origin: string}).origin;
   return async (path, body, session = '') => {
-    const kind = `${origin} ${waitKind(path, body)}`;
+    const kind = `${origin} ${waitKind(path)}`;
     const left = (waits.get(kind) ?? 0) - Date.now();
     if (left > 0) throw new EntranceError('BUSY', undefined, Math.ceil(left / 1000));
     let reply: {status?: unknown; body?: unknown; retryAfter?: unknown} | null;
@@ -135,6 +135,19 @@ export function entranceRefusal(reply: EntranceReply): EntranceError {
   return new EntranceError('UNAVAILABLE');
 }
 
+/**
+ * Reads the answer to the proof of an `account` challenge (opsd customerProof): how many orders of the proven
+ * account are unfinished, at any store of this server. The answer holds that number and nothing else; anything
+ * else is not the protocol.
+ */
+export function readOpenOrders(reply: EntranceReply): number {
+  if (reply.status !== 200) throw entranceRefusal(reply);
+  const body = reply.body as Record<string, unknown> | null;
+  if (!body || typeof body !== 'object' || Object.keys(body).length !== 2 || body.purpose !== 'account' ||
+      !Number.isSafeInteger(body.openOrders) || (body.openOrders as number) < 0) throw new EntranceError('UNAVAILABLE');
+  return body.openOrders as number;
+}
+
 export type PickupChallenge = {challenge: Uint8Array; expiresAt: number};
 export type PickupToken = {token: string; expiresAt: number};
 
@@ -163,6 +176,22 @@ export class CustomerEntrance {
         typeof body.pickupToken !== 'string' || !hex32.test(body.pickupToken) || !Number.isSafeInteger(body.expiresAt))
       throw new EntranceError('UNAVAILABLE');
     return {token: body.pickupToken, expiresAt: body.expiresAt as number};
+  }
+
+  /** A challenge about the account alone, at no store: only the board of that account can answer it. */
+  async accountChallenge(): Promise<Uint8Array> {
+    const reply = await this.post('/v2/customer/challenge', JSON.stringify({purpose: 'account'}));
+    if (reply.status !== 200) throw entranceRefusal(reply);
+    const body = reply.body as {challenge?: unknown} | null;
+    if (typeof body?.challenge !== 'string' || !hex32.test(body.challenge) || /^0+$/.test(body.challenge)) throw new EntranceError('UNAVAILABLE');
+    return hexToBytes(body.challenge);
+  }
+
+  /** The board's proof over an account challenge; the answer is the number of unfinished orders of that account. */
+  async openOrders(challenge: Uint8Array, proof: {account: string; signature: string}): Promise<number> {
+    if (challenge.length !== 32 || !account.test(proof.account) || !signature.test(proof.signature)) throw new EntranceError('REFUSED');
+    return readOpenOrders(await this.post('/v2/customer/proof',
+      JSON.stringify({challenge: bytesToHex(challenge, false), account: proof.account, signature: proof.signature})));
   }
 }
 
@@ -240,6 +269,51 @@ export async function issuePickupQr(entrance: CustomerEntrance | undefined, boar
       case 'REFUSED': case 'EXPIRED': return {kind: 'refused'};
       default: return {kind: 'unavailable'};
     }
+  } finally {
+    link.close();
+  }
+}
+
+/** Why the server could not be asked about an account: no board of it answered, or the server gave no usable answer. */
+export class AccountAskError extends Error {
+  constructor(readonly reason: 'no-board' | 'server') { super(`ACCOUNT_ASK_${reason === 'no-board' ? 'NO_BOARD' : 'SERVER'}`); }
+}
+
+/**
+ * How many orders of `expected` are unfinished, as the store server holds them: the board of that account proves it
+ * over a challenge, with no button and no PIN, and the server answers the number alone. A phone that was set up
+ * again holds no record of the orders its board account paid; this is how it still learns of them. Throws
+ * AccountAskError when the number could not be learnt: that is "not known", never "none".
+ */
+export async function accountOpenOrders(entrance: CustomerEntrance | undefined, board: PickupBoard, expected: string): Promise<number> {
+  if (!entrance) throw new AccountAskError('server');
+  let link: BoardLink;
+  try {
+    link = await board.open(expected);
+  } catch {
+    throw new AccountAskError('no-board');
+  }
+  try {
+    if (link.account !== expected) throw new AccountAskError('no-board');
+    for (let attempt = 0; ; attempt++) {
+      const challenge = await entrance.accountChallenge();
+      let proof;
+      try {
+        proof = await link.prove(challenge);
+      } catch {
+        throw new AccountAskError('no-board');
+      }
+      if (proof.account !== expected) throw new AccountAskError('no-board');
+      try {
+        return await entrance.openOrders(challenge, proof);
+      } catch (error) {
+        // A challenge that ran out before the board answered is asked once more.
+        if (error instanceof EntranceError && error.code === 'EXPIRED' && attempt === 0) continue;
+        throw error;
+      }
+    }
+  } catch (error) {
+    throw error instanceof AccountAskError ? error : new AccountAskError('server');
   } finally {
     link.close();
   }

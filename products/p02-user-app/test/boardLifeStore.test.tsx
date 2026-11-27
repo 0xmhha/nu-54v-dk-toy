@@ -2,11 +2,12 @@ import React from 'react';
 import Renderer from 'react-test-renderer';
 import {Platform} from 'react-native';
 import {toBase64 as mockBase64} from '@nu54/protocol';
+import {AccountAskError, accountOpenOrders, CustomerEntrance, forgetEntranceWaits, readOpenOrders} from '../src/merchant/customerEntrance';
 import {orderRecords, type OpenOrder} from '../src/merchant/orderRecords';
 import {ordersWithoutRegistration, routeWords} from '../src/merchant/orderRoute';
 import {customerSubject} from '../src/merchant/storeAccess';
 import {BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLife';
-import {readResetBlock, resetBlocked} from '../src/wallet/boardReturn';
+import {readResetBlock, resetBlocked, resetUnknown} from '../src/wallet/boardReturn';
 import {faucetFailure} from '../src/wallet/FaucetPage';
 import {FirstSteps} from '../src/wallet/HomeParts';
 import {sendFailure} from '../src/wallet/SendPage';
@@ -30,6 +31,15 @@ let mockSeed = 1;
 jest.mock('../src/wallet/evmTransfer.ts', () => ({...jest.requireActual('../src/wallet/evmTransfer.ts'),
   readEvmReceiveBalance: async (_rpc: unknown, _chain: string, _genesis: string, _account: string, asset: string, _decimals?: boolean, tag?: string) =>
     ({amount: tag ? '42000000' : '0', block: '1', asset})}));
+// The customer entrance and the board that proves the account to it. The entrance answers how many orders of the
+// account are unfinished; a test changes what it answers, or takes the board or the server away.
+let mockOpenOrders: number | 'busy' | 'silent' | 'odd' = 0;
+let mockBoardNear: string | undefined;
+const mockAsked: string[] = [];
+jest.mock('../src/merchant/pickupBoard.ts', () => ({__esModule: true, ownerPickupBoard: {open: async () => {
+  if (!mockBoardNear) throw new Error('BOARD_NOT_FOUND');
+  return {account: mockBoardNear, generation: '7', prove: async () => ({account: mockBoardNear, signature: '11'.repeat(65)}), close() { mockAsked.push('closed'); }};
+}}}));
 jest.mock('../src/specs/NativeShopQr.ts', () => ({__esModule: true, default: null}));
 jest.mock('../src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: null}));
 // A phone that never registered at a store: no profile, and no registered connection to ask.
@@ -38,6 +48,13 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
   loadJournal: (name: string) => mockJournal.loadJournal(name), saveJournal: (name: string, value: string) => mockJournal.saveJournal(name, value),
   randomBytes: async (length: number) => mockBase64(new Uint8Array(length).fill(mockSeed++ % 250 + 1)),
   exchange: async (_role: string, raw: string) => { mockCalls.push(JSON.parse(raw).command.operation); throw new Error('a registered connection was used'); },
+  customerRequest: async (_anchor: string, path: string, session: string, body: string) => {
+    mockAsked.push(`${path} ${body}${session}`);
+    if (mockOpenOrders === 'silent') throw new Error('no answer');
+    if (mockOpenOrders === 'busy') return JSON.stringify({status: 429, body: '{"status":"error","error":"BUSY"}', retryAfter: 1});
+    if (path === '/v2/customer/challenge') return JSON.stringify({status: 200, body: JSON.stringify({challenge: 'c4'.repeat(32), expiresAt: 1})});
+    return JSON.stringify({status: 200, body: JSON.stringify(mockOpenOrders === 'odd' ? {purpose: 'account', openOrders: 0, orders: []} : {purpose: 'account', openOrders: mockOpenOrders})});
+  },
 }}));
 
 const Http = jest.requireMock<{default: Parameters<typeof orderRecords>[0]}>('../src/specs/NativeCommerceHttp.ts').default;
@@ -83,6 +100,8 @@ beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
   Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
   mockJournals.clear(); mockCalls.length = 0; went.length = 0; mockSeed = 1;
+  mockOpenOrders = 0; mockBoardNear = payer; mockAsked.length = 0;
+  forgetEntranceWaits();
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset, token: {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2}};
   stored = base;
   session = {resetBoard: jest.fn(async () => {}), spendingStatus: jest.fn(async () => ({account: payer, orderOpen: false})), status: jest.fn(async () => ({state: 'released'})),
@@ -214,5 +233,118 @@ describe('a reset while an order made from a store page is open', () => {
     expect([held.toppingUp, resetBlocked(held)]).toEqual([true, true]);
     const unknown = await readResetBlock(Http, orderRecords(Http), account, async () => undefined, async () => { throw new Error('unreadable'); });
     expect([unknown.unreadable, resetBlocked(unknown)]).toEqual([true, false]);
+  });
+});
+
+// A phone that was set up again holds no record of the orders its board account paid. The app then asks the store
+// server, with the board's own account proof, how many orders of the account are unfinished, and holds a reset back
+// by that number as it does by its own records.
+describe('a reset on a phone that kept no record of the account\'s orders', () => {
+  const account = {payer, generation: generation.toString()};
+  const proofBody = `{"challenge":"${'c4'.repeat(32)}","account":"${payer}","signature":"${'11'.repeat(65)}"}`;
+
+  test('is held back by the orders the server still counts for the account', async () => {
+    mockOpenOrders = 2;
+    await open('reset');
+    expect(text()).toContain('끝나지 않은 주문이 있습니다');
+    expect(text()).toContain('주문 2건을 먼저 끝내세요. 보드의 키를 지우면 그 주문의 환불금을 받을 수 없습니다.');
+    expect(button('앱에서 초기화 계속')).toBeUndefined();
+    expect(button('환불을 잃을 수 있음을 알고 계속')).toBeUndefined(); // known, not unknown: nothing to accept
+    expect(text()).toContain('끝나지 않은 주문이나 반납이 있으면 버튼으로도 초기화하지 마세요.');
+    // The board proved its account over the server's challenge, and its connection was closed again.
+    expect(mockAsked).toEqual(['/v2/customer/challenge {"purpose":"account"}', `/v2/customer/proof ${proofBody}`, 'closed']);
+    expect(mockCalls).toEqual([]);
+    for (const screen of ['operator-reset', 'return'] as const) {
+      await open(screen);
+      expect(text()).toContain('끝나지 않은 주문이 있습니다');
+    }
+    expect(button('초기화 요청 만들기')).toBeUndefined();
+    expect(session.resetBoard).not.toHaveBeenCalled();
+  });
+
+  test('is offered when the server counts none, and asked again right before the board is', async () => {
+    await open('reset');
+    expect(text()).not.toContain('끝나지 않은 주문이 있');
+    await press('앱에서 초기화 계속');
+    // An order appears while the page is open: the question asked again before the erase stops it.
+    mockOpenOrders = 1;
+    await press('보드 초기화');
+    expect(session.resetBoard).not.toHaveBeenCalled();
+    expect(message).toBe('끝나지 않은 주문이나 진행 중인 반납이 있거나, 있는지 확인하지 못했습니다. 주문과 반납을 먼저 확인하세요.');
+    expect(stored.verified).toBeDefined();
+  });
+
+  test.each([
+    ['the server gives no answer', () => { mockOpenOrders = 'silent'; }, '매장 서버에 확인하지 못했습니다.'],
+    ['the server is busy', () => { mockOpenOrders = 'busy'; }, '매장 서버에 확인하지 못했습니다.'],
+    ['the answer is not the protocol', () => { mockOpenOrders = 'odd'; }, '매장 서버에 확인하지 못했습니다.'],
+    ['no board is near to prove the account', () => { mockBoardNear = undefined; }, '보드가 가까이 없어 매장 서버에 물어보지 못했습니다. 보드를 켜고 가까이 둔 뒤 다시 확인하세요.'],
+    ['another board is near', () => { mockBoardNear = '0x' + '9'.repeat(40); }, '보드가 가까이 없어 매장 서버에 물어보지 못했습니다. 보드를 켜고 가까이 둔 뒤 다시 확인하세요.'],
+  ])('is not known when %s: the page says so and asks before going on', async (_name, arrange, said) => {
+    arrange();
+    await open('reset');
+    expect(text()).toContain('끝나지 않은 주문이 있는지 알 수 없습니다');
+    expect(text()).toContain(`${said} 끝나지 않은 주문이 있으면 그 환불금을 영영 받을 수 없습니다.`);
+    expect(button('앱에서 초기화 계속')).toBeUndefined();
+    expect(text()).toContain('끝나지 않은 주문이나 반납이 있으면 버튼으로도 초기화하지 마세요.');
+    // Asking again once the server answers clears it without any acceptance. (A busy server named a second to
+    // wait, and the phone does not ask before it has passed.)
+    mockOpenOrders = 0; mockBoardNear = payer;
+    jest.advanceTimersByTime(1100);
+    await press('다시 확인');
+    expect(text()).not.toContain('끝나지 않은 주문이 있는지 알 수 없습니다');
+    expect(button('앱에서 초기화 계속')).toBeDefined();
+  });
+
+  test('not known is passed only by saying so, as on the earlier route', async () => {
+    mockOpenOrders = 'silent';
+    await open('reset');
+    await press('환불을 잃을 수 있음을 알고 계속');
+    await press('앱에서 초기화 계속');
+    await press('보드 초기화');
+    expect(session.resetBoard).toHaveBeenCalledTimes(1);
+    // The return page takes no such acceptance: with nothing to send it does not start on "not known".
+    stored = base;
+    await open('return');
+    expect(text()).not.toContain('끝나지 않은 주문이 있습니다');
+  });
+
+  test('the number held back is the larger of the phone\'s records and the server\'s count, never their sum', async () => {
+    const none = async () => undefined;
+    const ask = (count: number | Error) => async () => { if (count instanceof Error) throw count; return count; };
+    await orderRecords(Http).keep(made);
+    const both = await readResetBlock(Http, orderRecords(Http), account, none, undefined, ask(1));
+    expect([both.orders, both.server, resetBlocked(both), resetUnknown(both)]).toEqual([1, 'ok', true, false]);
+    const more = await readResetBlock(Http, orderRecords(Http), account, none, undefined, ask(3));
+    expect([more.orders, more.server]).toEqual([3, 'ok']);
+    // The server counts none, the phone still holds one as open: the phone's record holds the reset back.
+    const stale = await readResetBlock(Http, orderRecords(Http), account, none, undefined, ask(0));
+    expect([stale.orders, resetBlocked(stale)]).toEqual([1, true]);
+    const silent = await readResetBlock(Http, orderRecords(Http), account, none, undefined, ask(new AccountAskError('server')));
+    expect([silent.orders, silent.server, silent.boardAway, resetUnknown(silent)]).toEqual([1, 'failed', undefined, true]);
+    const away = await readResetBlock(Http, orderRecords(Http), account, none, undefined, ask(new AccountAskError('no-board')));
+    expect([away.server, away.boardAway, resetUnknown(away)]).toEqual(['failed', true, true]);
+    // The earlier route does not ask the entrance: without the question nothing changes.
+    const earlier = await readResetBlock(Http, orderRecords(Http), account, none);
+    expect([earlier.orders, earlier.server, resetUnknown(earlier)]).toEqual([1, 'none', false]);
+  });
+
+  test('the answer is the number alone, and anything else is not an answer', async () => {
+    expect(readOpenOrders({status: 200, body: {purpose: 'account', openOrders: 0}})).toBe(0);
+    expect(readOpenOrders({status: 200, body: {purpose: 'account', openOrders: 12}})).toBe(12);
+    for (const body of [null, {}, {openOrders: 1}, {purpose: 'checkout', openOrders: 1}, {purpose: 'account', openOrders: '1'}, {purpose: 'account', openOrders: -1},
+      {purpose: 'account', openOrders: 1.5}, {purpose: 'account', openOrders: 1, session: 'ab'.repeat(32)}, {purpose: 'account'}])
+      expect(() => readOpenOrders({status: 200, body})).toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
+    expect(() => readOpenOrders({status: 400, body: {error: 'MISMATCHED_EVIDENCE'}})).toThrow('CUSTOMER_ENTRANCE_MISMATCH');
+    expect(() => readOpenOrders({status: 429, body: {error: 'BUSY'}, retryAfter: 3})).toThrow('CUSTOMER_ENTRANCE_BUSY');
+    // A challenge that ran out before the board answered is asked once more, and only once.
+    let proofs = 0;
+    const entrance = new CustomerEntrance(async path => path === '/v2/customer/challenge' ? {status: 200, body: {challenge: 'c4'.repeat(32), expiresAt: 1}}
+      : ++proofs === 1 ? {status: 400, body: {error: 'EXPIRED'}} : {status: 200, body: {purpose: 'account', openOrders: 4}});
+    const board = {open: async () => ({account: payer, generation: '7', prove: async () => ({account: payer, signature: '11'.repeat(65)}), close() {}})};
+    await expect(accountOpenOrders(entrance, board, payer)).resolves.toBe(4);
+    const expired = new CustomerEntrance(async path => path === '/v2/customer/challenge' ? {status: 200, body: {challenge: 'c4'.repeat(32), expiresAt: 1}} : {status: 400, body: {error: 'EXPIRED'}});
+    await expect(accountOpenOrders(expired, board, payer)).rejects.toThrow('ACCOUNT_ASK_SERVER');
+    await expect(accountOpenOrders(undefined, board, payer)).rejects.toThrow('ACCOUNT_ASK_SERVER');
   });
 });

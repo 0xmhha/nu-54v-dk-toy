@@ -7,9 +7,11 @@ import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import type {Spec as NativeWallet} from '../specs/NativeOwnerWallet.ts';
 import {customerClient, walletId} from '../merchant/customerClient.ts';
+import {accountOpenOrders, configuredEntrance} from '../merchant/customerEntrance.ts';
 import {orderPaymentPin} from '../merchant/orderPaymentTrust.ts';
 import {orderRecords} from '../merchant/orderRecords.ts';
 import {ordersWithoutRegistration, routeWords} from '../merchant/orderRoute.ts';
+import {ownerPickupBoard} from '../merchant/pickupBoard.ts';
 import {recentStores} from '../merchant/storeDirectory.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
@@ -372,11 +374,14 @@ const unfinished = (stored: WalletStorage) => !!(stored.signing || stored.pendin
 async function askResetBlock(stored: WalletStorage): Promise<ResetBlock> {
   const {verified} = stored;
   if (!Http || !verified) return {orders: 0, returning: false, unreadable: false, server: 'none'};
+  // A build that orders without a registration has no store credential to ask with: it asks the customer entrance,
+  // with the board's own account proof, how many orders of the account are unfinished.
+  const entrance = ordersWithoutRegistration() ? () => accountOpenOrders(configuredEntrance(), ownerPickupBoard, verified.address) : undefined;
   return readResetBlock(Http, orderRecords(Http), {payer: verified.address, generation: String(verified.generation)}, () =>
     credential().then(({client}) => client, error => {
       if (error instanceof Error && error.message === 'NO_CREDENTIAL') return undefined;
       throw error;
-    }));
+    }), undefined, entrance);
 }
 function useResetBlock(props: BoardLifeProps) {
   const {stored, fixture} = props;
@@ -443,7 +448,7 @@ function useResetGate(props: BoardLifeProps) {
     // No top-up state exists yet (boardReturn.ts topUpUnfinished); this is said once one does.
     : block.toppingUp ? <Notice tone="stop" title="끝나지 않은 충전이 있습니다" body="충전한 돈이 보드 계정에 들어올 때까지 초기화할 수 없습니다." />
     : unknown && !accepted ? <Notice tone="stop" title="끝나지 않은 주문이 있는지 알 수 없습니다"
-      body={`${block.unreadable ? '이 휴대전화의 주문 기록을 읽을 수 없습니다.' : '매장 서버에 확인하지 못했습니다.'} 끝나지 않은 주문이 있으면 그 환불금을 영영 받을 수 없습니다.`}>
+      body={`${block.unreadable ? '이 휴대전화의 주문 기록을 읽을 수 없습니다.' : block.boardAway ? '보드가 가까이 없어 매장 서버에 물어보지 못했습니다. 보드를 켜고 가까이 둔 뒤 다시 확인하세요.' : '매장 서버에 확인하지 못했습니다.'} 끝나지 않은 주문이 있으면 그 환불금을 영영 받을 수 없습니다.`}>
       <KitButton label="다시 확인" run={() => { read().catch(() => {}); }} variant="secondary" disabled={props.busy} />
       <KitButton label="환불을 잃을 수 있음을 알고 계속" run={() => setAccepted(true)} variant="secondary" disabled={props.busy} /></Notice>
     : null;
