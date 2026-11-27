@@ -212,3 +212,14 @@ $cancel$;
 
 REVOKE ALL ON FUNCTION ledger.cancel_customer_hold(uuid, uuid, uuid, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ledger.cancel_customer_hold(uuid, uuid, uuid, uuid) TO nu54_p05_commerce;
+
+-- The three functions that read one page of a menu for a customer return exactly one row each. A function that
+-- returns a table is planned as 1000 rows unless it says otherwise, so the work their callers do for each row (the
+-- options and the photos of the page) was costed a thousand times over: about 214,000 for a read that runs for two
+-- milliseconds. That estimate is above PostgreSQL's jit_above_cost (100,000), so a server built with JIT compiled
+-- the read every time it ran, and the first one in a connection also loaded the compiler. On a busy host that took
+-- longer than the 7 seconds a statement of opsd may run, and a customer's first menu read ended as UNKNOWN_RESULT.
+-- Saying the truth about the row count brings the estimate to a few hundred.
+ALTER FUNCTION ledger.catalog_category_window(uuid, uuid, uuid, integer) ROWS 1;
+ALTER FUNCTION ledger.catalog_menu_window(uuid, uuid, uuid, integer) ROWS 1;
+ALTER FUNCTION ledger.catalog_menu_photo_window(uuid, uuid, uuid, integer) ROWS 1;

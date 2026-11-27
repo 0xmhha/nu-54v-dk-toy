@@ -25,6 +25,7 @@ func OpenEvidence(ctx context.Context, dsn string) (*EvidenceStore, error) {
 		return nil, errors.New("invalid scoped evidence DSN")
 	}
 	cfg.ConnConfig.RuntimeParams["statement_timeout"] = "5s"
+	cfg.ConnConfig.RuntimeParams["jit"] = "off" // see commerce.Open
 	cfg.ConnConfig.RuntimeParams["idle_in_transaction_session_timeout"] = "8s"
 	db, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

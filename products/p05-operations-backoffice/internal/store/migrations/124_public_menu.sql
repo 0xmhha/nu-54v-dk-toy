@@ -20,7 +20,7 @@ REVOKE ALL ON FUNCTION ledger.store_page_published(uuid) FROM PUBLIC;
 -- sold out: 0 when it is, 1000 (the most one order line may ask for) when it is not. A session reads the counts.
 CREATE FUNCTION ledger.public_menu_window(branch_ uuid, page_ integer)
 RETURNS TABLE(snapshot_version bigint, items jsonb, options jsonb, photos jsonb, state jsonb, label text)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $menu$
+LANGUAGE plpgsql STABLE SECURITY DEFINER ROWS 1 SET search_path=pg_catalog,pg_temp AS $menu$
 DECLARE newest bigint; live boolean; name_ text;
 BEGIN
     IF page_ IS NULL OR page_ < 0 OR page_ > 32767 THEN

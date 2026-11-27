@@ -29,6 +29,7 @@ func Open(ctx context.Context, url, capability string) (*Store, error) {
 	}
 	c.ConnConfig.RuntimeParams["lock_timeout"] = "2s"
 	c.ConnConfig.RuntimeParams["statement_timeout"] = "5s"
+	c.ConnConfig.RuntimeParams["jit"] = "off" // see commerce.Open
 	db, err := pgxpool.NewWithConfig(ctx, c)
 	if err != nil {
 		return nil, errors.New("could not connect to settlement data source")

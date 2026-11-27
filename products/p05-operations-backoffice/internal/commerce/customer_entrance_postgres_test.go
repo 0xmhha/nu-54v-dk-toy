@@ -67,6 +67,20 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	}
 	defer store.Close()
 
+	// A customer's menu read is a statement of milliseconds, and nothing may make the server treat it as a heavy one:
+	// opsd's connections run without JIT, and the functions that answer one page say that they return one row, so
+	// the plan of a read is not costed a thousand times over (migration 125). Either alone keeps the read from being
+	// compiled; a first read that was compiled on a busy host ran into the statement timeout.
+	var jit, timeout string
+	if err := store.db.QueryRow(ctx, "SELECT current_setting('jit'), current_setting('statement_timeout')").Scan(&jit, &timeout); err != nil || jit != "off" || timeout != "7s" {
+		t.Fatalf("the commerce pool runs with jit %q and statement_timeout %q: %v", jit, timeout, err)
+	}
+	var planned int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='ledger'
+		AND p.proname IN ('catalog_category_window','catalog_menu_window','catalog_menu_photo_window','public_menu_window') AND p.proretset AND p.prorows=1`).Scan(&planned); err != nil || planned != 4 {
+		t.Fatalf("%d of the 4 menu page functions are planned as one row: %v", planned, err)
+	}
+
 	fresh := func() string { return uuidForCatalogFixture(t, ctx, admin) }
 	shop, elsewhere, operator, stranger, colleague := fresh(), fresh(), fresh(), fresh(), fresh()
 	for _, b := range []string{shop, elsewhere} {
