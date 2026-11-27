@@ -8,6 +8,7 @@ import {ordersWithoutRegistration, routeWords} from '../src/merchant/orderRoute'
 import {customerSubject} from '../src/merchant/storeAccess';
 import {BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLife';
 import {readResetBlock, resetBlocked, resetUnknown} from '../src/wallet/boardReturn';
+import {boardTurn} from '../src/wallet/boardTurn';
 import {faucetFailure} from '../src/wallet/FaucetPage';
 import {FirstSteps} from '../src/wallet/HomeParts';
 import {sendFailure} from '../src/wallet/SendPage';
@@ -36,9 +37,16 @@ jest.mock('../src/wallet/evmTransfer.ts', () => ({...jest.requireActual('../src/
 let mockOpenOrders: number | 'busy' | 'silent' | 'odd' = 0;
 let mockBoardNear: string | undefined;
 const mockAsked: string[] = [];
+// Every use of the board's one Bluetooth connection, in order: the connection the open-order question opens and
+// ends, and what a test notes for the page's own session. A test makes the board slow to answer the question.
+const mockBoardUse: string[] = [];
+let mockBoardSlow: Promise<void> | undefined;
 jest.mock('../src/merchant/pickupBoard.ts', () => ({__esModule: true, ownerPickupBoard: {open: async () => {
-  if (!mockBoardNear) throw new Error('BOARD_NOT_FOUND');
-  return {account: mockBoardNear, generation: '7', prove: async () => ({account: mockBoardNear, signature: '11'.repeat(65)}), close() { mockAsked.push('closed'); }};
+  mockBoardUse.push('question opens');
+  await mockBoardSlow;
+  if (!mockBoardNear) { mockBoardUse.push('question ends'); throw new Error('BOARD_NOT_FOUND'); }
+  return {account: mockBoardNear, generation: '7', prove: async () => ({account: mockBoardNear, signature: '11'.repeat(65)}),
+    close() { mockAsked.push('closed'); mockBoardUse.push('question ends'); }};
 }}}));
 jest.mock('../src/specs/NativeShopQr.ts', () => ({__esModule: true, default: null}));
 jest.mock('../src/specs/NativeSubscriptionAlerts.ts', () => ({__esModule: true, default: null}));
@@ -100,7 +108,7 @@ beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
   Object.defineProperty(Platform, 'OS', {value: 'android', configurable: true});
   mockJournals.clear(); mockCalls.length = 0; went.length = 0; mockSeed = 1;
-  mockOpenOrders = 0; mockBoardNear = payer; mockAsked.length = 0;
+  mockOpenOrders = 0; mockBoardNear = payer; mockAsked.length = 0; mockBoardUse.length = 0; mockBoardSlow = undefined;
   forgetEntranceWaits();
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset, token: {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2}};
   stored = base;
@@ -375,5 +383,73 @@ describe('a reset on a phone that kept no record of the account\'s orders', () =
     const expired = new CustomerEntrance(async path => path === '/v2/customer/challenge' ? {status: 200, body: {challenge: 'c4'.repeat(32), expiresAt: 1}} : {status: 400, body: {error: 'EXPIRED'}});
     await expect(accountOpenOrders(expired, board, payer)).rejects.toThrow('ACCOUNT_ASK_SERVER');
     await expect(accountOpenOrders(undefined, board, payer)).rejects.toThrow('ACCOUNT_ASK_SERVER');
+  });
+});
+
+// The board keeps one Bluetooth connection: a second one ends the first (RenterBleModule closes the connection it
+// holds when it connects). The open-order question opens a connection of its own for the account proof, so it must
+// never be asked while a session of these pages runs, nor while an earlier question is still on its way.
+describe('one connection to the board at a time', () => {
+  /** WalletHome hands the page a new profile object after every commit, at once. */
+  const profileChanged = () => Renderer.act(() => { tree!.update(<BoardLife {...props} stored={stored} />); });
+
+  test('the profile written during a reset asks no question: no second connection ends the one waiting for SW1 and the PIN', async () => {
+    await open('reset');
+    await press('앱에서 초기화 계속');
+    props = {...props, commit: async change => {
+      mockBoardUse.push('profile written');
+      stored = decodeWalletStorage(JSON.stringify(change(stored)));
+      if (stored.verified) profileChanged();
+    }};
+    session.resetBoard = jest.fn(async () => {
+      mockBoardUse.push('reset session opens');
+      // The customer presses SW1 and enters the PIN: up to 110 seconds. Meanwhile the profile is written once more
+      // for something else (the wallet tab keeps what it read).
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      stored = {...stored, walletRead: {...stored.walletRead!, listSequence: 3}};
+      profileChanged();
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      mockBoardUse.push('reset session ends');
+    });
+    await render();
+    mockBoardUse.length = 0;
+    await press('보드 초기화');
+    expect(session.resetBoard).toHaveBeenCalledTimes(1);
+    // Asked once right before the board is, and not again until the reset is over.
+    expect(mockBoardUse).toEqual(['question opens', 'question ends', 'profile written', 'reset session opens', 'reset session ends', 'profile written']);
+    expect(stored.verified).toBeUndefined();
+  });
+
+  test('a question still on its way ends before the next is asked, and before the page talks to the board', async () => {
+    mockOpenOrders = 'silent';
+    await open('reset');
+    let answer!: () => void;
+    mockBoardSlow = new Promise(resolve => { answer = resolve; });
+    mockBoardUse.length = 0;
+    await press('다시 확인'); // the board is slow to answer: this question is still on its way
+    await press('환불을 잃을 수 있음을 알고 계속');
+    await press('앱에서 초기화 계속');
+    session.resetBoard = jest.fn(async () => { mockBoardUse.push('reset session'); });
+    await press('보드 초기화'); // asks again right before the board is
+    expect(mockBoardUse).toEqual(['question opens']);
+    expect(session.resetBoard).not.toHaveBeenCalled();
+    answer();
+    await flush(); await flush();
+    expect(mockBoardUse).toEqual(['question opens', 'question ends', 'question opens', 'question ends', 'reset session']);
+  });
+
+  test('whatever asks for the board waits for what asked before it, also when that failed', async () => {
+    const order: string[] = [];
+    let end!: () => void;
+    const first = boardTurn(() => new Promise<void>(resolve => { order.push('first opens'); end = () => { order.push('first ends'); resolve(); }; }));
+    const second = boardTurn(async () => { order.push('second'); throw new Error('BOARD_REFUSED'); });
+    const third = boardTurn(async () => { order.push('third'); return 3; });
+    await flush();
+    expect(order).toEqual(['first opens']);
+    end();
+    await expect(second).rejects.toThrow('BOARD_REFUSED');
+    await expect(third).resolves.toBe(3);
+    await first;
+    expect(order).toEqual(['first opens', 'first ends', 'second', 'third']);
   });
 });

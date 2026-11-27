@@ -21,6 +21,7 @@ import {
 } from './boardReturn.ts';
 import {forgetSend, type SendRecord} from './boardSend.ts';
 import type {BoardWait} from './boardSteps.ts';
+import {boardTurn} from './boardTurn.ts';
 import {normalizeEvmAddress, readEvmReceiveBalance} from './evmTransfer.ts';
 import type {OwnerSession} from './ownerSession.ts';
 import type {SpendingStatus} from './ownerWire.ts';
@@ -373,14 +374,14 @@ function DepositPage(props: BoardLifeProps) {
 const unfinished = (stored: WalletStorage) => !!(stored.signing || stored.pendingEvm || stored.pendingChain || stored.pendingBip48);
 
 /** What still needs the key of this account, from this phone's records and the store's server. */
-async function askResetBlock(stored: WalletStorage): Promise<ResetBlock> {
-  const {verified} = stored;
+async function askResetBlock(verified: Pick<NonNullable<WalletStorage['verified']>, 'address' | 'generation'> | undefined): Promise<ResetBlock> {
   if (!Http || !verified) return {orders: 0, returning: false, unreadable: false, server: 'none'};
-  // A build that orders without a registration has no store credential to ask with: it asks the customer entrance,
-  // with the board's own account proof, how many orders of the account are unfinished.
+  // A build that orders from a store page asks the customer entrance, with the board's own account proof, how many
+  // orders of the account are unfinished: a store credential, when the phone holds one, knows only the orders of
+  // the customer that store issued. The proof opens a connection to the board, so it waits its turn (boardTurn.ts).
   // The board's Bluetooth is loaded only where it is asked: a build of the earlier route never asks here.
   const entrance = ordersWithoutRegistration()
-    ? () => accountOpenOrders(configuredEntrance(), (require('../merchant/pickupBoard.ts') as typeof import('../merchant/pickupBoard.ts')).ownerPickupBoard, verified.address)
+    ? () => boardTurn(() => accountOpenOrders(configuredEntrance(), (require('../merchant/pickupBoard.ts') as typeof import('../merchant/pickupBoard.ts')).ownerPickupBoard, verified.address))
     : undefined;
   return readResetBlock(Http, orderRecords(Http), {payer: verified.address, generation: String(verified.generation)}, () =>
     credential().then(({client}) => client, error => {
@@ -389,13 +390,16 @@ async function askResetBlock(stored: WalletStorage): Promise<ResetBlock> {
     }), undefined, entrance);
 }
 function useResetBlock(props: BoardLifeProps) {
-  const {stored, fixture} = props;
+  const {fixture} = props, address = props.stored.verified?.address, generation = props.stored.verified?.generation;
   const [block, setBlock] = useState<ResetBlock | undefined>(fixture ? {orders: fixture.open ?? 0, returning: false, unreadable: false, server: 'ok'} : undefined);
+  // Asked for the account, not for the profile object: the profile is written while the board is being asked (an
+  // erase first withholds the deposit address), and a question asked on that would connect to the board again and
+  // end the session that waits for SW1 and the PIN.
   const read = useCallback(async () => {
-    const value = await askResetBlock(stored);
+    const value = await askResetBlock(address === undefined || generation === undefined ? undefined : {address, generation});
     setBlock(value);
     return value;
-  }, [stored]);
+  }, [address, generation]);
   useEffect(() => { if (!fixture) read().catch(() => {}); }, [fixture, read]);
   return {block, read};
 }
@@ -557,7 +561,7 @@ function ReturnPage(props: BoardLifeProps) {
       const money = await read();
       if (!money) { say('보드 계정의 잔액을 확인하지 못해 반납을 시작하지 않았습니다.'); return; }
       if (money.latest !== money.units) { say(unsettled); return; }
-      const fresh = await askResetBlock(stored);
+      const fresh = await askResetBlock(verified);
       // With nothing to send the server is not asked to accept anything, so its silence counts against it.
       if (resetBlocked(fresh) || fresh.unreadable || (money.units === 0n && resetUnknown(fresh))) throw new Error('RESET_BLOCKED');
       const {client, policy} = await credential();
@@ -632,7 +636,7 @@ function ReturnPage(props: BoardLifeProps) {
     if (!money) throw new Error('BALANCE_UNKNOWN');
     if (money.units > 0n && money.latest > 0n) { await keep(undefined); say('새로 들어온 돈이 있어 초기화하지 않았습니다. 그 돈도 반납하세요.'); return; }
     if (money.units > 0n || money.latest > 0n) { say(unsettled); return; }
-    const fresh = await askResetBlock(stored);
+    const fresh = await askResetBlock(verified);
     if (resetBlocked(fresh)) throw new Error('RESET_BLOCKED');
     if (resetUnknown(fresh)) throw new Error('RESET_UNKNOWN');
     await loss.verify();
@@ -810,7 +814,9 @@ function useStore(fixture?: Store) {
 }
 
 export function BoardLife(given: BoardLifeProps) {
-  const props = {...given, ...useStore(given.store)};
+  // Every session of these pages takes its turn with the open-order question (boardTurn.ts).
+  const withBoard: BoardLifeProps['withBoard'] = (handle, run) => boardTurn(() => given.withBoard(handle, run));
+  const props = {...given, ...useStore(given.store), withBoard};
   const Page = {setup: SetupPage, 'return-address': ReturnAddressPage, deposit: DepositPage, send: SendPage, return: ReturnPage, reset: ResetPage, 'operator-reset': OperatorResetPage}[props.screen];
   return <View style={styles.page} testID={'board-life-' + props.screen}>
     <Page {...props} />
