@@ -404,6 +404,12 @@ contract ChargeDeposit is ChargeGovernance {
         emit SpenderChanged(to);
     }
 
+    /// @notice Stops the spending of completed money at once. Only two signers and a day name a spender again.
+    function clearSpender() external onlyPauser {
+        spender = address(0);
+        emit SpenderChanged(address(0));
+    }
+
     // ---- coins sent here by mistake ----
 
     /// @notice Two signers send back coins that arrived without a deposit, to the address they found as the

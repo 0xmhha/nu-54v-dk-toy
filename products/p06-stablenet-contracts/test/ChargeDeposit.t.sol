@@ -9,6 +9,7 @@ import {TestChargeUSDC} from "../src/test-token/TestChargeUSDC.sol";
 
 /// @notice The source-chain side of a top-up: what a deposit needs, and every way the USDC can leave again.
 contract ChargeDepositTest is ChargeBase {
+    event SpenderChanged(address indexed spender);
     event Deposited(
         bytes32 indexed id,
         address indexed payer,
@@ -719,6 +720,48 @@ contract ChargeDepositTest is ChargeBase {
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         later.spend(id, 1, stranger);
         assertEq(usdc.balanceOf(stranger), 0);
+    }
+
+    /// Stopping is a one-key action: the pauser empties the place of the spender at once, and only two
+    /// signers and a day fill it again.
+    function testThePauserStopsSpendingAtOnce() public {
+        ChargeTypes.Quote memory quote = quoteFor(100e6, board);
+        bytes32 id = depositIt(quote);
+        payIt(quote, false);
+        completeIt(id);
+        Spender later = new Spender(deposit);
+        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt");
+        vm.warp(block.timestamp + 8 days);
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        deposit.setSpender(address(later), "salt"); // lapsed
+        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt 2");
+        vm.warp(block.timestamp + 24 hours);
+        deposit.setSpender(address(later), "salt 2");
+        later.spend(id, 10e6, stranger);
+
+        vm.prank(stranger);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.clearSpender();
+        vm.prank(address(later));
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.clearSpender();
+        vm.expectEmit(address(deposit));
+        emit SpenderChanged(address(0));
+        vm.prank(vm.addr(PAUSER_KEY));
+        deposit.clearSpender();
+        assertEq(deposit.spender(), address(0));
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        later.spend(id, 10e6, stranger);
+        assertEq(usdc.balanceOf(stranger), 10e6);
+        assertEq(deposit.depositOf(id).left, 90e6);
+
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setSpender(address(later), "salt 2"); // the old change does not bring it back
+        proposeOn(deposit, "setSpender", abi.encode(address(later)), "salt 3");
+        vm.warp(block.timestamp + 24 hours);
+        deposit.setSpender(address(later), "salt 3");
+        later.spend(id, 90e6, stranger);
+        assertEq(usdc.balanceOf(stranger), 100e6);
     }
 
     // ---- coins sent by mistake ----
