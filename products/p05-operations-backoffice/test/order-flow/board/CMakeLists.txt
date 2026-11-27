@@ -115,3 +115,5 @@ target_compile_definitions(unit-test PRIVATE NU54_TOKEN_UNIT=UINT64_C\(100000000
 target_compile_options(unit-test PRIVATE -Wall -Wextra -Werror)
 add_test(NAME token_unit COMMAND unit-test)
 add_test(NAME return_vector COMMAND return-vector ${NU54_RETURN_VECTOR} ${NU54_RETURN_AMOUNT})
+# The board itself, without an owner: no wallet key, the grant kept through a restart, a grant that ended.
+add_test(NAME board_restart COMMAND ${Python3_EXECUTABLE} -B ${CMAKE_CURRENT_SOURCE_DIR}/restart_test.py $<TARGET_FILE:order-board>)
