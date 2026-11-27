@@ -1822,10 +1822,19 @@ bool device_pilot_owner_absent(void)
 {
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 	const nu54_vault *vault = device_vault_owner();
-	bool absent = initialized && device_pilot_active() &&
+	/* A vault that stopped after a failed write does not say who owns the board. */
+	bool absent = initialized && device_pilot_active() && vault->enabled &&
 		      (!vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED));
 	k_mutex_unlock(&pilot_lock);
 	return absent;
+}
+
+bool device_pilot_engaged(const struct bt_conn *conn)
+{
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	bool engaged = conn && (conn == connection || conn == ticket_peer || conn == display_connection);
+	k_mutex_unlock(&pilot_lock);
+	return engaged;
 }
 
 void device_pilot_enrollment_window(void)

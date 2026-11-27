@@ -123,6 +123,17 @@ config NU54_OWNER_WAIT_TOTAL_SECONDS
 	  After this time the board is silent until SW4 is held. Longer finds the board later at the
 	  cost of the battery; the budget is in board-secure-key-and-advertising.md.
 
+config NU54_OWNER_WAIT_IDLE_SECONDS
+	int "Seconds a board without an owner keeps a central that does nothing (0: no limit)"
+	range 0 600
+	default 30
+	help
+	  The board takes two centrals. One that connects and neither starts the installation
+	  ticket nor a TLS session is disconnected after this time, counted from the connection or
+	  from the end of its last attempt, so that idle centrals cannot keep both slots and hide
+	  the board from the next owner and from the SW4 window. A central that keeps starting
+	  attempts, or keeps reconnecting, is not stopped by this.
+
 config NU54_OWNER_WAIT_FAST_INTERVAL_MIN
 	int "Shortest fast advertising interval, in 0.625 ms"
 	range 32 16384

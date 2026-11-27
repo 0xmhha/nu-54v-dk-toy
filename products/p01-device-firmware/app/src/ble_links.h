@@ -49,9 +49,11 @@ int ble_links_payment_mode(uint32_t seconds);
 int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works);
 
 /* Owner wait (CONFIG_NU54_OWNER_WAIT_ADV): a commercial board without an owner advertises the
- * owner service by itself, fast first and then slowly, while no central is connected and no button
- * mode is on. `on` starts the schedule from its fast phase; off ends it. Without the option,
- * turning it on returns -ENOTSUP. */
+ * owner service by itself, fast first and then slowly, while a connection slot is free and no
+ * button mode is on. It also drops a central that neither installs nor opens the owner's TLS
+ * session within CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS, also after the schedule ended by itself.
+ * `on` starts the schedule from its fast phase; off ends both. Without the option, turning it on
+ * returns -ENOTSUP. */
 int ble_links_owner_wait(bool on);
 
 /* Remove every bond (device.reset). Safe before Bluetooth is up. */
