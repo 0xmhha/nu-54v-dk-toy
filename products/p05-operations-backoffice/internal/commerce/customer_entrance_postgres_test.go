@@ -525,7 +525,8 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatalf("the cancelled cart reads %v", own)
 	}
 
-	sale := order(session, 200)["resultRef"].(string) // at once: the cancel freed the account's one hold
+	// At once: the cancel freed the account's one hold.
+	sale := order(session, 200)["resultRef"].(string)
 	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a second unpaid hold for one account", got)
 	}
