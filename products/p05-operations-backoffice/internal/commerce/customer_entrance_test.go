@@ -510,7 +510,8 @@ func TestSessionTokenIsNotLookedUpOnceTheAddressIsLimited(t *testing.T) {
 func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	clock := func() time.Time { return now }
-	limits := &CustomerEntrance{AddressLimiter: NewRateLimiter(60, 6, clock), SessionLimiter: NewRateLimiter(60, 2, clock)}
+	// An address: six requests at once, then one a second. A session: two at once, then one every ten seconds.
+	limits := &CustomerEntrance{AddressLimiter: NewRateLimiter(60, 6, clock), SessionLimiter: NewRateLimiter(6, 2, clock)}
 	send, reads := sessionRequests(limits)
 	live := func(i int) string { return "aa" + strings.Repeat("0", 60) + hex.EncodeToString([]byte{byte(i)}) }
 	const home, other = "198.51.100.7:4000", "198.51.100.8:4000"
@@ -555,7 +556,8 @@ func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
 	if *reads != before {
 		t.Fatalf("sessions over the ceiling were read: %d, was %d", *reads, before)
 	}
-	// A session the address's ceiling refused keeps its own allowance: it is served as soon as the address is.
+	// A session the address's ceiling refused keeps its own allowance (it has one request left of two, and gets
+	// no other inside a second): it is served as soon as the address is.
 	if code, _ := send(home, live(5)); code != http.StatusTooManyRequests {
 		t.Fatalf("a known session passed the ceiling of its address: %d", code)
 	}
@@ -1169,5 +1171,196 @@ func TestCustomerCancelNeedsACheckoutSession(t *testing.T) {
 		if reply.Code != http.StatusMethodNotAllowed && reply.Code != http.StatusNotFound {
 			t.Fatalf("GET on the cancel route: %d", reply.Code)
 		}
+	}
+}
+
+// A proof that is refused costs its sender nothing but the refusal: whatever it was counted under before the
+// refusal is given back, so an account refused for its own session starts does not use up its address's, an
+// account refused for its address does not use up its own, and a proof that found no place among the requests
+// served at once is counted nowhere.
+func TestRefusedProofGivesBackWhatItTook(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	// An account: three proofs at once, then one a second. The address: two session starts at once, then one a
+	// second. An account's own session starts: one, then one every ten seconds.
+	limits := &CustomerEntrance{AttemptLimiter: NewRateLimiter(6000, 1000, clock), AccountLimiter: NewRateLimiter(60, 3, clock),
+		Limiter: NewRateLimiter(60, 2, clock), StartLimiter: NewRateLimiter(6, 1, clock),
+		InFlight: make(chan struct{}, 1), InFlightWait: 5 * time.Millisecond, clock: clock}
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux)
+	const home = "198.51.100.7:4000"
+	request := func(key *ecdsa.PrivateKey, purpose string) *http.Request {
+		t.Helper()
+		given, err := limits.keys.mint(now, purpose, branch, now.Add(time.Minute))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return proofRequest(t, home, key, given)
+	}
+	// counted is one proof as the route counts it, settled as a handler would that gave a session or did not.
+	counted := func(key *ecdsa.PrivateKey, purpose string, gaveSession bool) int {
+		t.Helper()
+		reply := httptest.NewRecorder()
+		try, allowed := limits.askedProof(reply, request(key, purpose), true)
+		if !allowed {
+			return reply.Code
+		}
+		try.reached = true
+		try.settle(gaveSession)
+		return http.StatusOK
+	}
+	first, second, third := mustKey(t), mustKey(t), mustKey(t)
+	if code := counted(first, "checkout", true); code != http.StatusOK {
+		t.Fatalf("the first session start: %d", code)
+	}
+	// The account has no start left. Its second proof is refused for that, and gives back what it took of the
+	// account's proofs and of the address's starts.
+	if code := counted(first, "checkout", true); code != http.StatusTooManyRequests {
+		t.Fatalf("a second start of the account at once: %d", code)
+	}
+	if code := counted(second, "checkout", true); code != http.StatusOK {
+		t.Fatalf("the address lost a start to a proof it refused for the account's own: %d", code)
+	}
+	// The address has no start left. A third account is refused for that, and keeps all three of its own proofs.
+	if code := counted(third, "checkout", true); code != http.StatusTooManyRequests {
+		t.Fatalf("a third start of the address at once: %d", code)
+	}
+	for i, want := range []int{http.StatusOK, http.StatusOK, http.StatusOK, http.StatusTooManyRequests} {
+		if code := counted(third, "pickup", false); code != want {
+			t.Fatalf("proof %d of the account its address refused: %d, want %d", i+1, code, want)
+		}
+	}
+	// The first account was counted once (the proof that started its session) and not for the one refused.
+	for i, want := range []int{http.StatusOK, http.StatusOK, http.StatusTooManyRequests} {
+		if code := counted(first, "pickup", false); code != want {
+			t.Fatalf("proof %d of the account after its refused start: %d, want %d", i+1, code, want)
+		}
+	}
+	// A proof that gave no session gives its start back, and keeps what it was counted under otherwise.
+	now = now.Add(10 * time.Second)
+	fourth := mustKey(t)
+	if a, b := counted(fourth, "checkout", false), counted(fourth, "checkout", true); a != http.StatusOK || b != http.StatusOK {
+		t.Fatalf("a start that gave no session was kept: %d %d", a, b)
+	}
+	if code := counted(mustKey(t), "account", false); code != http.StatusTooManyRequests {
+		t.Fatalf("the address's two starts were used and a third passed: %d", code)
+	}
+	// No place among the requests served at once: the proof is answered busy and counted nowhere.
+	now = now.Add(time.Second) // one start of the address back
+	limits.InFlight <- struct{}{}
+	fifth := mustKey(t)
+	reply := httptest.NewRecorder()
+	mux.ServeHTTP(reply, request(fifth, "checkout"))
+	if reply.Code != http.StatusServiceUnavailable {
+		t.Fatalf("a proof without a place: %d", reply.Code)
+	}
+	<-limits.InFlight
+	if code := counted(fifth, "checkout", true); code != http.StatusOK { // the address's one start and the account's own are still there
+		t.Fatalf("a proof that found no place was counted: %d", code)
+	}
+	for i, want := range []int{http.StatusOK, http.StatusOK, http.StatusTooManyRequests} { // two of three proofs left: one was the start
+		if code := counted(fifth, "pickup", false); code != want {
+			t.Fatalf("proof %d of the account after a busy answer: %d, want %d", i+1, code, want)
+		}
+	}
+	if counts := limits.Limited.Drain(); counts["start"] != 1 || counts["proof"] != 2 || counts["account"] != 3 || counts["busy"] != 1 || len(counts) != 4 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+}
+
+// What the entrance remembers of live sessions is measured by its own clock and is bounded: an entry is known until
+// its time, an entry past its time goes first when room is needed, and after that the one that ends soonest.
+func TestLiveSessionMemory(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	seen := recentSet{keys: 3}
+	seen.put("a", now, now.Add(10*time.Minute), "first")
+	seen.put("b", now, now.Add(time.Minute), "second")
+	seen.put("c", now, now.Add(90*time.Second), "third")
+	if note, known := seen.get("b", now.Add(59*time.Second)); !known || note != "second" {
+		t.Fatalf("an entry is not known a second before its time: %q %v", note, known)
+	}
+	// Room for a fourth: every entry past its time goes, by the clock that was handed in, and the others stay.
+	now = now.Add(2 * time.Minute)
+	seen.put("d", now, now.Add(time.Hour), "fourth")
+	if _, kept := seen.entries["a"]; !kept || len(seen.entries) != 2 || !seen.has("d", now) {
+		t.Fatalf("room was not made by the two entries past their time: %v", seen.entries)
+	}
+	// None is past its time now: once the memory is full, the one that ends soonest goes.
+	seen.put("e", now, now.Add(30*time.Minute), "fifth")
+	seen.put("f", now, now.Add(time.Hour), "sixth")
+	if seen.has("a", now) || !seen.has("d", now) || !seen.has("e", now) || !seen.has("f", now) || len(seen.entries) != 3 {
+		t.Fatalf("room was not made by the entry that ends soonest: %v", seen.entries)
+	}
+	seen.put("a", now, now.Add(2*time.Hour), "first")
+	if seen.has("e", now) || !seen.has("a", now) || len(seen.entries) != 3 {
+		t.Fatalf("room was not made by the entry that ends soonest: %v", seen.entries)
+	}
+	// Remembering a known key again pushes nobody out, and takes the new time and note.
+	seen.put("a", now, now.Add(time.Second), "again")
+	if note, _ := seen.get("a", now); note != "again" || len(seen.entries) != 3 || !seen.has("d", now) || !seen.has("f", now) {
+		t.Fatalf("a known key remembered again: %q, %v", note, seen.entries)
+	}
+	// At its time an entry is no longer known, and asking for it forgets it.
+	now = now.Add(time.Second)
+	if seen.has("a", now) || len(seen.entries) != 2 {
+		t.Fatalf("an entry is still known at its time: %v", seen.entries)
+	}
+	seen.drop("d")
+	if seen.has("d", now) || !seen.has("f", now) {
+		t.Fatal("a dropped entry is still known, or another went with it")
+	}
+
+	// A live session is remembered for half an hour of the entrance's clock, or for what is left of the session
+	// when that is less, with its purpose and the key of its own allowance.
+	limits := &CustomerEntrance{clock: clock}
+	long := customerSession{Branch: branch, Actor: "actor", Purpose: "order", Sale: "sale", ExpiresAt: time.Now().Add(2 * time.Hour)}
+	short := customerSession{Branch: branch, Actor: "actor", Purpose: "checkout", ExpiresAt: time.Now().Add(10 * time.Second)}
+	limits.sawLive([32]byte{1}, long)
+	limits.sawLive([32]byte{2}, short)
+	if note, known := limits.live.get(string(make([]byte, 0)), now); known {
+		t.Fatalf("a token never seen is known: %q", note)
+	}
+	one, two := [32]byte{1}, [32]byte{2}
+	if note, known := limits.live.get(string(one[:]), now.Add(liveMemory-time.Second)); !known || note != "order:actor/"+branch+"/order/sale" {
+		t.Fatalf("a session with two hours left, a second before half an hour: %q %v", note, known)
+	}
+	if limits.live.has(string(one[:]), now.Add(liveMemory)) {
+		t.Fatal("a session is remembered past half an hour without being seen again")
+	}
+	if !limits.live.has(string(two[:]), now.Add(8*time.Second)) || limits.live.has(string(two[:]), now.Add(11*time.Second)) {
+		t.Fatal("a session with ten seconds left is not remembered for about ten seconds")
+	}
+
+	// What the memory decides is which allowance a request is counted under. A session it knows is counted under
+	// the ceiling of live sessions; once its entry ran out, it is counted once more like a token the server may
+	// not know, and is known again from that answer on.
+	routed := &CustomerEntrance{AddressLimiter: NewRateLimiter(6, 1, clock), LiveLimiter: NewRateLimiter(600, 100, clock), clock: clock}
+	send, _ := sessionRequests(routed) // sessions that end a minute from now
+	const home = "198.51.100.7:4000"
+	known, never := "aa"+strings.Repeat("0", 62), "aa"+strings.Repeat("1", 62)
+	if code, _ := send(home, known); code != http.StatusBadRequest {
+		t.Fatalf("the session's first request: %d", code)
+	}
+	for i := 0; i < 5; i++ { // the address has no request left for a token it does not know; the known session needs none
+		if code, _ := send(home, known); code != http.StatusBadRequest {
+			t.Fatalf("request %d of a session the entrance knows: %d", i+2, code)
+		}
+		if code, _ := send(home, never); code != http.StatusTooManyRequests {
+			t.Fatalf("a session never seen passed an address without a request left: %d", code)
+		}
+	}
+	now = now.Add(2 * time.Minute) // the entry ran out (a minute); the address has one request again
+	if code, _ := send(home, known); code != http.StatusBadRequest {
+		t.Fatalf("the session after its entry ran out: %d", code)
+	}
+	if code, _ := send(home, never); code != http.StatusTooManyRequests {
+		t.Fatalf("the session whose entry ran out was not counted for its address: %d", code)
+	}
+	if code, _ := send(home, known); code != http.StatusBadRequest {
+		t.Fatalf("the session is not known again after it was found live: %d", code)
+	}
+	if counts := routed.Limited.Drain(); counts["address"] != 6 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
 	}
 }

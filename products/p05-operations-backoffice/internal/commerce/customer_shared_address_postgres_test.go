@@ -90,6 +90,13 @@ func (f *entranceFixture) pass(d time.Duration) {
 	f.clock.Unlock()
 }
 
+// time is the fixture's clock, which a test moves with pass.
+func (f *entranceFixture) time() time.Time {
+	f.clock.Lock()
+	defer f.clock.Unlock()
+	return f.now
+}
+
 func (f *entranceFixture) send(method, path, session string, body any) entranceReply {
 	f.t.Helper()
 	var reader io.Reader
@@ -273,11 +280,7 @@ func newEntranceFixture(t *testing.T, name string) *entranceFixture {
 	server := httptest.NewUnstartedServer(certified)
 	t.Cleanup(server.Close)
 	origin := "https://" + server.Listener.Addr().String()
-	limits := NewCustomerLimits(func() time.Time {
-		f.clock.Lock()
-		defer f.clock.Unlock()
-		return f.now
-	})
+	limits := NewCustomerLimits(f.time)
 	f.funds = &accountFunds{asset: common.HexToAddress(f.asset), balances: map[common.Address]*big.Int{}}
 	limits.Funds = f.funds
 	limits.lookup = func(ctx context.Context, token []byte) (customerSession, error) {
@@ -686,7 +689,7 @@ func TestPostgresSlowBalanceReadsLeaveTheMenu(t *testing.T) {
 // unfinished, which is what a phone that kept no record needs before a board is reset.
 func TestPostgresPublishedGateAndOpenOrders(t *testing.T) {
 	f := newEntranceFixture(t, "gate")
-	f.h.Customer = &CustomerEntrance{Funds: f.funds} // the gate itself, without request limits
+	f.h.Customer = &CustomerEntrance{Funds: f.funds, clock: f.time} // the gate itself, without request limits
 	entrance := http.NewServeMux()
 	f.h.RegisterCustomer(entrance)
 	f.customers.Config.Handler = entrance
@@ -740,6 +743,38 @@ func TestPostgresPublishedGateAndOpenOrders(t *testing.T) {
 		if got := f.send("POST", "/v2/customer/challenge", "", bad); got.status != 400 {
 			t.Fatalf("challenge %v: %d %s", bad, got.status, got.raw)
 		}
+	}
+	if got := f.prove(key, f.challenge("checkout", ""), "7"); got.status != 200 || got.body["session"] == nil || got.body["openOrders"] != nil {
+		t.Fatalf("a store's challenge proven: %d %s", got.status, got.raw)
+	}
+	// What a challenge is for is part of the challenge, under the server's tag. One whose purpose was exchanged
+	// is no challenge of this server: a store's challenge does not pass as one about the account, nor the reverse,
+	// and the attempt uses nothing up: the challenge as it was given is still good afterwards.
+	for given, other := range map[string]byte{"checkout": challengeAccount, "account": challengeCheckout} {
+		issued := f.challenge(given, "")
+		value, _ := hex.DecodeString(issued.body["challenge"].(string))
+		value[0] = other
+		exchanged := f.prove(key, entranceReply{status: 200, body: map[string]any{"challenge": hex.EncodeToString(value)}}, "7")
+		if exchanged.status != 400 || exchanged.body["error"] != string(service.Expired) || exchanged.body["session"] != nil || exchanged.body["openOrders"] != nil {
+			t.Fatalf("a %s challenge sent as another purpose: %d %s", given, exchanged.status, exchanged.raw)
+		}
+		if intact := f.prove(key, issued, "7"); intact.status != 200 || (given == "account") != (intact.body["openOrders"] != nil) {
+			t.Fatalf("the %s challenge as it was given, after the exchanged one: %d %s", given, intact.status, intact.raw)
+		}
+	}
+	// An account challenge lives two minutes. After that its proof is refused like any challenge that ran out, with
+	// the account's own signature too, and says nothing about the account; a new one is answered.
+	ran := f.challenge("account", "")
+	f.pass(2*time.Minute - time.Second)
+	if open := f.prove(key, f.challenge("account", ""), ""); open.status != 200 {
+		t.Fatalf("an account challenge proven at once: %d %s", open.status, open.raw)
+	}
+	f.pass(time.Second)
+	if late := f.prove(key, ran, ""); late.status != 400 || late.body["error"] != string(service.Expired) || late.body["openOrders"] != nil {
+		t.Fatalf("an account challenge proven after its two minutes: %d %s", late.status, late.raw)
+	}
+	if open := openOrders(key); open != 1 {
+		t.Fatalf("a new account challenge after one ran out: %v", open)
 	}
 
 	// The store takes its page back.
@@ -809,11 +844,7 @@ func TestPostgresPublishedGateAndOpenOrders(t *testing.T) {
 // nothing remembered.
 func (f *entranceFixture) restart() {
 	lookup := f.h.Customer.lookup
-	limits := NewCustomerLimits(func() time.Time {
-		f.clock.Lock()
-		defer f.clock.Unlock()
-		return f.now
-	})
+	limits := NewCustomerLimits(f.time)
 	limits.Funds, limits.lookup = f.funds, lookup
 	f.h.Customer = limits
 	entrance := http.NewServeMux()
@@ -995,5 +1026,159 @@ func TestPostgresFailedAttemptsOfOthersDoNotStopCustomers(t *testing.T) {
 		started, followed, f.h.Customer.Limited.Drain())
 	if started != 24 || followed != 12 {
 		t.Fatalf("%d of 24 customers started a session and the paid order was answered %d of 12 times", started, followed)
+	}
+}
+
+// quoted gives the order `sale` a quote for key's account that runs out after `left` (already ran out when left is
+// negative), and puts the order in `state`, as the quote and payment workers would (seeded).
+func (f *entranceFixture) quoted(sale string, key *ecdsa.PrivateKey, state string, left time.Duration) {
+	f.t.Helper()
+	account := crypto.PubkeyToAddress(key.PublicKey)
+	f.execute("SET session_replication_role=replica")
+	f.execute(`UPDATE ledger.sale SET state=$2 WHERE id=$1`, sale, state)
+	f.execute(`INSERT INTO ledger.quote_work(sale_id,actor_id,claim_digest,quote_id,order_id,nonce,expected_revision,profile_version,merchant_signer,
+		payer,payer_generation,payer_role,issued_at,expires_at,fence,lease_until,payload_cipher,signed_digest)
+		VALUES($1,$2,decode(md5(random()::text)||md5(random()::text),'hex'),decode(md5(random()::text)||md5(random()::text),'hex'),decode(md5(random()::text)||md5(random()::text),'hex'),decode(md5(random()::text)||md5(random()::text),'hex'),0,1,substring(decode(md5(random()::text)||md5(random()::text),'hex') FROM 1 FOR 20),
+		$3,7,1,clock_timestamp()+make_interval(secs=>$4)-interval '1 hour',clock_timestamp()+make_interval(secs=>$4),1,now(),'x',decode(md5(random()::text)||md5(random()::text),'hex'))`,
+		sale, CustomerSubject(account), account[:], left.Seconds())
+	f.execute("SET session_replication_role=origin")
+}
+
+// The number an account is told before its board is reset counts every order that may still take or return its
+// money, at any store, and no other: an order whose payment is being checked, an order whose quote can still be
+// paid, and an order whose escrow is not settled. An order that can take no money any more is not counted.
+func TestPostgresOpenOrdersOfAnAccount(t *testing.T) {
+	f := newEntranceFixture(t, "open")
+	f.h.Customer = &CustomerEntrance{Funds: f.funds} // the count itself, without request limits
+	entrance := http.NewServeMux()
+	f.h.RegisterCustomer(entrance)
+	f.customers.Config.Handler = entrance
+	openOrders := func(who *ecdsa.PrivateKey) float64 {
+		t.Helper()
+		answer := f.prove(who, f.challenge("account", ""), "")
+		if answer.status != 200 || answer.body["purpose"] != "account" || len(answer.body) != 2 {
+			t.Fatalf("the account's unfinished orders: %d %s", answer.status, answer.raw)
+		}
+		return answer.body["openOrders"].(float64)
+	}
+	// cart is a new account with a cart held at the shop: an order no quote was issued for.
+	cart := func() (*ecdsa.PrivateKey, string) {
+		t.Helper()
+		key := mustKey(t)
+		f.funds.balances[crypto.PubkeyToAddress(key.PublicKey)] = big.NewInt(300_000)
+		_, proven := f.checkout(key)
+		if proven.status != 200 {
+			t.Fatalf("a session: %d %s", proven.status, proven.raw)
+		}
+		held := f.order(proven.body["session"].(string), f.fresh(), f.fresh())
+		if held.status != 200 {
+			t.Fatalf("a cart: %d %s", held.status, held.raw)
+		}
+		return key, held.body["resultRef"].(string)
+	}
+	for _, order := range []struct {
+		name, state string
+		quote       time.Duration
+		want        float64
+	}{
+		{"a quote that can still be paid", "issued", time.Minute, 1},
+		{"a cart whose quote can still be paid", "preview", time.Minute, 1},
+		{"a quote that ran out unpaid", "issued", -time.Minute, 0},
+		{"a payment that is being checked, after its quote ran out", "checking", -time.Minute, 1},
+		{"an order closed while its quote was still good", "closed", time.Minute, 0},
+		{"a paid order without an escrow", "paid", -time.Minute, 0},
+	} {
+		key, sale := cart()
+		if open := openOrders(key); open != 0 {
+			t.Fatalf("a cart without a quote counts as %v unfinished orders", open)
+		}
+		f.quoted(sale, key, order.state, order.quote)
+		if open := openOrders(key); open != order.want {
+			t.Fatalf("%s counts as %v unfinished orders, want %v", order.name, open, order.want)
+		}
+	}
+	// An escrow that is not settled keeps its order unfinished whatever the order's state, until it is settled.
+	key, sale := cart()
+	f.quoted(sale, key, "closed", -time.Minute)
+	f.execute("SET session_replication_role=replica")
+	f.execute(`INSERT INTO ledger.order_escrow(sale_id,contract_ref,confirmer_ref,deliver_by,confirm_window) VALUES($1,$2,$2,$3,172800)`,
+		sale, "0x"+strings.Repeat("4", 40), time.Now().Add(24*time.Hour).Unix())
+	f.execute("SET session_replication_role=origin")
+	if open := openOrders(key); open != 1 {
+		t.Fatalf("a closed order whose escrow is not settled counts as %v", open)
+	}
+	// Two unfinished orders of one account are two, each counted once; the second is at another customer's cart
+	// whose quote names this account as the one that pays.
+	other, second := cart()
+	f.quoted(second, key, "checking", time.Minute)
+	if open := openOrders(key); open != 2 {
+		t.Fatalf("two unfinished orders count as %v", open)
+	}
+	if open := openOrders(other); open != 0 { // the account that only made the cart pays nothing
+		t.Fatalf("an account that pays no order is told %v", open)
+	}
+	f.execute("SET session_replication_role=replica")
+	f.execute(`UPDATE ledger.order_escrow SET settled=true WHERE sale_id=$1`, sale)
+	f.execute(`UPDATE ledger.sale SET state='closed' WHERE id=$1`, second)
+	f.execute("SET session_replication_role=origin")
+	if open := openOrders(key); open != 0 {
+		t.Fatalf("after the escrow was settled and the other order closed, %v orders are counted", open)
+	}
+}
+
+// The carts the accounts of one address come to hold are bounded: 30 at once, then one every two seconds. Only a
+// cart that held stock is counted: an account without the balance takes nothing, and an account whose cart the
+// reservation then refused gives its place back.
+func TestPostgresHeldCartsOfAnAddress(t *testing.T) {
+	f := newEntranceFixture(t, "held")
+	sessions := make([]string, 33)
+	for i := range sessions {
+		key := mustKey(t)
+		if i != 32 { // the last account has no balance
+			f.funds.balances[crypto.PubkeyToAddress(key.PublicKey)] = big.NewInt(300_000)
+		}
+		_, proven := f.checkout(key)
+		if proven.status != 200 {
+			t.Fatalf("session %d: %d %s", i+1, proven.status, proven.raw)
+		}
+		sessions[i] = proven.body["session"].(string)
+		f.pass(2 * time.Second) // the address starts one session every two seconds
+	}
+	limited := func(reply entranceReply) bool {
+		return reply.status == 429 && reply.body["reason"] == "hold_limit" && reply.body["error"] == string(service.Busy)
+	}
+	// Thirty accounts hold a cart in one moment; the thirty-first is told to wait two seconds.
+	for i := 0; i < 30; i++ {
+		if held := f.order(sessions[i], f.fresh(), f.fresh()); held.status != 200 {
+			t.Fatalf("cart %d of the address at once: %d %s", i+1, held.status, held.raw)
+		}
+	}
+	if over := f.order(sessions[30], f.fresh(), f.fresh()); !limited(over) || over.retry != "2" {
+		t.Fatalf("the 31st cart of the address at once: %d %s (Retry-After %q)", over.status, over.raw, over.retry)
+	}
+	// An account without the balance is told so, and is no cart of the address.
+	if short := f.order(sessions[32], f.fresh(), f.fresh()); short.status != 409 || short.body["reason"] != "balance_short" {
+		t.Fatalf("an account without the balance, with the address at its limit: %d %s", short.status, short.raw)
+	}
+	// Two seconds later the address has one cart again. An account that already holds a cart asks for another: it
+	// has the balance, so it is counted, and the reservation refuses it, so the count is given back.
+	f.pass(2 * time.Second)
+	for i := 0; i < 3; i++ {
+		if again := f.order(sessions[i], f.fresh(), f.fresh()); again.status == 200 || limited(again) {
+			t.Fatalf("a second cart of an account that holds one: %d %s", again.status, again.raw)
+		}
+	}
+	if held := f.order(sessions[30], f.fresh(), f.fresh()); held.status != 200 {
+		t.Fatalf("the cart the address had room for, after three that were not held: %d %s", held.status, held.raw)
+	}
+	if over := f.order(sessions[31], f.fresh(), f.fresh()); !limited(over) {
+		t.Fatalf("a 32nd cart of the address inside two seconds: %d %s", over.status, over.raw)
+	}
+	f.pass(2 * time.Second)
+	if held := f.order(sessions[31], f.fresh(), f.fresh()); held.status != 200 {
+		t.Fatalf("the next cart two seconds later: %d %s", held.status, held.raw)
+	}
+	if counts := f.h.Customer.Limited.Drain(); counts["hold"] != 2 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
 	}
 }
