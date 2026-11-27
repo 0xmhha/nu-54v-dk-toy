@@ -21,10 +21,15 @@ export type StorePageForm = Omit<StorePageWire, "hours"> & { hoursGiven: boolean
 
 const clock = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 // One visible line: no control character, and none of the characters that do not show but change what a customer
-// reads (zero-width and direction marks, the soft hyphen, the byte order mark, line and paragraph separators).
+// reads. That is the format characters (zero-width and direction marks, the soft hyphen, the byte order mark), line
+// and paragraph separators, every character a display leaves out (the Hangul fillers, variation selectors, the
+// combining grapheme joiner) and every blank other than the ordinary space (the no-break space and the other
+// spaces, the blank Braille pattern). opsd holds the same list (ledger.store_text_plain) and decides.
 const control = /\p{Cc}/u;
-const hidden = /[\p{Cf}\p{Zl}\p{Zp}]/u;
+const hidden = /[\p{Cf}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\u2800]/u;
 const texts = { kind: 40, intro: 200, address: 200, directions: 200, amenities: 200, parking: 200, closedNote: 120 } as const;
+
+const trimSpaces = (value: string) => value.replace(/^ +| +$/g, "");
 
 /** The form for a saved page. Days without hours start as 10:00 to 21:00, which is sent only once the day is open. */
 export function storePageForm(page: StorePageWire): StorePageForm {
@@ -38,14 +43,15 @@ export function storePageForm(page: StorePageWire): StorePageForm {
 
 /** Why the form cannot be saved, in the words of the page, or nothing. */
 export function storePageProblem(form: StorePageForm): string | undefined {
-  if (!form.kind.trim()) return "매장 종류를 적어 주세요. 예: 카페";
+  // Only the ordinary space is trimmed, as opsd trims it: any other blank is one of the hidden characters below.
+  if (!trimSpaces(form.kind)) return "매장 종류를 적어 주세요. 예: 카페";
   for (const [field, limit] of Object.entries(texts) as [keyof typeof texts, number][]) {
-    const value = form[field].trim();
+    const value = trimSpaces(form[field]);
     if (Array.from(value).length > limit) return `${limit}자 안으로 줄여 주세요.`;
     if (control.test(value)) return "줄바꿈은 넣을 수 없습니다.";
     if (hidden.test(value)) return "보이지 않는 문자가 들어 있습니다. 다른 곳에서 붙여 넣은 글이라면 지우고 직접 적어 주세요.";
   }
-  const phone = form.phone.trim();
+  const phone = trimSpaces(form.phone);
   if (phone && !/^\+?[0-9][0-9 -]{5,18}[0-9]$/.test(phone)) return "전화번호는 숫자, 빈칸, 하이픈으로 적어 주세요.";
   if (form.hoursGiven)
     for (const [index, day] of form.days.entries()) {
@@ -58,7 +64,7 @@ export function storePageProblem(form: StorePageForm): string | undefined {
 
 /** What is sent: trimmed text, and hours only when the store gave them. */
 export function storePageWire(form: StorePageForm): StorePageWire {
-  const text = (value: string) => value.trim();
+  const text = trimSpaces;
   return {
     published: form.published, listed: form.listed, kind: text(form.kind), intro: text(form.intro), address: text(form.address), directions: text(form.directions),
     phone: text(form.phone), amenities: text(form.amenities), parking: text(form.parking), closedNote: text(form.closedNote),

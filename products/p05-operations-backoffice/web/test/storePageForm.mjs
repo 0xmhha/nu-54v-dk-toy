@@ -39,8 +39,17 @@ const unseen = "보이지 않는 문자가 들어 있습니다. 다른 곳에서
 for (const [field, value] of [["kind", "카\u200b페"], ["intro", "환불 불가 \u202e다니됩 불환"], ["address", "a\u2028b"], ["directions", "a\u2029b"],
   ["amenities", "a\u00adb"], ["parking", "a\u200db"], ["closedNote", "a\ufeffb"], ["intro", "a\u2066b\u2069"], ["intro", "a\u{E0041}b"], ["intro", "a\u200eb"]])
   assert.equal(broken({ [field]: value }), unseen, JSON.stringify([field, value]));
-// What shows stays allowed: other scripts, accents, a symbol and a no-break space.
-assert.equal(broken({ intro: "Café №1 ☕ 営業中", amenities: "Wi\u2011Fi · 100\u00a0석", directions: "شارع ١" }), undefined);
+// So are characters that are no format characters and still do not show, and blanks other than the ordinary space:
+// a name or a kind cannot be made of them, alone or among letters.
+for (const [field, value] of [["kind", "\u3164"], ["kind", "\u3164\u3164"], ["kind", "\u2800"], ["kind", "\u00a0"], ["kind", "\u3000"], ["kind", "카페\ufe0f"],
+  ["intro", "a\u3164b"], ["intro", "a\u115fb"], ["intro", "a\uffa0b"], ["intro", "a\u034fb"], ["intro", "a\u180bb"], ["intro", "a\u{E0100}b"],
+  ["amenities", "100\u00a0석"], ["parking", "a\u2009b"], ["directions", "a\u202fb"], ["closedNote", "a\u2800b"], ["address", "\u00a0시험로 1"]])
+  assert.equal(broken({ [field]: value }), unseen, JSON.stringify([field, value]));
+// Spaces alone are no kind; around text they are trimmed, and what is sent is what opsd keeps.
+assert.equal(broken({ kind: "   " }), "매장 종류를 적어 주세요. 예: 카페");
+assert.equal(storePageWire({ ...form, kind: "  카페  ", intro: " 소개 " }).kind, "카페");
+// What shows stays allowed: other scripts, accents, a symbol and a hyphen that does not break.
+assert.equal(broken({ intro: "Café №1 ☕ 営業中", amenities: "Wi\u2011Fi · 100 석", directions: "شارع ١" }), undefined);
 assert.equal(broken({ phone: "전화 주세요" }), "전화번호는 숫자, 빈칸, 하이픈으로 적어 주세요.");
 assert.equal(broken({ phone: "+82 2-555-0100" }), undefined);
 assert.equal(broken({ days: form.days.map((d, i) => (i === 0 ? { ...d, closes: "10:00" } : d)) }), "월요일의 여는 시간과 닫는 시간이 같습니다.");
