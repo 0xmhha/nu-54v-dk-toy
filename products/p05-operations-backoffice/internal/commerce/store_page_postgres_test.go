@@ -243,7 +243,8 @@ func TestPostgresStorePage(t *testing.T) {
 		t.Fatalf("status: %v", status)
 	}
 	rows := listed()
-	if len(rows) != 1 || rows[0]["name"] != "여울 커피 "+suffix || rows[0]["address"] != "시험시 시험로 1" || rows[0]["intro"] != nil {
+	if len(rows) != 1 || rows[0]["name"] != "여울 커피 "+suffix || rows[0]["address"] != "시험시 시험로 1" || rows[0]["intro"] != nil ||
+		rows[0]["phone"] != nil || len(rows[0]["hours"].([]any)) != 7 || len(rows[0]) != 6 {
 		t.Fatalf("list: %v", rows)
 	}
 

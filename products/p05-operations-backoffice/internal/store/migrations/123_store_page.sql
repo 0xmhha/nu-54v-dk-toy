@@ -68,12 +68,13 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $page
     WHERE b.id = branch
 $page$;
 
--- The stores that chose to be listed, by name. At most limit_ rows; the app searches these by name.
+-- The stores that chose to be listed, by name, with what a list row says: kind, address, hours and order state.
+-- At most limit_ rows; the app searches these by name.
 CREATE FUNCTION ledger.public_store_list(limit_ integer) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $list$
     SELECT coalesce(jsonb_agg(x.store ORDER BY x.label, x.id), '[]'::jsonb) FROM (
         SELECT b.id, n.label, jsonb_strip_nulls(jsonb_build_object('branchRef', b.id, 'name', n.label, 'kind', p.kind,
-            'address', nullif(p.address, ''), 'status', ledger.store_page_status(b.id))) AS store
+            'address', nullif(p.address, ''), 'hours', p.hours, 'status', ledger.store_page_status(b.id))) AS store
         FROM ledger.branch_store_page p JOIN ledger.branch b ON b.id = p.branch_id
         JOIN ledger.operator_branch_label n ON n.branch_id = b.id
         WHERE p.listed ORDER BY n.label, b.id LIMIT greatest(1, least(coalesce(limit_, 200), 200))) x
