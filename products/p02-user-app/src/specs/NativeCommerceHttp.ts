@@ -15,6 +15,8 @@ export interface Spec extends TurboModule {
   exchangeTravel(method: string, path: string, envelope: string): Promise<string>;
   exchangeScoped(slot: string, profileDigest: string, envelope: string): Promise<string>;
   exchange(slot: string, envelope: string): Promise<string>;
+  /** One POST to the customer entrance: no client certificate, trusted by the enrolled customer profile's CA and pin only. Answers `{"status":n,"body":"…"}`. */
+  customerRequest(origin: string, path: string, body: string): Promise<string>;
 }
 
 export default TurboModuleRegistry.get<Spec>('CommerceHttp');

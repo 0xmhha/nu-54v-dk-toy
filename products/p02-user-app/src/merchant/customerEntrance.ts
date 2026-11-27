@@ -1,4 +1,5 @@
 import {bytesToHex, encodePickupQr, hexToBytes} from '@nu54/protocol';
+import Http from '../specs/NativeCommerceHttp.ts';
 import {publicOrigin} from '../travel/catalog.ts';
 import type {OpenOrder} from './orderRecords.ts';
 import {approvedCustomerEntranceOrigin} from './customerEntranceDeployment.ts';
@@ -15,7 +16,10 @@ export class EntranceError extends Error {
   constructor(readonly code: EntranceCode) { super(`CUSTOMER_ENTRANCE_${code}`); }
 }
 
-/** Posts JSON to the entrance origin; a redirect or a reply from another address counts as no answer. */
+/**
+ * Posts JSON to the entrance origin with `fetch`; a redirect or a reply from another address counts as no answer.
+ * The app does not use this: `fetch` trusts the system certificate store. See `nativeEntrance`.
+ */
 export function fetchEntrance(origin: string, send: typeof fetch = fetch): EntrancePost {
   let base: string;
   try { base = publicOrigin(origin); } catch { return async () => { throw new EntranceError('UNAVAILABLE'); }; }
@@ -30,6 +34,32 @@ export function fetchEntrance(origin: string, send: typeof fetch = fetch): Entra
     }
     if (response.url && response.url !== url) throw new EntranceError('UNAVAILABLE');
     return {status: response.status, body: await response.json().catch(() => null)};
+  };
+}
+
+/** The native half of the entrance connection (specs/NativeCommerceHttp.ts). */
+export type EntranceTransport = {customerRequest?: (origin: string, path: string, body: string) => Promise<string>};
+
+/**
+ * Posts JSON to the entrance origin through the native commerce module: TLS 1.3, no client certificate, and a server
+ * accepted only by the CA and key pin of the enrolled customer profile. The system certificate store is not asked.
+ * A phone without that profile, a build without the native method, or any native failure counts as no answer.
+ */
+export function nativeEntrance(origin: string, http: EntranceTransport | null | undefined = Http): EntrancePost {
+  let base: string;
+  try { base = publicOrigin(origin); } catch { return async () => { throw new EntranceError('UNAVAILABLE'); }; }
+  return async (path, body) => {
+    let reply: {status?: unknown; body?: unknown} | null;
+    try {
+      if (typeof http?.customerRequest !== 'function') throw new Error('no native entrance');
+      reply = JSON.parse(await http.customerRequest(base, path, body));
+    } catch {
+      throw new EntranceError('UNAVAILABLE');
+    }
+    if (!Number.isSafeInteger(reply?.status) || typeof reply?.body !== 'string') throw new EntranceError('UNAVAILABLE');
+    let answer: unknown = null;
+    try { answer = JSON.parse(reply.body); } catch { /* not JSON, such as a plain 404 */ }
+    return {status: reply.status as number, body: answer};
   };
 }
 
@@ -142,4 +172,4 @@ export async function issuePickupQr(entrance: CustomerEntrance | undefined, boar
 
 /** The entrance of this build, or undefined while no address is bound (customerEntranceDeployment.ts). */
 export const configuredEntrance = (origin = approvedCustomerEntranceOrigin) =>
-  origin ? new CustomerEntrance(fetchEntrance(origin)) : undefined;
+  origin ? new CustomerEntrance(nativeEntrance(origin)) : undefined;

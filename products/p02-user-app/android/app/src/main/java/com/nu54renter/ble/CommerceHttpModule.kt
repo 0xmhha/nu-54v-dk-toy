@@ -52,6 +52,8 @@ class CommerceHttpModule(context: ReactApplicationContext) : NativeCommerceHttpS
         submit(promise, catalogRead = catalogRead) { implementation.exchangeScoped(slot,profileDigest,envelope) }
     }
     override fun exchange(slot:String, envelope:String, promise:Promise)=submit(promise) { implementation.exchange(slot,envelope) }
+    override fun customerRequest(origin:String, path:String, body:String, promise:Promise)=
+        submit(promise) { implementation.customerEntrance(origin,path,body) }
     override fun invalidate() {
         recorder.discard()
         worker.shutdownNow()
