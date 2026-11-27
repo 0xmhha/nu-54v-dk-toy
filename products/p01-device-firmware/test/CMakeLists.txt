@@ -380,3 +380,9 @@ add_executable(test_firmware_power test_firmware_power.c ../core/src/nu54_firmwa
 target_include_directories(test_firmware_power PRIVATE ../core/include)
 target_compile_options(test_firmware_power PRIVATE -Wall -Wextra -Werror)
 add_test(NAME firmware_power_readonly COMMAND test_firmware_power)
+
+# The low-power advertising schedule of a board that waits for its next owner.
+add_executable(test_adv_schedule test_adv_schedule.c ../core/src/nu54_adv_schedule.c)
+target_include_directories(test_adv_schedule PRIVATE ../core/include)
+target_compile_options(test_adv_schedule PRIVATE -Wall -Wextra -Werror)
+add_test(NAME adv_schedule COMMAND test_adv_schedule)
