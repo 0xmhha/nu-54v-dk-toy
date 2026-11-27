@@ -444,3 +444,8 @@ add_executable(test_owner_wait_links test_owner_wait_links.c ../core/src/nu54_ad
 target_include_directories(test_owner_wait_links PRIVATE ../core/include ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_options(test_owner_wait_links PRIVATE -Wall -Wextra -Werror)
 add_test(NAME owner_wait_links COMMAND test_owner_wait_links)
+
+# The board of the order flow (scripts/test_order_flow.py) is made of the app sources by name. It
+# is built and started here, where those sources are tested, so that a change to them cannot break
+# it unnoticed: nothing else that runs without PostgreSQL and a chain compiles it.
+add_subdirectory(../../p05-operations-backoffice/test/order-flow/board order-flow-board)
