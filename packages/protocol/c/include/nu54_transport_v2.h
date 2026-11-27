@@ -46,9 +46,13 @@ typedef enum {
     NU54_V2_OWNER = 1, NU54_V2_BOARD, NU54_V2_TERMINAL, NU54_V2_CUSTOMER
 } nu54_v2_role;
 
+/* NU54_V2_CLOCK (8): the owner tells the board the time. A board that was without power is behind
+ * the calendar, so this one command is not held to the receiver's "ends within 300 s" rule; every
+ * other rule applies to it, and it is still refused once it has ended by the receiver's time. The
+ * receiver's handler must bind the time it carries to the request's own end. */
 typedef enum {
     NU54_V2_MANAGE = 1, NU54_V2_PAY_PREPARE, NU54_V2_STATUS, NU54_V2_NEARBY_SUBMIT, NU54_V2_REPLY,
-    NU54_V2_APPROVAL_PROGRESS, NU54_V2_RENTAL_REVIEW
+    NU54_V2_APPROVAL_PROGRESS, NU54_V2_RENTAL_REVIEW, NU54_V2_CLOCK
 } nu54_v2_command;
 
 typedef enum {

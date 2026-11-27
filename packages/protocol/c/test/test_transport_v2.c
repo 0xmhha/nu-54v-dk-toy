@@ -131,11 +131,108 @@ static void progress_keeps_original_pending(void)
     assert(nu54_v2_link_enable_approval_progress(&board, 5) < 0);
 }
 
+static void fresh(nu54_v2_journal_entry records[2][4], nu54_v2_journal *first, nu54_v2_journal *second)
+{
+    memset(records, 0, 2 * 4 * sizeof(records[0][0]));
+    first->trusted_time = second->trusted_time = 0;
+}
+
+/* The owner's time command reaches a board whose clock stood still without power: it is the one
+ * command that may end more than 300 s after the receiver's time. Nothing else about it differs. */
+static void clock_reaches_a_late_board(void)
+{
+    const uint64_t real = 1800000000, day = 86400;
+    uint8_t epoch[16] = {1}, next[16] = {2}, peer[32] = {3}, time[9] = {0x81, 0, 0, 0, 0, 0x6b, 0x49, 0xd2, 0x00};
+    nu54_v2_journal_entry records[2][4] = {0};
+    nu54_v2_journal board_journal = {records[0], 4, digest_fixture, 0}, other_journal = {records[1], 4, digest_fixture, 0};
+    nu54_v2_link owner, board;
+    nu54_v2_request clock = {NU54_V2_CLOCK, {9}, real + 90, time, sizeof(time)};
+    nu54_v2_request manage = {NU54_V2_MANAGE, {9}, real + 90, time, sizeof(time)}, out;
+    struct frames sent = {0};
+    static const uint64_t late[] = {0, 5, 600, 3 * 3600, 3 * 86400, 31 * 86400};
+    for (size_t i = 0; i < sizeof(late) / sizeof(late[0]); ++i) {
+        fresh(records, &board_journal, &other_journal);
+        assert(!nu54_v2_link_init(&owner, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &other_journal));
+        assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+        sent.count = 0;
+        assert(!nu54_v2_link_send(&owner, &clock, collect, &sent) && sent.count == 1);
+        assert(sent.bytes[0][22] == 8); /* the command code on the wire */
+        deliver(&board, &sent, real - late[i], NU54_V2_NEW);
+        assert(board.pending_expiry == real + 90 && board.pending_command == NU54_V2_CLOCK);
+        /* The same bytes as an ordinary management request are refused once the board is 211 s late. */
+        fresh(records, &board_journal, &other_journal);
+        assert(!nu54_v2_link_init(&owner, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &other_journal));
+        assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+        sent.count = 0;
+        assert(!nu54_v2_link_send(&owner, &manage, collect, &sent));
+        deliver(&board, &sent, real - late[i], late[i] <= 210 ? NU54_V2_NEW : NU54_V2_ERROR);
+    }
+
+    /* However far ahead it ends, its record leaves the journal as early as any other's: more of
+     * them than the journal has places, ten minutes apart, are all taken. */
+    fresh(records, &board_journal, &other_journal);
+    nu54_v2_request far = {NU54_V2_CLOCK, {9}, UINT64_MAX, time, sizeof(time)};
+    for (uint64_t i = 0; i < 6; ++i) {
+        const uint64_t at = real - 3 * day + i * 601;
+        far.id[1] = (uint8_t)(i + 1);
+        assert(!nu54_v2_link_init(&owner, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &other_journal));
+        assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+        sent.count = 0;
+        assert(!nu54_v2_link_send(&owner, &far, collect, &sent));
+        deliver(&board, &sent, at, NU54_V2_NEW);
+        for (size_t slot = 0; slot < 4; ++slot) assert(records[0][slot].retain_until <= at + 600);
+    }
+    /* Within that time the same request is still known: the same bytes again are a retry. */
+    assert(!nu54_v2_link_init(&owner, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &other_journal));
+    assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+    sent.count = 0;
+    assert(!nu54_v2_link_send(&owner, &far, collect, &sent));
+    deliver(&board, &sent, real - 3 * day + 5 * 601 + 599, NU54_V2_RESUME);
+
+    /* It has ended by the board's time: refused like any other request. */
+    fresh(records, &board_journal, &other_journal);
+    assert(!nu54_v2_link_init(&owner, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &other_journal));
+    assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+    sent.count = 0;
+    assert(!nu54_v2_link_send(&owner, &clock, collect, &sent));
+    deliver(&board, &sent, real + 90, NU54_V2_ERROR);
+
+    /* Its frame is bound to its session and its place in it like any other: the same frame is
+     * refused a second time in its own session and in a later one. */
+    fresh(records, &board_journal, &other_journal);
+    assert(!nu54_v2_link_init(&owner, NU54_V2_MANAGEMENT, NU54_V2_OWNER, epoch, peer, &other_journal));
+    assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+    sent.count = 0;
+    assert(!nu54_v2_link_send(&owner, &clock, collect, &sent));
+    deliver(&board, &sent, real - 3 * day, NU54_V2_NEW);
+    assert(nu54_v2_link_receive(&board, sent.bytes[0], sent.length[0], real - 3 * day, &out) == NU54_V2_ERROR);
+    assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, next, peer, &board_journal));
+    assert(nu54_v2_link_receive(&board, sent.bytes[0], sent.length[0], real - 3 * day, &out) == NU54_V2_ERROR);
+
+    /* Only the owner sends it, only on the management route, and the board never does. */
+    assert(!nu54_v2_link_init(&board, NU54_V2_MANAGEMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+    assert(nu54_v2_link_send(&board, &clock, collect, &sent) < 0);
+    assert(!nu54_v2_link_init(&owner, NU54_V2_PAYMENT, NU54_V2_TERMINAL, epoch, peer, &other_journal));
+    assert(nu54_v2_link_send(&owner, &clock, collect, &sent) < 0);
+    assert(!nu54_v2_link_init(&owner, NU54_V2_NEARBY, NU54_V2_CUSTOMER, epoch, peer, &other_journal));
+    assert(nu54_v2_link_send(&owner, &clock, collect, &sent) < 0);
+    /* A terminal that writes the command code into a frame of its own is refused by the board. */
+    fresh(records, &board_journal, &other_journal);
+    nu54_v2_request prepare = {NU54_V2_PAY_PREPARE, {9}, real + 90, time, sizeof(time)};
+    assert(!nu54_v2_link_init(&owner, NU54_V2_PAYMENT, NU54_V2_TERMINAL, epoch, peer, &other_journal));
+    assert(!nu54_v2_link_init(&board, NU54_V2_PAYMENT, NU54_V2_BOARD, epoch, peer, &board_journal));
+    sent.count = 0;
+    assert(!nu54_v2_link_send(&owner, &prepare, collect, &sent));
+    sent.bytes[0][22] = NU54_V2_CLOCK;
+    deliver(&board, &sent, real, NU54_V2_ERROR);
+}
+
 int main(int argc, char **argv)
 {
     assert(argc == 2);
     review_vectors(argv[1]);
     progress_keeps_original_pending();
+    clock_reaches_a_late_board();
     uint8_t epoch[16] = {1}, new_epoch[16] = {2}, peer[32] = {3}, body[737] = {4};
     nu54_v2_journal_entry entries[4] = {0};
     nu54_v2_journal journal = {entries, 4, digest_fixture, 0};

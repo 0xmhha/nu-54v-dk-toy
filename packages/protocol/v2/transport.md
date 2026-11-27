@@ -4,7 +4,7 @@ Each profile uses certificate-authenticated TLS 1.3 with an explicit trust store
 
 | TLS ALPN | Initiator | Responder | Initiator commands |
 |---|---|---|---|
-| `nu54-v2-management` | owner | board | manage, pay.prepare, status |
+| `nu54-v2-management` | owner | board | manage, pay.prepare, status, clock |
 | `nu54-v2-payment` | terminal | board | pay.prepare, status |
 | `nu54-v2-nearby` | customer | terminal | nearby.submit, status |
 
@@ -23,9 +23,9 @@ All integers are unsigned big-endian. The TLS exporter uses the label `EXPORTER-
 | Total fragment count | 1 |
 | Fragment payload | 1–192 |
 
-A message body is command code (1), nonzero request ID (16), expiry in UTC epoch seconds (8), and payload. Commands `manage`, `pay.prepare`, `status`, `nearby.submit`, and `reply` encode as 1 through 5. The C1 `approval.progress` and C2 `rental.review` encode as 6 and 7. Bodies are limited to 2048 bytes and all non-final fragments carry exactly 192 bytes. The receiver closes on an epoch, sequence, ordering, size, role, five-second reassembly budget, or expiry violation. The sequence never wraps. Outer BLE framing must provide an ordered byte stream to TLS and discard connection-local state on teardown. The native TLS owner is responsible for handshake, socket, and inactivity deadlines, including timeouts when no more input arrives.
+A message body is command code (1), nonzero request ID (16), expiry in UTC epoch seconds (8), and payload. Commands `manage`, `pay.prepare`, `status`, `nearby.submit`, and `reply` encode as 1 through 5. The C1 `approval.progress` and C2 `rental.review` encode as 6 and 7. The C1 `clock` encodes as 8. Bodies are limited to 2048 bytes and all non-final fragments carry exactly 192 bytes. The receiver closes on an epoch, sequence, ordering, size, role, five-second reassembly budget, or expiry violation. The sequence never wraps. Outer BLE framing must provide an ordered byte stream to TLS and discard connection-local state on teardown. The native TLS owner is responsible for handshake, socket, and inactivity deadlines, including timeouts when no more input arrives.
 
-One request is outstanding per link. A reply carries the same request ID and expiry. Request expiry must be in the future and at most 300 seconds from the receiver's trusted time. Resume sends the original body again over fresh TLS with the same request ID. For the same profile and authenticated peer, the bounded journal distinguishes identical retries from conflicting reuse and retains entries through expiry plus 300 seconds. Journal saturation closes the request path. Durable order state, nonce consumption, and response recovery remain application responsibilities.
+One request is outstanding per link. A reply carries the same request ID and expiry. Request expiry must be in the future and at most 300 seconds from the receiver's trusted time. `clock` is the one exception to the upper bound: the owner sends it to a board whose clock stood still without power, so the board accepts it however far its expiry lies ahead, and its handler binds the time it carries to that expiry (payload `0x81` and the time as eight bytes; the request must end within 95 seconds after that time). Every other rule applies to `clock` unchanged. Resume sends the original body again over fresh TLS with the same request ID. For the same profile and authenticated peer, the bounded journal distinguishes identical retries from conflicting reuse and retains entries through expiry plus 300 seconds. Journal saturation closes the request path. Durable order state, nonce consumption, and response recovery remain application responsibilities.
 
 Share the journal's trusted-time watermark across live links and reconnects. A backwards clock closes the link before modifying any partial message. If the volatile journal or trusted-clock continuity is lost, recover durable time and operation state before authorizing a replay-sensitive command. A new TLS connection alone does not restore either.
 
