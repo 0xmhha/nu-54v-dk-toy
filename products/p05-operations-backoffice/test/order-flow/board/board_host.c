@@ -580,9 +580,11 @@ static void button(bool approved, bool right)
 	ended();
 }
 
-/* device_install_load, for this operator's grant (see restore_grant). The board's own: the time
- * never goes back, the latest possible time never goes back either, a grant must outlast the
- * distance between the two, and the grant and its time are in storage before the board uses them. */
+/* device_install_load and apply_install, for this operator's grant (see restore_grant). The
+ * board's own: the lower bound of the time never goes back, a fresh grant sets the latest possible
+ * time to how long it took to arrive, whatever the board had before, a grant must outlast the
+ * distance between the two, the grant and its time are in storage before the board uses them, and
+ * the transport's journal follows a latest possible time that came down. */
 static bool give_grant(const char *seconds, const char *ahead)
 {
 	const nu54_vault *vault = device_vault_owner();
@@ -592,9 +594,7 @@ static bool give_grant(const char *seconds, const char *ahead)
 	/* enroll_board.py pins the generation the next registration gets, or the registered one. */
 	decoded.payer_generation = vault->record.generation + no_owner(vault);
 	decoded.not_after = time_of_grant + strtoull(seconds, NULL, 10);
-	uint64_t offset = GRANT_LAG + age;
-	const uint64_t previous_upper = device_install_now();
-	if (previous_upper > time_of_grant && previous_upper - time_of_grant > offset) offset = previous_upper - time_of_grant;
+	const uint64_t offset = GRANT_LAG + age;
 	if (!initialized || age * 1000 >= OFFER_TTL_MS || time_of_grant < minimum || decoded.not_after <= time_of_grant ||
 	    decoded.not_after - time_of_grant > NU54_INSTALL_MAX_LEASE || decoded.not_after - time_of_grant <= offset) return false;
 	const nu54_install_clock begin = {.earliest = time_of_grant, .offset = offset};
@@ -607,7 +607,8 @@ static bool give_grant(const char *seconds, const char *ahead)
 	offered = false;
 	active = true;
 	ready = true;
-	k_work_reschedule(&clock_worker, K_NO_WAIT); /* apply_install */
+	journal_follow_time(); /* apply_install */
+	k_work_reschedule(&clock_worker, K_NO_WAIT);
 	say_clock();
 	return true;
 }

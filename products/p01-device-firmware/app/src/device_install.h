@@ -27,8 +27,9 @@ int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *,
 			   mbedtls_pk_context *, device_tls_v2_profile [2]);
 int64_t device_install_keep_time(void);
 /* The registered owner's phone tells the time; the caller has checked who asks. Forward only,
- * before the grant's end, saved before it is used. Returns NU54_CLOCK_MOVED, _NOT_FORWARD or
- * _PAST_END with the reply written, or -1.
+ * before the grant's end, not from a session older than CONFIG_NU54_CLOCK_SESSION_SECONDS, saved
+ * before it is used. Returns one of the results of nu54_install_clock_set with the reply written,
+ * or -1. After NU54_CLOCK_MOVED the latest possible time may be earlier than it was.
  *
  * `hold_seconds` is the running time for which an order that is open now must stay open whatever
  * the new time says (device_order_hold_seconds). It is saved in the same write as the time, so

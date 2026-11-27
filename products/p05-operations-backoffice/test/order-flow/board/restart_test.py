@@ -90,9 +90,15 @@ def main(program):
     check("a slow grant", board.grant(62, 58) and board.clock[1] - board.clock[0] == 60)
     check("a session while it runs", board.connects())
     board.boot()
-    check("a quick grant after a restart does not bring the latest possible time back",
-          board.grant(3000, 2) and board.clock[1] - board.clock[0] >= 58)
-    # The board has now run on this grant for a moment; the slow one is tried again and left to end.
+    check("the slow grant is kept through the restart, as wide as it was", board.clock[1] - board.clock[0] == 60 and board.connects())
+    # A fresh grant is the authority's word about the time and sets both ends. Before the audit of 2026-11-27 the
+    # latest possible time never came down, and this check asked for a width of 58 seconds or more.
+    check("a quick grant after a restart brings the latest possible time down",
+          board.grant(3000, 2) and board.clock[1] - board.clock[0] == 4 and board.connects())
+    check("a slow grant in the same start", board.grant(3000, 58) and board.clock[1] - board.clock[0] == 60 and board.connects())
+    check("a quick grant in the same start brings it down as well",
+          board.grant(3000, 2) and board.clock[1] - board.clock[0] == 4 and board.connects())
+    # The slow one that ends two seconds after its start is tried again and left to end.
     check("the slow grant again", board.grant(62, 58))
     time.sleep(4.5)
     check("no session after its end", not board.connects())

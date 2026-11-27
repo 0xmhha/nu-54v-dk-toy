@@ -504,6 +504,18 @@ static void journal_new_session(void)
 	memset(journal_slots, 0, sizeof(journal_slots));
 }
 
+/* The board's latest possible time can come down: with a fresh grant, and when the owner's phone
+ * tells the time (core/include/nu54_install.h). The transport takes a time below its watermark
+ * for a clock that ran backwards and closes the link. So where the time came down, the journal
+ * begins anew at the corrected time, as it does with every session of this profile. Its records
+ * are not what keeps an action from happening twice here (journal_new_session). */
+static void journal_follow_time(void)
+{
+	if (trusted_now() >= journal.trusted_time) return;
+	journal_new_session();
+	journal.trusted_time = 0;
+}
+
 /* The operator's signed reset also runs on a board that a reset already released. Such a board
  * has no owner, no wallet key, no PIN and no order records. The reset goes through all of it
  * again: it removes a grant that was installed since, with its saved time, raises nothing, and
@@ -1409,7 +1421,8 @@ static int clock_request(nu54_v2_request *request, const nu54_install_policy *po
 						   device_order_hold_seconds(before, uptime), reply);
 	if (result < 0) return -1;
 	if (result == NU54_CLOCK_MOVED) {
-		device_order_hold_open(before, uptime);
+		if (device_install_earliest() > before) device_order_hold_open(before, uptime);
+		journal_follow_time(); /* the latest possible time may have come down */
 		k_work_reschedule(&clock_worker, K_NO_WAIT);
 	}
 	request->command = NU54_V2_REPLY;
@@ -2148,6 +2161,7 @@ static int apply_install(const uint8_t *bundle, size_t length)
 	tls_bank = next;
 	ready = true;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+	journal_follow_time(); /* a fresh grant sets the latest possible time, also to an earlier one */
 	k_work_reschedule(&clock_worker, K_NO_WAIT);
 #endif
 	return 0;

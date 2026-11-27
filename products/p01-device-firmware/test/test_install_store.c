@@ -246,8 +246,46 @@ static void test_storage_put_back(void)
 	assert(restart() == 1);
 }
 
+/* The audit's second finding, for a grant: one that took long to arrive leaves the latest
+ * possible time that far above the lower bound. A fresh grant is the authority's word about the
+ * time, so it sets both ends: what an earlier grant left, in this start or through a restart, does
+ * not stay with it. */
+static void test_a_fresh_grant_sets_both_ends(void)
+{
+	uint8_t slow[GRANT_SIZE], quick[GRANT_SIZE];
+	wipe(3, 0);
+	make_grant(slow, 1, 3, ISSUED, ISSUED + 31 * DAY);
+	assert(!install_after(slow, 58000) && device_install_now() - device_install_earliest() == 58);
+	/* The slow grant is kept, and its width with it. */
+	run(700);
+	assert(restart() == 0 && device_install_earliest() == ISSUED + 600 && device_install_now() == ISSUED + 658);
+	/* A quick grant ten seconds on by the board's time: two seconds wide. */
+	make_grant(quick, 2, 3, ISSUED + 610, ISSUED + 31 * DAY);
+	assert(!install(quick) && device_install_earliest() == ISSUED + 610 && device_install_now() == ISSUED + 612);
+	assert(adopted_at == ISSUED + 612);
+	/* That is what a restart goes on from. */
+	assert(restart() == 0 && device_install_now() - device_install_earliest() == 2);
+
+	/* In one start as well, with the slow one still in use. */
+	wipe(3, 0);
+	assert(!install_after(slow, 58000));
+	uptime += 5000;
+	make_grant(quick, 2, 3, ISSUED + 6, ISSUED + 31 * DAY);
+	assert(!install(quick) && device_install_now() - device_install_earliest() == 2);
+	/* The lower bound still never goes back: a grant from before the time the board reached is
+	 * refused, however fresh it is. */
+	uptime += 5000;
+	make_grant(slow, 3, 3, ISSUED + 10, ISSUED + 31 * DAY);
+	assert(install(slow) && device_install_earliest() == ISSUED + 11);
+	/* A grant that took the whole minute is not taken, and one a moment quicker is. */
+	make_grant(slow, 3, 3, ISSUED + 20, ISSUED + 31 * DAY);
+	assert(install_after(slow, 60000) && !install_after(slow, 59999));
+	assert(device_install_now() - device_install_earliest() == 60);
+}
+
 int main(void)
 {
+	test_a_fresh_grant_sets_both_ends();
 	test_kept_through_a_restart();
 	test_the_end_is_kept();
 	test_bound_to_the_generation();

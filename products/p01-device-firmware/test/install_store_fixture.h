@@ -183,12 +183,18 @@ static void make_grant(uint8_t record[GRANT_SIZE], uint64_t revision, uint64_t g
 	memcpy(record + GRANT_SIZE - 32, record + GRANT_SIZE - 64, 32);
 }
 
-/* The operator installs a grant issued `age` seconds ago by the calendar clock. */
-static int install(const uint8_t record[GRANT_SIZE])
+/* The operator installs a grant `took` milliseconds after the board made the offer it answers. */
+static int install_after(const uint8_t record[GRANT_SIZE], int64_t took)
 {
 	offered = true;
-	challenge_birth = uptime - 2000;
+	challenge_birth = uptime - took;
 	return device_install_load(record, GRANT_SIZE, NULL, NULL, NULL, NULL);
+}
+
+/* The usual grant: two seconds from the offer to the grant. */
+static int install(const uint8_t record[GRANT_SIZE])
+{
+	return install_after(record, 2000);
 }
 
 /* A restart: memory is gone, the floors are read as device_install_init reads them, and the

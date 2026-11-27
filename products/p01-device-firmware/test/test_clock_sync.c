@@ -142,9 +142,39 @@ static int receipt_status(nu54_v2_request *request, const nu54_install_policy *c
 	return send_receipt(request, NULL, 0);
 }
 
+/* What apply_install keeps of a grant besides the board's time: the TLS configuration, which is
+ * not looked at here. */
+struct provisioned_tls {
+	mbedtls_x509_crt ca, board;
+	mbedtls_pk_context key;
+	device_tls_v2_profile profiles[2];
+};
+static struct provisioned_tls tls_banks[2];
+static unsigned tls_bank;
+static bool ready;
+static void free_tls_bank(struct provisioned_tls *bank) { (void)bank; }
+
 static int bind_session(const nu54_vault *, const uint8_t *, uint64_t);
 static int frame(const uint8_t *, size_t);
 #include "board_clock.h"
+
+/* The rule with the limits of this build, for a message that came `age` seconds into its session. */
+static int rule(const nu54_install_clock *current, uint64_t end, uint64_t time, uint64_t expires, uint64_t age,
+		nu54_install_clock *next)
+{
+	const nu54_install_clock_word word = {.time = time, .expires = expires, .session_seconds = age};
+	static const nu54_install_clock_limits limits = {.session_seconds = CONFIG_NU54_CLOCK_SESSION_SECONDS};
+	return nu54_install_clock_set(current, end, &word, &limits, next);
+}
+
+/* The operator's grant arrives `took` milliseconds after the board's offer, as on the board: the
+ * storage and the clock (device_install_load) and what the session code does with a new grant. */
+static int operator_installs(const uint8_t record[GRANT_SIZE], int64_t took)
+{
+	offered = true;
+	challenge_birth = uptime - took;
+	return apply_install(record, GRANT_SIZE);
+}
 
 /* What the phone sends is on its way first and reaches the board when the phone has sent it all. */
 static struct {
@@ -341,53 +371,90 @@ static void test_the_rule(void)
 	nu54_install_clock next = {0};
 
 	/* Forward only: the time the board has, or an earlier one, moves nothing. */
-	assert(nu54_install_clock_set(&clock, end, now, now + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
-	assert(nu54_install_clock_set(&clock, end, now - 1, now + 89, 0, &next) == NU54_CLOCK_NOT_FORWARD);
-	assert(nu54_install_clock_set(&clock, end, 1, 91, 0, &next) == NU54_CLOCK_NOT_FORWARD && !next.earliest);
+	assert(rule(&clock, end, now, now + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(rule(&clock, end, now - 1, now + 89, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(rule(&clock, end, 1, 91, 0, &next) == NU54_CLOCK_NOT_FORWARD && !next.earliest);
 	/* Less than a step on, and inside the board's interval: nothing moves either. */
 	for (uint64_t ahead = 1; ahead < NU54_CLOCK_STEP_SECONDS; ++ahead)
-		assert(nu54_install_clock_set(&clock, end, now + ahead, now + ahead + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+		assert(rule(&clock, end, now + ahead, now + ahead + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
 	assert(!next.earliest);
 	/* Past the board's latest possible time the board is late, by however little: that moves. */
 	const nu54_install_clock tight = {.earliest = now, .offset = 1};
-	assert(nu54_install_clock_set(&tight, end, now + 1, now + 91, 0, &next) == NU54_CLOCK_NOT_FORWARD);
-	assert(nu54_install_clock_set(&tight, end, now + 2, now + 92, 0, &next) == NU54_CLOCK_MOVED && next.earliest == now + 2);
+	assert(rule(&tight, end, now + 1, now + 91, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(rule(&tight, end, now + 2, now + 92, 0, &next) == NU54_CLOCK_MOVED && next.earliest == now + 2);
 	/* One step on, with what the session vouches for as the distance to the latest time. */
-	assert(nu54_install_clock_set(&clock, end, now + NU54_CLOCK_STEP_SECONDS, now + 91, 0, &next) == NU54_CLOCK_MOVED);
+	assert(rule(&clock, end, now + NU54_CLOCK_STEP_SECONDS, now + 91, 0, &next) == NU54_CLOCK_MOVED);
 	assert(next.earliest == now + NU54_CLOCK_STEP_SECONDS && next.offset == NU54_CLOCK_PHONE_SECONDS && next.phone_days == 4);
-	assert(nu54_install_clock_set(&clock, end, now + 1000, now + 1090, 7, &next) == NU54_CLOCK_MOVED);
+	assert(rule(&clock, end, now + 1000, now + 1090, 7, &next) == NU54_CLOCK_MOVED);
 	assert(next.earliest == now + 1000 && next.offset == 7 + NU54_CLOCK_PHONE_SECONDS);
-	/* The latest possible time never moves back. */
-	const nu54_install_clock slow = {.earliest = now, .offset = 60};
-	assert(nu54_install_clock_set(&slow, end, now + 10, now + 100, 0, &next) == NU54_CLOCK_MOVED);
-	assert(next.earliest == now + 10 && next.offset == 50);
-	assert(nu54_install_clock_set(&slow, end, now + 56, now + 100, 0, &next) == NU54_CLOCK_MOVED && next.offset == 5);
+	/* The interval becomes the phone's: the latest possible time comes down with it. (Before the
+	 * audit of 2026-11-27 it never moved back, and this case kept 50 seconds.) */
+	const nu54_install_clock slow = {.earliest = now, .offset = 60, .phone_days = 4, .hold = now + 77};
+	assert(rule(&slow, end, now + 10, now + 100, 0, &next) == NU54_CLOCK_MOVED);
+	assert(next.earliest == now + 10 && next.offset == NU54_CLOCK_PHONE_SECONDS);
+	assert(rule(&slow, end, now + 56, now + 100, 0, &next) == NU54_CLOCK_MOVED && next.offset == 5);
+	assert(rule(&slow, end, now + 10, now + 100, 9, &next) == NU54_CLOCK_MOVED && next.offset == 9 + NU54_CLOCK_PHONE_SECONDS);
+	/* A time that does not move the lower bound brings the latest possible time down to what the
+	 * phone vouches for: its time, the session's age and its own allowance. */
+	next = (nu54_install_clock){0};
+	assert(rule(&slow, end, now, now + 90, 0, &next) == NU54_CLOCK_MOVED);
+	assert(next.earliest == now && next.offset == NU54_CLOCK_PHONE_SECONDS && next.phone_days == 4 && next.hold == now + 77);
+	assert(rule(&slow, end, now + 2, now + 92, 4, &next) == NU54_CLOCK_MOVED);
+	assert(next.earliest == now && next.offset == 2 + 4 + NU54_CLOCK_PHONE_SECONDS);
+	/* A phone that is behind the board within its allowance vouches for no less than the board's
+	 * own lower bound. One that is further behind contradicts the board and brings nothing down. */
+	assert(rule(&slow, end, now - NU54_CLOCK_PHONE_SECONDS, now + 80, 0, &next) == NU54_CLOCK_MOVED);
+	assert(next.earliest == now && next.offset == NU54_CLOCK_PHONE_SECONDS);
+	next = (nu54_install_clock){0};
+	assert(rule(&slow, end, now - NU54_CLOCK_PHONE_SECONDS - 1, now + 80, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	/* Down by a step or more, or not at all; and never up. */
+	const nu54_install_clock narrow = {.earliest = now, .offset = NU54_CLOCK_PHONE_SECONDS + NU54_CLOCK_STEP_SECONDS};
+	assert(rule(&narrow, end, now, now + 90, 1, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(rule(&narrow, end, now + 1, now + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(rule(&narrow, end, now, now + 90, 15, &next) == NU54_CLOCK_NOT_FORWARD && !next.earliest);
+	assert(rule(&narrow, end, now, now + 90, 0, &next) == NU54_CLOCK_MOVED && next.offset == NU54_CLOCK_PHONE_SECONDS);
+
+	/* A message that came later in its session than the limit says too little about the time now.
+	 * It is answered and changes nothing, whatever it carries. */
+	next = (nu54_install_clock){0};
+	const uint64_t limit = CONFIG_NU54_CLOCK_SESSION_SECONDS;
+	assert(rule(&clock, end, now + 1000, now + 1090, limit, &next) == NU54_CLOCK_MOVED);
+	assert(next.offset == limit + NU54_CLOCK_PHONE_SECONDS);
+	next = (nu54_install_clock){0};
+	assert(rule(&clock, end, now + 1000, now + 1090, limit + 1, &next) == NU54_CLOCK_LATE);
+	assert(rule(&clock, end, now + 1000, now + 1090, 119, &next) == NU54_CLOCK_LATE);
+	assert(rule(&clock, end, now + 1000, now + 1090, UINT64_MAX, &next) == NU54_CLOCK_LATE);
+	assert(rule(&slow, end, now, now + 90, limit + 1, &next) == NU54_CLOCK_LATE);
+	assert(rule(&clock, end, now - 50, now + 40, limit + 1, &next) == NU54_CLOCK_LATE);
+	assert(rule(&clock, end, end + DAY, end + DAY + 90, limit + 1, &next) == NU54_CLOCK_LATE && !next.earliest);
+	/* A message that is not well formed is not answered, late or not. */
+	assert(rule(&clock, end, now + 1000, now + 1000, limit + 1, &next) == -1);
 
 	/* Never to the grant's end or past it. */
-	assert(nu54_install_clock_set(&clock, end, end - 1, end + 89, 0, &next) == NU54_CLOCK_MOVED && next.earliest == end - 1);
+	assert(rule(&clock, end, end - 1, end + 89, 0, &next) == NU54_CLOCK_MOVED && next.earliest == end - 1);
 	next = (nu54_install_clock){0};
-	assert(nu54_install_clock_set(&clock, end, end, end + 90, 0, &next) == NU54_CLOCK_PAST_END);
-	assert(nu54_install_clock_set(&clock, end, end + 40 * DAY, end + 40 * DAY + 90, 0, &next) == NU54_CLOCK_PAST_END);
-	assert(nu54_install_clock_set(&clock, end, UINT64_MAX - 1, UINT64_MAX, 0, &next) == NU54_CLOCK_PAST_END);
+	assert(rule(&clock, end, end, end + 90, 0, &next) == NU54_CLOCK_PAST_END);
+	assert(rule(&clock, end, end + 40 * DAY, end + 40 * DAY + 90, 0, &next) == NU54_CLOCK_PAST_END);
+	assert(rule(&clock, end, UINT64_MAX - 1, UINT64_MAX, 0, &next) == NU54_CLOCK_PAST_END);
 	assert(!next.earliest);
 
 	/* The message must end shortly after the time it carries, by its own word. */
-	assert(nu54_install_clock_set(&clock, end, now + 500, now + 500 + NU54_PILOT_BRIEF_SECONDS, 0, &next) == NU54_CLOCK_MOVED);
-	assert(nu54_install_clock_set(&clock, end, now + 500, now + 501 + NU54_PILOT_BRIEF_SECONDS, 0, &next) == -1);
-	assert(nu54_install_clock_set(&clock, end, now + 500, now + 500, 0, &next) == -1);
-	assert(nu54_install_clock_set(&clock, end, now + 500, now + 499, 0, &next) == -1);
-	assert(nu54_install_clock_set(&clock, end, now + 500, UINT64_MAX, 0, &next) == -1);
-	assert(nu54_install_clock_set(&clock, end, 0, 90, 0, &next) == -1);
+	assert(rule(&clock, end, now + 500, now + 500 + NU54_PILOT_BRIEF_SECONDS, 0, &next) == NU54_CLOCK_MOVED);
+	assert(rule(&clock, end, now + 500, now + 501 + NU54_PILOT_BRIEF_SECONDS, 0, &next) == -1);
+	assert(rule(&clock, end, now + 500, now + 500, 0, &next) == -1);
+	assert(rule(&clock, end, now + 500, now + 499, 0, &next) == -1);
+	assert(rule(&clock, end, now + 500, UINT64_MAX, 0, &next) == -1);
+	assert(rule(&clock, end, 0, 90, 0, &next) == -1);
 	/* A board that does not know the time is not told it this way: that takes a grant. */
 	const nu54_install_clock none = {0};
-	assert(nu54_install_clock_set(&none, end, now, now + 90, 0, &next) == -1);
-	assert(nu54_install_clock_set(NULL, end, now, now + 90, 0, &next) == -1);
+	assert(rule(&none, end, now, now + 90, 0, &next) == -1);
+	assert(rule(NULL, end, now, now + 90, 0, &next) == -1);
 
 	/* A later day opens once per move, however many days the move covers. */
 	const uint64_t midnight = (now / DAY + 1) * DAY;
-	assert(nu54_install_clock_set(&clock, end, midnight - 1, midnight + 80, 0, &next) == NU54_CLOCK_MOVED && next.phone_days == 4);
-	assert(nu54_install_clock_set(&clock, end, midnight, midnight + 90, 0, &next) == NU54_CLOCK_MOVED && next.phone_days == 5);
-	assert(nu54_install_clock_set(&clock, end, midnight + 3 * DAY, midnight + 3 * DAY + 90, 0, &next) == NU54_CLOCK_MOVED);
+	assert(rule(&clock, end, midnight - 1, midnight + 80, 0, &next) == NU54_CLOCK_MOVED && next.phone_days == 4);
+	assert(rule(&clock, end, midnight, midnight + 90, 0, &next) == NU54_CLOCK_MOVED && next.phone_days == 5);
+	assert(rule(&clock, end, midnight + 3 * DAY, midnight + 3 * DAY + 90, 0, &next) == NU54_CLOCK_MOVED);
 	assert(next.phone_days == 5);
 
 	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
@@ -467,9 +534,13 @@ static void test_session_age(void)
 	/* The board's time runs on from the moment of the move. */
 	uptime += 2000;
 	assert(device_install_earliest() == real + 2);
-	/* A later session starts its own count. */
+	/* A later session starts its own count, and what the earlier one left above it comes down.
+	 * (Before the audit of 2026-11-27 the seven seconds stayed: this said `+ 7 - 1`.) */
 	real += 2;
-	assert(!connect_phone() && !tell_time(real + 1) && told().latest == real + 1 + NU54_CLOCK_PHONE_SECONDS + 7 - 1);
+	writes = 0;
+	assert(!connect_phone() && !tell_time(real + 1) && told().result == NU54_CLOCK_MOVED && writes == 1);
+	assert(told().earliest == real && told().latest == real + 1 + NU54_CLOCK_PHONE_SECONDS);
+	assert(device_install_earliest() == real && device_install_now() == real + 1 + NU54_CLOCK_PHONE_SECONDS);
 	assert(!connect_phone() && !tell_time(real + 30) && told().latest == real + 30 + NU54_CLOCK_PHONE_SECONDS);
 }
 
@@ -636,9 +707,13 @@ static void test_replay(void)
 	assert(set == real);
 
 	/* The same request again in its own session, 50 seconds later: it has not ended yet, the
-	 * board has passed the time it carries, and nothing moves. */
+	 * board has passed the time it carries, and nothing moves. The session is too old by then for
+	 * any time to be taken, and the answer says so. */
 	on_for(50);
-	assert(!tell(set, set + 90) && told().result == NU54_CLOCK_NOT_FORWARD);
+	assert(!tell(set, set + 90) && told().result == NU54_CLOCK_LATE);
+	assert(told().earliest == set + 50 && device_install_earliest() == set + 50);
+	/* In a session of its own, where its time is looked at, it is behind the board. */
+	assert(!connect_phone() && !tell(set, set + 90) && told().result == NU54_CLOCK_NOT_FORWARD);
 	assert(told().earliest == set + 50 && device_install_earliest() == set + 50);
 	/* After its end the board does not read it any more. */
 	on_for(41);
@@ -1120,6 +1195,126 @@ static void test_small_steps_write_nothing(void)
 	assert(device_install_earliest() == real + NU54_CLOCK_STEP_SECONDS);
 }
 
+/* The audit's second finding: the latest possible time went up with a message that came late in
+ * its session and never came down again, so the board refused every request that had less than
+ * that long to run. */
+static void test_the_latest_time_comes_down(void)
+{
+	uint8_t record[GRANT_SIZE];
+	const uint64_t limit = CONFIG_NU54_CLOCK_SESSION_SECONDS;
+
+	/* A message at the very end of its session is answered and moves nothing: taken, it would
+	 * have put the latest possible time 124 seconds above the lower bound. */
+	late_board(3 * 3600);
+	const uint64_t before = device_install_earliest(), latest = device_install_now();
+	assert(!connect_phone());
+	uptime += 119 * 1000;
+	real += 119;
+	writes = 0;
+	clock_turns = 0;
+	assert(!tell_time(real) && told().result == NU54_CLOCK_LATE && !writes && !clock_turns);
+	assert(told().earliest == before + 119 && told().latest == latest + 119 && told().end == board_end);
+	assert(device_install_earliest() == before + 119 && device_install_now() == latest + 119);
+	/* The phone connects again and tells the time first. Its requests with 90 seconds to run, the
+	 * next time command among them, are taken from then on: now, after an hour, after a restart. */
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(told().latest == real + NU54_CLOCK_PHONE_SECONDS && !status());
+	on_for(3600);
+	assert(!connect_phone() && !status() && !tell_time(real) && told().result == NU54_CLOCK_NOT_FORWARD);
+	assert(board_restart() == 0 && device_install_now() - device_install_earliest() == NU54_CLOCK_PHONE_SECONDS);
+
+	/* The limit exactly, and a second over it. The board counts whole seconds, rounded up. */
+	late_board(3 * 3600);
+	assert(!connect_phone());
+	uptime += (int64_t)limit * 1000;
+	real += limit;
+	assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED && told().latest == real + limit + NU54_CLOCK_PHONE_SECONDS);
+	late_board(3 * 3600);
+	assert(!connect_phone());
+	uptime += (int64_t)limit * 1000 + 1;
+	real += limit;
+	assert(!tell_time(real) && told().result == NU54_CLOCK_LATE && device_install_earliest() == calendar - 3 * 3600 + limit);
+	/* The widest interval the phone can leave is narrower than the life of its short requests. */
+	assert(limit + NU54_CLOCK_PHONE_SECONDS < 90);
+	/* A session that may only tell the time, and tells it too late, ends with the answer. */
+	late_board(3 * DAY);
+	assert(!connect_as(phone_key, calendar - 3600, UINT64_MAX) && clock_only);
+	uptime += (int64_t)(limit + 1) * 1000;
+	assert(tell_time(real) == -1 && told().result == NU54_CLOCK_LATE && link.closed);
+	assert(device_install_earliest() == calendar - 3 * DAY + limit + 1);
+
+	/* A grant that took 58 seconds to arrive leaves the board's interval that wide, and the board
+	 * keeps the grant through restarts. The store's order has 50 seconds left; by the board's
+	 * latest possible time it has ended. */
+	const uint64_t granted = quote_end - 55;
+	wipe(1, 0);
+	memcpy(vault.record.owner, phone_key, 32);
+	end_session();
+	device_order_start();
+	make_grant(record, 1, 1, granted, granted + 31 * DAY);
+	assert(!operator_installs(record, 58000) && ready);
+	grant_names_the_store();
+	assert(device_install_earliest() == granted && device_install_now() == granted + 58);
+	real = granted + 5; /* where in those 58 seconds the calendar is */
+	assert(quote_end - real == 50 && device_install_now() >= quote_end);
+	assert(!connect_phone() && pay() == -1 && !approval.pending);
+	assert(board_restart() == 0 && device_install_now() == granted + 58);
+	assert(!connect_phone() && pay() == -1 && !approval.pending);
+	/* The owner's phone tells the time, and the interval is the phone's: five seconds wide. The
+	 * same session goes on with a time that came down, and the order is taken. */
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(told().earliest == real && told().latest == real + NU54_CLOCK_PHONE_SECONDS);
+	assert(!status() && !pay() && approval.pending);
+	assert(board_restart() == 0 && device_install_now() - device_install_earliest() == NU54_CLOCK_PHONE_SECONDS);
+
+	/* The same where the phone's time is no step ahead of the board's lower bound: the lower bound
+	 * stays, the latest possible time comes down, and that is one write. */
+	wipe(1, 0);
+	memcpy(vault.record.owner, phone_key, 32);
+	end_session();
+	device_order_start();
+	make_grant(record, 1, 1, quote_end - 51, quote_end - 51 + 31 * DAY);
+	assert(!operator_installs(record, 58000));
+	grant_names_the_store();
+	real = quote_end - 50;
+	const uint64_t lower = device_install_earliest();
+	assert(!connect_phone() && pay() == -1 && !approval.pending);
+	assert(!connect_phone());
+	writes = 0;
+	clock_turns = 0;
+	assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED && writes == 1 && clock_turns == 1);
+	assert(told().earliest == lower && told().latest == real + NU54_CLOCK_PHONE_SECONDS);
+	assert(device_install_earliest() == lower && device_install_now() == real + NU54_CLOCK_PHONE_SECONDS);
+	/* Nothing moved forward, so nothing was held open, and no later day was counted. */
+	assert(!device_install_order_hold() && !told().days);
+	assert(!pay() && approval.pending);
+	/* A second message finds nothing more to bring down. */
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_NOT_FORWARD && writes == 1);
+	assert(board_restart() == 0 && device_install_earliest() == lower && device_install_now() == real + NU54_CLOCK_PHONE_SECONDS);
+
+	/* A fresh grant sets both ends, also in a start in which a session saw the wide interval:
+	 * the session after it is taken, with a time that is earlier than the one before. */
+	wipe(1, 0);
+	memcpy(vault.record.owner, phone_key, 32);
+	end_session();
+	make_grant(record, 1, 1, granted, granted + 31 * DAY);
+	assert(!operator_installs(record, 58000));
+	grant_names_the_store();
+	real = granted + 5;
+	assert(!connect_phone() && !status());
+	const uint64_t seen = journal.trusted_time;
+	assert(seen == granted + 58);
+	make_grant(record, 2, 1, real - 2, granted + 31 * DAY);
+	assert(!operator_installs(record, 2000) && device_install_earliest() == real - 2 && device_install_now() == real);
+	grant_names_the_store();
+	assert(device_install_now() < seen);
+	assert(!connect_phone() && !status() && !pay() && approval.pending);
+	/* A grant that is refused changes nothing of this. */
+	const uint64_t kept = journal.trusted_time;
+	make_grant(record, 3, 1, real - 100, granted + 31 * DAY);
+	assert(operator_installs(record, 2000) && journal.trusted_time == kept && device_install_now() == real);
+}
+
 /* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
  * the grant goes with it, and an approved order counts as open for one order life of running time,
  * as it does on every board that does not know the time. */
@@ -1174,6 +1369,7 @@ int main(int argc, char **argv)
 	test_open_orders();
 	test_open_orders_through_restarts();
 	test_small_steps_write_nothing();
+	test_the_latest_time_comes_down();
 	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;

@@ -114,31 +114,52 @@ int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t
 /* How far the phone's clock may be off (the same 5 s the short requests allow for). */
 #define NU54_CLOCK_PHONE_SECONDS 5
 /* A time less than this ahead of the board's lower bound, and not past its latest possible time,
- * moves nothing and costs no write. It is less than the phone's allowance: a difference that
- * small does not say which clock is right, and the board's latest possible time stays above the
- * time the phone told by what is left of the allowance (at least
- * NU54_CLOCK_PHONE_SECONDS - NU54_CLOCK_STEP_SECONDS + 1 after a time the phone set). */
+ * does not move the lower bound. It is less than the phone's allowance: a difference that small
+ * does not say which clock is right, and the board's latest possible time stays above the time
+ * the phone told by what is left of the allowance (at least
+ * NU54_CLOCK_PHONE_SECONDS - NU54_CLOCK_STEP_SECONDS + 1 after a time the phone set). The latest
+ * possible time is likewise brought down by a step or more, or left alone. Less costs no write. */
 #define NU54_CLOCK_STEP_SECONDS 3
 _Static_assert(NU54_CLOCK_STEP_SECONDS > 1 && NU54_CLOCK_STEP_SECONDS <= NU54_CLOCK_PHONE_SECONDS,
 	       "the smallest step lies within the phone's allowance");
-enum { NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3 };
+/* MOVED: the board took the time, and `next` is its new interval. NOT_FORWARD: its time is as
+ * late or later, or the difference is below the step. PAST_END: the time is at or after the
+ * grant's end. LATE: the message came too late in its session to say what the time is. All but
+ * MOVED change nothing. */
+enum { NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3, NU54_CLOCK_LATE = 4 };
+
+/* One message with the phone's time, and what the board knows about it. */
+typedef struct {
+	uint64_t time, expires;   /* the phone's time and the end of the message that carries it */
+	uint64_t session_seconds; /* how long the board had had the session when the message arrived */
+} nu54_install_clock_word;
+
+/* What the build allows the phone's word: the oldest session it may come in. */
+typedef struct {
+	uint64_t session_seconds;
+} nu54_install_clock_limits;
 
 /* Decides on the time a registered owner's phone tells in an authenticated session.
  *
- * The time only moves forward and stays before the grant's end. The message that carries it must
- * end within NU54_PILOT_BRIEF_SECONDS after that time, by its own word: a message can then only
- * ever set a time shortly before its own end, and one that is replayed after it ended is refused
- * as ended, whatever it carries.
+ * The lower bound only moves forward and stays before the grant's end. The message that carries
+ * the time must end within NU54_PILOT_BRIEF_SECONDS after it, by its own word: a message can then
+ * only ever set a time shortly before its own end, and one that is replayed after it ended is
+ * refused as ended, whatever it carries.
  *
- * `session_seconds` is how long the board has had this session. The phone read its clock after the
- * session began, so the true time is at most that much, and the phone's own error, past the time
- * it sent: that is the new distance to the latest possible time. The latest possible time never
- * moves back.
+ * The phone read its clock after the session began, so the true time is at most the session's
+ * age, and the phone's own error, past the time it sent. That is the distance to the latest
+ * possible time the phone vouches for, and it is what the board takes with a time that moves the
+ * lower bound: the interval becomes the phone's, also where that brings the latest possible time
+ * down. A session older than the limit vouches for too little; its message is answered with LATE.
+ *
+ * A time that does not move the lower bound, and is not behind it by more than the phone's
+ * allowance, still brings the latest possible time down to what the phone vouches for, if that is
+ * a step or more. That is how an interval a slow grant left wide becomes narrow again.
  *
  * Returns -1 for a message that is not well formed, else one of the results above. `next` is
  * written for NU54_CLOCK_MOVED only; its hold is the current one, and the caller sets the new. */
-int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, uint64_t time,
-			   uint64_t expires, uint64_t session_seconds, nu54_install_clock *next);
+int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, const nu54_install_clock_word *word,
+			   const nu54_install_clock_limits *limits, nu54_install_clock *next);
 void nu54_install_clock_reply(int result, const nu54_install_clock *clock, uint64_t not_after,
 			      uint8_t out[NU54_CLOCK_SET_REPLY_SIZE]);
 

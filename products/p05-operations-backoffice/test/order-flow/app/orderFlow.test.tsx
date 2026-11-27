@@ -591,19 +591,15 @@ flow('a grant that took 12 seconds', async () => {
   const entry = await paidOrder();
   await cancelled(entry.order.id);
   await board.boot();
-  // Almost the longest one the board accepts. The board's latest possible time never goes back, also not through a
-  // restart or by a quicker grant, and with it a minute ahead no quote of this store can be approved. So this grant
-  // runs for 70 seconds only, which is 10 by the board's clock: only after its end does a quick grant help.
-  await board.grant(58, 70);
+  await board.grant(58); // almost the longest one the board accepts
   same('seconds the board\'s clock is ahead', board.ahead, 60);
   await withBoard('board-1', session => session.spendingAccount({generation: board.generation} as never));
   await board.boot();
-  await board.grant(2, 70);
-  check('a quick grant that does not bring the latest possible time back', board.ahead > quoteLife);
-  await until('the end of the slow grant', async () => !(await boardOpens()), 30);
-  await pause(2500); // the board saves the end within two seconds
-  await board.boot();
-  check('no session under a grant that ended', !(await boardOpens()));
+  // The slow grant is kept through the restart, and its width with it: a minute ahead, no quote of this store can be
+  // approved. A fresh grant is the operator's word about the time and sets both ends of the board's interval, so the
+  // quick one brings the latest possible time down again and the orders of the flows after this one are taken.
+  check('a session under the slow grant kept through the restart', await boardOpens());
+  check('a board that is a minute ahead', board.ahead > quoteLife);
   await board.grant();
   same('seconds the board\'s clock is ahead', board.ahead, 4);
 });

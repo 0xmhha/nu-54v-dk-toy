@@ -34,6 +34,7 @@
 #define GRANT_PART_SIZE 128
 #define GRANT_PARTS ((NU54_INSTALL_BUNDLE_MAX + GRANT_PART_SIZE - 1) / GRANT_PART_SIZE)
 #define CLOCK_SAVE_SECONDS CONFIG_NU54_CLOCK_SAVE_SECONDS
+#define CLOCK_SESSION_SECONDS CONFIG_NU54_CLOCK_SESSION_SECONDS
 _Static_assert(INSTALL_GRANT_PART + GRANT_PARTS <= 0x5470, "the grant parts run into the next record");
 /* A part is exactly as large as one item of the default profile's storage may be: there is no
  * margin, so a smaller item limit must fail the build and not the installation. */
@@ -433,10 +434,20 @@ int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *
 	    nu54_install_accept(bundle, length, challenge, identity, payer, minimum,
 				&floor, hash, device_install_verify_authority, &next, &decoded, &ca_length, &board_length))
 		return -1;
+	/* The authority read its clock after the board made the offer this grant answers, so the true
+	 * time is at most the offer's age past the grant's time. */
 	uint64_t offset = ((uint64_t)age + 999u) / 1000u;
+#if !defined(CONFIG_NU54_SPENDING_PROFILE)
+	/* A grant of these profiles lasts for one start, and in it the latest possible time never
+	 * moves back. */
 	uint64_t previous_upper = device_install_now();
 	if (previous_upper > next.time && previous_upper - next.time > offset)
 		offset = previous_upper - next.time;
+#endif
+	/* The spending profile keeps its grant and its time through restarts, where a width that
+	 * never came down stayed until the grant's end. There a fresh grant sets both ends: it is the
+	 * authority's word about the time, and nothing the board had before is trusted more. The
+	 * caller lets the transport's journal follow (journal_follow_time). */
 	if (decoded.not_after - next.time <= offset ||
 	    adopt(bundle, ca_length, board_length, &decoded, next.time + offset, ca, board, key, profiles)) return -1;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
@@ -531,13 +542,20 @@ int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_se
 	if (!device_install_policy()) return -1;
 	const uint64_t earliest = device_install_earliest();
 	nu54_install_clock clock = {earliest, max_offset, clock_saved.phone_days, hold_after(earliest)}, next;
-	const int result = nu54_install_clock_set(&clock, policy.not_after, time, expires, session_seconds, &next);
+	const nu54_install_clock_word word = {.time = time, .expires = expires, .session_seconds = session_seconds};
+	static const nu54_install_clock_limits limits = {.session_seconds = CLOCK_SESSION_SECONDS};
+	const int result = nu54_install_clock_set(&clock, policy.not_after, &word, &limits, &next);
 	if (result < 0) return -1;
 	if (result == NU54_CLOCK_MOVED) {
-		next.hold = !hold_seconds ? 0 : hold_seconds > UINT64_MAX - next.earliest ? UINT64_MAX : next.earliest + hold_seconds;
+		const bool forward = next.earliest > clock.earliest;
+		/* Only a lower bound that moved can end an order early. */
+		if (forward)
+			next.hold = !hold_seconds ? 0 : hold_seconds > UINT64_MAX - next.earliest ? UINT64_MAX : next.earliest + hold_seconds;
 		if (clock_store(&next)) return -1;
-		clock_base = next.earliest;
-		installed = k_uptime_get();
+		if (forward) {
+			clock_base = next.earliest;
+			installed = k_uptime_get();
+		}
 		max_offset = next.offset;
 		/* What was saved already says that the grant ended: nothing more is written for it. */
 		clock_sealed = next.offset >= policy.not_after - next.earliest;

@@ -172,6 +172,27 @@ config NU54_CLOCK_SAVE_SECONDS
 	  and how often the storage is written. The time is also saved when the phone moves it and
 	  when the grant ends. One hour is 24 writes a day.
 
+config NU54_CLOCK_SESSION_SECONDS
+	int "Oldest session, in seconds, in which the owner's phone may still tell the time"
+	depends on NU54_SPENDING_PROFILE
+	range 1 60
+	default 15
+	help
+	  The owner's phone tells a restarted board the time (the time command). The board counts
+	  from the first byte of the TLS session, so the count includes the handshake. The phone
+	  read its clock some time after that, so the board's latest possible time becomes the
+	  phone's time plus the session's age plus five seconds. A message that arrives later than
+	  this limit is answered with "too late in the session" and moves nothing: its time would
+	  widen the board's interval by its age, and every request that has less than that left to
+	  run would then be refused.
+
+	  The default is a guess, set low on purpose. NOT MEASURED ON A BOARD: if the handshake over
+	  Bluetooth takes longer than this on the real board, every time command is answered "too
+	  late" and a restarted board stays late until the operator's next grant. Measure the time
+	  from the first write to the answer of the time command on the board and set this to that
+	  plus a margin. The upper bound keeps the widest interval the phone can leave (this plus
+	  five seconds) under the 90 seconds of the phone's short requests.
+
 source "Kconfig.zephyr"
 
 config NU54_SECURE_KEY
