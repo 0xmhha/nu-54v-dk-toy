@@ -206,6 +206,38 @@ target_compile_options(test_clock_sync PRIVATE -Wall -Wextra -Werror)
 add_test(NAME clock_sync COMMAND test_clock_sync
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/order-lock.vectors)
 
+# What the board asks of a peer's certificates before it binds a session: its own functions over a
+# stand-in for Mbed TLS, so that this runs without the pinned library (test_mbedtls_peer.sh has it).
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_tls_bind.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_tls_bind.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_tls_v2.c role_certificate epoch_seconds certificate_window
+    device_tls_v2_certificate_current peer_pin device_tls_v2_bind
+  DEPENDS extract_c.py ../app/src/device_tls_v2.c VERBATIM)
+add_executable(test_tls_bind test_tls_bind.c ${CMAKE_CURRENT_BINARY_DIR}/board_tls_bind.h ../core/src/nu54_install.c
+  ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c
+  ../../../packages/protocol/c/src/nu54_transport_v2.c)
+target_include_directories(test_tls_bind PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(test_tls_bind PRIVATE nu54_crypto)
+target_compile_options(test_tls_bind PRIVATE -Wall -Wextra -Werror)
+add_test(NAME tls_bind COMMAND test_tls_bind)
+
+# How a session is opened, bound, fed and ended: the board's own functions over stand-ins for
+# Bluetooth and TLS.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c reset_display_input reset_install_input reset_link session_live
+    journal_new_session clock_wait_over stream bind_session poll_tls receive_bytes
+  DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
+add_executable(test_pilot_session test_pilot_session.c ${CMAKE_CURRENT_BINARY_DIR}/board_session.h
+  ../core/src/nu54_install.c ../core/src/nu54_owner.c ../core/src/nu54_vault.c
+  ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c
+  ../../../packages/protocol/c/src/nu54_transport_v2.c)
+target_include_directories(test_pilot_session PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_pilot_session PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
+target_link_libraries(test_pilot_session PRIVATE nu54_crypto)
+target_compile_options(test_pilot_session PRIVATE -Wall -Wextra -Werror)
+add_test(NAME pilot_session COMMAND test_pilot_session)
+
 add_executable(test_order test_order.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
   ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c)
 target_link_libraries(test_order PRIVATE nu54_crypto)

@@ -27,6 +27,18 @@ static int writes_left = -1; /* -1: power stays on */
 static bool power_after;     /* the write lands and then the power goes */
 static jmp_buf power;
 static unsigned writes;
+/* A write can also fail with the power on: the storage says so, and the board goes on. */
+static int fails_left = -1;  /* -1: every write works; n: the one after n more reports a failure */
+static bool fail_after;      /* the failed write reached the storage all the same */
+#define PSA_ERROR_STORAGE_FAILURE (-146)
+
+static bool fails(void)
+{
+	if (fails_left < 0) return false;
+	if (fails_left-- > 0) return false;
+	fails_left = -1;
+	return true;
+}
 
 static struct item *item(uint64_t uid)
 {
@@ -74,6 +86,11 @@ psa_status_t psa_its_set(psa_storage_uid_t uid, size_t size, const void *data, u
 	for (size_t i = 0; !slot && i < 64; ++i)
 		if (!flash[i].uid) slot = &flash[i];
 	assert(slot);
+	if (fails()) {
+		++writes;
+		if (fail_after) slot->uid = uid, slot->size = size, memcpy(slot->data, data, size);
+		return PSA_ERROR_STORAGE_FAILURE;
+	}
 	WRITE(slot->uid = uid; slot->size = size; memcpy(slot->data, data, size));
 	return PSA_SUCCESS;
 }
@@ -81,6 +98,11 @@ psa_status_t psa_its_remove(psa_storage_uid_t uid)
 {
 	struct item *found = item(uid);
 	if (!found) return PSA_ERROR_DOES_NOT_EXIST;
+	if (fails()) {
+		++writes;
+		if (fail_after) memset(found, 0, sizeof(*found));
+		return PSA_ERROR_STORAGE_FAILURE;
+	}
 	WRITE(memset(found, 0, sizeof(*found)));
 	return PSA_SUCCESS;
 }
@@ -208,6 +230,7 @@ static int restart(void)
 	installed = 0;
 	max_offset = replay_floor = clock_base = clock_moved = 0;
 	offered = active = false;
+	authority = 1; /* device_install_init imports the pinned key at every start */
 	uptime = 5000;
 	assert(!storage_found(INSTALL_FLOOR, &floor, sizeof(floor), 1, &found));
 	assert(!storage_found(INSTALL_REPLAY_FLOOR, &replay_floor, sizeof(replay_floor), 2, &found));
@@ -231,7 +254,7 @@ static void wipe(uint64_t generation, uint8_t flags)
 {
 	memset(flash, 0, sizeof(flash));
 	vault = (nu54_vault){.enabled = true, .record.generation = generation, .record.flags = flags};
-	writes_left = -1;
+	writes_left = fails_left = -1;
 	(void)restart();
 }
 

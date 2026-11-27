@@ -283,9 +283,59 @@ static void test_a_fresh_grant_sets_both_ends(void)
 	assert(device_install_now() - device_install_earliest() == 60);
 }
 
+/* A write that the storage refuses while a grant replaces another, with the power on. The install
+ * fails and commits nothing. The grant in use stays in use for this start, unless the write that
+ * failed was the one that commits: then the board stops until its restart. What a restart finds is
+ * what a power cut at the same place would leave: the new grant with its floor, or no usable grant. */
+static void test_a_write_fails_while_installing(void)
+{
+	uint8_t first[GRANT_SIZE], second[GRANT_SIZE];
+	unsigned failures = 0, committed = 0, untouched = 0;
+	make_grant(first, 1, 3, ISSUED, ISSUED + 31 * DAY);
+	make_grant(second, 2, 3, ISSUED + 5 * DAY, ISSUED + 20 * DAY);
+	for (int after = 0; after < 2; ++after) {
+		for (int step = 0;; ++step) {
+			wipe(3, 0);
+			assert(!install(first));
+			run(4 * DAY);
+			const uint64_t reached = device_install_earliest();
+			fail_after = after;
+			fails_left = step;
+			const int result = install(second);
+			const bool failed = fails_left == -1;
+			fails_left = -1;
+			if (!failed) { /* every write of an install was passed */
+				assert(!result && policy.revision == 2 && step > 3);
+				break;
+			}
+			assert(result == -1);
+			if (active) assert(policy.revision == 1 && floor.revision == 1 && device_install_earliest() == reached);
+			else assert(!authority && !device_install_policy()); /* the commit itself failed */
+			const int restored = restart();
+			if (restored == 0 && policy.revision == 2) {
+				/* Only the write that commits, and only where it reached the storage. */
+				assert(after && floor.revision == 2 && device_install_earliest() == ISSUED + 5 * DAY);
+				++committed;
+			} else if (restored == 0) {
+				/* Nothing that tells the two grants apart reached the storage: the one before goes on. */
+				assert(floor.revision == 1 && policy.revision == 1 && device_install_earliest() == reached);
+				++untouched;
+			} else {
+				assert(!device_install_policy());
+			}
+			assert(nu54_install_resume(&clock_saved, floor.time, replay_floor) >= reached);
+			++failures;
+			assert(step < 40);
+		}
+	}
+	assert(failures >= 8 && committed == 1 && untouched >= 1 && untouched < failures / 2);
+	printf("installation refused a write at %u points\n", failures);
+}
+
 int main(void)
 {
 	test_a_fresh_grant_sets_both_ends();
+	test_a_write_fails_while_installing();
 	test_kept_through_a_restart();
 	test_the_end_is_kept();
 	test_bound_to_the_generation();

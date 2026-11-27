@@ -93,9 +93,10 @@ static void exchange_at(mbedtls_x509_crt *ca, struct identity *board, struct ide
 		board_cert->pk_raw.len == board->certificate.pk_raw.len &&
 		memcmp(board_cert->pk_raw.p, board->certificate.pk_raw.p, board_cert->pk_raw.len) == 0);
 
-	uint8_t peer_pin[32];
-	const mbedtls_x509_buf *key = &pin->certificate.pk_raw;
-	REQUIRE(sha256(key->p, key->len, peer_pin) == 0);
+	/* Without a pin the session is bound to no particular peer, as the recovery session is. */
+	uint8_t pinned[32];
+	const uint8_t *peer_pin = pin ? pinned : NULL;
+	if (pin) REQUIRE(sha256(pin->certificate.pk_raw.p, pin->certificate.pk_raw.len, pinned) == 0);
 	nu54_v2_journal_entry entries[4] = {0};
 	nu54_v2_journal journal = {.entries = entries, .capacity = 4, .sha256 = sha256};
 	nu54_v2_link link;
@@ -161,6 +162,13 @@ int main(void)
 	exchange_at(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, false, second, late, &period);
 	exchange_at(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, false, second, today, &period);
 	exchange_at(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, false, second, late, NULL);
+	/* Without a pinned peer the period is never asked for: that is refused whole, also with a
+	 * certificate that is valid, and a certificate that is not valid yet is refused as always. */
+	exchange_at(&ca, &board, &owner, NULL, NU54_V2_MANAGEMENT, true, second, today, NULL);
+	exchange_at(&ca, &board, &owner, NULL, NU54_V2_MANAGEMENT, false, second, today, &period);
+	exchange_at(&ca, &board, &owner, NULL, NU54_V2_MANAGEMENT, false, second, late, &period);
+	exchange_at(&ca, &board, &owner, NULL, NU54_V2_MANAGEMENT, false, second, late, NULL);
+	exchange_at(&ca, &board, &owner, NULL, NU54_V2_MANAGEMENT, false, second, far, NULL);
 	unload(&terminal);
 	unload(&owner);
 	unload(&board);

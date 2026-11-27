@@ -1672,6 +1672,104 @@ static void test_a_session_from_before_the_owner(void)
 	assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED && device_install_earliest() == real && !link.closed);
 }
 
+/* The audit's eighth finding named tests that were missing. Here: a write the storage refuses with
+ * the power on. */
+#define ORDER_RECORD 0x5550 /* ORDER_RECORD_UID of device_order.c */
+static void test_a_write_that_fails(void)
+{
+	nu54_order_record record = {.outcome = NU54_ORDER_APPROVED};
+
+	/* The moved time is saved before it is used. When the save fails nothing has moved, the phone
+	 * gets no answer and the session ends; an open order is judged by the time that did not move
+	 * and is held for no longer than it runs. The write may have reached the storage all the same:
+	 * then a restart finds the moved time, and the hold with it. */
+	for (int after = 0; after < 2; ++after) {
+		late_board(3 * 3600);
+		assert(!device_order_erase());
+		record.expires = device_install_earliest() + 117;
+		assert(!device_order_store(1, &record));
+		const uint64_t before = device_install_earliest(), latest = device_install_now();
+		const nu54_install_clock kept = clock_saved;
+		assert(!connect_phone());
+		fail_after = after;
+		fails_left = 0;
+		writes = clock_turns = 0;
+		assert(tell_time(real) == -1 && !answered && link.closed && writes == 1 && !clock_turns && fails_left == -1);
+		assert(device_install_earliest() == before && device_install_now() == latest && !clock_moved);
+		assert(!memcmp(&clock_saved, &kept, sizeof(kept)) && device_install_policy());
+		assert(device_order_open(device_install_earliest(), uptime));
+		if (after) {
+			assert(board_restart() == 0 && device_install_earliest() == real);
+			assert(device_install_order_hold() == NU54_ORDER_MAX_SECONDS && device_order_open(device_install_earliest(), uptime));
+		} else {
+			on_for(116);
+			assert(device_order_open(device_install_earliest(), uptime));
+			on_for(1);
+			assert(!device_order_open(device_install_earliest(), uptime));
+			/* The phone tells the time again, and now it is taken. */
+			assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && device_install_earliest() == real);
+		}
+	}
+	/* The same for a time that waited for SW1, and for one that only brings the latest time down. */
+	late_board(2 * DAY);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_BUTTON);
+	fails_left = 0;
+	assert(button(true) == -1 && link.closed && fails_left == -1 && device_install_earliest() == calendar - 2 * DAY && !clock_moved);
+	uint8_t grant[GRANT_SIZE];
+	wipe(1, 0);
+	memcpy(vault.record.owner, phone_key, 32);
+	end_session();
+	device_order_start();
+	make_grant(grant, 1, 1, calendar - 1, calendar - 1 + 31 * DAY);
+	assert(!operator_installs(grant, 58000));
+	grant_names_the_store();
+	real = calendar;
+	assert(!connect_phone());
+	fails_left = 0;
+	assert(tell_time(real) == -1 && !answered && fails_left == -1 && device_install_now() == calendar - 1 + 58);
+
+	/* The periodic save: a failed one is tried again at the next turn. Until then the time in
+	 * storage is older, not wrong. */
+	late_board(0);
+	const uint64_t stored = clock_saved.earliest;
+	uptime += 600 * 1000;
+	fails_left = 0;
+	const int64_t wait = device_install_keep_time();
+	assert(wait == 600 * 1000 && fails_left == -1 && clock_saved.earliest == stored && device_install_earliest() == stored + 600);
+	uptime += wait;
+	assert(device_install_keep_time() == 600 * 1000 && clock_saved.earliest == stored + 1200);
+
+	/* An order record is marked as one of this start before it is written, because a write that
+	 * fails may have reached the storage. The board has run for more than one order life here: a
+	 * record that counted as an earlier start's would be closed, though its order can execute. */
+	late_board(0);
+	assert(!device_order_erase());
+	on_for(300);
+	assert(uptime >= NU54_SPEND_ORDER_LIFE_MS && !device_order_open(device_install_earliest(), uptime));
+	record.expires = device_install_earliest() + 100;
+	fail_after = true;
+	fails_left = 0;
+	assert(device_order_store(3, &record) == -1 && fails_left == -1 && item(ORDER_RECORD + 3));
+	assert(device_order_open(device_install_earliest(), uptime));
+	on_for(99);
+	assert(device_order_open(device_install_earliest(), uptime));
+	on_for(1);
+	assert(!device_order_open(device_install_earliest(), uptime));
+	/* A write that failed and did not reach the storage leaves no order. */
+	record.expires = device_install_earliest() + 100;
+	fail_after = false;
+	fails_left = 0;
+	assert(device_order_store(5, &record) == -1 && !item(ORDER_RECORD + 5));
+	assert(!device_order_open(device_install_earliest(), uptime));
+	/* The mark is this start's only: after a restart the first record is an earlier start's. */
+	record.expires = device_install_earliest() + 5000;
+	assert(!device_order_store(3, &record) && board_restart() == 0);
+	uptime = NU54_SPEND_ORDER_LIFE_MS - 1;
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime = NU54_SPEND_ORDER_LIFE_MS;
+	assert(!device_order_open(device_install_earliest(), uptime));
+}
+
 /* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
  * the grant goes with it, and an approved order counts as open for one order life of running time,
  * as it does on every board that does not know the time. */
@@ -1729,6 +1827,7 @@ int main(int argc, char **argv)
 	test_the_latest_time_comes_down();
 	test_the_phone_alone_moves_a_day();
 	test_a_session_from_before_the_owner();
+	test_a_write_that_fails();
 	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;
