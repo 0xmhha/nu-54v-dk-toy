@@ -440,7 +440,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_links.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_links.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/ble_links.c set_mode owner_wait_phase start_set advertise_as advertise
     adv_retry owner_wait_turn idle_guard ble_links_owner_wait stop_advertising_if_idle mode_end
-    ble_links_payment_mode ble_links_advertising connected
+    ble_links_payment_mode ble_links_payment_advertising connected
     ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/pay_link.c platform_payment_mode
   DEPENDS extract_c.py ../app/src/ble_links.c ../app/src/pay_link.c VERBATIM)
 add_executable(test_owner_wait_links test_owner_wait_links.c ../core/src/nu54_adv_schedule.c

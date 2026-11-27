@@ -134,7 +134,7 @@ static void status_led_mode(bool on) { lamp_mode = on; }
 
 int ble_links_owner_wait(bool on);
 int ble_links_payment_mode(uint32_t seconds);
-bool ble_links_advertising(void);
+bool ble_links_payment_advertising(void);
 #include "board_links.h"
 
 /* ---- cases ---- */
@@ -280,24 +280,24 @@ static void test_window_survives_a_failed_start(void)
 static void test_the_phone_learns_what_is_on_the_air(void)
 {
 	restart(false);
-	assert(!ble_links_advertising());
-	assert(!platform_payment_mode(NULL, 1, 120) && payment_mode && on_air == AIR_WINDOW && ble_links_advertising());
+	assert(!ble_links_payment_advertising());
+	assert(!platform_payment_mode(NULL, 1, 120) && payment_mode && on_air == AIR_WINDOW && ble_links_payment_advertising());
 	assert(!platform_payment_mode(NULL, 1, 120)); /* asked again while it advertises */
-	assert(!platform_payment_mode(NULL, 0, 0) && !payment_mode && on_air == AIR_NONE && !ble_links_advertising());
+	assert(!platform_payment_mode(NULL, 0, 0) && !payment_mode && on_air == AIR_NONE && !ble_links_payment_advertising());
 
 	/* The controller cannot start: the answer says so, the window is open, and the retry serves it. */
 	restart(false);
 	start_failures = 3;
 	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN);
-	assert(payment_mode && lamp_mode && on_air == AIR_NONE && !ble_links_advertising());
+	assert(payment_mode && lamp_mode && on_air == AIR_NONE && !ble_links_payment_advertising());
 	advance(100);
 	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN && payment_mode); /* the retry failed as well */
 	start_failures = 0;
 	advance(250);
-	assert(on_air == AIR_WINDOW && ble_links_advertising() && !platform_payment_mode(NULL, 1, 120));
+	assert(on_air == AIR_WINDOW && ble_links_payment_advertising() && !platform_payment_mode(NULL, 1, 120));
 	/* Turning it off is never a failure. */
 	start_failures = 5;
-	assert(!platform_payment_mode(NULL, 0, 0) && !payment_mode && !ble_links_advertising());
+	assert(!platform_payment_mode(NULL, 0, 0) && !payment_mode && !ble_links_payment_advertising());
 
 	/* Both connection slots are taken: nothing is advertised, and the phone hears that. */
 	struct bt_conn first, second;
@@ -306,6 +306,22 @@ static void test_the_phone_learns_what_is_on_the_air(void)
 	connect(&first);
 	connect(&second);
 	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN && payment_mode && on_air == AIR_NONE);
+
+	/* Pairing mode is on the air and comes first (core/nu54_adv_schedule.h). The payment window
+	 * opens behind it, but what is advertised is the pairing set, and the phone hears that the
+	 * payment advertising is not on the air. When pairing ends, it is, and the answer says so. */
+	restart(false);
+	pairing_mode = true; /* ble_links_pairing_mode */
+	assert(!advertise() && advertising == NU54_ADV_SET_PAIRING && on_air != AIR_NONE);
+	assert(platform_payment_mode(NULL, 1, 120) == -EAGAIN && payment_mode && lamp_mode);
+	assert(advertising == NU54_ADV_SET_PAIRING);
+	pairing_mode = false; /* pairing_end */
+	stop_advertising_if_idle();
+	assert(advertising == NU54_ADV_SET_PAYMENT && !platform_payment_mode(NULL, 1, 120));
+	/* The board's own advertising for its next owner is not the payment window either. */
+	restart(true);
+	assert((advertising == NU54_ADV_SET_OWNER_FAST) && !ble_links_payment_advertising());
+	assert(!platform_payment_mode(NULL, 1, 120) && advertising == NU54_ADV_SET_PAYMENT && ble_links_payment_advertising());
 }
 
 int main(void)

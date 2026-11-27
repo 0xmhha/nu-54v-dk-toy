@@ -473,9 +473,10 @@ static int platform_payment_mode(void *ctx, int on, uint32_t seconds)
 	const int err = ble_links_payment_mode(on ? seconds : 0);
 	/* The window opens whatever the first start of the advertising says, so that a button press
 	 * is never lost. The phone that asked is told what is on the air now: its "accepted" must
-	 * not stand for advertising that did not start. The window stays open and the start is tried
-	 * again, so the phone may simply ask once more. */
-	return err ? err : on && !ble_links_advertising() ? -EAGAIN : 0;
+	 * not stand for advertising that did not start, nor for the advertising of pairing mode,
+	 * which comes first. The window stays open and the start is tried again, or follows when
+	 * pairing ends, so the phone may simply ask once more. */
+	return err ? err : on && !ble_links_payment_advertising() ? -EAGAIN : 0;
 }
 
 int pay_link_init(void)

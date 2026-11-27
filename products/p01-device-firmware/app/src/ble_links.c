@@ -473,10 +473,12 @@ int ble_links_payment_mode(uint32_t seconds)
 	return 0;
 }
 
-bool ble_links_advertising(void)
+bool ble_links_payment_advertising(void)
 {
 	k_mutex_lock(&adv_lock, K_FOREVER);
-	const bool on_air = advertising != NU54_ADV_SET_NONE;
+	/* Pairing comes before payment (nu54_adv_select), and the board's own advertising for its
+	 * next owner is another set again: neither is what the payment window advertises. */
+	const bool on_air = advertising == NU54_ADV_SET_PAYMENT;
 	k_mutex_unlock(&adv_lock);
 	return on_air;
 }
