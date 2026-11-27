@@ -55,7 +55,7 @@ type DetectorClass = { new (options: { formats: string[] }): Detector; getSuppor
 const detectorClass = () => (globalThis as { BarcodeDetector?: DetectorClass }).BarcodeDetector;
 
 type Camera = "off" | "starting" | "on" | "unavailable" | "refused";
-type Result = { handed: Handed; at: Date } | { refused: Refusal; collected?: boolean };
+type Result = { handed: Handed; at: Date } | { refused: Refusal; recordedAt?: Date };
 
 /** Reads the pickup QR of the order that is open, from the camera or from a field a handheld scanner types into. */
 function PickupScanner({ branch, zone, order, reread, next }: {
@@ -93,10 +93,10 @@ function PickupScanner({ branch, zone, order, reread, next }: {
     try {
       const outcome = await sendPickupScan(branch, order.sale, token);
       if (!live.current) return;
-      if (outcome.kind === "handed") { setResult({ handed: outcome.handed, at: new Date() }); return; }
+      if (outcome.kind === "handed") { setResult({ handed: outcome.handed, at: outcome.handed.recordedAt ?? new Date() }); return; }
       // A lost answer may still have recorded the handover, so the order is read again before anything is said.
       await reread();
-      setResult({ refused: outcome.reason });
+      setResult({ refused: outcome.reason, recordedAt: outcome.recordedAt });
     } finally {
       sending.current = false;
       if (live.current) setBusy(false);
@@ -177,7 +177,9 @@ function PickupScanner({ branch, zone, order, reread, next }: {
     return (
       <div className="pickup-result">
         <h3>방금 찍은 QR</h3>
-        <div className="handed" role="status"><strong>{handed.pickupNo}번 · 건네 주세요</strong><br />결제한 보드로 확인한 손님입니다. {clock(zone, at)}에 전달을 기록했습니다.</div>
+        {handed.alreadyRecorded
+          ? <div className="handed again" role="status"><strong>{handed.pickupNo}번 · 이미 기록됨 · {clock(zone, at)}</strong><br />이 QR의 전달은 이 기기에서 이미 기록했습니다. 다시 기록하지 않았습니다. 이미 건넸다면 또 건네지 마세요.</div>
+          : <div className="handed" role="status"><strong>{handed.pickupNo}번 · 건네 주세요</strong><br />결제한 보드로 확인한 손님입니다. {clock(zone, at)}에 전달을 기록했습니다.</div>}
         <ul className="live" aria-label="건넬 품목">
           {handed.items.map((line, index) => <li key={index}><strong>{lineName(line)}</strong> <small>{lineCount(line)}</small></li>)}
         </ul>
@@ -190,7 +192,7 @@ function PickupScanner({ branch, zone, order, reread, next }: {
       </div>
     );
   }
-  if (result) return <Refused order={order} reason={result.refused} again={again} />;
+  if (result) return <Refused order={order} reason={result.refused} recordedAt={result.recordedAt} zone={zone} again={again} />;
 
   return (
     <div className="pickup-scan">
@@ -217,16 +219,17 @@ function PickupScanner({ branch, zone, order, reread, next }: {
   );
 }
 
-const cases: { reason: Refusal | "used" | "other-store"; title: string; detail: (n: number) => string }[] = [
-  { reason: "unusable", title: "시간이 지난 QR", detail: () => "QR은 1분 안팎만 씁니다. 캡처한 화면도 여기에 해당합니다." },
-  { reason: "used", title: "이미 쓴 QR", detail: () => "이 주문은 이미 전달이 기록되었습니다." },
+type Case = "expired" | "already-used" | "other-order" | "other-store" | "not-ready";
+const cases: { reason: Case; title: string; detail: (n: number, used?: string) => string }[] = [
+  { reason: "expired", title: "시간이 지난 QR", detail: () => "QR은 1분 안팎만 씁니다. 캡처한 화면도 여기에 해당합니다." },
+  { reason: "already-used", title: "이미 쓴 QR", detail: (_, used) => (used ? `이 주문은 ${used}에 전달이 기록되었습니다.` : "이 주문은 이미 전달이 기록되었습니다.") },
   { reason: "other-order", title: "다른 주문의 QR", detail: (n) => `지금 연 ${n}번이 아니라 다른 번호의 QR입니다. 그 주문을 열고 다시 찍으세요.` },
   { reason: "other-store", title: "다른 매장의 주문", detail: () => "이 매장에서 결제한 주문이 아닙니다." },
   { reason: "not-ready", title: "아직 준비 전인 주문", detail: () => "준비 완료를 누른 뒤에 받을 수 있습니다." },
 ];
 
-/** Do not hand over. The server tells apart another order and an order not ready; the rest it answers alike. */
-function Refused({ order, reason, again }: { order: CheckedOrder; reason: Refusal; again: () => void }) {
+/** Do not hand over. The server names which of the five cases it is; an older server answers three of them alike. */
+function Refused({ order, reason, recordedAt, zone, again }: { order: CheckedOrder; reason: Refusal; recordedAt?: Date; zone: string; again: () => void }) {
   if (reason === "denied" || reason === "unanswered")
     return (
       <div className="pickup-result">
@@ -237,18 +240,24 @@ function Refused({ order, reason, again }: { order: CheckedOrder; reason: Refusa
         <button onClick={again}>다시 찍기</button>
       </div>
     );
-  // EXPIRED also means used: when the order now reads as handed over, that is the likely case.
-  const known = reason === "unusable" && order.stage === "collected" ? "used" : reason === "unusable" ? undefined : reason;
+  // Without a named reason EXPIRED also means used: when the order now reads as handed over, that is the likely case.
+  const known: Case | undefined = reason !== "unusable" ? reason : order.stage === "collected" ? "already-used" : undefined;
+  const used = recordedAt && clock(zone, recordedAt);
   return (
     <div className="pickup-result">
-      <div className="refused" role="alert"><strong>건네지 마세요 · 쓸 수 없는 QR입니다</strong><br />손님에게 앱에서 수령 QR을 새로 받아 달라고 하세요.</div>
+      <div className="refused" role="alert"><strong>건네지 마세요 · 쓸 수 없는 QR입니다</strong><br />
+        {known === "already-used" ? `이미 쓴 QR입니다${used ? ` · 이미 기록됨 · ${used}` : ""}. 같은 주문을 또 건네지 마세요.`
+          : known === "other-order" ? `지금 연 ${order.number}번의 QR이 아닙니다. 손님의 주문번호를 확인하고 그 주문을 여세요.`
+          : known === "other-store" ? "다른 매장의 주문입니다. 손님에게 결제한 매장을 확인해 달라고 하세요."
+          : known === "not-ready" ? "아직 준비 완료가 아닙니다. 준비 완료를 누른 뒤 다시 찍으세요."
+          : "손님에게 앱에서 수령 QR을 새로 받아 달라고 하세요."}</div>
       <h3>이런 경우에 이 화면이 나옵니다</h3>
       <ul className="live" aria-label="쓸 수 없는 QR의 경우">
         {cases.map((item) => {
-          const matched = known ? item.reason === known : ["unusable", "used", "other-store"].includes(item.reason);
+          const matched = known ? item.reason === known : ["expired", "already-used", "other-store"].includes(item.reason);
           return <li key={item.reason} className={matched ? "matched" : undefined}>
             <strong>{item.title}{matched && <span className="tag warn"> · {known ? "이 경우" : "이 중 하나"}</span>}</strong>{" "}
-            <small>{item.detail(order.number)}</small></li>;
+            <small>{item.detail(order.number, item.reason === known ? used : undefined)}</small></li>;
         })}
       </ul>
       <button onClick={again}>다시 찍기</button>

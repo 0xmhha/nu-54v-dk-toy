@@ -31,6 +31,8 @@ const orders = {
 };
 // What the next scan answers: the handover, or one of opsd's refusals.
 let answer = "handed";
+// 10:31 in Seoul on 2026-11-27: the time opsd says the handover was recorded, whatever this computer's clock says.
+const recordedAt = Date.UTC(2026, 10, 27, 1, 31, 7) / 1000;
 const scans = [];
 
 const server = http.createServer(async (req, res) => {
@@ -43,12 +45,18 @@ const server = http.createServer(async (req, res) => {
   if (scan && req.method === "POST") {
     scans.push({ branch: scan[1], sale: scan[2], type: req.headers["content-type"], body: JSON.parse(raw) });
     const order = Object.values(orders).find(({ sale }) => sale === scan[2]);
-    if (answer === "expired") return json(400, { status: "error", error: "EXPIRED" });
-    if (answer === "other") return json(400, { status: "error", error: "MISMATCHED_EVIDENCE" });
-    if (answer === "not-ready") return json(409, { status: "error", error: "CHECKOUT_CONFLICT" });
+    // The five reasons opsd names, and the answer of a server that names none.
+    if (answer === "expired") return json(400, { status: "error", error: "EXPIRED", reason: "expired" });
+    if (answer === "used") return json(409, { status: "error", error: "CONFLICT", reason: "already_used", recordedAt });
+    if (answer === "other") return json(400, { status: "error", error: "MISMATCHED_EVIDENCE", reason: "other_order" });
+    if (answer === "other-store") return json(400, { status: "error", error: "MISMATCHED_EVIDENCE", reason: "other_store" });
+    if (answer === "not-ready") return json(409, { status: "error", error: "CHECKOUT_CONFLICT", reason: "not_ready" });
+    if (answer === "unnamed") return json(400, { status: "error", error: "EXPIRED" });
+    const items = order.items.map(({ label, option, quantity }) => ({ label, option: option ? "hot-large-shot" : "standard", ...(option ? { optionLabel: option } : {}), quantity }));
+    // The same staff member's repeated scan of a recorded QR gets the first answer again, marked.
+    if (answer === "again") return json(200, { saleRef: order.sale, revision: order.revision, pickupNo: order.number, recordedAt, alreadyRecorded: true, items });
     Object.assign(order, { stage: "collected", revision: order.revision + 1 });
-    return json(200, { saleRef: order.sale, revision: order.revision, pickupNo: order.number,
-      items: order.items.map(({ label, option, quantity }) => ({ label, option: option ?? "standard", quantity })) });
+    return json(200, { saleRef: order.sale, revision: order.revision, pickupNo: order.number, recordedAt, items });
   }
   if (/^\/v2\/operations\/state\/[0-9a-f-]+\/order$/.test(url.pathname)) {
     const found = orders[url.searchParams.get("number")];
@@ -131,18 +139,26 @@ async function main() {
     await page.evaluate((text) => window.codes.push(text), qr);
     await check.getByText("17번 · 건네 주세요").waitFor();
     assert.deepEqual(scans.pop(), { branch, sale: sale17, type: "application/json", body: { token } });
-    await check.getByText(/결제한 보드로 확인한 손님입니다\. \d\d:\d\d에 전달을 기록했습니다\./).waitFor();
+    await check.getByText("결제한 보드로 확인한 손님입니다. 10:31에 전달을 기록했습니다.").waitFor();
     assert.deepEqual(await check.getByRole("list", { name: "건넬 품목" }).getByRole("listitem").allTextContents(),
       ["카페라떼 뜨겁게 크게 샷 추가 1개", "치즈케이크 1개"]);
     await check.getByText("손님이 받았어요를 누르거나 확인 기간이 끝날 때").waitFor();
-    await check.getByText(/\d\d:\d\d · 이 기기/).waitFor();
+    await check.getByText("10:31 · 이 기기").waitFor();
     assert.equal(await live(page), 0, "the camera stops once the QR is read");
     await fits(page, "pickup-handed");
     await check.getByRole("button", { name: "다음 손님 찍기" }).click();
     assert.equal(await check.getByLabel("주문번호").inputValue(), "");
 
-    // A handheld scanner types into the field and ends with Enter. Each refusal says not to hand over.
-    for (const [reply, expect] of [["expired", "이 중 하나"], ["other", "이 경우"], ["not-ready", "이 경우"]]) {
+    // A handheld scanner types into the field and ends with Enter. Each refusal says not to hand over and which
+    // of the five cases it is; a used QR also says when its handover was recorded.
+    const refusals = [
+      ["expired", "시간이 지난 QR", "손님에게 앱에서 수령 QR을 새로 받아 달라고 하세요."],
+      ["used", "이미 쓴 QR", "이미 쓴 QR입니다 · 이미 기록됨 · 10:31. 같은 주문을 또 건네지 마세요."],
+      ["other", "다른 주문의 QR", "지금 연 17번의 QR이 아닙니다. 손님의 주문번호를 확인하고 그 주문을 여세요."],
+      ["other-store", "다른 매장의 주문", "다른 매장의 주문입니다. 손님에게 결제한 매장을 확인해 달라고 하세요."],
+      ["not-ready", "아직 준비 전인 주문", "아직 준비 완료가 아닙니다. 준비 완료를 누른 뒤 다시 찍으세요."],
+    ];
+    for (const [reply, title, advice] of refusals) {
       orders[17].stage = "ready";
       answer = reply;
       await check.getByLabel("주문번호").fill("17");
@@ -152,27 +168,48 @@ async function main() {
       await typed.pressSequentially(qr);
       await typed.press("Enter");
       await check.getByText("건네지 마세요 · 쓸 수 없는 QR입니다").waitFor();
-      const marked = await check.getByRole("list", { name: "쓸 수 없는 QR의 경우" }).locator("li.matched strong").allTextContents();
-      if (reply === "expired") assert.deepEqual(marked, ["시간이 지난 QR · 이 중 하나", "이미 쓴 QR · 이 중 하나", "다른 매장의 주문 · 이 중 하나"]);
-      if (reply === "other") assert.deepEqual(marked, [`다른 주문의 QR · ${expect}`]);
-      if (reply === "not-ready") assert.deepEqual(marked, [`아직 준비 전인 주문 · ${expect}`]);
+      await check.getByText(advice, { exact: false }).waitFor();
+      assert.deepEqual(await check.getByRole("list", { name: "쓸 수 없는 QR의 경우" }).locator("li.matched strong").allTextContents(), [`${title} · 이 경우`]);
+      assert.equal(await check.getByRole("list", { name: "쓸 수 없는 QR의 경우" }).getByRole("listitem").count(), 5);
+      if (reply === "used") await check.getByText("이 주문은 10:31에 전달이 기록되었습니다.").waitFor();
+      else await check.getByText("이 주문은 이미 전달이 기록되었습니다.").waitFor();
       await check.getByText("지금 연 17번이 아니라 다른 번호의 QR입니다. 그 주문을 열고 다시 찍으세요.").waitFor();
       assert.equal(await live(page), 0);
       if (reply === "expired") await fits(page, "pickup-refused");
+      if (reply === "used") await fits(page, "pickup-refused-used");
       await check.getByRole("button", { name: "다시 찍기" }).click();
       await check.getByRole("heading", { name: "17번의 수령 QR 확인" }).waitFor();
       await page.waitForFunction(() => window.tracks.some((track) => track.readyState === "live"));
       await check.getByRole("button", { name: "닫기" }).click();
       assert.equal(await live(page), 0, "leaving the order stops the camera");
     }
-    assert.equal(scans.length, 3);
+    assert.equal(scans.length, 5);
 
-    // A token used before reads as used once the order shows the handover.
+    // The same QR scanned again after its answer was lost: recorded already, at the time the server says.
     orders[17].stage = "ready";
-    answer = "expired";
+    answer = "again";
     await check.getByLabel("주문번호").fill("17");
     await check.getByRole("button", { name: "열기", exact: true }).click();
     await check.getByRole("button", { name: "수령 QR 확인" }).click();
+    await check.getByLabel(/^수령 QR 글자/).fill(qr);
+    await check.getByRole("button", { name: "확인", exact: true }).click();
+    await check.getByText("17번 · 이미 기록됨 · 10:31").waitFor();
+    await check.getByText("다시 기록하지 않았습니다.", { exact: false }).waitFor();
+    assert.equal(await check.getByText("건네 주세요").count(), 0, "a repeated scan does not say to hand over again");
+    await fits(page, "pickup-again");
+    await check.getByRole("button", { name: "다음 손님 찍기" }).click();
+
+    // A server that names no reason answers three cases alike; once the order shows the handover, it reads as used.
+    orders[17].stage = "ready";
+    answer = "unnamed";
+    await check.getByLabel("주문번호").fill("17");
+    await check.getByRole("button", { name: "열기", exact: true }).click();
+    await check.getByRole("button", { name: "수령 QR 확인" }).click();
+    await check.getByLabel(/^수령 QR 글자/).fill(qr);
+    await check.getByRole("button", { name: "확인", exact: true }).click();
+    await check.getByText("건네지 마세요 · 쓸 수 없는 QR입니다").waitFor();
+    assert.deepEqual(await check.locator("li.matched strong").allTextContents(), ["시간이 지난 QR · 이 중 하나", "이미 쓴 QR · 이 중 하나", "다른 매장의 주문 · 이 중 하나"]);
+    await check.getByRole("button", { name: "다시 찍기" }).click();
     orders[17].stage = "collected";
     await check.getByLabel(/^수령 QR 글자/).fill(qr);
     await check.getByRole("button", { name: "확인", exact: true }).click();
@@ -196,7 +233,7 @@ async function main() {
     assert.deepEqual(scans.pop().body, { token });
     await fits(page, "pickup-no-camera");
     assert.deepEqual(errors, []);
-    console.log("pickup QR: camera and scanner field, handed, four refusals, camera stopped on result and on leaving, 390px and 2x text");
+    console.log("pickup QR: camera and scanner field, handed, five named refusals, repeated scan, unnamed refusal, camera stopped on result and on leaving, 390px and 2x text");
   } finally {
     await browser.close();
     server.close();
