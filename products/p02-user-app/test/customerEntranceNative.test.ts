@@ -87,11 +87,14 @@ describe('customer entrance over the native commerce module', () => {
         path === '/v2/customer/challenge' && body.includes('checkout') ? busy(10) : answer(200, '{}'));
       const post = nativeEntrance(anchor, {customerRequest});
       await post('/v2/customer/challenge', JSON.stringify({purpose: 'checkout', branchRef: branch}));
-      // A new session waits; a pickup QR at the counter, a proof, the menu, a photo and the session's requests do not.
-      await expect(post('/v2/customer/challenge', JSON.stringify({purpose: 'order', branchRef: branch, saleRef: sale}))).rejects.toMatchObject({code: 'BUSY'});
-      for (const [path, body, session] of [['/v2/customer/challenge', JSON.stringify({purpose: 'pickup', branchRef: branch, saleRef: sale}), ''], ['/v2/customer/proof', '{}', ''],
-        ['/v2/customer/stores', '', ''], [`/v2/customer/stores/${branch}/menu/0`, '', ''], [`/v2/customer/stores/${branch}/photos/${'a'.repeat(64)}/0`, '', ''],
-        ['/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32)]] as const)
+      // Challenges and proofs are counted together by the server, whatever they are for: the next challenge and the
+      // next proof wait. The menu, a photo and the session's requests do not.
+      for (const [path, body] of [['/v2/customer/challenge', JSON.stringify({purpose: 'order', branchRef: branch, saleRef: sale})],
+        ['/v2/customer/challenge', JSON.stringify({purpose: 'pickup', branchRef: branch, saleRef: sale})], ['/v2/customer/challenge', '{"purpose":"account"}'],
+        ['/v2/customer/proof', '{}']] as const)
+        await expect(post(path, body)).rejects.toMatchObject({code: 'BUSY'});
+      for (const [path, body, session] of [['/v2/customer/stores', '', ''], [`/v2/customer/stores/${branch}/menu/0`, '', ''],
+        [`/v2/customer/stores/${branch}/photos/${'a'.repeat(64)}/0`, '', ''], ['/v2/customer/commerce', '{"command":"x"}', '5e'.repeat(32)]] as const)
         expect((await post(path, body, session)).status).toBe(200);
       const elsewhere = nativeEntrance({...anchor, origin: 'https://other.example:8444'}, {customerRequest: async () => answer(200, '{}')});
       expect((await elsewhere('/v2/customer/challenge', JSON.stringify({purpose: 'checkout', branchRef: branch}))).status).toBe(200);

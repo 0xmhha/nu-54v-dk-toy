@@ -4,7 +4,8 @@ import {
   bindServiceRequestV2, bytesToHex, CommerceClient, CommerceHoldRefusal, commerceLineCapacity, hexToBytes, type CommerceCart, type CommerceProfile, type ServiceRequestV2,
 } from '@nu54/protocol';
 import {
-  CustomerEntrance, EntranceError, entranceBusy, entranceRefusal, forgetEntranceWaits, issuePickupQr, nativeEntrance, type BoardLink, type EntrancePost, type EntranceReply,
+  accountOpenOrders, CustomerEntrance, EntranceError, entranceBusy, entranceRefusal, forgetEntranceWaits, issuePickupQr, nativeEntrance, readOpenOrders,
+  type BoardLink, type EntrancePost, type EntranceReply,
 } from '../src/merchant/customerEntrance';
 import {SessionEntrance} from '../src/merchant/customerSession';
 import {orderPaymentPin} from '../src/merchant/orderPaymentTrust';
@@ -187,6 +188,21 @@ const read: Record<string, () => Promise<void> | void> = {
     expect(reply('hold-limit')).toMatchObject({status: 429, retryAfter: 10});
     expect(await heldBack('hold-limit')).toBe(false);
   },
+  'hold-orders-closed': async () => {
+    // The store cannot be paid by a board until its operator changes that: no wait is named, and none is kept.
+    const refusal = await reserve('hold-orders-closed');
+    expect(refusal).toBeInstanceOf(CommerceHoldRefusal);
+    expect(refusal).toMatchObject({message: 'CHECKOUT_CONFLICT', reason: 'orders_closed', required: undefined, balance: undefined});
+    expect(reply('hold-orders-closed')).toMatchObject({status: 409});
+    expect(reply('hold-orders-closed').retryAfter).toBeUndefined();
+  },
+  'hold-cart-released': async () => {
+    // The cart this request made is closed without a payment: the request is over, and a new one is needed.
+    const refusal = await reserve('hold-cart-released');
+    expect(refusal).toBeInstanceOf(CommerceHoldRefusal);
+    expect(refusal).toMatchObject({message: 'CHECKOUT_CONFLICT', reason: 'cart_released', required: undefined, balance: undefined});
+    expect(reply('hold-cart-released').retryAfter).toBeUndefined();
+  },
   'hold-other-cart': async () => {
     // One unpaid cart for each account: the plain code, with no reason and no numbers.
     const refusal = await reserve('hold-other-cart');
@@ -199,6 +215,24 @@ const read: Record<string, () => Promise<void> | void> = {
   'cancel-quote-issued': () => { expect(readCartCancel(reply('cancel-quote-issued'), sale)).toBe('quote-issued'); },
   'cancel-paid': () => { expect(readCartCancel(reply('cancel-paid'), sale)).toBe('paid'); },
   'cancel-not-found': () => { expect(readCartCancel(reply('cancel-not-found'), sale)).toBe('not-found'); },
+
+  // --- a store that is not public gives no challenge: the same answer as for no store, and no session follows ---
+  'challenge-not-public': async () => {
+    await expect(new SessionEntrance(answering('challenge-not-public')).challenge({purpose: 'checkout', branch: cafe})).rejects.toMatchObject({code: 'REFUSED'});
+  },
+
+  // --- the account alone: how many of its orders are unfinished ---
+  'challenge-account': async () => {
+    expect(bytesToHex(await new CustomerEntrance(answering('challenge-account')).accountChallenge(), false)).toBe(token);
+  },
+  'proof-account': async () => {
+    expect(readOpenOrders(reply('proof-account'))).toBe(1);
+    expect(Object.keys(answers['proof-account'].body!).sort()).toEqual(['openOrders', 'purpose']); // the number and nothing else
+    const asked: string[] = [];
+    const entrance = new CustomerEntrance(async (path, body) => { asked.push(`${path} ${body}`); return path === '/v2/customer/challenge' ? reply('challenge-account') : reply('proof-account'); });
+    expect(await accountOpenOrders(entrance, {open: async () => board()}, account)).toBe(1);
+    expect(asked).toEqual(['/v2/customer/challenge {"purpose":"account"}', `/v2/customer/proof {"challenge":"${token}","account":"${account}","signature":"${signature}"}`]);
+  },
 
   // --- the pickup proof ---
   'pickup-not-ready': async () => { expect(await pickup('pickup-not-ready')).toEqual({kind: 'not-ready'}); },
