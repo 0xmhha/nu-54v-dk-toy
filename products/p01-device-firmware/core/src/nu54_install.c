@@ -184,6 +184,8 @@ int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after
 	if (time >= not_after) return NU54_CLOCK_PAST_END;
 	const uint64_t latest = current->offset > UINT64_MAX - current->earliest ? UINT64_MAX :
 				current->earliest + current->offset;
+	/* Less than a step ahead and inside the board's interval: nothing to move, nothing to write. */
+	if (time <= latest && time - current->earliest < NU54_CLOCK_STEP_SECONDS) return NU54_CLOCK_NOT_FORWARD;
 	uint64_t offset = session_seconds > UINT64_MAX - NU54_CLOCK_PHONE_SECONDS ? UINT64_MAX :
 			  session_seconds + NU54_CLOCK_PHONE_SECONDS;
 	if (latest > time && latest - time > offset) offset = latest - time;

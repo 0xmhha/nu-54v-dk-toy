@@ -344,9 +344,17 @@ static void test_the_rule(void)
 	assert(nu54_install_clock_set(&clock, end, now, now + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
 	assert(nu54_install_clock_set(&clock, end, now - 1, now + 89, 0, &next) == NU54_CLOCK_NOT_FORWARD);
 	assert(nu54_install_clock_set(&clock, end, 1, 91, 0, &next) == NU54_CLOCK_NOT_FORWARD && !next.earliest);
-	/* One second on, with what the session vouches for as the distance to the latest time. */
-	assert(nu54_install_clock_set(&clock, end, now + 1, now + 91, 0, &next) == NU54_CLOCK_MOVED);
-	assert(next.earliest == now + 1 && next.offset == NU54_CLOCK_PHONE_SECONDS && next.phone_days == 4);
+	/* Less than a step on, and inside the board's interval: nothing moves either. */
+	for (uint64_t ahead = 1; ahead < NU54_CLOCK_STEP_SECONDS; ++ahead)
+		assert(nu54_install_clock_set(&clock, end, now + ahead, now + ahead + 90, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(!next.earliest);
+	/* Past the board's latest possible time the board is late, by however little: that moves. */
+	const nu54_install_clock tight = {.earliest = now, .offset = 1};
+	assert(nu54_install_clock_set(&tight, end, now + 1, now + 91, 0, &next) == NU54_CLOCK_NOT_FORWARD);
+	assert(nu54_install_clock_set(&tight, end, now + 2, now + 92, 0, &next) == NU54_CLOCK_MOVED && next.earliest == now + 2);
+	/* One step on, with what the session vouches for as the distance to the latest time. */
+	assert(nu54_install_clock_set(&clock, end, now + NU54_CLOCK_STEP_SECONDS, now + 91, 0, &next) == NU54_CLOCK_MOVED);
+	assert(next.earliest == now + NU54_CLOCK_STEP_SECONDS && next.offset == NU54_CLOCK_PHONE_SECONDS && next.phone_days == 4);
 	assert(nu54_install_clock_set(&clock, end, now + 1000, now + 1090, 7, &next) == NU54_CLOCK_MOVED);
 	assert(next.earliest == now + 1000 && next.offset == 7 + NU54_CLOCK_PHONE_SECONDS);
 	/* The latest possible time never moves back. */
@@ -795,8 +803,8 @@ static void test_a_later_day_opens(void)
 	/* The whole day's total is spent. */
 	assert(!device_order_charge(device_install_earliest(), cap) && !device_order_daily_left(device_install_earliest()));
 	assert(!connect_phone() && pay() == -1 && !approval.pending);
-	/* Later the same day: still spent. */
-	real = midnight - 1;
+	/* Later the same day, a step before midnight: still spent. */
+	real = midnight - NU54_CLOCK_STEP_SECONDS;
 	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && told().days == 0);
 	assert(!device_order_daily_left(device_install_earliest()));
 	/* Into the next day: the total is open again, and the count says the phone opened it. */
@@ -1078,6 +1086,40 @@ static void test_open_orders_through_restarts(void)
 	assert(board_restart() == 0 && !device_order_open(device_install_earliest(), uptime));
 }
 
+/* The audit's third finding: eight messages, each a second ahead of the one before, cost eight
+ * writes. A difference below the step moves nothing and writes nothing. */
+static void test_small_steps_write_nothing(void)
+{
+	late_board(3 * 3600);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	const uint64_t set = device_install_earliest();
+	writes = 0;
+	unsigned moves = 0;
+	for (int i = 1; i <= 8; ++i) {
+		const uint64_t before = device_install_earliest();
+		assert(!connect_phone() && !tell_time(set + (uint64_t)i));
+		const bool moved = told().result == NU54_CLOCK_MOVED;
+		assert(moved || told().result == NU54_CLOCK_NOT_FORWARD);
+		/* A message that is taken moves the clock by a whole step at the least. */
+		assert(device_install_earliest() == (moved ? set + (uint64_t)i : before));
+		assert(!moved || device_install_earliest() - before >= NU54_CLOCK_STEP_SECONDS);
+		assert(told().earliest == device_install_earliest());
+		moves += moved;
+	}
+	assert(moves == 8 / NU54_CLOCK_STEP_SECONDS && writes == moves);
+	/* The time the phone told stays inside the board's interval when nothing moves. */
+	assert(device_install_now() >= set + 8);
+
+	/* A step exactly, and one second less. */
+	late_board(3 * 3600);
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	writes = 0;
+	assert(!tell_time(real + NU54_CLOCK_STEP_SECONDS - 1) && told().result == NU54_CLOCK_NOT_FORWARD && !writes);
+	assert(told().earliest == real && device_install_earliest() == real);
+	assert(!tell_time(real + NU54_CLOCK_STEP_SECONDS) && told().result == NU54_CLOCK_MOVED && writes == 1);
+	assert(device_install_earliest() == real + NU54_CLOCK_STEP_SECONDS);
+}
+
 /* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
  * the grant goes with it, and an approved order counts as open for one order life of running time,
  * as it does on every board that does not know the time. */
@@ -1131,6 +1173,7 @@ int main(int argc, char **argv)
 	test_whole_storage_put_back();
 	test_open_orders();
 	test_open_orders_through_restarts();
+	test_small_steps_write_nothing();
 	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;

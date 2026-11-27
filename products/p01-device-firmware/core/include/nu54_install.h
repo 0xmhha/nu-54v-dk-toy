@@ -113,6 +113,14 @@ int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t
 #define NU54_CLOCK_SET_REPLY_SIZE 30
 /* How far the phone's clock may be off (the same 5 s the short requests allow for). */
 #define NU54_CLOCK_PHONE_SECONDS 5
+/* A time less than this ahead of the board's lower bound, and not past its latest possible time,
+ * moves nothing and costs no write. It is less than the phone's allowance: a difference that
+ * small does not say which clock is right, and the board's latest possible time stays above the
+ * time the phone told by what is left of the allowance (at least
+ * NU54_CLOCK_PHONE_SECONDS - NU54_CLOCK_STEP_SECONDS + 1 after a time the phone set). */
+#define NU54_CLOCK_STEP_SECONDS 3
+_Static_assert(NU54_CLOCK_STEP_SECONDS > 1 && NU54_CLOCK_STEP_SECONDS <= NU54_CLOCK_PHONE_SECONDS,
+	       "the smallest step lies within the phone's allowance");
 enum { NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3 };
 
 /* Decides on the time a registered owner's phone tells in an authenticated session.
