@@ -244,4 +244,93 @@ contract ChargeOddTokensTest is ChargeBase {
             new WonPool(keys(), config);
         }
     }
+
+    // ---- the emergency exit ----
+
+    /// A completed deposit past nothing but two signers' word: completed, contested and answered at once.
+    function oddSettled(uint256 usdcAmount) internal returns (bytes32 id) {
+        id = oddDepositIt(oddQuote(usdcAmount));
+        uint256 until = block.timestamp + 1 days;
+        oddDeposit.completeBySigners(id, until, two(oddDeposit, "complete", id, 0, until));
+        vm.prank(payer);
+        oddDeposit.contest(id, 0, "");
+        oddDeposit.confirmPaid(id, until, two(oddDeposit, "confirmPaid", id, 2, until));
+    }
+
+    /// An exit whose money does not reach the treasury in full is undone, and the money waits for the next
+    /// try. Nothing is recorded as taken.
+    function testAnExitThatDoesNotArriveInFullIsUndone() public {
+        bytes32 id = oddSettled(100e6);
+        proposeExitOn(oddDeposit);
+        toWon();
+        proposeExitOn(oddPool);
+        vm.warp(block.timestamp + 7 days);
+        OddToken[2] memory tokens = [oddUsdc, oddWon];
+        for (uint256 which; which < 2; ++which) {
+            OddToken token = tokens[which];
+            token.setMode(OddToken.Mode.ReturnsFalse);
+            vm.expectRevert(ChargeGovernance.TokenTransferFailed.selector);
+            this.oddExit(which, id);
+            token.setMode(OddToken.Mode.Silent);
+            vm.expectRevert(ChargeGovernance.TokenBalanceMismatch.selector);
+            this.oddExit(which, id);
+            token.setMode(OddToken.Mode.Fee);
+            vm.expectRevert(ChargeGovernance.TokenBalanceMismatch.selector);
+            this.oddExit(which, id);
+            token.setMode(OddToken.Mode.Reverts);
+            vm.expectRevert("odd token: refused");
+            this.oddExit(which, id);
+        }
+        assertEq(oddDeposit.depositOf(id).left, 100e6);
+        assertEq(oddDeposit.totalHeld(), 100e6);
+        assertEq(oddUsdc.balanceOf(treasury), 0);
+        assertEq(oddWon.balanceOf(address(oddPool)), POOL_SIZE);
+
+        oddUsdc.setMode(OddToken.Mode.NoAnswer);
+        oddWon.setMode(OddToken.Mode.NoAnswer);
+        this.oddExit(0, id);
+        this.oddExit(1, id);
+        assertEq(oddUsdc.balanceOf(treasury), 100e6);
+        assertEq(oddDeposit.totalHeld(), 0);
+        assertEq(oddWon.balanceOf(treasury), POOL_SIZE);
+    }
+
+    function oddExit(uint256 which, bytes32 id) external {
+        if (which == 0) oddDeposit.emergencyExit(listOf(id));
+        else oddPool.emergencyExit();
+    }
+
+    /// A token that calls back while the exit moves money starts nothing else: not a refund, not a second
+    /// exit of the same deposit, and on the pool not a second exit either.
+    function testCallingBackDuringAnExitMovesNothingElse() public {
+        bytes32 id = oddSettled(100e6);
+        bytes32 open = oddDepositIt(oddQuote(50e6));
+        proposeExitOn(oddDeposit);
+        toWon();
+        proposeExitOn(oddPool);
+        vm.warp(block.timestamp + 7 days);
+
+        oddUsdc.setMode(OddToken.Mode.Reenters);
+        oddUsdc.setCallback(address(oddDeposit), abi.encodeCall(oddDeposit.refundSelf, (open)));
+        uint256 before = vm.snapshotState();
+        oddDeposit.emergencyExit(listOf(id));
+        assertEq(oddUsdc.reentries(), 1);
+        assertEq(bytes4(oddUsdc.reentryAnswer()), ChargeGovernance.Reentered.selector);
+        assertEq(oddUsdc.balanceOf(treasury), 100e6);
+        assertEq(oddDeposit.totalHeld(), 50e6);
+        assertEq(uint8(oddDeposit.depositOf(open).state), uint8(ChargeDeposit.State.Deposited));
+        vm.revertToState(before);
+        oddUsdc.setCallback(address(oddDeposit), abi.encodeCall(oddDeposit.emergencyExit, (listOf(id))));
+        oddDeposit.emergencyExit(listOf(id));
+        assertEq(bytes4(oddUsdc.reentryAnswer()), ChargeGovernance.Reentered.selector);
+        assertEq(oddUsdc.balanceOf(treasury), 100e6);
+
+        oddWon.setMode(OddToken.Mode.Reenters);
+        oddWon.setCallback(address(oddPool), abi.encodeCall(oddPool.emergencyExit, ()));
+        oddPool.emergencyExit();
+        assertEq(oddWon.reentries(), 1);
+        assertEq(bytes4(oddWon.reentryAnswer()), ChargeGovernance.Reentered.selector);
+        assertEq(oddWon.balanceOf(treasury), POOL_SIZE);
+        assertEq(oddWon.balanceOf(address(oddPool)), 0);
+    }
 }
