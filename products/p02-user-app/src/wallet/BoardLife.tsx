@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Image, StyleSheet, Text, TextInput, View} from 'react-native';
 import {
-  boardUnit, bytesToHex, dollarToken, fromBase64, payerEnrollChallenge, paymentProfile, paymentToken, paysThroughEscrow, stableNetCoin, tokenAmount, type PayerEnrollment, type PaymentToken,
+  boardUnit, bytesToHex, dollarToken, fromBase64, paymentProfile, paymentToken, paysThroughEscrow, stableNetCoin, tokenAmount, type PayerEnrollment, type PaymentToken,
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
@@ -159,7 +159,8 @@ export function setupSteps(stored: WalletStorage, hasEnrollment: boolean, payer?
     ['보드 연결과 PIN', '보드 버튼으로 이 휴대전화를 승인하고 PIN을 정합니다'],
     ['서명 시험', '보드 계정의 서명을 확인합니다. 버튼은 누르지 않습니다'],
     ['반납받을 주소', board?.returnAddress ? short(board.returnAddress) : '남은 돈을 돌려받을 원래 지갑 주소를 보드에 저장합니다'],
-    ['매장 등록', payer && board && !enrolled ? '다른 보드 계정이 등록되어 있습니다. 다시 등록하세요' : '결제할 매장에 보드 계정을 등록합니다. 나중에 해도 됩니다'],
+    // No store registers a board: a store learns the account from the board's own proof when an order is asked for.
+    ['매장 등록', '따로 등록하지 않습니다. 매장에서 주문할 때 보드가 계정을 확인합니다'],
     ['입금', '쓸 만큼만 원래 지갑에서 보냅니다'],
   ];
   const first = done.findIndex((value, index) => !value && index !== 3);
@@ -202,7 +203,7 @@ export function SetupStatus({stored, hasEnrollment, registered, open, live = tru
 
 function SetupPage(props: BoardLifeProps) {
   const {stored, work, withBoard, commit, say} = props;
-  const {payer, read, unregistered} = usePayer(!props.fixture);
+  const {payer} = usePayer(!props.fixture);
   const steps = setupSteps(stored, props.hasEnrollment, payer, props.registered);
   const board = testedBoard(stored), verified = stored.verified;
   const test = (handle: string) => work(async () => {
@@ -222,24 +223,6 @@ function SetupPage(props: BoardLifeProps) {
     });
     say('보드 서명을 확인했습니다. 이제 입금 주소를 볼 수 있습니다.');
   }, boardFailure);
-  const enroll = (handle: string) => work(async () => {
-    const {client} = await credential();
-    const key = await walletId();
-    const generation = BigInt(board!.generation);
-    const {signature} = await withBoard(handle, async session => {
-      const status = await session.maintenanceStatus();
-      if (status.generation !== generation) throw new Error('PAYMENT_BOARD_BINDING');
-      return session.proveAccount(board!.account, payerEnrollChallenge({tenantRef: client.profile.tenantRef, branchRef: client.profile.branchRef,
-        subjectRef: client.profile.subjectRef, payer: board!.account, generation, idempotencyKey: key}));
-    }).catch(error => { throw new Error(boardFailure(error)); });
-    await client.enrollPayer(board!.account, generation, signature, key).catch(async error => {
-      // A lost reply is settled by what the server reports, not by asking the board again.
-      const held = await read();
-      if (held?.payer !== board!.account || held.generation !== String(board!.generation)) throw new Error(serverFailure(error));
-    });
-    await read();
-    say('이 매장에 보드 계정을 등록했습니다.');
-  }, error => error instanceof Error && /[가-힣]/.test(error.message) ? error.message : explain(error, serverFailure));
   const step = steps.find(item => item.state === 'now' && !item.optional)?.label;
   return <>
     <SetupList steps={steps} />
@@ -250,12 +233,6 @@ function SetupPage(props: BoardLifeProps) {
     </>}
     {step === '반납받을 주소' && <KitButton label="반납받을 주소 등록" run={() => props.go('return-address')} disabled={props.busy} />}
     {step === '입금' && <KitButton label="입금 안내 보기" run={() => props.go('deposit')} disabled={props.busy} />}
-    {board && steps[3].state !== 'done' && <>
-      <Text style={type.section}>매장 등록</Text>
-      <Text style={type.body}>이 휴대전화의 주문 등록을 쓰는 매장에 보드 계정을 알립니다. 보드 버튼은 누르지 않습니다.</Text>
-      {unregistered && <KitButton label="결제 탭에서 주문 등록하기" run={props.orders} disabled={props.busy} variant="secondary" />}
-      <Chooser props={props} label="이 매장에 보드 등록" run={enroll} />
-    </>}
   </>;
 }
 
