@@ -223,20 +223,23 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
      * one SHA-256 of a public key (SPKI, any key type), or a list of two while the server changes its key: the
      * current one and the next. No enrollment profile is read and system roots are never consulted. No key manager
      * holds a key, so no client certificate can be offered: a server that asks for one gets none and decides itself.
-     * A body that is not UTF-8 is handed back with the bad bytes replaced. `session` is the customer session token of `/v2/customer/commerce` and empty
-     * elsewhere; the store list, a store page, a menu page and a menu photo part are read with GET and an empty body.
-     * Answers `{"status":n,"body":"…"}`.
+     * A body that is not UTF-8 is handed back with the bad bytes replaced. `session` is the customer session token of `/v2/customer/commerce` and of
+     * `/v2/customer/checkout/cancel` (the unpaid cart a session takes back), and empty elsewhere; the store list (a page of it with
+     * `?after=<store>`), a store page, a menu page and a menu photo part are read with GET and an empty body.
+     * Answers `{"status":n,"body":"…"}`, and with `"retryAfter":seconds` when the server sent a Retry-After of whole seconds.
      */
     fun customerEntrance(anchor:String, path:String, session:String, body:String):String {
         val reference="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
-        // The public reads: the store list, a store page, a page of its menu and a part of a menu photo.
-        val read=path=="/v2/customer/stores" ||
+        // The public reads: the store list and its next page, a store page, a page of its menu and a part of a menu photo.
+        // The one query the entrance takes is the list's `after=<store>`.
+        val read=path=="/v2/customer/stores" || Regex("/v2/customer/stores\\?after=$reference").matches(path) ||
             Regex("/v2/customer/stores/$reference(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?").matches(path)
         val commerce=path=="/v2/customer/commerce"
-        require(read || commerce || path in setOf("/v2/customer/challenge","/v2/customer/proof"))
+        val cancel=path=="/v2/customer/checkout/cancel"
+        require(read || commerce || cancel || path in setOf("/v2/customer/challenge","/v2/customer/proof"))
         val payload=body.encodeToByteArray()
-        require(if(read) payload.isEmpty() else payload.size in 2..(if(commerce) 8192 else 1024))
-        require(if(commerce) Regex("[0-9a-f]{64}").matches(session) else session.isEmpty())
+        require(if(read) payload.isEmpty() else payload.size in 2..(if(commerce) 8192 else if(cancel) 256 else 1024))
+        require(if(commerce || cancel) Regex("[0-9a-f]{64}").matches(session) else session.isEmpty())
         require(anchor.encodeToByteArray().size in 1..8192)
         val trust=JSONObject(anchor)
         val base=URI(trust.getString("origin"))
@@ -275,14 +278,17 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
             connection.requestMethod=if(read) "GET" else "POST"
             connection.setRequestProperty("Content-Type","application/json")
             connection.setRequestProperty("Cache-Control","no-store")
-            if(commerce) connection.setRequestProperty("Authorization","Bearer $session")
+            if(commerce || cancel) connection.setRequestProperty("Authorization","Bearer $session")
             if(!read) connection.outputStream.use { it.write(payload) }
             val status=connection.responseCode
             // What the entrance answers with. A redirect or anything else is not an answer.
             require(status in setOf(200,400,404,409,429,503))
             val stream=if(status==200) connection.inputStream else connection.errorStream
             val limit=if(read || commerce) 32768 else 8192
-            return JSONObject().put("status",status).put("body",if(stream==null) "" else readCapped(stream,limit)).toString()
+            val reply=JSONObject().put("status",status).put("body",if(stream==null) "" else readCapped(stream,limit))
+            // How long the server asks to wait before the next request, when it says so in whole seconds.
+            connection.getHeaderField("Retry-After")?.let { wait -> if(Regex("[1-9][0-9]{0,3}").matches(wait)) reply.put("retryAfter",wait.toInt()) }
+            return reply.toString()
         } finally {
             connection.disconnect()
         }

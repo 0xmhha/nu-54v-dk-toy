@@ -201,6 +201,7 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSArray<NSS
 @property NSArray<NSString *> *pins;
 @property id ca;
 @property NSInteger status;
+@property NSNumber *retryAfter;
 @property NSUInteger limit;
 @property NSMutableData *buffer;
 @property RCTPromiseResolveBlock resolve;
@@ -231,7 +232,12 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSArray<NSS
   NSInteger code=[response isKindOfClass:NSHTTPURLResponse.class] ? [(NSHTTPURLResponse *)response statusCode] : 0;
   // What the entrance answers with. A redirect or anything else is not an answer.
   BOOL answer=code==200 || code==400 || code==404 || code==409 || code==429 || code==503;
-  if (answer) self.status=code;
+  if (answer) {
+    self.status=code;
+    // How long the server asks to wait before the next request, when it says so in whole seconds.
+    NSString *wait=[(NSHTTPURLResponse *)response valueForHTTPHeaderField:@"Retry-After"];
+    if (wait && [wait rangeOfString:@"^[1-9][0-9]{0,3}\\z" options:NSRegularExpressionSearch].location!=NSNotFound) self.retryAfter=@(wait.integerValue);
+  }
   complete(answer ? NSURLSessionResponseAllow : NSURLSessionResponseCancel);
 }
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveData:(NSData *)data {
@@ -239,7 +245,9 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSArray<NSS
 }
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
   NSString *body=(error || !self.status) ? nil : [[NSString alloc] initWithData:self.buffer encoding:NSUTF8StringEncoding];
-  NSData *reply=body ? [NSJSONSerialization dataWithJSONObject:@{@"status":@(self.status),@"body":body} options:0 error:nullptr] : nil;
+  NSMutableDictionary *answer=body ? [@{@"status":@(self.status),@"body":body} mutableCopy] : nil;
+  if (self.retryAfter) answer[@"retryAfter"]=self.retryAfter;
+  NSData *reply=answer ? [NSJSONSerialization dataWithJSONObject:answer options:0 error:nullptr] : nil;
   if (reply) self.resolve([[NSString alloc] initWithData:reply encoding:NSUTF8StringEncoding]);
   else self.reject(@"COMMERCE_UNAVAILABLE",@"The customer entrance is unavailable",nil);
   [session finishTasksAndInvalidate];
@@ -464,24 +472,33 @@ RCT_EXPORT_MODULE(CommerceHttp)
 // The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the app's
 // deployment configuration. `pin` is one SHA-256 of a P-256 public key (SPKI), or a list of two while the server
 // changes its key: the current one and the next. No enrollment profile is read, and there is no other trust to fall back on. `session` is
-// the customer session token of /v2/customer/commerce and empty elsewhere; the store list, a store page, a menu page
-// and a menu photo part are read with GET and an empty body.
+// the customer session token of /v2/customer/commerce and of /v2/customer/checkout/cancel (the unpaid cart a session
+// takes back), and empty elsewhere; the store list (a page of it with ?after=<store>), a store page, a menu page and a
+// menu photo part are read with GET and an empty body. The answer is {"status","body"}, with "retryAfter" in seconds
+// when the server sent a Retry-After of whole seconds.
 - (void)customerRequest:(NSString *)anchor path:(NSString *)path session:(NSString *)session body:(NSString *)body
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   dispatch_async(_work,^{
     NSCharacterSet *notHex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet];
-    BOOL read=[path isEqual:@"/v2/customer/stores"] ||
+    // The one query the entrance takes is the store list's `after=<store>`, for the page after that store.
+    NSString *nextPage=@"/v2/customer/stores?after=";
+    NSString *after=nil;
+    if ([path hasPrefix:nextPage] &&
+        [path rangeOfString:@"^/v2/customer/stores\\?after=[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z" options:NSRegularExpressionSearch].location!=NSNotFound)
+      after=[path substringFromIndex:nextPage.length];
+    BOOL read=[path isEqual:@"/v2/customer/stores"] || after ||
         [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?\\z" options:NSRegularExpressionSearch].location!=NSNotFound;
     BOOL commerce=[path isEqual:@"/v2/customer/commerce"];
+    BOOL cancel=[path isEqual:@"/v2/customer/checkout/cancel"];
     NSData *payload=[body dataUsingEncoding:NSUTF8StringEncoding];
     NSData *given=[anchor dataUsingEncoding:NSUTF8StringEncoding];
     id candidate=(given.length && given.length<=8192) ? [NSJSONSerialization JSONObjectWithData:given options:0 error:nullptr] : nil;
     NSDictionary *trust=[candidate isKindOfClass:NSDictionary.class] ? candidate : nil;
     NSString *origin=trust[@"origin"];
     NSURLComponents *url=[origin isKindOfClass:NSString.class] ? [NSURLComponents componentsWithString:origin] : nil;
-    BOOL sized=read ? payload.length==0 : (payload.length>=2 && payload.length<=(commerce ? 8192 : 1024));
-    BOOL held=commerce ? (session.length==64 && [session rangeOfCharacterFromSet:notHex].location==NSNotFound) : session.length==0;
-    if (!(read || commerce || [@[@"/v2/customer/challenge",@"/v2/customer/proof"] containsObject:path]) || !sized || !held ||
+    BOOL sized=read ? payload.length==0 : (payload.length>=2 && payload.length<=(commerce ? 8192 : cancel ? 256 : 1024));
+    BOOL held=(commerce || cancel) ? (session.length==64 && [session rangeOfCharacterFromSet:notHex].location==NSNotFound) : session.length==0;
+    if (!(read || commerce || cancel || [@[@"/v2/customer/challenge",@"/v2/customer/proof"] containsObject:path]) || !sized || !held ||
         ![url.scheme isEqual:@"https"] || !url.host.length || url.user || url.password || url.query || url.fragment ||
         url.percentEncodedPath.length || (url.port && (url.port.integerValue<1 || url.port.integerValue>65535))) {
       [self unavailable:reject]; return;
@@ -497,7 +514,8 @@ RCT_EXPORT_MODULE(CommerceHttp)
     if (!anchorCertificate || !pinned) {
       [self unavailable:reject]; return;
     }
-    url.percentEncodedPath=path;
+    url.percentEncodedPath=after ? @"/v2/customer/stores" : path;
+    if (after) url.percentEncodedQuery=[@"after=" stringByAppendingString:after];
     if (!url.URL) { [self unavailable:reject]; return; }
     NSURLSessionConfiguration *config=NSURLSessionConfiguration.ephemeralSessionConfiguration;
     config.TLSMinimumSupportedProtocolVersion=tls_protocol_version_TLSv13;
@@ -521,7 +539,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
     if (!read) request.HTTPBody=payload;
     [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
     [request setValue:@"no-store" forHTTPHeaderField:@"Cache-Control"];
-    if (commerce) [request setValue:[@"Bearer " stringByAppendingString:session] forHTTPHeaderField:@"Authorization"];
+    if (commerce || cancel) [request setValue:[@"Bearer " stringByAppendingString:session] forHTTPHeaderField:@"Authorization"];
     [[connection dataTaskWithRequest:request] resume];
   });
 }
