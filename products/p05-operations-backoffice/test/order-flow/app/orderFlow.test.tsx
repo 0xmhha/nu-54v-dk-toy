@@ -30,7 +30,7 @@ import {decodeWalletStorage} from '../../../../p02-user-app/src/wallet/profile';
 import {defaultReadState, readProfiles, walletReadRpc} from '../../../../p02-user-app/src/wallet/readProfiles';
 import {orderProgress} from '../../../../p04-merchant-kiosk/src/kiosk/orderProgress';
 import {
-  anchor, balance, board, boardSPKI, commerceHttp, control, customerProfile, dropNearby, fixture, id, journals, kiosk, nearby, notices, now, offline, ownerWallet,
+  anchor, balance, board, boardOpens, boardSPKI, commerceHttp, control, customerProfile, dropNearby, fixture, id, journals, kiosk, nearby, notices, now, offline, ownerWallet,
   pause, phoneCalls, post, token, radio, read, renterBle, startBoard, startKiosk, stopWorld, until, wallet,
 } from './world';
 
@@ -275,7 +275,12 @@ async function register() {
   wallet.raw = JSON.stringify({version: 2, exercised: false, mode: 'personal',
     enrollment: {version: 2, device: board.device, boardSPKI, ca: 'AAAA', certificateChain: ['AAAA']},
     walletRead: defaultReadState});
+  // A board without an owner holds no wallet key and advertises for its owner by itself; the registration makes the key.
+  same('account of a board without an owner', board.account, '0x' + '0'.repeat(40));
+  check('a board that waits for its owner', board.waitsForOwner);
   board.generation = (await withBoard('board-1', session => session.register(() => {}))).generation;
+  check('an account made by the registration', /^0x[0-9a-f]{40}$/.test(board.account) && !/^0x0{40}$/.test(board.account));
+  check('no waiting for an owner any more', !board.waitsForOwner);
 }
 async function enroll() {
   await openLife('setup');
@@ -575,16 +580,32 @@ flow('quote expiry', async () => {
 });
 
 flow('a grant that took 12 seconds', async () => {
+  const account = board.account;
   await board.boot();
+  // A restarted board keeps the operator's grant, the owner and the owner's key. Its clock is late until the next grant.
+  check('a session under the grant kept through the restart', await boardOpens());
+  same('account after the restart', board.account, account);
   await board.grant(12);
+  same('seconds the board\'s clock is ahead', board.ahead, 14);
   await withBoard('board-1', session => session.spendingAccount({generation: board.generation} as never));
   const entry = await paidOrder();
   await cancelled(entry.order.id);
   await board.boot();
-  await board.grant(58); // almost the longest one the board accepts
+  // Almost the longest one the board accepts. The board's latest possible time never goes back, also not through a
+  // restart or by a quicker grant, and with it a minute ahead no quote of this store can be approved. So this grant
+  // runs for 70 seconds only, which is 10 by the board's clock: only after its end does a quick grant help.
+  await board.grant(58, 70);
+  same('seconds the board\'s clock is ahead', board.ahead, 60);
   await withBoard('board-1', session => session.spendingAccount({generation: board.generation} as never));
   await board.boot();
+  await board.grant(2, 70);
+  check('a quick grant that does not bring the latest possible time back', board.ahead > quoteLife);
+  await until('the end of the slow grant', async () => !(await boardOpens()), 30);
+  await pause(2500); // the board saves the end within two seconds
+  await board.boot();
+  check('no session under a grant that ended', !(await boardOpens()));
   await board.grant();
+  same('seconds the board\'s clock is ahead', board.ahead, 4);
 });
 
 flow('40 requests in a row to the board', async () => {
