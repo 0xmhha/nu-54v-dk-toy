@@ -394,6 +394,127 @@ static void test_key_only_for_the_first_owner(void)
 	assert_no_wallet();
 }
 
+/* What the board does for a first owner, in its order: the PIN, the key, the owner. A step that
+ * fails takes the key and the PIN back (device_pilot_button). */
+static int register_with_pin(const uint8_t owner[32], const char *pin, bool vault_takes)
+{
+	if (enter(pin, true)) {
+		device_spending_withdraw();
+		return -1;
+	}
+	if (device_spending_enroll() || !vault_takes || nu54_vault_rebind(&vault, vault.record.generation, owner)) {
+		device_spending_withdraw();
+		return -1;
+	}
+	return 0;
+}
+
+static void assert_no_pin(void)
+{
+	assert(!item(0x5472) && !key(0x54a0) && device_recovery_pin_wait() == 0);
+}
+
+/* A board without an owner keeps no PIN: the next person could not know it and could never
+ * register. Before this rule a first registration that failed after the PIN entry left the PIN. */
+static void test_unowned_board_keeps_no_pin(void)
+{
+	const uint8_t first[32] = {5}, second[32] = {6};
+	for (int released = 0; released < 2; ++released) {
+		uint8_t made[20];
+		memset(&flash, 0, sizeof(flash));
+		if (released) {
+			use_wallet(made);
+			assert(!device_spending_erase());
+		}
+		assert(!boot());
+		/* The PIN is set, the key is made, and the vault does not take the owner. */
+		assert(register_with_pin(first, "1234", false));
+		assert_no_wallet();
+		assert_no_pin();
+		assert(!boot());
+		assert_no_wallet();
+		assert_no_pin();
+		/* Another person sets another PIN and registers. */
+		assert(!register_with_pin(second, "5678", true));
+		assert(!enter("5678", false) && enter("1234", false));
+		assert(!boot() && device_spending_address() && !enter("5678", false)); /* with an owner the PIN stays */
+	}
+
+	/* A PIN found at start on a board without an owner: a power cut after the PIN entry, or
+	 * firmware from before this rule. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true) && item(0x5472) && key(0x54a0));
+	assert(!boot());
+	assert_no_pin();
+	assert(!enter("5678", true) && !enter("5678", false));
+
+	/* Only the PIN key was made before the power went. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true));
+	memset(item(0x5472), 0, sizeof(struct item));
+	assert(!boot());
+	assert_no_pin();
+
+	/* A vault that stopped after a failed write may hold the owner: the PIN stays for the restart,
+	 * which finds no owner on flash and removes it. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true) && !device_spending_enroll());
+	vault.enabled = false;
+	device_spending_withdraw();
+	assert(item(0x5472) && key(0x54a0) && key(0x54b2));
+	assert(!boot());
+	assert_no_wallet();
+	assert_no_pin();
+
+	/* The start does not go on while a PIN without an owner cannot be removed. */
+	memset(&flash, 0, sizeof(flash));
+	assert(!boot() && !enter("1234", true));
+	read_fails = true;
+	assert(boot());
+	read_fails = false;
+	assert(!boot());
+	assert_no_pin();
+}
+
+/* The same through a power cut at every write of a first registration, completed or taken back:
+ * the next start finds the owner with the PIN that was entered, or no owner and no PIN. */
+static void test_first_registration_with_pin_survives_power_loss(void)
+{
+	const uint8_t owner[32] = {7};
+	unsigned cuts = 0;
+	for (int takes = 0; takes < 2; ++takes) {
+		for (int after = 0; after < 2; ++after) {
+			for (int step = 0;; ++step) {
+				memset(&flash, 0, sizeof(flash));
+				assert(!boot());
+				const uint64_t generation = vault.record.generation;
+				power_after = after;
+				writes_left = step;
+				volatile bool finished = false;
+				if (!setjmp(power)) {
+					(void)register_with_pin(owner, "1234", takes);
+					finished = true;
+				}
+				writes_left = 1; /* a second loss while the start repairs */
+				if (!setjmp(power)) (void)boot();
+				writes_left = -1;
+				assert(!boot());
+				if (vault.record.generation == generation) {
+					assert_no_wallet();
+					assert_no_pin();
+					assert(!enter("5678", true)); /* the next person's PIN is taken */
+				} else {
+					assert(takes && device_spending_address() && !enter("1234", false));
+				}
+				++cuts;
+				if (finished) break;
+				assert(step < 30);
+			}
+		}
+	}
+	printf("registration with a PIN cut at %u points\n", cuts);
+}
+
 /* A reset is done only when the key store itself says the key is gone. */
 static void test_reset_fails_while_the_key_is_there(void)
 {
@@ -537,6 +658,8 @@ int main(void)
 	test_first_boot_survives_power_loss();
 	test_registration_survives_power_loss();
 	test_key_only_for_the_first_owner();
+	test_unowned_board_keeps_no_pin();
+	test_first_registration_with_pin_survives_power_loss();
 	test_reset_fails_while_the_key_is_there();
 	test_reset_then_new_owner();
 	test_lost_key_is_not_replaced();

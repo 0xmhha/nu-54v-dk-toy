@@ -150,3 +150,11 @@ void nu54_spend_operator_statement(const uint8_t board[32], uint64_t generation,
 	put64(out + 56, generation);
 	memcpy(out + 64, nonce, 32);
 }
+
+int nu54_spend_status_account(const uint8_t *account, bool owner_absent, uint8_t out[20])
+{
+	if (!out || (!account && !owner_absent)) return -1;
+	if (account) memcpy(out, account, 20);
+	else memset(out, 0, 20);
+	return 0;
+}

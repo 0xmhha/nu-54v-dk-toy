@@ -130,9 +130,10 @@ int device_spending_init(void)
 	int pending = load(SPEND_RESET_UID, &mark, sizeof(mark));
 	if (pending < 0 || (!pending && (mark != SPEND_RESET_MARK || device_spending_erase())) || !vault->enabled) return -1;
 	if (owner_absent(vault)) {
-		/* No owner, no wallet. A key found here was made for a registration that lost power before
-		 * the owner was stored, or by firmware that made the key at start. */
-		if (remove_wallet()) return -1;
+		/* No owner, no wallet and no PIN. What is found here was made for a registration that lost
+		 * power before the owner was stored, or by firmware that made the key at start. A PIN
+		 * left behind would be asked of the next person, who cannot know it. */
+		if (remove_wallet() || device_recovery_pin_erase()) return -1;
 		ready = true;
 		return 0;
 	}
@@ -168,9 +169,11 @@ void device_spending_withdraw(void)
 	if (!vault->enabled || !owner_absent(vault)) {
 		ready = false;
 		forget_wallet();
-	} else if (remove_wallet()) {
-		ready = false;
+		return;
 	}
+	/* Both go, also when one removal fails. The PIN was set for the owner the vault did not take. */
+	const int key_left = remove_wallet(), pin_left = device_recovery_pin_erase();
+	if (key_left || pin_left) ready = false;
 }
 
 const uint8_t *device_spending_address(void)

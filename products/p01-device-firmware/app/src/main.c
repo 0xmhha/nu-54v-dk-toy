@@ -174,9 +174,8 @@ int main(void)
 #endif
 		if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && (ev.prompt & NU54_PILOT_PROMPT_MASK)) {
 			if (ev.event == NU54_BTN_CLICK && ev.button <= 1) {
+				/* Registers the first owner, and then stops the owner wait itself. */
 				device_pilot_button(ev.prompt, ev.button == 0);
-				/* Only this button registers an owner; with one the board stops advertising by itself. */
-				if (IS_ENABLED(CONFIG_NU54_OWNER_WAIT_ADV) && !device_pilot_owner_absent()) pay_link_owner_wait(false);
 			}
 			continue;
 		}

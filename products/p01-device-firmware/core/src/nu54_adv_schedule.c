@@ -116,3 +116,16 @@ int64_t nu54_owner_wait_idle_left_ms(int64_t idle_since_ms, int64_t now_ms, uint
 	const int64_t limit = (int64_t)limit_seconds * 1000, idle = span_ms(idle_since_ms, now_ms);
 	return idle >= limit ? 0 : limit - idle;
 }
+
+bool nu54_owner_wait_engaged(bool session, bool display, bool ticket, int64_t now_ms, int64_t ticket_deadline_ms)
+{
+	return session || display || (ticket && now_ms < ticket_deadline_ms);
+}
+
+nu54_idle_verdict nu54_owner_wait_idle_verdict(bool owner_absent, bool engaged, int64_t idle_since_ms,
+					       int64_t now_ms, uint32_t limit_seconds)
+{
+	if (!owner_absent || !limit_seconds) return NU54_IDLE_LEAVE;
+	if (engaged) return NU54_IDLE_RESTART;
+	return nu54_owner_wait_idle_left_ms(idle_since_ms, now_ms, limit_seconds) == 0 ? NU54_IDLE_DROP : NU54_IDLE_LEAVE;
+}

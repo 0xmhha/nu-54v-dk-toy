@@ -34,6 +34,7 @@ _Static_assert(NU54_EVM_SIWE_OP != NU54_CHAIN_XPUB_OP, "Each management request 
 #include "nu54_pilot.h"
 #include "nu54_owner.h"
 #include "nu54_owner_idle.h"
+#include "nu54_adv_schedule.h"
 #include <mbedtls/pk.h>
 #include <mbedtls/platform_util.h>
 #include "nu54_keccak.h"
@@ -532,14 +533,23 @@ static int spending_request(const nu54_v2_request *request, uint64_t now, const 
 	return 0;
 }
 
-/* Runs with the pilot lock held and does not return. */
+/* Called with the pilot lock held once, and does not return. */
 static void spending_erase_and_reboot(void)
 {
 	/* An unfinished erase leaves its mark, and the restart continues it. */
 	const bool erased = device_spending_erase() == 0;
+	/* Nothing starts any more in this boot: no session, no installation, no window. */
+	initialized = false;
+	ready = false;
+	enrollment_window = 0;
+	recovery_window = 0;
 	status_led_clear();
 	if (erased) status_led_reset_done();
 	else status_led_event(NU54_EVENT_REFUSED);
+	/* The lamp runs on the system work queue. The TLS work item of the session that asked for the
+	 * reset is still queued there and waits for this lock, so the lock is given up while the
+	 * result is shown. */
+	k_mutex_unlock(&pilot_lock);
 	k_msleep(4000);
 	sys_reboot(SYS_REBOOT_COLD);
 }
@@ -909,9 +919,9 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		const uint8_t *account = device_spending_address();
 		int32_t wait = device_recovery_pin_wait();
 		/* A board without an owner has no wallet yet and answers with the zero account. */
-		if (request->payload_length != 1 || wait < 0 || (!account && !owner_absent(vault))) return -1;
+		if (request->payload_length != 1 || wait < 0 ||
+		    nu54_spend_status_account(account, owner_absent(vault), answer + 2)) return -1;
 		answer[1] = device_spending_return_address(answer + 22);
-		if (account) memcpy(answer + 2, account, 20);
 		sys_put_be64(policy->allowlist.max_amount, answer + 42);
 		sys_put_be64(CONFIG_NU54_SPENDING_DAILY_CAP, answer + 50);
 		sys_put_be32((uint32_t)wait, answer + 58);
@@ -1132,9 +1142,8 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 		/* The wallet key is made when the first owner registers. Until then the status carries
 		 * twenty zero bytes in place of the address. */
-		if (device_spending_address()) memcpy(status + NU54_OWNER_STATUS_SIZE, device_spending_address(), 20);
-		else if (owner_absent(vault)) memset(status + NU54_OWNER_STATUS_SIZE, 0, 20);
-		else return -1;
+		if (nu54_spend_status_account(device_spending_address(), owner_absent(vault),
+					      status + NU54_OWNER_STATUS_SIZE)) return -1;
 		break;
 #endif
 		if (vault->record.flags & NU54_VAULT_PERSONAL)
@@ -1606,6 +1615,7 @@ void device_pilot_button(uint32_t prompt, bool approved)
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 	bool done_well = false; /* the session ends, but nothing was refused */
+	bool unowned_pin = false; /* the PIN was set for a first owner the vault has not taken */
 #endif
 	if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
 	if (owner_idle.generation) {
@@ -1728,6 +1738,7 @@ void device_pilot_button(uint32_t prompt, bool approved)
 			bool virgin = !recovering && owner_absent(device_vault_owner());
 			int pin = pilot_pin(virgin, prompt);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
+			unowned_pin = virgin;
 			if (pin) status_led_event(NU54_EVENT_REFUSED);
 #endif
 			if (prompt != (uint32_t)atomic_get(&pending_prompt)) goto done;
@@ -1737,17 +1748,21 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		nu54_vault *vault = device_vault_owner();
 		uint64_t now = trusted_now();
 		if (link.pending_expiry <= now) goto failed;
+		const bool first_owner = approved && !recovering && vault->enabled && owner_absent(vault);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 		/* The wallet key is made here, for the first owner, right before the vault takes that
 		 * owner. A board without an owner holds no key, also after a factory reset. */
-		const bool first_owner = approved && !recovering && vault->enabled && owner_absent(vault);
 		if (first_owner && device_spending_enroll()) goto failed;
-		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) {
-			if (first_owner) device_spending_withdraw();
-			goto failed;
-		}
-#else
+#endif
 		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) goto failed;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		unowned_pin = false;
+#endif
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+		/* Only this registers an owner. With one the board stops advertising by itself. */
+		if (first_owner) (void)pay_link_owner_wait(false);
+#else
+		(void)first_owner;
 #endif
 		uint8_t status[NU54_OWNER_STATUS_SIZE];
 		/* The owner changed: no bond may outlive the previous owner phone. This runs on the TLS
@@ -1838,6 +1853,11 @@ failed:
 	if (!done_well) status_led_event(NU54_EVENT_REFUSED);
 #endif
 done:
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	/* The registration did not complete, wherever it stopped: the board still has no owner, so it
+	 * keeps neither the key nor the PIN that were set for one. The next person sets a new PIN. */
+	if (unowned_pin) device_spending_withdraw();
+#endif
 	k_mutex_unlock(&pilot_lock);
 }
 
@@ -1861,7 +1881,10 @@ bool device_pilot_owner_absent(void)
 bool device_pilot_engaged(const struct bt_conn *conn)
 {
 	k_mutex_lock(&pilot_lock, K_FOREVER);
-	bool engaged = conn && (conn == connection || conn == ticket_peer || conn == display_connection);
+	/* The session and the installation end by their own deadlines. A ticket that was started is
+	 * only cleared by the next write, so its deadline is applied here. */
+	bool engaged = conn && nu54_owner_wait_engaged(conn == connection, conn == display_connection,
+						       conn == ticket_peer, k_uptime_get(), install_deadline);
 	k_mutex_unlock(&pilot_lock);
 	return engaged;
 }

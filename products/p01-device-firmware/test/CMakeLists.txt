@@ -191,11 +191,11 @@ add_test(NAME spending_store COMMAND test_spending_store)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c owner_absent reset_of_released pilot_pin spending_button
-    order_button device_pilot_button_reset device_pilot_button
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c owner_absent reset_of_released pilot_pin spending_erase_and_reboot spending_button
+    order_button device_pilot_button_reset device_pilot_button device_pilot_engaged
   DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
 add_executable(test_spending_led test_spending_led.c ../app/src/status_led.c ../core/src/nu54_spending.c
-  ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h)
+  ../core/src/nu54_adv_schedule.c ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h)
 target_include_directories(test_spending_led PRIVATE ../app/src fakes-status-led ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(test_spending_led PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
 target_link_libraries(test_spending_led PRIVATE nu54_crypto)

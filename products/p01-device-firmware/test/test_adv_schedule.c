@@ -222,8 +222,29 @@ static void budget(void)
 	      "an interval that does not divide the time rounds the events up");
 }
 
+/* Which centrals a board keeps: only one without an owner drops any, and a ticket that was started
+ * protects its central only until the ticket's deadline. */
+static void engaged_centrals(void)
+{
+	check(nu54_owner_wait_engaged(true, false, false, 0, 0), "the session's central is in an exchange");
+	check(nu54_owner_wait_engaged(false, true, false, 0, 0), "the confirming display is in an exchange");
+	check(nu54_owner_wait_engaged(false, false, true, 14999, 15000), "a started ticket counts before its deadline");
+	check(!nu54_owner_wait_engaged(false, false, true, 15000, 15000), "and not at the deadline");
+	check(!nu54_owner_wait_engaged(false, false, true, INT64_MAX, 15000), "nor ever after it");
+	check(!nu54_owner_wait_engaged(false, false, false, 0, 15000), "a central that started nothing is idle");
+	check(nu54_owner_wait_engaged(true, false, true, 20000, 15000), "the session counts beside an old ticket");
+
+	check(nu54_owner_wait_idle_verdict(true, false, 0, 30000, 30) == NU54_IDLE_DROP, "idle for the limit: dropped");
+	check(nu54_owner_wait_idle_verdict(true, false, 0, 29999, 30) == NU54_IDLE_LEAVE, "just under the limit: kept");
+	check(nu54_owner_wait_idle_verdict(true, true, 0, 90000, 30) == NU54_IDLE_RESTART, "in an exchange: the time starts again");
+	check(nu54_owner_wait_idle_verdict(false, false, 0, 3600000, 30) == NU54_IDLE_LEAVE, "with an owner nobody is dropped");
+	check(nu54_owner_wait_idle_verdict(false, true, 0, 3600000, 30) == NU54_IDLE_LEAVE, "with an owner nothing is tracked");
+	check(nu54_owner_wait_idle_verdict(true, false, 0, INT64_MAX, 0) == NU54_IDLE_LEAVE, "no limit: nobody is dropped");
+}
+
 int main(void)
 {
+	engaged_centrals();
 	phases();
 	edges();
 	validity();

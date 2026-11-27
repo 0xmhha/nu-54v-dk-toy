@@ -100,4 +100,21 @@ int32_t nu54_adv_retry_delay_ms(unsigned failures);
  */
 int64_t nu54_owner_wait_idle_left_ms(int64_t idle_since_ms, int64_t now_ms, uint32_t limit_seconds);
 
+/* Whether a central is in such an exchange now. `session`: it holds the TLS session or the
+ * installation, which end by their own deadlines. `display`: it confirms a pending request, which
+ * ends with the session. `ticket`: it started an installation ticket; that counts only until
+ * ticket_deadline_ms, since nothing else ends a ticket that is never finished. */
+bool nu54_owner_wait_engaged(bool session, bool display, bool ticket, int64_t now_ms, int64_t ticket_deadline_ms);
+
+/* What the once-a-second check does with one central. Only a board without an owner drops
+ * centrals: with an owner the phone may stay connected for as long as it likes. */
+typedef enum {
+	NU54_IDLE_LEAVE = 0, /* nothing to do */
+	NU54_IDLE_RESTART,   /* in an exchange: its idle time starts again from now */
+	NU54_IDLE_DROP,      /* disconnect it */
+} nu54_idle_verdict;
+
+nu54_idle_verdict nu54_owner_wait_idle_verdict(bool owner_absent, bool engaged, int64_t idle_since_ms,
+					       int64_t now_ms, uint32_t limit_seconds);
+
 #endif /* NU54_ADV_SCHEDULE_H */

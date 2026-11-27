@@ -7,16 +7,20 @@
  * floors stay through a reset: removing them would leave a board that refuses to boot its
  * commercial service, and they hold nothing of the user. All callers hold the pilot lock. */
 
-/* A board without an owner holds no wallet key. The key is made when the first owner registers
- * and destroyed by a reset; it is never made at start. */
+/* A board without an owner holds no wallet key and no PIN. The key is made when the first owner
+ * registers and destroyed by a reset; it is never made at start. */
 
 /* After the vault and the install state are loaded. Finishes an interrupted reset first. Without
- * an owner it removes any key it finds; with one, a missing key fails and is not replaced. */
+ * an owner it removes any key and any PIN it finds; with one, a missing key fails and is not
+ * replaced. */
 int device_spending_init(void);
 /* Makes the key for the first owner. Call it while the board has no owner, right before the vault
- * takes one. When the vault then does not take the owner, call withdraw. A power cut in between
- * leaves a key without an owner, which the next start removes. */
+ * takes one. A power cut in between leaves a key and a PIN without an owner, which the next start
+ * removes. */
 int device_spending_enroll(void);
+/* The registration of a first owner did not complete: removes the key and the PIN that were set
+ * for it, so the next person starts with a board that asks for no earlier PIN. Call it for every
+ * such attempt that set the PIN, whether or not the key was made. */
 void device_spending_withdraw(void);
 const uint8_t *device_spending_address(void); /* NULL without a wallet: no owner yet, or init failed */
 int device_spending_sign(const uint8_t digest[32], uint8_t signature[64]);

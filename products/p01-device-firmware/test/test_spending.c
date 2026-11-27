@@ -234,9 +234,27 @@ static void test_reset_gesture(void)
 	assert(nu54_button_update(&button, false, 7100) == NU54_BTN_CLICK); /* nothing to drop when it was up */
 }
 
+/* Both status replies use this rule. Zero means "no owner yet" to the phone, so a board that has
+ * an owner and lost its wallet must fail and never answer zero. */
+static void test_status_account(void)
+{
+	const uint8_t account[20] = {1, 2, 3}, zero[20] = {0};
+	uint8_t out[20];
+	memset(out, 9, sizeof(out));
+	assert(!nu54_spend_status_account(account, false, out) && !memcmp(out, account, 20));
+	memset(out, 9, sizeof(out));
+	assert(!nu54_spend_status_account(NULL, true, out) && !memcmp(out, zero, 20));
+	memset(out, 9, sizeof(out));
+	assert(nu54_spend_status_account(NULL, false, out) == -1 && out[0] == 9 && out[19] == 9);
+	/* A registration that made the key and has not stored the owner yet reports the key. */
+	assert(!nu54_spend_status_account(account, true, out) && !memcmp(out, account, 20));
+	assert(nu54_spend_status_account(account, false, NULL) == -1);
+}
+
 int main(int argc, char **argv)
 {
 	assert(argc == 2);
+	test_status_account();
 	test_return_matches_the_token(argv[1]);
 	test_what_may_be_staged();
 	test_one_press_for_one_request();
