@@ -76,7 +76,7 @@ P05_COMMERCE_REQUIRED = {
     "TestPickupLifecycleEnvelopeCannotMixBookingAndTerminalChanges",
     "TestPostgresPublicMenuCancellationFencesHandoff", "TestPostgresRentalEvidenceWriterScope",
     "TestPostgresPrivateRentalCollectorAuthority", "TestPostgresRentalRuntimeWriterAuthenticatesBoardAndP07",
-    "TestPostgresCustomerContract",
+    "TestPostgresCustomerContract", "TestPostgresWholeWonAmounts",
     P05_SLOT_OPEN_TEST,
 }
 
@@ -307,7 +307,7 @@ def main():
             "P09_ERASURE_TEST_DSN": dsn("journal")})
         settlement_required = {
             "TestLoopbackSettlementEvidenceAndRefund", "TestLoopbackCustomerOrderReceipt",
-            "TestPostgresRefundCapacityFinanceRolesAndDayCutoff",
+            "TestPostgresRefundCapacityFinanceRolesAndDayCutoff", "TestPostgresWonRefundRequestIsWholeWon",
             "TestPostgresFinanceConsoleScopesAndReplay", "TestQuoteBoundaryOriginalArchive",
             "TestLoopbackFinanceOriginalOrder", "TestPostgresFinancePendingOrderProjection",
             "TestLoopbackFinanceRevertedEvidence", "TestLoopbackMerchantGasSponsorship",
