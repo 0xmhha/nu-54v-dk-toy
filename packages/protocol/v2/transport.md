@@ -25,9 +25,45 @@ All integers are unsigned big-endian. The TLS exporter uses the label `EXPORTER-
 
 A message body is command code (1), nonzero request ID (16), expiry in UTC epoch seconds (8), and payload. Commands `manage`, `pay.prepare`, `status`, `nearby.submit`, and `reply` encode as 1 through 5. The C1 `approval.progress` and C2 `rental.review` encode as 6 and 7. The C1 `clock` encodes as 8. Bodies are limited to 2048 bytes and all non-final fragments carry exactly 192 bytes. The receiver closes on an epoch, sequence, ordering, size, role, five-second reassembly budget, or expiry violation. The sequence never wraps. Outer BLE framing must provide an ordered byte stream to TLS and discard connection-local state on teardown. The native TLS owner is responsible for handshake, socket, and inactivity deadlines, including timeouts when no more input arrives.
 
-One request is outstanding per link. A reply carries the same request ID and expiry. Request expiry must be in the future and at most 300 seconds from the receiver's trusted time. `clock` is the one exception to the upper bound: the owner sends it to a board whose clock stood still without power, so the board accepts it however far its expiry lies ahead, and its handler binds the time it carries to that expiry (payload `0x81` and the time as eight bytes; the request must end within 95 seconds after that time). Every other rule applies to `clock` unchanged. Resume sends the original body again over fresh TLS with the same request ID. For the same profile and authenticated peer, the bounded journal distinguishes identical retries from conflicting reuse and retains entries through expiry plus 300 seconds. Journal saturation closes the request path. Durable order state, nonce consumption, and response recovery remain application responsibilities.
+One request is outstanding per link. A reply carries the same request ID and expiry. Request expiry must be in the future and at most 300 seconds from the receiver's trusted time. `clock` is the one exception to the upper bound; the next paragraphs say how. Resume sends the original body again over fresh TLS with the same request ID. For the same profile and authenticated peer, the bounded journal distinguishes identical retries from conflicting reuse and retains entries through expiry plus 300 seconds. Journal saturation closes the request path. Durable order state, nonce consumption, and response recovery remain application responsibilities.
 
 Share the journal's trusted-time watermark across live links and reconnects. A backwards clock closes the link before modifying any partial message. If the volatile journal or trusted-clock continuity is lost, recover durable time and operation state before authorizing a replay-sensitive command. A new TLS connection alone does not restore either.
+
+### The `clock` command
+
+The owner sends `clock` to a board whose clock stood still without power, so the board accepts it however far its expiry lies ahead of the board's time. The lower bound holds as for every request: the expiry must be later than the board's latest possible time. A phone whose clock is more than 90 seconds behind that time is therefore cut off without an answer, like any sender of an expired request. Only the board's spending profile takes the command; every other receiver closes the link.
+
+The request body is `0x81` and the sender's time in whole seconds since the epoch as eight big-endian bytes, nine bytes in all. With `time` for that value and `expires` for the request's expiry, the board requires `time < expires ≤ time + 95`, and a nonzero `time`. Any other length, operation byte or expiry closes the link without an answer. The owner sets `expires = time + 90`. Because a request can only carry a time shortly before its own end, a captured request can never set a later time than it was made for.
+
+The answer is a `reply` with the request's ID and expiry and a body of 30 bytes: `0x81`, a result (1), the board's earliest possible time (8), its latest possible time (8), the end of the operator's grant (8), and the number of times the owner's time opened a later day under this grant (4, stops at its maximum). The times are the board's at the moment it answers.
+
+| Result | Meaning | Board's time |
+|---|---|---|
+| 1 | The board took the time: its earliest possible time moved forward to it, or only its latest possible time came down. | changed |
+| 2 | Not ahead: the board is at that time or past it, or the time is less than 3 seconds ahead and inside the board's interval. | unchanged |
+| 3 | The time is at or after the end of the grant. | unchanged |
+| 4 | The request came later in its session than the board's build allows (`CONFIG_NU54_CLOCK_SESSION_SECONDS`, 15 s by default, counted from the first byte of the TLS session). | unchanged |
+| 5 | Press the button: the move is more than the owner's phone may make by itself since the board's last start (`CONFIG_NU54_CLOCK_FREE_SECONDS`, one day by default, all `clock` requests together). The board now waits for SW1. | unchanged until SW1 |
+
+Results 2 to 5 are answers, not errors: the link stays open, and after 1 to 4 the next request is taken as usual. After 5 the board waits for SW1 for as long as the request runs by its own word (`expires - time` seconds from its arrival) and closes the link on any message that arrives meanwhile, on SW2, and at the end of the wait. SW1 makes the board take the request as of its arrival: it adds the seconds it has run since to `time`. Nothing is sent to the owner at that moment. Sending the same body again in a new session answers 2 while the request has not ended, because the board is then at that time or past it; in the same session, later than the limit, it answers 4.
+
+After result 1 the board's latest possible time may be earlier than before. The board then starts its journal anew at that time, as its spending profile does with every session, so the next frame is not taken for a clock that ran backwards.
+
+The owner's side must:
+
+- compare its clock with network time before it sends, and not send when they differ by more than 5 seconds or when it cannot tell;
+- read its clock after the handshake and send `clock` once, before any other request of the session, with `expires = time + 90`;
+- treat result 1 as done, and result 2 as done when the board's earliest possible time in the answer is not more than 2 seconds below the time it sent;
+- on result 5 show "press the button on the board" (SW1), send nothing while the board waits, and afterwards open a new session and send its time again: 1 or 2 is done, 5 again means the button did not come in time;
+- on result 4 open a new session once and send first; a second 4 means the board's limit is shorter than the handshake takes, which is a matter of the board's build;
+- open a new session once when the link closes after the answer: the certificate was not valid at the board's new time, and may be now.
+
+The owner's side must not:
+
+- send a time it read before the session opened;
+- send `clock` again later in the session, after another request, or while the board waits for any button (an order, a return, a reset, a registration, or the wait of result 5);
+- send it during a registration or the recovery window, or to a board without an owner: the link closes without an answer;
+- take the board's times or the day count of the answer for a clock of its own, or decide anything by them beyond the check of result 2 above.
 
 ## Owner payment review
 
