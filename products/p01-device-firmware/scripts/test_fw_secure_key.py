@@ -199,7 +199,14 @@ class SecureKeyEvidenceTest(unittest.TestCase):
             return key_call(name, origin, address)
 
         for name in ("secp256k1_ecdsa_sign", "secp256k1_ecdsa_sign_recoverable", "ocrypto_ecdsa_p256k1_det_sign_hash",
-                     "ocrypto_ecdsa_p256_sign", "uECC_sign", "mbedtls_ecdsa_sign_det_ext", "mbedtls_ecdsa_write_signature"):
+                     "ocrypto_ecdsa_p256_sign", "uECC_sign", "mbedtls_ecdsa_sign_det_ext", "mbedtls_ecdsa_write_signature",
+                     # p256-m, Ed25519 and Ed448, Schnorr, and the Oberon PSA driver's signers (independent audit).
+                     "p256_ecdsa_sign", "ocrypto_ed25519_sign", "ocrypto_ed25519_sign_ctx", "ocrypto_ed25519ph_sign",
+                     "ocrypto_ed448_sign", "ed25519_sign", "crypto_sign", "crypto_sign_detached", "crypto_sign_ed25519",
+                     "crypto_sign_ed25519_detached", "secp256k1_schnorrsig_sign", "secp256k1_schnorrsig_sign32",
+                     "secp256k1_schnorrsig_sign_custom", "oberon_ecdsa_sign_hash", "oberon_eddsa_sign_hash_with_context",
+                     "oberon_eddsa_sign_message_with_context", "oberon_sign_hash_with_context",
+                     "oberon_sign_message_with_context"):
             with self.subTest(name=name):
                 self.write(app_map=link_map(KEY_CALLS_FROM_TFM + placed(name)))
                 with self.assertRaisesRegex(SystemExit, f"signs with a key of its own: {name}$"):
@@ -214,7 +221,12 @@ class SecureKeyEvidenceTest(unittest.TestCase):
         # What the real application holds: parsing, normalising and verifying signatures, and the PSA calls.
         kept = "".join(placed(name, address=0x41000 + 0x100 * index) for index, name in enumerate(
             ("secp256k1_ecdsa_signature_normalize", "secp256k1_ecdsa_signature_parse_compact", "secp256k1_ecdsa_recover",
-             "secp256k1_ec_pubkey_create", "mbedtls_pk_sign", "mbedtls_ecdsa_raw_to_der", "device_spending_sign")))
+             "secp256k1_ec_pubkey_create", "mbedtls_pk_sign", "mbedtls_ecdsa_raw_to_der", "device_spending_sign",
+             # Verifying, and names that only begin like a signer's: none of them holds a key.
+             "p256_ecdsa_verify", "p256_canonical_signature", "ocrypto_ed25519_verify", "ocrypto_ed25519_public_key",
+             "secp256k1_schnorrsig_verify", "ed25519_verify", "crypto_sign_open", "crypto_sign_verify_detached",
+             "crypto_sign_ed25519_open", "oberon_ecdsa_verify_hash", "oberon_mac_sign_setup", "oberon_mac_sign_finish",
+             "status_led_event")))
         self.write(app_map=link_map(KEY_CALLS_FROM_TFM + kept))
         self.assertEqual(0, self.evidence())
         # A signer the linker threw away is not in the image. Its strings may stay, as in the real build.

@@ -73,11 +73,20 @@ SECURE_BOARD = BOARD + "/ns"  # non-secure application beside TF-M
 SECURE_SIGNER = "cracen_ecdsa_sign_digest_deterministic"  # must link into TF-M, never into the application
 TFM_API_LIBRARY = "modules/trusted-firmware-m/libtfm_api.a"  # the non-secure PSA client: each call crosses into TF-M
 TFM_API_CALLS = ("psa_sign_hash", "psa_generate_key")  # the application must take these from that library
-# Code that signs with a key in the memory of whoever calls it: libsecp256k1's signers (its parsing and
-# verifying functions begin with the same letters and stay), Oberon's software ECDSA, micro-ecc and
-# the classic Mbed TLS ECDSA. None of it belongs in the application of a --secure-key build.
-SOFTWARE_SIGNERS = re.compile(r"secp256k1_ecdsa_sign(?:_recoverable)?|ocrypto_ecdsa_\w*sign\w*|uECC_sign\w*|"
-                              r"mbedtls_ecdsa_sign\w*|mbedtls_ecdsa_write_signature\w*")
+# Code that signs with a key in the memory of whoever calls it: libsecp256k1's ECDSA and Schnorr signers
+# (its parsing and verifying functions begin with the same letters and stay), Oberon's software ECDSA,
+# Ed25519 and Ed448 and the signers of its PSA driver, p256-m, the usual Ed25519 names (ed25519_sign,
+# crypto_sign), micro-ecc and the classic Mbed TLS ECDSA. None of it belongs in the application of a
+# --secure-key build.
+#
+# This is a list of names, not a property of the code. A signer under a name that is not here, one that
+# was renamed or one that was written into the application passes. What the check does show is that
+# none of the signers this SDK and this repository bring along was linked into the application.
+SOFTWARE_SIGNERS = re.compile(r"secp256k1_ecdsa_sign(?:_recoverable)?|secp256k1_schnorrsig_sign\w*|"
+                              r"ocrypto_ecdsa_\w*sign\w*|ocrypto_ed(?:25519|448)(?:ph)?_sign\w*|"
+                              r"oberon_(?:ecdsa|eddsa)_sign\w*|oberon_sign_(?:hash|message)\w*|"
+                              r"p256_ecdsa_sign|ed25519_sign\w*|crypto_sign(?:_ed25519)?(?:_detached)?|"
+                              r"uECC_sign\w*|mbedtls_ecdsa_sign\w*|mbedtls_ecdsa_write_signature\w*")
 # Where `flash` may write, from the SoC's default partitions: MCUboot in the first 62 KiB, the signed
 # application in the 712 KiB slot at 0x10000, and without MCUboot one image from the start of the
 # flash up to the settings storage.
