@@ -505,38 +505,17 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	customerAddr := os.Getenv("P05_CUSTOMER_ADDR")
 	var customer *commerce.CustomerEntrance
 	if customerAddr != "" {
-		// P05_CUSTOMER_OPERATOR_CONTACT is shown on every store page for payment and refund questions.
-		// Request limits, each with its own allowance so one kind cannot use up another's. An address is an IPv4
-		// address or an IPv6 /64. Customers behind one address (a store's wireless network) share every limit but the
-		// session's own, so those are sized for several customers at once.
-		//   proofs, per address: 20 at once, then 1 a second. A checkout, an order session and a pickup QR take two
-		//     requests each (challenge, proof).
-		//   session starts, per address: 30 at once, then 6 a minute. Only checkout and order challenges count; an
-		//     order takes two (before and after payment), so a store's network starts 15 orders in one moment and
-		//     180 an hour. One address holds at most 30 + 6 x 15 = 120 checkout sessions (15 minutes each) and adds
-		//     at most 8,640 proven accounts a day, instead of 30 sessions a minute through the proof limit alone.
-		//   public reads, per address: 120 at once, then 10 a second. Opening a store is the list, the page and at most
-		//     13 menu pages (600 rows, 50 a page), so eight customers can open the largest menu in the same moment.
-		//   menu photo parts, per address: 240 at once, then 20 a second. A menu has at most 200 photos; a small one is
-		//     one part of at most 18,000 bytes and a full one is nine, so at most about 360 KB a second for an address.
-		//   requests with a session token, per address, before the token is read: 200 at once, then 10 a second.
-		//     This is the ceiling of an address whatever number of sessions it holds: 20 customers going from cart
-		//     to lock in one moment (ten requests each), or 50 following an order (one status every 5 seconds).
-		//     Without it 450 sessions of one address at 2 a second each were 900 requests a second.
-		//   a session's requests, per session: 40 at once, then 2 a second. An order from cart to lock is about ten
-		//     requests, and the app asks for its status every 5 seconds at most.
-		//   carts asked to be held, per address: 30 at once, then 6 a minute, like session starts. Each proven
-		//     account holds one unpaid cart at a time and only with the balance to pay it; this bounds how many
-		//     funded accounts of one address hold stock at once (30 + 6 a minute of the hold time).
-		//   session tokens the server does not know, per address: 10 at once, then 1 every 5 seconds. An app whose
-		//     session ended learns it from the first refusal, so ten phones behind one address each get theirs; it
-		//     is apart from the proofs they then need.
-		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil), ReadLimiter: commerce.NewRateLimiter(600, 120, nil),
-			PhotoLimiter: commerce.NewRateLimiter(1200, 240, nil), SessionLimiter: commerce.NewRateLimiter(120, 40, nil),
-			AddressLimiter: commerce.NewRateLimiter(600, 200, nil), UnknownLimiter: commerce.NewRateLimiter(12, 10, nil),
-			StartLimiter:    commerce.NewRateLimiter(6, 30, nil),
-			HoldLimiter:     commerce.NewRateLimiter(6, 30, nil),
-			OperatorContact: os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT")}
+		// P05_CUSTOMER_OPERATOR_CONTACT is shown on every store page for payment and refund questions. The request
+		// limits and their sizes are commerce.NewCustomerLimits; the caps on what the entrance holds at once are
+		// in customer_listener.go. The cart of a proven account holds stock only after its balance was read from
+		// the chain, through the settlement client of the branch's approved target.
+		var funds commerce.PayerFunds
+		if forwarder != nil {
+			funds = forwarder
+		} else {
+			log.Print("customer entrance: no settlement targets are enrolled, so no balance can be read and carts of proven accounts are refused")
+		}
+		customer = newCustomerEntrance(os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT"), gate, funds)
 	}
 	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}
@@ -546,31 +525,17 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	var customerServer *http.Server
 	entranceFailed := make(chan error, 1)
 	if customer != nil {
-		// The recovery gate is not around the listener: each route enters it after its rate limit, with its body
-		// read and inside the cap on requests at once, and the health route never does (CustomerEntrance.Gate).
-		// So a refused request, a slow client and a health probe hold no connection of the control database,
-		// which the operations listener shares.
-		if gate != nil {
-			customer.Gate = gate.Handler
-		}
-		customer.InFlight = make(chan struct{}, customerInFlight)
-		// The cart of a proven account holds stock only after its balance was read from the chain, through the
-		// settlement client of the branch's approved target.
-		if forwarder != nil {
-			customer.Funds = forwarder
-		} else {
-			log.Print("customer entrance: no settlement targets are enrolled, so no balance can be read and carts of proven accounts are refused")
+		share, err := connectionShare()
+		if err != nil {
+			return err
 		}
 		entrance := http.NewServeMux()
 		handlers.RegisterCustomer(entrance)
-		customerServer = &http.Server{Addr: customerAddr, Handler: entrance, BaseContext: func(net.Listener) context.Context { return lifetime },
-			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second, WriteTimeout: 10 * time.Second, MaxHeaderBytes: 8 << 10,
-			TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.NoClientCert, Certificates: []tls.Certificate{certificate}}}
-		accepting, err := net.Listen("tcp", customerAddr)
+		customerServer = customerEntranceServer(customerAddr, entrance, certificate, lifetime)
+		listener, err := listenCustomers(customerAddr, share)
 		if err != nil {
 			return fmt.Errorf("customer entrance: %w", err)
 		}
-		listener := newLimitListener(accepting, customerConnections)
 		go func() {
 			if err := customerServer.ServeTLS(listener, "", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("customer entrance stopped: %v", err)
@@ -587,8 +552,9 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 					return
 				case <-tick.C:
 					if counts := customer.Limited.Drain(); len(counts) != 0 {
-						log.Printf("customer entrance refused in 30s: proof=%d start=%d read=%d photo=%d address=%d session=%d unknown=%d hold=%d busy=%d",
-							counts["proof"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["session"], counts["unknown"], counts["hold"], counts["busy"])
+						log.Printf("customer entrance refused in 30s: proof=%d failed=%d start=%d read=%d photo=%d address=%d live=%d session=%d unknown=%d hold=%d balance=%d busy=%d",
+							counts["proof"], counts["failed"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["live"],
+							counts["session"], counts["unknown"], counts["hold"], counts["balance"], counts["busy"])
 					}
 				}
 			}
