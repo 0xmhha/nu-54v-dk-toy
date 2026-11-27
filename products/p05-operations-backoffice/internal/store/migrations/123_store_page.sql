@@ -36,7 +36,8 @@ LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,pg_temp AS $plain$
 $plain$;
 
 CREATE TABLE ledger.branch_store_page (
-    branch_id uuid PRIMARY KEY REFERENCES ledger.branch,
+    -- The page goes with its branch: the record of what is kept (field-purpose.json) says "delete with the branch".
+    branch_id uuid PRIMARY KEY REFERENCES ledger.branch ON DELETE CASCADE,
     -- Published: customers can open the store's page and its menu. Off, both answer as a store that does not exist.
     published boolean NOT NULL,
     -- A listed store appears in the app's store list; it matters only while the page is published. A published,

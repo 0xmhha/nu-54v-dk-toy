@@ -450,6 +450,16 @@ func TestPostgresStorePage(t *testing.T) {
 	}
 	write(ownCert, cafe, unlisted, 200)
 
+	// --- a store page is deleted with its branch, as its retention record says ---
+	gone := fresh()
+	execute("INSERT INTO ledger.branch VALUES ($1,$2,'Asia/Seoul','04:00')", gone, tenant)
+	execute("INSERT INTO ledger.branch_store_page VALUES ($1,true,true,'카페','','','','','','','',NULL,$2,now())", gone, operator)
+	execute("DELETE FROM ledger.branch WHERE id=$1", gone)
+	var left int
+	if err := admin.QueryRow(ctx, "SELECT count(*) FROM ledger.branch_store_page WHERE branch_id=$1", gone).Scan(&left); err != nil || left != 0 {
+		t.Fatalf("%d store pages outlived their branch: %v", left, err)
+	}
+
 	// --- the entrance limits these reads like its other requests ---
 	h.Customer.Limiter = NewRateLimiter(60, 2, nil)
 	read("/v2/customer/stores", 200)
