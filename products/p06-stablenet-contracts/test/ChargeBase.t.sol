@@ -118,6 +118,7 @@ abstract contract ChargeBase is Test {
             wonChainId: WON_CHAIN,
             pool: pool_,
             won: asset,
+            treasury: treasury,
             minWon: MIN_WON,
             maxWon: MAX_WON,
             minRate: RATE,
@@ -370,6 +371,42 @@ abstract contract ChargeBase is Test {
     {
         (,,, uint256 round) = target.proposals(action);
         return sign(key, target.actionDigest(keccak256("cancel"), action, round, until));
+    }
+
+    // ---- the emergency exit ----
+
+    /// What the signatures of an emergency exit are about: the treasury, as a 32-byte word.
+    function exitSubject(ChargeGovernance target) internal view returns (bytes32) {
+        return bytes32(uint256(uint160(target.treasury())));
+    }
+
+    /// The signatures of two keys that propose (`kind` "proposeEmergencyExit") or cancel
+    /// ("cancelEmergencyExit") the exit of a contract, in the round the contract is in. The caller is on the
+    /// chain of that contract.
+    function exitSignatures(ChargeGovernance target, string memory kind, uint256 keyOne, uint256 keyTwo, uint256 until)
+        internal
+        view
+        returns (bytes[2] memory)
+    {
+        bytes32 digest = target.actionDigest(keccak256(bytes(kind)), exitSubject(target), target.exitRound(), until);
+        return [sign(keyOne, digest), sign(keyTwo, digest)];
+    }
+
+    /// Signers 1 and 2 propose the emergency exit of a contract; it then waits seven days.
+    function proposeExitOn(ChargeGovernance target) internal {
+        uint256 until = block.timestamp + 1 days;
+        target.proposeEmergencyExit(
+            until, exitSignatures(target, "proposeEmergencyExit", SIGNER1_KEY, SIGNER2_KEY, until)
+        );
+    }
+
+    function exitStatus(ChargeGovernance target) internal view returns (uint8) {
+        return uint8(target.emergencyExitStatus());
+    }
+
+    function listOf(bytes32 id) internal pure returns (bytes32[] memory ids) {
+        ids = new bytes32[](1);
+        ids[0] = id;
     }
 
     function state(bytes32 id) internal view returns (ChargeDeposit.State) {

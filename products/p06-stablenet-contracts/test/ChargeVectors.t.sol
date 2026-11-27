@@ -88,6 +88,7 @@ contract ChargeVectorsTest is Test {
             wonChainId: WON_CHAIN,
             pool: POOL,
             won: WON,
+            treasury: TREASURY,
             minWon: 100_000,
             maxWon: 30_000_000,
             minRate: RATE,

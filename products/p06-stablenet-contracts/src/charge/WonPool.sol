@@ -36,7 +36,7 @@ contract WonPool is ChargeGovernance {
         // The asset is the token view of the chain's coin, so plain coin transfers are accepted. Must be what
         // the asset shows for the deployer's balance.
         bool assetIsCoin;
-        address treasury; // the only place pool money can be withdrawn to
+        address treasury; // the only place pool money goes to other than a board; never one of the keys
         uint256 chainId; // this chain; a deployment anywhere else fails
         uint256 minWon;
         uint256 minRate;
@@ -84,7 +84,6 @@ contract WonPool is ChargeGovernance {
     bool public immutable assetIsCoin;
     /// @notice One 0.01 won in the units of the asset.
     uint256 public immutable unitScale;
-    address public immutable treasury;
     uint256 public immutable chainId;
     uint256 public immutable minWon;
     Limits public limits;
@@ -124,11 +123,12 @@ contract WonPool is ChargeGovernance {
     error LimitExceeded();
     error CoinNotAccepted();
 
-    constructor(Keys memory keys, Config memory config) ChargeGovernance(keys, config.minRate, config.maxRate) {
+    constructor(Keys memory keys, Config memory config)
+        ChargeGovernance(keys, config.treasury, config.minRate, config.maxRate)
+    {
         if (block.chainid != config.chainId) revert WrongChain();
         if (
-            config.asset.code.length == 0 || config.treasury == address(0) || config.treasury == address(this)
-                || config.minWon == 0 || !_validLimits(config.limits, config.minWon)
+            config.asset.code.length == 0 || config.minWon == 0 || !_validLimits(config.limits, config.minWon)
                 || config.assetDecimals < ChargeTypes.WON_DECIMALS || config.assetDecimals > 36
                 || config.origin.chainId == 0 || config.origin.deposit == address(0)
         ) revert InvalidParameters();
@@ -148,7 +148,6 @@ contract WonPool is ChargeGovernance {
         assetDecimals = config.assetDecimals;
         assetIsCoin = config.assetIsCoin;
         unitScale = 10 ** (config.assetDecimals - ChargeTypes.WON_DECIMALS);
-        treasury = config.treasury;
         chainId = config.chainId;
         minWon = config.minWon;
         limits = config.limits;
@@ -315,17 +314,30 @@ contract WonPool is ChargeGovernance {
         emit OriginSet(sourceChainId, deposit, false);
     }
 
-    /// @notice Pool money leaves, other than as a payout, only to the treasury and only after two signers and
-    /// a day. Putting money in needs nothing: send the asset to this address.
+    /// @notice Pool money leaves, other than as a payout, only to the treasury: an amount after two signers
+    /// and a day, or all of it through the emergency exit. Putting money in needs nothing: send the asset to
+    /// this address.
     function withdraw(uint256 assetAmount, bytes32 salt) external guarded {
         _apply(WITHDRAW, abi.encode(assetAmount), salt);
         emit Withdrawn(treasury, assetAmount);
         _send(asset, treasury, assetAmount);
     }
 
+    /// @notice While the emergency exit is open, anyone sends all the pool holds of its asset to the
+    /// treasury. The service on this pool stops with it: payouts fail for lack of money, and deposits that
+    /// are in end as refunds on their own chain. Money put in while the exit is open can be sent on the same
+    /// way. A pause does not close the exit, and the exit undoes no pause.
+    function emergencyExit() external guarded {
+        _checkExitOpen();
+        uint256 amount = _balanceOf(asset, address(this));
+        if (amount == 0) revert InvalidParameters();
+        emit EmergencyExitTaken(bytes32(0), treasury, amount);
+        _send(asset, treasury, amount);
+    }
+
     /// @notice Another token that came here by mistake goes to the treasury, after two signers and a day.
-    /// The asset itself leaves only by `pay` and `withdraw`: it is refused here, and a token that moves the
-    /// pool's asset under another address undoes the whole call.
+    /// The asset itself leaves only by `pay`, `withdraw` and the emergency exit: it is refused here, and a
+    /// token that moves the pool's asset under another address undoes the whole call.
     function returnToken(address token, uint256 amount, bytes32 salt) external guarded {
         _apply(RETURN_TOKEN, abi.encode(token, amount), salt);
         if (token == asset || token.code.length == 0 || amount == 0) revert InvalidParameters();

@@ -31,7 +31,7 @@ interface IAuthorizedUSDC {
 ///
 /// Not built: a second deposit method, and turning won back into USDC. For the first the quote carries a
 /// method number and `_accept` is shared. For the second completed money can leave only through `spender`,
-/// which is empty.
+/// which is empty, or through the emergency exit to the treasury.
 contract ChargeDeposit is ChargeGovernance {
     enum State {
         None,
@@ -53,6 +53,7 @@ contract ChargeDeposit is ChargeGovernance {
         uint256 wonChainId;
         address pool;
         address won;
+        address treasury; // the only place the emergency exit sends completed money to
         uint256 minWon; // per top-up, in 0.01 won
         uint256 maxWon;
         uint256 minRate;
@@ -151,7 +152,9 @@ contract ChargeDeposit is ChargeGovernance {
     error AlreadyReturned();
     error NothingStray();
 
-    constructor(Keys memory keys, Config memory config) ChargeGovernance(keys, config.minRate, config.maxRate) {
+    constructor(Keys memory keys, Config memory config)
+        ChargeGovernance(keys, config.treasury, config.minRate, config.maxRate)
+    {
         if (block.chainid != config.chainId) revert WrongChain();
         if (
             config.usdc.code.length == 0 || config.pool == address(0) || config.won == address(0)
@@ -386,8 +389,7 @@ contract ChargeDeposit is ChargeGovernance {
     function spend(bytes32 id, uint256 amount, address to) external guarded {
         if (spender == address(0) || msg.sender != spender) revert Unauthorized();
         Deposit storage record = deposits[id];
-        if (record.state != State.Completed) revert InvalidState();
-        if (!record.settled && block.timestamp < record.completedAt + CONTEST_WINDOW) revert InvalidTime();
+        _checkFinal(record);
         if (amount == 0 || amount > record.left || to == address(0) || to == address(this)) {
             revert InvalidParameters();
         }
@@ -415,6 +417,30 @@ contract ChargeDeposit is ChargeGovernance {
     function clearSpender() external onlyPauser {
         spender = address(0);
         emit SpenderChanged(address(0));
+    }
+
+    // ---- the emergency exit ----
+
+    /// @notice While the emergency exit is open, anyone sends completed money to the treasury. It takes what
+    /// the spender could take and nothing else: all that is left of a completed deposit that is settled or
+    /// past its contest window. A deposit that is open, contested, refunded or still inside its contest
+    /// window makes the whole call fail, so no money a traveller can still claim leaves this way, and every
+    /// refund works as before, during and after an exit. Stray coins are not touched either. As with the
+    /// spender, two signers can no longer take a completion back (`reject`) once its money has left.
+    function emergencyExit(bytes32[] calldata ids) external guarded {
+        _checkExitOpen();
+        uint256 total;
+        for (uint256 i; i < ids.length; ++i) {
+            Deposit storage record = deposits[ids[i]];
+            _checkFinal(record);
+            uint256 amount = record.left;
+            if (amount == 0) revert InvalidState();
+            record.left = 0;
+            total += amount;
+            emit EmergencyExitTaken(ids[i], treasury, amount);
+        }
+        totalHeld -= total;
+        _send(usdc, treasury, total);
     }
 
     // ---- coins sent here by mistake ----
@@ -498,6 +524,13 @@ contract ChargeDeposit is ChargeGovernance {
         // Only the first three bytes are looked at.
         // forge-lint: disable-next-line(unsafe-typecast)
         return code.length != 0 && bytes3(code) != bytes3(0xef0100);
+    }
+
+    /// @dev Completed money the payer can no longer contest: two signers settled it, or seven days passed
+    /// without a contest. Only such money leaves other than as a refund.
+    function _checkFinal(Deposit storage record) private view {
+        if (record.state != State.Completed) revert InvalidState();
+        if (!record.settled && block.timestamp < record.completedAt + CONTEST_WINDOW) revert InvalidTime();
     }
 
     function _complete(bytes32 id, Deposit storage record, bytes32 wonBlockHash, bool bySigners) private {

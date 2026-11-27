@@ -17,6 +17,11 @@ import {ChargeTypes} from "./ChargeTypes.sol";
 /// A waiting change is stopped by the pauser or by one signer. The one exception keeps a single key in the
 /// wrong hands from staying for ever: the key whose place a change takes cannot stop that change. The pauser
 /// cannot cancel or void its own replacement, and a signer cannot cancel its own.
+///
+/// Two keys in the wrong hands, the pauser and one signer, still stop each other's replacement and with it
+/// every change. For that case there is the emergency exit: two signers propose it, it waits seven days, and
+/// then anyone sends the money to the treasury, an address fixed at deployment. The pauser, a single signer,
+/// a pause and a key switched off do not stop it. Only two signers together cancel it.
 abstract contract ChargeGovernance {
     enum Key {
         Relay,
@@ -74,19 +79,35 @@ abstract contract ChargeGovernance {
     /// only the moment of use: it says nothing about when the signature was made, and a change proposed
     /// before `until` still waits its day and is applied after `until`.
     uint64 public constant LONGEST_SIGNATURE = 7 days;
+    /// @notice A proposed emergency exit waits this long: seven times the wait of a change, so it is never the
+    /// quicker way to do what a change does.
+    uint64 public constant EMERGENCY_DELAY = 7 days;
+    /// @notice After the wait, the exit is open for this long. On the deposit contract that is the contest
+    /// window, so whatever was completed before the exit opened can be taken before it closes.
+    uint64 public constant EMERGENCY_WINDOW = 7 days;
 
     bytes32 internal constant PROPOSE = keccak256("propose");
     bytes32 internal constant CANCEL = keccak256("cancel");
     bytes32 internal constant VOID_PAUSER = keccak256("voidPauserReplacements");
+    bytes32 internal constant PROPOSE_EXIT = keccak256("proposeEmergencyExit");
+    bytes32 internal constant CANCEL_EXIT = keccak256("cancelEmergencyExit");
     bytes32 internal constant SET_KEY = keccak256("setKey");
     bytes32 internal constant SET_SIGNER = keccak256("setSigner");
     bytes32 internal constant SET_RATES = keccak256("setRates");
 
+    /// @notice The one address money goes to other than as a payout, a refund or through the spender. Fixed
+    /// at deployment and never one of the seven keys.
+    address public immutable treasury;
     address public relay;
     address public quoter;
     address public witness;
     address public pauser;
     address[3] public signers;
+    /// @notice When the emergency exit that waits or is open was proposed.
+    uint64 public exitProposedAt;
+    /// @notice Grows with every proposal and every cancel of an emergency exit, so each signature works once.
+    /// Nothing else moves it: not the pauser, not a key switched off, not a change of signers.
+    uint256 public exitRound;
     /// @notice Grows when a signer changes or a key is switched off; every earlier proposal is then void,
     /// except one that replaces the pauser.
     uint256 public generation;
@@ -118,6 +139,10 @@ abstract contract ChargeGovernance {
     event ChangeApplied(bytes32 indexed action);
     /// @notice Every proposal that replaces the pauser and was counted in `round` is void.
     event PauserReplacementsVoided(uint256 round, Seat by);
+    event EmergencyExitProposed(uint256 round, uint64 readyAt, uint64 lapsesAt);
+    event EmergencyExitCancelled(uint256 round);
+    /// @notice Money that left through the open exit. `id` is the deposit it was taken from; zero on the pool.
+    event EmergencyExitTaken(bytes32 indexed id, address indexed treasury, uint256 amount);
     event RatesChanged(uint256 minRate, uint256 maxRate);
 
     error Unauthorized();
@@ -129,9 +154,17 @@ abstract contract ChargeGovernance {
     error TokenBalanceMismatch();
     error Reentered();
 
-    constructor(Keys memory keys, uint256 minRate_, uint256 maxRate_) {
-        address[7] memory all =
-            [keys.relay, keys.quoter, keys.witness, keys.pauser, keys.signers[0], keys.signers[1], keys.signers[2]];
+    constructor(Keys memory keys, address treasury_, uint256 minRate_, uint256 maxRate_) {
+        address[8] memory all = [
+            keys.relay,
+            keys.quoter,
+            keys.witness,
+            keys.pauser,
+            keys.signers[0],
+            keys.signers[1],
+            keys.signers[2],
+            treasury_
+        ];
         for (uint256 i; i < all.length; ++i) {
             if (all[i] == address(0)) revert InvalidParameters();
             for (uint256 j; j < i; ++j) {
@@ -139,7 +172,8 @@ abstract contract ChargeGovernance {
             }
         }
         // A fixed rate is the range with both ends equal.
-        if (minRate_ == 0 || minRate_ > maxRate_) revert InvalidParameters();
+        if (treasury_ == address(this) || minRate_ == 0 || minRate_ > maxRate_) revert InvalidParameters();
+        treasury = treasury_;
         relay = keys.relay;
         quoter = keys.quoter;
         witness = keys.witness;
@@ -292,7 +326,7 @@ abstract contract ChargeGovernance {
     /// @notice Switches off the relay, the quoter or the witness. Only two signers and a day bring a key back.
     /// Every waiting change is void after it, except one that replaces the pauser. A key that is off cannot
     /// be switched off again, so the pauser voids three times with the three keys of the deployment and once
-    /// more for every key two signers bring back.
+    /// more for every key two signers bring back. The emergency exit is no change and is not touched.
     function disableKey(Key which) external onlyPauser {
         address was;
         if (which == Key.Relay) {
@@ -317,6 +351,58 @@ abstract contract ChargeGovernance {
         minRate = minRate_;
         maxRate = maxRate_;
         emit RatesChanged(minRate_, maxRate_);
+    }
+
+    // ---- the emergency exit: two signers, then seven days ----
+
+    /// @notice Starts the wait of the emergency exit. Two signers sign
+    /// `actionDigest(keccak256("proposeEmergencyExit"), treasury, exitRound, until)`, with the treasury as a
+    /// 32-byte word, and anyone may send it. One exit at a time: the next can be proposed once this one was
+    /// cancelled or has lapsed. It is not a change: `cancelProposal`, a key switched off, a change of signers
+    /// and a pause leave it as it is, and it leaves them as they are.
+    function proposeEmergencyExit(uint256 until, bytes[2] calldata signatures) external {
+        if (_exitWaitsOrIsOpen()) revert InvalidState();
+        uint256 round = exitRound;
+        _checkTwo(PROPOSE_EXIT, _exitSubject(), round, until, signatures);
+        exitProposedAt = uint64(block.timestamp);
+        exitRound = round + 1;
+        uint64 readyAt = uint64(block.timestamp) + EMERGENCY_DELAY;
+        emit EmergencyExitProposed(round, readyAt, readyAt + EMERGENCY_WINDOW);
+    }
+
+    /// @notice Two signers together stop the exit, while it waits or while it is open. Nobody else can: not
+    /// the pauser, not one signer, not the two of them. They sign
+    /// `actionDigest(keccak256("cancelEmergencyExit"), treasury, exitRound, until)`.
+    function cancelEmergencyExit(uint256 until, bytes[2] calldata signatures) external {
+        if (!_exitWaitsOrIsOpen()) revert InvalidState();
+        uint256 round = exitRound;
+        _checkTwo(CANCEL_EXIT, _exitSubject(), round, until, signatures);
+        exitProposedAt = 0;
+        exitRound = round + 1;
+        emit EmergencyExitCancelled(round);
+    }
+
+    /// @notice `None`, `Waiting` for seven days, `Ready` while it is open, `Void` once it has lapsed.
+    function emergencyExitStatus() public view returns (Status) {
+        uint256 proposedAt = exitProposedAt;
+        return proposedAt == 0 ? Status.None : _statusAt(proposedAt, EMERGENCY_DELAY, EMERGENCY_WINDOW);
+    }
+
+    function _exitWaitsOrIsOpen() private view returns (bool) {
+        Status status = emergencyExitStatus();
+        return status == Status.Waiting || status == Status.Ready;
+    }
+
+    function _exitSubject() private view returns (bytes32) {
+        return bytes32(uint256(uint160(treasury)));
+    }
+
+    /// @dev Each contract sends its own money through the open exit. Nothing else is checked here on
+    /// purpose: no pause and no key that is off closes it.
+    function _checkExitOpen() internal view {
+        Status status = emergencyExitStatus();
+        if (status == Status.Waiting) revert InvalidTime();
+        if (status != Status.Ready) revert InvalidState();
     }
 
     // ---- internals ----
@@ -406,7 +492,10 @@ abstract contract ChargeGovernance {
     }
 
     function _checkUnused(address to) private view {
-        if (to == address(0) || to == relay || to == quoter || to == witness || to == pauser || _isSigner(to)) {
+        if (
+            to == address(0) || to == relay || to == quoter || to == witness || to == pauser || to == treasury
+                || _isSigner(to)
+        ) {
             revert InvalidParameters();
         }
     }
