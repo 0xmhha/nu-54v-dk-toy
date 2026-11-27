@@ -2,6 +2,7 @@ package commerce
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -409,5 +410,212 @@ func TestClientKeyGroupsAnIPv6Network(t *testing.T) {
 	}
 	if send("[2001:db8:1:3::1]:4000") != http.StatusBadRequest || send("198.51.100.7:4000") != http.StatusBadRequest {
 		t.Fatal("another network shares the limit")
+	}
+}
+
+// sessionRequests is an entrance whose session reads are counted instead of reaching a database: tokens that start
+// with 0xaa are live sessions of their own customer, every other token is unknown.
+func sessionRequests(limits *CustomerEntrance) (send func(remote, token string) (int, string), reads *int) {
+	reads = new(int)
+	limits.lookup = func(_ context.Context, token []byte) (customerSession, error) {
+		*reads++
+		if token[0] != 0xaa {
+			return customerSession{}, service.Forbidden
+		}
+		return customerSession{Branch: branch, Actor: hex.EncodeToString(token), Purpose: "checkout", ExpiresAt: time.Now().Add(time.Minute)}, nil
+	}
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux)
+	return func(remote, token string) (int, string) {
+		// The envelope is not a command, so a live session ends as a bad request before anything else is read.
+		req := httptest.NewRequest("POST", "/v2/customer/commerce", strings.NewReader(`{"command":{}}`))
+		req.RemoteAddr = remote
+		req.Header.Set("Authorization", "Bearer "+token)
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code, reply.Header().Get("Retry-After")
+	}, reads
+}
+
+// An address is counted before its session token is looked up: once it is limited, no request of it reads the
+// database, whatever tokens it sends.
+func TestSessionTokenIsNotLookedUpOnceTheAddressIsLimited(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	limits := &CustomerEntrance{AddressLimiter: NewRateLimiter(60, 3, clock)}
+	send, reads := sessionRequests(limits)
+	unknown := func(i int) string { return strings.Repeat("0", 62) + hex.EncodeToString([]byte{byte(i)}) }
+	for i := 0; i < 3; i++ {
+		if code, _ := send("198.51.100.7:4000", unknown(i)); code != http.StatusNotFound {
+			t.Fatalf("unknown token %d: %d", i, code)
+		}
+	}
+	if *reads != 3 {
+		t.Fatalf("%d session reads for 3 allowed requests", *reads)
+	}
+	for i := 3; i < 40; i++ {
+		if code, wait := send("198.51.100.7:"+hex.EncodeToString([]byte{byte(i)}), unknown(i)); code != http.StatusTooManyRequests || wait != "1" {
+			t.Fatalf("request %d of a limited address: %d, Retry-After %q", i, code, wait)
+		}
+	}
+	// A live session of the limited address is refused the same way, without a read.
+	if code, _ := send("198.51.100.7:4000", "aa"+strings.Repeat("0", 62)); code != http.StatusTooManyRequests {
+		t.Fatalf("a live session passed its limited address: %d", code)
+	}
+	if *reads != 3 {
+		t.Fatalf("a limited address reached the session read: %d reads", *reads)
+	}
+	// Another address is read, and so is the first again once it has a request back.
+	if code, _ := send("198.51.100.8:4000", unknown(0)); code != http.StatusNotFound || *reads != 4 {
+		t.Fatalf("another address: %d, %d reads", code, *reads)
+	}
+	now = now.Add(time.Second)
+	if code, _ := send("198.51.100.7:4000", "aa"+strings.Repeat("0", 62)); code != http.StatusBadRequest || *reads != 5 {
+		t.Fatalf("after the wait: %d, %d reads", code, *reads)
+	}
+	if counts := limits.Limited.Drain(); counts["address"] != 38 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	// A deployment that sets only the one limit keeps session requests under it, as before the limits were split.
+	shared := &CustomerEntrance{Limiter: NewRateLimiter(60, 1, clock)}
+	send, reads = sessionRequests(shared)
+	if first, _ := send("198.51.100.9:4000", unknown(0)); first != http.StatusNotFound {
+		t.Fatalf("first request: %d", first)
+	}
+	if second, _ := send("198.51.100.9:4000", unknown(1)); second != http.StatusTooManyRequests || *reads != 1 {
+		t.Fatalf("session requests escaped the entrance limit: %d, %d reads", second, *reads)
+	}
+}
+
+// Each live session has its own allowance and all sessions of one address share that address's ceiling, so opening
+// more sessions gives an address no more requests.
+func TestSessionsShareTheCeilingOfTheirAddress(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	limits := &CustomerEntrance{AddressLimiter: NewRateLimiter(60, 6, clock), SessionLimiter: NewRateLimiter(60, 2, clock)}
+	send, reads := sessionRequests(limits)
+	live := func(i int) string { return "aa" + strings.Repeat("0", 60) + hex.EncodeToString([]byte{byte(i)}) }
+	const home, other = "198.51.100.7:4000", "198.51.100.8:4000"
+	// One session uses its own allowance up; another session of the same address is not held back by that.
+	for i, want := range []int{http.StatusBadRequest, http.StatusBadRequest, http.StatusTooManyRequests} {
+		if code, _ := send(home, live(1)); code != want {
+			t.Fatalf("request %d of one session: %d, want %d", i+1, code, want)
+		}
+	}
+	if code, _ := send(home, live(2)); code != http.StatusBadRequest {
+		t.Fatalf("a second session shares the first one's limit: %d", code)
+	}
+	// The same session from another address still has no allowance left: it is the session's, not the address's.
+	if code, _ := send(other, live(1)); code != http.StatusTooManyRequests {
+		t.Fatalf("a limited session got another allowance from another address: %d", code)
+	}
+	// Six requests of the address are used (four above, two here). Sessions that never asked anything are refused
+	// now, before any read: the address is at its ceiling.
+	send(home, live(3))
+	send(home, live(4))
+	before := *reads
+	for i := 5; i < 30; i++ {
+		if code, _ := send(home, live(i)); code != http.StatusTooManyRequests {
+			t.Fatalf("session %d took its address past the ceiling: %d", i, code)
+		}
+	}
+	if *reads != before {
+		t.Fatalf("sessions over the ceiling were read: %d, was %d", *reads, before)
+	}
+	if code, _ := send(other, live(5)); code != http.StatusBadRequest {
+		t.Fatalf("another address is under the first one's ceiling: %d", code)
+	}
+	if counts := limits.Limited.Drain(); counts["session"] != 2 || counts["address"] != 25 || len(counts) != 2 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+}
+
+// Session tokens the server does not know have an allowance of their own for each address: using it up leaves the
+// address its proofs, so phones with expired sessions behind one address can still get new ones.
+func TestUnknownSessionTokensLeaveTheProofAllowance(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	limits := &CustomerEntrance{Limiter: NewRateLimiter(60, 2, clock), AddressLimiter: NewRateLimiter(600, 100, clock),
+		UnknownLimiter: NewRateLimiter(6, 2, clock)}
+	send, reads := sessionRequests(limits)
+	const home = "198.51.100.7:4000"
+	stale := strings.Repeat("cd", 32)
+	for i, want := range []int{http.StatusNotFound, http.StatusNotFound, http.StatusTooManyRequests, http.StatusTooManyRequests} {
+		if code, wait := send(home, stale); code != want || (want == http.StatusTooManyRequests && wait != "10") {
+			t.Fatalf("stale token %d: %d (Retry-After %q), want %d", i+1, code, wait, want)
+		}
+	}
+	// A header that is no token at all is counted the same way and reads nothing.
+	if code, _ := send(home, "not-a-token"); code != http.StatusTooManyRequests || *reads != 4 {
+		t.Fatalf("a malformed token: %d, %d reads", code, *reads)
+	}
+	// A live session of the same address is still served, and the address can still ask for a challenge.
+	if code, _ := send(home, "aa"+strings.Repeat("0", 62)); code != http.StatusBadRequest {
+		t.Fatalf("stale tokens of one phone stopped another phone's live session: %d", code)
+	}
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux)
+	prove := func() int {
+		req := httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader("{"))
+		req.RemoteAddr = home
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code
+	}
+	if first, second, third := prove(), prove(), prove(); first != http.StatusBadRequest || second != http.StatusBadRequest || third != http.StatusTooManyRequests {
+		t.Fatalf("stale tokens used up the proofs of their address: %d %d %d", first, second, third)
+	}
+	if counts := limits.Limited.Drain(); counts["unknown"] != 3 || counts["proof"] != 1 || len(counts) != 2 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+}
+
+// An address starts a limited number of sessions in a time window: checkout and order challenges are counted, a
+// pickup challenge is not.
+func TestSessionStartsPerAddress(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	limits := &CustomerEntrance{StartLimiter: NewRateLimiter(6, 2, clock)} // two at once, then one every ten seconds
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux) // no store behind it: an allowed challenge ends as not found
+	sale := "6f1c1a52-4c39-4d1e-9d36-1f0b9b4d2a10"
+	ask := func(remote, purpose string) (int, string) {
+		body := `{"purpose":"` + purpose + `","branchRef":"` + branch + `"`
+		if purpose != "checkout" {
+			body += `,"saleRef":"` + sale + `"`
+		}
+		req := httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader(body+"}"))
+		req.RemoteAddr = remote
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code, reply.Header().Get("Retry-After")
+	}
+	const home = "[2001:db8:1:2::1]:4000"
+	if first, _ := ask(home, "checkout"); first != http.StatusNotFound {
+		t.Fatalf("first session start: %d", first)
+	}
+	if second, _ := ask("[2001:db8:1:2::2]:4000", "order"); second != http.StatusNotFound { // the same /64
+		t.Fatalf("second session start: %d", second)
+	}
+	for _, purpose := range []string{"checkout", "order"} {
+		if code, wait := ask(home, purpose); code != http.StatusTooManyRequests || wait != "10" {
+			t.Fatalf("a third %s start in the window: %d, Retry-After %q", purpose, code, wait)
+		}
+	}
+	// A pickup QR is not a session; a request that is not a challenge at all is not counted either.
+	for i := 0; i < 5; i++ {
+		if code, _ := ask(home, "pickup"); code != http.StatusNotFound {
+			t.Fatalf("a pickup challenge was counted as a session start: %d", code)
+		}
+	}
+	if code, _ := ask("198.51.100.7:4000", "checkout"); code != http.StatusNotFound {
+		t.Fatalf("another address shares the limit: %d", code)
+	}
+	now = now.Add(10 * time.Second)
+	if again, _ := ask(home, "checkout"); again != http.StatusNotFound {
+		t.Fatalf("after the window: %d", again)
+	}
+	if counts := limits.Limited.Drain(); counts["start"] != 2 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
 	}
 }

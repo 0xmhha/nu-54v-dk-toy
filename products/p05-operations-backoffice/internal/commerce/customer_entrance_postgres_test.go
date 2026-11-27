@@ -422,23 +422,37 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	command(elsewhereSession, "order.status", elsewhere, sale, map[string]string{}, nil, 404)
 	command(elsewhereSession, "order.status", shop, sale, map[string]string{}, nil, 404)
 	// Each session has its own request allowance, and one session using its up does not limit another, though both
-	// come from one address. A token the server does not know is counted against the address.
-	h.Customer.SessionLimiter, h.Customer.Limiter = NewRateLimiter(60, 2, nil), NewRateLimiter(60, 3, nil)
+	// come from one address. A token the server does not know has an allowance of its own, apart from the proofs of
+	// its address. Every request with a token counts toward the ceiling of its address, which ends them all.
+	h.Customer.SessionLimiter, h.Customer.UnknownLimiter = NewRateLimiter(60, 2, nil), NewRateLimiter(60, 2, nil)
+	h.Customer.AddressLimiter, h.Customer.Limiter, h.Customer.StartLimiter = NewRateLimiter(60, 9, nil), NewRateLimiter(60, 1, nil), NewRateLimiter(60, 1, nil)
 	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(session, "order.status", shop, sale, map[string]string{}, nil, 429)
 	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
-	for i, want := range []int{404, 404, 404, 429} {
+	for i, want := range []int{404, 404, 429} {
 		if got := command(strings.Repeat("cd", 32), "order.status", shop, sale, map[string]string{}, nil, want); want == 429 && got["error"] != string(service.Busy) {
 			t.Fatalf("unknown token %d: %v", i, got)
 		}
 	}
-	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200) // a live session is not counted against its address
-	if counts := h.Customer.Limited.Drain(); counts["session"] != 1 || counts["proof"] != 1 {
+	challenge("pickup", shop, sale)                                                  // the unknown tokens left the address its proof
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200) // the ninth request of the address
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 429) // its ceiling, though the session has an allowance left
+	if counts := h.Customer.Limited.Drain(); counts["session"] != 1 || counts["unknown"] != 1 || counts["address"] != 1 || len(counts) != 3 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
-	h.Customer.SessionLimiter, h.Customer.Limiter = nil, nil
+	// One session start in the window for this address; a pickup challenge is not one.
+	h.Customer.Limiter = nil
+	challenge("checkout", shop, "")
+	if got := call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": shop}, 429); got["error"] != string(service.Busy) {
+		t.Fatalf("a second session start in the window: %v", got)
+	}
+	challenge("pickup", shop, sale)
+	if counts := h.Customer.Limited.Drain(); counts["start"] != 1 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	h.Customer.SessionLimiter, h.Customer.UnknownLimiter, h.Customer.AddressLimiter, h.Customer.StartLimiter = nil, nil, nil, nil
 
 	// --- pickup: only when ready, only the payer, one use, short-lived, this branch and this order ---
 	if got := prove(board, account, challenge("pickup", shop, sale), 409); got["error"] != string(service.CheckoutConflict) {

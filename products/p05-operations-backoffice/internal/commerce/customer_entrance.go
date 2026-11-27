@@ -35,20 +35,34 @@ import (
 // account), "order" (the address paid this order: a session for that order only, until it ends) and "pickup" (the
 // address paid this ready order: a one-time QR token that staff scan on the order's page).
 type CustomerEntrance struct {
-	// Limiter is the strict limit of each address on what needs no session: a challenge, a proof, and a session
-	// token the server does not know. The limits below fall back to it when they are not set.
+	// Limiter is the strict limit of each address on what needs no session: a challenge and a proof. ReadLimiter,
+	// PhotoLimiter and AddressLimiter fall back to it when they are not set.
 	Limiter *RateLimiter
 	// ReadLimiter is the limit of each address on the public reads: the store list, a store page and a menu page.
 	ReadLimiter *RateLimiter
 	// PhotoLimiter is the limit of each address on public menu photo parts; nil leaves them under ReadLimiter.
 	PhotoLimiter *RateLimiter
-	// SessionLimiter is the limit of each live session on its own requests. Customers behind one address, such as a
-	// store's wireless network, do not share it. Nil counts a session's requests against its address.
+	// AddressLimiter is the ceiling of each address over every request that carries a session token. It is counted
+	// before the token is looked up, so a refused request never reaches the database, and no number of sessions,
+	// live or made up, takes one address past it.
+	AddressLimiter *RateLimiter
+	// SessionLimiter is the limit of each live session on its own requests, counted after the lookup. Customers
+	// behind one address, such as a store's wireless network, do not share it; they share AddressLimiter.
 	SessionLimiter *RateLimiter
+	// UnknownLimiter is the limit of each address on session tokens the server does not know: a guess or a stale
+	// session. It is apart from Limiter, so phones with expired sessions behind one address do not use up the
+	// proofs that address needs to get new ones. Nil leaves such tokens to AddressLimiter alone.
+	UnknownLimiter *RateLimiter
+	// StartLimiter is the limit of each address on the challenges that can end in a session (checkout and order),
+	// and so on the sessions and the new proven accounts one address starts in a time window. Pickup challenges are
+	// not counted: they end in a QR, and a waiting customer renews it every minute.
+	StartLimiter *RateLimiter
 	// Limited counts refused requests by kind; opsd logs it.
 	Limited LimitedCount
 	// Zero values take the defaults below. The order session cap is provisional (an owner decision).
 	ChallengeLifetime, CheckoutLifetime, OrderLifetime, PickupLifetime time.Duration
+	// lookup reads a live session by its token. Nil reads the store; tests count the reads with it.
+	lookup func(context.Context, []byte) (customerSession, error)
 	// RescanWindow is how long after a handover the same staff member's repeated scan gets the first answer again.
 	RescanWindow time.Duration
 	// OperatorContact is what a store page shows for payment and refund questions; empty shows none.
@@ -163,7 +177,9 @@ func (c *LimitedCount) add(kind string) {
 	c.counts[kind]++
 }
 
-// Drain returns the counts since the last call, by kind ("proof", "read", "photo", "session").
+// Drain returns the counts since the last call, by kind: "proof", "read", "photo", "address" (the ceiling of one
+// address over session requests), "session" (one session's own limit), "unknown" (session tokens the server does not
+// know) and "start" (challenges that can end in a session).
 func (c *LimitedCount) Drain() map[string]int64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -238,8 +254,10 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 	})
 	mux.Handle("POST /v2/customer/challenge", proof(h.customerChallenge))
 	mux.Handle("POST /v2/customer/proof", proof(h.customerProof))
-	// A session's requests are counted for that session once it is known (customerCommerce).
-	mux.HandleFunc("POST /v2/customer/commerce", h.customerCommerce)
+	// A request with a session token is counted for its address here, before the token is looked up, and for its
+	// session once that is known (customerCommerce).
+	mux.Handle("POST /v2/customer/commerce", limited("address",
+		func() *RateLimiter { return first(h.Customer.AddressLimiter, h.Customer.Limiter) }, h.customerCommerce))
 	// The store list and a store page are read before any proof: public data only, under the same limit.
 	mux.Handle("GET /v2/customer/stores", limit(h.customerStores))
 	mux.Handle("GET /v2/customer/stores/{branch}", limit(h.customerStore))
@@ -272,6 +290,13 @@ func (h HTTP) customerChallenge(w http.ResponseWriter, r *http.Request) {
 		(in.Purpose == "checkout") != (in.Sale == "") || (in.Sale != "" && !operatorRef.MatchString(in.Sale)) {
 		errorResponse(w, service.BadRequest, nil)
 		return
+	}
+	// A checkout or order challenge is the start of a session: each address has a limit on those of its own.
+	if limiter := h.Customer.StartLimiter; limiter != nil && in.Purpose != "pickup" {
+		if allowed, wait := limiter.Take(clientKey(r)); !allowed {
+			h.Customer.tooMany(w, "start", wait)
+			return
+		}
 	}
 	if h.Store == nil {
 		http.NotFound(w, r)
@@ -454,32 +479,33 @@ func (s *Store) customerSession(ctx context.Context, token []byte) (customerSess
 func (h HTTP) customerCommerce(w http.ResponseWriter, r *http.Request) {
 	value, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	token, err := hex.DecodeString(value)
-	// A token the server does not know is counted against the address, strictly: it is a guess or a stale session.
+	// The address was counted before this handler (RegisterCustomer). A token the server does not know is a guess
+	// or a stale session: it is counted for the address once more, strictly, and apart from the address's proofs.
 	refuse := func() {
-		if h.Customer.Limiter != nil {
-			if allowed, wait := h.Customer.Limiter.Take(clientKey(r)); !allowed {
-				h.Customer.tooMany(w, "proof", wait)
+		if limiter := h.Customer.UnknownLimiter; limiter != nil {
+			if allowed, wait := limiter.Take(clientKey(r)); !allowed {
+				h.Customer.tooMany(w, "unknown", wait)
 				return
 			}
 		}
 		http.NotFound(w, r)
 	}
-	if !found || err != nil || len(token) != 32 || hex.EncodeToString(token) != value || h.Store == nil {
+	lookup := h.Customer.lookup
+	if lookup == nil && h.Store != nil {
+		lookup = h.Store.customerSession
+	}
+	if !found || err != nil || len(token) != 32 || hex.EncodeToString(token) != value || lookup == nil {
 		refuse()
 		return
 	}
-	session, err := h.Store.customerSession(r.Context(), token)
+	session, err := lookup(r.Context(), token)
 	if err != nil || !time.Now().Before(session.ExpiresAt) {
 		refuse()
 		return
 	}
-	// A live session has its own allowance, whatever address it comes from; without one set, its address has.
-	limiter, key := h.Customer.SessionLimiter, session.Actor+"/"+session.Branch+"/"+session.Purpose+"/"+session.Sale
-	if limiter == nil {
-		limiter, key = h.Customer.Limiter, clientKey(r)
-	}
-	if limiter != nil {
-		if allowed, wait := limiter.Take(key); !allowed {
+	// A live session has its own allowance, whatever address it comes from.
+	if limiter := h.Customer.SessionLimiter; limiter != nil {
+		if allowed, wait := limiter.Take(session.Actor + "/" + session.Branch + "/" + session.Purpose + "/" + session.Sale); !allowed {
 			h.Customer.tooMany(w, "session", wait)
 			return
 		}
