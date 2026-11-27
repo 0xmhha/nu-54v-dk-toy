@@ -525,6 +525,9 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 		//     Without it 450 sessions of one address at 2 a second each were 900 requests a second.
 		//   a session's requests, per session: 40 at once, then 2 a second. An order from cart to lock is about ten
 		//     requests, and the app asks for its status every 5 seconds at most.
+		//   carts asked to be held, per address: 30 at once, then 6 a minute, like session starts. Each proven
+		//     account holds one unpaid cart at a time and only with the balance to pay it; this bounds how many
+		//     funded accounts of one address hold stock at once (30 + 6 a minute of the hold time).
 		//   session tokens the server does not know, per address: 10 at once, then 1 every 5 seconds. An app whose
 		//     session ended learns it from the first refusal, so ten phones behind one address each get theirs; it
 		//     is apart from the proofs they then need.
@@ -532,6 +535,7 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 			PhotoLimiter: commerce.NewRateLimiter(1200, 240, nil), SessionLimiter: commerce.NewRateLimiter(120, 40, nil),
 			AddressLimiter: commerce.NewRateLimiter(600, 200, nil), UnknownLimiter: commerce.NewRateLimiter(12, 10, nil),
 			StartLimiter:    commerce.NewRateLimiter(6, 30, nil),
+			HoldLimiter:     commerce.NewRateLimiter(6, 30, nil),
 			OperatorContact: os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT")}
 	}
 	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
@@ -550,6 +554,13 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 			customer.Gate = gate.Handler
 		}
 		customer.InFlight = make(chan struct{}, customerInFlight)
+		// The cart of a proven account holds stock only after its balance was read from the chain, through the
+		// settlement client of the branch's approved target.
+		if forwarder != nil {
+			customer.Funds = forwarder
+		} else {
+			log.Print("customer entrance: no settlement targets are enrolled, so no balance can be read and carts of proven accounts are refused")
+		}
 		entrance := http.NewServeMux()
 		handlers.RegisterCustomer(entrance)
 		customerServer = &http.Server{Addr: customerAddr, Handler: entrance, BaseContext: func(net.Listener) context.Context { return lifetime },
@@ -576,8 +587,8 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 					return
 				case <-tick.C:
 					if counts := customer.Limited.Drain(); len(counts) != 0 {
-						log.Printf("customer entrance refused in 30s: proof=%d start=%d read=%d photo=%d address=%d session=%d unknown=%d busy=%d",
-							counts["proof"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["session"], counts["unknown"], counts["busy"])
+						log.Printf("customer entrance refused in 30s: proof=%d start=%d read=%d photo=%d address=%d session=%d unknown=%d hold=%d busy=%d",
+							counts["proof"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["session"], counts["unknown"], counts["hold"], counts["busy"])
 					}
 				}
 			}
