@@ -376,6 +376,70 @@ func TestPostgresStorePage(t *testing.T) {
 		t.Fatalf("an unlisted store is listed: %v", rows)
 	}
 	read("/v2/customer/stores/"+cafe, 200) // the shortcut QR still opens it
+
+	// --- a list longer than a page says that it goes on, and where from ---
+	write(ownCert, cafe, page(), 200) // listed again: the bakery and the cafe, in that order
+	walk := func(size int) (mine []string, pages int) {
+		t.Helper()
+		h.Customer.ListPage = size
+		defer func() { h.Customer.ListPage = 0 }()
+		seen := map[string]bool{}
+		for path := "/v2/customer/stores"; ; pages++ {
+			reply := read(path, 200)
+			rows := reply["stores"].([]any)
+			if len(rows) > size || (len(rows) == 0 && pages != 0) || pages > 500 {
+				t.Fatalf("page %d of %d-store pages holds %d stores", pages, size, len(rows))
+			}
+			last := ""
+			for _, row := range rows {
+				last = row.(map[string]any)["branchRef"].(string)
+				if seen[last] {
+					t.Fatalf("store %s is on two pages", last)
+				}
+				seen[last] = true
+				if last == cafe || last == bakery {
+					mine = append(mine, last)
+				}
+			}
+			next, more := reply["next"].(string)
+			if !more {
+				if _, present := reply["next"]; present {
+					t.Fatalf("the last page names a next one: %v", reply["next"])
+				}
+				return mine, pages + 1
+			}
+			if next != last { // the position is the last store of the page
+				t.Fatalf("next is %s, the page ended with %s", next, last)
+			}
+			path = "/v2/customer/stores?after=" + next
+		}
+	}
+	whole, one := walk(200)
+	if one != 1 || !slices.Equal(whole, []string{bakery, cafe}) {
+		t.Fatalf("the whole list in %d pages: %v", one, whole)
+	}
+	for _, size := range []int{1, 2, 3} {
+		if paged, pages := walk(size); !slices.Equal(paged, whole) || (size == 1 && pages < 2) {
+			t.Fatalf("pages of %d: %v in %d pages, want %v", size, paged, pages, whole)
+		}
+	}
+	// A list that is cut short says so: with one store a page, the first page names the next.
+	h.Customer.ListPage = 1
+	if first := read("/v2/customer/stores", 200); len(first["stores"].([]any)) != 1 || first["next"] == nil {
+		t.Fatalf("a cut list does not say that it goes on: %v", first)
+	}
+	h.Customer.ListPage = 0
+	// The position is a store's reference and nothing else is taken as a query.
+	read("/v2/customer/stores?after="+fresh(), 400) // not a store
+	for _, query := range []string{"after=", "after=not-a-branch", "after=" + cafe + "&after=" + bakery, "after=" + cafe + "&tenant=" + tenant,
+		"after=" + strings.ToUpper(cafe), "limit=1", "after=" + cafe + "%20"} {
+		read("/v2/customer/stores?"+query, 404)
+	}
+	// Going on from an unlisted store still works: it is only a place in the order of names.
+	write(ownCert, cafe, unlisted, 200)
+	if after := read("/v2/customer/stores?after="+cafe, 200); after["stores"] == nil {
+		t.Fatalf("after an unlisted store: %v", after)
+	}
 	// Taking the page back closes it and takes it off the list, though it still says listed.
 	hidden := page()
 	hidden["published"] = false

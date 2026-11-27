@@ -132,15 +132,35 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $page
 $page$;
 
 -- The published stores that chose to be listed, by name, with what a list row says: kind, address, hours and order state.
--- At most limit_ rows; the app searches these by name.
-CREATE FUNCTION ledger.public_store_list(limit_ integer) RETURNS jsonb
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $list$
-    SELECT coalesce(jsonb_agg(x.store ORDER BY x.label, x.id), '[]'::jsonb) FROM (
+-- One page of at most limit_ rows (200 at most). When more stores follow, `next` is the reference of the page's
+-- last store, and the list goes on from there when it is given back as after_; without `next` the list is complete.
+-- The app searches the rows by name.
+CREATE FUNCTION ledger.public_store_list(limit_ integer, after_ uuid) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $list$
+DECLARE
+    size integer := greatest(1, least(coalesce(limit_, 200), 200));
+    from_ text;
+    page jsonb;
+BEGIN
+    IF after_ IS NOT NULL THEN
+        SELECT n.label INTO from_ FROM ledger.operator_branch_label n WHERE n.branch_id = after_;
+        IF from_ IS NULL THEN
+            RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'invalid list position';
+        END IF;
+    END IF;
+    WITH found AS MATERIALIZED (
         SELECT b.id, n.label, jsonb_strip_nulls(jsonb_build_object('branchRef', b.id, 'name', n.label, 'kind', p.kind,
-            'address', nullif(p.address, ''), 'hours', p.hours, 'status', ledger.store_page_status(b.id))) AS store
+            'address', nullif(p.address, ''), 'hours', p.hours, 'status', ledger.store_page_status(b.id))) AS store,
+            row_number() OVER (ORDER BY n.label, b.id) AS place
         FROM ledger.branch_store_page p JOIN ledger.branch b ON b.id = p.branch_id
         JOIN ledger.operator_branch_label n ON n.branch_id = b.id
-        WHERE p.published AND p.listed ORDER BY n.label, b.id LIMIT greatest(1, least(coalesce(limit_, 200), 200))) x
+        WHERE p.published AND p.listed AND (after_ IS NULL OR (n.label, b.id) > (from_, after_))
+        ORDER BY n.label, b.id LIMIT size + 1)
+    SELECT jsonb_build_object('stores', coalesce(jsonb_agg(f.store ORDER BY f.place) FILTER (WHERE f.place <= size), '[]'::jsonb))
+        || CASE WHEN count(*) > size THEN jsonb_build_object('next', (array_agg(f.id ORDER BY f.place))[size]) ELSE '{}'::jsonb END
+      INTO page FROM found f;
+    RETURN page;
+END
 $list$;
 
 -- What the operations web shows and edits: the page as the store wrote it, or `saved: false` before the first save.
@@ -190,7 +210,7 @@ BEGIN
 END $write$;
 
 REVOKE ALL ON FUNCTION ledger.store_hours_valid(jsonb), ledger.store_text_plain(text), ledger.store_order_refusal(uuid, timestamptz), ledger.store_page_status(uuid), ledger.public_store_page(uuid),
-    ledger.public_store_list(integer), ledger.operator_store_page(uuid, uuid, uuid),
+    ledger.public_store_list(integer, uuid), ledger.operator_store_page(uuid, uuid, uuid),
     ledger.set_store_page(uuid, uuid, uuid, jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION ledger.public_store_page(uuid), ledger.public_store_list(integer),
+GRANT EXECUTE ON FUNCTION ledger.public_store_page(uuid), ledger.public_store_list(integer, uuid),
     ledger.operator_store_page(uuid, uuid, uuid), ledger.set_store_page(uuid, uuid, uuid, jsonb) TO nu54_p05_commerce;

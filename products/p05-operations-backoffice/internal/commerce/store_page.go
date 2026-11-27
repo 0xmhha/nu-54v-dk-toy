@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -25,20 +26,41 @@ import (
 // switches its page to published on the operations web (off by default). Whether a published store also appears in
 // the app's list is a second switch of its own.
 
+// storeListLimit is the most stores one page of the list holds.
 const storeListLimit = 200
 
-// customerStores lists the published stores that chose to be listed, by name. The app searches the list by name itself.
+// customerStores lists the published stores that chose to be listed, by name, a page at a time:
+//
+//	GET /v2/customer/stores                    the first page: {"stores":[...]} and, when more stores follow, "next"
+//	GET /v2/customer/stores?after=<next>       the page after it
+//
+// `next` is the reference of the page's last store. A reply without it is the end of the list, so a list that was
+// cut short always says so. The app searches the rows by name itself.
 func (h HTTP) customerStores(w http.ResponseWriter, r *http.Request) {
-	if h.Store == nil || r.URL.RawQuery != "" {
+	var after *string
+	if r.URL.RawQuery != "" {
+		query, err := url.ParseQuery(r.URL.RawQuery)
+		if err != nil || len(query) != 1 || len(query["after"]) != 1 || !operatorRef.MatchString(query["after"][0]) ||
+			r.URL.RawQuery != "after="+query["after"][0] {
+			http.NotFound(w, r)
+			return
+		}
+		after = &query["after"][0]
+	}
+	if h.Store == nil {
 		http.NotFound(w, r)
 		return
 	}
-	var stores json.RawMessage
-	if err := h.Store.db.QueryRow(r.Context(), "SELECT ledger.public_store_list($1)", storeListLimit).Scan(&stores); err != nil {
+	size := storeListLimit
+	if h.Customer != nil && h.Customer.ListPage > 0 && h.Customer.ListPage < storeListLimit {
+		size = h.Customer.ListPage
+	}
+	var page json.RawMessage
+	if err := h.Store.db.QueryRow(r.Context(), "SELECT ledger.public_store_list($1,$2)", size, after).Scan(&page); err != nil {
 		errorResponse(w, domainError(err), nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]json.RawMessage{"stores": stores})
+	writeJSON(w, http.StatusOK, page)
 }
 
 // customerStore answers one store's page. A branch that does not exist, has no registered name or did not publish

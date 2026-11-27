@@ -83,6 +83,8 @@ type CustomerEntrance struct {
 	RescanWindow time.Duration
 	// OperatorContact is what a store page shows for payment and refund questions; empty shows none.
 	OperatorContact string
+	// ListPage is how many stores one page of the store list holds; zero, or more than 200, is 200.
+	ListPage int
 }
 
 const (
