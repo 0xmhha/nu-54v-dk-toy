@@ -1644,6 +1644,34 @@ static void test_the_phone_alone_moves_a_day(void)
 	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && clock_moved == NU54_CLOCK_STEP_SECONDS);
 }
 
+/* The audit's fourth finding: a session that was opened while the board had no owner, in which the
+ * owner then registered, took the time, moved the clock and ended, because it has no certificate
+ * period to judge afterwards. On the board that session does not exist: the button code ends the
+ * session the moment a registration completes (device_pilot_button, "a changed generation retires
+ * the authenticated session"; test_spending_led.c). This puts the vault into that state by hand.
+ * The time is not taken from such a session, and nothing moves before it ends. */
+static void test_a_session_from_before_the_owner(void)
+{
+	uint8_t record[GRANT_SIZE];
+	wipe(0, 0);
+	end_session();
+	real = calendar - 3 * 3600;
+	make_grant(record, 1, 1, real, real + 31 * DAY);
+	assert(!install(record));
+	on_for(600);
+	real = calendar;
+	assert(board_restart() == 0);
+	const uint64_t reached = device_install_earliest();
+	assert(!connect_as(policy.owner, 1, UINT64_MAX) && !clock_only && !session_validity.until);
+	vault.record.generation = 1; /* what a completed registration leaves in the vault */
+	memcpy(vault.record.owner, policy.owner, 32);
+	writes = 0;
+	assert(tell_time(real) == -1 && !answered && !writes && device_install_earliest() == reached && link.closed);
+	/* The owner's next session is bound as an owner's, and it tells the time. */
+	assert(!connect_as(policy.owner, 1, UINT64_MAX) && session_validity.until == UINT64_MAX);
+	assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED && device_install_earliest() == real && !link.closed);
+}
+
 /* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
  * the grant goes with it, and an approved order counts as open for one order life of running time,
  * as it does on every board that does not know the time. */
@@ -1700,6 +1728,7 @@ int main(int argc, char **argv)
 	test_small_steps_write_nothing();
 	test_the_latest_time_comes_down();
 	test_the_phone_alone_moves_a_day();
+	test_a_session_from_before_the_owner();
 	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;

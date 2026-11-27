@@ -175,8 +175,10 @@ static int hash(const uint8_t *data, size_t length, uint8_t out[32])
 	return 0;
 }
 static bool session_live(int64_t now) { return now > 0; }
+static unsigned link_resets;
 static void reset_link(void)
 {
+	++link_resets;
 	if (pending_prompt) status_led_waiting(false); /* as reset_link does */
 	pending_prompt = 0;
 	memset(&spend_action, 0, sizeof(spend_action));
@@ -614,6 +616,28 @@ static void test_button_reset(void)
 	initialized = ready = true;
 }
 
+/* A registration that completes ends the session it came in, for a first owner and for a phone
+ * that takes a board over. No later message of that session can therefore find the new owner: the
+ * session of the independent audit's fourth finding, which was bound before the board had an
+ * owner and then told the time, does not come about (test_clock_sync.c,
+ * test_a_session_from_before_the_owner). */
+static void test_registration_ends_its_session(void)
+{
+	right_pin = true;
+	for (int released = 0; released < 2; ++released) {
+		first_owner(released);
+		link_resets = 0;
+		approve();
+		advance(3000);
+		assert(confirms == 1 && keys_made == 1 && link_resets == 1 && !pending_prompt);
+	}
+	ask(REGISTER);
+	confirms = link_resets = 0;
+	approve();
+	advance(3000);
+	assert(confirms == 1 && link_resets == 1 && !pending_prompt);
+}
+
 /* SW1 for a time the owner's phone told (decision of 2026-11-27): the waiting lamp of every other
  * wait, the press shown, no PIN, and then dark. */
 static void ask_clock(void)
@@ -683,6 +707,7 @@ int main(void)
 {
 	test_answers();
 	test_clock_at_the_button();
+	test_registration_ends_its_session();
 	test_first_owner_makes_the_key();
 	test_unfinished_registration_takes_the_pin_back();
 	test_first_owner_ends_the_owner_wait();

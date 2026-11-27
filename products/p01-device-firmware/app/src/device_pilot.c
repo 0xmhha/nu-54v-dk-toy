@@ -1411,14 +1411,19 @@ static int order_button(uint32_t prompt, bool approved, bool *approval_stored)
  * return or a reset before its clock is right, and each of those still asks for SW1 and the PIN.
  *
  * Who may tell the time: the phone whose key the vault holds as the owner, in a TLS session bound
- * to that key, under a grant of the owner's generation, and not while a registration or a recovery
- * is under way. */
+ * to that key as the owner's (bind_session noted the period of its certificates), under a grant of
+ * the owner's generation, and not while a registration or a recovery is under way.
+ *
+ * A session that was bound while the board had no owner has no such period. The board ends it the
+ * moment a registration completes (device_pilot_button), so none should ever ask. Were one to ask,
+ * the board could not judge afterwards whether it may go on, and so it does not take the time from
+ * it at all: nothing moves before the session ends. */
 static bool clock_teller(const nu54_vault *vault, const nu54_install_policy *policy)
 {
 	return profile == NU54_V2_MANAGEMENT && link.peer == NU54_V2_OWNER && !recovering && !enrollment.issued &&
 	       vault->enabled && vault->record.generation && !(vault->record.flags & NU54_VAULT_REVOKED) &&
 	       !memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) &&
-	       policy->payer_generation == vault->record.generation;
+	       policy->payer_generation == vault->record.generation && session_validity.until;
 }
 
 /* Hands the phone's time to the clock, with SW1 pressed for it or not, and lets everything that
