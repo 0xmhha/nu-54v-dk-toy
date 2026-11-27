@@ -274,10 +274,44 @@ func TestPostgresStorePage(t *testing.T) {
 		strings.Contains(string(raw), strings.Repeat("5", 40)) || strings.Contains(string(raw), strings.Repeat("2", 40)) || strings.Contains(string(raw), "8283") {
 		t.Fatalf("the page names a payment address or chain: %s", raw)
 	}
+	// The cafe has no menu on sale yet, so it does not read as open: no order can be placed with it.
 	status := got["status"].(map[string]any)
-	if weekday, ok := status["weekday"].(float64); !ok || weekday < 0 || weekday > 6 || len(status["time"].(string)) != 5 || status["mode"] != "open" || status["timezone"] != "Asia/Seoul" {
-		t.Fatalf("status: %v", status)
+	if weekday, ok := status["weekday"].(float64); !ok || weekday < 0 || weekday > 6 || len(status["time"].(string)) != 5 || status["timezone"] != "Asia/Seoul" ||
+		status["mode"] != "closed" || status["orderable"] != false || status["reason"] != "no_menu" {
+		t.Fatalf("status without a menu: %v", status)
 	}
+	// With a menu on sale it takes orders.
+	taking := func(when, mode string, orderable bool, reason any) map[string]any {
+		t.Helper()
+		status := read("/v2/customer/stores/"+cafe, 200)["status"].(map[string]any)
+		if status["mode"] != mode || status["orderable"] != orderable || status["reason"] != reason {
+			t.Fatalf("%s: %v, want %s, orderable %v, reason %v", when, status, mode, orderable, reason)
+		}
+		// The menu a customer opens agrees: rows to order from exactly when an order can be placed.
+		rows := len(read("/v2/customer/stores/"+cafe+"/menu/0", 200)["catalog"].([]any))
+		if (rows != 0) != orderable {
+			t.Fatalf("%s: the status says orderable %v and the menu has %d rows", when, orderable, rows)
+		}
+		return status
+	}
+	execute("INSERT INTO ledger.command_rule VALUES ($1,'page test','fixture','dispose',interval '2 minutes')", cafe)
+	send(staff(ownCert), "POST", server.URL+"/v2/operations/catalog/"+cafe+"/publish", map[string]string{"Origin": origin, "Content-Type": "application/json"},
+		map[string]any{"requestKey": fresh(), "version": 0, "expiresAt": time.Now().Add(time.Hour).UTC(),
+			"rows": []operatorRow{{SKU: "tea", Option: "standard", Label: "tea", Asset: "0x" + strings.Repeat("2", 40), DisplayPrice: "3000"}}}, 200)
+	taking("a menu on sale", "open", true, nil)
+	// Outside the hours of the price list the store's switch still says open, and the status does not.
+	execute(`UPDATE ledger.catalog_pricing SET hours=CASE WHEN (clock_timestamp() AT TIME ZONE 'Asia/Seoul')::time < '12:00'
+		THEN '{"zone":"Asia/Seoul","opens":"12:30","closes":"23:59"}'::jsonb ELSE '{"zone":"Asia/Seoul","opens":"00:00","closes":"11:30"}'::jsonb END
+		WHERE branch_id=$1`, cafe)
+	taking("outside the hours of the price list", "closed", false, "outside_hours")
+	execute("UPDATE ledger.catalog_pricing SET hours=NULL WHERE branch_id=$1", cafe)
+	// A menu that is not on sale yet, and one that ran out.
+	execute("UPDATE ledger.menu_release SET published_at=now()+interval '1 hour',expires_at=now()+interval '2 hours' WHERE branch_id=$1", cafe)
+	taking("a menu that is not on sale yet", "closed", false, "no_menu")
+	execute("UPDATE ledger.menu_release SET published_at=now()-interval '2 hours',expires_at=now()-interval '1 second' WHERE branch_id=$1", cafe)
+	taking("a menu that ran out", "closed", false, "no_menu")
+	execute("UPDATE ledger.menu_release SET published_at=now()-interval '1 minute',expires_at=now()+interval '1 hour' WHERE branch_id=$1", cafe)
+	taking("the menu on sale again", "open", true, nil)
 	rows := listed()
 	if len(rows) != 1 || rows[0]["name"] != "여울 커피 "+suffix || rows[0]["address"] != "시험시 시험로 1" || rows[0]["intro"] != nil ||
 		rows[0]["phone"] != nil || len(rows[0]["hours"].([]any)) != 7 || len(rows[0]) != 6 {
@@ -293,12 +327,24 @@ func TestPostgresStorePage(t *testing.T) {
 	}
 	send(staff(ownCert), "POST", server.URL+"/v2/operations/state/"+cafe+"/mode", map[string]string{"Origin": origin, "Content-Type": "application/json"},
 		map[string]any{"mode": "busy", "busyMinutes": 25}, 200)
-	if status = read("/v2/customer/stores/"+cafe, 200)["status"].(map[string]any); status["mode"] != "busy" || status["busyMinutes"] != float64(25) {
+	if status = taking("busy", "busy", true, nil); status["busyMinutes"] != float64(25) {
 		t.Fatalf("busy: %v", status)
 	}
+	send(staff(ownCert), "POST", server.URL+"/v2/operations/state/"+cafe+"/mode", map[string]string{"Origin": origin, "Content-Type": "application/json"},
+		map[string]any{"mode": "paused", "resumeAt": "15:30"}, 200)
+	if status = taking("paused", "paused", false, "paused"); status["resumeAt"] != "15:30" {
+		t.Fatalf("paused: %v", status)
+	}
+	send(staff(ownCert), "POST", server.URL+"/v2/operations/state/"+cafe+"/mode", map[string]string{"Origin": origin, "Content-Type": "application/json"},
+		map[string]any{"mode": "open"}, 200)
 	execute("INSERT INTO ledger.branch_closed_day VALUES ($1, ledger.branch_today($1, clock_timestamp()), $2, clock_timestamp())", cafe, operator)
-	if status = listed()[1]["status"].(map[string]any); status["mode"] != "closed" {
-		t.Fatalf("closed day: %v", status)
+	taking("a closed day", "closed", false, "closed_day")
+	if status = listed()[1]["status"].(map[string]any); status["mode"] != "closed" || status["orderable"] != false || status["reason"] != "closed_day" {
+		t.Fatalf("closed day in the list: %v", status)
+	}
+	// The bakery published a page and no menu: listed, and not open.
+	if status = listed()[0]["status"].(map[string]any); status["mode"] != "closed" || status["orderable"] != false || status["reason"] != "no_menu" {
+		t.Fatalf("a listed store without a menu: %v", status)
 	}
 	unlisted := page()
 	unlisted["listed"] = false

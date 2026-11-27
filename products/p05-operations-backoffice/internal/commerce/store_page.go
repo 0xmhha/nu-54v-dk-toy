@@ -17,6 +17,9 @@ import (
 // takes orders now, the token it is paid in, its number in the order contract and the operator's contact. The store writes the page; nothing is made up
 // here, and a field the store left empty is left out.
 //
+// The status of a page says whether an order can be placed now (`orderable`), and when not, why (`reason`:
+// closed_day, paused, no_menu or outside_hours). Its `mode` is open or busy only while an order can be placed.
+//
 // A store is public only when it said so: the page, the menu and the photos answer not found until the store
 // switches its page to published on the operations web (off by default). Whether a published store also appears in
 // the app's list is a second switch of its own.

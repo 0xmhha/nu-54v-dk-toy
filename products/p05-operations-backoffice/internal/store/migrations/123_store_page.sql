@@ -43,20 +43,62 @@ CREATE TABLE ledger.branch_store_page (
 );
 REVOKE ALL ON ledger.branch_store_page FROM PUBLIC, nu54_p05_commerce;
 
--- Whether the store takes orders now, and the store's own weekday and wall clock, so the app needs no time zone
--- arithmetic to say "open until 21:00". A closed day reads as closed, like the customer order state.
+-- Why an order cannot be placed with the store now, or NULL when one can. It is what a new order is asked
+-- (ledger.reserve_order), read without placing one:
+--   closed_day     today is one of the store's closed days
+--   paused         the store paused its orders
+--   no_menu        there is no menu on sale now: none was published, the newest is not on sale yet, or it ran out
+--   outside_hours  the menu is on sale, but not at this time of the day (the hours of the price list)
+-- The menu is the one ledger.public_menu_window shows.
+CREATE FUNCTION ledger.store_order_refusal(branch_ uuid, at_ timestamptz) RETURNS text
+LANGUAGE plpgsql STABLE SET search_path=pg_catalog,pg_temp AS $refusal$
+DECLARE newest bigint;
+BEGIN
+    IF EXISTS (SELECT FROM ledger.branch_closed_day d WHERE d.branch_id = branch_ AND d.day = ledger.branch_today(branch_, at_)) THEN
+        RETURN 'closed_day';
+    END IF;
+    IF EXISTS (SELECT FROM ledger.branch_order_state s WHERE s.branch_id = branch_ AND s.mode = 'paused') THEN
+        RETURN 'paused';
+    END IF;
+    IF EXISTS (SELECT FROM ledger.catalog_pricing p WHERE p.branch_id = branch_) THEN
+        SELECT max(m.version) INTO newest FROM ledger.menu_release m WHERE m.branch_id = branch_;
+    ELSE
+        SELECT max(m.version) INTO newest FROM ledger.menu_release m WHERE m.branch_id = branch_
+            AND m.published_at <= at_ AND m.expires_at > at_;
+    END IF;
+    IF newest IS NULL
+       OR NOT EXISTS (SELECT FROM ledger.menu_release m WHERE m.branch_id = branch_ AND m.version = newest
+                      AND m.published_at <= at_ AND m.expires_at > at_)
+       OR NOT EXISTS (SELECT FROM ledger.price p WHERE p.branch_id = branch_ AND p.version = newest) THEN
+        RETURN 'no_menu';
+    END IF;
+    IF NOT ledger.catalog_is_open(branch_, newest, at_) THEN
+        RETURN 'outside_hours';
+    END IF;
+    RETURN NULL;
+END
+$refusal$;
+
+-- Whether an order can be placed with the store now, and the store's own weekday and wall clock, so the app needs
+-- no time zone arithmetic to say "open until 21:00".
+--   orderable  true when a new order would be taken now
+--   reason     why not, when orderable is false (ledger.store_order_refusal)
+--   mode       what the store shows of itself: open, busy (with busyMinutes) or paused (with resumeAt) as the store
+--              set it while an order can be placed or the store paused; closed in every other case, so a store
+--              with no menu on sale, outside its hours or on a closed day never reads as open
 CREATE FUNCTION ledger.store_page_status(branch uuid) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $status$
     SELECT jsonb_strip_nulls(jsonb_build_object(
-        'mode', CASE WHEN EXISTS (SELECT FROM ledger.branch_closed_day d WHERE d.branch_id = b.id
-                                    AND d.day = (t.at AT TIME ZONE b.timezone)::date) THEN 'closed'
-                     ELSE coalesce(s.mode, 'open') END,
+        'mode', CASE WHEN r.reason IS NULL OR r.reason = 'paused' THEN coalesce(s.mode, 'open') ELSE 'closed' END,
+        'orderable', r.reason IS NULL,
+        'reason', r.reason,
         'busyMinutes', s.busy_minutes,
         'resumeAt', s.resume_note,
         'weekday', extract(isodow FROM t.at AT TIME ZONE b.timezone)::int - 1,
         'time', to_char(t.at AT TIME ZONE b.timezone, 'HH24:MI'),
         'timezone', b.timezone))
     FROM ledger.branch b CROSS JOIN (SELECT clock_timestamp() AS at) t
+    CROSS JOIN LATERAL (SELECT ledger.store_order_refusal(b.id, t.at) AS reason) r
     LEFT JOIN ledger.branch_order_state s ON s.branch_id = b.id
     WHERE b.id = branch
 $status$;
@@ -133,7 +175,7 @@ BEGIN
     RETURN ledger.operator_store_page(tenant, branch, actor);
 END $write$;
 
-REVOKE ALL ON FUNCTION ledger.store_hours_valid(jsonb), ledger.store_page_status(uuid), ledger.public_store_page(uuid),
+REVOKE ALL ON FUNCTION ledger.store_hours_valid(jsonb), ledger.store_order_refusal(uuid, timestamptz), ledger.store_page_status(uuid), ledger.public_store_page(uuid),
     ledger.public_store_list(integer), ledger.operator_store_page(uuid, uuid, uuid),
     ledger.set_store_page(uuid, uuid, uuid, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ledger.public_store_page(uuid), ledger.public_store_list(integer),
