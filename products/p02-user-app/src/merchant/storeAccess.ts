@@ -55,6 +55,18 @@ export function customerSubject(account: string): string {
   return `${text.slice(0, 8)}-${text.slice(8, 12)}-${text.slice(12, 16)}-${text.slice(16, 20)}-${text.slice(20)}`;
 }
 
+/**
+ * Whether an order was made from a store page: its customer is the board account's own, not one a store issued.
+ * Such an order is followed through the customer entrance with the paying account's proof, never with a registration.
+ */
+export function madeAtStorePage(order: {customer: string; payer: string}): boolean {
+  try {
+    return order.customer === customerSubject(order.payer);
+  } catch {
+    return false;
+  }
+}
+
 type Wallet = {account: string; generation: string; rpc: EvmRpc};
 export type AccessParts = {
   post: EntrancePost; origin: string; pin: NonNullable<ReturnType<typeof orderPaymentPin>>; board: PickupBoard;

@@ -8,7 +8,7 @@ import {onReturnChanged, returnRecord, settleReturn} from '../wallet/boardReturn
 import {clockMargin, customerClient, offeredAnswers, openOrderLabel, refreshOpenOrders} from './customerClient.ts';
 import {awaitsStore, isOpenOrder, onOrdersChanged, orderRecords, type OpenOrder} from './orderRecords.ts';
 import {AmountLine, PickupTicket} from './paymentParts.tsx';
-import {customerSubject, openStoreAccess} from './storeAccess.ts';
+import {madeAtStorePage, openStoreAccess} from './storeAccess.ts';
 
 export type OrderPayer = {address: string; generation: number} | null;
 /** Paid by a board account this phone no longer uses. `null` means no account; undefined, not known yet. */
@@ -62,7 +62,7 @@ export function useOpenOrders(): OpenOrder[] {
         if (live && raw && (await show()).length) await refreshOpenOrders(customerClient(raw));
         // Orders made from a store page are read with the session each got from the board that paid it. One
         // without a session keeps its last state until its page asks the board.
-        const entrance = live ? (await show()).filter(row => { try { return row.customer === customerSubject(row.payer); } catch { return false; } }) : [];
+        const entrance = live ? (await show()).filter(madeAtStorePage) : [];
         for (const branch of new Set(entrance.map(row => row.branch))) {
           const {store, merchantId} = entrance.find(row => row.branch === branch)!;
           const access = await openStoreAccess({branch, name: store ?? '매장', merchantId});
@@ -193,10 +193,36 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
     </View> : offered.map((action, index) => <KitButton key={action} label={answers[action].label} disabled={busy}
       variant={index === 0 && action === 'receipt' ? 'primary' : 'secondary'}
       run={() => answers[action].warn ? setAsking(action) : actions.answer(action)} />)}
-    {former && mine && <Text style={type.small}>초기화했거나 바꾼 이전 보드의 주문입니다. 받았다는 답은 보낼 수 있지만, 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.</Text>}
+    {former && mine && <Text style={type.small}>{madeAtStorePage(order)
+      // An order made from a store page is answered with that account's own proof, so the earlier promise does not hold for it.
+      ? '초기화했거나 바꾼 이전 보드의 주문입니다. 답을 보내거나 수령 QR을 받으려면 결제한 보드 계정의 확인이 필요합니다. 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.'
+      : '초기화했거나 바꾼 이전 보드의 주문입니다. 받았다는 답은 보낼 수 있지만, 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.'}</Text>}
     {!mine && isOpenOrder(order) && <Text style={type.small}>이 휴대전화로 결제한 주문이 아니어서 상태만 볼 수 있습니다.</Text>}
     {isOpenOrder(order) && <KitButton label="상태 다시 확인" run={actions.refresh} disabled={busy} variant="secondary" />}
     <KitButton label="결제 목록으로" run={actions.back} disabled={busy} variant="secondary" />
+  </View>;
+}
+
+/**
+ * An order made from a store page and paid with a board account this phone no longer holds. Following it, answering
+ * it and its pickup QR each need that account's proof, and a board that was reset holds another account. So nothing
+ * is asked of a board or a server here: the page shows what the phone last wrote down and says what cannot be done.
+ */
+export function FormerOrderDetail({order, amount, back, backLabel}: {order: OpenOrder; amount: string; back: () => void; backLabel: string}) {
+  return <View style={styles.detail} testID="former-order">
+    <Text accessibilityRole="header" style={type.title}>이전 보드의 주문</Text>
+    {order.pickupNo !== undefined ? <PickupTicket number={order.pickupNo} store={order.store} /> : <Text style={type.section}>{order.store ?? '매장 주문'}</Text>}
+    <Card>
+      <Text style={type.body}>{`마지막으로 확인한 상태 · ${openOrderLabel(order)}`}</Text>
+      <AmountLine amount={amount} label="결제 금액" />
+      <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
+    </Card>
+    <View style={styles.notice} accessibilityRole="alert">
+      <Text style={styles.noticeText}>지금 이 휴대전화에 연결된 보드 계정이 아니라, 초기화했거나 바꾼 이전 보드 계정으로 결제한 주문입니다.</Text>
+      <Text style={styles.noticeText}>주문 상태 확인, 받았다는 답, 이의, 수령 QR은 결제한 보드 계정의 확인이 필요해서 이 앱에서는 할 수 없습니다. 위 상태는 새로 확인한 것이 아닙니다.</Text>
+      <Text style={styles.noticeText}>환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다. 매장이나 운영자에게 문의하세요.</Text>
+    </View>
+    <KitButton label={backLabel} run={back} variant="secondary" />
   </View>;
 }
 

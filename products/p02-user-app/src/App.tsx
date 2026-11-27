@@ -24,8 +24,8 @@ import {MarketLab} from './market/MarketLab.tsx';
 import {color, font} from './ui/theme.ts';
 import {ExploreHome} from './explore/ExploreHome.tsx';
 import {StoreFinder} from './merchant/StoreFinder.tsx';
-import {orderPaymentPin} from './merchant/orderPaymentTrust.ts';
-import {customerSubject, type StoreChoice} from './merchant/storeAccess.ts';
+import {ordersWithoutRegistration} from './merchant/orderRoute.ts';
+import {madeAtStorePage, type StoreChoice} from './merchant/storeAccess.ts';
 import {configuredDirectory} from './merchant/storeDirectory.ts';
 import ShopQr from './specs/NativeShopQr.ts';
 import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
@@ -481,10 +481,15 @@ function Shell() {
     setShopping(true);
   }, []);
   const openNearbyOrders = () => {
-    openShopQr('');
+    if (registrationFree) openStores();
+    else openShopQr('');
   };
   // The store list and store pages of this build; undefined while no entrance address is bound.
   const storeDirectory = useMemo(() => configuredDirectory(), []);
+  // A build that also binds its order contract orders from a store page without a registration. Every way to a
+  // store then leads to the store finder, and nothing asks for a registration. A build with the entrance alone
+  // shows store pages and keeps the earlier route for the order.
+  const registrationFree = useMemo(() => ordersWithoutRegistration(), []);
   // The store finder, or one store's page first when a shortcut QR named it. Each opening is a new screen.
   const [finding, setFinding] = useState<{branch?: string; nonce: number}>();
   const openStores = useCallback((branch?: string) => {
@@ -662,7 +667,11 @@ function Shell() {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
-        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder} openStorePage={storeDirectory ? openStores : undefined}
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder}
+          // Only a build that takes the order from the store page sends a store QR there. With the entrance alone the
+          // page's order button comes back here, and sending it to the page again would never end.
+          openStorePage={registrationFree ? openStores : undefined}
+          storeRoute={registrationFree ? {find: () => openStores(), open: openStoreOrder} : undefined}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : finding && !renting ? <ScrollView
           contentContainerStyle={styles.finder} keyboardShouldPersistTaps="handled" testID="store-finder">
@@ -671,7 +680,7 @@ function Shell() {
             back={() => { closeOverlays(); requestWallet('home'); }}
             order={store => {
               // A build with its order contract bound orders without a registration; one without keeps the earlier route.
-              if (orderPaymentPin()) openStoreOrder(store);
+              if (registrationFree) openStoreOrder(store);
               else { setFinding(undefined); openShopQr(makeEntranceQr(store.branch)); }
             }}
             payQr={raw => { setFinding(undefined); openPaymentList(raw); setShopping(true); }} />
@@ -701,11 +710,11 @@ function Shell() {
           <WalletHome tabbed openOrders={openOrders} openOrder={sale => {
             // An order made from a store page belongs to the board account's own customer, and opens with its store.
             const made = openOrders.find(row => row.sale === sale);
-            if (made && storeDirectory && orderPaymentPin() && made.customer === customerSubject(made.payer))
+            if (made && registrationFree && madeAtStorePage(made))
               openStoreOrder({branch: made.branch, name: made.store ?? '매장', merchantId: made.merchantId}, sale);
             else { openPaymentList(); setShownOrder(sale); setShopping(true); }
           }} services={[
-              {label: '매장 QR 결제', run: () => { openPaymentList(); setShopping(true); }},
+              {label: '매장 QR 결제', run: () => { if (registrationFree) openStores(); else { openPaymentList(); setShopping(true); } }},
               {label: '근처 매장', run: openNearbyOrders},
               {label: '여행 예약', run: () => { setTravel(true); }},
             ]} requestScreen={walletRequest} onScreenChange={setWalletScreen} onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}

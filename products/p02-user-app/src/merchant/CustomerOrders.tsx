@@ -123,11 +123,11 @@ import {customerJournals} from './customerJournal.ts';
 import {askOrderNotices, customerClient, openOrderLabel, recordOrder, refreshOpenOrders, sendOrderAnswer, walletId} from './customerClient.ts';
 import {isOpenOrder, orderRecords, type OpenOrder, type OrderItem} from './orderRecords.ts';
 import {useScreenProtection} from '../ui/screenProtection.ts';
-import {isFormerBoard, OpenOrderCard, OrderDetail} from './OpenOrders.tsx';
+import {FormerOrderDetail, isFormerBoard, OpenOrderCard, OrderDetail} from './OpenOrders.tsx';
 import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} from './OrderPayment.tsx';
 import {configuredEntrance, issuePickupQr, shortAccount} from './customerEntrance.ts';
 import {isPinnedPolicy} from './orderPaymentTrust.ts';
-import {openStoreAccess, SessionNeeded, StoreBusy, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
+import {madeAtStorePage, openStoreAccess, SessionNeeded, StoreBusy, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
 import {ownerPickupBoard} from './pickupBoard.ts';
 import {PickupQrScreen} from './PickupQr.tsx';
 
@@ -313,9 +313,15 @@ export function CustomerOrders({
   subscriptionLink,
   store,
   openStorePage,
+  storeRoute,
 }: {
-  /** Opens a store's page from its shortcut QR; undefined in a build without the customer entrance. */
+  /** Opens a store's page from its shortcut QR; undefined unless the build takes the order from that page. */
   openStorePage?: (branch: string) => void;
+  /**
+   * Given only in a build that orders without a registration (orderRoute.ts): the store finder, and the page of one
+   * store with one of its orders first. With it this screen shows no registration form and no way to one.
+   */
+  storeRoute?: {find: () => void; open: (store: StoreChoice, sale: string) => void};
   /**
    * A store picked from its store page. The phone orders there through the customer entrance without registering:
    * the menu is public, and the board proves its account when the order is asked for (storeAccess.ts).
@@ -412,6 +418,7 @@ export function CustomerOrders({
   const keepPolicy = useCallback((next?: CommercePaymentProfile) => { policyNow.current = next; setPolicy(next); }, []);
   const trusted = (drawn: CommercePaymentProfile) => policyNow.current ?? drawn;
   const storeBranch = store?.branch, storeName = store?.name, storeMerchant = store?.merchantId;
+  const registrationFree = !!storeRoute;
   const [storeAccess, setStoreAccess] = useState<StoreAccess>();
   const [storeProblem, setStoreProblem] = useState<AccessProblem | {kind: 'no-build'}>();
   // The board account's balance of the store's token: undefined before it is read, null when it cannot be read.
@@ -428,6 +435,8 @@ export function CustomerOrders({
   // The ready order whose pickup QR is on screen.
   const [pickupSale, setPickupSale] = useState('');
   const [stranded, setStranded] = useState<OpenOrder[]>([]);
+  // An order opened from outside that was paid with a board account this phone no longer holds (FormerOrderDetail).
+  const [formerOrder, setFormerOrder] = useState<OpenOrder>();
   const [boardAccount, setBoardAccount] = useState<{address: string; generation: number} | null>();
   const [boards, setBoards] = useState<{ handle: string; name: string }[]>([]);
   const ownerConnection = useRef<OwnerSession>(undefined);
@@ -509,6 +518,7 @@ export function CustomerOrders({
     setOrderSilent(false);
     setOpenOrders([]);
     setStranded([]);
+    setFormerOrder(undefined);
     setCatalog([]);
     setMenuCategory('');
     setMenuReadOnly(false);
@@ -557,6 +567,10 @@ export function CustomerOrders({
           return;
         }
         const actor = access.client;
+        // The order this page was opened for may belong to a board account the phone no longer holds. Its session
+        // needs that account's proof, so it is shown as last written down, and nothing is asked for it.
+        const asked = initialOrder ? (await orderRecords(Http).list().catch(() => [])).find(row => row.sale === initialOrder && row.branch === storeBranch) : undefined;
+        const former = asked && madeAtStorePage(asked) && asked.customer !== access.subject ? asked : undefined;
         const pending = checkpoint(await access.journals.read('order'), actor);
         const payment = paymentCheckpoint(await access.journals.read('payment'), actor.profile.branchRef, actor.profile.subjectRef);
         // A payment kept from before was checked against the store's record in the order contract. The record is
@@ -565,6 +579,7 @@ export function CustomerOrders({
         if (!current()) return;
         keepPolicy(access.policy);
         if (unconfirmed) setStoreProblem(unconfirmed);
+        setFormerOrder(former);
         setJournals(access.journals);
         setApproved(payment);
         setPoint(pending);
@@ -607,6 +622,9 @@ export function CustomerOrders({
         registration.current = raw;
         setPhase('setup');
         showStranded();
+        if (registrationFree && OwnerWallet) OwnerWallet.loadProfile().then(wallet => {
+          if (current()) setBoardAccount(decodeWalletStorage(wallet).verified ?? null);
+        }).catch(() => {});
         return;
       }
       const actor = customerClient(raw);
@@ -726,7 +744,8 @@ export function CustomerOrders({
     } catch {
       if (current()) { setPhase('locked'); showStranded(); }
     }
-  }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant, keepPolicy]);
+  }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant, keepPolicy,
+    initialOrder, registrationFree]);
 
   useEffect(() => {
     mounted.current = true;
@@ -2262,7 +2281,7 @@ export function CustomerOrders({
     const timer = setInterval(() => { followDetail().catch(() => {}); }, 15_000);
     return () => clearInterval(timer);
   }, [following]);
-  const openFirst = useEffectEvent(() => { if (initialOrder) work(() => openOrderDetail(initialOrder), orderOffline); });
+  const openFirst = useEffectEvent(() => { if (initialOrder && !formerOrder) work(() => openOrderDetail(initialOrder), orderOffline); });
   useEffect(() => { if (client) openFirst(); }, [client]);
 
   const pollOrder = useEffectEvent(async () => {
@@ -2683,6 +2702,9 @@ export function CustomerOrders({
         back={()=>setShowApprovalMaintenance(false)} backLabel="원승인으로 돌아가기" backup={()=>{}} orders={()=>{}} />
     </ScrollView>;
   }
+  if (phase === 'active' && formerOrder) return <ScrollView contentContainerStyle={s.scroll}>
+    <FormerOrderDetail order={formerOrder} amount={commerceAmount(formerOrder.amount, formerOrder.asset, policy)} back={back} backLabel="매장 화면으로" />
+  </ScrollView>;
   const orderView = phase === 'active' && client && !showSubscriptions ? orderPaymentView() : undefined;
   const protectionNotice = <View style={s.scroll}>
     <Text style={s.text} accessibilityLiveRegion="polite">{protection.failed ? '결제 화면 보호를 시작하지 못했습니다.' : '결제 화면을 준비하고 있습니다.'}</Text>
@@ -2856,13 +2878,33 @@ export function CustomerOrders({
         </Text>
       )}
       {phase === 'check' && <Text style={s.text}>{storeBranch ? '매장 메뉴를 여는 중' : '등록 상태 확인 중'}</Text>}
-      {(phase === 'locked' || phase === 'setup') && !!stranded.length && <Card>
+      {(phase === 'locked' || phase === 'setup') && !storeRoute && !!stranded.length && <Card>
         <Text accessibilityRole="header" style={s.cardTitle}>{`진행 중인 주문이 ${stranded.length}건 있습니다`}</Text>
         {stranded.map(row => <Text key={row.sale} style={s.text}>
           {`${row.store ?? '매장 주문'}${row.pickupNo === undefined ? '' : ` · 주문번호 ${row.pickupNo}`} · ${openOrderLabel(row)}`}</Text>)}
         <Text style={s.text}>상태를 보거나 받았다고 답하려면 인터넷 주문 등록이 필요합니다. 매장 담당자에게 이 휴대전화의 주문 등록 공개키를 보여 주고 새 등록서를 받아 이 화면에 입력하세요.</Text>
       </Card>}
-      {phase === 'locked' && !storeBranch && (
+      {/* A build that orders without a registration: orders made from a store page open with that store, and the
+          way to a new order is the store finder. No registration is asked for and no form for one is shown. */}
+      {storeRoute && !storeBranch && (phase === 'locked' || phase === 'setup') && (() => {
+        const made = stranded.filter(madeAtStorePage), others = stranded.filter(row => !madeAtStorePage(row));
+        return <>
+          {made.length > 0 ? <View style={s.inProgress}>
+            <Text accessibilityRole="header" style={s.cardTitle}>진행 중</Text>
+            {made.map(row => <OpenOrderCard key={row.sale} order={row} former={isFormerBoard(row, boardAccount)}
+              open={() => storeRoute.open({branch: row.branch, name: row.store ?? '매장', merchantId: row.merchantId}, row.sale)} />)}
+          </View> : <Text style={s.text}>진행 중인 주문이 없습니다.</Text>}
+          {others.length > 0 && <Card>
+            <Text accessibilityRole="header" style={s.cardTitle}>{`진행 중인 주문이 ${others.length}건 있습니다`}</Text>
+            {others.map(row => <Text key={row.sale} style={s.text}>
+              {`${row.store ?? '매장 주문'}${row.pickupNo === undefined ? '' : ` · 주문번호 ${row.pickupNo}`} · ${openOrderLabel(row)}`}</Text>)}
+            <Text style={s.text}>이 앱에서는 이 주문의 상태를 볼 수 없습니다. 매장에 문의하세요.</Text>
+          </Card>}
+          <Text style={s.text}>메뉴는 누구나 볼 수 있습니다. 주문할 때 보드로 본인을 확인합니다.</Text>
+          <Button label="매장 찾기" run={storeRoute.find} />
+        </>;
+      })()}
+      {phase === 'locked' && !storeBranch && !storeRoute && (
         <Text style={s.text}>
           보호된 주문 등록을 열 수 없습니다. 발급 담당자에게 문의하세요.
         </Text>
@@ -2874,7 +2916,7 @@ export function CustomerOrders({
           <Button label="내 보드 열기" variant="secondary" run={openBoard} />}
       </View>}
       {!!storeBranch && phase === 'locked' && <Button label="매장 화면으로" variant="secondary" run={back} />}
-      {phase === 'setup' && (
+      {phase === 'setup' && !storeRoute && (
         <>
           {/* Before registration the payments tab explains the three steps instead of opening on a bare form. */}
           <Card>

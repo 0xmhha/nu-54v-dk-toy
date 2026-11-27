@@ -7,6 +7,7 @@ import {configuredEntrance, CustomerEntrance, EntranceError, issuePickupQr, shor
 import {automaticQrs, PickupQrScreen, renewBefore} from '../src/merchant/PickupQr';
 import {OrderDetail} from '../src/merchant/OpenOrders';
 import type {OpenOrder} from '../src/merchant/orderRecords';
+import {customerSubject} from '../src/merchant/storeAccess';
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
@@ -330,5 +331,21 @@ describe('the ready order', () => {
     expect(JSON.stringify(plain.toJSON())).toContain('매장에서 주문번호를 보여 주고 받으세요.');
     expect(button(await detail(() => {}, {...order, pickup: 'preparing'}))).toHaveLength(0);
     expect(button(await detail(() => {}, {...order, pickup: 'collected'}))).toHaveLength(0);
+  });
+
+  test('an order of a former board promises only what holds for the way it was made', async () => {
+    const show = async (shown: OpenOrder) => {
+      let tree!: Renderer.ReactTestRenderer;
+      await Renderer.act(async () => {
+        tree = Renderer.create(<OrderDetail order={shown} amount="12,500원" fresh former now={1_764_000_100} actions={{answer: () => {}, refresh: () => {}, back: () => {}}} />);
+      });
+      return JSON.stringify(tree.toJSON());
+    };
+    // Paid through a store registration: the phone's own key answers, whatever became of the board.
+    expect(await show(order)).toContain('받았다는 답은 보낼 수 있지만, 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.');
+    // Made from a store page: every answer goes with a session that needs the paying account's proof.
+    const made = await show({...order, customer: customerSubject(payer)});
+    expect(made).not.toContain('받았다는 답은 보낼 수 있지만');
+    expect(made).toContain('답을 보내거나 수령 QR을 받으려면 결제한 보드 계정의 확인이 필요합니다. 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.');
   });
 });
