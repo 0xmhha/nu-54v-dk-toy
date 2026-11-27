@@ -260,10 +260,13 @@ def c_consumer(output, scratch):
     run(["cc", "-std=c11", "-Wall", "-Werror", "-I", "nu54-protocol/include", "check.c",
          "nu54-protocol/src/nu54_quote_v2.c", "nu54-protocol/src/nu54_transport_v2.c", "-o", "check"], folder)
     run(["./check"], folder)
-    run(["cc", "-std=c11", "-Wall", "-Werror", "-I", "nu54-protocol/include",
+    # The transport test hashes with OpenSSL, as packages/protocol/v2/testdata/test-transport.sh does.
+    prefix = os.environ.get("OPENSSL_PREFIX")
+    openssl = [f"-I{prefix}/include", f"-L{prefix}/lib"] if prefix else []
+    run(["cc", "-std=c11", "-Wall", "-Werror", "-I", "nu54-protocol/include", *openssl,
          str(PROTOCOL / "c/test/test_transport_v2.c"),
-         "nu54-protocol/src/nu54_transport_v2.c", "-o", "transport-test"], folder)
-    run(["./transport-test"], folder)
+         "nu54-protocol/src/nu54_transport_v2.c", "-lcrypto", "-o", "transport-test"], folder)
+    run(["./transport-test", str(PROTOCOL / "v2/testdata/payment-review.vectors")], folder)
     run(["sh", PROTOCOL / "v2/testdata/test-c.sh", folder / "nu54-protocol", path], folder)
     return {
         "checks": ["C11 v1/v2 source install", "all packed quote vectors using P01 Keccak and real signature recovery",
