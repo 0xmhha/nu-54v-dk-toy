@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -68,11 +69,21 @@ func TestBalanceBeforeHold(t *testing.T) {
 			t.Fatalf("a balance of %d: %+v", balance, short)
 		}
 	}
-	// The chain cannot be read: no reader, a failure, no answer in time, or an answer that is no balance.
+	// No chain to read the store's asset from: no reader at all, or no settlement target for this store. That does
+	// not pass by waiting, so it is not answered as if it did.
+	for name, funds := range map[string]PayerFunds{"no reader": nil, "no target": &fakeFunds{err: service.Capability},
+		"no target, wrapped": &fakeFunds{err: fmt.Errorf("branch: %w", service.Capability)}} {
+		closed := refusal(check(funds))
+		if closed.status != http.StatusConflict || closed.code != service.CheckoutConflict || closed.reason != "orders_closed" ||
+			closed.retry != 0 || closed.required != "" || closed.balance != "" {
+			t.Fatalf("%s: %+v", name, closed)
+		}
+	}
+	// The chain cannot be read now: a failure, no answer in time, or an answer that is no balance.
 	slow := &fakeFunds{wait: true}
 	started := time.Now()
 	for name, funds := range map[string]PayerFunds{
-		"no reader": nil, "failure": &fakeFunds{err: errors.New("rpc down")}, "no answer in time": slow,
+		"failure": &fakeFunds{err: errors.New("rpc down")}, "no answer in time": slow,
 		"no balance": &fakeFunds{asset: token}, "negative": &fakeFunds{asset: token, balance: big.NewInt(-1)},
 		// A failure is a failure even when a balance came with it.
 		"failure with a balance": &fakeFunds{asset: token, balance: big.NewInt(9_000_000), err: errors.New("stale")},
@@ -109,6 +120,10 @@ func TestHoldRefusalReplies(t *testing.T) {
 			`"BUSY","reason":"balance_unavailable"}`},
 		"limit": {&holdRefusal{status: 429, code: service.Busy, reason: "hold_limit", retry: 9500 * time.Millisecond}, 429, "10",
 			`"BUSY","reason":"hold_limit"}`},
+		"closed": {&holdRefusal{status: 409, code: service.CheckoutConflict, reason: "orders_closed"}, 409, "",
+			`"CHECKOUT_CONFLICT","reason":"orders_closed"}`},
+		"released": {&holdRefusal{status: 409, code: service.CheckoutConflict, reason: "cart_released"}, 409, "",
+			`"CHECKOUT_CONFLICT","reason":"cart_released"}`},
 	} {
 		reply := httptest.NewRecorder()
 		errorResponse(reply, want.refusal, &bound)

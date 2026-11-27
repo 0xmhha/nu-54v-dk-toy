@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
@@ -81,6 +80,7 @@ func (h HTTP) customerStore(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	h.Customer.sawPublished(branch) // a challenge for this store is now one the entrance recognises
 	if profile, enrolled := h.Profiles[branch]; enrolled {
 		for key, value := range storePayment(profile) {
 			page[key], _ = json.Marshal(value)
@@ -110,9 +110,8 @@ func (c *CustomerEntrance) contact() string {
 		return ""
 	}
 	text := strings.TrimSpace(c.OperatorContact)
-	// One visible line, like the text a store writes: no control or format character, no line or paragraph separator.
-	if text == "" || utf8.RuneCountInString(text) > 120 || !utf8.ValidString(text) ||
-		strings.ContainsFunc(text, func(r rune) bool { return unicode.In(r, unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp) }) {
+	// One visible line, like the text a store writes (visible_text.go).
+	if text == "" || utf8.RuneCountInString(text) > 120 || !utf8.ValidString(text) || !visibleLine(text) {
 		return ""
 	}
 	return text

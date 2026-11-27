@@ -462,12 +462,16 @@ func (h HTTP) serveFor(w http.ResponseWriter, r *http.Request, principal service
 		}
 	case "order.create":
 		err = checkCart(bound, outer.Cart)
+		var counted func(held bool)
 		if err == nil && session != nil {
 			// A proven account: its balance is read from the chain immediately before the hold (customer_funds.go).
-			err = h.beforeHold(ctx, clientKey(r), bound, *outer.Cart)
+			counted, err = h.beforeHold(ctx, clientKey(r), bound, *outer.Cart)
 		}
 		if err == nil {
 			out.ResultRef, err = h.Store.Reserve(ctx, bound, *outer.Cart)
+		}
+		if counted != nil {
+			counted(err == nil)
 		}
 	case "order.nearby-result":
 		byOrder := req.Body["byOrder"]

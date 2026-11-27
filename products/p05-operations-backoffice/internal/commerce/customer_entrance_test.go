@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -580,53 +582,325 @@ func TestUnknownSessionTokensLeaveTheProofAllowance(t *testing.T) {
 	}
 }
 
-// An address starts a limited number of sessions in a time window: checkout and order challenges are counted, a
-// pickup challenge is not.
-func TestSessionStartsPerAddress(t *testing.T) {
+// proofRequest is a proof request with a signature of key over challenge, as an app sends it.
+func proofRequest(t *testing.T, remote string, key *ecdsa.PrivateKey, challenge [32]byte) *http.Request {
+	t.Helper()
+	body := `{"challenge":"` + hex.EncodeToString(challenge[:]) + `","account":"` + strings.ToLower(crypto.PubkeyToAddress(key.PublicKey).Hex()) +
+		`","signature":"` + hex.EncodeToString(signAccountProof(t, key, challenge)) + `","generation":"7"}`
+	req := httptest.NewRequest("POST", "/v2/customer/proof", strings.NewReader(body))
+	req.RemoteAddr = remote
+	return req
+}
+
+// A session start is counted for the proven account at its address, and only when a proof gave a session. A
+// challenge is never a start, so asking for challenges cannot use the starts of an address up; one account cannot
+// use up another's; a proof that gave no session gives its start back.
+func TestSessionStartsPerAccount(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	clock := func() time.Time { return now }
 	limits := &CustomerEntrance{StartLimiter: NewRateLimiter(6, 2, clock)} // two at once, then one every ten seconds
 	mux := http.NewServeMux()
 	HTTP{Customer: limits}.RegisterCustomer(mux) // no store behind it: an allowed challenge ends as not found
 	sale := "6f1c1a52-4c39-4d1e-9d36-1f0b9b4d2a10"
-	ask := func(remote, purpose string) (int, string) {
-		body := `{"purpose":"` + purpose + `","branchRef":"` + branch + `"`
-		if purpose != "checkout" {
-			body += `,"saleRef":"` + sale + `"`
+	const home = "[2001:db8:1:2::1]:4000"
+	for i := 0; i < 40; i++ {
+		for _, purpose := range []string{"checkout", "order", "pickup"} {
+			body := `{"purpose":"` + purpose + `","branchRef":"` + branch + `"`
+			if purpose != "checkout" {
+				body += `,"saleRef":"` + sale + `"`
+			}
+			req := httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader(body+"}"))
+			req.RemoteAddr = home
+			reply := httptest.NewRecorder()
+			mux.ServeHTTP(reply, req)
+			if reply.Code != http.StatusNotFound {
+				t.Fatalf("%s challenge %d was counted as a session start: %d", purpose, i+1, reply.Code)
+			}
 		}
-		req := httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader(body+"}"))
-		req.RemoteAddr = remote
+	}
+	first, second := mustKey(t), mustKey(t)
+	nonce := byte(0)
+	// prove counts one proof of key the way the route does, and settles it as the handler would.
+	prove := func(remote string, key *ecdsa.PrivateKey, gaveSession bool) (int, string) {
+		t.Helper()
+		nonce++
+		reply := httptest.NewRecorder()
+		try, allowed := limits.askedProof(reply, proofRequest(t, remote, key, [32]byte{31: nonce}))
+		if !allowed {
+			return reply.Code, reply.Header().Get("Retry-After")
+		}
+		try.settle(true, gaveSession)
+		return http.StatusOK, ""
+	}
+	for i := 0; i < 2; i++ {
+		if code, _ := prove(home, first, true); code != http.StatusOK {
+			t.Fatalf("session start %d of the account: %d", i+1, code)
+		}
+	}
+	// The same /64 is the same address: the account has no start left there, and is told when it has one again.
+	if code, wait := prove("[2001:db8:1:2::2]:4000", first, true); code != http.StatusTooManyRequests || wait != "10" {
+		t.Fatalf("a third start of the account in the window: %d, Retry-After %q", code, wait)
+	}
+	// Another account behind the same address is not held back by that, however often the first one asks.
+	for i := 0; i < 20; i++ {
+		prove(home, first, true)
+	}
+	for i := 0; i < 2; i++ {
+		if code, _ := prove(home, second, true); code != http.StatusOK {
+			t.Fatalf("another account shares the first one's starts: %d", code)
+		}
+	}
+	// The same account from another address has its own count there.
+	if code, _ := prove("198.51.100.7:4000", first, true); code != http.StatusOK {
+		t.Fatalf("the account at another address: %d", code)
+	}
+	// A proof that gave no session (a pickup QR, a refusal) is not a start: any number of them leaves the starts.
+	third := mustKey(t)
+	for i := 0; i < 30; i++ {
+		if code, _ := prove(home, third, false); code != http.StatusOK {
+			t.Fatalf("proof %d without a session was counted as a start: %d", i+1, code)
+		}
+	}
+	now = now.Add(10 * time.Second)
+	if again, _ := prove(home, first, true); again != http.StatusOK {
+		t.Fatalf("after the window: %d", again)
+	}
+	if counts := limits.Limited.Drain(); counts["start"] != 21 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+}
+
+// What costs a sender nothing is counted where customers behind the same address do not need it. With failed
+// attempts counted apart, bodies that do not read and signatures that are not the account's use up only the
+// address's failed attempts; a challenge the entrance recognises and a proof over a challenge it gave still pass.
+func TestFailedAttemptsLeaveCustomersTheirAllowance(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	limits := &CustomerEntrance{Limiter: NewRateLimiter(60, 3, clock), FailLimiter: NewRateLimiter(12, 2, clock), StartLimiter: NewRateLimiter(6, 2, clock)}
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux)
+	const home = "198.51.100.7:4000"
+	post := func(path, body string) (int, string) {
+		req := httptest.NewRequest("POST", path, strings.NewReader(body))
+		req.RemoteAddr = home
 		reply := httptest.NewRecorder()
 		mux.ServeHTTP(reply, req)
 		return reply.Code, reply.Header().Get("Retry-After")
 	}
-	const home = "[2001:db8:1:2::1]:4000"
-	if first, _ := ask(home, "checkout"); first != http.StatusNotFound {
-		t.Fatalf("first session start: %d", first)
-	}
-	if second, _ := ask("[2001:db8:1:2::2]:4000", "order"); second != http.StatusNotFound { // the same /64
-		t.Fatalf("second session start: %d", second)
-	}
-	for _, purpose := range []string{"checkout", "order"} {
-		if code, wait := ask(home, purpose); code != http.StatusTooManyRequests || wait != "10" {
-			t.Fatalf("a third %s start in the window: %d, Retry-After %q", purpose, code, wait)
+	key := mustKey(t)
+	account := strings.ToLower(crypto.PubkeyToAddress(key.PublicKey).Hex())
+	forged := `{"challenge":"` + strings.Repeat("ab", 32) + `","account":"` + account + `","signature":"` + strings.Repeat("11", 65) + `"}`
+	// Two failed attempts are answered as what they are; from the third on the address is told to wait.
+	for i, want := range []int{http.StatusBadRequest, http.StatusBadRequest, http.StatusTooManyRequests} {
+		if code, wait := post("/v2/customer/challenge", "{"); code != want || (want == http.StatusTooManyRequests && wait != "5") {
+			t.Fatalf("challenge %d that does not read: %d, Retry-After %q", i+1, code, wait)
 		}
 	}
-	// A pickup QR is not a session; a request that is not a challenge at all is not counted either.
-	for i := 0; i < 5; i++ {
-		if code, _ := ask(home, "pickup"); code != http.StatusNotFound {
-			t.Fatalf("a pickup challenge was counted as a session start: %d", code)
+	for i := 0; i < 200; i++ {
+		for path, body := range map[string]string{"/v2/customer/challenge": `{"purpose":"checkout"}`, "/v2/customer/proof": forged} {
+			if code, _ := post(path, body); code != http.StatusTooManyRequests {
+				t.Fatalf("failed attempt %d on %s got through: %d", i, path, code)
+			}
 		}
 	}
-	if code, _ := ask("198.51.100.7:4000", "checkout"); code != http.StatusNotFound {
-		t.Fatalf("another address shares the limit: %d", code)
+	// A challenge for a store the entrance lately saw public is an app's request: it does not need a failed
+	// attempt, and the 403 requests above took nothing from what it is counted under.
+	limits.sawPublished(branch)
+	ask := `{"purpose":"checkout","branchRef":"` + branch + `"}`
+	for i := 0; i < 3; i++ {
+		if code, _ := post("/v2/customer/challenge", ask); code != http.StatusNotFound { // no store behind this entrance
+			t.Fatalf("a customer's challenge %d while failed attempts are used up: %d", i+1, code)
+		}
 	}
-	now = now.Add(10 * time.Second)
-	if again, _ := ask(home, "checkout"); again != http.StatusNotFound {
-		t.Fatalf("after the window: %d", again)
+	if code, wait := post("/v2/customer/challenge", ask); code != http.StatusTooManyRequests || wait != "1" {
+		t.Fatalf("the address's own allowance of challenges: %d, Retry-After %q", code, wait)
 	}
-	if counts := limits.Limited.Drain(); counts["start"] != 2 || len(counts) != 1 {
+	// A store the entrance has not seen public cannot be told from a guess: while the failed attempts are used up
+	// it waits, and it takes nothing from the customers' allowance.
+	other := `{"purpose":"checkout","branchRef":"6f1c1a52-4c39-4d1e-9d36-1f0b9b4d2a10"}`
+	now = now.Add(3 * time.Second) // three challenges back, no failed attempt yet
+	if code, _ := post("/v2/customer/challenge", other); code != http.StatusTooManyRequests {
+		t.Fatalf("a store not seen public, with no failed attempt left: %d", code)
+	}
+	for i := 0; i < 3; i++ {
+		if code, _ := post("/v2/customer/challenge", ask); code != http.StatusNotFound {
+			t.Fatalf("a customer's challenge %d after a guess was refused: %d", i+1, code)
+		}
+	}
+	// A proof over a challenge the entrance gave, with the account's own signature, is recognised the same way.
+	now = now.Add(time.Second)
+	given := [32]byte{1: 7}
+	hash := sha256.Sum256(given[:])
+	limits.issued.put(string(hash[:]), time.Now().Add(time.Minute), "pickup")
+	reply := httptest.NewRecorder()
+	mux.ServeHTTP(reply, proofRequest(t, home, key, given))
+	if reply.Code != http.StatusNotFound {
+		t.Fatalf("a customer's proof while failed attempts are used up: %d", reply.Code)
+	}
+	// The same proof again is no longer over a challenge the entrance holds: it is a failed attempt like a guess.
+	reply = httptest.NewRecorder()
+	mux.ServeHTTP(reply, proofRequest(t, home, key, given))
+	if reply.Code != http.StatusTooManyRequests {
+		t.Fatalf("a proof sent twice was recognised twice: %d", reply.Code)
+	}
+	counts := limits.Limited.Drain()
+	if counts["failed"] != 403 || counts["proof"] != 1 || len(counts) != 2 {
 		t.Fatalf("refusals by kind: %v", counts)
+	}
+	// A request that was not recognised and turned out well gets its failed attempt back; one that did not gives
+	// the customers' allowance back instead.
+	now = now.Add(time.Minute)
+	for i := 0; i < 5; i++ {
+		try := &attempt{}
+		if !limits.count(httptest.NewRecorder(), httptest.NewRequest("POST", "/v2/customer/challenge", nil), try, false, "") {
+			t.Fatalf("attempt %d that turned out well was refused", i+1)
+		}
+		try.settle(true, false)
+		now = now.Add(time.Second) // the customers' allowance refills; the failed attempts were given back
+	}
+	for i, want := range []bool{true, true, false} {
+		try := &attempt{}
+		if got := limits.count(httptest.NewRecorder(), httptest.NewRequest("POST", "/v2/customer/challenge", nil), try, false, ""); got != want {
+			t.Fatalf("attempt %d that failed: allowed %v, want %v", i+1, got, want)
+		}
+		try.settle(false, false)
+	}
+	for i := 0; i < 3; i++ { // none of the three took from the customers' allowance
+		try := &attempt{}
+		if !limits.count(httptest.NewRecorder(), httptest.NewRequest("POST", "/v2/customer/challenge", nil), try, true, "") {
+			t.Fatalf("a recognised request %d after failed ones was refused", i+1)
+		}
+	}
+}
+
+// Made-up session tokens use up the allowance of tokens the server has not seen live, and nothing else: a session
+// that was lately live is counted under the ceiling of live sessions, so a customer who is paying is still served,
+// and a made-up token is still not looked up once its allowance is gone.
+func TestMadeUpTokensDoNotStopLiveSessions(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	clock := func() time.Time { return now }
+	limits := &CustomerEntrance{AddressLimiter: NewRateLimiter(60, 3, clock), LiveLimiter: NewRateLimiter(60, 5, clock)}
+	send, reads := sessionRequests(limits)
+	const home = "198.51.100.7:4000"
+	paying := "aa" + strings.Repeat("0", 62)
+	if code, _ := send(home, paying); code != http.StatusBadRequest || *reads != 1 { // found live: remembered
+		t.Fatalf("the customer's first request: %d, %d reads", code, *reads)
+	}
+	for i := 0; i < 300; i++ { // ten made-up tokens a second for half a minute
+		token := hex.EncodeToString([]byte{0xcd, byte(i >> 8), byte(i)}) + strings.Repeat("0", 58)
+		want := http.StatusNotFound
+		if i >= 2 {
+			want = http.StatusTooManyRequests // two were left of three; the rest is refused before any lookup
+		}
+		if code, _ := send(home, token); code != want {
+			t.Fatalf("made-up token %d: %d, want %d", i+1, code, want)
+		}
+	}
+	if *reads != 3 {
+		t.Fatalf("%d session reads: made-up tokens were looked up past their allowance", *reads)
+	}
+	for i := 0; i < 5; i++ {
+		if code, _ := send(home, paying); code != http.StatusBadRequest {
+			t.Fatalf("request %d of the paying customer among made-up tokens: %d", i+1, code)
+		}
+	}
+	// Live sessions still share a ceiling of their own, so more sessions give an address no more requests.
+	if code, wait := send(home, paying); code != http.StatusTooManyRequests || wait != "1" {
+		t.Fatalf("past the ceiling of live sessions: %d, Retry-After %q", code, wait)
+	}
+	// A session the server has not seen yet starts under the stricter allowance, which the made-up tokens emptied:
+	// it waits until that has a request again, and from its first answer on it is a live one.
+	late := "aa" + strings.Repeat("1", 62)
+	if code, _ := send(home, late); code != http.StatusTooManyRequests {
+		t.Fatalf("a session not seen before, with the allowance used up: %d", code)
+	}
+	now = now.Add(time.Second)
+	for i := 0; i < 2; i++ {
+		if code, _ := send(home, late); code != http.StatusBadRequest {
+			t.Fatalf("request %d of the session once it was seen live: %d", i+1, code)
+		}
+	}
+	// A session that ended is forgotten at its first refusal.
+	limits.sawLive(sha256.Sum256(bytes.Repeat([]byte{0xcd}, 32)), time.Now().Add(time.Minute))
+	ended := strings.Repeat("cd", 32)
+	now = now.Add(time.Minute)
+	if code, _ := send(home, ended); code != http.StatusNotFound || limits.live.has(string(hashOf(bytes.Repeat([]byte{0xcd}, 32))), time.Now()) {
+		t.Fatalf("an ended session: %d, still remembered", code)
+	}
+	if counts := limits.Limited.Drain(); counts["address"] != 299 || counts["live"] != 1 || len(counts) != 2 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+}
+
+// A full table of clients never refuses a newcomer: it forgets a client that is back at its full allowance, or
+// the one closest to it, and a client that is being held back stays held back.
+func TestRateLimiterKeepsABoundedTable(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	limiter := NewRateLimiter(6, 2, func() time.Time { return now }) // two at once, then one every ten seconds
+	limiter.Keys = 500
+	// One client is held back and keeps asking, while a thousand requests a second arrive from new clients: no
+	// newcomer is refused its first request for the table being full, and the client stays held back.
+	limiter.Allow("held")
+	limiter.Allow("held")
+	refused := 0
+	for i := 0; i < 5000; i++ {
+		now = now.Add(time.Millisecond)
+		key := "new-" + strconv.Itoa(i)
+		if !limiter.Allow(key) {
+			refused++
+		}
+		limiter.Allow(key)
+		limiter.Allow(key) // each newcomer is then held back too, so no bucket in the table is full
+		if limiter.Allow("held") {
+			t.Fatalf("the client that is held back was let through at newcomer %d", i)
+		}
+		if len(limiter.clients) > 500 {
+			t.Fatalf("the table holds %d clients, past its bound of 500", len(limiter.clients))
+		}
+	}
+	if refused != 0 {
+		t.Fatalf("%d of 5000 newcomers were refused by a full table", refused)
+	}
+	if _, kept := limiter.clients["held"]; !kept {
+		t.Fatal("the client that is held back was forgotten")
+	}
+	// Once clients are back at their full allowance they are the ones forgotten.
+	now = now.Add(time.Minute)
+	limiter.Allow("drained")
+	limiter.Allow("drained")
+	for i := 0; i < 300; i++ {
+		limiter.Allow("later-" + strconv.Itoa(i))
+		limiter.Allow("later-" + strconv.Itoa(i))
+	}
+	if _, kept := limiter.clients["drained"]; !kept || limiter.Allow("drained") {
+		t.Fatalf("a client that is held back was forgotten for newcomers (kept %v)", kept)
+	}
+	// A request given back counts again, up to the full allowance and no further.
+	limiter.Refund("drained")
+	if !limiter.Allow("drained") || limiter.Allow("drained") {
+		t.Fatal("a request given back was not there to take once")
+	}
+	limiter.Refund("never-seen")
+	for i := 0; i < 5; i++ {
+		limiter.Refund("fresh")
+	}
+	if !limiter.Allow("fresh") || !limiter.Allow("fresh") || limiter.Allow("fresh") {
+		t.Fatal("requests given back took a client past its full allowance")
+	}
+	// The memory of what the entrance recognises is bounded the same way.
+	seen := recentSet{keys: 100}
+	for i := 0; i < 1000; i++ {
+		seen.put("key-"+strconv.Itoa(i), time.Now().Add(time.Minute), "note")
+		if len(seen.entries) > 100 {
+			t.Fatalf("the memory holds %d keys, past its bound of 100", len(seen.entries))
+		}
+	}
+	if note, known := seen.get("key-999", time.Now()); !known || note != "note" {
+		t.Fatal("the newest key was not kept")
+	}
+	seen.put("gone", time.Now().Add(-time.Second), "")
+	if seen.has("gone", time.Now()) {
+		t.Fatal("a key past its time is still known")
 	}
 }
 
@@ -753,6 +1027,10 @@ func TestOperatorContactIsOneVisibleLine(t *testing.T) {
 		" help@operator.example ": "help@operator.example", "02-555-0100 (평일 10~18시)": "02-555-0100 (평일 10~18시)",
 		"": "", "a\nb": "", "a\u0085b": "", "a\u200bb": "", "a\u202eb": "", "a\u2028b": "", "a\u2029b": "", "a\ufeffb": "", "a\u00adb": "",
 		"a\xffb": "", strings.Repeat("가", 121): "",
+		// What does not show although it is no format or control character, and blanks other than the space.
+		"\u3164": "", "help\u3164desk": "", "\u2800\u2800": "", "a\u00a0b": "", "a\ufe0fb": "", "a\u3000b": "", "a\u115fb": "", "a\uffa0b": "",
+		"a\u034fb": "", "a\u2009b": "", "a\U000E0100b": "", "a\u180bb": "", "   ": "",
+		"Café №1 ☕ 営業中": "Café №1 ☕ 営業中",
 	} {
 		if got := (&CustomerEntrance{OperatorContact: value}).contact(); got != want {
 			t.Fatalf("contact %q is shown as %q, want %q", value, got, want)

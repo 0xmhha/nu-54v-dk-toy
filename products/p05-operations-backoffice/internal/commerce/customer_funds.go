@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -25,7 +26,7 @@ import (
 // PayerFunds reads from the chain what an account holds of the asset a branch is paid in.
 type PayerFunds interface {
 	// PayerBalance answers the branch's settlement asset and the account's balance of it in base units, as the
-	// chain has it now.
+	// chain has it now. A branch that has no asset to be paid in answers service.Capability.
 	PayerBalance(ctx context.Context, branch string, payer common.Address) (asset common.Address, balance *big.Int, err error)
 }
 
@@ -39,8 +40,16 @@ const (
 //
 //	balance_short        409 CHECKOUT_CONFLICT, with the cart's amount (required) and the account's balance, both in
 //	                     base units of the asset
-//	balance_unavailable  503 BUSY with Retry-After: the chain could not be read; nothing is said about the balance
-//	hold_limit           429 BUSY with Retry-After: the address started too many carts in a short time
+//	balance_unavailable  503 BUSY with Retry-After: the chain could not be read now, or too many balance reads are
+//	                     waiting for it; nothing is said about the balance
+//	hold_limit           429 BUSY with Retry-After: the account asked for too many carts in a short time, or the
+//	                     accounts of its address came to hold too many
+//	orders_closed        409 CHECKOUT_CONFLICT: the store has no asset a proven account's balance could be read in
+//	                     (no settlement target is enrolled for it), so no cart of one is held until the operator
+//	                     changes that; asking again does not help
+//	cart_released        409 CHECKOUT_CONFLICT: the cart this request key made earlier is closed without a payment
+//	                     (its customer took it back, or its hold ran out); nothing is held, and a new cart needs a
+//	                     new request key
 type holdRefusal struct {
 	status   int
 	code     service.Code
@@ -70,13 +79,18 @@ func (e *holdRefusal) write(w http.ResponseWriter, bound service.Bound) {
 // checkFunds refuses a cart its account cannot pay now. asset is the asset the cart is priced in, as the request
 // names it (lower-case hex); required is the cart's amount in its base units.
 func checkFunds(ctx context.Context, funds PayerFunds, branch string, payer common.Address, asset string, required *big.Int) error {
+	// No chain reader at all, or none for this store: that does not pass by waiting, so it is not said as if it did.
+	closed := &holdRefusal{status: http.StatusConflict, code: service.CheckoutConflict, reason: "orders_closed"}
 	unread := &holdRefusal{status: http.StatusServiceUnavailable, code: service.Busy, reason: "balance_unavailable", retry: balanceRetry}
 	if funds == nil {
-		return unread // no chain to ask: the cart is not held on trust
+		return closed // no chain to ask: the cart is not held on trust
 	}
 	read, cancel := context.WithTimeout(ctx, balanceReadTimeout)
 	defer cancel()
 	settled, balance, err := funds.PayerBalance(read, branch, payer)
+	if errors.Is(err, service.Capability) {
+		return closed
+	}
 	if err != nil || balance == nil || balance.Sign() < 0 {
 		return unread
 	}
@@ -90,33 +104,71 @@ func checkFunds(ctx context.Context, funds PayerFunds, branch string, payer comm
 	return nil
 }
 
-// beforeHold is what a session's cart passes before it holds stock: the limit of its address on new carts, and the
-// balance of its proven account. A request the reservation already answered is not checked again, so a retry after
-// the payment reads its first answer.
-func (h HTTP) beforeHold(ctx context.Context, client string, bound service.Bound, cart Cart) error {
-	if limiter := h.Customer.HoldLimiter; limiter != nil {
-		if allowed, wait := limiter.Take(client); !allowed {
-			h.Customer.Limited.add("hold")
-			return &holdRefusal{status: http.StatusTooManyRequests, code: service.Busy, reason: "hold_limit", retry: wait}
-		}
-	}
+// beforeHold is what a session's cart passes before it holds stock, in this order:
+//
+//  1. A request the reservation already answered is not checked or counted again, so a retry after the payment
+//     reads its first answer. When that answer is an order closed without a payment, the cart was released.
+//  2. The limit of the account, at its address, on carts asked for (HoldAttempts).
+//  3. The balance of the proven account, read from the chain inside the cap on balance reads (BalanceReads).
+//  4. The limit of the address on carts its accounts come to hold (HoldLimiter): counted here, for an account that
+//     has the balance, and given back by the function returned when the reservation then held nothing.
+//
+// The function returned is nil when nothing was counted for the address.
+func (h HTTP) beforeHold(ctx context.Context, client string, bound service.Bound, cart Cart) (func(held bool), error) {
 	lines, err := json.Marshal(cart.Items)
 	if err != nil {
-		return service.BadRequest
+		return nil, service.BadRequest
 	}
 	var payer []byte
 	var amount *string
-	if err = h.Store.db.QueryRow(ctx, "SELECT payer_,amount_::text FROM ledger.customer_hold_check($1,$2,$3,$4,$5,$6,$7)",
+	var released bool
+	if err = h.Store.db.QueryRow(ctx, "SELECT payer_,amount_::text,released_ FROM ledger.customer_hold_check($1,$2,$3,$4,$5,$6,$7)",
 		bound.Tenant, bound.Request.Domain, bound.Subject, bound.Request.IdempotencyKey, cart.MenuVersion,
-		bound.Request.Body["asset"], lines).Scan(&payer, &amount); err != nil {
-		return domainError(err)
+		bound.Request.Body["asset"], lines).Scan(&payer, &amount, &released); err != nil {
+		return nil, domainError(err)
+	}
+	if released {
+		return nil, &holdRefusal{status: http.StatusConflict, code: service.CheckoutConflict, reason: "cart_released"}
 	}
 	if len(payer) != common.AddressLength || amount == nil {
-		return nil
+		return nil, nil
 	}
 	required, ok := new(big.Int).SetString(*amount, 10)
 	if !ok || required.Sign() <= 0 {
-		return service.Unknown
+		return nil, service.Unknown
 	}
-	return checkFunds(ctx, h.Customer.Funds, bound.Request.Domain, common.BytesToAddress(payer), bound.Request.Body["asset"], required)
+	limited := func(wait time.Duration) error {
+		h.Customer.Limited.add("hold")
+		return &holdRefusal{status: http.StatusTooManyRequests, code: service.Busy, reason: "hold_limit", retry: wait}
+	}
+	if limiter := h.Customer.HoldAttempts; limiter != nil {
+		if allowed, wait := limiter.Take(client + "/" + bound.Subject); !allowed {
+			return nil, limited(wait)
+		}
+	}
+	if reads := h.Customer.BalanceReads; reads != nil {
+		select {
+		case reads <- struct{}{}:
+			defer func() { <-reads }()
+		default:
+			// The chain is answering slowly: this cart does not wait for it in a place a menu read needs.
+			h.Customer.Limited.add("balance")
+			return nil, &holdRefusal{status: http.StatusServiceUnavailable, code: service.Busy, reason: "balance_unavailable", retry: balanceRetry}
+		}
+	}
+	if err = checkFunds(ctx, h.Customer.Funds, bound.Request.Domain, common.BytesToAddress(payer), bound.Request.Body["asset"], required); err != nil {
+		return nil, err
+	}
+	limiter := h.Customer.HoldLimiter
+	if limiter == nil {
+		return nil, nil
+	}
+	if allowed, wait := limiter.Take(client); !allowed {
+		return nil, limited(wait)
+	}
+	return func(held bool) {
+		if !held {
+			limiter.Refund(client) // only a cart that holds stock counts for its address
+		}
+	}, nil
 }

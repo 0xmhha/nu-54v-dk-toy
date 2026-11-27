@@ -87,6 +87,13 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		execute("INSERT INTO ledger.branch VALUES ($1,$2,'Asia/Seoul','04:00')", b, tenant)
 		execute("INSERT INTO ledger.command_rule VALUES ($1,'proof test','fixture','dispose',interval '2 minutes')", b)
 	}
+	// A store takes customers only while its page is published (migration 126), so the shop has one from the start.
+	publish := func(branch, name string) {
+		t.Helper()
+		execute("INSERT INTO ledger.operator_branch_label VALUES ($1,$2)", branch, name)
+		execute(`INSERT INTO ledger.branch_store_page VALUES ($1,true,false,'카페','','','','','','','',NULL,$2,now())`, branch, operator)
+	}
+	publish(shop, "여울 커피 "+shop[:8])
 	execute("INSERT INTO ledger.login_subject VALUES ($2,$1)", operator, "proof_"+operator)
 	execute("INSERT INTO ledger.login_subject VALUES ($2,$1)", stranger, "proof_"+stranger)
 	execute("INSERT INTO ledger.staff_grant VALUES ($1,$2,'operator',now()-interval '1 minute',null)", shop, operator)
@@ -277,7 +284,6 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	}
 	picture, small := bytes.Repeat([]byte{0x5a}, 20_000), bytes.Repeat([]byte{0x3c}, 900)
 	photo, thumb := hex.EncodeToString(hashOf(picture)), hex.EncodeToString(hashOf(small))
-	execute("INSERT INTO ledger.operator_branch_label VALUES ($1,$2)", shop, "여울 커피 "+shop[:8])
 	execute("INSERT INTO ledger.menu_category VALUES ($1,1,'warm',1,'{\"ko\":\"음료\",\"en\":\"Drinks\"}')", shop)
 	execute("INSERT INTO ledger.menu_sku_category VALUES ($1,1,'tea','warm')", shop)
 	execute("INSERT INTO ledger.menu_photo(branch_id,digest,thumb_digest,photo,thumb,uploaded_by,rights_confirmed_at) VALUES ($1,$2,$3,$4,$5,$6,now())",
@@ -301,10 +307,17 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		operate(ownCert, "/v2/operations/store-page/"+shop, map[string]any{"published": published, "listed": false, "kind": "카페", "intro": "",
 			"address": "", "directions": "", "phone": "", "amenities": "", "parking": "", "closedNote": "", "hours": nil}, 200)
 	}
-	for _, closed := range []func(){func() {}, func() { storePage(false) }} {
+	// Without a published page the store takes no customer either: the session that was given while it had one is
+	// not live, and a new challenge is answered like one for a branch that does not exist.
+	nowhere := call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": fresh()}, 400)
+	for _, closed := range []func(){func() { execute("DELETE FROM ledger.branch_store_page WHERE branch_id=$1", shop) }, func() { storePage(false) }} {
 		closed()
 		for _, path := range []string{"", "/menu/0", "/photos/" + photo + "/0", "/photos/" + thumb + "/0"} {
 			read("/v2/customer/stores/"+shop+path, 404)
+		}
+		command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
+		if got := call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": shop}, 400); !reflect.DeepEqual(got, nowhere) {
+			t.Fatalf("a store that is not public answers a challenge %v, a branch that does not exist %v", got, nowhere)
 		}
 	}
 	storePage(true)
@@ -394,7 +407,7 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	storePage(false)
 	read("/v2/customer/stores/"+shop+"/menu/0", 404)
 	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, photo), 404)
-	command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200) // a session's menu does not depend on it
+	command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404) // the checkout session closes with the page
 	storePage(true)
 	read("/v2/customer/stores/"+shop+"/menu/0", 200)
 	// Reading held no stock and made no order, customer, session or challenge.
@@ -444,9 +457,21 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 			t.Fatalf("%s: a refused cart left a mark: %s, was %s", when, after, unheld)
 		}
 	}
-	unread("no chain reader") // a cart is not held on trust
-	funds := &fakeFunds{asset: common.HexToAddress(asset), err: fmt.Errorf("rpc down")}
+	// No chain reader, or none for this store: a cart is not held on trust, and the answer does not say "try again
+	// shortly" about something that does not pass by waiting.
+	closedOrders := func(when string) {
+		t.Helper()
+		status, retry, got := tryOrder(session, fresh(), fresh())
+		if status != 409 || retry != "" || got["status"] != "error" || got["error"] != string(service.CheckoutConflict) || got["reason"] != "orders_closed" ||
+			got["requestId"] == "" || got["required"] != nil || got["balance"] != nil || footprint() != unheld {
+			t.Fatalf("%s: %d, Retry-After %q, %v", when, status, retry, got)
+		}
+	}
+	closedOrders("no chain reader")
+	funds := &fakeFunds{asset: common.HexToAddress(asset), err: service.Capability}
 	h.Customer.Funds = funds
+	closedOrders("no settlement target for the store")
+	funds.err = fmt.Errorf("rpc down")
 	unread("the chain cannot be read")
 	funds.err, funds.balance = nil, big.NewInt(299_999) // the tea costs 300000 base units
 	status, retry, short := tryOrder(session, fresh(), fresh())
@@ -457,8 +482,8 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if asked := funds.asked[len(funds.asked)-1]; asked != shop+"/"+strings.ToLower(account.Hex()) || footprint() != unheld {
 		t.Fatalf("asked %s; footprint %s, was %s", asked, footprint(), unheld)
 	}
-	// An address starts a limited number of carts in a time window, whatever the balance says.
-	h.Customer.HoldLimiter = NewRateLimiter(6, 1, nil)
+	// An account asks for a limited number of carts in a time window, whatever the balance says.
+	h.Customer.HoldAttempts = NewRateLimiter(6, 1, nil)
 	if status, _, got := tryOrder(session, fresh(), fresh()); status != 409 || got["reason"] != "balance_short" {
 		t.Fatalf("the first cart of the window: %d %v", status, got)
 	}
@@ -470,7 +495,7 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if counts := h.Customer.Limited.Drain(); counts["hold"] != 1 || len(counts) != 1 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
-	h.Customer.HoldLimiter = nil
+	h.Customer.HoldAttempts = nil
 	// Enough, to the unit: the cart is held. The same request again reads its first answer without another look at
 	// the balance, so a retry after the payment is not refused for the money that payment took.
 	funds.balance = big.NewInt(300_000)
@@ -498,6 +523,7 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatal("a second cart while the first is held", got)
 	}
 	outsider := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)["session"].(string)
+	publish(elsewhere, "건너편 "+elsewhere[:8]) // the other branch takes customers from here on
 	away := elsewhereOf()
 	holding := footprint()
 	cancelHold(outsider, firstCart, 404) // another account's cart
@@ -648,16 +674,26 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if counts := h.Customer.Limited.Drain(); counts["session"] != 1 || counts["unknown"] != 1 || counts["address"] != 1 || len(counts) != 3 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
-	// One session start in the window for this address; a pickup challenge is not one.
+	// One session start in the window for this account at this address, counted when a proof gives the session.
+	// A challenge is no start, however many are asked for; a pickup proof gives no session; and another account
+	// behind the same address has its own allowance, so the first one using its up does not stop it.
 	h.Customer.Limiter = nil
-	challenge("checkout", shop, "")
-	if got := call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": shop}, 429); got["error"] != string(service.Busy) {
-		t.Fatalf("a second session start in the window: %v", got)
+	for i := 0; i < 3; i++ {
+		challenge("checkout", shop, "")
 	}
-	challenge("pickup", shop, sale)
+	prove(board, account, challenge("checkout", shop, ""), 200)
+	unspent := challenge("checkout", shop, "")
+	if got := prove(board, account, unspent, 429); got["error"] != string(service.Busy) {
+		t.Fatalf("a second session start of the account in the window: %v", got)
+	}
+	prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)
+	prove(board, account, challenge("pickup", shop, sale), 409) // not ready yet, and not counted as a start
 	if counts := h.Customer.Limited.Drain(); counts["start"] != 1 || len(counts) != 1 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
+	// The refused proof left its challenge unused: once the account has a start again, the same challenge gives one.
+	h.Customer.StartLimiter = nil
+	prove(board, account, unspent, 200)
 	h.Customer.SessionLimiter, h.Customer.UnknownLimiter, h.Customer.AddressLimiter, h.Customer.StartLimiter = nil, nil, nil, nil
 
 	// --- pickup: only when ready, only the payer, one use, short-lived, this branch and this order ---

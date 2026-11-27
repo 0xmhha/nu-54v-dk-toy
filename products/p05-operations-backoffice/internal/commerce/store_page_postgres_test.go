@@ -11,11 +11,13 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -23,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 )
@@ -247,6 +250,21 @@ func TestPostgresStorePage(t *testing.T) {
 		"control above ASCII":   func(p map[string]any) { p["intro"] = "a\u0085b" },
 		"delete character":      func(p map[string]any) { p["intro"] = "a\u007fb" },
 		"format char at an end": func(p map[string]any) { p["kind"] = "카페\u200b" },
+		// Characters that are neither format characters nor controls and still do not show, or show as a blank.
+		"hangul filler":         func(p map[string]any) { p["intro"] = "a\u3164b" },
+		"hangul filler alone":   func(p map[string]any) { p["kind"] = "\u3164" },
+		"choseong filler":       func(p map[string]any) { p["intro"] = "a\u115fb" },
+		"halfwidth filler":      func(p map[string]any) { p["intro"] = "a\uffa0b" },
+		"blank braille":         func(p map[string]any) { p["kind"] = "\u2800\u2800" },
+		"no-break space":        func(p map[string]any) { p["amenities"] = "100\u00a0석" },
+		"no-break space alone":  func(p map[string]any) { p["kind"] = "\u00a0" },
+		"ideographic space":     func(p map[string]any) { p["kind"] = "\u3000" },
+		"thin space":            func(p map[string]any) { p["intro"] = "a\u2009b" },
+		"variation selector":    func(p map[string]any) { p["intro"] = "a\ufe0fb" },
+		"variation selector 17": func(p map[string]any) { p["intro"] = "a\U000E0100b" },
+		"grapheme joiner":       func(p map[string]any) { p["intro"] = "a\u034fb" },
+		"mongolian selector":    func(p map[string]any) { p["intro"] = "a\u180bb" },
+		"spaces only":           func(p map[string]any) { p["kind"] = "   " },
 		"phone":                 func(p map[string]any) { p["phone"] = "call me" },
 		"six days":              func(p map[string]any) { p["hours"] = weekdays("10:00", "21:00")[:6] },
 		"bad time":              func(p map[string]any) { p["hours"] = weekdays("10:00", "24:00") },
@@ -262,10 +280,10 @@ func TestPostgresStorePage(t *testing.T) {
 			t.Fatalf("%s: %v", name, got)
 		}
 	}
-	// What shows is kept as written: other scripts, accents, a symbol and a no-break space are not format characters.
+	// What shows is kept as written: other scripts, accents, a symbol and a hyphen that does not break.
 	shown := page()
-	shown["intro"], shown["amenities"], shown["directions"] = "Café №1 ☕ 営業中", "Wi\u2011Fi · 100\u00a0석", "شارع ١"
-	if kept := write(ownCert, cafe, shown, 200); kept["intro"] != "Café №1 ☕ 営業中" || kept["amenities"] != "Wi\u2011Fi · 100\u00a0석" || kept["directions"] != "شارع ١" {
+	shown["intro"], shown["amenities"], shown["directions"] = "Café №1 ☕ 営業中", "Wi\u2011Fi · 100 석", "شارع ١"
+	if kept := write(ownCert, cafe, shown, 200); kept["intro"] != "Café №1 ☕ 営業中" || kept["amenities"] != "Wi\u2011Fi · 100 석" || kept["directions"] != "شارع ١" {
 		t.Fatalf("visible text was changed: %v", kept)
 	}
 	write(ownCert, cafe, page(), 200)
@@ -435,20 +453,41 @@ func TestPostgresStorePage(t *testing.T) {
 		"after=" + strings.ToUpper(cafe), "limit=1", "after=" + cafe + "%20"} {
 		read("/v2/customer/stores?"+query, 404)
 	}
-	// Going on from an unlisted store still works: it is only a place in the order of names.
+	// A place in the list is a store of the list. A store that is unlisted, or that took its page back, is none,
+	// and the answer is the one of a reference that is no store at all: it does not say that such a store exists.
+	noPlace := read("/v2/customer/stores?after="+fresh(), 400)
 	write(ownCert, cafe, unlisted, 200)
-	if after := read("/v2/customer/stores?after="+cafe, 200); after["stores"] == nil {
-		t.Fatalf("after an unlisted store: %v", after)
+	if after := read("/v2/customer/stores?after="+cafe, 400); !reflect.DeepEqual(after, noPlace) {
+		t.Fatalf("after an unlisted store: %v, after no store: %v", after, noPlace)
 	}
 	// Taking the page back closes it and takes it off the list, though it still says listed.
 	hidden := page()
 	hidden["published"] = false
 	write(ownCert, cafe, hidden, 200)
+	if after := read("/v2/customer/stores?after="+cafe, 400); !reflect.DeepEqual(after, noPlace) {
+		t.Fatalf("after a store that took its page back: %v, after no store: %v", after, noPlace)
+	}
 	closed("a store that took its page back", cafe)
 	if rows = listed(); len(rows) != 1 || rows[0]["branchRef"] != bakery {
 		t.Fatalf("a store that took its page back is listed: %v", rows)
 	}
 	write(ownCert, cafe, unlisted, 200)
+
+	// --- the store's registered name is shown to customers too, so it is one visible line like the page's text ---
+	rename := func(label string) error {
+		_, err := admin.Exec(ctx, "SELECT ledger.name_operator_branch($1,$2,$3,$4)", tenant, cafe, operator, label)
+		return err
+	}
+	for name, label := range map[string]string{"hangul filler": "\u3164", "fillers": "\u3164\u3164\u3164", "blank braille": "\u2800",
+		"zero width space inside": "여울\u200b커피", "no-break space": "여울\u00a0커피", "direction override": "여울 \u202e피커", "variation selector": "여울\ufe0f"} {
+		var refused *pgconn.PgError
+		if err := rename(label); !errors.As(err, &refused) || refused.Code != "23514" {
+			t.Fatalf("a name with a %s was saved: %v", name, err)
+		}
+	}
+	if err := rename("여울 커피 " + suffix); err != nil {
+		t.Fatalf("the store's own name was refused: %v", err)
+	}
 
 	// --- a store page is deleted with its branch, as its retention record says ---
 	gone := fresh()

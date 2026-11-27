@@ -75,6 +75,22 @@
         "expiresAt": 1764201600
       }
     },
+    "challenge-account": {
+      "status": 200,
+      "body": {
+        "challenge": "abababababababababababababababababababababababababababababababab",
+        "expiresAt": 1764201600
+      }
+    },
+    "challenge-not-public": {
+      "status": 400,
+      "body": {
+        "error": "BAD_REQUEST",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
     "hold-balance-short": {
       "status": 409,
       "body": {
@@ -98,12 +114,32 @@
         "status": "error"
       }
     },
+    "hold-cart-released": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "cart_released",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
     "hold-limit": {
       "status": 429,
       "retryAfter": 10,
       "body": {
         "error": "BUSY",
         "reason": "hold_limit",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
+    "hold-orders-closed": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "orders_closed",
         "requestDigest": "abababababababababababababababababababababababababababababababab",
         "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
         "status": "error"
@@ -233,6 +269,13 @@
         "pickupToken": "abababababababababababababababababababababababababababababababab",
         "purpose": "pickup",
         "saleRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3001"
+      }
+    },
+    "proof-account": {
+      "status": 200,
+      "body": {
+        "openOrders": 1,
+        "purpose": "account"
       }
     },
     "proof-checkout": {

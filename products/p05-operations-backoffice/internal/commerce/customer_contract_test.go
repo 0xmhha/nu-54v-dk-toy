@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -49,8 +50,9 @@ var (
 	customerContractPlain    = []string{"busy-rate", "busy-in-flight"}
 	customerContractDatabase = []string{"busy-rate-session", "challenge", "proof-checkout", "store-list-page", "store-list-last", "store-page", "store-page-busy",
 		"store-page-no-menu", "store-page-closed-day", "store-page-paused", "store-page-unpublished", "menu-unpublished", "photo-unpublished",
-		"menu-public", "menu-session", "hold-balance-unavailable", "hold-balance-short", "hold-limit", "hold-other-cart", "cancel-released",
-		"cancel-quote-issued", "cancel-paid", "cancel-not-found", "pickup-not-ready", "pickup-token", "pickup-collected"}
+		"menu-public", "menu-session", "hold-orders-closed", "hold-balance-unavailable", "hold-balance-short", "hold-limit", "hold-other-cart",
+		"hold-cart-released", "cancel-released", "cancel-quote-issued", "cancel-paid", "cancel-not-found", "pickup-not-ready", "pickup-token",
+		"pickup-collected", "challenge-not-public", "challenge-account", "proof-account"}
 )
 
 type customerContractAnswer struct {
@@ -250,7 +252,9 @@ func TestCustomerContractWithoutDatabase(t *testing.T) {
 	entrance := &CustomerEntrance{InFlight: make(chan struct{}, 1), InFlightWait: 5 * time.Millisecond}
 	entrance.InFlight <- struct{}{}
 	HTTP{Customer: entrance}.RegisterCustomer(full)
-	crowded := ask(full)
+	// A challenge that reads: only a request an app sends waits for a place among the requests served at once.
+	crowded := httptest.NewRecorder()
+	full.ServeHTTP(crowded, httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader(`{"purpose":"account"}`)))
 	run.take("busy-in-flight", crowded.Code, crowded.Header(), crowded.Body.Bytes(), nil)
 	run.settle()
 
@@ -526,16 +530,26 @@ func TestPostgresCustomerContract(t *testing.T) {
 		digest := sha256.Sum256(packed)
 		return command("order.create", ref, fresh(), map[string]string{"asset": asset, "quantity": "1", "intentDigest": hex.EncodeToString(digest[:])}, &cart)
 	}
-	take("hold-balance-unavailable", order(), bound)                                     // no chain reader: a cart is not held on trust
-	funds := &fakeFunds{asset: common.HexToAddress(asset), balance: big.NewInt(299_999)} // the tea costs 300000 base units
+	take("hold-orders-closed", order(), bound) // no chain reader for the store: a cart is not held on trust, and waiting does not help
+	funds := &fakeFunds{asset: common.HexToAddress(asset), err: errors.New("rpc down")}
 	h.Customer.Funds = funds
+	take("hold-balance-unavailable", order(), bound)    // the chain could not be read now
+	funds.err, funds.balance = nil, big.NewInt(299_999) // the tea costs 300000 base units
 	take("hold-balance-short", order(), bound)
-	h.Customer.HoldLimiter = NewRateLimiter(6, 1, nil)
+	h.Customer.HoldAttempts = NewRateLimiter(6, 1, nil)
 	order()
 	take("hold-limit", order(), bound)
-	h.Customer.HoldLimiter = nil
+	h.Customer.HoldAttempts = nil
 	funds.balance = big.NewInt(300_000)
-	held := order()
+	heldRef, heldKey := fresh(), fresh()
+	orderAs := func(ref, key string) reply {
+		t.Helper()
+		cart := Cart{Origin: "menu", OriginRef: ref, MenuVersion: 1, Items: []Item{{SKU: "tea", Option: "standard", Qty: 1}}}
+		packed, _ := json.Marshal(cart)
+		digest := sha256.Sum256(packed)
+		return command("order.create", ref, key, map[string]string{"asset": asset, "quantity": "1", "intentDigest": hex.EncodeToString(digest[:])}, &cart)
+	}
+	held := orderAs(heldRef, heldKey)
 	if held.status != 200 {
 		t.Fatalf("a cart its account can pay: %d %s", held.status, held.raw)
 	}
@@ -553,6 +567,8 @@ func TestPostgresCustomerContract(t *testing.T) {
 	run.replace = inSale(first)
 	take("cancel-released", cancel(first), nil)
 	take("cancel-not-found", cancel(fresh()), nil)
+	// The same cart request again, after the cart was taken back: not the closed order as if it were held.
+	take("hold-cart-released", orderAs(heldRef, heldKey), bound)
 	second := order()
 	if second.status != 200 {
 		t.Fatalf("a cart after the first was taken back: %d %s", second.status, second.raw)
@@ -594,6 +610,22 @@ func TestPostgresCustomerContract(t *testing.T) {
 		execute(`UPDATE ledger.travel_pickup_progress SET state='collected',revision=3,updated_at=now() WHERE sale_id=$1`, sale)
 	})
 	take("pickup-collected", prove("pickup", sale), map[string]any{"recordedAt": contractSeconds})
+
+	// --- a store that is not public gives no challenge, like a branch that does not exist ---
+	closed := take("challenge-not-public", send("POST", "/v2/customer/challenge", "", map[string]string{"purpose": "checkout", "branchRef": hidden}), nil)
+	if unknown := send("POST", "/v2/customer/challenge", "", map[string]string{"purpose": "checkout", "branchRef": nowhere}); unknown.status != closed.status || !bytes.Equal(unknown.raw, closed.raw) {
+		t.Fatalf("a store that is not public answers a challenge %d %q, a branch that does not exist %d %q", closed.status, closed.raw, unknown.status, unknown.raw)
+	}
+
+	// --- the account alone: how many of its orders are unfinished, and nothing else ---
+	asked := take("challenge-account", send("POST", "/v2/customer/challenge", "", map[string]string{"purpose": "account"}),
+		map[string]any{"challenge": contractDigest, "expiresAt": contractSeconds})
+	value, err := hex.DecodeString(asked.body["challenge"].(string))
+	if err != nil || len(value) != 32 {
+		t.Fatalf("account challenge: %s", asked.raw)
+	}
+	take("proof-account", send("POST", "/v2/customer/proof", "", map[string]string{"challenge": hex.EncodeToString(value), "account": strings.ToLower(account.Hex()),
+		"signature": hex.EncodeToString(signAccountProof(t, board, [32]byte(value)))}), nil)
 
 	// --- a session over its rate is refused like any other request: no word about the session ---
 	h.Customer.SessionLimiter = NewRateLimiter(20, 1, nil)

@@ -7,8 +7,12 @@
 --   payer_ NULL: the subject is not a proven account (a store-issued customer); there is no balance check.
 --   amount_ NULL: the reservation already answered this request key, or a line has no price in this menu version
 --     and asset; the reservation gives its own answer to both.
+--   released_: the reservation already answered this request key with an order, and that order is closed without a
+--     payment: its customer took it back (ledger.cancel_customer_hold) or its hold ran out. The answer kept for the
+--     key would hand that closed order back as if it were held, so opsd says instead that the cart was released and
+--     the app asks with a new key.
 CREATE FUNCTION ledger.customer_hold_check(tenant uuid, branch uuid, actor uuid, key_ uuid, menu_ bigint, asset_ text, lines jsonb)
-RETURNS TABLE(payer_ bytea, amount_ numeric)
+RETURNS TABLE(payer_ bytea, amount_ numeric, released_ boolean)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $check$
 DECLARE
     g ledger.commerce_grant := ledger.commerce_allowed(tenant, branch, actor);
@@ -16,17 +20,23 @@ DECLARE
     account bytea;
     total numeric;
     priced integer;
+    answered boolean;
+    prior uuid;
 BEGIN
     IF g.role_code IS DISTINCT FROM 'customer' THEN
         RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='order scope denied';
     END IF;
     SELECT a.payer INTO account FROM ledger.customer_account a WHERE a.actor_id = actor;
-    IF account IS NULL
-       OR EXISTS (SELECT FROM ledger.menu_reservation_outcome r
-                  WHERE r.branch_id = branch AND r.actor_id = actor AND r.request_key = key_)
-       OR EXISTS (SELECT FROM ledger.command_receipt r
-                  WHERE r.branch_id = branch AND r.scope_ref = actor AND r.operation = 'create_sale' AND r.request_key = key_) THEN
-        RETURN QUERY SELECT account, NULL::numeric;
+    SELECT true, r.sale_id INTO answered, prior FROM ledger.menu_reservation_outcome r
+     WHERE r.branch_id = branch AND r.actor_id = actor AND r.request_key = key_;
+    IF answered IS NULL THEN
+        SELECT true, r.result_ref INTO answered, prior FROM ledger.command_receipt r
+         WHERE r.branch_id = branch AND r.scope_ref = actor AND r.operation = 'create_sale' AND r.request_key = key_;
+    END IF;
+    IF account IS NULL OR answered THEN
+        RETURN QUERY SELECT account, NULL::numeric, account IS NOT NULL AND prior IS NOT NULL
+            AND EXISTS (SELECT FROM ledger.sale s WHERE s.id = prior AND s.branch_id = branch AND s.state = 'closed')
+            AND NOT EXISTS (SELECT FROM ledger.payment p WHERE p.sale_id = prior);
         RETURN;
     END IF;
     normalized := ledger.canonical_order_lines(lines);
@@ -37,7 +47,7 @@ BEGIN
     IF priced IS DISTINCT FROM jsonb_array_length(normalized) THEN
         total := NULL;
     END IF;
-    RETURN QUERY SELECT account, total;
+    RETURN QUERY SELECT account, total, false;
 END
 $check$;
 
@@ -100,6 +110,11 @@ $scan$;
 --   collected (pickup only): the order was handed over; expires_ carries the time the handover was recorded, since
 --     this outcome has no expiry to tell. No pickup token is made.
 -- The other outcomes are unchanged: ok, mismatch (the account is not the one the purpose requires) and not_ready.
+--
+-- Two more rules, both answered like a challenge that ran out (P0502): a store takes new customers only while its
+-- page is published (ledger.store_page_published), so a checkout proof for a store that is not gives no session; and
+-- only a challenge of one of the three purposes of migration 122 is accepted here (migration 126 adds one that asks
+-- about the account alone and has its own function).
 CREATE OR REPLACE FUNCTION ledger.prove_customer_account(hash_ bytea,payer_ bytea,actor_ uuid,generation_ bigint,token_ bytea,
     checkout_seconds_ integer,order_seconds_ integer,pickup_seconds_ integer)
 RETURNS TABLE(outcome_ text,purpose_ text,branch_ uuid,sale_ uuid,tenant_ uuid,expires_ timestamptz)
@@ -111,8 +126,11 @@ BEGIN
         RAISE EXCEPTION 'invalid proof' USING ERRCODE='23514';
     END IF;
     UPDATE ledger.customer_challenge x SET used_at=clock_timestamp()
-        WHERE x.challenge_hash=hash_ AND x.used_at IS NULL AND x.expires_at>clock_timestamp() RETURNING x.* INTO c;
-    IF NOT FOUND THEN RAISE EXCEPTION 'challenge unavailable' USING ERRCODE='P0502'; END IF;
+        WHERE x.challenge_hash=hash_ AND x.purpose IN ('checkout','order','pickup') AND x.used_at IS NULL
+          AND x.expires_at>clock_timestamp() RETURNING x.* INTO c;
+    IF NOT FOUND OR (c.purpose='checkout' AND NOT ledger.store_page_published(c.branch_id)) THEN
+        RAISE EXCEPTION 'challenge unavailable' USING ERRCODE='P0502';
+    END IF;
     SELECT b.tenant_ref INTO STRICT tenant FROM ledger.branch b WHERE b.id=c.branch_id;
 
     IF c.purpose='order' AND NOT EXISTS (SELECT FROM ledger.sale s JOIN ledger.quote_work q ON q.sale_id=s.id

@@ -35,18 +35,38 @@ import (
 // Purposes: "checkout" (before payment: the proven address is the customer account, with one unpaid hold per
 // account), "order" (the address paid this order: a session for that order only, until it ends) and "pickup" (the
 // address paid this ready order: a one-time QR token that staff scan on the order's page).
+//
+// A fourth purpose, "account", belongs to no store: its proof answers how many unfinished orders the account has, so
+// a phone that kept no record of them can still learn that its board must not be reset yet.
+//
+// The request limits (customer_limits.go) are laid out so that what costs a sender nothing is counted where the
+// customers behind the same address do not need it: a request the entrance cannot yet tell from a guess pays from
+// the address's allowance of failed attempts (FailLimiter, AddressLimiter), and one it recognises pays from the
+// allowance customers use (Limiter, LiveLimiter) or from one of its own account (StartLimiter, HoldAttempts).
 type CustomerEntrance struct {
-	// Limiter is the strict limit of each address on what needs no session: a challenge and a proof. ReadLimiter,
-	// PhotoLimiter and AddressLimiter fall back to it when they are not set.
+	// Limiter is the limit of each address on the challenges and proofs the entrance recognises as an app's: a
+	// challenge for a store it knows to be public, and a proof over a challenge it gave. ReadLimiter, PhotoLimiter,
+	// AddressLimiter and FailLimiter fall back to it when they are not set.
 	Limiter *RateLimiter
+	// FailLimiter is the strict limit of each address on challenges and proofs that fail in a way no app's request
+	// does: a body that does not read, a store that is not public, a signature that is not the account's, a
+	// challenge the server does not hold. A request that cannot be told from those yet pays here first and gets
+	// it back when it turns out well; a recognised one never needs it. Nil counts every challenge and proof under
+	// Limiter alone.
+	FailLimiter *RateLimiter
 	// ReadLimiter is the limit of each address on the public reads: the store list, a store page and a menu page.
 	ReadLimiter *RateLimiter
 	// PhotoLimiter is the limit of each address on public menu photo parts; nil leaves them under ReadLimiter.
 	PhotoLimiter *RateLimiter
-	// AddressLimiter is the ceiling of each address over every request that carries a session token. It is counted
-	// before the token is looked up, so a refused request never reaches the database, and no number of sessions,
-	// live or made up, takes one address past it.
+	// AddressLimiter is the ceiling of each address over requests whose session token the server has not lately
+	// seen live. It is counted before the token is looked up, so a refused request never reaches the database, and
+	// no number of made-up tokens takes one address past it.
 	AddressLimiter *RateLimiter
+	// LiveLimiter is the ceiling of each address over requests whose session token was lately live: given by a
+	// proof of this process, or found live by an earlier lookup. Made-up tokens cannot use it up, so they do not
+	// stop a customer who is paying; opening more sessions gives an address no more requests either. Nil counts
+	// those requests under AddressLimiter too.
+	LiveLimiter *RateLimiter
 	// SessionLimiter is the limit of each live session on its own requests, counted after the lookup. Customers
 	// behind one address, such as a store's wireless network, do not share it; they share AddressLimiter.
 	SessionLimiter *RateLimiter
@@ -54,16 +74,24 @@ type CustomerEntrance struct {
 	// session. It is apart from Limiter, so phones with expired sessions behind one address do not use up the
 	// proofs that address needs to get new ones. Nil leaves such tokens to AddressLimiter alone.
 	UnknownLimiter *RateLimiter
-	// StartLimiter is the limit of each address on the challenges that can end in a session (checkout and order),
-	// and so on the sessions and the new proven accounts one address starts in a time window. Pickup challenges are
-	// not counted: they end in a QR, and a waiting customer renews it every minute.
+	// StartLimiter is the limit of each proven account, at each address, on the sessions it starts: it is counted
+	// only for a proof that gave a checkout or an order session. A pickup QR and the count of unfinished orders are
+	// not sessions. One account cannot use up another's, and a request without a valid signature never reaches it.
 	StartLimiter *RateLimiter
-	// HoldLimiter is the limit of each address on the carts its sessions ask to hold. One proven account holds one
-	// unpaid cart at a time (migration 122); this bounds how many accounts of one address hold stock at once.
+	// HoldAttempts is the limit of each proven account, at each address, on the carts it asks to hold: each one
+	// reads the chain. A request the reservation already answered is not counted.
+	HoldAttempts *RateLimiter
+	// HoldLimiter is the limit of each address on the carts its accounts come to hold: it is counted only for a cart
+	// whose account had the balance and whose stock was held. One proven account holds one unpaid cart at a time
+	// (migration 122); this bounds how many funded accounts of one address take stock in a time window.
 	HoldLimiter *RateLimiter
 	// Funds reads a proven account's balance before its cart holds stock (customer_funds.go). Without it no cart
 	// of a proven account is held.
 	Funds PayerFunds
+	// BalanceReads is how many balance reads may wait for the chain at once: its capacity is the cap, and nil sets
+	// none. A chain that answers slowly then holds that many of the places in InFlight and no more, so menus and
+	// store pages are still read. A cart that finds no place is refused like one whose balance could not be read.
+	BalanceReads chan struct{}
 	// Gate, when set, wraps what a request does once it is admitted. opsd passes the recovery gate, whose lease
 	// holds a connection of the control database for as long as the handler runs. A request enters it only after
 	// its address passed the rate limit, its body was read and it took a place in InFlight, so a refused request,
@@ -85,6 +113,11 @@ type CustomerEntrance struct {
 	OperatorContact string
 	// ListPage is how many stores one page of the store list holds; zero, or more than 200, is 200.
 	ListPage int
+	// What the entrance remembers in memory to recognise a request before it reads the database: the stores it
+	// lately saw public, the challenges it gave and has not seen proven, and the session tokens it lately saw live.
+	// All three are bounded and are forgotten with the process; a request they do not know is only counted more
+	// strictly, never refused for that alone.
+	published, issued, live recentSet
 }
 
 const (
@@ -124,65 +157,6 @@ func verifyAccountProof(account common.Address, challenge [32]byte, signature []
 	return orderescrow.SignedBy(orderescrow.AccountProofDigest(account, challenge), signature, account)
 }
 
-// RateLimiter is a token bucket per client key. It keeps at most limiterClients keys and forgets full buckets first.
-type RateLimiter struct {
-	mu      sync.Mutex
-	perSec  float64
-	burst   float64
-	now     func() time.Time
-	clients map[string]*bucket
-}
-
-type bucket struct {
-	tokens float64
-	at     time.Time
-}
-
-const limiterClients = 10_000
-
-// NewRateLimiter allows perMinute requests a minute and burst at once for each client. now may be nil.
-func NewRateLimiter(perMinute, burst int, now func() time.Time) *RateLimiter {
-	if now == nil {
-		now = time.Now
-	}
-	return &RateLimiter{perSec: float64(perMinute) / 60, burst: float64(burst), now: now, clients: map[string]*bucket{}}
-}
-
-func (l *RateLimiter) Allow(key string) bool {
-	allowed, _ := l.Take(key)
-	return allowed
-}
-
-// Take is Allow with the time after which a refused client has one request again.
-func (l *RateLimiter) Take(key string) (bool, time.Duration) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	now := l.now()
-	oneRequest := time.Duration(float64(time.Second) / l.perSec)
-	b, ok := l.clients[key]
-	if !ok {
-		if len(l.clients) >= limiterClients {
-			for k, old := range l.clients {
-				if old.tokens+now.Sub(old.at).Seconds()*l.perSec >= l.burst {
-					delete(l.clients, k)
-				}
-			}
-			if len(l.clients) >= limiterClients {
-				return false, oneRequest // every known client is still limited: refuse newcomers until some refill
-			}
-		}
-		b = &bucket{tokens: l.burst, at: now}
-		l.clients[key] = b
-	}
-	b.tokens = min(l.burst, b.tokens+now.Sub(b.at).Seconds()*l.perSec)
-	b.at = now
-	if b.tokens < 1 {
-		return false, time.Duration((1 - b.tokens) / l.perSec * float64(time.Second))
-	}
-	b.tokens--
-	return true, 0
-}
-
 // LimitedCount counts the requests the entrance refused for their rate, by kind.
 type LimitedCount struct {
 	mu     sync.Mutex
@@ -198,10 +172,12 @@ func (c *LimitedCount) add(kind string) {
 	c.counts[kind]++
 }
 
-// Drain returns the counts since the last call, by kind: "proof", "read", "photo", "address" (the ceiling of one
-// address over session requests), "session" (one session's own limit), "unknown" (session tokens the server does not
-// know), "start" (challenges that can end in a session), "hold" (carts an address asked to hold) and "busy" (no
-// place among the requests served at once).
+// Drain returns the counts since the last call, by kind: "proof" (challenges and proofs of an address), "failed"
+// (failed attempts of an address), "read", "photo", "address" (session tokens of an address not lately seen live),
+// "live" (the ceiling of an address over its live sessions), "session" (one session's own limit), "unknown" (session
+// tokens the server does not know), "start" (sessions one account started), "hold" (carts an account asked to hold,
+// or an address came to hold), "balance" (no place among the balance reads) and "busy" (no place among the requests
+// served at once).
 func (c *LimitedCount) Drain() map[string]int64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -257,10 +233,14 @@ func (c *CustomerEntrance) admitted(next http.Handler) http.Handler {
 // clientKey is the peer a limit counts for, without its port. An IPv4 address is one client. An IPv6 client is its
 // /64: a network hands one customer a whole /64, so counting each address apart would give one device as many
 // allowances as it has addresses. Behind a proxy every customer shares the proxy's address (see the report).
-func clientKey(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+func clientKey(r *http.Request) string { return ClientAddressKey(r.RemoteAddr) }
+
+// ClientAddressKey is the key a peer address is counted under (clientKey): opsd counts the connections of the
+// customer listener under the same one.
+func ClientAddressKey(remote string) string {
+	host, _, err := net.SplitHostPort(remote)
 	if err != nil {
-		host = r.RemoteAddr
+		host = remote
 	}
 	address, err := netip.ParseAddr(host)
 	if err != nil {
@@ -301,9 +281,6 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		}
 		return nil
 	}
-	proof := func(next http.HandlerFunc) http.Handler {
-		return limited("proof", func() *RateLimiter { return h.Customer.Limiter }, next)
-	}
 	limit := func(next http.HandlerFunc) http.Handler {
 		return limited("read", func() *RateLimiter { return first(h.Customer.ReadLimiter, h.Customer.Limiter) }, next)
 	}
@@ -314,14 +291,32 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = io.WriteString(w, "ok\n")
 	})
-	mux.Handle("POST /v2/customer/challenge", proof(h.customerChallenge))
-	mux.Handle("POST /v2/customer/proof", proof(h.customerProof))
+	// A challenge and a proof are read and counted before they are admitted (customer_limits.go): what they are
+	// decides which allowance they use.
+	mux.Handle("POST /v2/customer/challenge", h.Customer.attempted(h.Customer.askedChallenge, h.customerChallenge))
+	mux.Handle("POST /v2/customer/proof", h.Customer.attempted(h.Customer.askedProof, h.customerProof))
 	// A request with a session token is counted for its address here, before the token is looked up, and for its
-	// session once that is known (customerCommerce).
-	sessions := func() *RateLimiter { return first(h.Customer.AddressLimiter, h.Customer.Limiter) }
-	mux.Handle("POST /v2/customer/commerce", limited("address", sessions, h.customerCommerce))
+	// session once that is known (customerCommerce). A token lately seen live has the ceiling of live sessions;
+	// any other has the stricter one of tokens the server may not know.
+	sessions := func(next http.HandlerFunc) http.Handler {
+		admitted := h.Customer.admitted(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			limiter, kind := first(h.Customer.AddressLimiter, h.Customer.Limiter), "address"
+			if hash, ok := bearerHash(r); ok && h.Customer.LiveLimiter != nil && h.Customer.live.has(string(hash[:]), time.Now()) {
+				limiter, kind = h.Customer.LiveLimiter, "live"
+			}
+			if limiter != nil {
+				if allowed, wait := limiter.Take(clientKey(r)); !allowed {
+					h.Customer.tooMany(w, kind, wait)
+					return
+				}
+			}
+			admitted.ServeHTTP(w, r)
+		})
+	}
+	mux.Handle("POST /v2/customer/commerce", sessions(h.customerCommerce))
 	// A checkout session takes back the cart it has not paid. Counted like any other request of a session.
-	mux.Handle("POST /v2/customer/checkout/cancel", limited("address", sessions, h.customerCancel))
+	mux.Handle("POST /v2/customer/checkout/cancel", sessions(h.customerCancel))
 	// The store list and a store page are read before any proof: public data only, under the same limit.
 	mux.Handle("GET /v2/customer/stores", limit(h.customerStores))
 	mux.Handle("GET /v2/customer/stores/{branch}", limit(h.customerStore))
@@ -344,44 +339,56 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, limit int64, into any)
 var customerHex32 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var customerAccount = regexp.MustCompile(`^0x[0-9a-f]{40}$`)
 
+// customerChallenge gives a one-time value for the board to sign. The request was read and counted before it was
+// admitted (askedChallenge).
 func (h HTTP) customerChallenge(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Purpose string `json:"purpose"`
-		Branch  string `json:"branchRef"`
-		Sale    string `json:"saleRef,omitempty"`
-	}
-	if !decodeStrict(w, r, 512, &in) || !operatorRef.MatchString(in.Branch) || !slices.Contains([]string{"checkout", "order", "pickup"}, in.Purpose) ||
-		(in.Purpose == "checkout") != (in.Sale == "") || (in.Sale != "" && !operatorRef.MatchString(in.Sale)) {
+	try := attemptOf(r)
+	in := try.challenge
+	if in == nil {
 		errorResponse(w, service.BadRequest, nil)
 		return
 	}
-	// A checkout or order challenge is the start of a session: each address has a limit on those of its own.
-	if limiter := h.Customer.StartLimiter; limiter != nil && in.Purpose != "pickup" {
-		if allowed, wait := limiter.Take(clientKey(r)); !allowed {
-			h.Customer.tooMany(w, "start", wait)
-			return
-		}
-	}
 	if h.Store == nil {
+		try.settle(true, false)
 		http.NotFound(w, r)
 		return
 	}
 	challenge, err := freshId()
 	if err != nil {
+		try.settle(true, false)
 		errorResponse(w, service.Unknown, nil)
 		return
 	}
 	hash := sha256.Sum256(challenge[:])
-	var sale *string
+	var branch, sale *string
+	if in.Branch != "" {
+		branch = &in.Branch
+	}
 	if in.Sale != "" {
 		sale = &in.Sale
 	}
 	seconds := int(lifetime(h.Customer.ChallengeLifetime, defaultChallengeLifetime) / time.Second)
 	var expires time.Time
 	if err = h.Store.db.QueryRow(r.Context(), "SELECT ledger.issue_customer_challenge($1,$2,$3,$4,$5)",
-		in.Branch, in.Purpose, sale, hash[:], seconds).Scan(&expires); err != nil {
-		errorResponse(w, customerError(err), nil)
+		branch, in.Purpose, sale, hash[:], seconds).Scan(&expires); err != nil {
+		err = customerError(err)
+		// A store that is not public, or no store at all: the attempt failed, and the store is forgotten as public.
+		refused := service.CodeOf(err) == service.BadRequest || service.CodeOf(err) == service.Forbidden
+		if refused {
+			h.Customer.published.drop(in.Branch)
+			h.Customer.published.drop(in.Branch + "/" + in.Sale)
+		}
+		try.settle(!refused, false)
+		errorResponse(w, err, nil)
 		return
+	}
+	try.settle(true, false)
+	h.Customer.issued.put(string(hash[:]), expires, in.Purpose)
+	switch in.Purpose {
+	case "checkout":
+		h.Customer.sawPublished(in.Branch) // only a published store gives a checkout challenge
+	case "order", "pickup":
+		h.Customer.sawPublished(in.Branch + "/" + in.Sale) // the next challenge for this order is recognised
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"challenge": hex.EncodeToString(challenge[:]), "expiresAt": expires.Unix()})
 }
@@ -407,63 +414,77 @@ type customerProofReply struct {
 	ExpiresAt   int64  `json:"expiresAt"`
 }
 
-// customerProof accepts the board's signature over one challenge and answers with an order session or a pickup token.
+// accountOrdersReply is all the proof of an `account` challenge answers: how many orders of the proven account are
+// unfinished, at any store. It names no order, no store and no amount.
+type accountOrdersReply struct {
+	Purpose    string `json:"purpose"`
+	OpenOrders int    `json:"openOrders"`
+}
+
+// customerProof accepts the board's signature over one challenge and answers with an order session, a pickup token
+// or, for an `account` challenge, the number of unfinished orders of the account. The request was read, its
+// signature checked and the request counted before it was admitted (askedProof).
 func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Challenge  string `json:"challenge"`
-		Account    string `json:"account"`
-		Signature  string `json:"signature"`
-		Generation string `json:"generation,omitempty"`
-	}
-	if !decodeStrict(w, r, 1024, &in) || !customerHex32.MatchString(in.Challenge) || !customerAccount.MatchString(in.Account) {
+	try := attemptOf(r)
+	in := try.proof
+	if in == nil {
 		errorResponse(w, service.BadRequest, nil)
 		return
 	}
-	signature, err := hex.DecodeString(in.Signature)
-	if err != nil || len(signature) != 65 || hex.EncodeToString(signature) != in.Signature {
-		errorResponse(w, service.BadRequest, nil)
-		return
-	}
-	var generation *int64
-	if in.Generation != "" {
-		value, err := strconv.ParseInt(in.Generation, 10, 64)
-		if err != nil || value <= 0 || strconv.FormatInt(value, 10) != in.Generation {
-			errorResponse(w, service.BadRequest, nil)
-			return
-		}
-		generation = &value
-	}
-	raw, _ := hex.DecodeString(in.Challenge)
-	challenge := [32]byte(raw)
-	account := common.HexToAddress(in.Account)
-	// A signature that does not recover to the account leaves the challenge unused: only its own board can spend it.
-	if !verifyAccountProof(account, challenge, signature) {
-		errorResponse(w, service.Mismatch, nil)
-		return
-	}
+	challenge, account := in.challenge, in.account
+	challengeHash := sha256.Sum256(challenge[:])
+	// The challenge is used up by whatever comes next; a second proof over it is no longer one the entrance gave.
+	h.Customer.issued.drop(string(challengeHash[:]))
 	if h.Store == nil {
+		try.settle(true, false)
 		http.NotFound(w, r)
 		return
 	}
 	token, err := freshId()
 	if err != nil {
+		try.settle(true, false)
 		errorResponse(w, service.Unknown, nil)
 		return
 	}
-	challengeHash, tokenHash := sha256.Sum256(challenge[:]), sha256.Sum256(token[:])
+	tokenHash := sha256.Sum256(token[:])
+	// An `account` challenge, or one this process does not remember giving: asked first as an account challenge,
+	// which leaves every other challenge untouched.
+	if in.purpose == "account" || in.purpose == "" {
+		var open *int
+		if err = h.Store.db.QueryRow(r.Context(), "SELECT ledger.prove_account_orders($1,$2)", challengeHash[:], account[:]).Scan(&open); err != nil {
+			try.settle(true, false)
+			errorResponse(w, customerError(err), nil)
+			return
+		}
+		if open != nil {
+			try.settle(true, false)
+			writeJSON(w, http.StatusOK, accountOrdersReply{Purpose: "account", OpenOrders: *open})
+			return
+		}
+		if in.purpose == "account" {
+			try.settle(false, false)
+			errorResponse(w, service.Expired, nil)
+			return
+		}
+	}
 	subject := CustomerSubject(account)
 	seconds := func(set, fallback time.Duration) int { return int(lifetime(set, fallback) / time.Second) }
 	var outcome, purpose, branchRef string
 	var sale, tenantRef *string
 	var expires *time.Time
 	err = h.Store.db.QueryRow(r.Context(), "SELECT outcome_,purpose_,branch_::text,sale_::text,tenant_::text,expires_ FROM ledger.prove_customer_account($1,$2,$3,$4,$5,$6,$7,$8)",
-		challengeHash[:], account[:], subject, generation, tokenHash[:],
+		challengeHash[:], account[:], subject, in.generation, tokenHash[:],
 		seconds(h.Customer.CheckoutLifetime, defaultCheckoutLifetime), seconds(h.Customer.OrderLifetime, defaultOrderLifetime),
 		seconds(h.Customer.PickupLifetime, defaultPickupLifetime)).Scan(&outcome, &purpose, &branchRef, &sale, &tenantRef, &expires)
 	if err != nil {
-		errorResponse(w, customerError(err), nil)
+		err = customerError(err)
+		// A challenge the server does not hold is a failed attempt; any other refusal was about a real challenge.
+		try.settle(service.CodeOf(err) != service.Expired, false)
+		errorResponse(w, err, nil)
 		return
 	}
+	started := outcome == "ok" && purpose != "pickup" && expires != nil
+	try.settle(true, started)
 	if status, refusal, refused := proofRefusal(outcome, expires); refused {
 		writeJSON(w, status, refusal)
 		return
@@ -489,6 +510,7 @@ func (h HTTP) customerProof(w http.ResponseWriter, r *http.Request) {
 		reply.PickupToken = hex.EncodeToString(token[:])
 	} else {
 		reply.Session, reply.Subject, reply.Tenant = hex.EncodeToString(token[:]), subject, *tenantRef
+		h.Customer.sawLive(tokenHash, *expires) // the session is known from its first request on
 	}
 	writeJSON(w, http.StatusOK, reply)
 }
@@ -656,11 +678,14 @@ func (h HTTP) liveSession(w http.ResponseWriter, r *http.Request) (customerSessi
 		refuse()
 		return customerSession{}, false
 	}
+	hash := sha256.Sum256(token)
 	session, err := lookup(r.Context(), token)
 	if err != nil || !time.Now().Before(session.ExpiresAt) {
+		h.Customer.live.drop(string(hash[:]))
 		refuse()
 		return customerSession{}, false
 	}
+	h.Customer.sawLive(hash, session.ExpiresAt)
 	// A live session has its own allowance, whatever address it comes from.
 	if limiter := h.Customer.SessionLimiter; limiter != nil {
 		if allowed, wait := limiter.Take(session.Actor + "/" + session.Branch + "/" + session.Purpose + "/" + session.Sale); !allowed {

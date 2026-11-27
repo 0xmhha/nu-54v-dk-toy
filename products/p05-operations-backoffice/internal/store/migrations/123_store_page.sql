@@ -23,16 +23,24 @@ $hours$;
 
 -- Text a store publishes is one line of characters a customer can see. It holds no control character (Unicode
 -- category Cc), no format character (Cf: zero-width spaces and joiners, the marks that reorder text, the soft hyphen,
--- the byte order mark, tags) and no line or paragraph separator (Zl, Zp): none of them shows, and they can make a
--- page read as something the store did not write. The code points are listed, so the answer is the same under any
--- locale of the database.
+-- the byte order mark, tags), no line or paragraph separator (Zl, Zp), no other character a display leaves out
+-- (Default_Ignorable_Code_Point: the Hangul fillers, variation selectors, the combining grapheme joiner) and no
+-- blank other than the ordinary space (the no-break space and the other Zs spaces, the blank Braille pattern). None
+-- of them shows, and they can make a page read as something the store did not write, or a name that is nothing but
+-- blanks. Text that is not empty also holds at least one character that is not a space. The code points are listed,
+-- so the answer is the same under any locale of the database; the operations web holds the same list
+-- (web/src/storePageForm.ts) and opsd too (commerce/visible_text.go).
 CREATE FUNCTION ledger.store_text_plain(value text) RETURNS boolean
 LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,pg_temp AS $plain$
     SELECT value !~ ('[\u0001-\u001F\u007F-\u009F'                                               -- Cc
         || '\u00AD\u0600-\u0605\u061C\u06DD\u070F\u0890\u0891\u08E2\u180E\u200B-\u200F'    -- Cf
         || '\u2028-\u202E'                                                                        -- Zl, Zp, Cf
         || '\u2060-\u206F\uFEFF\uFFF9-\uFFFB\U000110BD\U000110CD\U00013430-\U0001343F'         -- Cf
-        || '\U0001BCA0-\U0001BCA3\U0001D173-\U0001D17A\U000E0001\U000E0020-\U000E007F]')        -- Cf
+        || '\U0001BCA0-\U0001BCA3\U0001D173-\U0001D17A'                                           -- Cf
+        || '\u034F\u115F\u1160\u17B4\u17B5\u180B-\u180D\u180F\u3164\uFE00-\uFE0F\uFFA0'       -- default ignorable
+        || '\uFFF0-\uFFF8\U000E0000-\U000E0FFF'                                                  -- default ignorable, tags
+        || '\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\u2800]')                              -- blanks but the space
+        AND (value = '' OR value ~ '[^ ]')
 $plain$;
 
 CREATE TABLE ledger.branch_store_page (
@@ -144,7 +152,10 @@ DECLARE
     page jsonb;
 BEGIN
     IF after_ IS NOT NULL THEN
-        SELECT n.label INTO from_ FROM ledger.operator_branch_label n WHERE n.branch_id = after_;
+        -- The place to go on from is a store of the list itself. A store that is not published and listed is no
+        -- place in it, whether or not it exists: the answer does not tell the two apart.
+        SELECT n.label INTO from_ FROM ledger.operator_branch_label n JOIN ledger.branch_store_page p ON p.branch_id = n.branch_id
+         WHERE n.branch_id = after_ AND p.published AND p.listed;
         IF from_ IS NULL THEN
             RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'invalid list position';
         END IF;
