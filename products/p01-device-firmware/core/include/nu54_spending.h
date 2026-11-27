@@ -36,7 +36,9 @@ void nu54_spend_return_preimage(const uint8_t token[20], const uint8_t from[20],
 
 /* An approved order can still execute until its authorization ends, so a reset or a return waits.
  * Without trusted time (no grant since boot) or for an unreadable record the board counts from
- * boot, which outlasts NU54_ORDER_MAX_SECONDS. So neither can hold a reset back forever. */
+ * boot, which outlasts NU54_ORDER_MAX_SECONDS. So neither can hold a reset back forever. The
+ * caller applies the same count from boot to every record of an earlier start
+ * (app/src/device_order.c): a grant kept through a restart brings a clock that may be late. */
 #define NU54_SPEND_ORDER_LIFE_MS INT64_C(240000)
 bool nu54_spend_order_open(nu54_order_read, void *context, uint64_t earliest, int64_t uptime_ms);
 

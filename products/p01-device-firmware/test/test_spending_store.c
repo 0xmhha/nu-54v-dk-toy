@@ -684,6 +684,39 @@ static void test_open_orders_hold_a_reset_back(void)
 	assert(!device_order_store(1, &record) && !device_order_open(499, 0));
 }
 
+/* A grant kept through a restart brings a clock that is late by what the board lost, so by that
+ * clock an order from before the restart looks open for longer than it can execute. Such an order
+ * holds a reset and a return back for one order life of running time, whatever the clock says.
+ * An order answered since the start is judged by the clock that ran with it. */
+static void test_orders_of_an_earlier_start(void)
+{
+	nu54_order_record record = {.expires = 1500, .outcome = NU54_ORDER_APPROVED};
+	memset(&flash, 0, sizeof(flash));
+	device_order_start();
+	assert(!device_order_store(1, &record));
+	assert(device_order_open(1499, 1 << 30) && !device_order_open(1500, 1 << 30));
+	device_order_start(); /* a restart; the board continues from a time 700 seconds before the order's end */
+	assert(device_order_open(800, 0) && device_order_open(800, NU54_SPEND_ORDER_LIFE_MS - 1));
+	assert(!device_order_open(800, NU54_SPEND_ORDER_LIFE_MS) && !device_order_open(1500, 0));
+
+	/* The owner's phone moves the clock past the order's end. The order stays open for as long as
+	 * it could have run: to the end of the first order life for one from before the start. */
+	device_order_hold_open(800, 1000);
+	assert(device_order_open(9000, NU54_SPEND_ORDER_LIFE_MS - 1) && !device_order_open(9000, NU54_SPEND_ORDER_LIFE_MS));
+	/* And for the longest an order runs, from the move on, for one answered since the start. */
+	device_order_start();
+	record.expires = 20000;
+	assert(!device_order_store(2, &record) && device_order_open(19999, 500000) && !device_order_open(20000, 500000));
+	device_order_hold_open(19990, 500000);
+	assert(device_order_open(90000, 500000 + NU54_ORDER_MAX_SECONDS * 1000 - 1));
+	assert(!device_order_open(90000, 500000 + NU54_ORDER_MAX_SECONDS * 1000));
+	/* Nothing was open at the move: nothing is held. */
+	device_order_start();
+	device_order_hold_open(20000, 1000);
+	assert(!device_order_open(20000, 1001));
+	device_order_start();
+}
+
 int main(void)
 {
 	assert(device_spending_enroll() && !device_spending_address()); /* nothing before the stored state was read */
@@ -698,6 +731,7 @@ int main(void)
 	test_return_address_is_set_once();
 	test_wrong_pins_wait_and_never_erase();
 	test_open_orders_hold_a_reset_back();
+	test_orders_of_an_earlier_start();
 	test_reset_survives_power_loss_everywhere();
 	puts("spending store ok");
 	return 0;

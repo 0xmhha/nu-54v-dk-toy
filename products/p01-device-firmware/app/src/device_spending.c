@@ -131,6 +131,7 @@ int device_spending_init(void)
 	const nu54_vault *vault = device_vault_owner();
 	ready = false;
 	forget_wallet();
+	device_order_start();
 	int pending = load(SPEND_RESET_UID, &mark, sizeof(mark));
 	if (pending < 0 || (!pending && (mark != SPEND_RESET_MARK || device_spending_erase())) || !vault->enabled) return -1;
 	if (owner_absent(vault)) {

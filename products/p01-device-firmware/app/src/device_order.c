@@ -6,6 +6,12 @@
 #define ORDER_RECORD_UID ((psa_storage_uid_t)0x5550)
 #define ORDER_SPENDING_UID ((psa_storage_uid_t)0x5561)
 _Static_assert(sizeof(nu54_order_record) <= 128, "P01 order record exceeds ITS limit");
+_Static_assert(NU54_ORDER_RECORDS < 32, "one bit per order record");
+
+/* Which records were written since this start, and until when (board running time) an order stays
+ * open whatever the clock says. */
+static uint32_t answered_now;
+static int64_t held_open_until;
 
 static int load(void *context, unsigned slot, nu54_order_record *out)
 {
@@ -25,7 +31,25 @@ int device_order_find(uint64_t earliest, const uint8_t request[16], const uint8_
 int device_order_store(unsigned slot, const nu54_order_record *record)
 {
 	if (!slot || slot > NU54_ORDER_RECORDS) return -1;
+	/* Marked first: a write that fails may still have reached the storage. */
+	answered_now |= UINT32_C(1) << slot;
 	return psa_its_set(ORDER_RECORD_UID + slot, sizeof(*record), record, PSA_STORAGE_FLAG_NONE) == PSA_SUCCESS ? 0 : -1;
+}
+
+void device_order_start(void)
+{
+	answered_now = 0;
+	held_open_until = 0;
+}
+
+static int load_of_this_start(void *context, unsigned slot, nu54_order_record *out)
+{
+	return answered_now & (UINT32_C(1) << slot) ? load(context, slot, out) : 1;
+}
+
+static int load_of_earlier_starts(void *context, unsigned slot, nu54_order_record *out)
+{
+	return answered_now & (UINT32_C(1) << slot) ? 1 : load(context, slot, out);
 }
 
 static int load_total(nu54_order_spending *saved)
@@ -62,9 +86,33 @@ int device_order_charge(uint64_t earliest, uint64_t amount)
 	return psa_its_set(ORDER_SPENDING_UID, sizeof(next), &next, PSA_STORAGE_FLAG_NONE) == PSA_SUCCESS ? 0 : -1;
 }
 
+/* An order answered since this start is judged by the board's time, which ran with it. */
+static bool open_of_this_start(uint64_t earliest, int64_t uptime_ms)
+{
+	return nu54_spend_order_open(load_of_this_start, NULL, earliest, uptime_ms);
+}
+
+/* One from before this start was signed at least as long ago as the board has run, and it could
+ * execute for NU54_ORDER_MAX_SECONDS at most. The board's time does not tell how long ago that
+ * was: it stood still without power and lost what passed since its last save. So such an order
+ * counts as open only while the board has run for less than one order life. */
+static bool open_of_earlier_starts(uint64_t earliest, int64_t uptime_ms)
+{
+	return uptime_ms < NU54_SPEND_ORDER_LIFE_MS && nu54_spend_order_open(load_of_earlier_starts, NULL, earliest, uptime_ms);
+}
+
+void device_order_hold_open(uint64_t earliest, int64_t uptime_ms)
+{
+	int64_t until = 0;
+	if (open_of_this_start(earliest, uptime_ms)) until = uptime_ms + NU54_ORDER_MAX_SECONDS * INT64_C(1000);
+	else if (open_of_earlier_starts(earliest, uptime_ms)) until = NU54_SPEND_ORDER_LIFE_MS;
+	if (until > held_open_until) held_open_until = until;
+}
+
 bool device_order_open(uint64_t earliest, int64_t uptime_ms)
 {
-	return nu54_spend_order_open(load, NULL, earliest, uptime_ms);
+	return uptime_ms < held_open_until || open_of_this_start(earliest, uptime_ms) ||
+	       open_of_earlier_starts(earliest, uptime_ms);
 }
 
 int device_order_erase(void)
