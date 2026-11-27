@@ -105,3 +105,51 @@ contract CoinView {
         return true;
     }
 }
+
+/// @notice A token that shows and moves the same balances at a second address, the way a chain could show
+/// its coin as a token in two places. Never deployed.
+contract TwoViewToken {
+    uint8 public constant decimals = 2;
+    address public immutable second;
+    mapping(address => uint256) public balanceOf;
+
+    constructor() {
+        second = address(new SecondView(this));
+    }
+
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _move(msg.sender, to, amount);
+        return true;
+    }
+
+    function moveFor(address from, address to, uint256 amount) external {
+        require(msg.sender == second, "two views: not the second view");
+        _move(from, to, amount);
+    }
+
+    function _move(address from, address to, uint256 amount) private {
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+    }
+}
+
+contract SecondView {
+    TwoViewToken internal immutable first;
+
+    constructor(TwoViewToken first_) {
+        first = first_;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return first.balanceOf(account);
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        first.moveFor(msg.sender, to, amount);
+        return true;
+    }
+}

@@ -73,6 +73,7 @@ contract WonPool is ChargeGovernance {
     bytes32 private constant WITHDRAW = keccak256("withdraw");
     bytes32 private constant RAISE_LIMITS = keccak256("raiseLimits");
     bytes32 private constant ADD_ORIGIN = keccak256("addOrigin");
+    bytes32 private constant RETURN_TOKEN = keccak256("returnToken");
     bytes32 private constant TOTAL = keccak256("total");
     bytes32 private constant FAST = keccak256("fast");
     bytes32 private constant BOARD = keccak256("board");
@@ -110,6 +111,7 @@ contract WonPool is ChargeGovernance {
     event LimitsChanged(Limits limits);
     event PaysPausedSet(bool paused);
     event Withdrawn(address indexed treasury, uint256 assetAmount);
+    event TokenReturned(address indexed token, address indexed treasury, uint256 amount);
     event CoinReceived(address indexed from, uint256 amount);
 
     error WrongChain();
@@ -318,11 +320,23 @@ contract WonPool is ChargeGovernance {
         _send(asset, treasury, assetAmount);
     }
 
+    /// @notice Another token that came here by mistake goes to the treasury, after two signers and a day.
+    /// The asset itself leaves only by `pay` and `withdraw`: it is refused here, and a token that moves the
+    /// pool's asset under another address undoes the whole call.
+    function returnToken(address token, uint256 amount, bytes32 salt) external guarded {
+        _apply(RETURN_TOKEN, abi.encode(token, amount), salt);
+        if (token == asset || token.code.length == 0 || amount == 0) revert InvalidParameters();
+        uint256 held = _balanceOf(asset, address(this));
+        emit TokenReturned(token, treasury, amount);
+        _send(token, treasury, amount);
+        if (_balanceOf(asset, address(this)) != held) revert TokenBalanceMismatch();
+    }
+
     // ---- internals ----
 
     function _argumentsLength(bytes32 kind) internal pure override returns (uint256) {
         if (kind == WITHDRAW) return 32;
-        if (kind == ADD_ORIGIN) return 64;
+        if (kind == ADD_ORIGIN || kind == RETURN_TOKEN) return 64;
         if (kind == RAISE_LIMITS) return 160;
         return super._argumentsLength(kind);
     }

@@ -5,7 +5,8 @@ import {ChargeBase} from "./ChargeBase.t.sol";
 import {ChargeTypes} from "../src/charge/ChargeTypes.sol";
 import {ChargeGovernance} from "../src/charge/ChargeGovernance.sol";
 import {WonPool} from "../src/charge/WonPool.sol";
-import {CoinView} from "./ChargeMocks.sol";
+import {CoinView, OddToken} from "./ChargeMocks.sol";
+import {TestKRW3009} from "../src/test-token/TestKRW3009.sol";
 import {NativeCoinStandIn} from "./NativeCoinStandIn.sol";
 
 /// @notice The StableNet side of a top-up with a 2-decimal won token: who can make the pool pay, how often,
@@ -24,6 +25,8 @@ contract WonPoolTest is ChargeBase {
         address sourceDeposit,
         bytes32 sourceBlockHash
     );
+
+    event TokenReturned(address indexed token, address indexed treasury, uint256 amount);
 
     function boardNo(uint256 i) internal pure returns (address) {
         return address(uint160(0xB0A2D000 + i));
@@ -647,6 +650,62 @@ contract WonPoolTest is ChargeBase {
         pool.withdraw(amount, "salt");
         assertEq(assetBalance(treasury), amount);
         assertEq(assetBalance(address(pool)), 0);
+    }
+
+    /// A token that is not the pool's asset and came here by mistake leaves the same way as the pool's own
+    /// money: two signers, a day, and only to the treasury. The asset itself is refused here.
+    function testAnotherTokenSentByMistakeGoesToTheTreasury() public {
+        toWon();
+        TestKRW3009 other = new TestKRW3009(address(this));
+        other.mint(address(pool), 700);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        pool.returnToken(address(other), 700, "salt"); // nobody proposed it
+        bytes32 action = keccak256(abi.encode(keccak256("returnToken"), address(other), uint256(700), bytes32("salt")));
+        assertEq(proposeOn(pool, "returnToken", abi.encode(address(other), uint256(700)), "salt"), action);
+        proposeOn(pool, "returnToken", abi.encode(asset, uint256(1)), "salt");
+        proposeOn(pool, "returnToken", abi.encode(address(other), uint256(0)), "salt");
+        proposeOn(pool, "returnToken", abi.encode(stranger, uint256(1)), "salt");
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        pool.returnToken(address(other), 700, "salt");
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.returnToken(asset, 1, "salt"); // the pool's own money leaves by `withdraw` only
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.returnToken(address(other), 0, "salt");
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.returnToken(stranger, 1, "salt"); // not a token
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        pool.returnToken(address(other), 699, "salt"); // another amount was never proposed
+
+        uint256 held = assetBalance(address(pool));
+        vm.expectEmit(address(pool));
+        emit TokenReturned(address(other), treasury, 700);
+        vm.prank(stranger); // the two signatures count, not the sender
+        pool.returnToken(address(other), 700, "salt");
+        assertEq(other.balanceOf(treasury), 700);
+        assertEq(other.balanceOf(stranger), 0);
+        assertEq(assetBalance(address(pool)), held);
+        assertEq(assetBalance(treasury), 0);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        pool.returnToken(address(other), 700, "salt");
+    }
+
+    /// A token that calls back while it is returned cannot start a second way out.
+    function testCallingBackDuringAReturnMovesNothingElse() public {
+        toWon();
+        OddToken other = new OddToken(6);
+        other.mint(address(pool), 50);
+        uint256 amount = 1_000 * WON * scale();
+        proposeOn(pool, "returnToken", abi.encode(address(other), uint256(50)), "salt");
+        proposeOn(pool, "withdraw", abi.encode(amount), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        other.setMode(OddToken.Mode.Reenters);
+        other.setCallback(address(pool), abi.encodeCall(pool.withdraw, (amount, bytes32("salt"))));
+        pool.returnToken(address(other), 50, "salt");
+        assertEq(other.reentries(), 1);
+        assertEq(bytes4(other.reentryAnswer()), ChargeGovernance.Reentered.selector);
+        assertEq(other.balanceOf(treasury), 50);
+        assertEq(assetBalance(treasury), 0);
     }
 
     function testPlainCoinsAreOnlyTakenWhenTheAssetIsTheCoin() public virtual {

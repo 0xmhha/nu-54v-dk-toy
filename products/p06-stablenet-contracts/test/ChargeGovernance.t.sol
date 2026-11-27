@@ -180,9 +180,12 @@ contract ChargeGovernanceTest is ChargeBase {
         pool.propose(keccak256("withdraw"), abi.encode(uint256(1), uint256(2)), "salt", until, none);
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         pool.propose(keccak256("addOrigin"), abi.encode(uint256(1)), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("returnToken"), abi.encode(next), "salt", until, none);
         proposeOn(pool, "withdraw", abi.encode(uint256(1)), "salt");
         proposeOn(pool, "raiseLimits", abi.encode(limits()), "salt");
         proposeOn(pool, "addOrigin", abi.encode(uint256(10), next), "salt");
+        proposeOn(pool, "returnToken", abi.encode(next, uint256(1)), "salt");
     }
 
     function testAChangeWaitsADayAndLapsesThreeDaysLater() public {

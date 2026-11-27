@@ -6,7 +6,7 @@ import {ChargeTypes} from "../src/charge/ChargeTypes.sol";
 import {ChargeGovernance} from "../src/charge/ChargeGovernance.sol";
 import {ChargeDeposit} from "../src/charge/ChargeDeposit.sol";
 import {WonPool} from "../src/charge/WonPool.sol";
-import {OddToken} from "./ChargeMocks.sol";
+import {OddToken, TwoViewToken} from "./ChargeMocks.sol";
 
 /// @notice Tokens that answer false, move nothing, keep a part, revert or call back. Whatever a token does,
 /// a record never says more money moved than did, and nothing moves twice.
@@ -214,6 +214,24 @@ contract ChargeOddTokensTest is ChargeBase {
         this.oddPay(againArgs);
         vm.expectRevert(WonPool.AlreadyPaid.selector);
         this.oddPay(againArgs);
+    }
+
+    /// The pool's own money has one way out besides a payout. Should the asset ever answer at a second
+    /// address, returning that "other token" would move the pool's money, and the whole call is undone.
+    function testASecondViewOfTheAssetIsNotAWayOut() public {
+        toWon();
+        TwoViewToken twoViews = new TwoViewToken();
+        WonPool.Config memory config = poolConfig(address(deposit));
+        config.asset = address(twoViews);
+        WonPool twoViewPool = new WonPool(keys(), config);
+        twoViews.mint(address(twoViewPool), POOL_SIZE);
+        address second = twoViews.second();
+        proposeOn(twoViewPool, "returnToken", abi.encode(second, POOL_SIZE), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(ChargeGovernance.TokenBalanceMismatch.selector);
+        twoViewPool.returnToken(second, POOL_SIZE, "salt");
+        assertEq(twoViews.balanceOf(address(twoViewPool)), POOL_SIZE);
+        assertEq(twoViews.balanceOf(treasury), 0);
     }
 
     function testAnAssetWithFewerThanTwoDecimalsIsRefused() public {
