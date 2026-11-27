@@ -33,7 +33,9 @@ contract WonPool is ChargeGovernance {
     struct Config {
         address asset;
         uint8 assetDecimals; // must equal what the asset answers
-        bool assetIsCoin; // the asset is the token view of the chain's coin, so plain coin transfers are accepted
+        // The asset is the token view of the chain's coin, so plain coin transfers are accepted. Must be what
+        // the asset shows for the deployer's balance.
+        bool assetIsCoin;
         address treasury; // the only place pool money can be withdrawn to
         uint256 chainId; // this chain; a deployment anywhere else fails
         uint256 minWon;
@@ -132,6 +134,11 @@ contract WonPool is ChargeGovernance {
         if (!ok || answer.length != 32 || abi.decode(answer, (uint256)) != config.assetDecimals) {
             revert InvalidParameters();
         }
+        // The token view of the chain's coin answers an account's coin balance; a token of its own does not.
+        // The deployer holds coins, so its two balances tell which of the two the asset is. A pool for the
+        // coin must therefore be deployed by an account that holds some.
+        bool coin = msg.sender.balance != 0 && _balanceOf(config.asset, msg.sender) == msg.sender.balance;
+        if (coin != config.assetIsCoin) revert InvalidParameters();
         asset = config.asset;
         assetDecimals = config.assetDecimals;
         assetIsCoin = config.assetIsCoin;

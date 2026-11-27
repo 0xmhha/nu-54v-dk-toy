@@ -349,6 +349,28 @@ contract WonPoolTest is ChargeBase {
         new WonPool(keys(), config);
     }
 
+    /// Whether the asset is the chain's coin is read from the asset: the token view of the coin answers the
+    /// deployer's coin balance, a token of its own does not. A pool that says otherwise is not deployed, so
+    /// no token pool takes plain coins that could never leave.
+    function testDeploymentChecksWhetherTheAssetIsTheCoin() public {
+        toWon();
+        vm.deal(address(this), 1 ether);
+        WonPool.Config memory config = poolConfig(address(deposit));
+        config.assetIsCoin = !assetIsCoin();
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        new WonPool(keys(), config);
+
+        // A deployer without coins cannot show that the asset is the coin.
+        config = poolConfig(address(deposit));
+        vm.deal(address(this), 0);
+        if (assetIsCoin()) {
+            vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+            new WonPool(keys(), config);
+        } else {
+            assertFalse(new WonPool(keys(), config).assetIsCoin());
+        }
+    }
+
     function testAForkWithAnotherChainIdPaysNothing() public {
         PayArgs memory args = payArgs(quoteFor(100e6, board), false);
         vm.chainId(WON_CHAIN + 1);
@@ -704,8 +726,11 @@ contract WonPoolCoinTest is WonPoolTest {
 contract WonPoolStandInTest is ChargeBase {
     NativeCoinStandIn internal constant COIN = NativeCoinStandIn(address(0x1000));
 
+    /// The real coin answers an account's coin balance as its token balance, and the pool checks that for
+    /// its deployer. The stand-in keeps its own balances, so the deployer's is set to match.
     function deployAsset() internal override returns (address) {
         vm.etch(address(COIN), type(NativeCoinStandIn).runtimeCode);
+        COIN.mint(address(this), address(this).balance);
         return address(COIN);
     }
 
