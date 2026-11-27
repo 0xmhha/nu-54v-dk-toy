@@ -230,6 +230,44 @@ contract ChargeReplayTest is ChargeBase {
         assertEq(pool.pauserRound(), 0);
     }
 
+    /// The two signatures that start or stop an emergency exit are for one contract and one chain, although
+    /// the twin has the same signers and the same treasury. What starts one is no change and stops none.
+    function testExitSignaturesAreForOneContractAndOneChain() public {
+        uint256 until = block.timestamp + 6 days;
+        bytes[2] memory start = exitSignatures(deposit, "proposeEmergencyExit", SIGNER1_KEY, SIGNER2_KEY, until);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        twinDeposit.proposeEmergencyExit(until, start);
+        toWon();
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        pool.proposeEmergencyExit(until, start);
+        vm.chainId(SOURCE_CHAIN + 1);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.proposeEmergencyExit(until, start);
+        toSource();
+        // Nor are they the two signatures of a change.
+        bytes32 kind = keccak256("setKey");
+        bytes memory arguments = abi.encode(ChargeGovernance.Key.Relay, stranger);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.propose(kind, arguments, 0, until, start);
+        deposit.proposeEmergencyExit(until, start);
+
+        twinDeposit.proposeEmergencyExit(
+            until, exitSignatures(twinDeposit, "proposeEmergencyExit", SIGNER1_KEY, SIGNER2_KEY, until)
+        );
+        bytes[2] memory stop = exitSignatures(deposit, "cancelEmergencyExit", SIGNER1_KEY, SIGNER2_KEY, until);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        twinDeposit.cancelEmergencyExit(until, stop);
+        vm.chainId(SOURCE_CHAIN + 1);
+        vm.expectRevert(ChargeGovernance.Unauthorized.selector);
+        deposit.cancelEmergencyExit(until, stop);
+        toSource();
+        deposit.cancelEmergencyExit(until, stop);
+        assertEq(uint8(deposit.emergencyExitStatus()), uint8(ChargeGovernance.Status.None));
+        assertEq(uint8(twinDeposit.emergencyExitStatus()), uint8(ChargeGovernance.Status.Waiting));
+        assertEq(twinDeposit.exitRound(), 1);
+        assertEq(pool.exitRound(), 0);
+    }
+
     function testARefundSignedForOneDeploymentDoesNotRefundOnTheTwin() public {
         ChargeTypes.Quote memory quote = quoteFor(100e6, board);
         bytes32 id = depositIt(quote);
