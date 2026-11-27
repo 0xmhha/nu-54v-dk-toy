@@ -222,12 +222,14 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
      * app's deployment configuration, the chain must end at that CA and the leaf must carry that pinned key. No
      * enrollment profile is read and system roots are never consulted. No key manager holds a key, so no client
      * certificate can be offered. `session` is the customer session token of `/v2/customer/commerce` and empty
-     * elsewhere; the store list and a store page are read with GET and an empty body.
+     * elsewhere; the store list, a store page, a menu page and a menu photo part are read with GET and an empty body.
      * Answers `{"status":n,"body":"…"}`.
      */
     fun customerEntrance(anchor:String, path:String, session:String, body:String):String {
         val reference="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
-        val read=path=="/v2/customer/stores" || Regex("/v2/customer/stores/$reference").matches(path)
+        // The public reads: the store list, a store page, a page of its menu and a part of a menu photo.
+        val read=path=="/v2/customer/stores" ||
+            Regex("/v2/customer/stores/$reference(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?").matches(path)
         val commerce=path=="/v2/customer/commerce"
         require(read || commerce || path in setOf("/v2/customer/challenge","/v2/customer/proof"))
         val payload=body.encodeToByteArray()

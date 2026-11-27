@@ -84,6 +84,13 @@ class CustomerEntranceLab : Instrumentation() {
         check(refused { c3.customerEntrance(anchor("http://127.0.0.1:$port"), challenge, "", body) } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor("$origin/v2"), challenge, "", body) } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor(), "/v2/commerce", "", body) } is IllegalArgumentException)
+        // A store's menu page and a menu photo part are public reads; nothing else under a store is a path.
+        val store = "/v2/customer/stores/0fbc54ef-2827-4ab5-bfcd-3a27611c3002"
+        for (path in listOf("$store/menu", "$store/menu/01", "$store/menu/-1", "$store/menu/0?page=1", "$store/menu/0/0", "$store/orders",
+            "$store/photos/${"a".repeat(64)}", "$store/photos/${"A".repeat(64)}/0", "$store/photos/${"a".repeat(64)}/00"))
+            check(refused { c3.customerEntrance(anchor(), path, "", "") } is IllegalArgumentException) { "$path was sent" }
+        check(refused { c3.customerEntrance(anchor(), "$store/menu/0", "", "{}") } is IllegalArgumentException) { "a menu read carried a body" }
+        check(refused { c3.customerEntrance(anchor(), "$store/menu/0", "ab".repeat(32), "") } is IllegalArgumentException) { "a menu read carried a session" }
         check(refused { c3.customerEntrance(anchor(), challenge, "", "{\"pad\":\"" + "x".repeat(1024) + "\"}") } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor(), challenge, session, body) } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/commerce", "", body) } is IllegalArgumentException)

@@ -459,14 +459,14 @@ RCT_EXPORT_MODULE(CommerceHttp)
 #ifdef NU54_TRAVEL_RECORDER
 // The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the app's
 // deployment configuration. No enrollment profile is read, and there is no other trust to fall back on. `session` is
-// the customer session token of /v2/customer/commerce and empty elsewhere; the store list and a store page are read
-// with GET and an empty body.
+// the customer session token of /v2/customer/commerce and empty elsewhere; the store list, a store page, a menu page
+// and a menu photo part are read with GET and an empty body.
 - (void)customerRequest:(NSString *)anchor path:(NSString *)path session:(NSString *)session body:(NSString *)body
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   dispatch_async(_work,^{
     NSCharacterSet *notHex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet];
     BOOL read=[path isEqual:@"/v2/customer/stores"] ||
-        [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" options:NSRegularExpressionSearch].location!=NSNotFound;
+        [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?$" options:NSRegularExpressionSearch].location!=NSNotFound;
     BOOL commerce=[path isEqual:@"/v2/customer/commerce"];
     NSData *payload=[body dataUsingEncoding:NSUTF8StringEncoding];
     NSData *given=[anchor dataUsingEncoding:NSUTF8StringEncoding];
