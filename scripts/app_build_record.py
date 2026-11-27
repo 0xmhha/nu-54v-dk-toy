@@ -146,6 +146,19 @@ def write_record(apk, files):
     os.replace(draft, record)
 
 
+def build_environment(environment=None):
+    """The environment of a build, without the Gradle project properties it carries.
+
+    Gradle hands every ORG_GRADLE_PROJECT_<name> to findProperty(), where app/build.gradle reads the lab runner, the
+    wallet and market profiles and a directory of native libraries. They are taken away rather than recorded: a run
+    judges an APK by its digest, and what the environment holds at that later time says nothing about how the APK
+    was built. So a build made here is always the one the tracked files describe.
+    Not covered: properties in the Gradle user home (~/.gradle/gradle.properties) and -Dorg.gradle.project.<name> in
+    GRADLE_OPTS or JAVA_OPTS.
+    """
+    return {name: value for name, value in (os.environ if environment is None else environment).items() if not name.startswith("ORG_GRADLE_PROJECT_")}
+
+
 def build(apk, root, inputs, command, directory):
     """Build the APK and record its inputs.
 
@@ -166,7 +179,7 @@ def build(apk, root, inputs, command, directory):
     record.unlink(missing_ok=True)  # the build finds its output directory as the last build left it
     try:
         try:
-            subprocess.run(command, cwd=directory, check=True)
+            subprocess.run(command, cwd=directory, check=True, env=build_environment())
         except (OSError, subprocess.CalledProcessError) as error:
             raise SystemExit(f"the debug app did not build: {error}") from error
         if not apk.is_file():

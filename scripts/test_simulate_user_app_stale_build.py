@@ -32,8 +32,10 @@ LOCK = "pnpm-lock.yaml"
 INSTALLED_LOCK = "node_modules/.pnpm/lock.yaml"
 REMEDY = "rebuild with --build, or pass --allow-stale-app"
 
-# Packs the native sources into the "APK", so a build from other sources is another file.
+# Packs the native sources and the Gradle properties of its environment into the "APK", so a build from other sources
+# or with other properties is another file.
 GRADLEW = f'''#!{sys.executable}
+import os
 from pathlib import Path
 import sys
 assert sys.argv[1:] == [":app:assembleDebug"], sys.argv
@@ -46,7 +48,8 @@ out.mkdir(parents=True, exist_ok=True)
 if (here / "fail-after-packaging").exists():
     (out / "app-debug.apk").write_bytes(b"half a build")
     sys.exit(1)
-(out / "app-debug.apk").write_bytes(b"apk\\n" + b"".join(path.read_bytes() for path in sorted((here / "app/src").rglob("*")) if path.is_file()))
+properties = "".join(name + "=" + value + "\\n" for name, value in sorted(os.environ.items()) if name.startswith("ORG_GRADLE_PROJECT_"))
+(out / "app-debug.apk").write_bytes(b"apk\\n" + properties.encode() + b"".join(path.read_bytes() for path in sorted((here / "app/src").rglob("*")) if path.is_file()))
 if (here / "edit-while-building").exists():
     (here / "app/src/main/AndroidManifest.xml").write_text("<manifest edited='while building'/>\\n")
 '''
@@ -373,6 +376,16 @@ class BuildRecord(Repository):
         self.assertIn("pnpm install", self.stale())
         self.install()
         self.assertIsNone(self.stale())
+
+    def test_gradle_properties_of_the_environment_do_not_reach_the_build(self):
+        self.build()
+        plain = self.apk.read_bytes()
+        with mock.patch.dict(os.environ, {"ORG_GRADLE_PROJECT_nu54MarketProfile": "loopback", "ORG_GRADLE_PROJECT_nu54P03Libs": "/lab/libs"}):
+            self.build()
+            self.assertEqual(self.apk.read_bytes(), plain)
+            self.assertIsNone(self.stale())
+        self.assertEqual(build_record.build_environment({"ORG_GRADLE_PROJECT_nu54LabRunner": "x", "ANDROID_HOME": "/sdk", "GRADLE_OPTS": "-Xmx4g"}),
+                         {"ANDROID_HOME": "/sdk", "GRADLE_OPTS": "-Xmx4g"})
 
     def test_the_override_lets_a_stale_app_through_with_a_warning(self):
         out = io.StringIO()
