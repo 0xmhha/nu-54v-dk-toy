@@ -256,7 +256,7 @@ export class StoreAccess {
       const busy = StoreAccess.rateRefusal(reply);
       if (busy) throw busy;
       if (reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
-      // A cart that was not held because the balance could not be read, or because this address asked for too many,
+      // A cart that was not held because the balance could not be read, or because this account asked for too many,
       // comes with the time to wait; the client reads the reason from the reply.
       const reason = (reply.body as {reason?: unknown}).reason;
       if (command.operation === 'order.create' && reply.retryAfter !== undefined && (reason === 'balance_unavailable' || reason === 'hold_limit'))
