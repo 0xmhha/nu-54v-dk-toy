@@ -505,7 +505,9 @@ static void journal_new_session(void)
 }
 
 /* The operator's signed reset also runs on a board that a reset already released. Such a board
- * has no owner and no wallet key; the reset erases nothing and shows again that no key is left. */
+ * has no owner, no wallet key, no PIN and no order records. The reset goes through all of it
+ * again: it removes a grant that was installed since, with its saved time, raises nothing, and
+ * shows again that no key is left. */
 static bool reset_of_released(uint8_t op, const nu54_vault *vault)
 {
 	return op == NU54_SPEND_OPERATOR_RESET_OP && (vault->record.flags & NU54_VAULT_RELEASED);
