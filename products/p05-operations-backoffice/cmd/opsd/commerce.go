@@ -542,15 +542,24 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	var customerServer *http.Server
 	entranceFailed := make(chan error, 1)
 	if customer != nil {
+		// The recovery gate is not around the listener: each route enters it after its rate limit, with its body
+		// read and inside the cap on requests at once, and the health route never does (CustomerEntrance.Gate).
+		// So a refused request, a slow client and a health probe hold no connection of the control database,
+		// which the operations listener shares.
+		if gate != nil {
+			customer.Gate = gate.Handler
+		}
+		customer.InFlight = make(chan struct{}, customerInFlight)
 		entrance := http.NewServeMux()
 		handlers.RegisterCustomer(entrance)
-		customerServer = &http.Server{Addr: customerAddr, Handler: gate.Handler(entrance), BaseContext: func(net.Listener) context.Context { return lifetime },
+		customerServer = &http.Server{Addr: customerAddr, Handler: entrance, BaseContext: func(net.Listener) context.Context { return lifetime },
 			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second, WriteTimeout: 10 * time.Second, MaxHeaderBytes: 8 << 10,
 			TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.NoClientCert, Certificates: []tls.Certificate{certificate}}}
-		listener, err := net.Listen("tcp", customerAddr)
+		accepting, err := net.Listen("tcp", customerAddr)
 		if err != nil {
 			return fmt.Errorf("customer entrance: %w", err)
 		}
+		listener := newLimitListener(accepting, customerConnections)
 		go func() {
 			if err := customerServer.ServeTLS(listener, "", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("customer entrance stopped: %v", err)
@@ -567,8 +576,8 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 					return
 				case <-tick.C:
 					if counts := customer.Limited.Drain(); len(counts) != 0 {
-						log.Printf("customer entrance refused for rate in 30s: proof=%d start=%d read=%d photo=%d address=%d session=%d unknown=%d",
-							counts["proof"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["session"], counts["unknown"])
+						log.Printf("customer entrance refused in 30s: proof=%d start=%d read=%d photo=%d address=%d session=%d unknown=%d busy=%d",
+							counts["proof"], counts["start"], counts["read"], counts["photo"], counts["address"], counts["session"], counts["unknown"], counts["busy"])
 					}
 				}
 			}
