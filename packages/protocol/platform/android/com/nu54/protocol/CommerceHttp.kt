@@ -217,23 +217,31 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
     }
 
     /**
-     * One POST to the customer entrance of the store server, which asks for no client certificate.
-     * The server is the one the enrolled customer connection trusts: the same `ca` and the same pinned leaf key from
-     * the stored customer profile. Without that profile nothing is sent. No key manager holds a key, so no client
-     * certificate can be offered. Answers `{"status":n,"body":"…"}`.
+     * One request to the customer entrance of the store server, which asks for no client certificate.
+     * The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the
+     * app's deployment configuration, the chain must end at that CA and the leaf must carry that pinned key. No
+     * enrollment profile is read and system roots are never consulted. No key manager holds a key, so no client
+     * certificate can be offered. `session` is the customer session token of `/v2/customer/commerce` and empty
+     * elsewhere; the store list and a store page are read with GET and an empty body.
+     * Answers `{"status":n,"body":"…"}`.
      */
-    fun customerEntrance(origin:String, path:String, body:String):String {
-        require(path in setOf("/v2/customer/challenge","/v2/customer/proof"))
+    fun customerEntrance(anchor:String, path:String, session:String, body:String):String {
+        val reference="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+        val read=path=="/v2/customer/stores" || Regex("/v2/customer/stores/$reference").matches(path)
+        val commerce=path=="/v2/customer/commerce"
+        require(read || commerce || path in setOf("/v2/customer/challenge","/v2/customer/proof"))
         val payload=body.encodeToByteArray()
-        require(payload.size in 2..1024)
-        val base=URI(origin)
+        require(if(read) payload.isEmpty() else payload.size in 2..(if(commerce) 8192 else 1024))
+        require(if(commerce) Regex("[0-9a-f]{64}").matches(session) else session.isEmpty())
+        require(anchor.encodeToByteArray().size in 1..8192)
+        val trust=JSONObject(anchor)
+        val base=URI(trust.getString("origin"))
         require(base.scheme=="https" && !base.host.isNullOrEmpty() && base.rawUserInfo==null && base.rawPath.isNullOrEmpty() &&
             base.rawQuery==null && base.rawFragment==null && (base.port==-1 || base.port in 1..65535))
-        val profile=JSONObject(load("customer"))
-        val pin=profile.getString("pin")
+        val pin=trust.getString("pin")
         require(Regex("[0-9a-f]{64}").matches(pin))
         val ca=CertificateFactory.getInstance("X.509")
-            .generateCertificate(Base64.decode(profile.getString("ca"),Base64.NO_WRAP).inputStream()) as X509Certificate
+            .generateCertificate(Base64.decode(trust.getString("ca"),Base64.NO_WRAP).inputStream()) as X509Certificate
         val anonymous=object:X509ExtendedKeyManager() {
             override fun getClientAliases(type:String?, issuers:Array<out Principal>?):Array<String>?=null
             override fun chooseClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,socket:Socket?):String?=null
@@ -251,20 +259,22 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
             connection.hostnameVerifier=javax.net.ssl.HostnameVerifier { name, session ->
                 name==host && session.protocol=="TLSv1.3" && HttpsURLConnection.getDefaultHostnameVerifier().verify(name,session)
             }
-            connection.doOutput=true
+            connection.doOutput=!read
             connection.instanceFollowRedirects=false
             connection.useCaches=false
             connection.connectTimeout=5000
             connection.readTimeout=7000
-            connection.requestMethod="POST"
+            connection.requestMethod=if(read) "GET" else "POST"
             connection.setRequestProperty("Content-Type","application/json")
             connection.setRequestProperty("Cache-Control","no-store")
-            connection.outputStream.use { it.write(payload) }
+            if(commerce) connection.setRequestProperty("Authorization","Bearer $session")
+            if(!read) connection.outputStream.use { it.write(payload) }
             val status=connection.responseCode
             // What the entrance answers with. A redirect or anything else is not an answer.
             require(status in setOf(200,400,404,409,429,503))
             val stream=if(status==200) connection.inputStream else connection.errorStream
-            return JSONObject().put("status",status).put("body",if(stream==null) "" else readCapped(stream,8192)).toString()
+            val limit=if(read || commerce) 32768 else 8192
+            return JSONObject().put("status",status).put("body",if(stream==null) "" else readCapped(stream,limit)).toString()
         } finally {
             connection.disconnect()
         }

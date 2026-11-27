@@ -2,13 +2,17 @@ import {bytesToHex, encodePickupQr, hexToBytes} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import {publicOrigin} from '../travel/catalog.ts';
 import type {OpenOrder} from './orderRecords.ts';
-import {approvedCustomerEntranceOrigin} from './customerEntranceDeployment.ts';
+import {approvedCustomerEntrance, type CustomerEntranceAnchor} from './customerEntranceDeployment.ts';
 
 // The customer entrance (opsd customer_entrance.go): a one-time challenge, the paying board's account proof over it,
-// and for a ready order a pickup token that lives about 60 seconds. No client certificate and no enrollment.
+// and for a ready order a pickup token that lives about 60 seconds. No client certificate and no enrollment: the
+// server is trusted by the anchor of this build alone.
 
 export type EntranceReply = {status: number; body: unknown};
-export type EntrancePost = (path: '/v2/customer/challenge' | '/v2/customer/proof', body: string) => Promise<EntranceReply>;
+export type EntrancePath = '/v2/customer/challenge' | '/v2/customer/proof' | '/v2/customer/commerce' | '/v2/customer/stores'
+  | `/v2/customer/stores/${string}`;
+/** One request to the entrance. An empty body is a read; `session` goes only with `/v2/customer/commerce`. */
+export type EntrancePost = (path: EntrancePath, body: string, session?: string) => Promise<EntranceReply>;
 
 /** Codes the screens act on. UNAVAILABLE: no entrance address, no answer, or an answer that is not the protocol. */
 export type EntranceCode = 'MISMATCH' | 'NOT_READY' | 'EXPIRED' | 'BUSY' | 'REFUSED' | 'UNAVAILABLE';
@@ -16,43 +20,34 @@ export class EntranceError extends Error {
   constructor(readonly code: EntranceCode) { super(`CUSTOMER_ENTRANCE_${code}`); }
 }
 
-/**
- * Posts JSON to the entrance origin with `fetch`; a redirect or a reply from another address counts as no answer.
- * The app does not use this: `fetch` trusts the system certificate store. See `nativeEntrance`.
- */
-export function fetchEntrance(origin: string, send: typeof fetch = fetch): EntrancePost {
-  let base: string;
-  try { base = publicOrigin(origin); } catch { return async () => { throw new EntranceError('UNAVAILABLE'); }; }
-  return async (path, body) => {
-    const url = base + path;
-    let response: Response;
-    try {
-      response = await send(url, {method: 'POST', credentials: 'omit', redirect: 'error',
-        headers: {'Content-Type': 'application/json', 'Cache-Control': 'no-store'}, body});
-    } catch {
-      throw new EntranceError('UNAVAILABLE');
-    }
-    if (response.url && response.url !== url) throw new EntranceError('UNAVAILABLE');
-    return {status: response.status, body: await response.json().catch(() => null)};
-  };
+/** The native half of the entrance connection (specs/NativeCommerceHttp.ts). */
+export type EntranceTransport = {customerRequest?: (anchor: string, path: string, session: string, body: string) => Promise<string>};
+
+/** The anchor as the native module takes it, or undefined when any part is not what a release may bind. */
+export function entranceAnchor(anchor: CustomerEntranceAnchor | undefined): string | undefined {
+  try {
+    if (!anchor || !/^[0-9a-f]{64}$/.test(anchor.pin) || /^0+$/.test(anchor.pin) ||
+        !/^[A-Za-z0-9+/]{64,5460}={0,2}$/.test(anchor.ca) || anchor.ca.length % 4) return undefined;
+    return JSON.stringify({origin: publicOrigin(anchor.origin), ca: anchor.ca, pin: anchor.pin});
+  } catch {
+    return undefined;
+  }
 }
 
-/** The native half of the entrance connection (specs/NativeCommerceHttp.ts). */
-export type EntranceTransport = {customerRequest?: (origin: string, path: string, body: string) => Promise<string>};
-
 /**
- * Posts JSON to the entrance origin through the native commerce module: TLS 1.3, no client certificate, and a server
- * accepted only by the CA and key pin of the enrolled customer profile. The system certificate store is not asked.
- * A phone without that profile, a build without the native method, or any native failure counts as no answer.
+ * Sends to the entrance through the native commerce module: TLS 1.3, no client certificate, and a server accepted
+ * only by the CA and key pin of this build (customerEntranceDeployment.ts). No enrollment profile and no system
+ * certificate store take part. A build without an anchor or without the native method, or any native failure,
+ * counts as no answer.
  */
-export function nativeEntrance(origin: string, http: EntranceTransport | null | undefined = Http): EntrancePost {
-  let base: string;
-  try { base = publicOrigin(origin); } catch { return async () => { throw new EntranceError('UNAVAILABLE'); }; }
-  return async (path, body) => {
+export function nativeEntrance(anchor: CustomerEntranceAnchor | undefined, http: EntranceTransport | null | undefined = Http): EntrancePost {
+  const trust = entranceAnchor(anchor);
+  if (!trust) return async () => { throw new EntranceError('UNAVAILABLE'); };
+  return async (path, body, session = '') => {
     let reply: {status?: unknown; body?: unknown} | null;
     try {
       if (typeof http?.customerRequest !== 'function') throw new Error('no native entrance');
-      reply = JSON.parse(await http.customerRequest(base, path, body));
+      reply = JSON.parse(await http.customerRequest(trust, path, session, body));
     } catch {
       throw new EntranceError('UNAVAILABLE');
     }
@@ -170,6 +165,6 @@ export async function issuePickupQr(entrance: CustomerEntrance | undefined, boar
   }
 }
 
-/** The entrance of this build, or undefined while no address is bound (customerEntranceDeployment.ts). */
-export const configuredEntrance = (origin = approvedCustomerEntranceOrigin) =>
-  origin ? new CustomerEntrance(nativeEntrance(origin)) : undefined;
+/** The entrance of this build, or undefined while no trust anchor is bound (customerEntranceDeployment.ts). */
+export const configuredEntrance = (anchor: CustomerEntranceAnchor | undefined = approvedCustomerEntrance) =>
+  entranceAnchor(anchor) ? new CustomerEntrance(nativeEntrance(anchor)) : undefined;

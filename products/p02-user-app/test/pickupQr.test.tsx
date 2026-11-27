@@ -2,7 +2,7 @@ import React from 'react';
 import Renderer from 'react-test-renderer';
 import {AppState} from 'react-native';
 import {accountProofDigest, addressOfPrivateKey, bytesToHex, parsePickupQr, signDigest} from '@nu54/protocol';
-import {configuredEntrance, CustomerEntrance, EntranceError, fetchEntrance, issuePickupQr, shortAccount,
+import {configuredEntrance, CustomerEntrance, EntranceError, issuePickupQr, shortAccount,
   type BoardLink, type EntrancePost, type IssuedPickup, type PickupBoard} from '../src/merchant/customerEntrance';
 import {automaticQrs, PickupQrScreen} from '../src/merchant/PickupQr';
 import {OrderDetail} from '../src/merchant/OpenOrders';
@@ -75,18 +75,13 @@ describe('the customer entrance client', () => {
     await expect(entrance().client.pickupChallenge('x', sale)).rejects.toThrow('CUSTOMER_ENTRANCE_REFUSED');
   });
 
-  test('fetch goes to the configured https origin only, and no answer is unavailable', async () => {
-    const send = jest.fn(async (url: string, _init?: RequestInit) => ({url, status: 200, json: async () => ({ok: true})}) as unknown as Response);
-    expect(await fetchEntrance('https://Store.Example:8444/', send as never)('/v2/customer/challenge', '{}')).toEqual({status: 200, body: {ok: true}});
-    expect(send.mock.calls[0][0]).toBe('https://store.example:8444/v2/customer/challenge');
-    expect(send.mock.calls[0][1]).toMatchObject({method: 'POST', credentials: 'omit', redirect: 'error', body: '{}'});
-    const moved = jest.fn(async () => ({url: 'https://elsewhere.example/x', status: 200, json: async () => ({})}) as unknown as Response);
-    await expect(fetchEntrance('https://store.example', moved as never)('/v2/customer/proof', '{}')).rejects.toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
-    await expect(fetchEntrance('https://store.example', (async () => { throw new TypeError('offline'); }) as never)('/v2/customer/proof', '{}'))
-      .rejects.toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
-    await expect(fetchEntrance('http://store.example', send as never)('/v2/customer/proof', '{}')).rejects.toThrow('CUSTOMER_ENTRANCE_UNAVAILABLE');
-    expect(configuredEntrance('')).toBeUndefined();
-    expect(configuredEntrance('https://store.example')).toBeInstanceOf(CustomerEntrance);
+  test('a build without a complete trust anchor has no entrance', () => {
+    const anchor = {origin: 'https://store.example', ca: 'MIIB' + 'A'.repeat(64), pin: 'ab'.repeat(32)};
+    expect(configuredEntrance(undefined)).toBeUndefined();
+    expect(configuredEntrance(anchor)).toBeInstanceOf(CustomerEntrance);
+    for (const broken of [{...anchor, origin: ''}, {...anchor, origin: 'http://store.example'}, {...anchor, ca: ''},
+      {...anchor, pin: ''}, {...anchor, pin: 'AB'.repeat(32)}, {...anchor, pin: '0'.repeat(64)}])
+      expect(configuredEntrance(broken)).toBeUndefined();
   });
 
   test('short accounts keep the first and last four characters', () => {

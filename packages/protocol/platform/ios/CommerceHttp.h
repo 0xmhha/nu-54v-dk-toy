@@ -190,13 +190,14 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *p
 @end
 
 #ifdef NU54_TRAVEL_RECORDER
-// One POST to the customer entrance, which asks for no client certificate. This delegate holds no identity, so a
+// One request to the customer entrance, which asks for no client certificate. This delegate holds no identity, so a
 // request for one ends the connection.
 @interface C3Entrance : NSObject <NSURLSessionDataDelegate>
 @property NSString *host;
 @property NSString *pin;
 @property id ca;
 @property NSInteger status;
+@property NSUInteger limit;
 @property NSMutableData *buffer;
 @property RCTPromiseResolveBlock resolve;
 @property RCTPromiseRejectBlock reject;
@@ -230,7 +231,7 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *p
   complete(answer ? NSURLSessionResponseAllow : NSURLSessionResponseCancel);
 }
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveData:(NSData *)data {
-  if (self.buffer.length+data.length>8192) [task cancel]; else [self.buffer appendData:data];
+  if (self.buffer.length+data.length>self.limit) [task cancel]; else [self.buffer appendData:data];
 }
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
   NSString *body=(error || !self.status) ? nil : [[NSString alloc] initWithData:self.buffer encoding:NSUTF8StringEncoding];
@@ -456,25 +457,34 @@ RCT_EXPORT_MODULE(CommerceHttp)
 #endif
 
 #ifdef NU54_TRAVEL_RECORDER
-// The server is the one the enrolled customer connection trusts: the same `ca` and the same pinned leaf key from the
-// stored customer profile. Without that profile nothing is sent, and there is no other trust to fall back on.
-- (void)customerRequest:(NSString *)origin path:(NSString *)path body:(NSString *)body
+// The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the app's
+// deployment configuration. No enrollment profile is read, and there is no other trust to fall back on. `session` is
+// the customer session token of /v2/customer/commerce and empty elsewhere; the store list and a store page are read
+// with GET and an empty body.
+- (void)customerRequest:(NSString *)anchor path:(NSString *)path session:(NSString *)session body:(NSString *)body
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   dispatch_async(_work,^{
+    NSCharacterSet *notHex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet];
+    BOOL read=[path isEqual:@"/v2/customer/stores"] ||
+        [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" options:NSRegularExpressionSearch].location!=NSNotFound;
+    BOOL commerce=[path isEqual:@"/v2/customer/commerce"];
     NSData *payload=[body dataUsingEncoding:NSUTF8StringEncoding];
-    NSURLComponents *url=[NSURLComponents componentsWithString:origin];
-    if (![@[@"/v2/customer/challenge",@"/v2/customer/proof"] containsObject:path] || payload.length<2 || payload.length>1024 ||
+    NSData *given=[anchor dataUsingEncoding:NSUTF8StringEncoding];
+    id candidate=(given.length && given.length<=8192) ? [NSJSONSerialization JSONObjectWithData:given options:0 error:nullptr] : nil;
+    NSDictionary *trust=[candidate isKindOfClass:NSDictionary.class] ? candidate : nil;
+    NSString *origin=trust[@"origin"];
+    NSURLComponents *url=[origin isKindOfClass:NSString.class] ? [NSURLComponents componentsWithString:origin] : nil;
+    BOOL sized=read ? payload.length==0 : (payload.length>=2 && payload.length<=(commerce ? 8192 : 1024));
+    BOOL held=commerce ? (session.length==64 && [session rangeOfCharacterFromSet:notHex].location==NSNotFound) : session.length==0;
+    if (!(read || commerce || [@[@"/v2/customer/challenge",@"/v2/customer/proof"] containsObject:path]) || !sized || !held ||
         ![url.scheme isEqual:@"https"] || !url.host.length || url.user || url.password || url.query || url.fragment ||
         url.percentEncodedPath.length || (url.port && (url.port.integerValue<1 || url.port.integerValue>65535))) {
       [self unavailable:reject]; return;
     }
-    NSData *saved=[[self profile:@"customer"] dataUsingEncoding:NSUTF8StringEncoding];
-    id candidate=(saved.length && saved.length<=16384) ? [NSJSONSerialization JSONObjectWithData:saved options:0 error:nullptr] : nil;
-    NSDictionary *profile=[candidate isKindOfClass:NSDictionary.class] ? candidate : nil;
-    NSString *pin=profile[@"pin"];
-    id anchor=certificate(profile[@"ca"]);
-    if (!anchor || ![pin isKindOfClass:NSString.class] || pin.length!=64 ||
-        [pin rangeOfCharacterFromSet:[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet]].location!=NSNotFound) {
+    NSString *pin=trust[@"pin"];
+    id anchorCertificate=[trust[@"ca"] isKindOfClass:NSString.class] ? certificate(trust[@"ca"]) : nil;
+    if (!anchorCertificate || ![pin isKindOfClass:NSString.class] || pin.length!=64 ||
+        [pin rangeOfCharacterFromSet:notHex].location!=NSNotFound) {
       [self unavailable:reject]; return;
     }
     url.percentEncodedPath=path;
@@ -490,15 +500,17 @@ RCT_EXPORT_MODULE(CommerceHttp)
     config.URLCache=nil;
     config.requestCachePolicy=NSURLRequestReloadIgnoringLocalCacheData;
     C3Entrance *delegate=[C3Entrance new];
-    delegate.host=url.host; delegate.pin=pin; delegate.ca=anchor;
+    delegate.host=url.host; delegate.pin=pin; delegate.ca=anchorCertificate;
+    delegate.limit=(read || commerce) ? 32768 : 8192;
     delegate.resolve=resolve; delegate.reject=reject; delegate.buffer=[NSMutableData data];
-    NSURLSession *session=[NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:nil];
+    NSURLSession *connection=[NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:nil];
     NSMutableURLRequest *request=[NSMutableURLRequest requestWithURL:url.URL];
-    request.HTTPMethod=@"POST";
-    request.HTTPBody=payload;
+    request.HTTPMethod=read ? @"GET" : @"POST";
+    if (!read) request.HTTPBody=payload;
     [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
     [request setValue:@"no-store" forHTTPHeaderField:@"Cache-Control"];
-    [[session dataTaskWithRequest:request] resume];
+    if (commerce) [request setValue:[@"Bearer " stringByAppendingString:session] forHTTPHeaderField:@"Authorization"];
+    [[connection dataTaskWithRequest:request] resume];
   });
 }
 #endif
