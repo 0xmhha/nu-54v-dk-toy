@@ -17,7 +17,8 @@
 #define SPEND_RESET_MARK UINT32_C(0x4e355257)
 
 static uint8_t address[20];
-static bool ready;
+static bool ready;  /* the stored state was read and is consistent */
+static bool wallet; /* the key exists and `address` is its address */
 
 static bool key_missing(psa_status_t status)
 {
@@ -78,14 +79,44 @@ static int create_key(void)
 	return status == PSA_SUCCESS ? 0 : -1;
 }
 
+/* Asks the key store itself. The answer of the destroy call alone is not taken as proof. */
+static bool key_absent(void)
+{
+	psa_key_attributes_t attrs = PSA_KEY_ATTRIBUTES_INIT;
+	psa_status_t status = psa_get_key_attributes(SPEND_KEY, &attrs);
+	psa_reset_key_attributes(&attrs);
+	return key_missing(status);
+}
+
+static bool owner_absent(const nu54_vault *vault)
+{
+	return !vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED);
+}
+
+static void forget_wallet(void)
+{
+	wallet = false;
+	memset(address, 0, sizeof(address));
+}
+
+/* The key and its recorded address, with the proof that the key is gone. */
+static int remove_wallet(void)
+{
+	forget_wallet();
+	return gone(psa_destroy_key(SPEND_KEY)) && key_absent() && gone(psa_its_remove(SPEND_ADDRESS_UID)) ? 0 : -1;
+}
+
 int device_spending_erase(void)
 {
 	const uint32_t mark = SPEND_RESET_MARK;
 	ready = false;
-	memset(address, 0, sizeof(address));
+	forget_wallet();
 	if (store(SPEND_RESET_UID, &mark, sizeof(mark)) || !gone(psa_destroy_key(SPEND_KEY)) ||
 	    device_recovery_pin_erase() || device_order_erase() || !gone(psa_its_remove(SPEND_RETURN_UID)) ||
 	    !gone(psa_its_remove(SPEND_ADDRESS_UID)) || nu54_vault_release(device_vault_owner())) return -1;
+	/* The mark goes only after the key store says there is no key. Until then the reset is not
+	 * done: it reports a failure, and the next start comes back here before anything else. */
+	if (!key_absent()) return -1;
 	return gone(psa_its_remove(SPEND_RESET_UID)) ? 0 : -1;
 }
 
@@ -93,43 +124,76 @@ int device_spending_init(void)
 {
 	uint32_t mark;
 	uint8_t known[20];
+	const nu54_vault *vault = device_vault_owner();
 	ready = false;
+	forget_wallet();
 	int pending = load(SPEND_RESET_UID, &mark, sizeof(mark));
-	if (pending < 0 || (!pending && (mark != SPEND_RESET_MARK || device_spending_erase()))) return -1;
-	int recorded = load(SPEND_ADDRESS_UID, known, sizeof(known));
-	int key = open_key(address);
-	if (recorded < 0 || key < 0) return -1;
-	if (key > 0) {
-		/* The address was given out before, so a missing key is a loss, not a new wallet. */
-		if (!recorded || create_key() || open_key(address)) return -1;
+	if (pending < 0 || (!pending && (mark != SPEND_RESET_MARK || device_spending_erase())) || !vault->enabled) return -1;
+	if (owner_absent(vault)) {
+		/* No owner, no wallet. A key found here was made for a registration that lost power before
+		 * the owner was stored, or by firmware that made the key at start. */
+		if (remove_wallet()) return -1;
+		ready = true;
+		return 0;
 	}
-	if (recorded ? store(SPEND_ADDRESS_UID, address, sizeof(address)) : memcmp(known, address, sizeof(address)) != 0)
+	/* With an owner the key and its recorded address must be there. A missing key is a loss and is
+	 * never replaced: the owner was given the address. */
+	if (load(SPEND_ADDRESS_UID, known, sizeof(known)) || open_key(address) ||
+	    memcmp(known, address, sizeof(address))) {
+		forget_wallet();
 		return -1;
-	ready = true;
+	}
+	ready = wallet = true;
 	return 0;
+}
+
+int device_spending_enroll(void)
+{
+	const nu54_vault *vault = device_vault_owner();
+	if (!ready || wallet || !vault->enabled || !owner_absent(vault)) return -1;
+	/* What an attempt that did not complete left behind goes first. */
+	if (remove_wallet() || create_key() || open_key(address) || store(SPEND_ADDRESS_UID, address, sizeof(address))) {
+		forget_wallet();
+		return -1;
+	}
+	wallet = true;
+	return 0;
+}
+
+void device_spending_withdraw(void)
+{
+	const nu54_vault *vault = device_vault_owner();
+	/* A vault that stopped after a failed write may or may not hold the owner now. Then the key
+	 * stays, nothing is signed until the restart, and the restart decides from what is stored. */
+	if (!vault->enabled || !owner_absent(vault)) {
+		ready = false;
+		forget_wallet();
+	} else if (remove_wallet()) {
+		ready = false;
+	}
 }
 
 const uint8_t *device_spending_address(void)
 {
-	return ready ? address : NULL;
+	return ready && wallet ? address : NULL;
 }
 
 int device_spending_sign(const uint8_t digest[32], uint8_t signature[64])
 {
 	size_t used;
-	return ready && psa_sign_hash(SPEND_KEY, SPEND_ALG, digest, 32, signature, 64, &used) == PSA_SUCCESS && used == 64 ?
-	       0 : -1;
+	return ready && wallet &&
+	       psa_sign_hash(SPEND_KEY, SPEND_ALG, digest, 32, signature, 64, &used) == PSA_SUCCESS && used == 64 ? 0 : -1;
 }
 
 bool device_spending_return_address(uint8_t out[20])
 {
-	return ready && load(SPEND_RETURN_UID, out, 20) == 0;
+	return ready && wallet && load(SPEND_RETURN_UID, out, 20) == 0;
 }
 
 int device_spending_set_return(const uint8_t target[20])
 {
 	uint8_t existing[20];
-	if (!ready || !memcmp(target, address, sizeof(address)) || load(SPEND_RETURN_UID, existing, sizeof(existing)) != 1)
-		return -1;
+	if (!ready || !wallet || !memcmp(target, address, sizeof(address)) ||
+	    load(SPEND_RETURN_UID, existing, sizeof(existing)) != 1) return -1;
 	return store(SPEND_RETURN_UID, target, 20);
 }

@@ -94,7 +94,8 @@ static const uint8_t wallet[20] = {1};
 
 static nu54_vault vault;
 static int32_t pin_wait;
-static bool order_open, right_pin, erased, send_fails, sign_fails, confirm_fails;
+static bool order_open, right_pin, erased, send_fails, sign_fails, confirm_fails, enroll_fails;
+static unsigned keys_made, keys_withdrawn, confirms;
 static int64_t pin_at;
 static unsigned stored;
 static board_button_event_t early[2];
@@ -113,8 +114,17 @@ static const nu54_install_policy *device_install_policy(void) { return &policy; 
 #define device_spending_return_address(out) (memset(out, 2, 20) != NULL)
 #define device_spending_set_return(address) (0)
 #define device_spending_sign(digest, raw) (memset(raw, 1, 64) == NULL)
+/* The key is made before the vault is asked to take the owner. */
+int device_spending_enroll(void)
+{
+	assert(!confirms);
+	if (!enroll_fails) ++keys_made;
+	return enroll_fails ? -1 : 0;
+}
+void device_spending_withdraw(void) { ++keys_withdrawn; }
 #define nu54_sig_finish(digest, raw, address, out) (memset(out, 1, 65), sign_fails ? NU54_SIG_BAD_V : NU54_SIG_OK)
-#define nu54_owner_confirm(e, v, l, now, prompt, ok) ((void)(v), (e)->proven = false, confirm_fails || !(ok) ? -1 : 0)
+#define nu54_owner_confirm(e, v, l, now, prompt, ok) \
+	((void)(v), ++confirms, (e)->proven = false, confirm_fails || !(ok) ? -1 : 0)
 #define nu54_owner_status(v, c, e, out) ((void)(c), memset(out, 0, NU54_OWNER_STATUS_SIZE) == NULL)
 /* A function, not an expression: the board code calls it as a statement and ignores the result. */
 static int link_send_stub(const void *reply) { (void)reply; return send_fails ? -1 : 0; }
@@ -302,6 +312,57 @@ static void test_answers(void)
 	send_fails = false;
 }
 
+/* Decision of 2026-11-27: the wallet key is made when the first owner registers, not at start. */
+static void first_owner(bool released)
+{
+	ask(REGISTER);
+	vault.record.generation = released ? 3 : 0;
+	vault.record.flags = released ? NU54_VAULT_REVOKED | NU54_VAULT_RELEASED : 0;
+	keys_made = keys_withdrawn = confirms = 0;
+}
+
+static void test_first_owner_makes_the_key(void)
+{
+	right_pin = true;
+	for (int released = 0; released < 2; ++released) {
+		first_owner(released);
+		approve();
+		advance(3000);
+		assert(keys_made == 1 && confirms == 1 && !keys_withdrawn);
+
+		first_owner(released); /* the vault did not take the owner: the key goes again */
+		confirm_fails = true;
+		approve();
+		failed_then_dark();
+		confirm_fails = false;
+		assert(keys_made == 1 && confirms == 1 && keys_withdrawn == 1);
+
+		first_owner(released); /* no key, so the vault is not asked */
+		enroll_fails = true;
+		approve();
+		failed_then_dark();
+		enroll_fails = false;
+		assert(!keys_made && !confirms && !keys_withdrawn);
+
+		first_owner(released);
+		right_pin = false;
+		approve();
+		failed_then_dark();
+		right_pin = true;
+		assert(!keys_made && !confirms);
+
+		first_owner(released);
+		device_pilot_button(PROMPT, false);
+		failed_then_dark();
+		assert(!keys_made && !keys_withdrawn);
+	}
+	ask(REGISTER); /* the board has an owner: another phone takes over the same wallet */
+	keys_made = keys_withdrawn = confirms = 0;
+	approve();
+	advance(3000);
+	assert(!keys_made && confirms == 1 && !keys_withdrawn);
+}
+
 static void test_early_presses(void)
 {
 	right_pin = true;
@@ -358,6 +419,7 @@ static void test_button_reset(void)
 int main(void)
 {
 	test_answers();
+	test_first_owner_makes_the_key();
 	test_early_presses();
 	test_next_request();
 	test_button_reset();

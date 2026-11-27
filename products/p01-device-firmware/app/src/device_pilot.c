@@ -466,6 +466,12 @@ static void report_legacy_bonds(uint8_t status[NU54_OWNER_STATUS_SIZE])
 	nu54_owner_status_bonds(status, ble_links_bond_count() == 0);
 }
 
+/* New, or released by a factory reset: the grant's phone may register as the owner. */
+static bool owner_absent(const nu54_vault *vault)
+{
+	return !vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED);
+}
+
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 static int reset_nonce_issue(uint64_t generation)
 {
@@ -486,14 +492,23 @@ static void journal_new_session(void)
 	memset(journal_slots, 0, sizeof(journal_slots));
 }
 
+/* The operator's signed reset also runs on a board that a reset already released. Such a board
+ * has no owner and no wallet key; the reset erases nothing and shows again that no key is left. */
+static bool reset_of_released(uint8_t op, const nu54_vault *vault)
+{
+	return op == NU54_SPEND_OPERATOR_RESET_OP && (vault->record.flags & NU54_VAULT_RELEASED);
+}
+
 static int spending_request(const nu54_v2_request *request, uint64_t now, const nu54_vault *vault)
 {
 	uint8_t board[32], statement[NU54_SPEND_OPERATOR_STATEMENT_SIZE], known[20];
 	const uint8_t op = request->payload[0];
 	const bool operator_reset = op == NU54_SPEND_OPERATOR_RESET_OP;
-	/* Only the operator's signed reset works for a phone that is not the enrolled owner. */
+	/* Only the operator's signed reset works for a phone that is not the enrolled owner. Every
+	 * other action needs an owner and the wallet key the owner's registration made. */
 	if (enrollment.issued || !vault->enabled || !vault->record.generation ||
-	    (vault->record.flags & NU54_VAULT_REVOKED) || !device_spending_address() ||
+	    (!reset_of_released(op, vault) &&
+	     ((vault->record.flags & NU54_VAULT_REVOKED) || !device_spending_address())) ||
 	    (!operator_reset && (recovering ||
 	      memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)))) ||
 	    next_prompt == (NU54_PILOT_PROMPT_MASK >> 1) - 1) return -1;
@@ -547,7 +562,8 @@ static int spending_button(uint32_t prompt, bool approved)
 	/* The operator resets a board whose PIN is forgotten, so only that action skips the PIN. */
 	int pin = spend_action.op == NU54_SPEND_OPERATOR_RESET_OP ? 0 : pilot_pin(false, prompt);
 	if (pin || prompt != (uint32_t)atomic_get(&pending_prompt) || !connection || pay_link_waiting() ||
-	    !device_install_policy() || !vault->enabled || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    !device_install_policy() || !vault->enabled ||
+	    ((vault->record.flags & NU54_VAULT_REVOKED) && !reset_of_released(spend_action.op, vault)) ||
 	    (recovering && k_uptime_get() >= recovery_window) ||
 	    !nu54_spend_consume(&spend_action, &link, trusted_now(), vault->record.generation, prompt, &action)) return -1;
 	if (action.op == NU54_SPEND_SET_RETURN_OP) {
@@ -892,9 +908,10 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 		uint8_t answer[NU54_SPEND_STATUS_SIZE] = {NU54_SPEND_STATUS_OP};
 		const uint8_t *account = device_spending_address();
 		int32_t wait = device_recovery_pin_wait();
-		if (request->payload_length != 1 || !account || wait < 0) return -1;
+		/* A board without an owner has no wallet yet and answers with the zero account. */
+		if (request->payload_length != 1 || wait < 0 || (!account && !owner_absent(vault))) return -1;
 		answer[1] = device_spending_return_address(answer + 22);
-		memcpy(answer + 2, account, 20);
+		if (account) memcpy(answer + 2, account, 20);
 		sys_put_be64(policy->allowlist.max_amount, answer + 42);
 		sys_put_be64(CONFIG_NU54_SPENDING_DAILY_CAP, answer + 50);
 		sys_put_be32((uint32_t)wait, answer + 58);
@@ -1113,8 +1130,11 @@ static int manage(nu54_v2_request *request, uint64_t now, const nu54_install_pol
 			return -1;
 		}
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-		if (!device_spending_address()) return -1;
-		memcpy(status + NU54_OWNER_STATUS_SIZE, device_spending_address(), 20);
+		/* The wallet key is made when the first owner registers. Until then the status carries
+		 * twenty zero bytes in place of the address. */
+		if (device_spending_address()) memcpy(status + NU54_OWNER_STATUS_SIZE, device_spending_address(), 20);
+		else if (owner_absent(vault)) memset(status + NU54_OWNER_STATUS_SIZE, 0, 20);
+		else return -1;
 		break;
 #endif
 		if (vault->record.flags & NU54_VAULT_PERSONAL)
@@ -1705,8 +1725,7 @@ void device_pilot_button(uint32_t prompt, bool approved)
 	if (enrollment.proven) {
 		if (recovering && (!enrollment.independent || k_uptime_get() >= recovery_window)) goto failed;
 		if (approved) {
-			bool virgin = !recovering && (!device_vault_owner()->record.generation ||
-						      (device_vault_owner()->record.flags & NU54_VAULT_RELEASED));
+			bool virgin = !recovering && owner_absent(device_vault_owner());
 			int pin = pilot_pin(virgin, prompt);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 			if (pin) status_led_event(NU54_EVENT_REFUSED);
@@ -1717,8 +1736,19 @@ void device_pilot_button(uint32_t prompt, bool approved)
 		}
 		nu54_vault *vault = device_vault_owner();
 		uint64_t now = trusted_now();
-		if (link.pending_expiry <= now ||
-		    nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) goto failed;
+		if (link.pending_expiry <= now) goto failed;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		/* The wallet key is made here, for the first owner, right before the vault takes that
+		 * owner. A board without an owner holds no key, also after a factory reset. */
+		const bool first_owner = approved && !recovering && vault->enabled && owner_absent(vault);
+		if (first_owner && device_spending_enroll()) goto failed;
+		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) {
+			if (first_owner) device_spending_withdraw();
+			goto failed;
+		}
+#else
+		if (nu54_owner_confirm(&enrollment, vault, &link, now, prompt, approved)) goto failed;
+#endif
 		uint8_t status[NU54_OWNER_STATUS_SIZE];
 		/* The owner changed: no bond may outlive the previous owner phone. This runs on the TLS
 		 * work item, off the Bluetooth thread, and the phone in session holds no bond. */
@@ -1823,8 +1853,7 @@ bool device_pilot_owner_absent(void)
 	k_mutex_lock(&pilot_lock, K_FOREVER);
 	const nu54_vault *vault = device_vault_owner();
 	/* A vault that stopped after a failed write does not say who owns the board. */
-	bool absent = initialized && device_pilot_active() && vault->enabled &&
-		      (!vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED));
+	bool absent = initialized && device_pilot_active() && vault->enabled && owner_absent(vault);
 	k_mutex_unlock(&pilot_lock);
 	return absent;
 }

@@ -191,8 +191,8 @@ add_test(NAME spending_store COMMAND test_spending_store)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c pilot_pin spending_button order_button device_pilot_button_reset
-    device_pilot_button
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c owner_absent reset_of_released pilot_pin spending_button
+    order_button device_pilot_button_reset device_pilot_button
   DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
 add_executable(test_spending_led test_spending_led.c ../app/src/status_led.c ../core/src/nu54_spending.c
   ${CMAKE_CURRENT_BINARY_DIR}/board_buttons.h)
@@ -222,7 +222,8 @@ target_compile_options(test_owner_journal_pilot PRIVATE -Wno-unused-function)
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c hash import_public verify device_install_verify_authority
-    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c RESET_NONCE_MS reset_nonce_issue spending_request
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c RESET_NONCE_MS reset_nonce_issue reset_of_released
+    spending_request
   DEPENDS extract_c.py ../app/src/device_install.c ../app/src/device_pilot.c VERBATIM)
 add_executable(spending_operator_host spending_operator_host.c ${CMAKE_CURRENT_BINARY_DIR}/board_authority_check.h
   ../core/src/nu54_spending.c ../core/src/nu54_install.c ../core/src/nu54_owner.c ../core/src/nu54_vault.c
