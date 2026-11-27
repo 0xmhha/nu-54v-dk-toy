@@ -57,11 +57,25 @@ class CustomerEntranceLab : Instrumentation() {
         check(commerce.getString("authorization") == "Bearer $session") { "the session token was not sent" }
         val stores = JSONObject(JSONObject(c3.customerEntrance(anchor(), "/v2/customer/stores", "", "")).getString("body"))
         check(stores.getString("method") == "GET" && stores.getString("authorization").isEmpty()) { "the store list was not a plain GET" }
+        // A cart taken back carries the session's token like a session request.
+        val cancel = JSONObject(JSONObject(c3.customerEntrance(anchor(), "/v2/customer/checkout/cancel", session, "{\"saleRef\":\"x\"}")).getString("body"))
+        check(cancel.getString("authorization") == "Bearer $session") { "the session token was not sent with the cancel" }
         result.putString("entrance_session", "pass")
 
-        // A refusal keeps its status and body.
+        // The next page of the store list: the one query the entrance takes reaches the server as it was given.
+        val after = "0fbc54ef-2827-4ab5-bfcd-3a27611c3002"
+        val more = JSONObject(JSONObject(c3.customerEntrance(anchor(), "/v2/customer/stores?after=$after", "", "")).getString("body"))
+        check(more.getString("path") == "/v2/customer/stores?after=$after" && more.getString("method") == "GET") { "the next page was not asked as given" }
+        result.putString("entrance_list", "pass")
+
+        // A refusal keeps its status and body, and the seconds of its Retry-After. An answer without one names none.
         val busy = JSONObject(c3.customerEntrance(anchor(), "/v2/customer/proof", "", "{\"busy\":true}"))
         check(busy.getInt("status") == 429 && JSONObject(busy.getString("body")).getString("error") == "BUSY")
+        check(busy.getInt("retryAfter") == 7) { "the Retry-After was not handed over" }
+        check(!answer.has("retryAfter")) { "a wait without a Retry-After" }
+        val later = JSONObject(c3.customerEntrance(anchor(), "/v2/customer/proof", "", "{\"later\":true}"))
+        check(later.getInt("status") == 503 && !later.has("retryAfter")) { "a Retry-After that is not whole seconds was handed over" }
+        result.putString("entrance_wait", "pass")
 
         // A redirect is not followed and is not an answer.
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/proof", "", "{\"moved\":true}") } is IllegalArgumentException)
@@ -108,6 +122,12 @@ class CustomerEntranceLab : Instrumentation() {
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/commerce", "", body) } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/stores", "", body) } is IllegalArgumentException)
         check(refused { c3.customerEntrance(anchor(), "/v2/customer/stores/../commerce", "", "") } is IllegalArgumentException)
+        // The store list takes one query, a store reference to go on from. A cart is taken back with a session and a short body.
+        for (path in listOf("/v2/customer/stores?", "/v2/customer/stores?after=", "/v2/customer/stores?after=x", "/v2/customer/stores?after=$after&limit=9",
+            "/v2/customer/stores?limit=1", "$store?after=$after", "/v2/customer/checkout/cancel?saleRef=x"))
+            check(refused { c3.customerEntrance(anchor(), path, "", "") } is IllegalArgumentException) { "$path was sent" }
+        check(refused { c3.customerEntrance(anchor(), "/v2/customer/checkout/cancel", "", body) } is IllegalArgumentException) { "a cancel without a session" }
+        check(refused { c3.customerEntrance(anchor(), "/v2/customer/checkout/cancel", session, "{\"pad\":\"" + "x".repeat(256) + "\"}") } is IllegalArgumentException)
         result.putString("entrance_scope", "reject")
 
         // Order sessions are kept in the sealed journal under their own name; a name outside the list is refused.

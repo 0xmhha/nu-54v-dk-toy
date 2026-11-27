@@ -42,18 +42,21 @@ import json, ssl, sys
 files = Path(sys.argv[1])
 
 class Entrance(BaseHTTPRequestHandler):
-    def answer(self, status, body, location=None):
+    def answer(self, status, body, location=None, wait=None):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         if location:
             self.send_header("Location", location)
+        if wait:
+            self.send_header("Retry-After", wait)
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self):
-        seen = {"method": "GET", "authorization": self.headers.get("Authorization", "")}
-        self.answer(200 if self.path == "/v2/customer/stores" else 404, json.dumps(seen).encode())
+        # The store list, and its next page: the path and the query come back as the server saw them.
+        seen = {"method": "GET", "authorization": self.headers.get("Authorization", ""), "path": self.path}
+        self.answer(200 if self.path.split("?")[0] == "/v2/customer/stores" else 404, json.dumps(seen).encode())
 
     def do_POST(self):
         sent = self.rfile.read(int(self.headers["Content-Length"]))
@@ -61,10 +64,13 @@ class Entrance(BaseHTTPRequestHandler):
             # The lab CA would verify a client certificate here; the entrance transport must not offer one.
             seen = {"clientCertificate": bool(self.connection.getpeercert()), "tls": self.connection.version()}
             self.answer(200, json.dumps(seen).encode())
-        elif self.path == "/v2/customer/commerce":
+        elif self.path in ("/v2/customer/commerce", "/v2/customer/checkout/cancel"):
             self.answer(200, json.dumps({"authorization": self.headers.get("Authorization", "")}).encode())
         elif self.path == "/v2/customer/proof" and sent == b'{"busy":true}':
-            self.answer(429, b'{"status":"error","error":"BUSY"}')
+            self.answer(429, b'{"status":"error","error":"BUSY"}', wait="7")
+        elif self.path == "/v2/customer/proof" and sent == b'{"later":true}':
+            # A Retry-After that is a date is not whole seconds, and is not handed over.
+            self.answer(503, b'{"status":"error","error":"BUSY"}', wait="Fri, 27 Nov 2026 12:00:00 GMT")
         elif self.path == "/v2/customer/proof" and sent == b'{"moved":true}':
             self.answer(307, b'{}', "/v2/customer/challenge")
         else:
@@ -99,7 +105,7 @@ other="$(openssl x509 -in "$scratch/other.pem" -outform DER | openssl base64 -A)
 # No enrollment profile is given: the anchor is all the trust the transport gets.
 "$adb_bin" -s "$serial" shell am instrument -w -e port "$port" -e ca "$ca" -e pin "$pin" -e otherCa "$other" \
   "$instrumentation" | tee "$scratch/receipt.log"
-for line in customer_entrance_lab=pass entrance_client_certificate=none entrance_session=pass entrance_redirect=reject entrance_pin=reject \
-  entrance_ca=reject entrance_host=reject entrance_scope=reject entrance_pins=pass entrance_journal=pass; do
+for line in customer_entrance_lab=pass entrance_client_certificate=none entrance_session=pass entrance_list=pass entrance_wait=pass \
+  entrance_redirect=reject entrance_pin=reject entrance_ca=reject entrance_host=reject entrance_scope=reject entrance_pins=pass entrance_journal=pass; do
   grep -q "^INSTRUMENTATION_RESULT: $line" "$scratch/receipt.log"
 done
