@@ -358,7 +358,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
     NSString *raw=[self profile:@"operator"];
     NSDictionary *profile=raw ? [NSJSONSerialization JSONObjectWithData:[raw dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nullptr] : nil;
     NSString *branch=profile[@"scope"][@"branchRef"];
-    NSString *pattern=@"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$";
+    NSString *pattern=@"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\\z";
     BOOL queue=[operation isEqual:@"queue"];
     BOOL decision=[operation isEqual:@"decision"];
     if (!branch || digest.length!=64 ||
@@ -442,10 +442,10 @@ RCT_EXPORT_MODULE(CommerceHttp)
 #ifdef NU54_TRAVEL_RECORDER
 - (void)exchangeRenterReturn:(NSString *)digest assignment:(NSString *)assignment account:(NSString *)account
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-  NSString *uuid=@"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
-  if ([digest rangeOfString:@"^[a-f0-9]{64}$" options:NSRegularExpressionSearch].location==NSNotFound ||
+  NSString *uuid=@"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z";
+  if ([digest rangeOfString:@"^[a-f0-9]{64}\\z" options:NSRegularExpressionSearch].location==NSNotFound ||
       [assignment rangeOfString:uuid options:NSRegularExpressionSearch].location==NSNotFound ||
-      (account.length && [account rangeOfString:@"^0x[a-f0-9]{40}$" options:NSRegularExpressionSearch].location==NSNotFound)) {
+      (account.length && [account rangeOfString:@"^0x[a-f0-9]{40}\\z" options:NSRegularExpressionSearch].location==NSNotFound)) {
     [self unavailable:reject]; return;
   }
   NSString *path=[@"/v2/renter/returns/" stringByAppendingString:assignment];
@@ -467,7 +467,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
   dispatch_async(_work,^{
     NSCharacterSet *notHex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet];
     BOOL read=[path isEqual:@"/v2/customer/stores"] ||
-        [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?$" options:NSRegularExpressionSearch].location!=NSNotFound;
+        [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?\\z" options:NSRegularExpressionSearch].location!=NSNotFound;
     BOOL commerce=[path isEqual:@"/v2/customer/commerce"];
     NSData *payload=[body dataUsingEncoding:NSUTF8StringEncoding];
     NSData *given=[anchor dataUsingEncoding:NSUTF8StringEncoding];
@@ -493,6 +493,8 @@ RCT_EXPORT_MODULE(CommerceHttp)
     NSURLSessionConfiguration *config=NSURLSessionConfiguration.ephemeralSessionConfiguration;
     config.TLSMinimumSupportedProtocolVersion=tls_protocol_version_TLSv13;
     config.TLSMaximumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    // No proxy of the system or of a network profile carries the request, as on Android (Proxy.NO_PROXY).
+    config.connectionProxyDictionary=@{};
     config.timeoutIntervalForResource=8;
     config.timeoutIntervalForRequest=8;
     config.HTTPShouldSetCookies=NO;
@@ -518,7 +520,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
 
 - (void)exchangeTravel:(NSString *)method path:(NSString *)path envelope:(NSString *)envelope
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-  NSRange match=[path rangeOfString:@"^/(consents|records(/[a-f0-9-]{36})?|visits|reviews|transcriptions|erasure(/[a-f0-9-]{36})?|itineraries/(preview|apply|generate|[a-f0-9-]{36}))$"
+  NSRange match=[path rangeOfString:@"^/(consents|records(/[a-f0-9-]{36})?|visits|reviews|transcriptions|erasure(/[a-f0-9-]{36})?|itineraries/(preview|apply|generate|[a-f0-9-]{36}))\\z"
        options:NSRegularExpressionSearch];
   if (match.location==NSNotFound || ![@[@"GET",@"POST"] containsObject:method]) {
     [self unavailable:reject]; return;
