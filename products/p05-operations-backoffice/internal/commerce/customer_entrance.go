@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"regexp"
 	"slices"
 	"strconv"
@@ -178,13 +179,24 @@ func (c *CustomerEntrance) tooMany(w http.ResponseWriter, kind string, wait time
 	writeJSON(w, http.StatusTooManyRequests, service.Reply{Status: "error", Error: service.Busy})
 }
 
-// clientKey is the peer address. Behind a proxy every customer shares the proxy's address (see the report).
+// clientKey is the peer a limit counts for, without its port. An IPv4 address is one client. An IPv6 client is its
+// /64: a network hands one customer a whole /64, so counting each address apart would give one device as many
+// allowances as it has addresses. Behind a proxy every customer shares the proxy's address (see the report).
 func clientKey(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
 	}
-	return host
+	address, err := netip.ParseAddr(host)
+	if err != nil {
+		return host
+	}
+	address = address.Unmap().WithZone("")
+	if address.Is4() {
+		return address.String()
+	}
+	network, _ := address.Prefix(64)
+	return network.String()
 }
 
 // RegisterCustomer adds the customer entrance to a mux served without client certificates.

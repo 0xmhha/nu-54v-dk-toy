@@ -365,3 +365,49 @@ func TestPickupScanRefusalsAreDistinct(t *testing.T) {
 		}
 	}
 }
+
+// A limit counts an IPv4 client by its address and an IPv6 client by its /64, whatever the port.
+func TestClientKeyGroupsAnIPv6Network(t *testing.T) {
+	key := func(remote string) string {
+		return clientKey(&http.Request{RemoteAddr: remote})
+	}
+	for remote, want := range map[string]string{
+		"198.51.100.7:4000":                   "198.51.100.7",
+		"198.51.100.7:65000":                  "198.51.100.7",
+		"[::ffff:198.51.100.7]:4000":          "198.51.100.7", // IPv4 through an IPv6 socket is still that IPv4 client
+		"[2001:db8:1:2::1]:4000":              "2001:db8:1:2::/64",
+		"[2001:db8:1:2:aaaa:bbbb:cccc:d]:443": "2001:db8:1:2::/64",
+		"[2001:db8:1:3::1]:4000":              "2001:db8:1:3::/64",
+		"[fe80::1%en0]:4000":                  "fe80::/64",
+		"[::1]:4000":                          "::/64",
+		"198.51.100.7":                        "198.51.100.7", // no port
+		"not an address":                      "not an address",
+	} {
+		if got := key(remote); got != want {
+			t.Fatalf("%s is counted as %q, want %q", remote, got, want)
+		}
+	}
+	// Every address of one /64 shares one allowance; the next /64 and an IPv4 client have their own.
+	now := time.Unix(1_800_000_000, 0)
+	h := HTTP{Customer: &CustomerEntrance{Limiter: NewRateLimiter(60, 2, func() time.Time { return now })}}
+	mux := http.NewServeMux()
+	h.RegisterCustomer(mux)
+	send := func(remote string) int {
+		req := httptest.NewRequest("POST", "/v2/customer/challenge", strings.NewReader("{"))
+		req.RemoteAddr = remote
+		reply := httptest.NewRecorder()
+		mux.ServeHTTP(reply, req)
+		return reply.Code
+	}
+	if send("[2001:db8:1:2::1]:4000") != http.StatusBadRequest || send("[2001:db8:1:2::2]:4001") != http.StatusBadRequest {
+		t.Fatal("the allowance of a /64 was refused")
+	}
+	for _, remote := range []string{"[2001:db8:1:2::3]:4000", "[2001:db8:1:2:ffff:ffff:ffff:ffff]:4000"} {
+		if code := send(remote); code != http.StatusTooManyRequests {
+			t.Fatalf("%s got another allowance inside a limited /64: %d", remote, code)
+		}
+	}
+	if send("[2001:db8:1:3::1]:4000") != http.StatusBadRequest || send("198.51.100.7:4000") != http.StatusBadRequest {
+		t.Fatal("another network shares the limit")
+	}
+}
