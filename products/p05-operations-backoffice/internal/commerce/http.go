@@ -89,6 +89,8 @@ type HTTP struct {
 	Legacy                    LegacyConsole
 	Firmware                  map[string]FirmwareRelease
 	NetworkList               *NetworkList
+	// Customer, when set, opens the customer entrance (RegisterCustomer) and the pickup QR scan.
+	Customer *CustomerEntrance
 }
 
 type request struct {
@@ -217,6 +219,9 @@ func (h HTTP) Register(mux *http.ServeMux) {
 	h.registerAccess(operators)
 	h.registerLegacy(operators)
 	h.registerFirmware(operators)
+	if h.Customer != nil {
+		operators.HandleFunc("POST /v2/operations/pickup-scan/{branch}/{sale}", h.pickupScan)
+	}
 	mux.Handle("/v2/operations/", authority.Protect(h.Credentials, operators))
 }
 
@@ -226,6 +231,12 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	h.serveFor(w, r, principal, nil)
+}
+
+// serveFor answers one envelope for an authenticated principal. A customer session limits it to the operations and
+// the order that session covers; a certificate passes no session.
+func (h HTTP) serveFor(w http.ResponseWriter, r *http.Request, principal service.Principal, session *customerSession) {
 	var outer request
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
 	decoder.DisallowUnknownFields()
@@ -235,6 +246,10 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := decoder.Token(); err != io.EOF {
 		errorResponse(w, service.BadRequest, nil)
+		return
+	}
+	if session != nil && (outer.POS != nil || outer.Travel != nil || outer.RentalReview != nil || outer.TerminalValue != nil) {
+		http.NotFound(w, r)
 		return
 	}
 	if outer.POS != nil {
@@ -257,6 +272,10 @@ func (h HTTP) serve(w http.ResponseWriter, r *http.Request) {
 	if err != nil || req.Contract != "C3" || (outer.Cart != nil && req.Operation != "order.create") || (outer.ApprovalSignature != "" &&
 		!slices.Contains([]string{"payment.forward", "order.lock", "order.answer", "payer.enroll", "wallet.return", "wallet.send"}, req.Operation)) {
 		errorResponse(w, service.BadRequest, nil)
+		return
+	}
+	if session != nil && !session.allows(req) {
+		http.NotFound(w, r)
 		return
 	}
 	if (outer.TerminalValue != nil) != (req.Operation == "terminal.device-change") {
