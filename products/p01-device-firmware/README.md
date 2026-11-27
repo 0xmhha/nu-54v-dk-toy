@@ -298,7 +298,9 @@ python3 scripts/enroll_board.py install "$board_address" grant.bin --station-key
   --ticket "$station_dir/station.ticket" --board-pin "$board_spki_sha256" --device "$device_id"
 ```
 
-The phone registers with SW1 and a new PIN entered twice. The board then has generation 1.
+The phone registers with SW1 and a new PIN entered twice. The board then has generation 1. This
+registration is also when the board makes the wallet key: a board without an owner, new or reset, holds
+none, and its status answers carry a zero address until then.
 
 **Grant per boot.** A grant lives in RAM, for at most 24 hours. After each restart open SW4 again, take a
 fresh ticket and offer, and issue with a new `not_after` and a higher `revision`. Keep `payer_generation`
@@ -327,6 +329,17 @@ grant still needs the SW4 window, and registration needs SW1 and a new PIN. A bo
 advertises only after a button, as before. The power figures are estimates until measured; see
 [the design](../../docs/content/commercial/architecture/board-secure-key-and-advertising.md).
 
+The board takes two centrals. While it has no owner it goes on advertising as long as one slot is free,
+and it disconnects a central that starts neither the installation ticket nor a TLS session within 30
+seconds (`CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS`, counted again from the end of each attempt). A tool that
+connects and waits longer than that has to connect again.
+
+**Long standby (not measured).** `--release --spending --standby` builds the application without the UART
+driver (`app/standby.conf`). The board default keeps that driver, and it leaves its receiver running, which
+keeps the high-frequency clock on between advertising events. MCUboot keeps its UART for serial recovery.
+The option cannot be combined with `--security-counter`, whose update path uses the application's UART.
+Whether the board then sleeps, and at what current, has to be measured on a board.
+
 **TrustZone build (not for a board yet).** `--secure-key` builds the same profile for
 `nu54v_dk/nrf54l15/cpuapp/ns`, where TF-M generates, uses and stores the wallet key in the secure side:
 
@@ -334,12 +347,17 @@ advertises only after a button, as before. The power figures are estimates until
 P01_BUILD_DIR=/tmp/p01-secure-key python3 scripts/fw.py build --release --spending --secure-key --pristine
 ```
 
-The build checks the generated configuration, that the signing code links only into the TF-M image, and
-the MCUboot signature. It writes no release manifest, and `fw.py flash` refuses it. Its flash layout
-differs from the installed boards, so it is never an update for them. Nobody has run it on a board.
+The build checks the generated configuration (TF-M, encrypted storage and persistent PSA keys), that the
+linker placed the signing code only in the TF-M image, and the MCUboot signature. It writes no release
+manifest. `fw.py flash` refuses every TF-M build, whichever option or board target shows it, and any build
+directory without its generated configuration. Its flash layout differs from the installed boards, so it
+is never an update for them. Nobody has run it on a board.
 
 **Reset.** The owner resets in the app (SW1 and PIN) or with the buttons: SW2 and SW3 for 5 seconds, the
-PIN, then SW1 long within 10 seconds. The operator signs a reset only for a forgotten PIN:
+PIN, then SW1 long within 10 seconds. Every reset reports success only after the key store confirmed
+that the wallet key is gone; otherwise the lamp shows a failure and the next start tries again. The
+operator's signed reset is the reset of the return desk, and the one for a forgotten PIN. It also runs on
+a board that was reset before, where it erases nothing and confirms again that no key is left:
 
 1. The board needs a current grant. On the enrolled phone, open the reset screen. On another phone with an
    owner certificate of the same CA, hold SW3 first. That window lasts 120 seconds and is needed again for
