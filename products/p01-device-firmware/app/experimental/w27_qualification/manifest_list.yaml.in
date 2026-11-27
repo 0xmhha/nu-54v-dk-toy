@@ -1,0 +1,19 @@
+{
+  "description": "W27 qualification manifest list",
+  "type": "manifest_list",
+  "version_major": 0,
+  "version_minor": 1,
+  "pid": 1000,
+  "manifest_list": [
+    {
+      "description": "W27 read-only platform observations",
+      "short_name": "W27_QUALIFICATION",
+      "manifest": "${W27Q_SOURCE}/partition.yaml",
+      "output_path": "${TFM_BINARY_DIR}/w27_qualification",
+      "tfm_partition_ipc": true,
+      "version_major": 0,
+      "version_minor": 1,
+      "linker_pattern": { "library_list": ["*tfm_app_rot_partition_w27q.*"] }
+    }
+  ]
+}

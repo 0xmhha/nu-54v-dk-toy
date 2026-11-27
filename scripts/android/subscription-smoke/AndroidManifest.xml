@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="org.nu54.qa.subscriptionclip">
+    <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="34" />
+    <application android:debuggable="true" android:label="NU54 emulator fixture clipboard">
+        <activity android:name=".Clip" android:exported="true" />
+    </application>
+</manifest>

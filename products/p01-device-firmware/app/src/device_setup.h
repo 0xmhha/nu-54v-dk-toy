@@ -15,4 +15,16 @@
  * week-7 fixed setup instead. Returns 0 or a negative error. */
 int device_setup_load(nu54_device_t *d);
 
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+#include "nu54_rental_freeze.h"
+#include "nu54_rental_registration.h"
+
+/* Dispatch only from the serialized rental work queue, with a verified commissioning context. */
+int device_setup_prepare_rental_generation(nu54_device_t *d, const nu54_rental_registration_t *registration,
+					   const nu54_rental_registration_trust_t *trust, const uint8_t signature[65]);
+int device_setup_activate_rental_generation(nu54_device_t *d, const nu54_rental_registration_t *registration,
+					    const nu54_rental_registration_trust_t *trust, const uint8_t signature[65]);
+
+#endif
+
 #endif /* DEVICE_SETUP_H */

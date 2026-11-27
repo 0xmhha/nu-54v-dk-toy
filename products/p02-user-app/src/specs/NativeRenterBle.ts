@@ -11,6 +11,7 @@ export interface Spec extends TurboModule {
    */
   scan(service: string, seconds: number): Promise<void>;
   stopScan(): Promise<void>;
+  scanOwner(service: string, seconds: number): Promise<void>;
   /**
    * Bonds with the device at `address` (LE Secure Connections). With a passkey the pairing request
    * is answered with it (Passkey Entry); with "" the system asks the renter (Just Works consent for
@@ -23,6 +24,7 @@ export interface Spec extends TurboModule {
   removeBond(address: string): Promise<boolean>;
   /** Connects to a bonded device only, subscribes to TX; resolves the ATT_MTU. */
   connect(address: string, service: string, rx: string, tx: string): Promise<number>;
+  connectOwner(address: string, service: string, rx: string, tx: string): Promise<number>;
   writeFragment(base64: string): Promise<void>;
   disconnect(): Promise<void>;
   /** n bytes from the platform's SecureRandom, base64. */

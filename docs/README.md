@@ -11,6 +11,8 @@
 | `content/environment/` | 비밀값 없는 toolchain, chain, provider manifest |
 | `content/analysis/document-logic/` | 문서 그래프, 추적성, 논리 검토 결과와 snapshot |
 | `content/products/` | DF-20260925-02 제품별 기획·SRS·유즈케이스·설계 |
+| [제품별 PRD·기획·Use Case·IA](content/commercial/products/README.md) | 10개 제품의 기능별 완료 기준, 정상·실패 흐름, 화면·서비스 권한, 원 요구사항 12개와의 연결 |
+| [상용 하드월렛·결제 시스템 설계](content/commercial/README.md) | 현행 코드와 실기기 증거, 여섯 네트워크, 모바일·키오스크·프로토콜, 보안 및 출시 수용 기준 |
 | `content/series/` | 12주 제작기 Medium 시리즈 포맷과 10편 목차 |
 | `content/assets/` | 프로젝트 이미지와 다이어그램 |
 | `design-history/` | 이전 승인 기준의 읽기 전용 archive |

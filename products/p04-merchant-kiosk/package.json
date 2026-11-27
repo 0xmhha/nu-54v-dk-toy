@@ -8,12 +8,13 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest",
+    "test": "node ../../scripts/test-jest.cjs",
     "typecheck": "tsc --noEmit",
-    "test:conformance": "jest test/conformance.test.ts",
+    "test:conformance": "node ../../scripts/test-jest.cjs test/conformance.test.ts",
     "provision:dev": "node --experimental-strip-types --no-warnings scripts/provision-dev.ts"
   },
   "dependencies": {
+    "@nu54/protocol-mobile": "workspace:0.3.0",
     "@noble/hashes": "1.8.0",
     "@nu54/contracts-abi": "workspace:*",
     "@nu54/protocol": "workspace:*",
@@ -54,6 +55,12 @@
     "jsSrcsDir": "src/specs",
     "android": {
       "javaPackageName": "com.nu54kiosk.ble"
+    },
+    "ios": {
+      "modulesProvider": {
+        "CommerceHttp": "CommerceHttp",
+        "Nearby": "Nearby"
+      }
     }
   }
 }

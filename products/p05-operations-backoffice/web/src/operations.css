@@ -1,0 +1,387 @@
+:root {
+  font-family: system-ui, sans-serif;
+  background: #edf1ed;
+  color: #183027;
+  line-height: 1.55;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 75rem;
+  margin: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+section,
+.branch {
+  background: white;
+  border: 1px solid #adbaaf;
+  border-radius: 0.6rem;
+  padding: 1rem;
+  margin-block: 1rem;
+}
+fieldset {
+  border: 1px solid #c7d3ca;
+  border-radius: 0.4rem;
+  padding: 0.7rem;
+  margin-block: 0.6rem;
+  min-width: 0;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin-block: 0.4rem;
+}
+input,
+select,
+textarea {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  border: 1px solid #73867a;
+  border-radius: 0.25rem;
+  background: #fafcf9;
+  font: inherit;
+  color: inherit;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.5rem 1rem;
+}
+button {
+  font: inherit;
+  background: #1d4636;
+  color: white;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  min-height: 2.75rem;
+  margin: 0.35rem 0.5rem 0.35rem 0;
+  padding: 0.5rem 0.8rem;
+}
+button:disabled {
+  background: #667e73;
+}
+:focus-visible {
+  outline: 3px solid #1e6aab;
+  outline-offset: 2px;
+}
+.live {
+  padding: 0;
+  list-style: none;
+}
+.live li {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0.6rem 0;
+  border-top: 1px solid #dbe3dc;
+  gap: 0.2rem 1rem;
+}
+main {
+  overflow-wrap: anywhere;
+}
+input[type="checkbox"] {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  min-height: 0;
+  margin-inline-end: 0.45em;
+  vertical-align: text-bottom;
+}
+button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 24rem) {
+  main,
+  section,
+  .branch {
+    padding-inline: 0.65rem;
+  }
+  fieldset {
+    padding-inline: 0.45rem;
+  }
+}
+input[type="radio"] {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  min-height: 0;
+  margin-inline-end: 0.45em;
+  vertical-align: text-bottom;
+}
+.totals dt {
+  font-weight: 600;
+}
+.totals dd,
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+.totals dd {
+  margin: 0;
+}
+/* Sized by the section, so enlarged text stacks the rows the same way a phone does. */
+section:has(> .ledger) {
+  container-type: inline-size;
+}
+.ledger label {
+  margin: 0;
+}
+.ledger li {
+  align-items: baseline;
+}
+.ledger li > * {
+  flex: 1 1 100%;
+}
+.disputes li {
+  display: block;
+}
+.disputes li li {
+  border: 0;
+  padding: 0;
+  display: list-item;
+}
+.disputes h3 {
+  margin-block: 0.4rem;
+}
+.claimbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.5rem;
+  background: white;
+}
+button.quiet {
+  background: transparent;
+  color: #1d4636;
+  border-color: #73867a;
+}
+button.quiet:disabled {
+  color: #56685e;
+}
+.batch {
+  border-top: 1px solid #dbe3dc;
+}
+[tabindex="-1"]:focus {
+  outline: 3px solid #1e6aab;
+  outline-offset: 2px;
+}
+progress {
+  width: 100%;
+  accent-color: #1d4636;
+}
+@container (min-width: 46rem) {
+  .claimbar {
+    position: sticky;
+    top: 0;
+    padding-block: 0.3rem;
+    border-bottom: 1px solid #adbaaf;
+  }
+  .ledger li {
+    display: grid;
+    grid-template-columns: 10rem 10rem 7rem 1fr auto;
+  }
+  .ledger .amount {
+    text-align: right;
+  }
+  .ledger li > p {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .ledger li > div {
+    display: contents;
+  }
+  .ledger li > div > button {
+    grid-area: 1 / 5;
+    margin-block: 0;
+  }
+  .ledger li > div > :not(button) {
+    grid-column: 1 / -1;
+  }
+  /* Keyboard focus must not end up under the bar that stays on top. */
+  .ledger :is(button, input, summary) {
+    scroll-margin-top: 5rem;
+  }
+}
+.spread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+}
+.spread > h2,
+.spread > p {
+  margin-block: 0.4rem;
+}
+.editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 1rem 2rem;
+}
+.value {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  align-items: end;
+  gap: 0 0.7rem;
+  border-top: 1px solid #dbe3dc;
+  padding-block: 0.4rem;
+}
+.value summary {
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding-block: 0.5rem;
+  box-sizing: border-box;
+}
+.problem {
+  background: #f8e1df;
+  color: #7a2020;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.8rem;
+}
+.scroll {
+  overflow-x: auto;
+}
+.scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-wrap: normal;
+}
+.scroll :is(th, td) {
+  text-align: left;
+  border-top: 1px solid #dbe3dc;
+  padding: 0.4rem 0.6rem;
+}
+.scroll .amount {
+  text-align: right;
+  white-space: nowrap;
+}
+fieldset.bare {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.value details[open] {
+  grid-column: 1 / -1;
+}
+.value details .grid {
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+}
+.photo-shown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.photo-shown img,
+.live img {
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 0.6rem;
+  background: #e3e9df;
+}
+.photo-add {
+  border: 2px dashed #adbaaf;
+  border-radius: 0.6rem;
+  padding: 0.8rem;
+}
+.photo-add input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+label.file {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.35rem;
+  background: #1d4636;
+  color: white;
+  cursor: pointer;
+}
+.photo-add input[type="file"]:focus-visible + p,
+label.file:has(+ input:focus-visible) {
+  outline: 3px solid #1e6aab;
+  outline-offset: 2px;
+}
+.nophoto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 72px;
+  border: 1px dashed #8fa497;
+  border-radius: 0.6rem;
+  font-size: 0.85rem;
+}
+.note {
+  background: #f6e3bf;
+  color: #5a3b05;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0.8rem;
+}
+
+/* Order state: one option per row, the minutes beside busy, the confirm panel stands out. */
+.modes .option {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #c9d3cc;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.modes .option:has(input[type="radio"]:checked) {
+  border-color: #174b38;
+  background: #eef5f0;
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stepper button {
+  min-width: 44px;
+}
+.warning {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f6e3bf;
+  color: #4a3204;
+}
+.confirm {
+  border: 2px solid #174b38;
+}
+.tag {
+  font-size: 0.9em;
+}
+.tag.warn {
+  font-weight: 700;
+  color: #8a3b12;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .confirm {
+    animation: confirm-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+@keyframes confirm-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+button.secondary {
+  background: #fffefa;
+  color: #174b38;
+  border: 1px solid #174b38;
+}
+button.danger {
+  background: #8a3b12;
+  border-color: #8a3b12;
+}

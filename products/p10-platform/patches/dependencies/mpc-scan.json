@@ -1,0 +1,250 @@
+{
+  "format": "nu54-product-scan-v1",
+  "product": "p03",
+  "observedAt": "2026-11-20",
+  "profile": "local unsigned Linux amd64 binaries, CGO_ENABLED=0, GOWORK=off, go1.26.11",
+  "thresholdModule": "github.com/bnb-chain/tss-lib/v4 v4.0.0-20260923032227-f204718ae595",
+  "goModSHA256": "28a63b55ceb3e73eae56994d5e6dd59f4947892fc628ddce1b3fd9473d29b3f2",
+  "goSumSHA256": "fad0cac6ad84febea0068c7f8ca00949da17f34f87a32f617f483ca5be0c9adf",
+  "trivy": {
+    "version": "0.68.2",
+    "dbUpdatedAt": "2026-11-20T01:04:07.386165244Z"
+  },
+  "govulncheck": {
+    "version": "v1.10.0",
+    "dbUpdatedAt": "2026-11-11T02:51:11Z",
+    "patchedSourceFindings": 0
+  },
+  "patch": {
+    "module": "github.com/btcsuite/btcd",
+    "old": "v0.23.4",
+    "new": "v0.25.0",
+    "before": [
+      "CVE-2024-34478",
+      "CVE-2024-38365"
+    ],
+    "sourceReachabilityBefore": "Two module findings with no invoked symbol trace."
+  },
+  "targets": [
+    {
+      "candidate": "mpc-coordinator",
+      "beforeSHA256": "edfab1e9d4cc2ff0ca1de63bdf3b43dd1e77a412c331d9cb0b992aec65d82734",
+      "afterSHA256": "c9339131f323d68dd9e42d110f6ab70a9c17f38aef3377d0b1a4c6f015534567",
+      "cycloneDXComponents": 33,
+      "cycloneDXFileSHA256": "9128f0be3c4a3db0235054dbb3c1f4b9010d51b3336138c040df49b541d87e43",
+      "afterBinaryVulnerabilities": 0,
+      "afterGoBinaryFindings": 0
+    },
+    {
+      "candidate": "mpc-participant",
+      "beforeSHA256": "caf101e436cdc55369de0e744cbedc20db37ddc47b53c41d8099f33344bb6e07",
+      "afterSHA256": "63a1ade38a49a1d43b2feb12ee1637968b34431709e81d35b04240d6485e8599",
+      "cycloneDXComponents": 26,
+      "cycloneDXFileSHA256": "8ae29c8fd052fe2e518898b836b171fb545293b8fad046bfd728afec1220ff70",
+      "afterBinaryVulnerabilities": 0,
+      "afterGoBinaryFindings": 0
+    }
+  ],
+  "scope": "These observations apply to the listed development candidates and database snapshots. Installation, field inventory and official promotion require target receipts.",
+  "androidParticipant": {
+    "candidate": "P02 debug APK, arm64-v8a",
+    "apkSHA256": "385c6cc507f053f7bfa8f850a79773a9b396f86eb30eb6c591965dfd77b8e3c6",
+    "entry": "lib/arm64-v8a/libnu54_p03.so",
+    "entrySHA256": "e226cc3e4f156ab4076588355c73af95bf8a327aaf1cae54837f6e5d366ba79d",
+    "method": "Extracted the shared library from the APK. go version -m -json supplied its actual module list, including effective replacements and the Go runtime. Converted the module list to CycloneDX and scanned it with Trivy. The generic rootfs analyzer did not identify this ELF shared library. govulncheck independently inspected the extracted binary.",
+    "goModules": [
+      "pkg:golang/filippo.io/bigmod@v0.1.0",
+      "pkg:golang/github.com/binance-chain/edwards25519@v0.0.0-20200305024217-f36fc4b53d43",
+      "pkg:golang/github.com/bnb-chain/tss-lib/v4@v4.0.0-20260923032227-f204718ae595",
+      "pkg:golang/github.com/btcsuite/btcd@v0.25.0",
+      "pkg:golang/github.com/btcsuite/btcd/btcec/v2@v2.5.1",
+      "pkg:golang/github.com/btcsuite/btcd/chaincfg/chainhash@v1.2.0",
+      "pkg:golang/github.com/btcsuite/btcutil@v1.0.2",
+      "pkg:golang/github.com/decred/dcrd/dcrec/edwards/v2@v2.0.3",
+      "pkg:golang/github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.1",
+      "pkg:golang/github.com/gogo/protobuf@v1.3.2",
+      "pkg:golang/github.com/hashicorp/errwrap@v1.0.0",
+      "pkg:golang/github.com/hashicorp/go-multierror@v1.1.1",
+      "pkg:golang/github.com/ipfs/go-log@v1.0.5",
+      "pkg:golang/github.com/ipfs/go-log/v2@v2.9.2",
+      "pkg:golang/github.com/mattn/go-isatty@v0.0.22",
+      "pkg:golang/github.com/opentracing/opentracing-go@v1.2.0",
+      "pkg:golang/github.com/otiai10/primes@v0.0.0-20210501021515-f1b2be525a11",
+      "pkg:golang/github.com/pkg/errors@v0.9.1",
+      "pkg:golang/go.uber.org/multierr@v1.11.0",
+      "pkg:golang/go.uber.org/zap@v1.28.0",
+      "pkg:golang/golang.org/x/crypto@v0.59.0",
+      "pkg:golang/golang.org/x/sys@v0.50.0",
+      "pkg:golang/google.golang.org/protobuf@v1.36.12",
+      "pkg:golang/stdlib@1.26.11"
+    ],
+    "trivyInspected": 24,
+    "trivyFindings": 0,
+    "govulncheckBinaryFindings": 0,
+    "scope": "Go libraries and runtime in this APK entry. Android platform, JNI C code and production certification have separate evidence."
+  },
+  "iosSimulatorParticipant": {
+    "candidate": "P02 Debug, ARM64 iOS Simulator, native app link",
+    "entry": "NU54Renter.app/NU54Renter.debug.dylib",
+    "entrySHA256": "d1b9d6ba54d98637434deb00d9251a98eebdcf96a251d9214adf9d5143afefca",
+    "exportedNativeFunctions": [
+      "nu54_p03_start",
+      "nu54_p03_stop"
+    ],
+    "method": "Go build information from final linked Mach-O, including replacement modules, was converted to CycloneDX. Scanned the 24-component SBOM with Trivy. govulncheck inspected the same Mach-O. nm confirmed both native functions were defined.",
+    "goModules": [
+      "pkg:golang/filippo.io/bigmod@v0.1.0",
+      "pkg:golang/github.com/binance-chain/edwards25519@v0.0.0-20200305024217-f36fc4b53d43",
+      "pkg:golang/github.com/bnb-chain/tss-lib/v4@v4.0.0-20260923032227-f204718ae595",
+      "pkg:golang/github.com/btcsuite/btcd@v0.25.0",
+      "pkg:golang/github.com/btcsuite/btcd/btcec/v2@v2.5.1",
+      "pkg:golang/github.com/btcsuite/btcd/chaincfg/chainhash@v1.2.0",
+      "pkg:golang/github.com/btcsuite/btcutil@v1.0.2",
+      "pkg:golang/github.com/decred/dcrd/dcrec/edwards/v2@v2.0.3",
+      "pkg:golang/github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.1",
+      "pkg:golang/github.com/gogo/protobuf@v1.3.2",
+      "pkg:golang/github.com/hashicorp/errwrap@v1.0.0",
+      "pkg:golang/github.com/hashicorp/go-multierror@v1.1.1",
+      "pkg:golang/github.com/ipfs/go-log@v1.0.5",
+      "pkg:golang/github.com/ipfs/go-log/v2@v2.9.2",
+      "pkg:golang/github.com/mattn/go-isatty@v0.0.22",
+      "pkg:golang/github.com/opentracing/opentracing-go@v1.2.0",
+      "pkg:golang/github.com/otiai10/primes@v0.0.0-20210501021515-f1b2be525a11",
+      "pkg:golang/github.com/pkg/errors@v0.9.1",
+      "pkg:golang/go.uber.org/multierr@v1.11.0",
+      "pkg:golang/go.uber.org/zap@v1.28.0",
+      "pkg:golang/golang.org/x/crypto@v0.59.0",
+      "pkg:golang/golang.org/x/sys@v0.50.0",
+      "pkg:golang/google.golang.org/protobuf@v1.36.12",
+      "pkg:golang/stdlib@1.26.11"
+    ],
+    "trivyInspected": 24,
+    "trivyFindings": 0,
+    "govulncheckBinaryFindings": 0,
+    "scope": "Linked simulator Go dependencies; device execution, Apple distribution signature, OS, Objective-C++ and C bindings have separate evidence."
+  },
+  "rosterMobileCandidates": {
+    "capability": "Native device-generated CSR and independent signed roster enrollment before audit remediation",
+    "scanMethod": "Extract the Android shared library from the APK or read the final Apple binary. Check the exported prepare, install, start API symbols; parse exact embedded effective Go modules with go version -m -json, scan matching CycloneDX with Trivy and inspect each binary directly with govulncheck.",
+    "targets": [
+      {
+        "profile": "P02 arm64 debug APK lib/arm64-v8a/libnu54_p03.so",
+        "artifactSHA256": "402164a17617451298af898056e582bd81e2230fc15b5347d5344a0a4a7e1d35",
+        "exports": [
+          "nu54_p03_prepare",
+          "nu54_p03_install",
+          "nu54_p03_start",
+          "nu54_p03_stop"
+        ],
+        "goVersion": "go1.26.11",
+        "goComponents": [
+          "pkg:golang/filippo.io/bigmod@v0.1.0",
+          "pkg:golang/github.com/binance-chain/edwards25519@v0.0.0-20200305024217-f36fc4b53d43",
+          "pkg:golang/github.com/bnb-chain/tss-lib/v4@v4.0.0-20260923032227-f204718ae595",
+          "pkg:golang/github.com/btcsuite/btcd@v0.25.0",
+          "pkg:golang/github.com/btcsuite/btcd/btcec/v2@v2.5.1",
+          "pkg:golang/github.com/btcsuite/btcd/chaincfg/chainhash@v1.2.0",
+          "pkg:golang/github.com/btcsuite/btcutil@v1.0.2",
+          "pkg:golang/github.com/decred/dcrd/dcrec/edwards/v2@v2.0.3",
+          "pkg:golang/github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.1",
+          "pkg:golang/github.com/gogo/protobuf@v1.3.2",
+          "pkg:golang/github.com/google/uuid@v1.6.0",
+          "pkg:golang/github.com/hashicorp/errwrap@v1.0.0",
+          "pkg:golang/github.com/hashicorp/go-multierror@v1.1.1",
+          "pkg:golang/github.com/ipfs/go-log@v1.0.5",
+          "pkg:golang/github.com/ipfs/go-log/v2@v2.9.2",
+          "pkg:golang/github.com/mattn/go-isatty@v0.0.22",
+          "pkg:golang/github.com/opentracing/opentracing-go@v1.2.0",
+          "pkg:golang/github.com/otiai10/primes@v0.0.0-20210501021515-f1b2be525a11",
+          "pkg:golang/github.com/pkg/errors@v0.9.1",
+          "pkg:golang/go.uber.org/multierr@v1.11.0",
+          "pkg:golang/go.uber.org/zap@v1.28.0",
+          "pkg:golang/golang.org/x/crypto@v0.59.0",
+          "pkg:golang/golang.org/x/sys@v0.50.0",
+          "pkg:golang/google.golang.org/protobuf@v1.36.12",
+          "pkg:golang/stdlib@1.26.11"
+        ],
+        "trivyInspected": 25,
+        "trivyFindings": 0,
+        "govulncheckBinaryFindings": 0,
+        "apkSHA256": "07a371f282be639f7f0e121a8512beabffea38e168d0749a4405fad78ed00273"
+      },
+      {
+        "profile": "P02 unsigned Release-iphoneos ARM64 executable",
+        "artifactSHA256": "617a9cec114e6af721a45757456e2c4fe8790e28e7b2bfe24efe2cbd4c9eb661",
+        "exports": [
+          "nu54_p03_prepare",
+          "nu54_p03_install",
+          "nu54_p03_start"
+        ],
+        "goVersion": "go1.26.11",
+        "goComponents": [
+          "pkg:golang/filippo.io/bigmod@v0.1.0",
+          "pkg:golang/github.com/binance-chain/edwards25519@v0.0.0-20200305024217-f36fc4b53d43",
+          "pkg:golang/github.com/bnb-chain/tss-lib/v4@v4.0.0-20260923032227-f204718ae595",
+          "pkg:golang/github.com/btcsuite/btcd@v0.25.0",
+          "pkg:golang/github.com/btcsuite/btcd/btcec/v2@v2.5.1",
+          "pkg:golang/github.com/btcsuite/btcd/chaincfg/chainhash@v1.2.0",
+          "pkg:golang/github.com/btcsuite/btcutil@v1.0.2",
+          "pkg:golang/github.com/decred/dcrd/dcrec/edwards/v2@v2.0.3",
+          "pkg:golang/github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.1",
+          "pkg:golang/github.com/gogo/protobuf@v1.3.2",
+          "pkg:golang/github.com/google/uuid@v1.6.0",
+          "pkg:golang/github.com/hashicorp/errwrap@v1.0.0",
+          "pkg:golang/github.com/hashicorp/go-multierror@v1.1.1",
+          "pkg:golang/github.com/ipfs/go-log@v1.0.5",
+          "pkg:golang/github.com/ipfs/go-log/v2@v2.9.2",
+          "pkg:golang/github.com/mattn/go-isatty@v0.0.22",
+          "pkg:golang/github.com/opentracing/opentracing-go@v1.2.0",
+          "pkg:golang/github.com/otiai10/primes@v0.0.0-20210501021515-f1b2be525a11",
+          "pkg:golang/github.com/pkg/errors@v0.9.1",
+          "pkg:golang/go.uber.org/multierr@v1.11.0",
+          "pkg:golang/go.uber.org/zap@v1.28.0",
+          "pkg:golang/golang.org/x/crypto@v0.59.0",
+          "pkg:golang/golang.org/x/sys@v0.50.0",
+          "pkg:golang/google.golang.org/protobuf@v1.36.12",
+          "pkg:golang/stdlib@1.26.11"
+        ],
+        "trivyInspected": 25,
+        "trivyFindings": 0,
+        "govulncheckBinaryFindings": 0
+      }
+    ]
+  },
+  "sessionBoundMobileCandidates": {
+    "capability": "Enforces signed roster monotonicity and stops the native participant on session termination. Android app debug library and unsigned iPhoneOS Release are separate build targets.",
+    "goComponentsReference": "Target at the same index in rosterMobileCandidates.targets. Both the embedded Go build information and package list were re-read from these binaries and matched before scanning.",
+    "scanMethod": "Same databases as rosterMobileCandidates. Read actual embedded modules including replacements, scan per-artifact CycloneDX with Trivy and inspect the binary directly with govulncheck. Confirm prepare/install/start/stop exports.",
+    "targets": [
+      {
+        "profile": "P02 arm64 debug APK lib/arm64-v8a/libnu54_p03.so",
+        "artifactSHA256": "96631ada1c33483dad2b395d5708ba9787a2e982faf8d20956f5a2e363efac8c",
+        "exports": [
+          "nu54_p03_prepare",
+          "nu54_p03_install",
+          "nu54_p03_start",
+          "nu54_p03_stop"
+        ],
+        "goVersion": "go1.26.11",
+        "trivyInspected": 25,
+        "trivyFindings": 0,
+        "govulncheckBinaryFindings": 0,
+        "apkSHA256": "0130724a2e19784197af690294a92023f6dcf7766ff593f5fcc8f4319dfc6fde"
+      },
+      {
+        "profile": "P02 unsigned Release-iphoneos ARM64 executable",
+        "artifactSHA256": "d77fd0ab374a21a3da43e9bea33b2a94798c48c34b3ca1fd8e67d2137f4a752e",
+        "exports": [
+          "nu54_p03_prepare",
+          "nu54_p03_install",
+          "nu54_p03_start",
+          "nu54_p03_stop"
+        ],
+        "goVersion": "go1.26.11",
+        "trivyInspected": 25,
+        "trivyFindings": 0,
+        "govulncheckBinaryFindings": 0
+      }
+    ]
+  }
+}

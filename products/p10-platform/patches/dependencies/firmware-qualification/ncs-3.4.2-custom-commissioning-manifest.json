@@ -1,0 +1,76 @@
+{
+  "artifacts": {
+    "app/zephyr/.config": "b56f8e6fddcc16a118f31cc2fc863d0578449352ac6e32d166ab5f1ae3f203d7",
+    "app/zephyr/zephyr.bin": "1ad7ca5c2e77d1b781b91a04e2243c13655c3b544a918d27739831031948cee1",
+    "app/zephyr/zephyr.elf": "f47894815ba45e70981fb0c5d6ad1b9f5ba78f8734349a48bb5d6d7867da85b1",
+    "app/zephyr/zephyr.map": "9a9fab33e03dcc25e53fc3fc6fbb01dbb1172b832ae12097af132922ae1582a0",
+    "app/zephyr/zephyr.signed.bin": "1d541435a2134c9bbe3a9d5c37e24f4934704b640c6ef0ba7b45165b7c34a906",
+    "app/zephyr/zephyr.signed.hex": "579686aa557f394ca76a0e5bd2f63f4a0b53d649a0dc24f0964fd4bbd4d37fdd",
+    "app_provision.hex": "1eefae155fda2d8c2420539fee1e9ec7ac28f716cd7bd30c7b068210138723ce",
+    "mcuboot/zephyr/.config": "ed088ad502f90aa67cd0fd1a9c2e72cccea3ba7a2532f4abd631b8b4ab387886",
+    "mcuboot/zephyr/zephyr.elf": "53051985d43374149e42246a8847d09692db8d8715ce9f8bacd497348caca0e5",
+    "mcuboot/zephyr/zephyr.hex": "a45b987b2169ca36251cb6d145a570eb68e6e111875c4ead99c4a31b3f47f881",
+    "mcuboot/zephyr/zephyr.map": "8d828cf115962ca0b911264f3f0939598d77878120a2417bbcc20603f5581756",
+    "release-public.pem": "596b23fe455e607d4b70adc9100269378fdf9434e8a3310342c09f0a9d1abf2c",
+    "tls-stack.cdx.json": "6ddfdc541a7f8ccc3c8b354dd3bdb9dedc9037ad736b3665bd53f698eeb22b55",
+    "west-frozen.yml": "80d094e996bce4d498730e24812253a3334259e120057349d9d2cd0e603be7fd"
+  },
+  "board": "nu54v_dk/nrf54l15/cpuapp",
+  "channel": "custom",
+  "compilerSha256": "ae3014b924e3a21c3762096e23a578f16b952e97695c0072c39824ca6eb88803",
+  "debugProtection": true,
+  "debugProtectionBuildConfiguration": {
+    "app": "locked",
+    "mcuboot": "locked"
+  },
+  "debugProtectionDeviceReadback": null,
+  "enrollmentAuthorityPointSha256": "0c363bbf7c952169b38e8dd71809986b3b13146af22daeb0e579985713b672dd",
+  "mcubootComponent": {
+    "advisory": "GHSA-4fp3-3qw2-25jv",
+    "linkedTlvBoundaryLines": [
+      181,
+      182,
+      196
+    ],
+    "patchSha256": "02977b3489beaf5f47aad743ae840f2bb6291b9b72ca66013cd73263cb52e876",
+    "tlvSourceSha256": "0f7c8e66efbc5afb9a1b5616fc2a5dd0b389bce880d3e81f1af233d35a7546e2",
+    "upstreamCommit": "90f4e7c3ebe4cf9a5eb7d981220388ffdefd6d19",
+    "vendorCommit": "5d8736c1fd98959f9a607f59fe1a2d82c7e37bde"
+  },
+  "mcubootPublicKeySha256": "bf3682a1cd817361e43a12e67b4b13b05ee459626b3978ac356eabcd88c605fa",
+  "ncs": "v3.4.2",
+  "nrfCommit": "f0b8ad4c737745efc407b294d99fbc2279ea09a1",
+  "serialRecovery": {
+    "hardwareCounterReadback": null,
+    "hardwareSecurityCounter": 2,
+    "layoutVerified": true,
+    "offlineInterruptedPrefixesRejected": 4,
+    "onDeviceRecoveryVerified": null,
+    "signedApplicationSlotOnly": true,
+    "staging": "application-secondary"
+  },
+  "sourceCommit": "4ca2e59a83151e6ab9bed10a39f89f5c194358b9",
+  "sourceDirty": true,
+  "tlsComponent": {
+    "archiveSha256": "392215e5e4846df04e2f4c4516079303bd73edde837d8f3e68fb4d4d7ddf0126",
+    "integrationPatchSha256": "06012cc1e849dd6a1a6d858c5a527ffad1af32a470401ffd4bd0905ebeac836a",
+    "linked": {
+      "ssl_tls.c": {
+        "sourceSha256": "8ebb8346aa42db2a20d84b71d12afb1bbf5368b073661235e8507dc03ef3759f",
+        "symbol": "mbedtls_ssl_handshake"
+      },
+      "ssl_tls13_server.c": {
+        "sourceSha256": "cb8a31e4cec6423b2f7a3b5ad6eccebe609fbf64857deb1395dbc749be297868",
+        "symbol": "mbedtls_ssl_tls13_handshake_server_step"
+      },
+      "x509_crt.c": {
+        "sourceSha256": "e4f587954c245789f2659c6f87a50cff2ec00c30f6d3481e6fe4e9db37282fc7",
+        "symbol": "mbedtls_x509_crt_verify_restartable"
+      }
+    },
+    "name": "Mbed TLS",
+    "purl": "pkg:github/Mbed-TLS/mbedtls@mbedtls-4.1.2",
+    "upstreamCommit": "8808d31cdffb1a2c82645a531a96a0f26dd3e8c3",
+    "version": "4.1.2"
+  }
+}

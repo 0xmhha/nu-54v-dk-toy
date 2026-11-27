@@ -137,6 +137,7 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
   // ------------------------------------------------------------------ scan
 
   private var scanning: Promise? = null
+  private var pairingScan = true
   private val main = Handler(Looper.getMainLooper())
   private val stopLater = Runnable { stopScanning() }
 
@@ -144,7 +145,7 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
     override fun onScanResult(type: Int, result: ScanResult) {
       val record = result.scanRecord ?: return
       // Pairing mode only: the device sets LE Limited Discoverable there and not in payment mode.
-      if (record.advertiseFlags < 0 || record.advertiseFlags and 0x01 == 0) return
+      if (pairingScan && (record.advertiseFlags < 0 || record.advertiseFlags and 0x01 == 0)) return
       val json = JSONObject()
         .put("address", result.device.address)
         .put("name", record.deviceName ?: result.device.name ?: "")
@@ -158,10 +159,14 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
     }
   }
 
-  override fun scan(service: String, seconds: Double, promise: Promise) {
+  override fun scan(service: String, seconds: Double, promise: Promise) = scanFor(service, seconds, true, promise)
+
+  override fun scanOwner(service: String, seconds: Double, promise: Promise) = scanFor(service, seconds, false, promise)
+
+  private fun scanFor(service: String, seconds: Double, pairingOnly: Boolean, promise: Promise) {
     val scanner = manager.adapter?.bluetoothLeScanner ?: return promise.reject("NO_BLUETOOTH", "Bluetooth is off")
     stopScanning()
-    synchronized(this) { scanning = promise }
+    synchronized(this) { pairingScan = pairingOnly; scanning = promise }
     val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(service))).build()
     val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
     scanner.startScan(listOf(filter), settings, scanCallback)
@@ -208,18 +213,24 @@ class RenterBleModule(private val context: ReactApplicationContext) : NativeRent
 
   // ------------------------------------------------------------------ link
 
-  override fun connect(address: String, service: String, rx: String, tx: String, promise: Promise) {
+  override fun connect(address: String, service: String, rx: String, tx: String, promise: Promise) =
+    openGatt(address, service, rx, tx, true, promise)
+
+  override fun connectOwner(address: String, service: String, rx: String, tx: String, promise: Promise) =
+    openGatt(address, service, rx, tx, false, promise)
+
+  private fun openGatt(address: String, service: String, rx: String, tx: String, legacy: Boolean, promise: Promise) {
     val device = try {
       manager.adapter.getRemoteDevice(address)
     } catch (e: IllegalArgumentException) {
       return promise.reject("BAD_ADDRESS", e.message)
     }
-    if (device.bondState != BluetoothDevice.BOND_BONDED) return promise.reject("NOT_BONDED", "bond with the device first")
+    if (legacy && device.bondState != BluetoothDevice.BOND_BONDED) return promise.reject("NOT_BONDED", "bond with the device first")
     close()
     connecting = promise
     this.address = address
     ids = Triple(UUID.fromString(service), UUID.fromString(rx), UUID.fromString(tx))
-    gatt = device.connectGatt(context, true, callback, BluetoothDevice.TRANSPORT_LE) // auto-reconnect
+    gatt = device.connectGatt(context, legacy, callback, BluetoothDevice.TRANSPORT_LE) // auto-reconnect
   }
 
   override fun writeFragment(base64: String, promise: Promise) {

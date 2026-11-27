@@ -45,6 +45,10 @@ void ss_prepare(nu54_device_t *d, const nu54_msg_t *m, uint64_t now, nu54_out_t 
 		ss_refused(d, out, "TIME_ANCHOR_MISSING");
 		return;
 	}
+	if (!ss_rental_can_prompt(d)) {
+		ss_refused(d, out, "NOT_PERMITTED");
+		return;
+	}
 	if (!d->attested) {
 		ss_refused(d, out, "MERCHANT_FORGED");
 		return;
@@ -130,17 +134,17 @@ void ss_payment_button(nu54_device_t *d, int approve, nu54_out_t *out)
 		return;
 	}
 	nu54_payment_authorization_t p = d->pending_auth;
-	memcpy(p.nonce, d->next_nonce, 32);
-	ss_increment(d->next_nonce); /* sequential: consecutive nonces share one bitmap slot */
-	if (d->cfg.platform.persist_nonce && d->cfg.platform.persist_nonce(d->cfg.platform.ctx, d->next_nonce) != 0) {
-		ss_refused(d, out, "NOT_PERMITTED"); /* the counter must be stored before signing */
+	uint8_t domain[32], h[32], digest[32], sig[65];
+	nu54_rental_journal_request_t request;
+	nu54_rental_journal_payment_request(p.merchant, p.order_id, &request);
+	if (ss_rental_nonce(d, NU54_RENTAL_PAYMENT, request.key, p.nonce) != 0) {
+		ss_refused(d, out, "NOT_PERMITTED");
 		return;
 	}
-	uint8_t domain[32], h[32], digest[32], rs[64], sig[65];
 	nu54_eip712_domain_separator(d->chain_id, d->contract, domain);
 	nu54_hash_payment_authorization(&p, h);
 	nu54_eip712_digest(domain, h, digest);
-	if (d->cfg.platform.sign(d->cfg.platform.ctx, digest, rs) != 0 || nu54_sig_finish(digest, rs, d->address, sig) != NU54_SIG_OK) {
+	if (ss_rental_sign(d, NU54_RENTAL_PAYMENT, &request, p.expiry, digest, p.nonce, sig) != 0) {
 		ss_refused(d, out, "NOT_PERMITTED");
 		return;
 	}

@@ -1,3 +1,4 @@
+#include "../app/src/ble_link_epoch.h"
 /* Which central is which (core/nu54_links): the kiosk, the phone app and the operator tool. */
 #include <stdio.h>
 
@@ -57,6 +58,17 @@ int main(void)
 	nu54_links_facts(&r, KIOSK, 1, 1);
 	check(!r.link[KIOSK].bonded, "facts need a connection");
 	check(!nu54_links_is_phone(&r, 7) && nu54_links_disconnected(&r, -1) == 0, "out-of-range links");
+
+	/* Controller reconnects in the same slot before queued work finishes. */
+	uint64_t received_epoch = 71;
+	uint64_t slot_epoch = received_epoch;
+	check(ble_link_epoch_matches(slot_epoch, received_epoch), "current RX can select its TX connection");
+	slot_epoch = 0;
+	check(!ble_link_epoch_matches(slot_epoch, received_epoch), "disconnect invalidates RX and TX");
+	slot_epoch = 72;
+	check(!ble_link_epoch_matches(slot_epoch, received_epoch), "queued work cannot select a reused slot");
+	check(ble_link_epoch_matches(slot_epoch, 72), "new connection accepts its own RX and TX");
+	check(!ble_link_epoch_matches(0, 0), "empty slot cannot carry scoped work");
 
 	printf("%s: links, %d failures\n", failures ? "FAIL" : "ok", failures);
 	return failures ? 1 : 0;

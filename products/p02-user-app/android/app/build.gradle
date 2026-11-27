@@ -12,6 +12,8 @@ react {
     reactNativeDir = file("../../../../node_modules/react-native")
     codegenDir = file("../../../../node_modules/@react-native/codegen")
     cliFile = file("../../../../node_modules/react-native/cli.js")
+    def hermesExecutable = System.getProperty("os.name").startsWith("Windows") ? "hermesc.exe" : "hermesc"
+    hermesCommand = file("../../../../node_modules/hermes-compiler/hermesc/%OS-BIN%/${hermesExecutable}").absolutePath
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")
@@ -79,16 +81,30 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
     ndkVersion rootProject.ext.ndkVersion
+    externalNativeBuild {
+        cmake { path file("../../native/market/CMakeLists.txt") }
+    }
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.nu54renter"
     defaultConfig {
+        testInstrumentationRunner(findProperty("nu54LabRunner") ?: "com.nu54renter.ble.OwnerTlsLab")
         applicationId "com.nu54renter"
+        buildConfigField "boolean", "NU54_WALLET_SEND_QA", "false"
+        // Demo wallet screens with fixture data. Nothing in this repository turns it on; only an
+        // out-of-tree QA init script may set it for the custom build type.
+        buildConfigField "boolean", "NU54_DEMO_WALLET", "false"
+        manifestPlaceholders.nu54P03Profile = (findProperty("nu54P03Profile") ?: "")
+        manifestPlaceholders.nu54MarketProfile = (findProperty("nu54MarketProfile") ?: "")
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+    }
+    def p03Libraries = findProperty("nu54P03Libs")
+    if (p03Libraries != null) {
+        sourceSets.main.jniLibs.srcDir(file(p03Libraries))
     }
     signingConfigs {
         debug {
@@ -103,16 +119,38 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }
 
+apply from: rootProject.file("../../../scripts/android/release-signing.gradle")
+apply from: rootProject.file("../../../scripts/android/legal-notices.gradle")
+apply from: rootProject.file("../../../scripts/android/runtime-constraints.gradle")
+
+def psbtQrVersion = "3.5.4"
+def psbtQrArtifact = configurations.create("psbtQrArtifact") {
+    canBeConsumed = false
+    transitive = false
+}
+def verifyPsbtQrArtifact = tasks.register("verifyPsbtQrArtifact") {
+    inputs.files(psbtQrArtifact)
+    doLast {
+        def digest = java.security.MessageDigest.getInstance("SHA-256")
+        def actual = digest.digest(psbtQrArtifact.singleFile.bytes).encodeHex().toString()
+        if (actual != "71de5d89341b5fcf5dd89da7f44e84d825d0e084cdf3ec77c9abe26b0f0ceb13") {
+            throw new GradleException("ZXing Core artifact checksum mismatch")
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifyPsbtQrArtifact) }
+
 dependencies {
+    add("psbtQrArtifact", "com.google.zxing:core:${psbtQrVersion}")
+    implementation("com.google.zxing:core:${psbtQrVersion}") {
+        version { strictly(psbtQrVersion) }
+    }
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
@@ -120,5 +158,19 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+def nu54MobilePackage = providers.exec {
+    workingDir rootProject.projectDir
+    commandLine "node", "--print", "require.resolve('@nu54/protocol-mobile/package.json')"
+}.standardOutput.asText.get().trim()
+apply from: new File(new File(nu54MobilePackage).parentFile, "android/nu54-mobile.gradle")
+
+
+// A changed workspace origin must regenerate the signed release JS bundle.
+tasks.configureEach {
+    if (name.startsWith("createBundle") && name.endsWith("JsAndAssets")) {
+        inputs.property("nu54PublicTravelOrigin", providers.environmentVariable("NU54_P09_PUBLIC_ORIGIN").orElse(""))
     }
 }

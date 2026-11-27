@@ -73,7 +73,7 @@ class KioskVaultModule(private val context: ReactApplicationContext) : NativeKio
   }
 
   override fun putSetting(name: String, value: String, promise: Promise) {
-    settings.edit().putString(name, value).apply()
+    if (!settings.edit().putString(name, value).commit()) return promise.reject("SAVE_FAILED", "Settings could not be saved")
     promise.resolve(null)
   }
 

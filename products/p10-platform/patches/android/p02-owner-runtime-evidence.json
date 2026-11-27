@@ -1,0 +1,53 @@
+{
+  "capturedAt": "2026-11-20",
+  "context": "P02 C1 management TLS backend",
+  "customArtifacts": [
+    {
+      "artifactSha256": "55716b3df02c9c3992e5981690ce0d9767391f839479888c6c553e0a5dac50ee",
+      "channel": "custom",
+      "file": "app-custom.apk",
+      "package": "com.nu54renter.custom",
+      "signerSha256": "fd41bbc830353ffa09d7a6fab6eebd67035075924568c1f1e0da8913cc3b7799"
+    },
+    {
+      "artifactSha256": "b629305c252b24da425dfaa2b04951e5f8d92cfce756c3dd7bbcaa39604b3f30",
+      "channel": "custom",
+      "file": "app-custom.aab",
+      "package": "com.nu54renter.custom",
+      "signerSha256": "fd41bbc830353ffa09d7a6fab6eebd67035075924568c1f1e0da8913cc3b7799"
+    }
+  ],
+  "format": "nu54-android-runtime-patch-evidence-v1",
+  "product": "p02",
+  "scanner": {
+    "database": {
+      "DownloadedAt": "2026-11-20T03:59:23.468274Z",
+      "NextUpdate": "2026-11-21T01:04:07.386165093Z",
+      "UpdatedAt": "2026-11-20T01:04:07.386165244Z",
+      "Version": 2
+    },
+    "databaseSha256": "c9aa41131c61231f84168091e69b51dfdd30d4fbd14917e8d2a7de8366ac3583",
+    "trivy": "0.68.2"
+  },
+  "status": "local-custom-test-signer",
+  "variants": {
+    "custom": {
+      "graph": "p02-owner-custom-gradle.lockfile",
+      "graphSha256": "70c9fb9ef9286c6b901baf7697a8dd258e8cea8c454a9d40d0d108e55edd8a03",
+      "reports": {
+        "findings": [],
+        "packages": 88,
+        "reportSha256": "58db1fe85822f40d3d68de947ee98c5dc0a43a7c0068cb0eaeed1da65e546bd1"
+      }
+    },
+    "release": {
+      "graph": "p02-owner-release-gradle.lockfile",
+      "graphSha256": "178ae23292f131370d8773708c07f80d5b4080a3b4b091af0876db72f1930d33",
+      "reports": {
+        "findings": [],
+        "packages": 88,
+        "reportSha256": "5251aeafc1b8acba4ad84de907f626d03ac338a1aa55abc519f485118fdf2cd2"
+      }
+    }
+  }
+}

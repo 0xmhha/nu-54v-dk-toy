@@ -1,8 +1,11 @@
-go 1.25.0
+go 1.26.10
 
 use (
 	./packages/contracts-abi/go
 	./packages/protocol/go
+	./products/p03-cloud-mpc-wallet
 	./products/p05-operations-backoffice
 	./products/p07-indexer
+	./products/p08-market-services
+	./products/p09-travel-ai
 )

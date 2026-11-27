@@ -4,3 +4,6 @@ board:
   vendor: nucode
   socs:
     - name: nrf54l15
+      variants:
+        - name: ns
+          cpucluster: cpuapp

@@ -15,11 +15,14 @@
 typedef struct {
 	uint8_t button;             /* 0..3 = SW1..SW4 */
 	nu54_button_event_t event;  /* CLICK or LONG */
+	uint32_t prompt;            /* local approval prompt visible when the press began */
 } board_button_event_t;
 
 int board_io_init(void);
+bool board_update_chord(void);
 void board_led_set(uint8_t led, bool on);
 void board_led_toggle(uint8_t led);
+void board_io_set_prompt(uint32_t prompt);
 
 /* Wait for the next button gesture. Returns 0, or -EAGAIN on timeout. */
 int board_button_wait(board_button_event_t *out, int32_t timeout_ms);

@@ -1,0 +1,143 @@
+{
+  "capturedAt": "2026-11-20",
+  "component": "CVE-2023-3635",
+  "format": "nu54-android-runtime-patch-evidence-v1",
+  "policySha256": "2de0f175766e6cad264989e9a03cce69acb9f816b9242b30298c7917a772c14e",
+  "products": {
+    "p02": {
+      "beforeCustom": {
+        "findings": [
+          {
+            "fixed": "3.4.0, 1.17.6",
+            "id": "CVE-2023-3635",
+            "installed": "2.9.0",
+            "module": "com.squareup.okio:okio"
+          }
+        ],
+        "packages": 86,
+        "reportSha256": "33e160683329622e707e47a75ae84380a69bca4384e6e87ef98c9144c97d2577"
+      },
+      "customArtifacts": [
+        {
+          "artifactSha256": "d162476431c6656ae5281b2bc52069d13f4603a337c78a4e0b8c3cea247950cf",
+          "channel": "custom",
+          "dexDescriptors": [
+            "Lokio/GzipSource;",
+            "Lokhttp3/OkHttpClient;"
+          ],
+          "file": "app-custom.apk",
+          "installation": "unverified",
+          "package": "com.nu54renter.custom",
+          "signerSha256": "b35874da2bc4c89063f59b82dfb3b67fb1860262ecec5dd548ea2b92579d6d75"
+        },
+        {
+          "artifactSha256": "f7c891e49663ea8b689dbe8e25d99afade85c0937423301b5f0778cc6d818bf6",
+          "channel": "custom",
+          "dexDescriptors": [
+            "Lokio/GzipSource;",
+            "Lokhttp3/OkHttpClient;"
+          ],
+          "file": "app-custom.aab",
+          "installation": "unverified",
+          "package": "com.nu54renter.custom",
+          "signerSha256": "b35874da2bc4c89063f59b82dfb3b67fb1860262ecec5dd548ea2b92579d6d75"
+        }
+      ],
+      "variants": {
+        "custom": {
+          "gradleGraph": "p02-custom-gradle.lockfile",
+          "graphSha256": "4ecfccadea764c39d746d54f35201860b60ca76b16cbdea4b24c01ea6b56eb22",
+          "rescan": {
+            "findings": [],
+            "packages": 87,
+            "reportSha256": "167b6c04709f69704fb8a0f4a7efbaf73343f5b8e651ca6aed0c59cd8b2936a7"
+          }
+        },
+        "release": {
+          "gradleGraph": "p02-release-gradle.lockfile",
+          "graphSha256": "5d05c3d3e5cb7f9a76b5c36fcaeee1613cf37ca49541d036919c536189440b0e",
+          "rescan": {
+            "findings": [],
+            "packages": 87,
+            "reportSha256": "f00197f5b43efa0685aad471c765e5920052aa71fcdc9547fc1fb7737bb8e4fc"
+          }
+        }
+      }
+    },
+    "p04": {
+      "beforeCustom": {
+        "findings": [
+          {
+            "fixed": "3.4.0, 1.17.6",
+            "id": "CVE-2023-3635",
+            "installed": "2.9.0",
+            "module": "com.squareup.okio:okio"
+          }
+        ],
+        "packages": 86,
+        "reportSha256": "f48974e76fadd73da377c28caccb853e02f8b1933edbcfe3fb94e4565f0b2f3c"
+      },
+      "customArtifacts": [
+        {
+          "artifactSha256": "3fa1b76086ce8178eb6d0f96c52461f336ba5dcf2701c30e143e5754a59d2c51",
+          "channel": "custom",
+          "dexDescriptors": [
+            "Lokio/GzipSource;",
+            "Lokhttp3/OkHttpClient;"
+          ],
+          "file": "app-custom.apk",
+          "installation": "unverified",
+          "package": "com.nu54kiosk.custom",
+          "signerSha256": "4f12e61e790c91e2d0e8832cef88d7037575a7745d7cd2773ac923c45bf65090"
+        },
+        {
+          "artifactSha256": "fcfec1ba19a2d34dd4494906f7bb773928b274733fe7c36d8327a62571f5c56f",
+          "channel": "custom",
+          "dexDescriptors": [
+            "Lokio/GzipSource;",
+            "Lokhttp3/OkHttpClient;"
+          ],
+          "file": "app-custom.aab",
+          "installation": "unverified",
+          "package": "com.nu54kiosk.custom",
+          "signerSha256": "4f12e61e790c91e2d0e8832cef88d7037575a7745d7cd2773ac923c45bf65090"
+        }
+      ],
+      "variants": {
+        "custom": {
+          "gradleGraph": "p04-custom-gradle.lockfile",
+          "graphSha256": "4ecfccadea764c39d746d54f35201860b60ca76b16cbdea4b24c01ea6b56eb22",
+          "rescan": {
+            "findings": [],
+            "packages": 87,
+            "reportSha256": "3da20e3e451fdbc014625deabb2a76d5b0d85a5c9a008b0f2c76c6aff262e694"
+          }
+        },
+        "release": {
+          "gradleGraph": "p04-release-gradle.lockfile",
+          "graphSha256": "5d05c3d3e5cb7f9a76b5c36fcaeee1613cf37ca49541d036919c536189440b0e",
+          "rescan": {
+            "findings": [],
+            "packages": 87,
+            "reportSha256": "b49eda5777240247c3158a4858b5468e00f472fe80f7cd9c5d47be75f0d74da5"
+          }
+        }
+      }
+    }
+  },
+  "scanner": {
+    "database": {
+      "DownloadedAt": "2026-11-20T03:59:23.468274Z",
+      "NextUpdate": "2026-11-21T01:04:07.386165093Z",
+      "UpdatedAt": "2026-11-20T01:04:07.386165244Z",
+      "Version": 2
+    },
+    "databaseSha256": "c9aa41131c61231f84168091e69b51dfdd30d4fbd14917e8d2a7de8366ac3583",
+    "trivy": "0.68.2"
+  },
+  "sources": {
+    "fix": "https://github.com/square/okio/commit/81bce1a30af244550b0324597720e4799281da7b",
+    "okHttpPom": "https://central.sonatype.com/artifact/com.squareup.okhttp3/okhttp/4.12.0"
+  },
+  "status": "verified-local-custom-artifacts-installation-unverified"
+}

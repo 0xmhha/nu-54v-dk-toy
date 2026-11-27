@@ -31,6 +31,13 @@ export interface WalletCheck {
   challenge: `0x${string}`;
 }
 
+export interface RentalFreezeRequestV2 {
+  binding: `0x${string}`;
+  challenge: `0x${string}`;
+  channelNonce: `0x${string}`;
+  expiresAt: bigint;
+}
+
 export interface MerchantAttestation {
   merchant: `0x${string}`;
   payout: `0x${string}`;
@@ -67,6 +74,7 @@ export const EIP712_TYPES = {
   PaymentAuthorization: [{ name: "chainId", type: "uint256" }, { name: "contract", type: "address" }, { name: "merchant", type: "address" }, { name: "payout", type: "address" }, { name: "token", type: "address" }, { name: "amount", type: "uint256" }, { name: "orderId", type: "bytes32" }, { name: "nonce", type: "uint256" }, { name: "expiry", type: "uint64" }],
   LimitChange: [{ name: "chainId", type: "uint256" }, { name: "contract", type: "address" }, { name: "perPaymentLimit", type: "uint256" }, { name: "dailyLimit", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "expiry", type: "uint64" }],
   WalletCheck: [{ name: "device", type: "address" }, { name: "challenge", type: "bytes32" }],
+  RentalFreezeRequestV2: [{ name: "binding", type: "bytes32" }, { name: "challenge", type: "bytes32" }, { name: "channelNonce", type: "bytes32" }, { name: "expiresAt", type: "uint64" }],
   MerchantAttestation: [{ name: "merchant", type: "address" }, { name: "payout", type: "address" }, { name: "name", type: "string" }, { name: "validFrom", type: "uint64" }, { name: "validUntil", type: "uint64" }],
   MerchantOrder: [{ name: "orderId", type: "bytes32" }, { name: "token", type: "address" }, { name: "amount", type: "uint256" }, { name: "payout", type: "address" }, { name: "expiry", type: "uint64" }],
   TimeAnchor: [{ name: "device", type: "address" }, { name: "timestamp", type: "uint64" }],
@@ -78,6 +86,7 @@ export const ENCODE_TYPE: Record<keyof typeof EIP712_TYPES, string> = {
   PaymentAuthorization: "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
   LimitChange: "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)",
   WalletCheck: "WalletCheck(address device,bytes32 challenge)",
+  RentalFreezeRequestV2: "RentalFreezeRequestV2(bytes32 binding,bytes32 challenge,bytes32 channelNonce,uint64 expiresAt)",
   MerchantAttestation: "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
   MerchantOrder: "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
   TimeAnchor: "TimeAnchor(address device,uint64 timestamp)",
@@ -93,7 +102,7 @@ export type Reason = (typeof REASONS)[number];
 export const OUTCOMES = ["approved", "refused", "failed", "Checking"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
-export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack", "device.info", "device.info.ack", "wallet.check", "wallet.check.result", "pin.entry"] as const;
+export const MESSAGE_TYPES = ["session.open", "session.open.ok", "session.confirm", "payment.identify", "payment.prepare", "payment.result", "limit.change", "setup.timeAnchor", "error", "session.cancel", "payment.outcome", "limit.result", "rental.cleanup.challenge", "rental.cleanup.challenge.result", "rental.cleanup.admit", "rental.cleanup.status", "rental.freeze.challenge", "rental.freeze.challenge.result", "rental.freeze.v2", "rental.freeze.result", "rental.freeze.entry", "setup.operator", "setup.ack", "device.reset", "confirm.show", "confirm.limit", "device.paymentMode", "device.paymentMode.ack", "device.info", "device.info.ack", "wallet.check", "wallet.check.result", "pin.entry"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
 /** CBOR field kinds per message (payment-protocol.md 4.2); nested objects carry their own fields. */
@@ -367,6 +376,173 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "outcome"
     ]
   },
+  "rental.cleanup.challenge": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId"
+    ]
+  },
+  "rental.cleanup.challenge.result": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "channelNonce": "hex32",
+      "expiresAt": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "channelNonce",
+      "expiresAt"
+    ]
+  },
+  "rental.cleanup.admit": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "channelNonce": "hex32",
+      "intent": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "channelNonce",
+      "intent"
+    ]
+  },
+  "rental.cleanup.status": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "status": "text"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "status"
+    ]
+  },
+  "rental.freeze.challenge": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId"
+    ]
+  },
+  "rental.freeze.challenge.result": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "channelNonce": "hex32",
+      "expiresAt": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "channelNonce",
+      "expiresAt"
+    ]
+  },
+  "rental.freeze.v2": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "challenge": "hex32",
+      "channelNonce": "hex32",
+      "expiresAt": "uint",
+      "operatorSignature": "signature",
+      "projectionIndex": "uint"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "challenge",
+      "channelNonce",
+      "expiresAt",
+      "operatorSignature"
+    ]
+  },
+  "rental.freeze.result": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "binding": "hex32",
+      "challenge": "hex32",
+      "projectionRoot": "hex32",
+      "firstNonce": "uint",
+      "nextNonce": "uint",
+      "entryCount": "uint",
+      "frozenAt": "uint",
+      "expiresAt": "uint",
+      "boardSignature": "signature"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "binding",
+      "challenge",
+      "projectionRoot",
+      "firstNonce",
+      "nextNonce",
+      "entryCount",
+      "frozenAt",
+      "expiresAt",
+      "boardSignature"
+    ]
+  },
+  "rental.freeze.entry": {
+    "fields": {
+      "v": "int",
+      "type": "text",
+      "sessionId": "sessionId",
+      "projectionIndex": "uint",
+      "projectionRoot": "hex32",
+      "kind": "uint",
+      "state": "uint",
+      "nonce": "uint",
+      "expiry": "uint",
+      "merchant": "hex20",
+      "orderId": "hex32",
+      "approvalDigest": "hex32"
+    },
+    "required": [
+      "v",
+      "type",
+      "sessionId",
+      "projectionIndex",
+      "projectionRoot",
+      "kind",
+      "state",
+      "nonce",
+      "expiry",
+      "merchant",
+      "orderId",
+      "approvalDigest"
+    ]
+  },
   "setup.operator": {
     "fields": {
       "v": "int",
@@ -375,7 +551,8 @@ export const MESSAGE_FIELDS: Record<MessageType, ObjectKind> = {
       "operator": "hex20",
       "contract": "hex20",
       "chainId": "uint",
-      "passkey": "uint"
+      "passkey": "uint",
+      "rentalJournal": "bool"
     },
     "required": [
       "v",

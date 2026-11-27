@@ -5,6 +5,8 @@
 2026-09-25 설계 동결 [DF-20260925-02](../docs/content/planning/design-freeze-checkpoint-02.md)에
 따라 이번 12주 사이클에는 일곱 제품을 만들고, 나머지 셋은 설계만 둔다. P02 폰 앱은 2026-09-28 개정에서 추가했다.
 
+상용 버전의 기능·제공 순서·사용자/운영 시나리오·정보구조는 [10개 제품별 설계 목차](../docs/content/commercial/products/README.md)에서 제품별로 열 수 있다. 아래 표의 일정과 설계 링크는 기존 12주 사이클 기준이다.
+
 | ID | 제품 폴더 | 실행 영역 | 이번 사이클 | 핵심 책임 | 설계 문서 |
 |---|---|---|---|---|---|
 | P01 | [device-firmware](p01-device-firmware/README.md) | Local | 만든다 | Zephyr 펌웨어, 가맹점을 검증하는 결제 서명, BLE, 셋업·TimeAnchor, 외부 SE | [p01](../docs/content/products/p01/plan.md) |
@@ -14,7 +16,7 @@
 | P05 | [operations-backoffice](p05-operations-backoffice/README.md) | Local 도구 | 만든다(축소) | Go 운영 코어와 `opsctl`: 가맹점 등록, attestation, 예치, BLE 셋업·TimeAnchor·passkey, 반납 | [p05](../docs/content/products/p05/plan.md) |
 | P06 | [stablenet-contracts](p06-stablenet-contracts/README.md) | Blockchain | 만든다 | 사전 예치 정산 컨트랙트와 가맹점 registry | [p06](../docs/content/products/p06/plan.md) |
 | P07 | [indexer](p07-indexer/README.md) | Cloud | 만든다(최소) | PaymentSettled 영수증 조회 indexer | [p07](../docs/content/products/p07/plan.md) |
-| P08 | [market-services](p08-market-services/README.md) | Cloud/Blockchain | 설계만 | DEX, TEST FX, perpetual, oracle·keeper | - |
+| P08 | [market-services](p08-market-services/README.md) | Cloud/Blockchain | 격리 8283 학습 | DEX, TEST FX, perpetual, oracle·keeper | `make test P=p08` |
 | P09 | [travel-ai](p09-travel-ai/README.md) | Cloud | 설계만 | 장소·후기·발자취, 전사·AI 코스, 챌린지·스탬프 | - |
 | P10 | [platform](p10-platform/README.md) | Shared | 만든다 | 공유 EIP-712 타입·시험 벡터, 적합성 harness, 12주 수용 기록 | [p10](../docs/content/products/p10/plan.md) |
 

@@ -1,0 +1,1723 @@
+{
+  "format": "nu54-dependency-rescan-v1",
+  "before_source": "4ca2e59a83151e6ab9bed10a39f89f5c194358b9",
+  "platform": "linux/arm64",
+  "tools": {
+    "govulncheck": "1.10.0",
+    "go": "1.26.11",
+    "go_database": {
+      "modified": "2026-11-11T02:51:11Z"
+    },
+    "trivy": "0.68.2",
+    "trivy_database": {
+      "Version": 2,
+      "NextUpdate": "2026-11-21T01:04:07.386165093Z",
+      "UpdatedAt": "2026-11-20T01:04:07.386165244Z",
+      "DownloadedAt": "2026-11-20T03:59:23.468274Z"
+    }
+  },
+  "before": {
+    "go_source": {
+      "packages/protocol/go": {
+        "scope": "symbol",
+        "findings": [
+          {
+            "id": "GO-2025-4116",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.43.0"
+          },
+          {
+            "id": "GO-2025-4134",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2025-4135",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2026-4314",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4315",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4507",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-4508",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.17.0"
+          },
+          {
+            "id": "GO-2026-4511",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-5005",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5006",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5013",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5014",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5015",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5016",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5017",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5018",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5019",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5020",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5021",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5023",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5024",
+            "component": "golang.org/x/sys",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.44.0"
+          },
+          {
+            "id": "GO-2026-5033",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5932",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.58.1-0.20261009181718-2f1f834330b2"
+          },
+          {
+            "id": "GO-2026-6303",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.55.0"
+          },
+          {
+            "id": "GO-2026-6354",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6355",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          }
+        ],
+        "raw_report_sha256": "7ee8899ae3949806bc992fe8b02520e736c130bbce1a3dab3bd728dfb43fc5cc"
+      },
+      "packages/contracts-abi/go": {
+        "scope": "symbol",
+        "findings": [
+          {
+            "id": "GO-2025-4087",
+            "component": "github.com/consensys/gnark-crypto",
+            "version": "v0.18.0",
+            "scope": "package",
+            "fixed": "v0.18.1"
+          },
+          {
+            "id": "GO-2025-4116",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.43.0"
+          },
+          {
+            "id": "GO-2025-4134",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2025-4135",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2026-4314",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4315",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4507",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-4508",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.17.0"
+          },
+          {
+            "id": "GO-2026-4511",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-5005",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5006",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5013",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5014",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5015",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5016",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5017",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5018",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5019",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5020",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5021",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5023",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5024",
+            "component": "golang.org/x/sys",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.44.0"
+          },
+          {
+            "id": "GO-2026-5033",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5932",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.58.1-0.20261009181718-2f1f834330b2"
+          },
+          {
+            "id": "GO-2026-6278",
+            "component": "github.com/gorilla/websocket",
+            "version": "v1.4.2",
+            "scope": "symbol",
+            "fixed": "v1.5.3"
+          },
+          {
+            "id": "GO-2026-6303",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.55.0"
+          },
+          {
+            "id": "GO-2026-6354",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6355",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          }
+        ],
+        "raw_report_sha256": "1b091e52b0ca80cb7ce317cbe8daad2a4bdb4f33c9d9e2f35a6ab1b2231d3c25"
+      },
+      "products/p05-operations-backoffice": {
+        "scope": "symbol",
+        "findings": [
+          {
+            "id": "GO-2025-4087",
+            "component": "github.com/consensys/gnark-crypto",
+            "version": "v0.18.0",
+            "scope": "package",
+            "fixed": "v0.18.1"
+          },
+          {
+            "id": "GO-2025-4116",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.43.0"
+          },
+          {
+            "id": "GO-2025-4134",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2025-4135",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2026-4314",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4315",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4507",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-4508",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.17.0"
+          },
+          {
+            "id": "GO-2026-4511",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-5005",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5006",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5013",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5014",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5015",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5016",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5017",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5018",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5019",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5020",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5021",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5023",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5024",
+            "component": "golang.org/x/sys",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.44.0"
+          },
+          {
+            "id": "GO-2026-5033",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5932",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.58.1-0.20261009181718-2f1f834330b2"
+          },
+          {
+            "id": "GO-2026-6278",
+            "component": "github.com/gorilla/websocket",
+            "version": "v1.4.2",
+            "scope": "symbol",
+            "fixed": "v1.5.3"
+          },
+          {
+            "id": "GO-2026-6303",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.55.0"
+          },
+          {
+            "id": "GO-2026-6354",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6355",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          }
+        ],
+        "raw_report_sha256": "cc825f77593fb63787e159d40e79d3a1a24ac537e36a32baa7167ecaebf942d1"
+      },
+      "products/p07-indexer": {
+        "scope": "symbol",
+        "findings": [
+          {
+            "id": "GO-2025-4087",
+            "component": "github.com/consensys/gnark-crypto",
+            "version": "v0.18.0",
+            "scope": "package",
+            "fixed": "v0.18.1"
+          },
+          {
+            "id": "GO-2025-4116",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.43.0"
+          },
+          {
+            "id": "GO-2025-4134",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2025-4135",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2026-4314",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4315",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4507",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-4508",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.17.0"
+          },
+          {
+            "id": "GO-2026-4511",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-5005",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5006",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5013",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5014",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5015",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5016",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5017",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5018",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5019",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5020",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5021",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5023",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5024",
+            "component": "golang.org/x/sys",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.44.0"
+          },
+          {
+            "id": "GO-2026-5033",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5932",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.58.1-0.20261009181718-2f1f834330b2"
+          },
+          {
+            "id": "GO-2026-5970",
+            "component": "golang.org/x/text",
+            "version": "v0.29.0",
+            "scope": "symbol",
+            "fixed": "v0.39.0"
+          },
+          {
+            "id": "GO-2026-6278",
+            "component": "github.com/gorilla/websocket",
+            "version": "v1.4.2",
+            "scope": "symbol",
+            "fixed": "v1.5.3"
+          },
+          {
+            "id": "GO-2026-6303",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.55.0"
+          },
+          {
+            "id": "GO-2026-6354",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6355",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6629",
+            "component": "golang.org/x/text",
+            "version": "v0.29.0",
+            "scope": "symbol",
+            "fixed": "v0.41.0"
+          }
+        ],
+        "raw_report_sha256": "6f1cbc618cd83a636b6a9b13e8f7315e32011a1396abf047fa27400ba1602b42"
+      }
+    },
+    "go_runtime": {
+      "opsd": {
+        "scope": "binary symbols",
+        "findings": [],
+        "raw_report_sha256": "defed33a9f4be00eb8a96fa3a9ba36645e6b229be705b0d1feb2416d6a57b472",
+        "binary_sha256": "f7e2f5a247733b9a82c474b6f92b25018694d5cc5d0ba940fc4dfb9205657be3"
+      },
+      "opsctl": {
+        "scope": "binary symbols",
+        "findings": [
+          {
+            "id": "GO-2025-4087",
+            "component": "github.com/consensys/gnark-crypto",
+            "version": "v0.18.0",
+            "scope": "package",
+            "fixed": "v0.18.1"
+          },
+          {
+            "id": "GO-2025-4116",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.43.0"
+          },
+          {
+            "id": "GO-2025-4134",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2025-4135",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2026-4314",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4315",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4507",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-4508",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.17.0"
+          },
+          {
+            "id": "GO-2026-4511",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-5005",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5006",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5013",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5014",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5015",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5016",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5017",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5018",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5019",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5020",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5021",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5023",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5033",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5932",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.58.1-0.20261009181718-2f1f834330b2"
+          },
+          {
+            "id": "GO-2026-6278",
+            "component": "github.com/gorilla/websocket",
+            "version": "v1.4.2",
+            "scope": "symbol",
+            "fixed": "v1.5.3"
+          },
+          {
+            "id": "GO-2026-6303",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.55.0"
+          },
+          {
+            "id": "GO-2026-6354",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6355",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          }
+        ],
+        "raw_report_sha256": "2e23f0b51ffae347b07cfb93233a91fb864ac9fcd5e2f560146be67dd854746e",
+        "binary_sha256": "1957306a8c32d9b397070934d956ef501842ecc86dcbace9bbf52ceda65c7f82"
+      },
+      "indexer": {
+        "scope": "binary symbols",
+        "findings": [
+          {
+            "id": "GO-2025-4087",
+            "component": "github.com/consensys/gnark-crypto",
+            "version": "v0.18.0",
+            "scope": "package",
+            "fixed": "v0.18.1"
+          },
+          {
+            "id": "GO-2025-4116",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.43.0"
+          },
+          {
+            "id": "GO-2025-4134",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2025-4135",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.45.0"
+          },
+          {
+            "id": "GO-2026-4314",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4315",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.16.8"
+          },
+          {
+            "id": "GO-2026-4507",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-4508",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "symbol",
+            "fixed": "v1.17.0"
+          },
+          {
+            "id": "GO-2026-4511",
+            "component": "github.com/ethereum/go-ethereum",
+            "version": "v1.16.4",
+            "scope": "module",
+            "fixed": "v1.16.9"
+          },
+          {
+            "id": "GO-2026-5005",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5006",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5013",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5014",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5015",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5016",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5017",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5018",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5019",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5020",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5021",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5023",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5033",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.52.0"
+          },
+          {
+            "id": "GO-2026-5932",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.58.1-0.20261009181718-2f1f834330b2"
+          },
+          {
+            "id": "GO-2026-5970",
+            "component": "golang.org/x/text",
+            "version": "v0.29.0",
+            "scope": "symbol",
+            "fixed": "v0.39.0"
+          },
+          {
+            "id": "GO-2026-6278",
+            "component": "github.com/gorilla/websocket",
+            "version": "v1.4.2",
+            "scope": "symbol",
+            "fixed": "v1.5.3"
+          },
+          {
+            "id": "GO-2026-6303",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.55.0"
+          },
+          {
+            "id": "GO-2026-6354",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6355",
+            "component": "golang.org/x/crypto",
+            "version": "v0.36.0",
+            "scope": "module",
+            "fixed": "v0.56.0"
+          },
+          {
+            "id": "GO-2026-6629",
+            "component": "golang.org/x/text",
+            "version": "v0.29.0",
+            "scope": "symbol",
+            "fixed": "v0.41.0"
+          }
+        ],
+        "raw_report_sha256": "b1d7e568f1f33eb092e79f61036bb499c2ba1676e300296de5d9eaec74f21bc2",
+        "binary_sha256": "d7f274464cf3070ddc473d35b1057bdbaf6237cf0a044ca45ec38f989550943c"
+      }
+    },
+    "npm": {
+      "prod": {
+        "findings": [
+          {
+            "id": "CVE-2026-111181",
+            "component": "body-parser",
+            "version": "2.3.0",
+            "fixed": "2.4.0, 1.20.9",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-126066",
+            "component": "fast-xml-parser",
+            "version": "5.11.1",
+            "fixed": "5.12.0",
+            "severity": "LOW",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-118772",
+            "component": "joi",
+            "version": "17.13.8",
+            "fixed": "17.13.9, 18.3.1",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112942",
+            "component": "launch-editor",
+            "version": "2.14.1",
+            "fixed": "2.14.2",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112943",
+            "component": "launch-editor",
+            "version": "2.14.1",
+            "fixed": "2.14.2",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112944",
+            "component": "launch-editor",
+            "version": "2.14.1",
+            "fixed": "2.14.2",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-110816",
+            "component": "qs",
+            "version": "6.16.0",
+            "fixed": "6.16.1",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-102422",
+            "component": "shell-quote",
+            "version": "1.10.0",
+            "fixed": "1.11.0",
+            "severity": "CRITICAL",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          }
+        ],
+        "raw_report_sha256": "f4099a72ae24888a398177af7f38db468d7c9d26cc45a0f7b87f188ebb2dbce5"
+      },
+      "all": {
+        "findings": [
+          {
+            "id": "CVE-2026-111181",
+            "component": "body-parser",
+            "version": "2.3.0",
+            "fixed": "2.4.0, 1.20.9",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-126066",
+            "component": "fast-xml-parser",
+            "version": "5.11.1",
+            "fixed": "5.12.0",
+            "severity": "LOW",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-118772",
+            "component": "joi",
+            "version": "17.13.8",
+            "fixed": "17.13.9, 18.3.1",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112942",
+            "component": "launch-editor",
+            "version": "2.14.1",
+            "fixed": "2.14.2",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112943",
+            "component": "launch-editor",
+            "version": "2.14.1",
+            "fixed": "2.14.2",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112944",
+            "component": "launch-editor",
+            "version": "2.14.1",
+            "fixed": "2.14.2",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-118764",
+            "component": "minimatch",
+            "version": "10.2.6",
+            "fixed": "11.0.1",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-110816",
+            "component": "qs",
+            "version": "6.16.0",
+            "fixed": "6.16.1",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-102422",
+            "component": "shell-quote",
+            "version": "1.10.0",
+            "fixed": "1.11.0",
+            "severity": "CRITICAL",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p02-user-app": [
+                "development",
+                "runtime"
+              ],
+              "products/p04-merchant-kiosk": [
+                "development",
+                "runtime"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-93749",
+            "component": "source-map-js",
+            "version": "1.2.1",
+            "fixed": "1.2.2",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p05-operations-backoffice/web": [
+                "development"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112942",
+            "component": "vite",
+            "version": "7.3.6",
+            "fixed": "8.3.3, 8.2.4, 8.1.6, 7.3.7, 6.4.4",
+            "severity": "HIGH",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p05-operations-backoffice/web": [
+                "development"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112943",
+            "component": "vite",
+            "version": "7.3.6",
+            "fixed": "8.3.3, 8.2.4, 8.1.6, 7.3.7, 6.4.4",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p05-operations-backoffice/web": [
+                "development"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112944",
+            "component": "vite",
+            "version": "7.3.6",
+            "fixed": "8.3.3, 8.2.4, 8.1.6, 7.3.7, 6.4.4",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p05-operations-backoffice/web": [
+                "development"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112946",
+            "component": "vite",
+            "version": "7.3.6",
+            "fixed": "8.3.3, 8.2.4, 8.1.6, 7.3.7, 6.4.4",
+            "severity": "MEDIUM",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p05-operations-backoffice/web": [
+                "development"
+              ]
+            }
+          },
+          {
+            "id": "CVE-2026-112945",
+            "component": "vite",
+            "version": "7.3.6",
+            "fixed": "8.3.3, 8.2.4, 8.1.6, 7.3.7, 6.4.4",
+            "severity": "LOW",
+            "ecosystem": "pnpm",
+            "importers": {
+              "products/p05-operations-backoffice/web": [
+                "development"
+              ]
+            }
+          }
+        ],
+        "raw_report_sha256": "b4e396a3ddc392982f7ee50738dee242fb430480c8b0d824a40928455f060750"
+      }
+    },
+    "sbom_sha256": "974c9a9fe6c19af7b390b37ae0c0a29fde695922ad16221f3732070883ec8b54"
+  },
+  "after": {
+    "go_source": {
+      "packages/protocol/go": {
+        "scope": "symbol",
+        "findings": [],
+        "raw_report_sha256": "f1db1da167c12bfaec9d9885c7f3fcc551100ec77a456100fe3f81e0ffa2199c"
+      },
+      "packages/contracts-abi/go": {
+        "scope": "symbol",
+        "findings": [],
+        "raw_report_sha256": "c7ed16e20780d27f0534d41c60c2396d3021423434d172717f775d71195a2291"
+      },
+      "products/p05-operations-backoffice": {
+        "scope": "symbol",
+        "findings": [],
+        "raw_report_sha256": "16ab4c69f78f8889fab90e747b17969bab78028ab1bc87550bb400f69e6e507c"
+      },
+      "products/p07-indexer": {
+        "scope": "symbol",
+        "findings": [],
+        "raw_report_sha256": "f39601554aa11c088872bd1927a3450cd9dbe17f33f1f7b96292b820b649fe73"
+      }
+    },
+    "go_runtime": {
+      "opsd": {
+        "scope": "binary symbols",
+        "findings": [],
+        "raw_report_sha256": "defed33a9f4be00eb8a96fa3a9ba36645e6b229be705b0d1feb2416d6a57b472",
+        "binary_sha256": "7793bd665df5dd6b87fbe2f0a7435799dbde5b2565d3feb792afe10c10875501"
+      },
+      "opsctl": {
+        "scope": "binary symbols",
+        "findings": [],
+        "raw_report_sha256": "599179a289c844205d18dfa6d29c6ff4670bffab4aa8b45ea6bab8f69cf44dd1",
+        "binary_sha256": "c7661a9a21b12a5ccd366fe97c32b0b45a6a4902e6300d746197efb4a22d9b8e"
+      },
+      "indexer": {
+        "scope": "binary symbols",
+        "findings": [],
+        "raw_report_sha256": "79d06f59b9f338538f8af62a732bd0f6b57cdb4ffde6bbaf5f7aa3ded7c88dbe",
+        "binary_sha256": "f04539a585ad3538138f09f16e757d58c54efcf367b23181dbad6c46fb48bd70"
+      }
+    },
+    "npm": {
+      "prod": {
+        "findings": [],
+        "raw_report_sha256": "88c15ec2a318d48b48f1325e51069c068d9f9d9c912ccf9d6b0909e9d72fbde7"
+      },
+      "all": {
+        "findings": [],
+        "raw_report_sha256": "e9629f8765263996d4e76fa5d5b8afc0eadcc4ae178f8197af13756c142714fd"
+      }
+    },
+    "oci": {
+      "opsd": {
+        "image_id": "sha256:c15dc31d84e8d2c31c6147b0db5ae3c2b8080d7b11da16c682e575f69b1aef8b",
+        "platform": "linux/arm64",
+        "user": "65532",
+        "trivy_findings": [],
+        "raw_report_sha256": "3234b1c4cb253fe13fcc9c9b32cf1eda6c9e67a1b41241836c802efafc4340ea",
+        "govulncheck_findings": [],
+        "binary_sha256": "7793bd665df5dd6b87fbe2f0a7435799dbde5b2565d3feb792afe10c10875501",
+        "raw_binary_report_sha256": "defed33a9f4be00eb8a96fa3a9ba36645e6b229be705b0d1feb2416d6a57b472",
+        "app_layer_files": [
+          "opsd"
+        ]
+      },
+      "indexer": {
+        "image_id": "sha256:97f5221b0a5e94a637242b4ffad1dfec1a25e5c14f20a7167dba1cac7423566f",
+        "platform": "linux/arm64",
+        "user": "65532",
+        "trivy_findings": [],
+        "raw_report_sha256": "9e8308b322e7d086d4422c7baf1b41ca6895773c18bf34631078a47e134a3f04",
+        "govulncheck_findings": [],
+        "binary_sha256": "abcf8b66d62d2e1415a690a91cbe482a0eac1eb1bfb9280e0540db177df3d417",
+        "raw_binary_report_sha256": "79d06f59b9f338538f8af62a732bd0f6b57cdb4ffde6bbaf5f7aa3ded7c88dbe",
+        "app_layer_files": [
+          "indexer"
+        ]
+      }
+    },
+    "sbom_sha256": "6d1c7146f754ef1030d3d1e56667dcf105df17cd5a9c79be0a1ff2da3bf19629"
+  }
+}

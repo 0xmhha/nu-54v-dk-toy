@@ -11,11 +11,14 @@
 #include "ble_links.h"
 #include "dev_setup.h"
 #include "device_key.h"
+#include "device_vault.h"
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+#include <zephyr/kernel.h>
+#include "device_rental_journal_ps.h"
+#endif
 
 LOG_MODULE_REGISTER(device_setup, LOG_LEVEL_INF);
 
-/* pinMaxRetries (session-vectors.json parameters; design register bound 3..10). */
-#define PIN_MAX_RETRIES 5
 #define PIN_KEY_ID ((psa_key_id_t)0x00005402)
 #define PIN_ALG PSA_ALG_HMAC(PSA_ALG_SHA_256)
 
@@ -31,6 +34,44 @@ struct stored_record {
 	uint8_t chain_id[32];
 	uint32_t passkey;
 };
+
+enum rental_record_kind {
+	RENTAL_ABSENT = 0,
+	RENTAL_LEGACY,
+	RENTAL_ACTIVE = 0x52454e31,
+	RENTAL_FENCED = 0x52454e32,
+	RENTAL_RETIRED = 0x52454e33,
+	RENTAL_JOURNAL_REQUIRED = 0x52454e34,
+};
+
+struct rental_record {
+	struct stored_record fields;
+	uint32_t kind;
+	nu54_rental_binding_t binding;
+	uint8_t first[32];
+};
+
+#define RENTAL_V1_RECORD_SIZE offsetof(struct rental_record, binding)
+_Static_assert(RENTAL_V1_RECORD_SIZE == 80, "legacy rental records must remain readable");
+
+/* Read size before selecting an on-device format. An unreadable record is not an absent one. */
+static int read_rental_record(struct rental_record *record)
+{
+	struct psa_storage_info_t info;
+	psa_status_t status = psa_its_get_info(UID_RECORD, &info);
+	memset(record, 0, sizeof(*record));
+	if (status == PSA_ERROR_DOES_NOT_EXIST) return RENTAL_ABSENT;
+	if (status != PSA_SUCCESS || (info.size != sizeof(record->fields) && info.size != RENTAL_V1_RECORD_SIZE &&
+				      info.size != sizeof(*record))) return -EIO;
+	size_t received;
+	status = psa_its_get(UID_RECORD, 0, info.size, record, &received);
+	if (status != PSA_SUCCESS || received != info.size) return -EIO;
+	if (info.size == sizeof(record->fields)) return RENTAL_LEGACY;
+	if (info.size == sizeof(*record))
+		return record->kind == RENTAL_JOURNAL_REQUIRED ? RENTAL_JOURNAL_REQUIRED : -EIO;
+	if (record->kind != RENTAL_ACTIVE && record->kind != RENTAL_FENCED && record->kind != RENTAL_RETIRED) return -EIO;
+	return (int)record->kind;
+}
 
 /* ---------------------------------------------------------------- nonce counter (settings) */
 
@@ -101,32 +142,142 @@ static int sign(void *ctx, const uint8_t digest[32], uint8_t rs[64])
 	return device_key_sign(digest, rs);
 }
 
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+int device_setup_prepare_rental_generation(nu54_device_t *d, const nu54_rental_registration_t *registration,
+					   const nu54_rental_registration_trust_t *trust, const uint8_t signature[65])
+{
+	if (!d || !registration || !trust || !signature || d->state != NU54_STATE_UNPROVISIONED ||
+	    !d->session_open || !d->session_setup || !d->session_bonded || d->pending != NU54_PENDING_PIN ||
+	    !device_rental_journal_platform_qualified()) return -EACCES;
+
+	nu54_setup_record_t *setup = &d->pending_setup;
+	uint8_t measurement[32];
+	if (!setup->journal_requested || !device_rental_journal_measurement(measurement) ||
+	    memcmp(measurement, trust->binding.measurement, sizeof(measurement)) ||
+	    memcmp(d->pending_address, trust->binding.account, sizeof(d->pending_address)) ||
+	    memcmp(setup->chain_id, trust->binding.chain, sizeof(setup->chain_id)) ||
+	    memcmp(setup->contract, trust->binding.contract, sizeof(setup->contract)) ||
+	    memcmp(setup->operator_address, trust->operator_address, sizeof(setup->operator_address)) ||
+	    memcmp(setup->nonce_start, trust->first, sizeof(setup->nonce_start)) ||
+	    (setup->journal_required && memcmp(&setup->rental_binding, &trust->binding, sizeof(trust->binding))) ||
+	    nu54_rental_registration_verify(registration, trust, signature) != 0) return -EACCES;
+
+	setup->rental_binding = trust->binding;
+	setup->journal_required = 1;
+	return 0;
+}
+
+static int can_commission_rental_journal(void *ctx)
+{
+	(void)ctx;
+	uint8_t measurement[32];
+	return device_rental_journal_platform_qualified() && device_rental_journal_measurement(measurement);
+}
+
+static uint64_t rental_monotonic_seconds(void *ctx)
+{
+	(void)ctx;
+	return (uint64_t)k_uptime_get() / 1000;
+}
+
+static int sign_rental_attestation(void *ctx, const uint8_t digest[32], uint8_t rs[64])
+{
+	(void)ctx;
+	if (!device_rental_journal_platform_qualified()) return -EIO;
+	return device_key_slot_sign(DEVICE_KEY_IDENTITY, digest, rs);
+}
+
+static int allow_rental_collector(void *ctx, const nu54_rental_binding_t *binding,
+				  const uint8_t peer[NU54_RENTAL_PEER_SIZE])
+{
+	(void)ctx;
+	return device_rental_journal_platform_qualified() && device_rental_collector_peer_allowed(binding, peer);
+}
+
+static int device_setup_rental_freeze(nu54_device_t *d, const nu54_rental_freeze_request_t *request,
+			       const uint8_t operator_signature[65], nu54_rental_freeze_receipt_t *receipt,
+			       uint8_t board_signature[65])
+{
+	uint8_t identity[20], first[32];
+	nu54_rental_binding_t binding;
+	bool active;
+	if (!d || !d->call.bonded || !d->rental_journal ||
+	    device_rental_journal_marker_ps(&binding, first, &active) != 0 || !active ||
+	    memcmp(&binding, &d->rental_journal->expected_binding, sizeof(binding)) ||
+	    memcmp(first, d->rental_journal->expected_first, sizeof(first)) ||
+	    device_key_slot_open(DEVICE_KEY_IDENTITY, false, identity) != 0) return -EIO;
+	return nu54_device_attest_rental_freeze(d, request, operator_signature, identity, receipt, board_signature);
+}
+static int begin_rental_cleanup(void *ctx)
+{
+	return device_rental_retirement_platform_qualified() ? device_rental_cleanup_begin(ctx) : -EACCES;
+}
+
+static int rental_cleanup_binding(void *ctx, nu54_rental_binding_t *binding)
+{
+	(void)ctx;
+	uint8_t first[32];
+	bool active = false;
+	return device_rental_journal_marker_ps(binding, first, &active) == 0 && active ? 0 : -EACCES;
+}
+
+static int fence_rental_cleanup(void *ctx, const nu54_rental_retirement_authority_t *authority, uint64_t now)
+{
+	(void)ctx;
+	return device_rental_journal_retirement_fence_ps(authority, now);
+}
+
+static int freeze_rental(void *ctx, nu54_device_t *d, const nu54_rental_freeze_request_t *request,
+			 const uint8_t operator_signature[65], nu54_rental_freeze_receipt_t *receipt,
+			 uint8_t board_signature[65])
+{
+	(void)ctx;
+	return device_setup_rental_freeze(d, request, operator_signature, receipt, board_signature);
+}
+
+#endif
+
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+static int rental_challenge_random(void *ctx, uint8_t out[32])
+{
+	(void)ctx;
+	return psa_generate_random(out, 32) == PSA_SUCCESS ? 0 : -EIO;
+}
+#endif
+
 static void random_bytes(void *ctx, uint8_t *out, size_t n)
 {
 	(void)ctx;
 	(void)psa_generate_random(out, n);
 }
 
-/* The new key replaces nothing that matters: setup only runs UNPROVISIONED. It is not a setup
- * until commit_setup writes the record; a reset before that wipes it at boot. */
+/* Stage only the dedicated rental key. The durable setup record enables legacy-wire signing. */
 static int generate_key(void *ctx, uint8_t address[20])
 {
+	struct rental_record record;
+	int kind = read_rental_record(&record);
 	(void)ctx;
-	return device_key_generate(address) == 0 ? 0 : -EIO;
+	if (kind != RENTAL_ABSENT && kind != RENTAL_RETIRED) return -EIO;
+	return device_key_slot_open(DEVICE_KEY_RENTER, true, address) == 0 ? 0 : -EIO;
 }
 
 static int commit_setup(void *ctx, const nu54_setup_record_t *rec)
 {
-	struct stored_record r;
+	struct rental_record r = {.kind = RENTAL_ACTIVE};
+	uint8_t address[20];
 	uint8_t mac[PSA_HASH_LENGTH(PSA_ALG_SHA_256)];
 	uint8_t failures = 0;
 	size_t mac_len;
 	int err;
 
 	(void)ctx;
-	if (!rec->pin || rec->pin_len == 0) {
+	if (!nu54_pin_is_local_format(rec->pin, rec->pin_len)) {
 		return -EINVAL;
 	}
+	struct rental_record prior;
+	int kind = read_rental_record(&prior);
+	if ((kind != RENTAL_ABSENT && kind != RENTAL_RETIRED) ||
+	    device_key_slot_open(DEVICE_KEY_RENTER, false, address) != 0) return -EIO;
 	err = pin_key_generate();
 	if (!err && psa_mac_compute(PIN_KEY_ID, PIN_ALG, (const uint8_t *)rec->pin, rec->pin_len, mac, sizeof(mac), &mac_len) !=
 			    PSA_SUCCESS) {
@@ -138,15 +289,26 @@ static int commit_setup(void *ctx, const nu54_setup_record_t *rec)
 	if (!err) {
 		err = its_write(UID_PIN_FAILURES, &failures, 1);
 	}
+	if (!err && !rec->journal_required) err = persist_nonce(NULL, rec->nonce_start);
 	if (!err) {
-		err = persist_nonce(NULL, rec->nonce_start);
-	}
-	if (!err) {
-		memcpy(r.operator_address, rec->operator_address, 20);
-		memcpy(r.contract, rec->contract, 20);
-		memcpy(r.chain_id, rec->chain_id, 32);
-		r.passkey = rec->passkey;
-		err = its_write(UID_RECORD, &r, sizeof(r)); /* last: the setup is now finished */
+		memcpy(r.fields.operator_address, rec->operator_address, 20);
+		memcpy(r.fields.contract, rec->contract, 20);
+		memcpy(r.fields.chain_id, rec->chain_id, 32);
+		r.fields.passkey = rec->passkey;
+		if (rec->journal_required) {
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+			r.kind = RENTAL_JOURNAL_REQUIRED;
+			r.binding = rec->rental_binding;
+			memcpy(r.first, rec->nonce_start, sizeof(r.first));
+			err = its_write(UID_RECORD, &r, sizeof(r));
+			if (!err) err = device_rental_journal_stage_ps(&r.binding, r.first);
+#else
+			err = -EACCES;
+#endif
+		} else {
+			err = its_write(UID_RECORD, &r, RENTAL_V1_RECORD_SIZE);
+			if (!err) err = device_key_activate_rental(DEVICE_KEY_RENTER, false, address);
+		}
 	}
 	if (err) {
 		LOG_ERR("setup not stored (%d)", err);
@@ -154,31 +316,30 @@ static int commit_setup(void *ctx, const nu54_setup_record_t *rec)
 	return err;
 }
 
-/* Matches the host test's check: locked at PIN_MAX_RETRIES failures, a right PIN clears them. */
-static int check_pin(void *ctx, const char *pin, size_t len)
+static int read_pin_attempts(void *context, uint8_t *count)
 {
-	uint8_t failures, mac[PSA_HASH_LENGTH(PSA_ALG_SHA_256)];
+	(void)context;
+	return its_read(UID_PIN_FAILURES, count, 1);
+}
 
-	(void)ctx;
-	if (its_read(UID_PIN_FAILURES, &failures, 1) != 0 || its_read(UID_PIN, mac, sizeof(mac)) != 0) {
-		return NU54_PIN_WRONG; /* no PIN stored (week-7 fixed setup): nothing can match */
-	}
-	if (failures >= PIN_MAX_RETRIES) {
-		return NU54_PIN_LOCKED;
-	}
-	/* Count the attempt before comparing, so cutting power after a wrong PIN does not undo it. */
-	failures++;
-	if (its_write(UID_PIN_FAILURES, &failures, 1) != 0) {
-		return NU54_PIN_WRONG;
-	}
-	if (psa_mac_verify(PIN_KEY_ID, PIN_ALG, (const uint8_t *)pin, len, mac, sizeof(mac)) == PSA_SUCCESS) {
-		failures = 0;
-		if (its_write(UID_PIN_FAILURES, &failures, 1) != 0) {
-			LOG_WRN("PIN failure counter not cleared");
-		}
-		return NU54_PIN_OK;
-	}
-	return failures >= PIN_MAX_RETRIES ? NU54_PIN_LOCKED : NU54_PIN_WRONG;
+static int write_pin_attempts(void *context, uint8_t count)
+{
+	(void)context;
+	return its_write(UID_PIN_FAILURES, &count, 1);
+}
+
+static bool verify_local_pin(void *context, const char *pin, size_t length)
+{
+	(void)context;
+	uint8_t mac[PSA_HASH_LENGTH(PSA_ALG_SHA_256)];
+	return its_read(UID_PIN, mac, sizeof(mac)) == 0 &&
+	       psa_mac_verify(PIN_KEY_ID, PIN_ALG, (const uint8_t *)pin, length, mac, sizeof(mac)) == PSA_SUCCESS;
+}
+
+static int check_pin(void *ctx, const char *pin, size_t length)
+{
+	const nu54_pin_attempt_storage storage = {ctx, read_pin_attempts, write_pin_attempts, verify_local_pin};
+	return nu54_pin_attempt(&storage, pin, length);
 }
 
 /* Secure channel (payment-protocol.md 4.1): HKDF-SHA256 and AES-128-GCM on CRACEN. */
@@ -242,61 +403,144 @@ static int aead_open(void *ctx, const uint8_t key[16], const uint8_t iv[12], con
 	return gcm(0, key, iv, in, len, out);
 }
 
-static int wipe(void *ctx)
+static int clear_rental_material(void)
 {
-	int ok;
-
-	struct stored_record r;
-	/* A stored rental, not a setup that stopped before storing (refused, PIN timeout, link lost). */
-	bool rental = its_read(UID_RECORD, &r, sizeof(r)) == 0;
-
-	(void)ctx;
-	ok = gone(psa_its_remove(UID_RECORD)); /* first: without it the rest is a leftover */
-	ok &= device_key_destroy() == 0;
+	int ok = device_key_retire_new_rental() == 0;
 	ok &= gone(psa_destroy_key(PIN_KEY_ID));
 	ok &= gone(psa_its_remove(UID_PIN));
 	ok &= gone(psa_its_remove(UID_PIN_FAILURES));
 	ok &= settings_delete("nu54/nonce") == 0;
-	/* Bonds go with the rental: the next renter's phone pairs again with the new passkey. A setup
-	 * that stopped keeps the phone's link so the phone app gets the answer (its bond goes when it
-	 * leaves, ble_links.c). */
-	if (rental) {
-		ok &= ble_links_unpair_all() == 0;
-	}
 	nonce_loaded = 0;
-	LOG_INF("wipe: %s", ok ? "done" : "incomplete");
 	return ok ? 0 : -EIO;
+}
+
+static int discard_setup(void *ctx)
+{
+	(void)ctx;
+	struct rental_record record;
+	int kind = read_rental_record(&record);
+	/* The one commit could have succeeded before a lost response. Never discard its key. */
+	if (kind != RENTAL_ABSENT && kind != RENTAL_RETIRED) return -EIO;
+	return clear_rental_material();
+}
+
+static int wipe(void *ctx)
+{
+	(void)ctx;
+	struct rental_record prior;
+	int kind = read_rental_record(&prior);
+	if (kind < 0) return kind;
+	if (kind == RENTAL_JOURNAL_REQUIRED) return -EACCES; /* retain protected evidence */
+	device_key_deactivate_rental();
+
+	struct rental_record tombstone = {.kind = RENTAL_FENCED};
+	if (kind != RENTAL_FENCED && its_write(UID_RECORD, &tombstone, RENTAL_V1_RECORD_SIZE) != 0) return -EIO;
+	if (clear_rental_material() != 0 || ble_links_unpair_all() != 0) return -EIO;
+	tombstone.kind = RENTAL_RETIRED;
+	return its_write(UID_RECORD, &tombstone, RENTAL_V1_RECORD_SIZE);
 }
 
 /* ---------------------------------------------------------------- boot */
 
-static int load_rental(nu54_device_t *d, const struct stored_record *r)
+static void apply_rental_setup(nu54_device_t *d, const struct stored_record *r)
 {
-	uint8_t failures;
-
-	if (device_key_open(d->address) != 0 || !nonce_loaded) {
-		return -ENOENT;
-	}
 	memcpy(d->operator_address, r->operator_address, 20);
 	memcpy(d->contract, r->contract, 20);
 	memcpy(d->chain_id, r->chain_id, 32);
 	d->passkey = r->passkey;
-	nu54_device_init(d, stored_nonce);
-	if (its_read(UID_PIN_FAILURES, &failures, 1) == 0 && failures >= PIN_MAX_RETRIES) {
-		d->state = NU54_STATE_PIN_LOCKED; /* only DeviceReset clears it */
-	}
+}
+
+static void apply_rental_pin_state(nu54_device_t *d)
+{
+	uint8_t failures;
+	if (read_pin_attempts(NULL, &failures) != 0 || failures >= NU54_PIN_ATTEMPT_LIMIT)
+		d->state = NU54_STATE_PIN_LOCKED; /* only authorized retirement/reset clears it */
 	LOG_INF("rental setup loaded%s", d->state == NU54_STATE_PIN_LOCKED ? " (PIN locked)" : "");
+}
+
+static int load_rental(nu54_device_t *d, const struct stored_record *r, device_key_slot slot)
+{
+	if (!nonce_loaded || device_key_activate_rental(slot, false, d->address) != 0)
+		return -ENOENT;
+	apply_rental_setup(d, r);
+	nu54_device_init(d, stored_nonce);
+	apply_rental_pin_state(d);
 	return 0;
 }
 
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+static nu54_rental_journal_t rental_journal;
+
+static int load_journaled_rental(nu54_device_t *d, const struct rental_record *record)
+{
+	nu54_rental_binding_t binding;
+	uint8_t first[32];
+	bool active;
+	int found = device_rental_journal_marker_ps(&binding, first, &active);
+	if (found == 1 && device_rental_journal_stage_ps(&record->binding, record->first) == 0)
+		found = device_rental_journal_marker_ps(&binding, first, &active);
+	if (found != 0 || memcmp(&record->binding, &binding, sizeof(binding)) ||
+	    memcmp(record->first, first, sizeof(first)) ||
+	    device_key_slot_open(DEVICE_KEY_RENTER, false, d->address) != 0 ||
+	    memcmp(d->address, binding.account, sizeof(d->address)) ||
+	    memcmp(record->fields.chain_id, binding.chain, sizeof(record->fields.chain_id)) ||
+	    memcmp(record->fields.contract, binding.contract, sizeof(record->fields.contract))) return -EIO;
+
+	apply_rental_setup(d, &record->fields);
+	nu54_device_init_rental_candidate(d, first);
+	if (active) {
+		int result = device_rental_journal_resume_ps(&rental_journal, &binding, first);
+		/* A protected fence leaves the rental candidate signing-disabled without stopping the owner link. */
+		if (result != NU54_RENTAL_JOURNAL_FROZEN &&
+		    (result != 0 || nu54_device_bind_rental_journal(d, &rental_journal) != 0 ||
+		     device_key_activate_rental(DEVICE_KEY_RENTER, false, d->address) != 0)) return -EIO;
+	}
+	apply_rental_pin_state(d);
+	return 0;
+}
+
+int device_setup_activate_rental_generation(nu54_device_t *d, const nu54_rental_registration_t *registration,
+					    const nu54_rental_registration_trust_t *trust, const uint8_t signature[65])
+{
+	struct rental_record record;
+	uint8_t account[20];
+	if (!d || !registration || !trust || !signature || !d->rental_journal_required ||
+	    !d->session_open || !d->session_setup || !d->session_bonded || d->pending != NU54_PENDING_NONE ||
+	    (d->state != NU54_STATE_PROVISIONED_NO_ANCHOR && d->state != NU54_STATE_READY) ||
+	    read_rental_record(&record) != RENTAL_JOURNAL_REQUIRED ||
+	    memcmp(&record.binding, &trust->binding, sizeof(record.binding)) ||
+	    memcmp(record.first, trust->first, sizeof(record.first)) ||
+	    memcmp(record.fields.operator_address, trust->operator_address, sizeof(record.fields.operator_address)) ||
+	    device_key_slot_open(DEVICE_KEY_RENTER, false, account) != 0 ||
+	    memcmp(account, trust->binding.account, sizeof(account))) return -EACCES;
+	if (d->rental_journal) {
+		nu54_rental_binding_t observed;
+		uint8_t first[32];
+		bool active;
+		return device_rental_journal_marker_ps(&observed, first, &active) == 0 && active &&
+		       !memcmp(&observed, &record.binding, sizeof(observed)) &&
+		       !memcmp(first, record.first, sizeof(first)) &&
+		       nu54_rental_registration_verify(registration, trust, signature) == 0 ? 0 : -EACCES;
+	}
+	if (device_rental_journal_activate_ps(&rental_journal, registration, trust, signature) != 0 ||
+	    nu54_device_bind_rental_journal(d, &rental_journal) != 0) return -EACCES;
+	if (device_key_activate_rental(DEVICE_KEY_RENTER, false, account) != 0) {
+		d->rental_journal = NULL;
+		return -EIO;
+	}
+	return 0;
+}
+
+#endif
+
 static int load_fixed(nu54_device_t *d)
 {
-	int created, err = device_key_init(d->address, &created);
+	int err = device_key_activate_rental(DEVICE_KEY_LEGACY_RENTER, true, d->address);
 
 	if (err) {
 		return err;
 	}
-	LOG_INF("device key %s (week-7 fixed setup)", created ? "created" : "opened");
+	LOG_INF("device key available (week-7 fixed setup)");
 	memcpy(d->operator_address, DEV_OPERATOR, 20);
 	memcpy(d->contract, DEV_CONTRACT, 20);
 	memcpy(d->chain_id, DEV_CHAIN_ID, 32);
@@ -316,16 +560,32 @@ static int load_fixed(nu54_device_t *d)
 
 int device_setup_load(nu54_device_t *d)
 {
-	struct stored_record r;
+	struct rental_record r;
 	int err;
 
 	d->cfg.platform = (nu54_platform_t){
 		.sign = sign,
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+		.monotonic_seconds = rental_monotonic_seconds,
+		.sign_rental_attestation = sign_rental_attestation,
+		.can_commission_rental_journal = can_commission_rental_journal,
+		.allow_rental_collector = allow_rental_collector,
+		.freeze_rental = freeze_rental,
+		.allow_rental_cleanup_station = device_rental_cleanup_station_allowed,
+		.begin_rental_cleanup = begin_rental_cleanup,
+		.end_rental_cleanup = device_rental_cleanup_end,
+		.rental_cleanup_time = device_rental_cleanup_time,
+		.rental_cleanup_binding = rental_cleanup_binding,
+		.rental_cleanup_witness = device_rental_cleanup_witness,
+		.fence_rental_cleanup = fence_rental_cleanup,
+		.rental_challenge_random = rental_challenge_random,
+#endif
 		.random = random_bytes,
 		.persist_nonce = persist_nonce,
 		.generate_key = generate_key,
 		.commit_setup = commit_setup,
 		.wipe = wipe,
+		.discard_setup = discard_setup,
 		.check_pin = check_pin,
 		.hkdf = hkdf,
 		.aead_seal = aead_seal,
@@ -341,19 +601,30 @@ int device_setup_load(nu54_device_t *d)
 	if (err) {
 		return err;
 	}
-	if (its_read(UID_RECORD, &r, sizeof(r)) == 0) {
-		if (load_rental(d, &r) == 0) {
-			return 0;
-		}
-		/* A record without its key or nonce cannot sign safely; come up empty so the operator
-		 * can set the device up again (the on-chain account is closed separately). */
-		LOG_ERR("stored setup is incomplete; wiping it");
-		(void)wipe(NULL);
-	} else if (IS_ENABLED(CONFIG_NU54_DEV_SETUP)) {
-		return load_fixed(d); /* keeps the fixed-setup key and nonce across boots */
-	} else {
-		(void)wipe(NULL); /* whatever a setup that never finished left behind */
+	if (device_vault_load() != 0) {
+		/* A personal-vault fault cannot grant or replace any keys. Preserve access to a proven v1 rental. */
+		LOG_ERR("owner vault unavailable");
 	}
+	device_key_deactivate_rental();
+	int kind = read_rental_record(&r);
+	if (kind < 0) return kind;
+#if defined(CONFIG_NU54_EXPERIMENTAL_RENTAL_JOURNAL_PS)
+	if (kind == RENTAL_JOURNAL_REQUIRED) return load_journaled_rental(d, &r);
+	if (device_rental_journal_platform_qualified()) {
+		nu54_rental_binding_t binding;
+		uint8_t first[32];
+		bool active;
+		/* Interrupted commissioning cannot become a legacy rental or discard its staged key. */
+		if (device_rental_journal_marker_ps(&binding, first, &active) != 1) return -EIO;
+	}
+#else
+	if (kind == RENTAL_JOURNAL_REQUIRED) return -EACCES;
+#endif
+	if (kind == RENTAL_LEGACY || kind == RENTAL_ACTIVE)
+		return load_rental(d, &r.fields, kind == RENTAL_LEGACY ? DEVICE_KEY_LEGACY_RENTER : DEVICE_KEY_RENTER);
+	if (kind == RENTAL_ABSENT && IS_ENABLED(CONFIG_NU54_DEV_SETUP)) return load_fixed(d);
+	err = kind == RENTAL_FENCED ? wipe(NULL) : discard_setup(NULL);
+	if (err) return err;
 	nu54_device_init_unprovisioned(d);
 	LOG_INF("unprovisioned: waiting for a setup session");
 	return 0;

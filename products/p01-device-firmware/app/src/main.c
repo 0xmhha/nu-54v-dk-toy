@@ -17,6 +17,11 @@
 
 #include "board_io.h"
 #include "device_key.h"
+#include "device_pilot.h"
+#include "device_update.h"
+#if defined(CONFIG_NU54_HD_RECOVERY)
+#include "device_hd.h"
+#endif
 #include "pay_link.h"
 #include "status_led.h"
 #include "nu54_keccak.h"
@@ -64,24 +69,12 @@ static void pin_feedback(bool tap)
 	status_led_pin(tap ? STATUS_PIN_TAP : STATUS_PIN_KEEP);
 }
 
-/* Set when an entry was handed to the session, until the session stops asking: the session works
- * on its own queue, so the next loop may still see the PIN asked for. */
-static bool handed_over;
-
-/* The entry as it stands, for the phone app (pin.entry, N28). */
-static void show_entry(const nu54_pin_entry_t *e)
-{
-	char digits[NU54_PIN_LEN + 1];
-	int position = nu54_pin_entry_view(e, digits);
-	pay_link_pin_progress(digits, position);
-	memset(digits, 0, sizeof(digits));
-}
+static uint32_t pin_prompt;
 
 static void hand_over(const char *pin)
 {
 	status_led_pin_end();
-	pay_link_pin(pin, pin ? NU54_PIN_LEN : 0);
-	handed_over = true;
+	pay_link_pin(pin_prompt, pin, pin ? NU54_PIN_LEN : 0);
 }
 
 /* A button while the PIN is asked for. Never logs the digits. */
@@ -96,7 +89,6 @@ static void pin_button(nu54_pin_entry_t *e, const board_button_event_t *ev)
 	pe = ev->button == 0 ? NU54_PIN_TAP : ev->button == 2 ? NU54_PIN_NEXT : NU54_PIN_CLEAR;
 	switch (nu54_pin_entry_event(e, pe, k_uptime_get_32(), pin)) {
 	case NU54_PIN_DONE:
-		pay_link_pin_progress(pin, NU54_PIN_LEN); /* all four kept */
 		hand_over(pin);
 		memset(pin, 0, sizeof(pin));
 		break;
@@ -109,7 +101,22 @@ static void pin_button(nu54_pin_entry_t *e, const board_button_event_t *ev)
 		} else {
 			status_led_pin(STATUS_PIN_START); /* starting again looks like starting */
 		}
-		show_entry(e);
+	}
+}
+
+static void sync_pin_prompt(nu54_pin_entry_t *entry)
+{
+	uint32_t wanted = pay_link_pin_prompt();
+	if (pin_prompt == wanted) return;
+	pin_prompt = wanted;
+	if (entry->active) {
+		nu54_pin_entry_stop(entry);
+		status_led_pin_end();
+	}
+	if (wanted) {
+		nu54_pin_entry_start(entry, k_uptime_get_32());
+		LOG_INF("enter the PIN: SW1 taps a digit, SW3 keeps it, SW2 starts again");
+		status_led_pin(STATUS_PIN_START);
 	}
 }
 
@@ -122,9 +129,17 @@ int main(void)
 	if (board_io_init() != 0) {
 		return 0;
 	}
+	if (IS_ENABLED(CONFIG_NU54_COUNTED_UPDATE) && board_update_chord()) {
+		k_msleep(50);
+		if (board_update_chord()) device_update_maintenance();
+	}
 	int st = pay_link_init();
 	if (st != 0) {
 		LOG_ERR("payment link unavailable (%d)", st);
+		return 0;
+	}
+	if (IS_ENABLED(CONFIG_NU54_COUNTED_UPDATE) && device_update_boot_healthy() != 0) {
+		LOG_ERR("trial image remains unconfirmed");
 		return 0;
 	}
 	if (pay_link_address(address)) {
@@ -137,21 +152,7 @@ int main(void)
 
 	while (true) {
 		board_button_event_t ev;
-		bool wanted = pay_link_pin_wanted();
-
-		/* The session asks for the PIN (setup or a limit change): start, or end a stale entry. */
-		if (!wanted) {
-			handed_over = false;
-		}
-		if (wanted && !pin_entry.active && !handed_over) {
-			nu54_pin_entry_start(&pin_entry, k_uptime_get_32());
-			LOG_INF("enter the PIN: SW1 taps a digit, SW3 keeps it, SW2 starts again");
-			status_led_pin(STATUS_PIN_START);
-			show_entry(&pin_entry);
-		} else if (!wanted && pin_entry.active) {
-			nu54_pin_entry_stop(&pin_entry);
-			status_led_pin_end();
-		}
+		sync_pin_prompt(&pin_entry);
 		if (pin_entry.active && nu54_pin_entry_poll(&pin_entry, k_uptime_get_32()) == NU54_PIN_TIMEOUT) {
 			hand_over(NULL);
 			continue;
@@ -159,23 +160,44 @@ int main(void)
 		/* Poll while the session waits for the renter, so the PIN entry starts as soon as the
 		 * session asks for it (right after the approve button) and a timeout or a closed
 		 * session is noticed. */
-		if (board_button_wait(&ev, wanted || pin_entry.active || pay_link_waiting() ? 250 : -1) != 0) {
+		if (board_button_wait(&ev, pin_prompt || pin_entry.active || pay_link_waiting() ? 250 : -1) != 0) {
 			continue;
 		}
-		if (pin_entry.active) {
+		sync_pin_prompt(&pin_entry);
+#if defined(CONFIG_NU54_HD_RECOVERY)
+		if (ev.button == 2 && ev.event == NU54_BTN_LONG && device_hd_physical(ev.prompt)) continue;
+#endif
+		if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && (ev.prompt & NU54_PILOT_PROMPT_MASK)) {
+			if (ev.event == NU54_BTN_CLICK && ev.button <= 1) device_pilot_button(ev.prompt, ev.button == 0);
+			continue;
+		}
+		if (pin_entry.active && ev.prompt == pin_prompt) {
 			pin_button(&pin_entry, &ev);
 			continue;
 		}
+		if (pin_prompt) continue;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		if (ev.event == NU54_BTN_CHORD) {
+			if (!ev.prompt && !pin_entry.active && !pay_link_waiting() && !device_pilot_waiting())
+				device_pilot_button_reset();
+			continue;
+		}
+#endif
 		LOG_INF("SW%u %s", ev.button + 1, ev.event == NU54_BTN_CLICK ? "click" : "long press");
 		if (ev.button == 3 && ev.event == NU54_BTN_LONG) {
 			status_led_clear();
+			if (IS_ENABLED(CONFIG_NU54_PILOT_TLS)) device_pilot_enrollment_window();
 			pay_link_payment_mode(120);
 		} else if (ev.button == 2 && ev.event == NU54_BTN_LONG) {
-			pay_link_pairing_mode(120); /* LE limited discovery stays under the 180 s the GAP allows */
+			if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active()) {
+				if (device_pilot_recovery_window()) pay_link_payment_mode(120);
+			} else {
+				pay_link_pairing_mode(120); /* LE limited discovery stays under the 180 s the GAP allows */
+			}
 		} else if (ev.button == 0 && ev.event == NU54_BTN_CLICK) {
-			pay_link_button(1);
+			pay_link_button(ev.prompt, 1);
 		} else if (ev.button == 1 && ev.event == NU54_BTN_CLICK) {
-			pay_link_button(0);
+			pay_link_button(ev.prompt, 0);
 		} else if (ev.button <= 1) {
 			LOG_WRN("SW%u was held: approve and reject need a short press", ev.button + 1);
 		}

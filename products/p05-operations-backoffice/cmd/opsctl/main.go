@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 
+	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/networklist"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/ble"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/core"
 	"github.com/0xmhha/nu-54v-dk-toy/products/p05-operations-backoffice/internal/core/ops"
@@ -29,15 +30,16 @@ import (
 // commands lists the groups and the WBS task that implements them; "done" marks the
 // commands that run now.
 var commands = map[string]string{
-	"merchant":    "register (done) | revoke (done) | payout-change (done) | payout-cancel (done)   (WBS2-P05-01, P05-04)",
-	"attestation": "issue (done)                                              (WBS2-P05-01)",
-	"anchor":      "sign (done)   (TimeAnchor for the development setup)     (WBS2-P05-02)",
-	"order":       "sign (done)   (test merchant)                             (WBS2-P05-01)",
-	"rental":      "deposit (done) | provision (done) | re-anchor (done) | return (done)   (WBS2-P05-02, P05-03)",
-	"token":       "mint (done)   (test token, token-owner key)                (development setup)",
-	"withdraw":    "request | cancel | execute                                (WBS2-P05-03)",
-	"refusal":     "host (done)   (UNSUPPORTED_TYPE and MERCHANT_FORGED demos)   (WBS2-P05-04)",
-	"key":         "handover   (test merchant key to kiosk secretRef)         (WBS2-P05-01)",
+	"merchant":     "register (done) | revoke (done) | payout-change (done) | payout-cancel (done)   (WBS2-P05-01, P05-04)",
+	"attestation":  "issue (done)                                              (WBS2-P05-01)",
+	"anchor":       "sign (done)   (TimeAnchor for the development setup)     (WBS2-P05-02)",
+	"order":        "sign (done)   (test merchant)                             (WBS2-P05-01)",
+	"rental":       "deposit (done) | provision (done) | re-anchor (done) | return (done)   (WBS2-P05-02, P05-03)",
+	"token":        "mint (done)   (test token, token-owner key)                (development setup)",
+	"withdraw":     "request | cancel | execute                                (WBS2-P05-03)",
+	"refusal":      "host (done)   (UNSUPPORTED_TYPE and MERCHANT_FORGED demos)   (WBS2-P05-04)",
+	"network-list": "sign (done)   (addresses the phone app reads each chain from)",
+	"key":          "handover   (test merchant key to kiosk secretRef)         (WBS2-P05-01)",
 }
 
 func usage() {
@@ -71,6 +73,7 @@ func main() {
 		"rental return":          rentalReturn,
 		"refusal host":           refusalHost,
 		"token mint":             tokenMint,
+		"network-list sign":      networkListSign,
 	}[os.Args[1]+" "+os.Args[2]]
 	if run == nil {
 		fmt.Fprintf(os.Stderr, "opsctl %s %s: not implemented yet (%s)\n", os.Args[1], os.Args[2], strings.TrimSpace(commands[os.Args[1]]))
@@ -382,6 +385,53 @@ func anchorSign(args []string) error {
 		return err
 	}
 	return emit(e, "anchor-sign", a)
+}
+
+// networkListSign signs the network addresses that the phone app may use. It needs no chain: the app
+// checks every server against the chain anchors built into it. The result is the file that
+// P05_NETWORK_LIST_FILE names.
+func networkListSign(args []string) error {
+	fs := flag.NewFlagSet("network-list sign", flag.ExitOnError)
+	e := commonFlags(fs)
+	in := fs.String("in", "", "list to sign: {v, issuedAt, expiresAt, sequence, networks}")
+	last := fs.Int64("last-sequence", 0, "sequence of the list published before; the new one must be higher")
+	_ = fs.Parse(args)
+	raw, err := os.ReadFile(*in)
+	if err != nil {
+		return err
+	}
+	list, err := networklist.Parse(raw)
+	if err != nil {
+		return err
+	}
+	if list.Sequence <= *last {
+		return errors.New("the sequence must be higher than the last one")
+	}
+	payload, err := list.Payload()
+	if err != nil {
+		return err
+	}
+	if err := checkRoles(filepath.Join(filepath.Dir(e.keystores), "testnet-accounts.env")); err != nil {
+		return err
+	}
+	operator, err := e.roleKey("operator")
+	if err != nil {
+		return err
+	}
+	digest := networklist.Digest(payload)
+	signature, err := core.SignDigest(digest[:], operator)
+	if err != nil {
+		return err
+	}
+	envelope := networklist.Envelope{Payload: payload, Signature: hexutil.Encode(signature)}
+	signed, err := json.Marshal(envelope)
+	if err != nil {
+		return err
+	}
+	if _, _, err := networklist.Read(signed, core.Address(operator), time.Now()); err != nil {
+		return err
+	}
+	return emit(e, "network-list-sign", envelope)
 }
 
 func orderSign(args []string) error {

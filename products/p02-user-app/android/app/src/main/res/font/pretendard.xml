@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pretendard 1.3.9 (SIL OFL 1.1), from the official release Pretendard-1.3.9.zip
+     sha256 04be351a74d6bf7d60c480a3087e51d185485d35a52023142af1df19eb8c428a. -->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font app:fontStyle="normal" app:fontWeight="400" app:font="@font/pretendard_regular" />
+    <font app:fontStyle="normal" app:fontWeight="700" app:font="@font/pretendard_bold" />
+    <font app:fontStyle="normal" app:fontWeight="800" app:font="@font/pretendard_extrabold" />
+</font-family>

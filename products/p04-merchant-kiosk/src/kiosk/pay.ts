@@ -14,6 +14,7 @@ import { signKioskKey, signMerchantOrder } from "../payment/signing.ts";
 import { gasReady, resume, submit, type Outcome, type Signed, type SubmitContext } from "../payment/submit.ts";
 import { runLimitChange, submitLimits, type LimitOutcome } from "../payment/limits.ts";
 import type { Loaded } from "./config.ts";
+import {boundedObservation,type RenterV1Observation} from "./renterV1Origin.ts";
 import type { OrderRecord, OrderStore } from "./orders.ts";
 
 export type Phase = "checkingGas" | "connecting" | SessionStep | "submitting";
@@ -44,6 +45,7 @@ export interface PayDeps {
   submit?: typeof submit;
   /** Where orders survive a restart (P04-NFR-05); optional in tests. */
   orders?: OrderStore;
+  renterObservation?:RenterV1Observation;
 }
 
 export function submitContext(deps: PayDeps): SubmitContext {
@@ -98,9 +100,14 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
       signKioskKey: (v) => signKioskKey(domain, v, merchantKey), // every kiosk session is secure (4.1)
       random: deps.random,
       onStep: onPhase,
-      onOrder: async (id) => {
+      onOrder: async (id, account, authorization, merchantSignature) => {
         orderId = id;
         await deps.orders?.create(id, amount, order ?? {});
+        if (deps.orders && deps.renterObservation) {
+          const observer=deps.renterObservation;
+          const evidence=await boundedObservation(()=>observer.reserve(account,authorization,merchantSignature));
+          if(evidence)await record({type:"preparedOrigin",evidence}).catch(()=>undefined);
+        }
       },
     });
     if (session.status === "cancelled") {
@@ -117,6 +124,11 @@ export async function pay(deps: PayDeps, amount: bigint, onPhase: (p: Phase) => 
     const signed: Signed = { auth, signature, device, requestedAt };
     await record({ type: "signed", signed }); // before submitting: a crash keeps the signature
     const out = await (deps.submit ?? submit)(ctx, signed);
+    const entry=orderId ? deps.orders?.get(orderId) : undefined;
+    if(entry?.renterOrigin && deps.renterObservation){
+      const evidence=entry.renterOrigin, observer=deps.renterObservation;
+      if(await boundedObservation(()=>observer.report(evidence,signed)))await record({type:"reportedOrigin"}).catch(()=>undefined);
+    }
     await record({ type: "outcome", outcome: out });
     if (out.status === "Checking") return { ...out, signed };
     // P04-FR-16: tell the device the final result; it does not answer. reason is a protocol
@@ -186,11 +198,20 @@ export async function changeLimits(
  * with its own signature (re-simulated, resent if it would still settle); an order that never got
  * a signature is cancelled, so it may be paid again.
  */
-export async function resumeOrders(deps: Pick<PayDeps, "kiosk" | "chain" | "orders">, resumeOne: typeof resume = resume): Promise<OrderRecord[]> {
+export async function resumeOrders(deps: Pick<PayDeps, "kiosk" | "chain" | "orders" | "renterObservation">, resumeOne: typeof resume = resume): Promise<OrderRecord[]> {
   const store = deps.orders;
   if (!store) return [];
   const ctx = submitContext({ ...deps, connect: async () => { throw new Error("no device needed"); }, anchor: async () => undefined, random: () => new Uint8Array() });
   const out: OrderRecord[] = [];
+  const observer=deps.renterObservation;
+  if(observer){
+    for(const order of store.pendingOriginReports()){
+      const {renterOrigin,signed}=order;
+      if(renterOrigin&&signed&&await boundedObservation(()=>observer.report(renterOrigin,signed))){
+        await store.apply(order.orderId,{type:"reportedOrigin"}).catch(()=>undefined);
+      }
+    }
+  }
   for (const o of store.open()) {
     if (!o.signed) {
       out.push(await store.apply(o.orderId, { type: "cancelled" }));

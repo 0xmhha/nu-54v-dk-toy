@@ -1,0 +1,4 @@
+/* Compile-only MCUboot view: two equal combined-image slots. Never flash. */
+&slot0_partition { reg = <0x10000 0xa8000>; };
+&slot1_partition { reg = <0xb8000 0xa8000>; };
+&storage_partition { reg = <0x160000 0x8000>; };

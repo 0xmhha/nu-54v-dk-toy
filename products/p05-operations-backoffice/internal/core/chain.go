@@ -52,8 +52,30 @@ func Dial(ctx context.Context, rpcURL string, dep Deployment) (*Chain, error) {
 }
 
 func (c *Chain) MerchantStatus(merchant common.Address) (bool, common.Address, error) {
-	s, err := c.reg.MerchantStatus(&bind.CallOpts{BlockNumber: c.read}, merchant)
+	return c.MerchantStatusContext(context.Background(), merchant)
+}
+
+func (c *Chain) MerchantStatusContext(ctx context.Context, merchant common.Address) (bool, common.Address, error) {
+	s, err := c.reg.MerchantStatus(&bind.CallOpts{Context: ctx, BlockNumber: c.read}, merchant)
 	return s.Active, s.Payout, err
+}
+
+// RentalTokenMetadata resolves the pinned v1 asset at the assessed block hash.
+func (c *Chain) RentalTokenMetadata(ctx context.Context, block common.Hash) (uint8, string, error) {
+	if block == (common.Hash{}) || c.dep.Token == (common.Address{}) {
+		return 0, "", fmt.Errorf("rental token metadata unavailable")
+	}
+	token, err := testusdc.NewTestusdc(c.dep.Token, c.client)
+	if err != nil {
+		return 0, "", err
+	}
+	opts := &bind.CallOpts{Context: ctx, BlockHash: block}
+	decimals, err := token.Decimals(opts)
+	if err != nil {
+		return 0, "", err
+	}
+	symbol, err := token.Symbol(opts)
+	return decimals, symbol, err
 }
 
 func (c *Chain) PendingPayoutOf(merchant common.Address) (common.Address, uint64, error) {
@@ -188,10 +210,13 @@ func (c *Chain) Deposit(ctx context.Context, operator *ecdsa.PrivateKey, device 
 
 // Account is a device account as the finalized (or sandbox latest) state shows it.
 type Account struct {
-	Exists        bool // a deposit created it (it has a withdraw address)
-	ClosedAt      uint64
-	Balance       *big.Int
-	WithdrawAfter uint64
+	Exists                      bool // a deposit created it (it has a withdraw address)
+	ClosedAt                    uint64
+	Balance                     *big.Int
+	PendingWithdrawal           *big.Int
+	WithdrawAddress             common.Address
+	PerPaymentLimit, DailyLimit *big.Int
+	WithdrawAfter               uint64
 }
 
 // AccountOf reads a device account (accountOf in the settlement extensions).
@@ -204,7 +229,21 @@ func (c *Chain) AccountOf(ctx context.Context, device common.Address) (Account, 
 	if err != nil {
 		return Account{}, err
 	}
-	return Account{Exists: v.WithdrawAddress != (common.Address{}), ClosedAt: v.ClosedAt.Uint64(), Balance: v.Balance, WithdrawAfter: v.WithdrawAfter.Uint64()}, nil
+	if v.WithdrawAddress != (common.Address{}) {
+		for getter, value := range map[string]**big.Int{
+			"perPaymentCap()": &v.PerPaymentLimit, "dailyCap()": &v.DailyLimit,
+		} {
+			if (*value).Sign() == 0 {
+				limit, err := c.rentalLimit(ctx, getter)
+				if err != nil {
+					return Account{}, err
+				}
+				*value = limit
+			}
+		}
+	}
+	return Account{Exists: v.WithdrawAddress != (common.Address{}), ClosedAt: v.ClosedAt.Uint64(), Balance: v.Balance, WithdrawAfter: v.WithdrawAfter.Uint64(), PendingWithdrawal: v.PendingWithdrawal,
+		WithdrawAddress: v.WithdrawAddress, PerPaymentLimit: v.PerPaymentLimit, DailyLimit: v.DailyLimit}, nil
 }
 
 // CloseAccount stops the device account at once with the operator key (closeAccount):

@@ -1,0 +1,7 @@
+// Applied by a consuming Android app after its Android/Kotlin plugins.
+def sdkHome = buildscript.sourceFile.parentFile
+android.sourceSets.main {
+    java.srcDir(sdkHome)
+    if (delegate.hasProperty('kotlin')) kotlin.srcDir(sdkHome)
+}
+dependencies.add("implementation", "org.conscrypt:conscrypt-android:2.7.0")

@@ -9,37 +9,368 @@ on:
 permissions:
   contents: read
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.12"
+          python-version: "3.12.12"
+      - run: python3 scripts/verify_ci_inputs.py --actions python
       - run: make docs-check
 
   build-test:
-    runs-on: ubuntu-latest
+    name: Root lint and tests (including P01 host/core and P02)
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: packages/protocol/go/go.mod
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+          go-version: "1.26.11"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
-          node-version: 22
+          version: "10.18.0"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.23.5"
           cache: pnpm
-      - uses: astral-sh/setup-uv@v6
-      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.11.0"
+      - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1
         with:
           # Same release as local development, so the gas snapshot matches.
           version: v1.5.1
-      # P01 firmware needs the NCS toolchain and is built locally; CI runs the host tests of core/.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12.12"
+      - run: python3 scripts/verify_ci_inputs.py python go node pnpm uv foundry cast
+      - name: Install the Python packages of the firmware tests
+        run: "python3 -m pip install --require-hashes --only-binary=:all: -r products/p01-device-firmware/test/requirements.txt"
+      - name: Install fleet PostgreSQL adapter
+        run: "python3 -m pip install --require-hashes --no-binary=:all: -r products/p10-platform/release/requirements.txt"
+      - name: Install the verified Solidity compiler
+        run: |
+          solc=$(python3 scripts/install_contract_compiler.py "$RUNNER_TEMP/solc-0.8.39")
+          printf 'FOUNDRY_SOLC=%s\n' "$solc" >> "$GITHUB_ENV"
+      - name: Audit the isolated WalletConnect reference peer and test decoder compatibility
+        run: |
+          qa=products/p02-user-app/test/dapp-browser
+          python3 -B "$qa/test_reference_lock.py"
+          standalone=$(mktemp -d)
+          trap 'rm -rf -- "$standalone"' EXIT
+          trap 'exit 129' HUP
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          export TMPDIR="$standalone" TMP="$standalone" TEMP="$standalone"
+          export NODE_COMPILE_CACHE="$standalone/.node-compile-cache"
+          export npm_config_cache="$standalone/.npm" NPM_CONFIG_CACHE="$standalone/.npm"
+          cp "$qa/reference/"{package.json,package-lock.json,query-decoder-interop.cjs,check-query-decoder.cjs} "$standalone/"
+          cd "$standalone"
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm audit --audit-level=low
+          node check-query-decoder.cjs
       - run: pnpm install --frozen-lockfile
       - run: uv sync --all-packages
       - run: make lint
       - run: make test
+      - name: Verify 8283 finality evidence on an isolated ledger
+        run: python3 products/p01-device-firmware/test/test_owner_finality_anvil.py products/p01-device-firmware/out/host/test_owner_finality_node
+      - name: Exercise P03 threshold rounds in separate processes
+        run: make -C products/p03-cloud-mpc-wallet real-test
+      - run: make -C products/p10-platform release-test
+      - name: Verify the mobile SDK archive and required npm peers
+        run: |
+          python3 products/p10-platform/release/test_mobile_peers.py
+          make -C products/p10-platform sdk-mobile-candidate SDK_OUT="$RUNNER_TEMP/nu54-sdk-mobile-peers"
+      - name: Build and consume the unsigned Protocol SDK candidates
+        run: make -C products/p10-platform sdk-candidates SDK_OUT="$RUNNER_TEMP/nu54-sdk-candidates"
+      - name: Upload SDK candidate and observed evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: protocol-sdk-unsigned-candidates
+          path: ${{ runner.temp }}/nu54-sdk-candidates
+
+      - name: Build unsigned P09 service and binary SBOM
+        run: make -C products/p09-travel-ai release-candidate PLACES_OUT="$RUNNER_TEMP/nu54-placesd"
+      - name: Upload P09 candidate and checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: placesd-linux-amd64-unsigned-candidate
+          path: ${{ runner.temp }}/nu54-placesd
+
+  commercial-integration:
+    name: Strict commercial PostgreSQL and Anvil integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.26.11"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12.12"
+      - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1
+        with:
+          version: v1.5.1
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: "10.18.0"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.23.5"
+      - run: python3 scripts/verify_ci_inputs.py python go node pnpm foundry cast
+      - name: Install the verified Solidity compiler
+        run: |
+          solc=$(python3 scripts/install_contract_compiler.py "$RUNNER_TEMP/solc-0.8.39")
+          printf 'FOUNDRY_SOLC=%s\n' "$solc" >> "$GITHUB_ENV"
+      - name: Verify test workspace cleanup on exit and interruption
+        run: |
+          python3 -B scripts/test_integration_workspace.py
+          python3 -B scripts/test_root_make_workspace.py
+          python3 -B scripts/test_bitcoin_core_workspace.py
+          python3 -B scripts/test_commercial_integration_gate.py
+          python3 -B products/p05-operations-backoffice/test/pickup-native/test_cafe_simulators.py
+          python3 -B scripts/ios/scene-smoke/test_run_cleanup.py \
+            SceneCleanup.test_repeated_signals_during_exit_cleanup SceneCleanup.test_installed_runners_own_spec_during_allocation_and_exit
+          python3 -B scripts/ios/scene-smoke/fixtures/test_kiosk_mode_cleanup.py
+          python3 -B scripts/android/market/test_run_orders.py
+          python3 -B products/p08-market-services/test/test_mobile_fixture_workspace.py
+        env:
+          POSTGRES_BIN: /usr/lib/postgresql/16/bin
+      - name: Exercise P03 lifecycle against PostgreSQL
+        run: make -C products/p03-cloud-mpc-wallet db-test
+        env:
+          POSTGRES_BIN: /usr/lib/postgresql/16/bin
+      - name: Install the Python packages of the firmware tests
+        run: "python3 -m pip install --require-hashes --only-binary=:all: -r products/p01-device-firmware/test/requirements.txt"
+      - name: Install fleet PostgreSQL adapter
+        run: "python3 -m pip install --require-hashes --no-binary=:all: -r products/p10-platform/release/requirements.txt"
+      - run: pnpm --filter @nu54/p04-kiosk... install --frozen-lockfile
+      - run: make commercial-integration-test
+        env:
+          POSTGRES_BIN: /usr/lib/postgresql/16/bin
+      - name: Check for contract test artifacts left in the checkout
+        if: always()
+        shell: bash
+        run: |
+          for path in products/{p06-stablenet-contracts,p08-market-services}/{out,cache}; do
+            if [[ -e "$path" || -L "$path" ]]; then
+              echo "Commercial tests left generated files at $path" >&2
+              exit 1
+            fi
+          done
+
+  baseline:
+    name: Archived v1 baseline and P07 restart
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.26.11"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12.12"
+      - run: python3 scripts/verify_ci_inputs.py python go
+      - name: Fetch the archived deployment source
+        run: git fetch --no-tags --depth=1 origin 66a5f433d11ba87119959b6f3b477b4843e93bae
+      - run: make -C products/p10-platform baseline
+      - run: make -C products/p10-platform baseline-restart POSTGRES_BIN=/usr/lib/postgresql/16/bin
+
+  android-signing:
+    name: Android artifact signing (${{ matrix.product }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        product: [p02, p04]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: "10.18.0"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.23.5"
+          cache: pnpm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17.0.17+10"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12.12"
+      - run: python3 scripts/verify_ci_inputs.py --android python node pnpm java
+      - run: pnpm install --frozen-lockfile
+      - name: Install Android native tools
+        run: |
+          "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Fetch bundletool
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar \
+            --output "$RUNNER_TEMP/bundletool.jar"
+          python3 scripts/verify_ci_inputs.py --file bundletool "$RUNNER_TEMP/bundletool.jar"
+          echo "BUNDLETOOL_JAR=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+      - run: bash scripts/android/test_release.sh ${{ matrix.product }}
+        env:
+          NU54_ANDROID_EVIDENCE_DIR: ${{ runner.temp }}/android-evidence
+      - name: Upload Android graph and signature evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.product }}-android-runtime
+          path: ${{ runner.temp }}/android-evidence
+
+  p01-board-build:
+    name: P01 board firmware build (NCS v3.4.2)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NCS_VERSION: v3.4.2
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12.12"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.26.11"
+          cache-dependency-path: products/p05-operations-backoffice/go.sum
+      - name: Install the Nordic SDK and matching toolchain
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/x86_64-unknown-linux-gnu/nrfutil \
+            --output "$RUNNER_TEMP/nrfutil"
+          python3 scripts/verify_ci_inputs.py --file nrfutil-linux-amd64 "$RUNNER_TEMP/nrfutil" python
+          chmod +x "$RUNNER_TEMP/nrfutil"
+          "$RUNNER_TEMP/nrfutil" install sdk-manager=1.16.1
+          PATH="$RUNNER_TEMP:$PATH" python3 scripts/verify_ci_inputs.py nrf-sdk-manager
+          test "$NCS_VERSION" = "$(python3 -c 'import json; print(json.load(open(".github/inputs.json"))["versions"]["ncs"])')"
+          "$RUNNER_TEMP/nrfutil" sdk-manager install "$NCS_VERSION"
+          expected_manifest="$(python3 -c 'import json; print(json.load(open(".github/inputs.json"))["revisions"]["ncs-manifest"])')"
+          test "$(git -C "$HOME/ncs/$NCS_VERSION/nrf" rev-parse HEAD)" = "$expected_manifest"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Cross-build for nu54v_dk/nrf54l15/cpuapp
+        run: |
+          export NCS_DIR="$HOME/ncs/$NCS_VERSION"
+          export P01_BUILD_DIR="$(mktemp -d "$RUNNER_TEMP/p01-build.XXXXXX")"
+          evidence="$RUNNER_TEMP/p01-build-evidence"
+          mkdir -p "$evidence"
+          {
+            printf 'source=%s\nncs=%s\nncs_manifest=%s\n' "$(git rev-parse HEAD)" "$NCS_VERSION" "$(git -C "$NCS_DIR/nrf" rev-parse HEAD)"
+            nrfutil --version
+            nrfutil list
+            make -C products/p01-device-firmware fw
+          } 2>&1 | tee "$evidence/build.log"
+          cd "$P01_BUILD_DIR/app/zephyr"
+          test -s zephyr.hex
+          test -s zephyr.elf
+          sha256sum zephyr.hex zephyr.elf > "$evidence/SHA256SUMS"
+      - name: Check pinned Mbed TLS and exercise the board TLS adapter
+        run: |
+          cd products/p01-device-firmware
+          python3 scripts/test_fw_release.py
+          python3 test/test_mcuboot_tlv_bounds.py "$HOME/ncs/$NCS_VERSION/bootloader/mcuboot"
+          sh test/test_mbedtls_peer.sh
+      - name: Build and verify firmware signed by an ephemeral custom key
+        run: |
+          export NCS_DIR="$HOME/ncs/$NCS_VERSION"
+          export P01_BUILD_DIR="$(mktemp -d "$RUNNER_TEMP/p01-custom.XXXXXX")"
+          export NU54_SIGNING_KEY="$RUNNER_TEMP/nu54-ci-firmware.pem"
+          trap 'rm -f "$NU54_SIGNING_KEY"' EXIT
+          cd products/p01-device-firmware
+          python3 scripts/fw.py keygen "$NU54_SIGNING_KEY"
+          python3 scripts/fw.py build --release --approtect --security-counter=2
+          NU54_FOTA_TEST_BUILD="$P01_BUILD_DIR" go test -count=1 -run '^TestFirmwareVerifiesCountedReleaseImage$' ../p05-operations-backoffice/internal/commerce
+          cp "$P01_BUILD_DIR"/{release-manifest.json,release-public.pem,west-frozen.yml,tls-stack.cdx.json} "$RUNNER_TEMP/p01-build-evidence/"
+      - name: Upload board build evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: p01-board-build-evidence
+          path: ${{ runner.temp }}/p01-build-evidence
+
+  ios-simulator:
+    name: ${{ matrix.product }} iOS lockfile and simulator build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: p02
+            app: p02-user-app
+          - product: p04
+            app: p04-merchant-kiosk
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      BUNDLE_FROZEN: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.23.5"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: "10.18.0"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12.10" # no prebuilt 3.12.11+ for macOS; see .github/inputs.json python-macos
+      - uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0
+        with:
+          ruby-version: "3.4.7"
+          bundler: "4.0.1"
+          working-directory: products/p04-merchant-kiosk
+      - run: python3 scripts/verify_ci_inputs.py python node pnpm ruby bundler xcode
+      - run: pnpm install --frozen-lockfile
+      - name: Install locked pods
+        working-directory: products/${{ matrix.app }}/ios
+        env:
+          BUNDLE_PATH: ${{ runner.temp }}/nu54-gems
+          BUNDLE_GEMFILE: ${{ github.workspace }}/products/p04-merchant-kiosk/Gemfile
+        run: |
+          bundle install
+          bundle exec ruby ../../p04-merchant-kiosk/ios/build_support/test_active_support_backport.rb
+          source "$GITHUB_WORKSPACE/scripts/ios/test-environment.sh"
+          pod_scratch=$(mktemp -d "$RUNNER_TEMP/nu54-pods.XXXXXXXX")
+          trap 'rm -rf -- "$pod_scratch"' EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          ios_test_prepare_environment "$pod_scratch"
+          "${ios_test_env[@]}" bundle exec pod install --deployment
+      - run: python3 scripts/ios/test_release.py
+      - name: Test bounded iOS installation document handling
+        if: matrix.product == 'p02'
+        run: |
+          clang++ -fobjc-arc -framework Foundation products/p02-user-app/test/installation_document_test.mm -o "$RUNNER_TEMP/installation-document-test"
+          "$RUNNER_TEMP/installation-document-test"
+      - name: Build unsigned simulator app and record artifact digests
+        env:
+          PRODUCT: ${{ matrix.product }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-evidence"
+          python3 scripts/ios/release.py simulator custom "$RUNNER_TEMP/ios-derived" --product "$PRODUCT" |
+            tee "$RUNNER_TEMP/ios-evidence/simulator.json"
+      - name: Keep simulator build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.product }}-ios-simulator-evidence
+          path: ${{ runner.temp }}/ios-evidence

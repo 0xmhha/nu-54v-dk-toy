@@ -47,6 +47,13 @@ test("label QR", () => {
 
 // ---------------------------------------------------------------- the link
 
+const phoneLinks: ConfirmLink[] = [];
+
+afterEach(() => {
+  phoneLinks.splice(0).forEach((link) => link.close());
+  jest.useRealTimers();
+});
+
 function phone(bonded = true) {
   let handler: ((f: Uint8Array) => void) | null = null;
   const screens: Screen[] = [];
@@ -55,6 +62,7 @@ function phone(bonded = true) {
     return () => (handler = null);
   };
   const link = new ConfirmLink({ bonded: () => bonded, onFragment }, (s) => screens.push(s), TABLE);
+  phoneLinks.push(link);
   const writer = new FrameWriter(23);
   const deliverBody = (body: Uint8Array) => writer.write(body).forEach((f) => handler?.(f));
   const deliver = (m: Message) => deliverBody(encodeMessage(m));
@@ -90,7 +98,6 @@ test("a confirmation without an outcome goes back to waiting", () => {
   p.deliver(deviceShow());
   jest.advanceTimersByTime(CONFIRM_TIMEOUT_MS + 1);
   expect(p.link.current()).toEqual({ kind: "waiting" });
-  jest.useRealTimers();
 });
 
 test("the software device's confirm.show bytes decode to the same screen", () => {

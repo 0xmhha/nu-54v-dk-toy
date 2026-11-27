@@ -4,7 +4,7 @@
 
 ## StableNet 테스트넷 (8283)
 
-[`8283.json`](8283.json). 2026-10-01(UTC 9/30) 배포, 소스 커밋 `66a5f43`(브랜치 커밋). 스쿼시 머지된 main 커밋 `a8c0c44`의 `src`, `foundry.toml`, `lib`가 같은 git tree라서 main에서 같은 코드를 다시 빌드할 수 있다. 6주차 컨트랙트 게이트를 통과했다([게이트 기록](../../../docs/content/acceptance/gate-w6.md)).
+[`8283.json`](8283.json). 2026-10-01(UTC 9/30) 배포, 소스 커밋 `66a5f43`(브랜치 커밋). 스쿼시 머지 시점의 main 커밋 `a8c0c44`도 `src`, `foundry.toml`, `lib`가 동일하다. 기존 바이트코드를 재현하려면 이 기록의 커밋과 solc 0.8.30, Prague, optimizer 200회 설정을 사용한다. 현재 checkout의 solc 0.8.39 빌드는 새 배포 후보의 입력이다. 6주차 컨트랙트 게이트를 통과했다([게이트 기록](../../../docs/content/acceptance/gate-w6.md)).
 
 | 계약 | 주소 | 배포 블록 |
 |---|---|---|

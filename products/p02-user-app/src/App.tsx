@@ -7,14 +7,24 @@
  * the device buttons (P02-FR-06).
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { BackHandler, Keyboard, Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
 import { bodyLink } from './setup/channel.ts';
 import { SetupFlow, type DeviceRecord, type FoundDevice, type PinEntry, type SetupPlatform, type SetupState } from './setup/flow.ts';
 import RenterBle from './specs/NativeRenterBle.ts';
+import {ConsentGate} from './legal/ConsentGate.tsx';
+import { WalletHome } from './wallet/WalletHome.tsx';
+import {readCommissioningQr, type CommissioningPins} from './wallet/ownerWire.ts';
+import { CustomerOrders } from './merchant/CustomerOrders.tsx';
+import {useOpenOrders} from './merchant/OpenOrders.tsx';
+import {MarketLab} from './market/MarketLab.tsx';
+import {color, font} from './ui/theme.ts';
+import {ExploreHome} from './explore/ExploreHome.tsx';
+import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
+import { TravelHome, type TravelBookingScope } from './travel/TravelHome.tsx';
 
 const OUTCOME_TEXT: Record<string, string> = {
   approved: '결제 완료',
@@ -400,54 +410,296 @@ function Receipt({ receipt: r, txHash }: { receipt: DigitalReceipt; txHash?: str
   );
 }
 
-function Button({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
-  return (
-    <Pressable style={[styles.button, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
-      <Text style={styles.buttonText}>{label}</Text>
-    </Pressable>
-  );
+function Button({ label, onPress, disabled, variant = 'primary' }: { label: string; onPress: () => void; disabled?: boolean; variant?: ButtonVariant }) {
+  return <View style={styles.buttonGap}><KitButton label={label} run={onPress} disabled={disabled} variant={variant} /></View>;
 }
 
+/** Height the on-screen keyboard covers. The edge-to-edge window is not resized for it on Android. */
+function useKeyboardHeight(): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const shown = Keyboard.addListener('keyboardDidShow', event => setHeight(event.endCoordinates.height));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setHeight(0));
+    return () => { shown.remove(); hidden.remove(); };
+  }, []);
+  return height;
+}
+
+/** The required agreements come first; nothing behind them is started before. */
 export default function App() {
+  return <ConsentGate><Shell /></ConsentGate>;
+}
+
+function Shell() {
+  const keyboard = useKeyboardHeight();
+  const [renting, setRenting] = useState(false);
+  const [commissioningPins, setCommissioningPins] = useState<CommissioningPins>();
+  const [shopping, setShopping] = useState(false);
+  const [travel, setTravel] = useState(false);
+  const [travelBooking, setTravelBooking] = useState<TravelBookingScope>();
+  const [marketLab, setMarketLab] = useState(false);
+  const [marketTravel, setMarketTravel] = useState(false);
+  const [exploreSite,setExploreSite]=useState('');
+  const [exploreService,setExploreService]=useState<'travel'|'market'>();
+  const resumeExplore=useRef(false);
+  const [practicing, setPracticing] = useState(false);
+  // App-level bottom tabs (홈 · 결제 · 지갑 · 둘러보기 · 설정).
+  const [exploring, setExploring] = useState(false);
+  const [walletScreen, setWalletScreen] = useState('');
+  const [walletRequest, setWalletRequest] = useState<{screen:'home'|'board'|'owner'|'settings'|'dapp'|'allowance'|'walletconnect'; nonce:number}>();
+  const requestWallet = (screen:'home'|'board'|'owner'|'settings'|'dapp'|'allowance'|'walletconnect') => setWalletRequest(previous => ({screen, nonce: (previous?.nonce ?? 0) + 1}));
+  const rentalActive = useRef(false);
+  rentalActive.current = renting;
+  const marketReturnAllowed = useRef(true);
+  marketReturnAllowed.current = !shopping && !travel && !marketTravel && !practicing;
+  const marketLearningRoute = 'nu54://market-learning';
+  const [orderLink, setOrderLink] = useState('');
+  const [incomingPaymentLink, setIncomingPaymentLink] = useState(0);
+  const [subscriptionLink, setSubscriptionLink] = useState('');
+  const [counterQr, setCounterQr] = useState('');
+  const [shopQr, setShopQr] = useState('');
+  const [shopEntry, setShopEntry] = useState(false);
+  // Runs while the app is in front on any tab, so a ready order is announced wherever the owner is.
+  const openOrders = useOpenOrders();
+  const [shownOrder, setShownOrder] = useState('');
+  const openShopQr = useCallback((raw: string) => {
+    setOrderLink('');
+    setSubscriptionLink('');
+    setCounterQr('');
+    setShopQr(raw.slice(0, 97));
+    setShopEntry(true);
+    setIncomingPaymentLink(value => value + 1);
+    setShopping(true);
+  }, []);
+  const openNearbyOrders = () => {
+    openShopQr('');
+  };
+  useEffect(()=>{
+    let present=true;
+    let receivedLiveLink=false;
+    const offer=(url:string)=>{
+      if(!present || rentalActive.current)return;
+      const pins = readCommissioningQr(url);
+      if (pins) {
+        setCommissioningPins(pins);
+        return;
+      }
+      if (url === marketLearningRoute) {
+        if (marketReturnAllowed.current) setMarketLab(true);
+        return;
+      }
+      if (url.startsWith('nu54://shop/')) {
+        openShopQr(url);
+        return;
+      }
+      const subscription = /^nu54:\/\/subscriptions\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$/.exec(url);
+      if (subscription) {
+        setIncomingPaymentLink(value => value + 1);
+        setOrderLink('');
+        setCounterQr('');
+        setShopQr('');
+        setShopEntry(false);
+        setSubscriptionLink(subscription[1]);
+        setShopping(true);
+        return;
+      }
+      const ready = /^nu54:\/\/order\/ready\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$/.exec(url);
+      if (ready) {
+        setIncomingPaymentLink(value => value + 1);
+        setOrderLink('');
+        setSubscriptionLink('');
+        setCounterQr('');
+        setShopQr('');
+        setShopEntry(false);
+        setShownOrder(ready[1]);
+        setShopping(true);
+        return;
+      }
+      if (!url.startsWith('nu54://order')) return;
+      setIncomingPaymentLink(value => value + 1);
+      setSubscriptionLink('');
+      setCounterQr('');
+      setShopQr('');
+      setShopEntry(false);
+      setOrderLink(url === 'nu54://order' ? '' : url.slice(0, 133));
+      setShopping(true);
+    };
+    Linking.getInitialURL().then(url=>{if(url && !receivedLiveLink)offer(url);}).catch(()=>{});
+    const callback=Linking.addEventListener('url',event=>{
+      if (event.url === marketLearningRoute || event.url.startsWith('nu54://order') || event.url.startsWith('nu54://subscriptions/') || event.url.startsWith('nu54://shop/') || readCommissioningQr(event.url))
+        receivedLiveLink=true;
+      offer(event.url);
+    });
+    return ()=>{present=false;callback.remove();};
+  },[marketLearningRoute,openShopQr]);
+  const [honorExistingRental, setHonorExistingRental] = useState(true);
+  const rental = useCallback(() => setRenting(true), []);
+  const profiles = () => {
+    setHonorExistingRental(false);
+    setRenting(false);
+  };
+  const openPaymentList = (qr = '') => {
+    setOrderLink('');
+    setSubscriptionLink('');
+    setCounterQr(qr);
+    setShopQr('');
+    setShopEntry(false);
+    setIncomingPaymentLink(value => value + 1);
+  };
+  const closePayments = () => {
+    openPaymentList();
+    setShownOrder('');
+    setShopping(false);
+  };
+  const openTravelBookings = (scope: TravelBookingScope) => {
+    setTravelBooking(scope);
+    setShopping(false);
+    setTravel(true);
+  };
+  const closeTravel = useCallback(() => {
+    if (exploreService==='travel') resumeExplore.current=true;
+    setExploreService(undefined);
+    setTravel(false);
+    if (travelBooking) setShopping(true);
+    setTravelBooking(undefined);
+  },[exploreService,travelBooking]);
+  const closeMarket=useCallback(()=>{
+    if (exploreService==='market') resumeExplore.current=true;
+    setExploreService(undefined);
+    setMarketTravel(false);
+    setMarketLab(false);
+  },[exploreService]);
+  const onExploreRestored=useCallback(()=>{resumeExplore.current=false;},[]);
+  useEffect(()=>{
+    if ((!exploreService && !marketTravel) || shopping || renting) return;
+    const listener=BackHandler.addEventListener('hardwareBackPress',()=>{
+      if (marketTravel) setMarketTravel(false);
+      else if (exploreService==='travel') closeTravel();
+      else closeMarket();
+      return true;
+    });
+    return ()=>listener.remove();
+  },[exploreService, marketTravel, shopping, renting, closeTravel,closeMarket]);
+  const closeOverlays = () => { setShopping(false); setTravel(false); setMarketLab(false); setMarketTravel(false); setExploring(false); };
+  const settingsScreens = ['settings', 'networks', 'legal', 'board', 'setup', 'return-address', 'reset', 'operator-reset', 'settings-access', 'settings-diagnostics', 'settings-device', 'policy-picker', 'lock-picker',
+    'credentials', 'travel-privacy', 'policy', 'policy-applied', 'policy-device'];
+  const currentTab = shopping ? 'pay' : travel || marketLab || exploring || ['dapp', 'walletconnect', 'allowance'].includes(walletScreen) ? 'explore'
+    : settingsScreens.includes(walletScreen) ? 'settings'
+    : ['', 'home', 'profiles', 'practice', 'install'].includes(walletScreen) ? 'home' : 'wallet';
+  const openSettings = () => { closeOverlays(); requestWallet('settings'); };
+  const openBoard = () => { closeOverlays(); requestWallet('board'); };
+  // Tabs stay out of rental mode, practice and the secure wallet subflows that hide navigation.
+  const showTabs = !renting && !practicing;
+  useEffect(() => {
+    // Travel and the learning market opened from the explore tab have no Back handling of their own:
+    // Back returns to the explore page, or to payments for a booking opened from there.
+    if (!showTabs || !(travel || marketLab) || exploreService || marketTravel) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (travel && travelBooking) { closeTravel(); return true; }
+      closeOverlays(); setExploring(true); return true;
+    });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTabs, travel, marketLab, exploreService, marketTravel, travelBooking]);
+  useEffect(() => {
+    // In the rental (trial) screens system Back returns to the wallet choice instead of leaving the app.
+    if (!renting) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { profiles(); return true; });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renting]);
+  useEffect(() => {
+    // On the payments and explore tabs' first pages, system Back returns to the home tab instead of leaving the app.
+    if (!showTabs || !(shopping || exploring)) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { closeOverlays(); requestWallet('home'); return true; });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTabs, shopping, exploring]);
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
-        <Renter />
+        <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
+          openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
+          initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
+          <Button label="지갑 프로필 선택" onPress={profiles} variant="secondary" />
+          <Renter />
+        </View> : marketLab ? <View style={styles.home}>
+          <View style={marketTravel ? styles.hidden : styles.home} accessibilityElementsHidden={marketTravel}
+            importantForAccessibility={marketTravel ? 'no-hide-descendants' : 'auto'}>
+            <MarketLab back={closeMarket} permission={bluetoothPermission} openTravel={() => setMarketTravel(true)} />
+          </View>
+          {marketTravel && <TravelHome back={() => setMarketTravel(false)} backLabel="학습 시장으로 돌아가기"
+            permission={bluetoothPermission} />}
+        </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : exploring ? <ExploreHome
+          places={[
+            {label: '여행지 찾기', detail: '지도와 목록에서 장소를 찾고 예약합니다', run: () => { setExploring(false); setTravel(true); }},
+            {label: '가까운 매장에서 주문', detail: '근처 매장의 메뉴를 보고 주문합니다', run: () => { setExploring(false); openNearbyOrders(); }},
+          ]}
+          apps={[
+            {label: 'DApp 둘러보기', detail: '연결한 사이트에서 로그인과 결제를 요청받습니다', run: () => { setExploring(false); requestWallet('dapp'); }},
+            {label: '외부 DApp 연결', detail: '다른 앱의 사이트와 WalletConnect로 연결합니다', run: () => { setExploring(false); requestWallet('walletconnect'); }},
+            {label: '온체인 토큰 권한', detail: '사이트에 준 토큰 사용 권한을 확인하고 철회합니다', run: () => { setExploring(false); requestWallet('allowance'); }},
+            {label: '테스트 시장 학습', detail: '테스트넷에서 교환과 유동성을 연습합니다', run: () => { setExploring(false); setMarketLab(true); }},
+          ]} /> : <View style={styles.home}>
+          {/* Services open from the 둘러보기 tab; home keeps three shortcuts. */}
+          <WalletHome tabbed openOrders={openOrders} openOrder={sale => { openPaymentList(); setShownOrder(sale); setShopping(true); }} services={[
+              {label: '매장 QR 결제', run: () => { openPaymentList(); setShopping(true); }},
+              {label: '근처 매장', run: openNearbyOrders},
+              {label: '여행 예약', run: () => { setTravel(true); }},
+            ]} requestScreen={walletRequest} onScreenChange={setWalletScreen} onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
+            initialExplore={resumeExplore.current} onExploreRestored={onExploreRestored}
+            exploreSite={exploreSite} onExploreSiteChange={setExploreSite}
+            openExploreTravel={()=>{setExploreService('travel');setTravel(true);}}
+            openExploreMarket={()=>{setExploreService('market');setMarketLab(true);}}
+            commissioningPins={commissioningPins} dismissCommissioningPins={()=>setCommissioningPins(undefined)} />
+        </View>}
+        </View>
+        {showTabs && !keyboard && <TabBar current={currentTab} disabled={false} tabs={[
+          {key: 'home', label: '홈', run: () => { closeOverlays(); requestWallet('home'); }},
+          {key: 'pay', label: '결제', run: () => { closeOverlays(); setShownOrder(''); setShopping(true); }},
+          {key: 'wallet', label: '지갑', run: () => { closeOverlays(); requestWallet('owner'); }},
+          {key: 'explore', label: '둘러보기', run: () => { closeOverlays(); setExploring(true); }},
+          {key: 'settings', label: '설정', run: openSettings},
+        ]} />}
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
+// Rental (trial) screens use the same tokens and typeface as the wallet.
 const styles = StyleSheet.create({
-  root: { flex: 1, padding: 24, backgroundColor: '#fafafa' },
-  title: { fontSize: 26, fontWeight: '600', color: '#111', marginBottom: 12 },
-  body: { fontSize: 17, color: '#333', marginBottom: 12 },
-  hint: { fontSize: 15, color: '#666', marginTop: 12 },
-  label: { fontSize: 14, color: '#666', marginTop: 12 },
-  value: { fontSize: 20, color: '#111' },
-  amount: { fontSize: 36, fontWeight: '600', color: '#111' },
-  mono: { fontSize: 15, color: '#111', fontFamily: 'monospace' },
-  cta: { fontSize: 22, fontWeight: '600', color: '#1b4fa0', marginTop: 28 },
-  error: { fontSize: 14, color: '#b00020', marginBottom: 12 },
-  input: { fontSize: 15, borderBottomWidth: 1, borderColor: '#333', paddingVertical: 8, marginBottom: 16, color: '#111' },
-  button: { backgroundColor: '#111', paddingVertical: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  disabled: { backgroundColor: '#999' },
-  paper: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginTop: 8 },
-  store: { fontSize: 22, fontWeight: '700', color: '#111' },
-  small: { fontSize: 13, color: '#555', marginTop: 2 },
-  rule: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#999', marginVertical: 8 },
+  home: { flex: 1 },
+  hidden: { display: 'none' },
+  root: { flex: 1, backgroundColor: color.ground },
+  page: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
+  buttonGap: { marginTop: 8 },
+  title: { fontFamily: font, fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: color.ink, marginVertical: 12 },
+  body: { fontFamily: font, fontSize: 16, lineHeight: 24, color: color.ink, marginBottom: 12 },
+  hint: { fontFamily: font, fontSize: 14, lineHeight: 20, color: color.mute, marginTop: 12 },
+  label: { fontFamily: font, fontSize: 14, color: color.mute, marginTop: 12 },
+  value: { fontFamily: font, fontSize: 20, fontWeight: '700', color: color.ink },
+  amount: { fontFamily: font, fontSize: 36, fontWeight: '800', letterSpacing: -1.2, color: color.ink },
+  mono: { fontSize: 14, color: color.ink, fontFamily: 'monospace' },
+  cta: { fontFamily: font, fontSize: 20, fontWeight: '800', color: color.green, marginTop: 28 },
+  error: { fontFamily: font, fontSize: 15, color: color.danger, marginBottom: 12 },
+  input: { fontFamily: font, fontSize: 16, borderWidth: 1, borderColor: '#8fa497', borderRadius: 12, padding: 12, minHeight: 50, marginBottom: 16, color: color.ink, backgroundColor: color.sheet },
+  paper: { backgroundColor: color.sheet, borderRadius: 18, borderWidth: 1, borderColor: color.line, padding: 16, marginTop: 8 },
+  store: { fontFamily: font, fontSize: 20, fontWeight: '800', color: color.ink },
+  small: { fontFamily: font, fontSize: 13, color: color.mute, marginTop: 2 },
+  rule: { borderBottomWidth: 1, borderColor: color.line, marginVertical: 8 },
   line: { flexDirection: 'row', justifyContent: 'space-between' },
-  total: { fontSize: 20, fontWeight: '700', color: '#111', marginVertical: 4 },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  device: { backgroundColor: '#fff', borderRadius: 8, padding: 14, marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#bbb' },
-  connect: { fontSize: 16, fontWeight: '600', color: '#1b4fa0', marginTop: 6 },
-  remove: { fontSize: 15, color: '#b00020', marginTop: 6 },
+  total: { fontFamily: font, fontSize: 20, fontWeight: '800', color: color.ink, marginVertical: 4 },
+  device: { backgroundColor: color.sheet, borderRadius: 14, padding: 14, marginTop: 10, borderWidth: 1, borderColor: color.line },
+  connect: { fontFamily: font, fontSize: 16, fontWeight: '700', color: color.green, marginTop: 6 },
+  remove: { fontFamily: font, fontSize: 15, color: color.danger, marginTop: 6 },
   pinRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 16 },
-  pinBox: { width: 56, height: 68, marginHorizontal: 6, borderRadius: 8, borderWidth: 1, borderColor: '#bbb', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  pinCurrent: { borderWidth: 3, borderColor: '#1b4fa0' },
-  pinKept: { backgroundColor: '#e8eef8', borderColor: '#1b4fa0' },
-  pinDigit: { fontSize: 34, fontWeight: '700', color: '#111', fontFamily: 'monospace' },
-  pinLater: { color: '#bbb' },
-  code: { fontSize: 44, fontWeight: '700', letterSpacing: 6, color: '#111', fontFamily: 'monospace', marginVertical: 8 },
+  pinBox: { width: 56, height: 68, marginHorizontal: 6, borderRadius: 12, borderWidth: 1, borderColor: color.line, alignItems: 'center', justifyContent: 'center', backgroundColor: color.sheet },
+  pinCurrent: { borderWidth: 3, borderColor: color.green },
+  pinKept: { backgroundColor: color.mintSoft, borderColor: color.green },
+  pinDigit: { fontSize: 34, fontWeight: '700', color: color.ink, fontFamily: 'monospace' },
+  pinLater: { color: color.line },
+  code: { fontSize: 44, fontWeight: '700', letterSpacing: 6, color: color.ink, fontFamily: 'monospace', marginVertical: 8 },
 });

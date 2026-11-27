@@ -25,3 +25,5 @@ export function parseLabel(text: string): BondTarget {
   if (!/^[0-9]{6}$/.test(passkey)) throw new Error("label passkey must be six digits");
   return { address, passkey };
 }
+
+export { parseOrderLocator } from "@nu54/protocol";

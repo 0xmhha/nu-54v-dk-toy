@@ -16,6 +16,9 @@
 #   NU54_SETTLEMENT=0x... script/testnet-forge.sh script/SoftwareSettle.s.sol kiosk registry-admin token-owner operator device
 set -euo pipefail
 
+compiler_guard="$(dirname "$0")/../../../scripts/contract_forge.py"
+python3 "$compiler_guard" p06 check
+
 NU54_HOME="${NU54_HOME:-$HOME/.nu54}"
 broadcast=(--broadcast --slow)
 if [[ "${1:-}" == "--simulate" ]]; then
@@ -58,5 +61,5 @@ tip="$(cast to-dec "$(cast rpc eth_maxPriorityFeePerGas --rpc-url "$rpc_url" | t
 fee_cap=$(( 2 * $(cast base-fee --rpc-url "$rpc_url") + tip ))
 
 sender_var="NU54_ADDR_$(echo "$1" | tr 'a-z-' 'A-Z_')"
-forge script "$script" --rpc-url stablenet_testnet "${broadcast[@]}" \
+python3 "$compiler_guard" p06 script "$script" --rpc-url stablenet_testnet "${broadcast[@]}" \
   --priority-gas-price "$tip" --with-gas-price "$fee_cap" --sender "${!sender_var}" "${wallet_args[@]}"

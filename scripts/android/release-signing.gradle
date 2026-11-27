@@ -1,0 +1,111 @@
+import groovy.json.JsonSlurper
+import java.security.KeyStore
+import java.security.MessageDigest
+import javax.naming.ldap.LdapName
+
+def policy = new JsonSlurper().parse(rootProject.file("../../../scripts/android/release-signers.json"))
+def appId = android.defaultConfig.applicationId
+def appPolicy = policy.apps[appId]
+def appPrefix = ["com.nu54renter": "P02", "com.nu54kiosk": "P04"][appId]
+if (!appPolicy || !appPrefix) {
+    throw new GradleException("No Android release signing policy for ${appId}")
+}
+
+def inputsFor = { channel ->
+    def prefix = "NU54_${appPrefix}_${channel}"
+    ["KEYSTORE", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD"].collectEntries { field ->
+        [(field): providers.environmentVariable("${prefix}_${field}").orNull]
+    }
+}
+def official = inputsFor("OFFICIAL")
+def customInputs = inputsFor("CUSTOM")
+
+def configureSigner = { config, values ->
+    if (values.KEYSTORE) {
+        config.storeFile = file(values.KEYSTORE)
+    }
+    config.storePassword = values.STORE_PASSWORD
+    config.keyAlias = values.KEY_ALIAS
+    config.keyPassword = values.KEY_PASSWORD
+}
+
+android {
+    signingConfigs {
+        officialRelease { configureSigner(delegate, official) }
+        customRelease { configureSigner(delegate, customInputs) }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.officialRelease
+        }
+        custom {
+            initWith release
+            applicationIdSuffix ".custom"
+            manifestPlaceholders.usesCleartextTraffic = "false"
+            matchingFallbacks = ["release"]
+            signingConfig signingConfigs.customRelease
+        }
+    }
+}
+
+def officialPins = policy.apps.values().collectMany { pins ->
+    [pins.uploadSha256, pins.distributionSha256].findAll { it }
+}
+if (officialPins.any { !(it ==~ /[0-9a-f]{64}/) || it == policy.debugSha256 } ||
+    officialPins.toSet().size() != officialPins.size()) {
+    throw new GradleException("Android release policy requires distinct non-debug certificates per app and role")
+}
+
+def registerSigningGate = { variant, channel, values ->
+    def validation = tasks.register("validate${variant}Identity") {
+        doLast {
+            if (project.properties.keySet().any { it.toString().startsWith("android.injected.signing.") }) {
+                throw new GradleException("Injected Android signing properties are disabled for ${variant}")
+            }
+            if (channel == "OFFICIAL" && !(appPolicy.uploadSha256 ==~ /[0-9a-f]{64}/)) {
+                throw new GradleException("Official Android upload certificate is not enrolled for ${appId}")
+            }
+            if (values.values().any { !it }) {
+                throw new GradleException("Set all NU54_${appPrefix}_${channel}_* keystore inputs")
+            }
+
+            def keystore = file(values.KEYSTORE)
+            if (!keystore.isFile()) {
+                throw new GradleException("Android ${channel} keystore file does not exist")
+            }
+
+            def certificate
+            try {
+                def store = KeyStore.getInstance(keystore, values.STORE_PASSWORD.toCharArray())
+                if (!store.isKeyEntry(values.KEY_ALIAS) ||
+                    !(store.getKey(values.KEY_ALIAS, values.KEY_PASSWORD.toCharArray()) instanceof java.security.PrivateKey)) {
+                    throw new IllegalArgumentException("No private key")
+                }
+                certificate = store.getCertificate(values.KEY_ALIAS)
+                certificate.checkValidity()
+            } catch (Exception ignored) {
+                throw new GradleException("Unable to open a valid Android ${channel} signing key")
+            }
+
+            def fingerprint = MessageDigest.getInstance("SHA-256").digest(certificate.encoded).encodeHex().toString()
+            def debugSubject = new LdapName(certificate.subjectX500Principal.name).rdns.any {
+                it.type.equalsIgnoreCase("CN") && it.value.toString().equalsIgnoreCase("Android Debug")
+            }
+            if (fingerprint == policy.debugSha256 || debugSubject) {
+                throw new GradleException("Android debug certificates are forbidden for ${variant}")
+            }
+            if (channel == "OFFICIAL" && fingerprint != appPolicy.uploadSha256) {
+                throw new GradleException("Android signing key does not match the enrolled ${appId} upload certificate")
+            }
+            if (channel == "CUSTOM" && fingerprint in officialPins) {
+                throw new GradleException("Official keys cannot sign custom Android builds")
+            }
+        }
+    }
+    tasks.matching { it.name == "pre${variant}Build" }.configureEach {
+        dependsOn validation
+    }
+}
+
+registerSigningGate("Release", "OFFICIAL", official)
+registerSigningGate("Custom", "CUSTOM", customInputs)

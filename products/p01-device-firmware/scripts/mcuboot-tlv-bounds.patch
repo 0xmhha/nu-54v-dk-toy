@@ -1,0 +1,113 @@
+From 90f4e7c3ebe4cf9a5eb7d981220388ffdefd6d19 Mon Sep 17 00:00:00 2001
+From: David Brown <david.brown@linaro.org>
+Date: Thu, 14 May 2026 09:52:30 -0600
+Subject: [PATCH] boot: bootutil: bounds-check TLV length in tlv iterator
+
+`bootutil_tlv_iter_next()` reads a TLV header from flash and advances
+`it->tlv_off` by `sizeof(tlv) + tlv.it_len` without checking that the
+header and its payload actually lie within the TLV section.
+`tlv.it_len` is a `uint16_t` taken straight from flash and is
+attacker-controlled in a crafted image, so a bogus length could
+advance the iterator past the section end and hand the caller an
+`(off, len)` pair pointing outside it.
+
+Validate each entry against the end of the section actually being
+iterated: the protected area when iterating protected TLVs, the whole
+TLV area otherwise. The header-size check runs before the entry is
+loaded so the load itself cannot read past the section (this matters
+for the RAM-load build, where the load is a bare memcpy). The
+protected-boundary "not found" check is now done before any entry in
+the unprotected area is loaded or validated.
+
+Every current consumer in `image_validate.c` already validates `len`
+against a small fixed buffer before reading, so this is a
+defense-in-depth / robustness fix rather than an exploitable
+vulnerability. The check makes the iterator self-contained instead of
+relying on every caller to sanity-check `len`.
+
+A well-formed image is unaffected. Malformed TLV lengths now produce
+an explicit iteration error instead of silently truncating iteration;
+and because the protected boundary is checked first, a malformed TLV
+in the unprotected area no longer turns a protected-only search into
+an error instead of a clean "not found".
+
+Assisted-By: Claude:opus-4.8
+Signed-off-by: David Brown <david.brown@linaro.org>
+---
+ boot/bootutil/src/tlv.c | 54 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/boot/bootutil/src/tlv.c b/boot/bootutil/src/tlv.c
+index 3cf868c041..969db5d98b 100644
+--- a/boot/bootutil/src/tlv.c
++++ b/boot/bootutil/src/tlv.c
+@@ -119,8 +119,53 @@ bootutil_tlv_iter_next(struct image_tlv_iter *it, uint32_t *off, uint16_t *len,
+                  it->type, IMAGE_TLV_ANY, it->tlv_off, it->tlv_end);
+ 
+     while (it->tlv_off < it->tlv_end) {
++        /*
++         * No more TLVs in the protected area. This is checked before
++         * loading or validating any entry so that a malformed TLV in
++         * the unprotected area cannot turn a protected-only search into
++         * an error instead of a clean "not found".
++         */
++        if (it->prot && it->tlv_off >= it->prot_end) {
++            BOOT_LOG_DBG("bootutil_tlv_iter_next: protected TLV %d not found", it->type);
++            return 1;
++        }
++
+         if (it->hdr->ih_protect_tlv_size > 0 && it->tlv_off == it->prot_end) {
+             it->tlv_off += sizeof(struct image_tlv_info);
++            /*
++             * Re-evaluate the loop condition: if the unprotected area
++             * holds no TLV entries (it_tlv_tot is just the info header)
++             * the skip lands on tlv_end and iteration is simply done,
++             * which must read as "not found" rather than a bounds error.
++             */
++            continue;
++        }
++
++        /*
++         * Validate against the end of the section actually being
++         * iterated: the protected area when iterating protected TLVs,
++         * the whole TLV area otherwise. This keeps a protected TLV
++         * whose payload spills past prot_end from being handed to a
++         * protected-only caller as if it were protected data.
++         */
++        uint32_t end = it->prot ? it->prot_end : it->tlv_end;
++
++        /*
++         * Ensure the TLV header fits before loading it, so the load
++         * cannot read past the section. tlv.it_len then comes straight
++         * from flash and is attacker-controlled in a crafted image;
++         * without the final check a bogus length advances it->tlv_off
++         * past the section end and yields an out-of-section (off, len)
++         * pair to the caller. The first clause defensively guards the
++         * unsigned subtraction in the others, so the uint32_t arithmetic
++         * can neither overflow nor wrap.
++         */
++        if (it->tlv_off > end ||
++            (uint32_t)sizeof(tlv) > end - it->tlv_off) {
++            BOOT_LOG_DBG("bootutil_tlv_iter_next: TLV header at %" PRIu32
++                         " overruns section end %" PRIu32,
++                         it->tlv_off, end);
++            return -1;
+         }
+ 
+         rc = LOAD_IMAGE_DATA(it->hdr, it->fap, it->tlv_off, &tlv, sizeof tlv);
+@@ -131,10 +176,11 @@ bootutil_tlv_iter_next(struct image_tlv_iter *it, uint32_t *off, uint16_t *len,
+             return -1;
+         }
+ 
+-        /* No more TLVs in the protected area */
+-        if (it->prot && it->tlv_off >= it->prot_end) {
+-            BOOT_LOG_DBG("bootutil_tlv_iter_next: protected TLV %d not found", it->type);
+-            return 1;
++        if (tlv.it_len > end - it->tlv_off - (uint32_t)sizeof(tlv)) {
++            BOOT_LOG_DBG("bootutil_tlv_iter_next: malformed TLV at %" PRIu32
++                         " overruns section end %" PRIu32,
++                         it->tlv_off, end);
++            return -1;
+         }
+ 
+         if (it->type == IMAGE_TLV_ANY || tlv.it_type == it->type) {

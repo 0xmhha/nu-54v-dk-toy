@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 2,
+  "serviceContractSource": "service-contracts.json",
+  "interfaces": [
+    { "id": "C1", "source": "P02 owner", "target": "P01 board", "auth": "owner role and current authority generation", "contract": "authenticated management channel" },
+    { "id": "C2", "source": "P04 payment terminal or P02 private order", "target": "P01 board through an authorized session", "auth": "authenticated role, order claim, generation and merchant quote", "contract": "signed MerchantQuote and transport-v2" },
+    { "id": "C3", "source": "P02/P04 client", "target": "P05 or service owner", "auth": "authenticated user or terminal, branch and order scope", "contract": "service-contracts.json" },
+    { "id": "C4", "source": "P02 app", "target": "P03 MPC", "auth": "MPC local alias, key generation and approval scope", "contract": "service-contracts.json" },
+    { "id": "C5", "source": "transaction submitter", "target": "P06 or designated test venue", "auth": "chain/contract profile and transaction signature", "contract": "service-contracts.json" },
+    { "id": "C6", "source": "trusted chain adapter", "target": "P07 indexer", "auth": "approved manifest, stream generation and canonical checkpoints", "contract": "service-contracts.json" },
+    { "id": "C7", "source": "P07 indexer", "target": "authorized domain reader", "auth": "scoped evidence consumer and chain policy", "contract": "service-contracts.json" },
+    { "id": "C8", "source": "P02 app", "target": "P08 market or P09 travel", "auth": "independent purpose, namespace and subject scope", "contract": "service-contracts.json" },
+    { "id": "C9", "source": "authorized provider or product", "target": "product or purpose-bound provider", "auth": "issuer, audience, purpose, authority version and expiry", "contract": "service-contracts.json" }
+  ]
+}

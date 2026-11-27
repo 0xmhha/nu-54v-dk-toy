@@ -1,13 +1,16 @@
 [project]
 name = "nu54-protocol"
-version = "0.1.0"
+version = "0.2.0"
 description = "NU-54V-DK payment protocol types generated from the protocol schema"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = []
 
+[project.optional-dependencies]
+quote-v2 = ["coincurve==21.0.0", "pycryptodome==4.5.0"]
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.28.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

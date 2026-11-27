@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/protocol"
@@ -172,16 +173,109 @@ func (s *Session) ack(ctx context.Context, step string, wait time.Duration) (pro
 
 // SendOperator sends setup.operator and waits for the renter to confirm on the device.
 func (s *Session) SendOperator(ctx context.Context, operator, contract string, chainID uint64, passkey uint32) error {
+	return s.sendOperator(ctx, operator, contract, chainID, passkey, false)
+}
+
+// SendProtectedRentalOperator requests the protected mode explicitly. A board refusal is
+// returned to the caller and must never be interpreted as permission to start legacy setup.
+func (s *Session) SendProtectedRentalOperator(ctx context.Context, operator, contract string, chainID uint64, passkey uint32) error {
+	return s.sendOperator(ctx, operator, contract, chainID, passkey, true)
+}
+
+func (s *Session) sendOperator(ctx context.Context, operator, contract string, chainID uint64, passkey uint32, protected bool) error {
 	if passkey > 999999 {
 		return errors.New("passkey has at most six digits")
 	}
-	err := s.send(protocol.Message{"type": "setup.operator", "operator": operator, "contract": contract,
-		"chainId": strconv.FormatUint(chainID, 10), "passkey": strconv.FormatUint(uint64(passkey), 10)})
-	if err != nil {
+	msg := protocol.Message{"type": "setup.operator", "operator": operator, "contract": contract,
+		"chainId": strconv.FormatUint(chainID, 10), "passkey": strconv.FormatUint(uint64(passkey), 10)}
+	if protected {
+		msg["rentalJournal"] = true
+	}
+	if err := s.send(msg); err != nil {
 		return err
 	}
-	_, err = s.ack(ctx, "setup.operator", s.buttonWait)
+	_, err := s.ack(ctx, "setup.operator", s.buttonWait)
 	return err
+}
+
+// ProtectedRentalChallenge is valid only on the same bonded collector connection.
+type ProtectedRentalChallenge struct {
+	Nonce     [32]byte
+	ExpiresAt uint64
+}
+
+func GetProtectedRentalChallenge(ctx context.Context, t Transport) (ProtectedRentalChallenge, error) {
+	s := &Session{t: t, w: protocol.FrameWriter{MTU: t.MTU()}, sid: "0000000000000000"}
+	reply, err := s.request(ctx, protocol.Message{"type": "rental.freeze.challenge"}, replyWait)
+	if err != nil {
+		return ProtectedRentalChallenge{}, err
+	}
+	if reply["type"] == "error" {
+		return ProtectedRentalChallenge{}, &RefusedError{"rental.freeze.challenge", fmt.Sprint(reply["reason"])}
+	}
+	wire, _ := reply["channelNonce"].(string)
+	nonce, nonceErr := hex.DecodeString(strings.TrimPrefix(wire, "0x"))
+	expiry, timeErr := strconv.ParseUint(fmt.Sprint(reply["expiresAt"]), 10, 64)
+	var result ProtectedRentalChallenge
+	if reply["type"] != "rental.freeze.challenge.result" || nonceErr != nil || len(nonce) != 32 || timeErr != nil || expiry == 0 {
+		return ProtectedRentalChallenge{}, errors.New("unexpected protected rental challenge")
+	}
+	copy(result.Nonce[:], nonce)
+	if result.Nonce == ([32]byte{}) {
+		return ProtectedRentalChallenge{}, errors.New("empty protected rental challenge")
+	}
+	result.ExpiresAt = expiry
+	return result, nil
+}
+
+// FreezeProtectedRental sends a standalone operator-authenticated freeze over an assigned
+// bonded link. The caller must verify the returned board signature and generation scope.
+func FreezeProtectedRental(ctx context.Context, t Transport, challenge, channelNonce [32]byte, expires uint64, operatorSignature []byte) (protocol.Message, error) {
+	challengeWire := "0x" + hex.EncodeToString(challenge[:])
+	expiresWire := strconv.FormatUint(expires, 10)
+	reply, err := requestProtectedRental(ctx, t, challengeWire, channelNonce, expiresWire, operatorSignature, protocol.Message{})
+	if err != nil {
+		return nil, err
+	}
+	if reply["type"] != "rental.freeze.result" || reply["challenge"] != challengeWire ||
+		fmt.Sprint(reply["expiresAt"]) != expiresWire {
+		return nil, errors.New("unexpected protected rental freeze receipt")
+	}
+	return reply, nil
+}
+
+// ReadProtectedRentalEntry obtains one public row for an already authenticated freeze.
+func ReadProtectedRentalEntry(ctx context.Context, t Transport, challenge, channelNonce [32]byte, expires uint64,
+	operatorSignature []byte, index uint64, projectionRoot [32]byte) (protocol.Message, error) {
+	challengeWire := "0x" + hex.EncodeToString(challenge[:])
+	indexWire := strconv.FormatUint(index, 10)
+	reply, err := requestProtectedRental(ctx, t, challengeWire, channelNonce, strconv.FormatUint(expires, 10), operatorSignature,
+		protocol.Message{"projectionIndex": indexWire})
+	if err != nil {
+		return nil, err
+	}
+	if reply["type"] != "rental.freeze.entry" || fmt.Sprint(reply["projectionIndex"]) != indexWire ||
+		reply["projectionRoot"] != "0x"+hex.EncodeToString(projectionRoot[:]) {
+		return nil, errors.New("unexpected protected rental projection row")
+	}
+	return reply, nil
+}
+
+func requestProtectedRental(ctx context.Context, t Transport, challenge string, channelNonce [32]byte, expires string, operatorSignature []byte,
+	message protocol.Message) (protocol.Message, error) {
+	const standalone = "0000000000000000"
+	s := &Session{t: t, w: protocol.FrameWriter{MTU: t.MTU()}, sid: standalone}
+	message["type"], message["challenge"], message["expiresAt"] = "rental.freeze.v2", challenge, expires
+	message["channelNonce"] = "0x" + hex.EncodeToString(channelNonce[:])
+	message["operatorSignature"] = "0x" + hex.EncodeToString(operatorSignature)
+	reply, err := s.request(ctx, message, replyWait)
+	if err != nil {
+		return nil, err
+	}
+	if reply["type"] == "error" {
+		return nil, &RefusedError{"rental.freeze.v2", fmt.Sprint(reply["reason"])}
+	}
+	return reply, nil
 }
 
 // AwaitKeygen waits until the renter has set the PIN and returns the new device address.

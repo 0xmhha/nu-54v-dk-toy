@@ -17,6 +17,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"log"
 	"net/http"
 	"os"
@@ -64,12 +66,37 @@ func settlement(path string) (common.Address, uint64, error) {
 }
 
 func main() {
-	if err := run(); err != nil {
+	gate, err := service.OpenRecoveryGate("pgx", os.Getenv("P07_RECOVERY_DATABASE_URL"),
+		os.Getenv("P07_RECOVERY_SCOPE"), os.Getenv("P07_RECOVERY_MANIFEST"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer gate.Close()
+	entry := run
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "evidence":
+			entry = runEvidence
+		case "rental-generation":
+			entry = runRentalGeneration
+		case "chainview":
+			entry = runChainview
+		case "public-receipts":
+			entry = runPublicReceipts
+		case "explorer-operations":
+			entry = runExplorerOperations
+		case "prove-absence":
+			entry = runProveAbsence
+		default:
+			log.Fatal("unknown indexer command")
+		}
+	}
+	if err := entry(gate); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run() error {
+func run(gate *service.RecoveryGate) error {
 	dbURL := os.Getenv("P07_DATABASE_URL")
 	if dbURL == "" {
 		return errors.New("P07_DATABASE_URL is required")
@@ -84,8 +111,12 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	st, err := store.Open(ctx, dbURL)
-	if err != nil {
+	var st *store.Store
+	if err := gate.Run(ctx, func(ctx context.Context) error {
+		var err error
+		st, err = store.Open(ctx, dbURL)
+		return err
+	}); err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
 	defer st.Close()
@@ -94,9 +125,9 @@ func run() error {
 		return err
 	}
 	in := &ingest.Ingester{Chain: rpc, Sink: st, Contract: contract, Start: block - 1, Poll: poll}
-	go in.Run(ctx)
+	go in.RunWithGuard(ctx, gate.Run)
 
-	srv := &http.Server{Addr: env("P07_HTTP_ADDR", ":8080"), Handler: receipt.Handler(st, in), ReadHeaderTimeout: 5 * time.Second}
+	srv := &http.Server{Addr: env("P07_HTTP_ADDR", ":8080"), Handler: gate.Handler(receipt.Handler(st, in)), ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)

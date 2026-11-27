@@ -13,18 +13,20 @@
 #   make test P=p05          # one product (matches products/p05-*)
 #   make build P=protocol    # one shared package (packages/protocol)
 #   make sandbox-up          # local docker sandbox (anvil 8283, PostgreSQL)
+#   make commercial-integration-test # strict local PostgreSQL and Anvil tests
+#   make commercial-pilot-test PILOT_OUT=/tmp/new-report # local software pilot
 #   make docs-check          # design register validators and link check
 
 SHELL := /bin/bash
 
 PACKAGES := packages/protocol packages/contracts-abi packages/device-sim
-PRODUCTS := products/p01-device-firmware products/p04-merchant-kiosk \
+PRODUCTS := products/p01-device-firmware products/p02-user-app products/p03-cloud-mpc-wallet products/p04-merchant-kiosk \
             products/p05-operations-backoffice products/p06-stablenet-contracts \
-            products/p07-indexer products/p10-platform
+            products/p07-indexer products/p08-market-services products/p09-travel-ai products/p10-platform
 PROJECTS := $(PACKAGES) $(PRODUCTS)
 
 ifdef P
-PROJECTS := $(foreach p,$(PROJECTS),$(if $(filter $(P) $(P)-%,$(notdir $(p))),$(p)))
+PROJECTS := $(strip $(foreach p,$(PROJECTS),$(if $(filter $(P) $(P)-%,$(notdir $(p))),$(p))))
 ifeq ($(PROJECTS),)
 $(error no project matches P=$(P))
 endif
@@ -32,7 +34,7 @@ endif
 
 TARGETS := setup build test lint run docker
 
-.PHONY: $(TARGETS) help sandbox-up sandbox-down docs-check conformance
+.PHONY: $(TARGETS) help sandbox-up sandbox-down docs-check conformance commercial-integration-test commercial-pilot-test
 
 help:
 	@sed -n '2,18p' Makefile | sed 's/^# \{0,1\}//'
@@ -42,12 +44,21 @@ setup:
 	pnpm install
 	@for p in $(PROJECTS); do echo "== $$p: setup"; $(MAKE) -C $$p setup || exit 1; done
 
-build test lint:
+build lint:
 	@for p in $(PROJECTS); do echo "== $$p: $@"; $(MAKE) -C $$p $@ || exit 1; done
+
+test:
+	+@python3 -B scripts/run_make_tests.py "$(MAKE)" $(PROJECTS)
 
 run docker:
 	@test -n "$(P)" || { echo "make $@ needs P=<product>"; exit 2; }
 	@for p in $(PROJECTS); do $(MAKE) -C $$p $@ || exit 1; done
+
+commercial-integration-test:
+	python3 -B scripts/test_commercial_integrations.py
+
+commercial-pilot-test:
+	python3 -B scripts/test_commercial_integrations.py --human-units --pilot-output "$${PILOT_OUT:?set PILOT_OUT to an empty report directory}"
 
 conformance:
 	python3 products/p10-platform/harness/run_conformance.py
@@ -63,4 +74,7 @@ docs-check:
 	python3 docs/content/planning/validate_product_wbs.py >/dev/null
 	python3 docs/content/planning/validate_design_freeze_02.py --check all
 	python3 docs/content/planning/validate_design_freeze_02.py --self-test
+	python3 docs/content/commercial/screens/build_book.py --check
+	python3 docs/content/commercial/screens/check_journeys.py
+	python3 -B docs/content/commercial/screens/test_check_journeys.py
 	python3 scripts/check_markdown_links.py

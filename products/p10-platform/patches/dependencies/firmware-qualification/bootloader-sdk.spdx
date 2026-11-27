@@ -1,0 +1,2727 @@
+# Document Information
+
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: west-ncs-sbom-report
+DocumentNamespace: http://spdx.org/spdxdocs/west-ncs-sbom-5ad4be31-b841-491b-9a46-14656918934d
+
+# Creation Info
+
+Creator: Tool: west-ncs-sbom
+Created: 2026-11-21T02:35:25Z
+CreatorComment:<text>Generated with west-ncs-sbom. For details, see https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/introduction.html#licenses.</text>
+
+# Package Information
+
+PackageName: unknown-package
+SPDXID: SPDXRef-package-1
+PackageVersion: NoneVersion
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: NONE
+FilesAnalyzed: false
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# Package Information
+
+PackageName: Dependency information unavailable
+SPDXID: SPDXRef-package-2
+PackageVersion: N/A
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: NOASSERTION
+FilesAnalyzed: false
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# Package Information
+
+PackageName: nrfconnect/sdk-hal_nordic
+SPDXID: SPDXRef-package-3
+PackageVersion: 69865c20dc4afbdd27060ad1e81af1b62d31f7af
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-hal_nordic
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-hal_nordic@69865c20dc4afbdd27060ad1e81af1b62d31f7af
+FilesAnalyzed: true
+PackageVerificationCode: e8c9cc6c8e2287ff3025f4da1a1367beda237937
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock_xo.c
+SPDXID: SPDXRef-file-7
+FileChecksum: SHA1: 00089edfa199f5d7059afcf9263feeb00151644f
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/bsp/stable/mdk/system_nrf54l.c
+SPDXID: SPDXRef-file-1
+FileChecksum: SHA1: 09d4aa63517e5301d48054189bb0a3d71b5720b2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_grtc.c
+SPDXID: SPDXRef-file-10
+FileChecksum: SHA1: 4ccbf838d1a8dd572e082260f39a39770fdd7cd0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_gpiote.c
+SPDXID: SPDXRef-file-9
+FileChecksum: SHA1: 61670ae9b6cd2bd134208509fcaa8788fdfd6490
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/helpers/nrfx_ram_ctrl.c
+SPDXID: SPDXRef-file-13
+FileChecksum: SHA1: 68e985c8755e8e55e73aaf1c841355d26df64b44
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock_hfclkaudio.c
+SPDXID: SPDXRef-file-5
+FileChecksum: SHA1: 812a2a5d6415bf788e509f4d9dd3dc9e02b8f9ac
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock_lfclk.c
+SPDXID: SPDXRef-file-6
+FileChecksum: SHA1: 94b158d81a9f0b1b084db797ff6cff2e70f17336
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock_hfclk.c
+SPDXID: SPDXRef-file-3
+FileChecksum: SHA1: a229d5815e95b385ec20dc05d3bdc195095b04f7
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock.c
+SPDXID: SPDXRef-file-2
+FileChecksum: SHA1: a7c879980471e7d04989224026cade583cda15b5
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/helpers/nrfx_flag32_allocator.c
+SPDXID: SPDXRef-file-12
+FileChecksum: SHA1: b1e8a650011f4fc9ce38784751e414bd2f060efe
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock_xo24m.c
+SPDXID: SPDXRef-file-8
+FileChecksum: SHA1: b9b4f416b6d42ee951c07e4988f30d10ecac7a30
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_clock_hfclk192m.c
+SPDXID: SPDXRef-file-4
+FileChecksum: SHA1: bf71b57137bfe14d6f7c6f30a09b1c7654d6d21c
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_rramc.c
+SPDXID: SPDXRef-file-11
+FileChecksum: SHA1: c7247126fa0835c20d9163e7d67fe36249a96319
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-mcuboot
+SPDXID: SPDXRef-package-4
+PackageVersion: 8122be0de002ede060d37aa39b2a7f18aecc00c3
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-mcuboot
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-mcuboot@8122be0de002ede060d37aa39b2a7f18aecc00c3
+FilesAnalyzed: true
+PackageVerificationCode: 74c6b137bfc2b0aa094d6ab1b55ae7ee3ac75513
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/nrf_cleanup.c
+SPDXID: SPDXRef-file-42
+FileChecksum: SHA1: 038cffc6ed12c09412475db23d409d04b3aa2031
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/swap_misc.c
+SPDXID: SPDXRef-file-33
+FileChecksum: SHA1: 0c75bda8c5f6b8905742a7818a3e46dd21f78ba0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/boot_serial/src/boot_serial.c
+SPDXID: SPDXRef-file-14
+FileChecksum: SHA1: 18d3cc7a4d0ab17d785f112a13221d11f3358449
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/flash_check.c
+SPDXID: SPDXRef-file-37
+FileChecksum: SHA1: 31c8cf7d02d213382cbb38871ebce99d7017d823
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_loader.c
+SPDXID: SPDXRef-file-20
+FileChecksum: SHA1: 32b3799e1ac3c65ef5ae1845e29e4c9162a2402f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_find_key.c
+SPDXID: SPDXRef-file-17
+FileChecksum: SHA1: 3a070a3724c6652244750d0c55056a762a750962
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_img_hash.c
+SPDXID: SPDXRef-file-18
+FileChecksum: SHA1: 3bf6b213f624ce214e5e9312006d16fc39309a00
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/cleanup/arm_cortex_m.c
+SPDXID: SPDXRef-file-36
+FileChecksum: SHA1: 43c17e5ccefd2ce46cbf29eda887a1d6d267fba8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/swap_move.c
+SPDXID: SPDXRef-file-34
+FileChecksum: SHA1: 554bcd5c151cc0527888461f93e98930448dc7ab
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/fault_injection_hardening.c
+SPDXID: SPDXRef-file-26
+FileChecksum: SHA1: 5bddf8158ab83482c8b74ea45007d16273a34ef8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/ed25519_psa.c
+SPDXID: SPDXRef-file-24
+FileChecksum: SHA1: 5dabfc9e42f9703824917da0cb6287bc0bf0534c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_public.c
+SPDXID: SPDXRef-file-22
+FileChecksum: SHA1: 69f15da7160a1eb573f9f8a724fd8e75605fbe55
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/image_ed25519.c
+SPDXID: SPDXRef-file-28
+FileChecksum: SHA1: 6e1ba0c9672a3c0e09b71f67bca316e4625a8569
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/flash_map_extended.c
+SPDXID: SPDXRef-file-38
+FileChecksum: SHA1: 750306ce6bf5658efa1424c874f81048fba71cee
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/serial_adapter.c
+SPDXID: SPDXRef-file-44
+FileChecksum: SHA1: 75169c8367035515aec885cabfd2be1508a9ef7b
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/loader.c
+SPDXID: SPDXRef-file-31
+FileChecksum: SHA1: 7527290ca24913b4993c745f8645c163c4238c75
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/image_validate.c
+SPDXID: SPDXRef-file-30
+FileChecksum: SHA1: 76ccd50673e95dce4ba2e8b1f0613f5d5212f337
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/image_ecdsa.c
+SPDXID: SPDXRef-file-27
+FileChecksum: SHA1: 77e940918cbf3390d3bd045cbf5349f1fa342919
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/boot_serial/src/zcbor_bulk.c
+SPDXID: SPDXRef-file-15
+FileChecksum: SHA1: 82af7c02682d957403f46daef0a6f233c6e66f5e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/tlv.c
+SPDXID: SPDXRef-file-35
+FileChecksum: SHA1: 9194690db904575212ce1c1e8cd0b6a3302cb8a9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_area.c
+SPDXID: SPDXRef-file-16
+FileChecksum: SHA1: 91bca5906c2ff225fa505508667a1e2184ca9648
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_img_security_cnt.c
+SPDXID: SPDXRef-file-19
+FileChecksum: SHA1: 96916a015c13023a7eb28a99e433eb52b1535c69
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/image_rsa_nrf.c
+SPDXID: SPDXRef-file-29
+FileChecksum: SHA1: 9727a0883f4ad04e1886d84efc4570df02130af8
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/bootutil_misc.c
+SPDXID: SPDXRef-file-21
+FileChecksum: SHA1: 9cab89d99979df2bdf71044d4bc218801e5ac8ea
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/os.c
+SPDXID: SPDXRef-file-43
+FileChecksum: SHA1: a980b254c25f1b1aa0d3df80fbbd8e7964c1e593
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/caps.c
+SPDXID: SPDXRef-file-23
+FileChecksum: SHA1: b2335d60a5021fca83f251d8d9a95ca7c4264d5f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/keys.c
+SPDXID: SPDXRef-file-40
+FileChecksum: SHA1: bcf83cb3bf4869c2a766a37430f1448ae6b465de
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/mcuboot_manifest.c
+SPDXID: SPDXRef-file-32
+FileChecksum: SHA1: c20e2d8e51905e449ab127e7f8e69e549e0b1a86
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/io.c
+SPDXID: SPDXRef-file-39
+FileChecksum: SHA1: d503fb826eef09f93ac309cefa4508a5c6c2fff2
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/zephyr/main.c
+SPDXID: SPDXRef-file-41
+FileChecksum: SHA1: f7450cbd53ef3af2b34595ce9f71d4da05e44ee7
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/bootloader/mcuboot/boot/bootutil/src/encrypted.c
+SPDXID: SPDXRef-file-25
+FileChecksum: SHA1: f771df1a7d6195d013b05f2d2689a519f420e5d7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-nrf
+SPDXID: SPDXRef-package-5
+PackageVersion: b20f8619ba9a5530f8c34b0a130d829947cfe55d
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-nrf
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-nrf@b20f8619ba9a5530f8c34b0a130d829947cfe55d
+FilesAnalyzed: true
+PackageVerificationCode: c6f0fd2b02afbb46c77529e3c1bb8b6ccc3ad99a
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/hardware/hardware.c
+SPDXID: SPDXRef-file-50
+FileChecksum: SHA1: 0089dc0e93f8f12ad05e7faf50a54cc0ac9aa3b7
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_ikg.c
+SPDXID: SPDXRef-file-57
+FileChecksum: SHA1: 010689a0bcc1c90e0ac94912ab2b5520b9b5fafe
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/common.c
+SPDXID: SPDXRef-file-46
+FileChecksum: SHA1: 0a862b89a65e523d27333240cdf71c4f71012a4b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/ed448.c
+SPDXID: SPDXRef-file-78
+FileChecksum: SHA1: 13fcb2b65cdb343785016aa341883adf7b4af4fc
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/prng_pool.c
+SPDXID: SPDXRef-file-52
+FileChecksum: SHA1: 1713d5aff9e5335b3ce1e378eb027e0af440a81b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/interface/sxbuf/sxbufops.c
+SPDXID: SPDXRef-file-75
+FileChecksum: SHA1: 1ac0fb209f592ca0db0d99c40f9da5aaf7e8b7b5
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/hmac.c
+SPDXID: SPDXRef-file-96
+FileChecksum: SHA1: 1b9c0059c963ff485f2a7a6c1b685ff6a0841c3d
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/cracen_rndinrange.c
+SPDXID: SPDXRef-file-48
+FileChecksum: SHA1: 209702f2abfdf032835ddaf9276cd91554f929a4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_cipher.c
+SPDXID: SPDXRef-file-54
+FileChecksum: SHA1: 211700341a664dfbb190426dd1871698d7bdfe33
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/cracen_hmac.c
+SPDXID: SPDXRef-file-47
+FileChecksum: SHA1: 2150f6387524c3aa242fe1c75f62e342170d3cf7
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/hash.c
+SPDXID: SPDXRef-file-95
+FileChecksum: SHA1: 221b444b4c83b8dafb5476e0c7857972ff6aec68
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_keygen.c
+SPDXID: SPDXRef-file-65
+FileChecksum: SHA1: 22a81a49b7d6bf1877932264c7f310ef3c03218d
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_wpa3_key_management.c
+SPDXID: SPDXRef-file-72
+FileChecksum: SHA1: 248c7a85e9463e37b0d4c1914bebeb7c9fcc601f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/ec_helpers.c
+SPDXID: SPDXRef-file-49
+FileChecksum: SHA1: 284a766109f571d2fdfe29cc6814a6f81fb2b996
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/statuscodes.c
+SPDXID: SPDXRef-file-81
+FileChecksum: SHA1: 2e166f7b8b7323724480080a204972313f486f61
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/aes/cracen_aes_ecb.c
+SPDXID: SPDXRef-file-62
+FileChecksum: SHA1: 2f5d39c005b9a90d482d79bfab588c80e0576f88
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_key_management.c
+SPDXID: SPDXRef-file-64
+FileChecksum: SHA1: 328aa6713737c954fc269d3fde44357c3483ed7c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/iomem.c
+SPDXID: SPDXRef-file-79
+FileChecksum: SHA1: 37368631c7f8099ceed55e335eca65727385a9e7
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_hash.c
+SPDXID: SPDXRef-file-56
+FileChecksum: SHA1: 37c664d481abd371306105af72aea0532ef695a4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/keyref.c
+SPDXID: SPDXRef-file-97
+FileChecksum: SHA1: 3ecb849a0ea7e2b9b59a8868adbcd7572ead2d93
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecdsa.c
+SPDXID: SPDXRef-file-67
+FileChecksum: SHA1: 3f13738967affec1fce6ec022db3126f33aaab79
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/aead.c
+SPDXID: SPDXRef-file-89
+FileChecksum: SHA1: 4551049548a23ee4dab48a0373b549b415c3700e
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/ed25519.c
+SPDXID: SPDXRef-file-77
+FileChecksum: SHA1: 4b616c3e66a27c2d39cab7e39ddb606fc5e0d9a1
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/chachapoly.c
+SPDXID: SPDXRef-file-91
+FileChecksum: SHA1: 5aa2d4dd2bcfce65c4ec984f40af2f61fe9fb725
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmmask.c
+SPDXID: SPDXRef-file-94
+FileChecksum: SHA1: 5b24667e1a4f2391137891328c8aa1de9961eb3a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_spake2p_key_management.c
+SPDXID: SPDXRef-file-70
+FileChecksum: SHA1: 5d45620082d56cc6c0d0cab6caf39d1424ef655e
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/lib_kmu.c
+SPDXID: SPDXRef-file-51
+FileChecksum: SHA1: 5da482df5cc3530ebf4cc0a594b3ccdf5b2f0f4f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/zephyr/psa_crypto_init.c
+SPDXID: SPDXRef-file-110
+FileChecksum: SHA1: 5da6b79f1bbdfa8e5dbc4d7d4f1af63899d6a9a9
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_helpers.c
+SPDXID: SPDXRef-file-63
+FileChecksum: SHA1: 5daba669dde018b6d88025f34b9739aabc7ed7ac
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/ba414_status.c
+SPDXID: SPDXRef-file-83
+FileChecksum: SHA1: 60bd7dc504e402f341e655a9630587d2c28c3f72
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/montgomery.c
+SPDXID: SPDXRef-file-80
+FileChecksum: SHA1: 623bce4d349f011541228cf00daabf53143b8340
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_eddsa_ed25519.c
+SPDXID: SPDXRef-file-68
+FileChecksum: SHA1: 67a0c7bcbf1ffb1b73b8f8fd4de80b579daf8973
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/platform/baremetal/cmdma_hw.c
+SPDXID: SPDXRef-file-99
+FileChecksum: SHA1: 71a538b36d4e8503bdf2e332a1772ab4b388e427
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_core.c
+SPDXID: SPDXRef-file-105
+FileChecksum: SHA1: 75b817f267336f5100eeca732e7388c112483f14
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/zephyr/mbedtls_heap.c
+SPDXID: SPDXRef-file-109
+FileChecksum: SHA1: 795e05271faf6c54b3833c0c2c9ee8e70c7cc133
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_events.c
+SPDXID: SPDXRef-file-106
+FileChecksum: SHA1: 7ad628b9531c0f769742b88338fe8ace5391ef91
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_ecjpake.c
+SPDXID: SPDXRef-file-85
+FileChecksum: SHA1: 7ce154dd60d564ed7f59448bc681e7618a1a7ce2
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/aes/cracen_aes_cbc.c
+SPDXID: SPDXRef-file-61
+FileChecksum: SHA1: 7e8a0085db4e275c9c40f697bc827623d70983eb
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_modmath.c
+SPDXID: SPDXRef-file-86
+FileChecksum: SHA1: 8622d439f4b23204d5b373291349b3e86c45047c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/trng.c
+SPDXID: SPDXRef-file-102
+FileChecksum: SHA1: 86c6aa0b8178ab7d3675dde5c15bd26958ef7615
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_ctr_drbg.c
+SPDXID: SPDXRef-file-55
+FileChecksum: SHA1: 8fbdf26686983d294a4d4fe84fbc3365b6cb5cd1
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/baremetal_ba414e_with_ik/pk_baremetal.c
+SPDXID: SPDXRef-file-82
+FileChecksum: SHA1: 93ee8c448c938ae3fe3fae6db803103d6c9bc78c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmac.c
+SPDXID: SPDXRef-file-92
+FileChecksum: SHA1: a0ca69b4a4f42041946febad86962507cf77be6a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/lib/boot_banner/banner.c
+SPDXID: SPDXRef-file-45
+FileChecksum: SHA1: a5a1ae1585cb784bbbea0319a3541179774380cd
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/platform/baremetal/interrupts.c
+SPDXID: SPDXRef-file-100
+FileChecksum: SHA1: a8896ca3e08b3e58a46310bffc3bedaad065e2ac
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_sign_verify.c
+SPDXID: SPDXRef-file-60
+FileChecksum: SHA1: b5a887d2320f096890c68d1ac04d7f48c926f06f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/blkcipher.c
+SPDXID: SPDXRef-file-90
+FileChecksum: SHA1: ba7d00ec38e44b08365a6f952990e574543f025b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/ec_curves.c
+SPDXID: SPDXRef-file-87
+FileChecksum: SHA1: bd0115e2972fa9af3f053a6034cf6df1c4c8da46
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/mbedtls_psa_platform.c
+SPDXID: SPDXRef-file-103
+FileChecksum: SHA1: bdaa525554614dccf555f4d02410a39b6e791ebe
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_key_management.c
+SPDXID: SPDXRef-file-58
+FileChecksum: SHA1: c4459136f668fd41884c76d1a63b768f378ddd27
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_ecc.c
+SPDXID: SPDXRef-file-84
+FileChecksum: SHA1: c73e2468615026adb3883e15429109364df2ddcd
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/blind.c
+SPDXID: SPDXRef-file-76
+FileChecksum: SHA1: cc19d2fde8a955f56978154213135efdf96d9168
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmdma.c
+SPDXID: SPDXRef-file-93
+FileChecksum: SHA1: cde9dd3c0a36153d23e378bd99b43d5a6cb4da2a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_signature.c
+SPDXID: SPDXRef-file-66
+FileChecksum: SHA1: d347d4feba18ee2c632ead3a0a9b848e2ac32971
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/pkhardware_ba414e.c
+SPDXID: SPDXRef-file-88
+FileChecksum: SHA1: d388f6b848e834f706a4129fb74ef3c93a882a0b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_eddsa_ed448.c
+SPDXID: SPDXRef-file-69
+FileChecksum: SHA1: db1b8225e4e3ca42569ad31dbc16bd7e2b0ba551
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/rsa/cracen_rsa_signature.c
+SPDXID: SPDXRef-file-74
+FileChecksum: SHA1: dcbd809f199ebaf5f0e8791b2abf497914a81c36
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/psa_crypto_driver_wrappers.c
+SPDXID: SPDXRef-file-104
+FileChecksum: SHA1: deb401772ade311dc1319817175127619cea2d0c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_mutexes.c
+SPDXID: SPDXRef-file-108
+FileChecksum: SHA1: e338a645b787f198383f0498e6c6b53193999414
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_mem_helpers.c
+SPDXID: SPDXRef-file-107
+FileChecksum: SHA1: e7ee6d0eecb10e0864d5a2bbca420f6308db8837
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_srp_key_management.c
+SPDXID: SPDXRef-file-71
+FileChecksum: SHA1: ea0de39111720eb28e0f94d2b2cdeb36e0a173b4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/rsa/cracen_rsa_key_management.c
+SPDXID: SPDXRef-file-73
+FileChecksum: SHA1: ec2baf64b8096f9753f4975d64a1f9e0a02dbbae
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_kmu.c
+SPDXID: SPDXRef-file-59
+FileChecksum: SHA1: f409d2dd6b2e8a5180c20b844a4a4f3334417ab8
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa.c
+SPDXID: SPDXRef-file-53
+FileChecksum: SHA1: f4511ceb0481514fe80c1747c4e46e64156fe880
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/mac.c
+SPDXID: SPDXRef-file-98
+FileChecksum: SHA1: f468f36d46a6f06f1b59d7109a6dc6a194db3d47
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/sha3.c
+SPDXID: SPDXRef-file-101
+FileChecksum: SHA1: fd12cde3affb3b9ee2fb55a687c6e74b42266695
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-oberon-psa-crypto
+SPDXID: SPDXRef-package-6
+PackageVersion: e8db62ed0fba5028e7ae0eba7b1fb63436ae6416
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-oberon-psa-crypto
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-oberon-psa-crypto@e8db62ed0fba5028e7ae0eba7b1fb63436ae6416
+FilesAnalyzed: true
+PackageVerificationCode: 5190f418cfb0c2ad8ae0193fdecabfdfd1cd76a7
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto_client.c
+SPDXID: SPDXRef-file-112
+FileChecksum: SHA1: 1508b5d8babce8c9c9d648fcfeba6334160bb44b
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk_ecc.c
+SPDXID: SPDXRef-file-119
+FileChecksum: SHA1: 19d799c9456e1be2ca1e406e871b22762fa7f740
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/base64.c
+SPDXID: SPDXRef-file-134
+FileChecksum: SHA1: 2e5a470135e74c95c90f5c17768ea6358f6ed378
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/platform.c
+SPDXID: SPDXRef-file-130
+FileChecksum: SHA1: 305557976a65d3d72bca909a0bc89170d5c960b9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pkparse.c
+SPDXID: SPDXRef-file-122
+FileChecksum: SHA1: 396d75ce515ec28ca72c652e5485d951c59b7fcf
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/pkcs5.c
+SPDXID: SPDXRef-file-138
+FileChecksum: SHA1: 415819848188a501746243f706efe4c5e8b7b935
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/bignum_core.c
+SPDXID: SPDXRef-file-125
+FileChecksum: SHA1: 48bcfd2790c11e89f0cebbc3d697f81e9a0e5cd4
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/bignum.c
+SPDXID: SPDXRef-file-124
+FileChecksum: SHA1: 493a78f28ad44cb9190f8bb4f71b478dfa996622
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/md.c
+SPDXID: SPDXRef-file-116
+FileChecksum: SHA1: 4e0143b16399f5d207901afe16c0463b8e909ec1
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/memory_buffer_alloc.c
+SPDXID: SPDXRef-file-129
+FileChecksum: SHA1: 5a0882c19ee3f6019de078f6474c897e64aa00ec
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/psa_util_internal.c
+SPDXID: SPDXRef-file-128
+FileChecksum: SHA1: 5c4250bfe642fd8efb7f281150c452c523276969
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk_rsa.c
+SPDXID: SPDXRef-file-120
+FileChecksum: SHA1: 6411e60075f985288ef8d4ec58e327d3ee316fb9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk.c
+SPDXID: SPDXRef-file-118
+FileChecksum: SHA1: 648b7dd4271eb6bfd384e05cae8b60c1db7318e9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pkwrite.c
+SPDXID: SPDXRef-file-123
+FileChecksum: SHA1: 6cff3e4f0c9c9fa7a5099c126abc6a0d648bad67
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/asn1write.c
+SPDXID: SPDXRef-file-133
+FileChecksum: SHA1: 880333c5a3d386c795266653aea89de9498cd42e
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto_slot_management.c
+SPDXID: SPDXRef-file-113
+FileChecksum: SHA1: 8ac50e15e9aae0cb55b8308b11dec9b97276713c
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/nist_kw.c
+SPDXID: SPDXRef-file-117
+FileChecksum: SHA1: 8fe211aa582de0b8007dd5de9d62ef56a26dec3a
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/extras/pk_wrap.c
+SPDXID: SPDXRef-file-121
+FileChecksum: SHA1: 91209378776d90988ec075a4705569bedab605ea
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/ecp.c
+SPDXID: SPDXRef-file-126
+FileChecksum: SHA1: 949a6dd7fc65dfac3d9ba6ca2bde1a0fda3cf596
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto.c
+SPDXID: SPDXRef-file-111
+FileChecksum: SHA1: a72737d6466be6ca05b57370d818f34c786bdce5
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/platform_util.c
+SPDXID: SPDXRef-file-131
+FileChecksum: SHA1: ae09a5ff8ed3edd2b089127f48ad48d57f4acb8b
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/pem.c
+SPDXID: SPDXRef-file-137
+FileChecksum: SHA1: ae70c699553a755ad44eb8b04dff570a668003b8
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/legacy_sub/src/ecp_curves.c
+SPDXID: SPDXRef-file-127
+FileChecksum: SHA1: b4f05f915b551651eba63d7e649a2a314be00a07
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/constant_time.c
+SPDXID: SPDXRef-file-135
+FileChecksum: SHA1: b951f1e00bb1eebb24fe32d1b6ad467c0878f386
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto_storage.c
+SPDXID: SPDXRef-file-114
+FileChecksum: SHA1: d4569be29171d9aa8e59ae99085eefdeb2b6b708
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/oid.c
+SPDXID: SPDXRef-file-136
+FileChecksum: SHA1: e6be3a3128dd9f890323f08644cac8d5d97a8797
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_util.c
+SPDXID: SPDXRef-file-115
+FileChecksum: SHA1: e9457feebcb6e6258bd89e24ac7c2d135871986f
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/asn1parse.c
+SPDXID: SPDXRef-file-132
+FileChecksum: SHA1: fae71b39fbbf15b321214720dd6a8c0ace56d35a
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-zephyr
+SPDXID: SPDXRef-package-7
+PackageVersion: 33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-zephyr
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-zephyr@33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6
+FilesAnalyzed: true
+PackageVerificationCode: f4dba05297844f1358d56af9d1b1286b177cd0e2
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/zephyr/arch/common/xip.c
+SPDXID: SPDXRef-file-165
+FileChecksum: SHA1: 06f1e7a0584bf0965c0f8854ed32221941495f65
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/nrf54l/soc.c
+SPDXID: SPDXRef-file-234
+FileChecksum: SHA1: 0e7dae0a0dd26981fd71cd330a5cba95e5d832e8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/fault_s.S
+SPDXID: SPDXRef-file-144
+FileChecksum: SHA1: 10542014dd4112a7d910b4d311213118b473cbdb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/clock_control/clock_control_nrf.c
+SPDXID: SPDXRef-file-167
+FileChecksum: SHA1: 157cf242b1629d5d00272f6283ca9f0f9d8a5875
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/posix/c_lib_ext/getentropy.c
+SPDXID: SPDXRef-file-215
+FileChecksum: SHA1: 15852315e734e55e220d1742d846f75f3bee53d7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/offsets/offsets.c
+SPDXID: SPDXRef-file-160
+FileChecksum: SHA1: 177f696ca0e4a0ea3493d513a04f4980ebfc00fe
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc4_sw.c
+SPDXID: SPDXRef-file-244
+FileChecksum: SHA1: 1c8c1e322e102d4c16f66e160d1a7c629b791c6b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc32_sw.c
+SPDXID: SPDXRef-file-241
+FileChecksum: SHA1: 1da99e11b3f7640a66716bc7d0cde5da889e0b7a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/reset.S
+SPDXID: SPDXRef-file-150
+FileChecksum: SHA1: 1f4ff92118f34e081e3cc8fb97131fa95ab35ad5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/cache/cache_nrf.c
+SPDXID: SPDXRef-file-166
+FileChecksum: SHA1: 224a20208a85d1300008a2b95ccde575cebc0f20
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/cbprintf_packaged.c
+SPDXID: SPDXRef-file-208
+FileChecksum: SHA1: 22d397b28a89d1d26357c6b9d00a9e7d99dca006
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/init.c
+SPDXID: SPDXRef-file-184
+FileChecksum: SHA1: 243767b2ff84c22d607e327144643fb151b0ea12
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/getopt/getopt.c
+SPDXID: SPDXRef-file-221
+FileChecksum: SHA1: 25747564c0cf959baa49a34eb2c3e3ad9ed2e854
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/common/reboot.c
+SPDXID: SPDXRef-file-233
+FileChecksum: SHA1: 26ba687d29d1f96d0f401a9029c8518f53946d34
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/stdio.c
+SPDXID: SPDXRef-file-204
+FileChecksum: SHA1: 2a76934620512fede49531326bf9e6734fe5c197
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/__aeabi_read_tp.S
+SPDXID: SPDXRef-file-139
+FileChecksum: SHA1: 30a27a1250f071006e4a9252eca37de2d47d6854
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc32c_sw.c
+SPDXID: SPDXRef-file-242
+FileChecksum: SHA1: 35fb4214c756eff7ee88417dfabab3e1c6328ac1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/serial/uart_nrfx_uarte.c
+SPDXID: SPDXRef-file-174
+FileChecksum: SHA1: 3b2d1e8084cf23eafc6ef100f753ce3482c75ab6
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc24_sw.c
+SPDXID: SPDXRef-file-240
+FileChecksum: SHA1: 3b525642a305fe6aad076926dc9ebd421f5c2425
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/vector_table.S
+SPDXID: SPDXRef-file-156
+FileChecksum: SHA1: 40df4a4922539e29db8e6ce969e8597b1c2c10be
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/chk_fail.c
+SPDXID: SPDXRef-file-200
+FileChecksum: SHA1: 41535f3b76dcf1cbaf4b3390e9480a6fec5ded94
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/nothread.c
+SPDXID: SPDXRef-file-189
+FileChecksum: SHA1: 43250b4a8c86379369e125ae308cdd56b5531dd6
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/errno.c
+SPDXID: SPDXRef-file-181
+FileChecksum: SHA1: 43f96f87071d1be282defc98ce67f2ac28bbc607
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/notify.c
+SPDXID: SPDXRef-file-225
+FileChecksum: SHA1: 463bdc856288a3789fc5fa0314cb84c1362c620f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/version.c
+SPDXID: SPDXRef-file-192
+FileChecksum: SHA1: 480e7aba3070de62c5681192a2a31e385074d12c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/prep_c.c
+SPDXID: SPDXRef-file-149
+FileChecksum: SHA1: 4952a2df506c55f2e6fb5f1e0594c73515a09877
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/fatal.c
+SPDXID: SPDXRef-file-182
+FileChecksum: SHA1: 4980cf15bc7a13c72c1b36a37df6e267f8ae4436
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/common/source/time/time.c
+SPDXID: SPDXRef-file-197
+FileChecksum: SHA1: 4a6c1370cce7804479f69d0230f9572c1ff9e0a1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/base64.c
+SPDXID: SPDXRef-file-217
+FileChecksum: SHA1: 4b5924913636f31b95b6ad1911a15aa6310fb614
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/posix/c_lib_ext/getopt_shim.c
+SPDXID: SPDXRef-file-216
+FileChecksum: SHA1: 4bc3c62675858e1005a218065d4bf261611d4217
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/mempool.c
+SPDXID: SPDXRef-file-188
+FileChecksum: SHA1: 4cb5df06515028ad592bd3d4dd60141f349fa806
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/hex.c
+SPDXID: SPDXRef-file-223
+FileChecksum: SHA1: 4e0446c2b4530dd44be488fb5df24feb2caa17e9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/assert.c
+SPDXID: SPDXRef-file-198
+FileChecksum: SHA1: 4fb31eb36704b072f6d1b9dfb2008a291d932d8d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/bitarray.c
+SPDXID: SPDXRef-file-218
+FileChecksum: SHA1: 544276c379bc144b0d1bb832c7b19be8670f8030
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/flash/flash_page_layout.c
+SPDXID: SPDXRef-file-168
+FileChecksum: SHA1: 55df2f1c4afb82074e8e7021c420ff766f56f271
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_binding_headers.c
+SPDXID: SPDXRef-file-236
+FileChecksum: SHA1: 5d9279a8ddfa9cb7d6ace1b0494def1c87be7b0b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/random/random_psa.c
+SPDXID: SPDXRef-file-247
+FileChecksum: SHA1: 5e6baff35083460ef189f91b2e57262cfa131c50
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/busy_wait.c
+SPDXID: SPDXRef-file-178
+FileChecksum: SHA1: 65753d08e09d1c75ac30e05a4f3517d4cbc74380
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/cbprintf.c
+SPDXID: SPDXRef-file-199
+FileChecksum: SHA1: 67ee235120a4e7c675ac29c9a04e245701c86ea0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/timeout.c
+SPDXID: SPDXRef-file-190
+FileChecksum: SHA1: 69e7fedebb29612547a881fa45c8d418d0860bf1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/locks.c
+SPDXID: SPDXRef-file-203
+FileChecksum: SHA1: 6a00b4b9ff6e01abb041fd4122d47561efcc39e7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/thread_abort.c
+SPDXID: SPDXRef-file-155
+FileChecksum: SHA1: 6a80d08cb1618a9dfb8fd5268b0cba307b38f163
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/exc_exit.c
+SPDXID: SPDXRef-file-142
+FileChecksum: SHA1: 6aad2636e9f8606877f59f8fed4a73be3d8b8a59
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/timer.c
+SPDXID: SPDXRef-file-191
+FileChecksum: SHA1: 6c4c23f69930580fd6114fd0c5f1add7562c8507
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/thread_entry.c
+SPDXID: SPDXRef-file-213
+FileChecksum: SHA1: 6d133fcdb4ec94b9018f874d2f676970b2111ef0
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/nmi_on_reset.S
+SPDXID: SPDXRef-file-159
+FileChecksum: SHA1: 6dd289a9b98faf2d49ba22feac3245543ad2dc69
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/flash/soc_flash_nrf_rram.c
+SPDXID: SPDXRef-file-170
+FileChecksum: SHA1: 6f9b668ca4a5e5c67938caf0f7a60efbc3d0ac36
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/irq_manage.c
+SPDXID: SPDXRef-file-147
+FileChecksum: SHA1: 7016f2afc86d2db1e9827929831449681c576bfb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/last_section_id.c
+SPDXID: SPDXRef-file-224
+FileChecksum: SHA1: 70325b8820b4b82239394b85ff52e9c29ddbb393
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/kheap.c
+SPDXID: SPDXRef-file-185
+FileChecksum: SHA1: 711760968b2e53f06d34753b06c888159f8ee0fe
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/assert.c
+SPDXID: SPDXRef-file-206
+FileChecksum: SHA1: 724d7bd67a61612845e360d316c8c3f3119df2f2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/posix/c_lib_ext/fnmatch.c
+SPDXID: SPDXRef-file-214
+FileChecksum: SHA1: 7674b0099211dc170c40d56afc9eb07c36ea02c0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/isr_wrapper.c
+SPDXID: SPDXRef-file-148
+FileChecksum: SHA1: 787c5c8c7c86cd74b37ffbe00567745d664b16b2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/heap/heap.c
+SPDXID: SPDXRef-file-193
+FileChecksum: SHA1: 7c16241982180c307262bbdad96bf271de5444d5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/cmse/arm_core_cmse.c
+SPDXID: SPDXRef-file-140
+FileChecksum: SHA1: 7c1f4ba5d1b5ec2d106bf24e404b2f8850e06989
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/getopt/getopt_common.c
+SPDXID: SPDXRef-file-222
+FileChecksum: SHA1: 80c0a83f5e42876cd2ae3cf29b56b4eca82cfbc9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/heap/heap_constants.c
+SPDXID: SPDXRef-file-194
+FileChecksum: SHA1: 81ad35b3ff8546a47e3dfc2e41dd816839cee132
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/exit.c
+SPDXID: SPDXRef-file-202
+FileChecksum: SHA1: 8292d0478f30bc09cdd1afb24f4b87eb62bbbfbb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/timer/sys_clock_init.c
+SPDXID: SPDXRef-file-176
+FileChecksum: SHA1: 8555c132c4b3041445b86be053184cbb5cade22a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc7_sw.c
+SPDXID: SPDXRef-file-245
+FileChecksum: SHA1: 8aba85bac0851d06731c347fe7eb3bf51182630a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/storage/flash_map/flash_map_default.c
+SPDXID: SPDXRef-file-249
+FileChecksum: SHA1: 8f1c6115b0f0d9c9a4b0b9bb9a4c4dae637b8ee5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/storage/flash_map/flash_map.c
+SPDXID: SPDXRef-file-248
+FileChecksum: SHA1: 91bc46d8dc69ad911d03e548e4335c86dbd1cee5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/common/sw_isr_common.c
+SPDXID: SPDXRef-file-164
+FileChecksum: SHA1: 9239293083d32f4c5ded3a453d0512872c355f6a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/fatal.c
+SPDXID: SPDXRef-file-157
+FileChecksum: SHA1: 9584d9f8aec57a7035a828216d077249c3915f6b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/svc.S
+SPDXID: SPDXRef-file-152
+FileChecksum: SHA1: 96003ba69ad4e5d2ecdfe5b3ebb4a2b3bf6aba59
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/timeutil.c
+SPDXID: SPDXRef-file-229
+FileChecksum: SHA1: 96599d83db0fe67d8b5720f6ede9e90dab8c0611
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/timer/nrf_grtc_timer.c
+SPDXID: SPDXRef-file-175
+FileChecksum: SHA1: 97c082c6a0331e7c821e79de262c05913ddc9eb7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/nmi.c
+SPDXID: SPDXRef-file-158
+FileChecksum: SHA1: 9a7a6069ad8b670b5ffaf2b8ad78fcff3c0cb154
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/picolibc/errno_wrap.c
+SPDXID: SPDXRef-file-201
+FileChecksum: SHA1: 9af2660b105b2b9ca01c64d00b78add5791e6bf1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/gpio/gpio_nrfx.c
+SPDXID: SPDXRef-file-171
+FileChecksum: SHA1: 9b1bfd175549d5657876f08d65544cb331b21ae5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/thread.c
+SPDXID: SPDXRef-file-154
+FileChecksum: SHA1: a0847f02c819828156e4fa2e2d500a99f6d47b67
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/banner.c
+SPDXID: SPDXRef-file-177
+FileChecksum: SHA1: a112e978eb3b897b7b730311c54b0eb009e331ff
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc16_sw.c
+SPDXID: SPDXRef-file-239
+FileChecksum: SHA1: a73abe1fe9a9236aef7d9313a411016f5c268bba
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/mem_slab.c
+SPDXID: SPDXRef-file-187
+FileChecksum: SHA1: ad9d465ce4e9ed79b1ec09ea307e19c3d88ed7f4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/common/isr_tables.c
+SPDXID: SPDXRef-file-163
+FileChecksum: SHA1: b09deeb52fbe540c645ddba07859003e054e22e2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/cpu_idle.c
+SPDXID: SPDXRef-file-141
+FileChecksum: SHA1: b8ca96e10ea16898043863354064b864297d915a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/tracing/tracing_none.c
+SPDXID: SPDXRef-file-251
+FileChecksum: SHA1: bbff5c838a8591db381fb3fdd3dd27a7dc3137f5
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/pinctrl/common.c
+SPDXID: SPDXRef-file-172
+FileChecksum: SHA1: bc62c004ab58655c910483a84b3f8c1b0650334a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/main_weak.c
+SPDXID: SPDXRef-file-186
+FileChecksum: SHA1: be7604e0fd0a8168af9a8e89b7e29a666d00e9f7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc8_sw.c
+SPDXID: SPDXRef-file-246
+FileChecksum: SHA1: bf59fb57d37dd67731bb756357cc21f2eddd1ef8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/common/source/stdlib/malloc.c
+SPDXID: SPDXRef-file-196
+FileChecksum: SHA1: c3cc376e6e42b40ac21fb8095065d45c7b93042e
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/flash/flash_util.c
+SPDXID: SPDXRef-file-169
+FileChecksum: SHA1: c4030ec45bcc3bee8a5ba423105d9eddde08fc5c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/cbprintf_nano.c
+SPDXID: SPDXRef-file-207
+FileChecksum: SHA1: cae69e45063f1cbcfb9f377d78ac8f90f100a814
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/validate_libc.c
+SPDXID: SPDXRef-file-205
+FileChecksum: SHA1: ccb2103191ed5ae8dfea21ab107936c48a4534a2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/onoff.c
+SPDXID: SPDXRef-file-226
+FileChecksum: SHA1: cf10fdd790a4c2f736c3b6a2b82927f13c74b1f6
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_rram_partitions.c
+SPDXID: SPDXRef-file-238
+FileChecksum: SHA1: cf7c3e3b31a1e877e86865b49572c3f4ed8e2499
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/dec.c
+SPDXID: SPDXRef-file-220
+FileChecksum: SHA1: d319043c3e3063ddf8a7d731c76f3371708c7977
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/swap_helper.S
+SPDXID: SPDXRef-file-153
+FileChecksum: SHA1: d7048533794bfd7b5fa876449d41c1948e22cfd9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/fault.c
+SPDXID: SPDXRef-file-143
+FileChecksum: SHA1: d746f463833e4b0770810d521d104c5907caff4b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/misc/empty_file.c
+SPDXID: SPDXRef-file-230
+FileChecksum: SHA1: da39a3ee5e6b4b0d3255bfef95601890afd80709
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/bitmask.c
+SPDXID: SPDXRef-file-219
+FileChecksum: SHA1: dd82760a283009478b34bec21f851c946cc027b4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/set.c
+SPDXID: SPDXRef-file-228
+FileChecksum: SHA1: de2f67039ad11e122f9f0d6cd0f81f2e199d42bb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/drivers/pinctrl/pinctrl_nrf.c
+SPDXID: SPDXRef-file-173
+FileChecksum: SHA1: de379ee3f2a609b9dd5e65c0b247d8295986b857
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/common/init.c
+SPDXID: SPDXRef-file-162
+FileChecksum: SHA1: dfe55eea35d1e94bde9861ea11550e872b1edc0d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/printk.c
+SPDXID: SPDXRef-file-210
+FileChecksum: SHA1: e2aedc03961b10a7b93defcc816f430022a22e28
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/utils/rb.c
+SPDXID: SPDXRef-file-227
+FileChecksum: SHA1: e3e2adb9ab8c66113dfdbc8ece457ed19e2f9ef1
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/sem.c
+SPDXID: SPDXRef-file-212
+FileChecksum: SHA1: e456d36a24bade411536ee49936a579998c38999
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/clock.c
+SPDXID: SPDXRef-file-209
+FileChecksum: SHA1: e4f2933144ddcc74563938d468188cecff813ffb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/device.c
+SPDXID: SPDXRef-file-179
+FileChecksum: SHA1: e74a2226f5371a26a616639a267dcd9986bec541
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/float.c
+SPDXID: SPDXRef-file-183
+FileChecksum: SHA1: e879f53dbe0b5bc9e1412e5d0078c85110e1e8d9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/irq_init.c
+SPDXID: SPDXRef-file-146
+FileChecksum: SHA1: ec277f6e7f8ee433bc5f312334f9c70c7706f7e4
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_enabled_instances.c
+SPDXID: SPDXRef-file-237
+FileChecksum: SHA1: ed86a3679036bcadb89151062e4671a8510e3e15
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/tls.c
+SPDXID: SPDXRef-file-161
+FileChecksum: SHA1: ee8bf1b36f0cabdc96499f9bbd5a8ada1efe067f
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/kernel/dynamic_disabled.c
+SPDXID: SPDXRef-file-180
+FileChecksum: SHA1: ef497839cbed688b1a281b81ef439aaa6c20480b
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/common/gpiote_nrfx.c
+SPDXID: SPDXRef-file-232
+FileChecksum: SHA1: f08b079d946f385941400d4c79d7b443c8720a66
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/libc/common/source/stdlib/abort.c
+SPDXID: SPDXRef-file-195
+FileChecksum: SHA1: f0f1e835a9bef08b3093115887951d49ae154083
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/storage/flash_map/flash_map_layout.c
+SPDXID: SPDXRef-file-250
+FileChecksum: SHA1: f153035e9afb2b7eb81e9a35be5c1c5e47036d0a
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/subsys/crc/crc32k_4_2_sw.c
+SPDXID: SPDXRef-file-243
+FileChecksum: SHA1: f21c21a2498dc1f882d541f730ab1af80f705de3
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/modules/hal_nordic/nrfx/nrfx_glue.c
+SPDXID: SPDXRef-file-231
+FileChecksum: SHA1: f224ab1e82d04de6d1b4ce1e83745c79df418523
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/lib/os/reboot.c
+SPDXID: SPDXRef-file-211
+FileChecksum: SHA1: f86d4e3c93c6ab022ea4651acc2472f2733744cc
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/scb.c
+SPDXID: SPDXRef-file-151
+FileChecksum: SHA1: fc1cd5769d2d8fdf71e1c63b9ec695bb2f4c9767
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/validate_base_addresses.c
+SPDXID: SPDXRef-file-235
+FileChecksum: SHA1: fc79bd5988223fb3f10e7659abb386834fe2c879
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/zephyr/arch/arm/core/cortex_m/fpu.c
+SPDXID: SPDXRef-file-145
+FileChecksum: SHA1: fc7b355cc92922919c3202ca1e53e4dbd37867cd
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: zephyrproject-rtos/zcbor
+SPDXID: SPDXRef-package-8
+PackageVersion: 9164bd18dcd88ff9d9ef98279501fc1093571017
+PackageSupplier: Organization: zephyrproject-rtos
+PackageDownloadLocation: https://github.com/zephyrproject-rtos/zcbor
+ExternalRef: PACKAGE-MANAGER purl pkg:github/zephyrproject-rtos/zcbor@9164bd18dcd88ff9d9ef98279501fc1093571017
+FilesAnalyzed: true
+PackageVerificationCode: 732b4389e1b108e6e98bb939563220b3c98e9af7
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/lib/zcbor/src/zcbor_print.c
+SPDXID: SPDXRef-file-255
+FileChecksum: SHA1: 0c0c812341b576083d24feb0364cf264a6caf4df
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/lib/zcbor/src/zcbor_decode.c
+SPDXID: SPDXRef-file-253
+FileChecksum: SHA1: 104034b11c9f305d8ed91b6937be58dfcba2cacb
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/lib/zcbor/src/zcbor_common.c
+SPDXID: SPDXRef-file-252
+FileChecksum: SHA1: 2b5872f5ac9642f06b2d3c3baf984082c2bd162d
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/lib/zcbor/src/zcbor_encode.c
+SPDXID: SPDXRef-file-254
+FileChecksum: SHA1: 457b1ad83e7016f98bd6924a11de2ea2de4d91ab
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Relationships
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-1
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-2
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-3
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-4
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-5
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-6
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-7
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-8
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-7
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-1
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-10
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-9
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-13
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-5
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-6
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-3
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-2
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-12
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-8
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-4
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-11
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-42
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-33
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-14
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-37
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-20
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-17
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-18
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-36
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-34
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-26
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-24
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-22
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-28
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-38
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-44
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-31
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-30
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-27
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-15
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-35
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-16
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-19
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-29
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-21
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-43
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-23
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-40
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-32
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-39
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-41
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-25
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-50
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-57
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-46
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-78
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-52
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-75
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-96
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-48
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-54
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-47
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-95
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-65
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-72
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-49
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-81
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-62
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-64
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-79
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-56
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-97
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-67
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-89
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-77
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-91
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-94
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-70
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-51
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-110
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-63
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-83
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-80
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-68
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-99
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-105
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-109
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-106
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-85
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-61
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-86
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-102
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-55
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-82
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-92
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-45
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-100
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-60
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-90
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-87
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-103
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-58
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-84
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-76
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-93
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-66
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-88
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-69
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-74
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-104
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-108
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-107
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-71
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-73
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-59
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-53
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-98
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-101
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-112
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-119
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-134
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-130
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-122
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-138
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-125
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-124
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-116
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-129
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-128
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-120
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-118
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-123
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-133
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-113
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-117
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-121
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-126
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-111
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-131
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-137
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-127
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-135
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-114
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-136
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-115
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-132
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-165
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-234
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-144
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-167
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-215
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-160
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-244
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-241
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-150
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-166
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-208
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-184
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-221
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-233
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-204
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-139
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-242
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-174
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-240
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-156
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-200
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-189
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-181
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-225
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-192
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-149
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-182
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-197
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-217
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-216
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-188
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-223
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-198
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-218
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-168
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-236
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-247
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-178
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-199
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-190
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-203
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-155
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-142
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-191
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-213
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-159
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-170
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-147
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-224
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-185
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-206
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-214
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-148
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-193
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-140
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-222
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-194
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-202
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-176
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-245
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-249
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-248
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-164
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-157
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-152
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-229
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-175
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-158
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-201
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-171
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-154
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-177
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-239
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-187
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-163
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-141
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-251
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-172
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-186
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-246
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-196
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-169
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-207
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-205
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-226
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-238
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-220
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-153
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-143
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-230
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-219
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-228
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-173
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-162
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-210
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-227
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-212
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-209
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-179
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-183
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-146
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-237
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-161
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-180
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-232
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-195
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-250
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-243
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-231
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-211
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-151
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-235
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-145
+Relationship: SPDXRef-package-8 CONTAINS SPDXRef-file-255
+Relationship: SPDXRef-package-8 CONTAINS SPDXRef-file-253
+Relationship: SPDXRef-package-8 CONTAINS SPDXRef-file-252
+Relationship: SPDXRef-package-8 CONTAINS SPDXRef-file-254
+Relationship: SPDXRef-package-1 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-3 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-4 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-5 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-6 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-7 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-8 DEPENDS_ON SPDXRef-package-2
+# Extracted Licenses
+
+LicenseID: LicenseRef-Nordic-5-Clause
+LicenseName: Nordic 5-Clause License
+ExtractedText: <text>Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form, except as embedded into a Nordic
+   Semiconductor ASA integrated circuit in a product or a software update for
+   such product, must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other
+   materials provided with the distribution.
+
+3. Neither the name of Nordic Semiconductor ASA nor the names of its
+   contributors may be used to endorse or promote products derived from this
+   software without specific prior written permission.
+
+4. This software, with or without modification, must only be used with a
+   Nordic Semiconductor ASA integrated circuit.
+
+5. Any software provided in binary form under this license must not be reverse
+   engineered, decompiled, modified and/or disassembled.
+
+THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+</text>

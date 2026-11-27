@@ -80,11 +80,15 @@ NU-54V-DK로 가맹점을 검증하는 결제 서명 기기를 만드는 과정�
 | 표 | 한 편에 최대 2개. 비교할 때만 쓴다 |
 | 인용 블록 | 본문 흐름에서 벗어나는 보충 설명에만 쓴다 (참고 글 1의 ReAct 설명 방식) |
 
+수치를 설명할 때는 숫자를 나열하거나 크기만 키우기보다 시간축, 수량 아이콘, 단계 연결 등으로 관계를 보여 주는 인포그래픽을 사용한다. 원문에 없는 비율·평균·잔액을 만들지 않으며, 비례 축과 개념적 배치를 구분한다.
+
 ### 문체
 
 - **존댓말 `~습니다`로 통일한다.** 참고 글 3편 중 2편이 이 문체이고, 입문자도 읽기 편하다.
   - 트레이드오프: 기존 1주차 원고(`medium-*.md`)는 `~다` 문체라서 시리즈 안에서 문체가 바뀐다. 기존 원고와 맞추려면 `~다`로 통일해도 되지만, 시리즈 전체에서는 한 가지만 쓴다.
 - 1인칭 "저는/저희 팀은"을 쓴다. 판단의 주체를 드러낸다.
+- 실제로 한 작업을 주어와 동사로 쓴다. 번역투, 추상적인 명사 나열, 같은 한계를 반복하는 문장은 줄인다.
+- 글을 정해진 틀에 끼워 맞추려고 질문이나 대조 문장을 억지로 넣지 않는다. 기록에 없는 감정이나 경험도 덧붙이지 않는다.
 - 기술 용어는 처음 나올 때 `한국어(English)`로 한 번 풀고, 그다음부터는 한 가지 표기만 쓴다.
 
 ### 공개 글 안전 규칙
@@ -95,7 +99,7 @@ NU-54V-DK로 가맹점을 검증하는 결제 서명 기기를 만드는 과정�
 
 ## 3. 연재 목차
 
-2026-10-06 기준으로 01·02편은 한글판과 영문판 모두 공개 발행했다. 03편은 한글·영문 원고와 각 4장의 도식을 작성하고 Medium 초안으로 저장했다. 비공개 초안 링크와 작업 확인 기록은 로컬 자료에 보관한다. 다음 집필 대상은 04편이다. 아래 04~09편 제목은 가제이며, 실제 작업 기록을 확인한 뒤 확정한다. 한글·영문은 같은 편 번호와 사실·근거를 사용하고, 설명 도식도 각 언어로 준비한다.
+2026-10-19 Medium 공개 목록 확인 기준으로 01~04편은 한글·영문 모두 발행했다. 03편은 10/8 발행으로 표시된다. 04편은 2026-10-19 발행했으며 실제 앱 에뮬레이터 캡처 2장과 언어별 설명 도식 2장을 넣었다. 05편은 현재 코드와 개발 이력을 따라 한글·영문 사전 원고와 언어별 도식 3장을 작성했다. TF-M 이전 완료 후기가 아니며 실기 결과는 아직 없다. 06편은 2026-11-09 한글·영문 원고와 언어별 도식 3장을 작성하고 관련 기존 시험을 다시 실행한 뒤, 사용자의 요청으로 두 판본을 공개 발행했다. 10/5 보안 채널 실기 결제 기록과 이번 호스트 시험을 구분한다. 비공개 편집 링크와 작업 확인 기록은 로컬 자료에 보관한다. 07편은 2026-11-09 반납 순서와 지연 지급을 실제 코드로 정리한 한글·영문 사전 원고와 언어별 도식 3장을 준비했다. 출금 CLI·보안 채널 연결·실기 통합의 미완료 범위를 명시했다. 2026-11-19에는 두 판본을 Medium 초안으로 저장하고 그림·캡션·코드·주제를 확인했다. 2026-11-20에는 사용자 요청으로 태그를 유지하고 구독자 메일 알림을 끈 상태로 두 판본을 공개 발행했다. 08편은 2026-11-20 표시할 값의 출처, 금액 버림, 승인·거절·취소와 화면의 차이를 코드와 개발 기록으로 정리했다. 폰 시험 15개·키오스크 시험 26개·펌웨어 링크·세션 2개 묶음을 실행하고 언어별 도식 3장을 넣어 두 언어의 Medium 초안으로 저장했다. 미실행 실기·연속 결제 조건과 결과 전달의 남은 경로를 밝혔으며 발행하지 않았다. 아래 09편 제목은 가제이며 최종 기록을 확인한 뒤 확정한다. 한글·영문은 같은 편 번호와 사실·근거를 사용하고 설명 도식도 각 언어로 준비한다.
 
 기준 주차는 [12주 작업 계획](../planning/product-worklist-and-12week-wbs-02.md)의 배정 주차이며 실제 작업 완료일이나 발행일과 같지 않다. [6주차 정산 검증 기록](../acceptance/gate-w6.md)은 10/1 통과, [7주차 기기 결제 검증 기록](../acceptance/gate-w7.md)은 10/5 통과를 기록하고 있다. 게이트 통과를 제품 전체의 보안 검증 완료로 표현하지 않는다.
 
@@ -105,18 +109,23 @@ NU-54V-DK로 가맹점을 검증하는 결제 서명 기기를 만드는 과정�
 |---|---|---|---|---|---|
 | 01 | W3~W4 (9/23~9/30) | [스테이블코인 결제 기기 만들기: 계획을 세우고 LED·버튼부터 켜다](../../publish/01-plan-and-first-firmware.md) | [Building a Stablecoin Payment Device: Starting with a Plan, LEDs, and Buttons](../../publish/01-plan-and-first-firmware-en.md) | 일곱 제품과 12주 일정, 화면 없는 보드, LED·버튼의 실제 동작 | 한글·영문 발행 |
 | 02 | W5 (10/1~10/7) | [하드월렛 개인키 : 보안칩 vs TrustZone](../../publish/02-keys-in-trustzone.md) | [Hardware Wallet Private Keys: Secure Elements vs TrustZone](../../publish/02-keys-in-trustzone-en.md) | 제품별 보안칩 역할, TrustZone의 보호 범위, 설계와 현재 구현의 차이, 화면과 물리 공격의 한계 | 한글·영문 발행 |
-| 03 | W6 (10/8~10/14) | [서명한 결제는 어떻게 정산될까: 테스트넷 첫 결제](../../publish/03-first-testnet-settlement.md) | [How Does a Signed Payment Settle? Our First Testnet Payment](../../publish/03-first-testnet-settlement-en.md) | 소프트웨어 서명, 정산 컨트랙트의 검사와 내부 잔액 이동, 확정 이벤트, 중복 제출과 가스 비용. 10/1 정산 검증 기록을 근거로 작성 | 한글·영문 초안 저장 · 도식·태그 확인 |
-| 04 | W7 (10/15~10/21) | 버튼을 누르면 결제까지: 보드와 키오스크 연결하기 | From a Button Press to Payment: Connecting the Board and Kiosk | 보드 내부 키 서명 → 사람이 버튼 승인 → Android 키오스크 제출 → 확정 이벤트. 10/1 개발 실행과 10/5 실기 검증을 구분하고 당시 남은 한계를 기록 | 집필 대기 · 검증 기록 있음 |
-| 05 | W8 (10/22~10/28) | 결제 키와 승인 버튼을 보안 구역으로 옮기려면 | Moving the Payment Key and Approval Button into the Secure World | 02편의 목표 설계를 실제 구현과 연결. TF-M 키 서비스, 버튼 승인 경계, 기기 설정과 거절 시험. 구현·시험한 범위와 미검증 항목을 구분 | 계획 · 당시 증거 확인 후 작성 |
-| 06 | W9 (10/29~11/4) | 페어링 없는 결제 요청을 어떻게 보호할까 | How Do We Protect Payment Requests Without Pairing? | 폰 본딩과 키오스크 보안 채널의 차이, 가맹점 검증과 세션 보호. 10/5 검증에 보안 채널이 이미 사용된 점과 이후 보강·시험을 구분 | 계획 · 당시 증거 확인 후 작성 |
-| 07 | W10 (11/5~11/11) | 빌려준 결제 기기를 돌려받기: 계정 종료와 잔액 반환 | Returning a Rented Payment Device: Closing the Account and Returning Funds | 대여 설정, 계정 종료, 기기 초기화와 지연 출금의 순서. 운영 도구·영수증 조회의 실제 진행 결과와 실패·복구 흐름 | 계획 · 당시 증거 확인 후 작성 |
-| 08 | W11 (11/12~11/18) | 결제 확인과 거절: 사용자가 보는 흐름을 시험하다 | Testing What Users See: Payment Confirmation and Refusal | 폰 앱 확인 화면, 표시 내용과 서명 요청의 관계, 거절·시간 초과, 연속 결제와 보안 점검. 시험 횟수·결과는 실제 기록을 사용 | 계획 · 당시 증거 확인 후 작성 |
+| 03 | W6 (10/8~10/14) | [서명한 결제는 어떻게 정산될까: 테스트넷 첫 결제](../../publish/03-first-testnet-settlement.md) | [How Does a Signed Payment Settle? Our First Testnet Payment](../../publish/03-first-testnet-settlement-en.md) | 소프트웨어 서명, 정산 컨트랙트의 검사와 내부 잔액 이동, 확정 이벤트, 중복 제출과 가스 비용. 10/1 정산 검증 기록을 근거로 작성 | 한글·영문 발행 · Medium 10/8 표시 |
+| 04 | W7 (10/15~10/21) | [보드 버튼을 눌러 결제하기: Android 키오스크 연결기](../../publish/04-board-and-kiosk.md) | [Paying with a Button Press: Connecting the Board and Android Kiosk](../../publish/04-board-and-kiosk-en.md) | 보드 내부 키 서명 → 사람이 버튼 승인 → Android 키오스크 제출 → 확정 이벤트. 10/1 개발 실행과 10/5 실기 검증을 구분하고 당시 남은 한계를 기록 | 한글·영문 발행 · 2026-10-19 |
+| 05 | W8 (10/22~10/28) | [결제 키와 승인 버튼을 보안 구역으로 옮기려면](../../publish/05-secure-signing.md) | [Moving the Payment Key and Approval Button into the Secure World](../../publish/05-secure-signing-en.md) | PSA 키 정책·서명·버튼·nonce·중단 셋업의 실제 코드와 10/7 수정, 호스트 재시험. TF-M 요청별 승인 경계는 미구현 목표로 구분 | 한글·영문 사전 원고 · 언어별 도식 3장 · TF-M 실기 결과 대기 |
+| 06 | W9 (10/29~11/4) | [페어링 없는 결제 요청을 어떻게 보호할까](../../publish/06-unpaired-payment-channel.md) | [How Do We Protect Payment Requests Without Pairing?](../../publish/06-unpaired-payment-channel-en.md) | 폰 본딩과 키오스크 보안 채널, 가맹점 검증·GCM 번호·변조 거절과 실제 수정 이력. 10/1 평문 개발 실행·10/5 채널 실기·11/9 호스트 재시험을 구분 | 한글·영문 공개 발행 · 2026-11-09 · 언어별 그림 3장·주제 5개 |
+| 07 | W10 (11/5~11/11) | [결제 기기를 반납하면 남은 잔액은 어떻게 돌려줄까](../../publish/07-rental-return.md) | [What Happens to the Remaining Balance When a Payment Device Is Returned?](../../publish/07-rental-return-en.md) | 계정 종료 확정→초기화와 별도의 지연 지급, 중단 후 재실행. 실제 코드·10/3 부분 실행·11/9 기존 시험을 구분. 출금 CLI·반납 보안 채널·응답 유실·실기 통합 한계 포함 | 한글·영문 공개 발행 · 2026-11-20 · 언어별 그림·캡션 3개·주제 5개 · 메일 알림 해제 |
+| 08 | W11 (11/12~11/18) | [폰에 뜬 결제 내용과 승인 버튼은 어떻게 연결될까](../../publish/08-payment-confirmation.md) | [How Does the Phone's Payment Display Connect to the Approval Button?](../../publish/08-payment-confirmation-en.md) | confirm.show 출처·금액 버림·버튼과 최종 결과 구분·10초/120초 시간 제한. 실제 실패와 수정 이력, 결과 전달의 조기 반환, 미실행 실기·연속20회 조건 | 한글·영문 Medium 초안 저장 · 2026-11-20 · 언어별 도식·코드 3개·주제 5개 · 미발행 |
 | 09 | W12 (11/19~11/25) | 12주 제작기를 마치며: 만든 것과 남은 것 | Wrapping Up Twelve Weeks: What We Built and What Remains | 최종 시연, 통과·미통과 항목, 줄인 범위, 다음 단계. 프로젝트 저장소 링크는 이 마지막 편에서 공개 | 계획 · 최종 결과 확인 후 작성 |
 
 ### 공개된 글
 
 - 01편: [한글판](https://medium.com/p/e409766b0101), [영문판](https://medium.com/p/54cccf2f6edb).
 - 02편: [한글판](https://medium.com/p/3c8fc79adca7), [영문판](https://medium.com/p/65c931f581c3).
+- 03편: [한글판](https://medium.com/p/91a33e9673ae), [영문판](https://medium.com/p/7e10dd14ae5a). Medium 공개 목록에는 두 판본 모두 10/8로 표시된다.
+- 04편: [한글판](https://medium.com/@bc.0x4861/nu-54v-dk-04-보드-버튼을-눌러-결제하기-android-키오스크-연결기-09aba327a58f), [영문판](https://medium.com/@bc.0x4861/nu-54v-dk-04-paying-with-a-button-press-connecting-the-board-and-android-kiosk-08f24d41a38d). 2026-10-19 공개 발행을 확인했다.
+
+- 06편: [한글판](https://medium.com/@bc.0x4861/nu-54v-dk-06-%ED%8E%98%EC%96%B4%EB%A7%81-%EC%97%86%EB%8A%94-%EA%B2%B0%EC%A0%9C-%EC%9A%94%EC%B2%AD%EC%9D%84-%EC%96%B4%EB%96%BB%EA%B2%8C-%EB%B3%B4%ED%98%B8%ED%95%A0%EA%B9%8C-47fb51c55155), [영문판](https://medium.com/@bc.0x4861/nu-54v-dk-06-how-do-we-protect-payment-requests-without-pairing-22878f0edd1c). 2026-11-09 공개 발행과 각 판본의 그림 3장·캡션·주제 5개를 확인했다.
+- 07편: [한글판](https://medium.com/@bc.0x4861/nu-54v-dk-07-%EA%B2%B0%EC%A0%9C-%EA%B8%B0%EA%B8%B0%EB%A5%BC-%EB%B0%98%EB%82%A9%ED%95%98%EB%A9%B4-%EB%82%A8%EC%9D%80-%EC%9E%94%EC%95%A1%EC%9D%80-%EC%96%B4%EB%96%BB%EA%B2%8C-%EB%8F%8C%EB%A0%A4%EC%A4%84%EA%B9%8C-3a73bf020a2a), [영문판](https://medium.com/@bc.0x4861/nu-54v-dk-07-what-happens-to-the-remaining-balance-when-a-payment-device-is-returned-1aac2d2fe855). 2026-11-20 태그 5개를 유지하고 구독자 메일 알림을 끈 상태로 두 판본을 공개 발행했다.
 
 ### 03편 원고 구성
 

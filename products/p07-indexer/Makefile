@@ -19,3 +19,7 @@ run:
 
 docker:
 	docker build -f Dockerfile -t nu54/p07-indexer ../..
+
+.PHONY: migrate
+migrate:
+	python3 ../p10-platform/database/migrate.py p07

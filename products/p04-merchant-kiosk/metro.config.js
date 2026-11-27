@@ -7,6 +7,15 @@ const workspaceRoot = path.resolve(__dirname, '../..');
 const config = {
   watchFolders: [workspaceRoot],
   resolver: {
+    // Linked workspace packages must share the app's React and renderer.
+    resolveRequest(context, moduleName, platform) {
+      if (moduleName === 'react' || moduleName.startsWith('react/') ||
+          moduleName === 'react-native' || moduleName.startsWith('react-native/')) {
+        // Resolve as if the app asked, so package exports (react-native/asset-registry) still apply.
+        return context.resolveRequest({...context, originModulePath: path.join(__dirname, 'index.js')}, moduleName, platform);
+      }
+      return context.resolveRequest(context, moduleName, platform);
+    },
     nodeModulesPaths: [
       path.resolve(__dirname, 'node_modules'),
       path.resolve(workspaceRoot, 'node_modules'),

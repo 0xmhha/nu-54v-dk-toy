@@ -17,6 +17,7 @@ typedef struct {
 
 PATTERN(P_MODE, true, 100, 1900);
 PATTERN(P_PAIRING, true, 100, 150, 100, 1650);
+PATTERN(P_LOCATE, false, 400, 650, 400, 650, 400, 650, 400, 650);
 PATTERN(P_BONDED, false, 1000, 0);
 PATTERN(P_WAITING, true, 200, 200);
 PATTERN(P_SIGNED, true, 500, 500);
@@ -25,10 +26,14 @@ PATTERN(P_FAILED, false, 100, 150, 100, 150, 100, 0);
 PATTERN(P_PIN_START, false, 300, 200, 300, 0);
 PATTERN(P_PIN_TAP, false, 80, 0);
 PATTERN(P_PIN_KEEP, false, 500, 0);
+PATTERN(P_PRESSED, false, 600, 0);
+PATTERN(P_LOCKED, false, 60, 100, 60, 100, 60, 100, 60, 100, 60, 0);
+PATTERN(P_RESET_ARMED, true, 80, 80);
+PATTERN(P_RESET_DONE, false, 1500, 300, 1500, 0);
 
 #define SIGNED_MS 30000
 
-static bool mode, pairing, waiting, signed_wait, pin_active;
+static bool mode, pairing, waiting, signed_wait, pin_active, reset_armed;
 static int64_t signed_until;
 static const pattern_t *oneshot; /* plays over the ongoing pattern, then ends */
 static const pattern_t *playing;
@@ -50,6 +55,9 @@ static const pattern_t *ongoing(void)
 {
 	if (pin_active) {
 		return NULL;
+	}
+	if (reset_armed) {
+		return &P_RESET_ARMED;
 	}
 	if (waiting) {
 		return &P_WAITING;
@@ -78,6 +86,9 @@ static void tick(struct k_work *w)
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	if (playing && step >= 2 * playing->count) {
 		if (playing->repeat) {
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+			playing = ongoing(); /* the signed pattern ends by itself */
+#endif
 			step = 0;
 		} else {
 			oneshot = NULL; /* a one-off ends: hand back to the ongoing pattern */
@@ -103,6 +114,7 @@ static void set(bool *flag, bool value)
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	if (*flag != value) {
 		*flag = value;
+		if (value && oneshot == &P_LOCATE) oneshot = NULL;
 		if (!oneshot) {
 			restart();
 		}
@@ -116,6 +128,22 @@ static void play(const pattern_t *p)
 	oneshot = p;
 	restart();
 	k_spin_unlock(&lock, key);
+}
+
+bool status_led_locate(bool start)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	bool accepted = !start || (!pin_active && !waiting && !pairing && !mode &&
+				  !oneshot && !ongoing());
+	if (start && accepted) {
+		oneshot = &P_LOCATE;
+		restart();
+	} else if (!start && oneshot == &P_LOCATE) {
+		oneshot = NULL;
+		restart();
+	}
+	k_spin_unlock(&lock, key);
+	return accepted;
 }
 
 void status_led_mode(bool on)
@@ -135,6 +163,13 @@ void status_led_paired(bool ok)
 
 void status_led_waiting(bool on)
 {
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (on) { /* a new request: the last result must not come back after it */
+		k_spinlock_key_t key = k_spin_lock(&lock);
+		signed_wait = false;
+		k_spin_unlock(&lock, key);
+	}
+#endif
 	set(&waiting, on);
 }
 
@@ -150,6 +185,13 @@ void status_led_event(nu54_event_t event)
 	} else if (event == NU54_EVENT_REFUSED) {
 		k_spinlock_key_t key = k_spin_lock(&lock);
 		signed_wait = false;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		/* The PIN wait is the reason of this refusal and has its own pattern. */
+		if (oneshot == &P_LOCKED) {
+			k_spin_unlock(&lock, key);
+			return;
+		}
+#endif
 		k_spin_unlock(&lock, key);
 		play(&P_FAILED);
 	}
@@ -175,7 +217,7 @@ void status_led_new_session(void)
 void status_led_clear(void)
 {
 	k_spinlock_key_t key = k_spin_lock(&lock);
-	mode = pairing = waiting = signed_wait = pin_active = false;
+	mode = pairing = waiting = signed_wait = pin_active = reset_armed = false;
 	oneshot = NULL;
 	restart();
 	k_spin_unlock(&lock, key);
@@ -202,4 +244,24 @@ void status_led_pin(status_pin_t what)
 void status_led_pin_end(void)
 {
 	set(&pin_active, false);
+}
+
+void status_led_pressed(void)
+{
+	play(&P_PRESSED);
+}
+
+void status_led_locked(void)
+{
+	play(&P_LOCKED);
+}
+
+void status_led_reset_armed(bool on)
+{
+	set(&reset_armed, on);
+}
+
+void status_led_reset_done(void)
+{
+	play(&P_RESET_DONE);
 }

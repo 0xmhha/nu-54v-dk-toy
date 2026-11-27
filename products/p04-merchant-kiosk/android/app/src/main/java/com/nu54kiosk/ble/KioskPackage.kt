@@ -12,11 +12,13 @@ class KioskPackage : BaseReactPackage() {
     when (name) {
       NativeNusBleSpec.NAME -> NusBleModule(context)
       NativeKioskVaultSpec.NAME -> KioskVaultModule(context)
+      NativeNearbySpec.NAME -> NearbyModule(context)
+      NativeCommerceHttpSpec.NAME -> CommerceHttpModule(context)
       else -> null
     }
 
   override fun getReactModuleInfoProvider() = ReactModuleInfoProvider {
-    listOf(NativeNusBleSpec.NAME, NativeKioskVaultSpec.NAME).associateWith {
+    listOf(NativeNusBleSpec.NAME, NativeKioskVaultSpec.NAME, NativeCommerceHttpSpec.NAME, NativeNearbySpec.NAME).associateWith {
       ReactModuleInfo(it, it, canOverrideExistingModule = false, needsEagerInit = false, isCxxModule = false, isTurboModule = true)
     }
   }

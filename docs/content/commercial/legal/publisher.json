@@ -1,0 +1,6 @@
+{
+ "publisher": {"name": null, "contact": null},
+ "retention": {"storeOrders": null, "serverLogs": null, "travelRecords": null},
+ "privacy": {"recipients": null, "requests": null, "children": null},
+ "terms": {"closing": null, "disputes": null}
+}

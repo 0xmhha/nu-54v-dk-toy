@@ -114,11 +114,80 @@ void ss_increment(uint8_t n[32])
 	}
 }
 
+int ss_rental_time(const nu54_device_t *d, uint64_t *now)
+{
+	if (!d->anchored || !d->cfg.platform.monotonic_seconds) return -1;
+	uint64_t local = d->cfg.platform.monotonic_seconds(d->cfg.platform.ctx);
+	if (local < d->anchor_at || local - d->anchor_at > UINT64_MAX - d->anchor_timestamp) return -1;
+	*now = d->anchor_timestamp + (local - d->anchor_at);
+	return *now ? 0 : -1;
+}
+
+static int rental_credential_permits(const nu54_device_t *d, uint64_t approval_expiry)
+{
+	const nu54_rental_credential_store_t *store = d->cfg.platform.rental_credential_store;
+	if (!d->cfg.platform.rental_credential_required) return 1;
+	if (!store) return 0;
+	nu54_rental_credential_t credential;
+	uint64_t checked_at;
+	return nu54_rental_credential_current(store, &d->rental_journal->expected_binding,
+					      d->operator_address, &credential, &checked_at) == 0 &&
+	       (!approval_expiry || (checked_at <= approval_expiry && approval_expiry < credential.expires_at));
+}
+
+int ss_rental_can_prompt(nu54_device_t *d)
+{
+	nu54_rental_journal_t *journal = d->rental_journal;
+	if (!journal) return !d->rental_journal_required && !d->cfg.platform.rental_credential_required;
+	return (journal->loaded || nu54_rental_journal_reload(journal) == 0) && !journal->image.frozen &&
+	       rental_credential_permits(d, 0);
+}
+
+int ss_rental_nonce(nu54_device_t *d, nu54_rental_journal_kind_t kind, const uint8_t request[32], uint8_t nonce[32])
+{
+	if (!d->rental_journal) {
+		if (d->rental_journal_required || d->cfg.platform.rental_credential_required) return -1;
+		memcpy(nonce, d->next_nonce, 32);
+		return 0;
+	}
+	if (!ss_rental_can_prompt(d)) return -1;
+	return nu54_rental_journal_nonce(d->rental_journal, kind, request, nonce);
+}
+
+int ss_rental_sign(nu54_device_t *d, nu54_rental_journal_kind_t kind, const nu54_rental_journal_request_t *request,
+		   uint64_t expiry, const uint8_t digest[32], const uint8_t nonce[32], uint8_t signature[65])
+{
+	nu54_rental_journal_t *journal = d->rental_journal;
+	if (journal) {
+		uint64_t now;
+		if (ss_rental_time(d, &now) != 0 || now > expiry || !rental_credential_permits(d, expiry)) return -1;
+		int state = nu54_rental_journal_reserve(journal, kind, request, expiry, digest, nonce, signature);
+		if (state == NU54_RENTAL_JOURNAL_REPLAY) return rental_credential_permits(d, expiry) ? 0 : -1;
+		if (state != NU54_RENTAL_JOURNAL_RESERVED) return -1;
+		if (!rental_credential_permits(d, expiry)) {
+			(void)nu54_rental_journal_finish(journal, nonce, NULL);
+			return -1;
+		}
+	} else {
+		if (d->rental_journal_required || d->cfg.platform.rental_credential_required) return -1;
+		ss_increment(d->next_nonce);
+		if (d->cfg.platform.persist_nonce && d->cfg.platform.persist_nonce(d->cfg.platform.ctx, d->next_nonce) != 0)
+			return -1;
+	}
+	uint8_t rs[64];
+	int signed_ok = d->cfg.platform.sign(d->cfg.platform.ctx, digest, rs) == 0 &&
+			nu54_sig_finish(digest, rs, d->address, signature) == NU54_SIG_OK;
+	if (journal && !rental_credential_permits(d, expiry)) signed_ok = 0;
+	if (journal && nu54_rental_journal_finish(journal, nonce, signed_ok ? signature : NULL) != 0) return -1;
+	return signed_ok && (!journal || rental_credential_permits(d, expiry)) ? 0 : -1;
+}
+
 /* A setup that did not reach the PIN leaves nothing behind: drop the key it made. */
 void ss_abort_pending(nu54_device_t *d)
 {
-	if (d->pending == NU54_PENDING_PIN && d->cfg.platform.wipe) {
-		d->cfg.platform.wipe(d->cfg.platform.ctx);
+	if (d->pending == NU54_PENDING_PIN) {
+		int (*discard)(void *) = d->cfg.platform.discard_setup ? d->cfg.platform.discard_setup : d->cfg.platform.wipe;
+		if (discard) discard(d->cfg.platform.ctx);
 	}
 	d->pending = NU54_PENDING_NONE;
 }
@@ -157,6 +226,9 @@ void ss_forget_setup(nu54_device_t *d)
 	memset(d->contract, 0, sizeof(d->contract));
 	memset(d->chain_id, 0, sizeof(d->chain_id));
 	memset(d->next_nonce, 0, sizeof(d->next_nonce));
+	d->rental_journal = NULL;
+	d->rental_journal_required = 0;
+	memset(&d->rental_access, 0, sizeof(d->rental_access));
 	d->passkey = 0;
 	d->state = NU54_STATE_UNPROVISIONED;
 	d->anchored = 0;

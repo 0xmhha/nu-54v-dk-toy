@@ -1,0 +1,43 @@
+{
+  "format": "nu54-product-scan-v1",
+  "product": "p09",
+  "profile": "unsigned Linux amd64 placesd binary",
+  "go": "go1.26.11",
+  "inputs": {
+    "go.mod": "c2e3ae30365632d1c79708d5cc7a08186645c299a0cd52de2472ca5ae27f1837",
+    "go.sum": "e1338a91f791e672e88e18297107da057384a2cab312c1c5219b8d3e4171f579",
+    "candidate": "e0243132a9afe39d1f945fced9020e71cfd2b063e13d1d371686a4a45b6f78bc",
+    "candidateSBOM": "45ff775ba05cdc3799f43c051c73c60e7bad911f21c801d0dd4d0d9ee83ba5e0"
+  },
+  "trivy": {
+    "version": "0.68.2",
+    "dbUpdatedAt": "2026-11-20T01:04:07.386165244Z",
+    "sourceTarget": "go.mod",
+    "sourceFindings": 0,
+    "binaryTarget": "placesd",
+    "binaryFindings": 0
+  },
+  "govulncheck": {
+    "version": "v1.10.0",
+    "dbUpdatedAt": "2026-11-11T02:51:11Z",
+    "sourceFindings": 0,
+    "mode": "symbol"
+  },
+  "scope": "Go source, standalone Linux amd64 executable, and separately built local OCI image including Debian base. PostgreSQL and operator maps are separate deployed inputs. No live service scanned.",
+  "oci": {
+    "imageID": "sha256:0f9e7fdbae1b6bc357f3a038e82dfb901e525469a764b6f09bf8e8c1b5d23cbe",
+    "architecture": "arm64",
+    "baseFamily": "debian",
+    "baseVersion": "13.7",
+    "osFindings": 0,
+    "binaryFindings": 0
+  },
+  "privateTravelPublicPublisherFollowup": {
+    "target": "linux/amd64 placesd, travel schema through 015",
+    "binarySHA256": "8961a164fa0f6b20f66ceecf039e5eebc999aa2372cb9a3e543e8922e511b9d2",
+    "sbomSHA256": "44e291f95b6c75b698ffff8ebbfcebb1ab91e5899f5d4c685f318b87a52b720d",
+    "trivyVersion": "0.68.2",
+    "binaryFindings": 0,
+    "reproducibleCopies": 2
+  }
+}

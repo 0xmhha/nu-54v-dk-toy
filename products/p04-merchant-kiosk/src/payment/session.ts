@@ -56,7 +56,7 @@ export interface PaymentRequest {
   /** Progress for the screen. */
   onStep?: (step: SessionStep) => void;
   /** Called with the new order id before payment.prepare is sent (the kiosk records the order). */
-  onOrder?: (orderId: string) => void | Promise<void>;
+  onOrder?: (orderId: string, account: string, order: Omit<Authorization, "nonce">, merchantSignature:string) => void | Promise<void>;
 }
 
 export type SessionStep = "anchor" | "opening" | "identifying" | "waitingDevice";
@@ -180,7 +180,7 @@ export async function runPayment(link: MessageLink, req: PaymentRequest): Promis
   const merchantSignature = req.signOrder({ orderId, token, amount, payout, expiry });
   const { chainId, contract, merchant } = auth;
   const authorization = { chainId, contract, merchant, payout, token, amount, orderId, expiry }; // the device adds the nonce
-  await req.onOrder?.(orderId);
+  await req.onOrder?.(orderId, device, authorization, merchantSignature);
   req.onStep?.("waitingDevice");
   const requestedAt = Date.now();
   const result = (await link.send(msg("payment.prepare", { authorization, merchantSignature }), 1, req.waitMs ?? WAIT_MS))[0];

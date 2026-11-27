@@ -22,16 +22,20 @@ type Deployment struct {
 }
 
 func LoadDeployment(path string) (Deployment, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return Deployment{}, err
+	}
+	return ParseDeployment(b)
+}
+
+func ParseDeployment(b []byte) (Deployment, error) {
 	var raw struct {
 		ChainID   uint64 `json:"chainId"`
 		Contracts map[string]struct {
 			Address string `json:"address"`
 			Block   uint64 `json:"block"`
 		} `json:"contracts"`
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return Deployment{}, err
 	}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return Deployment{}, err
@@ -44,7 +48,7 @@ func LoadDeployment(path string) (Deployment, error) {
 		SettlementBlock: raw.Contracts["PaymentSettlement"].Block,
 	}
 	if d.ChainID == 0 || d.Registry == (common.Address{}) || d.Settlement == (common.Address{}) {
-		return Deployment{}, fmt.Errorf("%s: chainId or contract addresses missing", path)
+		return Deployment{}, fmt.Errorf("chainId or contract addresses missing")
 	}
 	return d, nil
 }

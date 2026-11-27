@@ -9,7 +9,8 @@ build:
 
 test:
 	python3 tools/generate.py --check
-	cd go && go build ./...
+	cd go && go test ./...
+	pnpm --filter @nu54/contracts-abi test
 
 lint:
 	cd go && go vet ./...

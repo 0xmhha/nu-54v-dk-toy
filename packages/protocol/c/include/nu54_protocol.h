@@ -14,6 +14,8 @@
 #define NU54_FIELDS_LIMIT_CHANGE 6
 #define NU54_ENCODE_TYPE_WALLET_CHECK "WalletCheck(address device,bytes32 challenge)"
 #define NU54_FIELDS_WALLET_CHECK 2
+#define NU54_ENCODE_TYPE_RENTAL_FREEZE_REQUEST_V2 "RentalFreezeRequestV2(bytes32 binding,bytes32 challenge,bytes32 channelNonce,uint64 expiresAt)"
+#define NU54_FIELDS_RENTAL_FREEZE_REQUEST_V2 4
 #define NU54_ENCODE_TYPE_MERCHANT_ATTESTATION "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)"
 #define NU54_FIELDS_MERCHANT_ATTESTATION 5
 #define NU54_ENCODE_TYPE_MERCHANT_ORDER "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)"
@@ -111,8 +113,26 @@ static const nu54_field_t nu54_msg_payment_outcome_fields[] = {{"v", NU54_K_INT,
 static const nu54_object_t nu54_msg_payment_outcome = {nu54_msg_payment_outcome_fields, 8};
 static const nu54_field_t nu54_msg_limit_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"outcome", NU54_K_TEXT, 1, 0}, {"signature", NU54_K_SIGNATURE, 0, 0}, {"nonce", NU54_K_UINT, 0, 0}, {"reason", NU54_K_TEXT, 0, 0}};
 static const nu54_object_t nu54_msg_limit_result = {nu54_msg_limit_result_fields, 7};
-static const nu54_field_t nu54_msg_setup_operator_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"operator", NU54_K_HEX20, 1, 0}, {"contract", NU54_K_HEX20, 1, 0}, {"chainId", NU54_K_UINT, 1, 0}, {"passkey", NU54_K_UINT, 1, 0}};
-static const nu54_object_t nu54_msg_setup_operator = {nu54_msg_setup_operator_fields, 7};
+static const nu54_field_t nu54_msg_rental_cleanup_challenge_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}};
+static const nu54_object_t nu54_msg_rental_cleanup_challenge = {nu54_msg_rental_cleanup_challenge_fields, 3};
+static const nu54_field_t nu54_msg_rental_cleanup_challenge_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"channelNonce", NU54_K_HEX32, 1, 0}, {"expiresAt", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_rental_cleanup_challenge_result = {nu54_msg_rental_cleanup_challenge_result_fields, 5};
+static const nu54_field_t nu54_msg_rental_cleanup_admit_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"channelNonce", NU54_K_HEX32, 1, 0}, {"intent", NU54_K_TEXT, 1, 0}};
+static const nu54_object_t nu54_msg_rental_cleanup_admit = {nu54_msg_rental_cleanup_admit_fields, 5};
+static const nu54_field_t nu54_msg_rental_cleanup_status_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"status", NU54_K_TEXT, 1, 0}};
+static const nu54_object_t nu54_msg_rental_cleanup_status = {nu54_msg_rental_cleanup_status_fields, 4};
+static const nu54_field_t nu54_msg_rental_freeze_challenge_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}};
+static const nu54_object_t nu54_msg_rental_freeze_challenge = {nu54_msg_rental_freeze_challenge_fields, 3};
+static const nu54_field_t nu54_msg_rental_freeze_challenge_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"channelNonce", NU54_K_HEX32, 1, 0}, {"expiresAt", NU54_K_UINT, 1, 0}};
+static const nu54_object_t nu54_msg_rental_freeze_challenge_result = {nu54_msg_rental_freeze_challenge_result_fields, 5};
+static const nu54_field_t nu54_msg_rental_freeze_v2_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"challenge", NU54_K_HEX32, 1, 0}, {"channelNonce", NU54_K_HEX32, 1, 0}, {"expiresAt", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}, {"projectionIndex", NU54_K_UINT, 0, 0}};
+static const nu54_object_t nu54_msg_rental_freeze_v2 = {nu54_msg_rental_freeze_v2_fields, 8};
+static const nu54_field_t nu54_msg_rental_freeze_result_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"binding", NU54_K_HEX32, 1, 0}, {"challenge", NU54_K_HEX32, 1, 0}, {"projectionRoot", NU54_K_HEX32, 1, 0}, {"firstNonce", NU54_K_UINT, 1, 0}, {"nextNonce", NU54_K_UINT, 1, 0}, {"entryCount", NU54_K_UINT, 1, 0}, {"frozenAt", NU54_K_UINT, 1, 0}, {"expiresAt", NU54_K_UINT, 1, 0}, {"boardSignature", NU54_K_SIGNATURE, 1, 0}};
+static const nu54_object_t nu54_msg_rental_freeze_result = {nu54_msg_rental_freeze_result_fields, 12};
+static const nu54_field_t nu54_msg_rental_freeze_entry_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"projectionIndex", NU54_K_UINT, 1, 0}, {"projectionRoot", NU54_K_HEX32, 1, 0}, {"kind", NU54_K_UINT, 1, 0}, {"state", NU54_K_UINT, 1, 0}, {"nonce", NU54_K_UINT, 1, 0}, {"expiry", NU54_K_UINT, 1, 0}, {"merchant", NU54_K_HEX20, 1, 0}, {"orderId", NU54_K_HEX32, 1, 0}, {"approvalDigest", NU54_K_HEX32, 1, 0}};
+static const nu54_object_t nu54_msg_rental_freeze_entry = {nu54_msg_rental_freeze_entry_fields, 12};
+static const nu54_field_t nu54_msg_setup_operator_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"operator", NU54_K_HEX20, 1, 0}, {"contract", NU54_K_HEX20, 1, 0}, {"chainId", NU54_K_UINT, 1, 0}, {"passkey", NU54_K_UINT, 1, 0}, {"rentalJournal", NU54_K_BOOL, 0, 0}};
+static const nu54_object_t nu54_msg_setup_operator = {nu54_msg_setup_operator_fields, 8};
 static const nu54_field_t nu54_msg_setup_ack_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"step", NU54_K_TEXT, 1, 0}, {"accepted", NU54_K_BOOL, 1, 0}, {"reason", NU54_K_TEXT, 0, 0}, {"device", NU54_K_HEX20, 0, 0}, {"lastAnchor", NU54_K_UINT, 0, 0}};
 static const nu54_object_t nu54_msg_setup_ack = {nu54_msg_setup_ack_fields, 8};
 static const nu54_field_t nu54_msg_device_reset_fields[] = {{"v", NU54_K_INT, 1, 0}, {"type", NU54_K_TEXT, 1, 0}, {"sessionId", NU54_K_SESSION_ID, 1, 0}, {"device", NU54_K_HEX20, 1, 0}, {"nonce", NU54_K_UINT, 1, 0}, {"operatorSignature", NU54_K_SIGNATURE, 1, 0}};
@@ -148,6 +168,15 @@ static const nu54_message_t nu54_messages[] = {
     {"session.cancel", &nu54_msg_session_cancel},
     {"payment.outcome", &nu54_msg_payment_outcome},
     {"limit.result", &nu54_msg_limit_result},
+    {"rental.cleanup.challenge", &nu54_msg_rental_cleanup_challenge},
+    {"rental.cleanup.challenge.result", &nu54_msg_rental_cleanup_challenge_result},
+    {"rental.cleanup.admit", &nu54_msg_rental_cleanup_admit},
+    {"rental.cleanup.status", &nu54_msg_rental_cleanup_status},
+    {"rental.freeze.challenge", &nu54_msg_rental_freeze_challenge},
+    {"rental.freeze.challenge.result", &nu54_msg_rental_freeze_challenge_result},
+    {"rental.freeze.v2", &nu54_msg_rental_freeze_v2},
+    {"rental.freeze.result", &nu54_msg_rental_freeze_result},
+    {"rental.freeze.entry", &nu54_msg_rental_freeze_entry},
     {"setup.operator", &nu54_msg_setup_operator},
     {"setup.ack", &nu54_msg_setup_ack},
     {"device.reset", &nu54_msg_device_reset},
@@ -161,6 +190,6 @@ static const nu54_message_t nu54_messages[] = {
     {"wallet.check.result", &nu54_msg_wallet_check_result},
     {"pin.entry", &nu54_msg_pin_entry}
 };
-#define NU54_MESSAGE_COUNT 24
+#define NU54_MESSAGE_COUNT 33
 
 #endif /* NU54_PROTOCOL_H */

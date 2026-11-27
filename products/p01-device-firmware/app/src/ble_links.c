@@ -1,4 +1,6 @@
 #include "ble_links.h"
+#include "ble_link_epoch.h"
+#include "device_pilot.h"
 
 #include <errno.h>
 #include <string.h>
@@ -24,10 +26,12 @@ LOG_MODULE_REGISTER(ble_links, LOG_LEVEL_INF);
 /* One connected central. Changed on Bluetooth threads under the lock; read with link_conn(). */
 typedef struct {
 	struct bt_conn *conn;
+	uint64_t epoch;
 	uint8_t tx_sequence; /* send side only (session work queue) */
 } link_t;
 
 static link_t links[LINK_MAX];
+static uint64_t next_link_epoch;
 static struct k_spinlock links_lock;
 static const ble_links_handlers_t *handlers;
 
@@ -54,6 +58,30 @@ static struct bt_conn *link_conn(int i)
 	return c;
 }
 
+static struct bt_conn *capture_link(int i, uint64_t expected_epoch, uint64_t *epoch, uint8_t *sequence)
+{
+	if (i < 0 || i >= LINK_MAX) return NULL;
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	link_t *link = &links[i];
+	struct bt_conn *conn = NULL;
+	if (link->conn && (!expected_epoch || ble_link_epoch_matches(link->epoch, expected_epoch))) {
+		conn = bt_conn_ref(link->conn);
+		*epoch = link->epoch;
+		if (sequence) *sequence = link->tx_sequence;
+	}
+	k_spin_unlock(&links_lock, key);
+	return conn;
+}
+
+bool ble_links_connection_matches(int i, uint64_t expected_epoch)
+{
+	if (i < 0 || i >= LINK_MAX || !expected_epoch) return false;
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	bool result = links[i].conn && ble_link_epoch_matches(links[i].epoch, expected_epoch);
+	k_spin_unlock(&links_lock, key);
+	return result;
+}
+
 /* ---------------------------------------------------------------- GATT */
 
 /* One more expansion step, so the generated UUID parts become five macro arguments. */
@@ -72,7 +100,10 @@ static ssize_t rx_write(struct bt_conn *conn, const struct bt_gatt_attr *attr, c
 	if (i < 0 || offset != 0 || len > FRAGMENT_MAX) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
 	}
-	if (handlers->fragment(i, buf, len) != 0) {
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	uint64_t epoch = links[i].conn == conn ? links[i].epoch : 0;
+	k_spin_unlock(&links_lock, key);
+	if (!epoch || handlers->fragment(i, epoch, buf, len) != 0) {
 		return BT_GATT_ERR(BT_ATT_ERR_INSUFFICIENT_RESOURCES);
 	}
 	return len;
@@ -90,6 +121,23 @@ BT_GATT_SERVICE_DEFINE(pay_svc, BT_GATT_PRIMARY_SERVICE(&svc_uuid),
 					      NULL, rx_write, NULL),
 		       BT_GATT_CHARACTERISTIC(&tx_uuid.uuid, BT_GATT_CHRC_NOTIFY, BT_GATT_PERM_NONE, NULL, NULL, NULL),
 		       BT_GATT_CCC(ccc_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
+
+bool ble_links_rental_peer(int i, uint64_t expected_epoch, uint8_t peer[BLE_RENTAL_PEER_SIZE])
+{
+	uint64_t epoch;
+	struct bt_conn *conn = expected_epoch ? capture_link(i, expected_epoch, &epoch, NULL) : NULL;
+	if (!conn) return false;
+
+	struct bt_conn_info info;
+	bool ok = bt_conn_get_info(conn, &info) == 0 && info.type == BT_CONN_TYPE_LE &&
+		  info.le.dst && info.security.level >= BT_SECURITY_L4 && (info.security.flags & BT_SECURITY_FLAG_SC);
+	if (ok) {
+		peer[0] = info.le.dst->type;
+		memcpy(peer + 1, info.le.dst->a.val, sizeof(info.le.dst->a.val));
+	}
+	bt_conn_unref(conn);
+	return ok;
+}
 
 bool ble_links_listening(int i)
 {
@@ -158,6 +206,11 @@ static K_WORK_DELAYABLE_DEFINE(mode_timer, mode_end);
 static void pairing_end(struct k_work *w);
 static K_WORK_DELAYABLE_DEFINE(pairing_timer, pairing_end);
 
+static const struct bt_data ad_pilot[] = {
+	BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR),
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, UUID128(NU54_PILOT_SERVICE_UUID_PARTS)),
+};
+
 typedef enum { ADV_NONE, ADV_PAYMENT, ADV_PAIRING } adv_set_t;
 static adv_set_t advertising; /* the set on air */
 
@@ -182,7 +235,10 @@ static int advertise(void)
 	if (want == ADV_NONE) {
 		return 0;
 	}
-	int err = want == ADV_PAIRING
+	int err;
+	if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active())
+		err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pilot, ARRAY_SIZE(ad_pilot), NULL, 0);
+	else err = want == ADV_PAIRING
 			  ? bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pairing, ARRAY_SIZE(ad_pairing), sd_pairing, ARRAY_SIZE(sd_pairing))
 			  : bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_payment, ARRAY_SIZE(ad_payment), NULL, 0);
 	if (err && err != -EALREADY) {
@@ -241,15 +297,21 @@ int ble_links_payment_mode(uint32_t seconds)
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
-	int i = link_of(NULL);
-	if (err || i < 0) {
+	if (err) return;
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	int i;
+	for (i = 0; i < LINK_MAX && links[i].conn; ++i) {
+	}
+	if (i == LINK_MAX || next_link_epoch == UINT64_MAX) {
+		k_spin_unlock(&links_lock, key);
+		bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 		return;
 	}
-	k_spinlock_key_t key = k_spin_lock(&links_lock);
-	links[i] = (link_t){.conn = bt_conn_ref(conn)};
+	uint64_t epoch = ++next_link_epoch;
+	links[i] = (link_t){.conn = bt_conn_ref(conn), .epoch = epoch};
 	k_spin_unlock(&links_lock, key);
 	LOG_INF("central connected (link %d)", i);
-	handlers->connected(i);
+	handlers->connected(i, epoch);
 	advertising = ADV_NONE; /* a connection stops connectable advertising */
 	advertise();            /* room for the other central */
 }
@@ -277,6 +339,11 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	}
 	k_spinlock_key_t key = k_spin_lock(&links_lock);
 	struct bt_conn *c = links[i].conn;
+	if (c != conn) {
+		k_spin_unlock(&links_lock, key);
+		return;
+	}
+	uint64_t epoch = links[i].epoch;
 	links[i] = (link_t){0};
 	k_spin_unlock(&links_lock, key);
 	bt_conn_unref(c);
@@ -285,7 +352,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		bt_addr_le_copy(&setup_leaver, bt_conn_get_dst(conn));
 		k_work_submit(&drop_setup_bond_work);
 	}
-	handlers->disconnected(i);
+	handlers->disconnected(i, epoch);
 	advertise();
 }
 
@@ -424,15 +491,31 @@ int ble_links_unpair_all(void)
 	return bt_is_ready() ? bt_unpair(BT_ID_DEFAULT, BT_ADDR_LE_ANY) : 0;
 }
 
+static void count_bond(const struct bt_bond_info *info, void *data)
+{
+	(void)info;
+	(*(int *)data)++;
+}
+
+int ble_links_bond_count(void)
+{
+	int n = 0;
+	if (!bt_is_ready()) return -1;
+	bt_foreach_bond(BT_ID_DEFAULT, count_bond, &n);
+	return n;
+}
+
 /* ---------------------------------------------------------------- framing out */
 
-int ble_links_send(int i, const uint8_t *body, size_t len)
+int ble_links_send_epoch(int i, uint64_t expected_epoch, const uint8_t *body, size_t len)
 {
 	static uint8_t env[NU54_MAX_ENVELOPE_LEN];
 	uint8_t digest[32], frag[FRAGMENT_MAX];
 	size_t dlen;
 	int rc = -ENOTCONN;
-	struct bt_conn *c = link_conn(i);
+	uint64_t epoch;
+	uint8_t sequence;
+	struct bt_conn *c = capture_link(i, expected_epoch, &epoch, &sequence);
 
 	if (!c || !bt_gatt_is_subscribed(c, &pay_svc.attrs[4], BT_GATT_CCC_NOTIFY)) {
 		LOG_WRN("reply dropped: link %d is not listening", i);
@@ -452,7 +535,7 @@ int ble_links_send(int i, const uint8_t *body, size_t len)
 	uint8_t index = 0;
 	for (size_t off = 0; off < total; off += chunk, index++) {
 		size_t n = total - off < chunk ? total - off : chunk;
-		frag[0] = links[i].tx_sequence;
+		frag[0] = sequence;
 		frag[1] = index;
 		memcpy(&frag[2], &env[off], n);
 		while ((rc = bt_gatt_notify(c, &pay_svc.attrs[4], frag, n + 2)) == -ENOMEM) {
@@ -463,7 +546,9 @@ int ble_links_send(int i, const uint8_t *body, size_t len)
 			goto out;
 		}
 	}
-	links[i].tx_sequence++;
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	if (ble_link_epoch_matches(links[i].epoch, epoch) && links[i].conn == c) links[i].tx_sequence++;
+	k_spin_unlock(&links_lock, key);
 out:
 	if (c) {
 		bt_conn_unref(c);
@@ -472,6 +557,11 @@ out:
 }
 
 /* ---------------------------------------------------------------- init */
+
+int ble_links_send(int i, const uint8_t *body, size_t len)
+{
+	return ble_links_send_epoch(i, 0, body, len);
+}
 
 int ble_links_init(const ble_links_handlers_t *h, uint32_t passkey, bool just_works)
 {

@@ -1,5 +1,9 @@
 {
   "abis": {
+    "GasSponsor": {
+      "frozenAtW6": false,
+      "sha256": "1d665bae7e68f5fcd9dd066a14292fa771ad515045f214b311c9aeff1b3f2b40"
+    },
     "IMerchantRegistry": {
       "frozenAtW6": true,
       "sha256": "8c7171ee96c74a4e13249122f56bd7b8ae8a8d865ddfeec2d60943a202ad7da4"
@@ -16,9 +20,21 @@
       "frozenAtW6": false,
       "sha256": "c2c1803a94af6450615e93505dbe45dd18432b66284b7e4215143172f05be002"
     },
+    "OrderEscrow": {
+      "frozenAtW6": false,
+      "sha256": "e326762a55880c673cec09249bab8a76725183e812f3b3709dec2b92bd936c29"
+    },
+    "SettlementV2": {
+      "frozenAtW6": false,
+      "sha256": "06f5bad7c462de2835bb3054583d7d962b179424bd67e411360313d47da02814"
+    },
     "TestUSDC": {
       "frozenAtW6": false,
       "sha256": "1df01bbf69311f478a878017966fae0a6fcc9b6c95324f37ad2a4a6d5e357bb8"
+    },
+    "TestUSDC3009": {
+      "frozenAtW6": false,
+      "sha256": "e82c76868c7d117ed84beb679d40114c5fc14232148a68b78b9f1d4bf3324793"
     }
   },
   "source": "products/p06-stablenet-contracts"

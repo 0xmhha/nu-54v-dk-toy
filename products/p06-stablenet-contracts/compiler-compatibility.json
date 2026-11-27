@@ -1,0 +1,33 @@
+{
+  "products": {
+    "p06": {
+      "MerchantRegistry": {
+        "abiSha256": "9b61990e76fd0fbed25ccce252431db9583e0a2781ae50a6f323e183ed2bd493",
+        "storageLayoutSha256": "9477628cf5fe196473646071347b18dc684d13c04dd5f6c24edd90379db2b3b3"
+      },
+      "PaymentSettlement": {
+        "abiSha256": "a98e04c0adf6cdc251720d9290a3086709dd24817cbb601cca08af6b68d6dbed",
+        "storageLayoutSha256": "fc10b393c89e46be5a2d09d5cc6d124e7730aca55b17cecd9dfe94834b8d2904"
+      },
+      "SettlementV2": {
+        "abiSha256": "fa62949d373f952f6edf118bcc291ef9357aaedcbf253e11da4b850bb9d94b2e",
+        "storageLayoutSha256": "309e117f8d6a84a12e558b6b62608e2adf4f06076607779f07b30eb04af6c327"
+      },
+      "TestUSDC": {
+        "abiSha256": "248fc74d41338140451d45ef62aed54807b89d56ddf6ac8b13155b482798c7c4",
+        "storageLayoutSha256": "a12ee61d707cb3ff1ae8c6a10d44feacb6ef27e47cbc8529c10c46419196ce56"
+      }
+    },
+    "p08": {
+      "LabToken": {
+        "abiSha256": "5dd295512682b395da22149ba5db282f64001c878bf1799f4038193da0ab9ae6",
+        "storageLayoutSha256": "e40383ddd97524cbe6d50365352f5781a929a04695e7802a2243a7ec3d17d719"
+      },
+      "Market": {
+        "abiSha256": "b9de790a744cc8d98e6300747de93cfc731831c67aeffa7192d3a16279c7ba98",
+        "storageLayoutSha256": "7d36ce4d7822c93e8b183bbf4d21c4d2af3184798b091497a05bacde1deee6c9"
+      }
+    }
+  },
+  "solc": "0.8.30+commit.73712a01"
+}

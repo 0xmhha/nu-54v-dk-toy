@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인덱서 운영 · NU Explorer</title>
+<link rel="stylesheet" href="/web/explorer.css">
+<script defer src="/web/explorer.js"></script>
+<body data-screen="operations">
+<header><a href="/">NU Explorer</a><span>인덱서 운영</span></header>
+<main>
+<h1>수집과 분기 조사</h1>
+<button id="refresh" type="button">체크포인트 다시 조회</button>
+<p id="summary" aria-live="polite"></p>
+<section id="results" aria-label="수집 상태와 분기 조사"></section>
+<h2>격리 재생과 조회 전환</h2>
+<label>재생 배포 <select id="replay-deployment"></select></label>
+<button id="replay-start" type="button" hidden>격리 재생 요청</button>
+<button id="replay-refresh" type="button">작업 상태 조회</button>
+<p id="replay-state" aria-live="polite">별도 인덱스에서 검증하세요. 기존 조회는 계속 제공합니다.</p>
+<section id="replay-jobs" aria-label="격리 재생 작업"></section>
+<h2>만료 경계의 지급 대사</h2>
+<form id="boundary-form">
+<label>배포 <select id="deployment" required><option value="">배포 불러오는 중</option></select></label>
+<label>공개 가맹점 키 <input name="merchant" required spellcheck="false" autocomplete="off"></label>
+<label>공개 주문 키 <input name="order" required spellcheck="false" autocomplete="off"></label>
+<label>발급 지점 ID <input name="branch" spellcheck="false" autocomplete="off"></label>
+<label>발급 원주문 ID <input name="sale" spellcheck="false" autocomplete="off"></label>
+<p>원 견적의 마감과 확정 범위를 함께 보려면 발급 지점과 원주문 ID를 입력하세요.</p>
+<button>관측 증거 조회</button>
+</form>
+<p id="boundary-state" aria-live="polite"></p>
+<section id="evidence" aria-label="대사 증거"></section>
+</main>
+</body>
+</html>

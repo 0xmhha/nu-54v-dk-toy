@@ -1,0 +1,14 @@
+{
+  "app/compile_commands.json": "01c669111ce3c94428e9d543253ce013d53df63dbded9b2ef4b1ee7b79fd79a9",
+  "app/tfm/bin/tfm_s.elf": "4ea7ef49e99f06c220107d961a79ad6f02b87ca154be7a350a8bfe790ea11344",
+  "app/tfm/bin/tfm_s.map": "ad58b8fe6d3dcd6a33d6dea6e45de4ecc8c7d4eb1891be851cfc8e239e3f5e58",
+  "app/tfm/compile_commands.json": "27d8b182dc5f70885cd4d9e26e9dd0ce98d1088241f948cecb29abc613487dcc",
+  "app/zephyr/.config": "f0ebd38ebe28e54833ac92085c77dd42ffdfa8f6dc68140174d365e8cfd59610",
+  "app/zephyr/zephyr.elf": "f72a5070f6158828406f91f53396aa4e293cf04bf6545e6454d11b5760b20547",
+  "app/zephyr/zephyr.map": "8f9eaa5512a604603e3f5ac5eac2927ce5e51ad58948c38a2cdfba08c67e2db6",
+  "app/zephyr/zephyr.signed.bin": "670a76309cc881818819c82b36ff75b5f3a11d879a651cdda1161c66889093ff",
+  "mcuboot/compile_commands.json": "751e6b7ae0d999a8acc391c822b8d6bf2b53a5ae35c90a4531fc24aa6b3c2d1b",
+  "mcuboot/zephyr/.config": "b288a447dc29958a7fece690d1bd32267cd60bb7fa01cddfe4443cc74ad88ec3",
+  "mcuboot/zephyr/zephyr.elf": "fe0fba4b7a561331c5f7da7fbc72d9a00d2538da2b7c304647a8bd5f10b1adc3",
+  "mcuboot/zephyr/zephyr.map": "d6a7bf00141b4e8b00cf6ca8c1e6152cd886b6b460f4988d42ca1fb4a31ee4be"
+}

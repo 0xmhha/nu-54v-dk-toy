@@ -104,6 +104,12 @@
     ]
   },
   "operatorSignedTypes": {
+    "RentalFreezeRequestV2": [
+      {"name": "binding", "type": "bytes32"},
+      {"name": "challenge", "type": "bytes32"},
+      {"name": "channelNonce", "type": "bytes32"},
+      {"name": "expiresAt", "type": "uint64"}
+    ],
     "MerchantAttestation": [
       {
         "name": "merchant",
@@ -848,6 +854,243 @@
       ],
       "description": "approved with signature and nonce from the sequential counter, or refused with reason (NOT_PERMITTED, ATTESTATION_EXPIRED, TIME_ANCHOR_MISSING, TIMEOUT, USER_REJECTED, PIN_LOCKED)"
     },
+    "rental.cleanup.challenge": {
+      "direction": "registered bonded collector to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "rental.cleanup.challenge"},
+        "sessionId": {"$ref": "#/$defs/sessionId"}
+      },
+      "description": "Request a scoped cleanup nonce without opening a signing journal."
+    },
+    "rental.cleanup.challenge.result": {
+      "direction": "device to its registered bonded collector",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "channelNonce", "expiresAt"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "rental.cleanup.challenge.result"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "channelNonce": {"$ref": "#/$defs/hex32"},
+        "expiresAt": {"$ref": "#/$defs/uint"}
+      },
+      "description": "Temporary nonce scoped to cleanup and the original authenticated collector connection."
+    },
+    "rental.cleanup.admit": {
+      "direction": "registered bonded collector to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "channelNonce", "intent"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "rental.cleanup.admit"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "channelNonce": {"$ref": "#/$defs/hex32"},
+        "intent": {"type": "string", "pattern": "^[0-9a-f]{362}$"}
+      },
+      "description": "Decodes the exact 181 RCI1 bytes with the active collector connection nonce. A protected recipient may pin the pending fence only."
+    },
+    "rental.cleanup.status": {
+      "direction": "device to its registered bonded collector",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "rental.cleanup.status"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "status": {"const": "pending"}
+      },
+      "description": "The exact intent has a pending fence. This response carries no erasure or completion receipt."
+    },
+    "rental.freeze.challenge": {
+      "direction": "registered bonded collector to device",
+      "type": "object",
+      "required": ["v", "type", "sessionId"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "rental.freeze.challenge"},
+        "sessionId": {"$ref": "#/$defs/sessionId"}
+      },
+      "description": "Request a connection-bound nonce on the standalone zero session id."
+    },
+    "rental.freeze.challenge.result": {
+      "direction": "device to its registered bonded collector",
+      "type": "object",
+      "required": ["v", "type", "sessionId", "channelNonce", "expiresAt"],
+      "additionalProperties": false,
+      "properties": {
+        "v": {"const": 1},
+        "type": {"const": "rental.freeze.challenge.result"},
+        "sessionId": {"$ref": "#/$defs/sessionId"},
+        "channelNonce": {"$ref": "#/$defs/hex32"},
+        "expiresAt": {"$ref": "#/$defs/uint"}
+      },
+      "description": "The nonce is valid only for this authenticated connection and is invalidated by a replacement request."
+    },
+    "rental.freeze.v2": {
+      "direction": "bonded rental operator tool to device",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "challenge",
+        "channelNonce",
+        "expiresAt",
+        "operatorSignature"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "rental.freeze.v2"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "challenge": {
+          "$ref": "#/$defs/hex32"
+        },
+        "channelNonce": {
+          "$ref": "#/$defs/hex32"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/uint"
+        },
+        "operatorSignature": {
+          "$ref": "#/$defs/signature"
+        },
+        "projectionIndex": {
+          "$ref": "#/$defs/uint",
+          "description": "Optional zero-based slot of an already frozen public projection"
+        }
+      },
+      "description": "Standalone on the zero session id. A valid scoped, fresh operator signature with the board-issued connection nonce authorizes the protected generation fence."
+    },
+    "rental.freeze.result": {
+      "direction": "device to bonded rental operator tool",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "binding",
+        "challenge",
+        "projectionRoot",
+        "firstNonce",
+        "nextNonce",
+        "entryCount",
+        "frozenAt",
+        "expiresAt",
+        "boardSignature"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "rental.freeze.result"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "binding": {
+          "$ref": "#/$defs/hex32"
+        },
+        "challenge": {
+          "$ref": "#/$defs/hex32"
+        },
+        "projectionRoot": {
+          "$ref": "#/$defs/hex32"
+        },
+        "firstNonce": {
+          "$ref": "#/$defs/uint"
+        },
+        "nextNonce": {
+          "$ref": "#/$defs/uint"
+        },
+        "entryCount": {
+          "$ref": "#/$defs/uint"
+        },
+        "frozenAt": {
+          "$ref": "#/$defs/uint"
+        },
+        "expiresAt": {
+          "$ref": "#/$defs/uint"
+        },
+        "boardSignature": {
+          "$ref": "#/$defs/signature"
+        }
+      },
+      "description": "The separate board identity signs the already committed protected fence and public projection."
+    },
+    "rental.freeze.entry": {
+      "direction": "device to bonded rental operator tool",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "sessionId",
+        "projectionIndex",
+        "projectionRoot",
+        "kind",
+        "state",
+        "nonce",
+        "expiry",
+        "merchant",
+        "orderId",
+        "approvalDigest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1
+        },
+        "type": {
+          "const": "rental.freeze.entry"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/sessionId"
+        },
+        "projectionIndex": {
+          "$ref": "#/$defs/uint"
+        },
+        "projectionRoot": {
+          "$ref": "#/$defs/hex32"
+        },
+        "kind": {
+          "$ref": "#/$defs/uint"
+        },
+        "state": {
+          "$ref": "#/$defs/uint"
+        },
+        "nonce": {
+          "$ref": "#/$defs/uint"
+        },
+        "expiry": {
+          "$ref": "#/$defs/uint"
+        },
+        "merchant": {
+          "$ref": "#/$defs/hex20"
+        },
+        "orderId": {
+          "$ref": "#/$defs/hex32"
+        },
+        "approvalDigest": {
+          "$ref": "#/$defs/hex32"
+        }
+      },
+      "description": "One signature-free public row from an already committed RJP1 projection."
+    },
     "setup.operator": {
       "direction": "operator tool to device (setup session)",
       "type": "object",
@@ -883,6 +1126,10 @@
         "passkey": {
           "$ref": "#/$defs/uint",
           "description": "per-device LE Secure Connections passkey, 0 to 999999 (printed as six digits on the label QR)"
+        },
+        "rentalJournal": {
+          "type": "boolean",
+          "description": "Explicitly request protected commissioning. A true value refuses setup on unsupported hardware and prevents legacy PIN completion."
         }
       },
       "description": "accepted only in UNPROVISIONED state after the renter confirms on the device button; the device stores these values together with the new key and PIN"

@@ -12,12 +12,13 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_PARTS = {".git", "node_modules", "design-history"}
 SNAPSHOT_PREFIXES = ("before-",)
+BUNDLE_INSTALL = Path("products/p04-merchant-kiosk/vendor/bundle")
 LINK_PATTERN = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 
 
 def is_active_markdown(path: Path) -> bool:
     relative = path.relative_to(ROOT)
-    if any(part in EXCLUDED_PARTS for part in relative.parts):
+    if relative.is_relative_to(BUNDLE_INSTALL) or any(part in EXCLUDED_PARTS for part in relative.parts):
         return False
     return not any(part.startswith(SNAPSHOT_PREFIXES) for part in relative.parts)
 

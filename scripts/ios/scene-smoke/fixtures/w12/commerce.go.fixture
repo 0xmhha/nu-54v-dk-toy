@@ -1,0 +1,158 @@
+package commerce
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+)
+
+type w12DateWriter struct {
+	http.ResponseWriter
+	status int
+	body   bytes.Buffer
+}
+
+func (w *w12DateWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *w12DateWriter) Write(data []byte) (int, error) {
+	if w.body.Len()+len(data) <= 4096 {
+		_, _ = w.body.Write(data)
+	}
+	return w.ResponseWriter.Write(data)
+}
+
+// This file is available only in the disposable opsd test overlay.
+func (h *HTTP) ConfigureW12Fixture(ctx context.Context, authority *RentalAuthorityReader, file string) (func(http.Handler) http.Handler, error) {
+	var config struct {
+		Bridge, Token, CA, ServerCertificate, ServerKey, AudienceCertificate, AudienceKey string
+		Writer, Measurement, SlotOpen                                                     string
+	}
+	raw, err := os.ReadFile(file)
+	if err != nil || json.Unmarshal(raw, &config) != nil || authority == nil {
+		return nil, errors.New("W12 fixture settings unavailable")
+	}
+	target, err := url.Parse(config.Bridge)
+	if err != nil || target.Scheme != "http" || target.Hostname() != "127.0.0.1" || target.Path != "" || len(config.Token) != 64 {
+		return nil, errors.New("W12 bridge must be local")
+	}
+	ca, err := os.ReadFile(config.CA)
+	roots := x509.NewCertPool()
+	if err != nil || !roots.AppendCertsFromPEM(ca) {
+		return nil, errors.New("fixture CA unavailable")
+	}
+	server, err := tls.LoadX509KeyPair(config.ServerCertificate, config.ServerKey)
+	if err != nil {
+		return nil, err
+	}
+	audience, err := tls.LoadX509KeyPair(config.AudienceCertificate, config.AudienceKey)
+	if err != nil {
+		return nil, err
+	}
+	writer, werr := hex.DecodeString(config.Writer)
+	measurement, merr := hex.DecodeString(config.Measurement)
+	if werr != nil || merr != nil || len(writer) != 32 || len(measurement) != 32 {
+		return nil, errors.New("fixture authority scope unavailable")
+	}
+	left, right := net.Pipe()
+	defer left.Close()
+	defer right.Close()
+	handshake, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	peer := tls.Client(right, &tls.Config{MinVersion: tls.VersionTLS13, RootCAs: roots, ServerName: "127.0.0.1",
+		Certificates: []tls.Certificate{audience}})
+	verified := tls.Server(left, &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: roots,
+		Certificates: []tls.Certificate{server}})
+	clientDone := make(chan error, 1)
+	go func() { clientDone <- peer.HandshakeContext(handshake) }()
+	if err := verified.HandshakeContext(handshake); err != nil {
+		return nil, err
+	}
+	if err := <-clientDone; err != nil {
+		return nil, err
+	}
+	state := verified.ConnectionState()
+	source := func(path string) rentalCredentialSource {
+		return func(ctx context.Context, binding [208]byte, challenge [32]byte) (rentalCredentialEvidence, error) {
+			var empty rentalCredentialEvidence
+			body, _ := json.Marshal(struct {
+				Binding   [208]byte
+				Challenge [32]byte
+			}{binding, challenge})
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, config.Bridge+path, bytes.NewReader(body))
+			if err != nil {
+				return empty, err
+			}
+			req.Header.Set("Authorization", "Bearer "+config.Token)
+			client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}, CheckRedirect: func(*http.Request, []*http.Request) error {
+				return errors.New("fixture proof redirect")
+			}}
+			res, err := client.Do(req)
+			if err != nil {
+				return empty, err
+			}
+			defer res.Body.Close()
+			var proof struct {
+				Issued, Ends, Checked uint64
+				Challenge             [32]byte
+				Issuer, Board         [65]byte
+			}
+			if res.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&proof) != nil {
+				return empty, errors.New("fixture proof unavailable")
+			}
+			return rentalCredentialEvidence{revision: 1, policy: 1, issuedAt: proof.Issued, endsAt: proof.Ends, checkedAt: proof.Checked,
+				challenge: proof.Challenge, issuerSignature: proof.Issuer, boardSignature: proof.Board}, nil
+		}
+	}
+	h.renterCredentialCollector = &renterCredentialCollector{
+		authority: authority, tls: &state, writer: [32]byte(writer), profile: [32]byte(measurement), source: source("/credential"),
+	}
+	if config.SlotOpen == "true" {
+		h.renterSlotOpenCollector = &renterSlotOpenCollector{
+			authority: authority, tls: &state, writer: [32]byte(writer), profile: [32]byte(measurement), source: source("/slot-open"),
+		}
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, "/v2/renter/returns/") ||
+				r.URL.Query().Get("credential") != "1" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			reply := &w12DateWriter{ResponseWriter: w, status: http.StatusOK}
+			next.ServeHTTP(reply, r)
+			if reply.status == http.StatusOK {
+				var dates struct{ CredentialExpiresAt, CredentialEvidenceUntil, SlotCheckedAt, SlotEvidenceUntil string }
+				if json.Unmarshal(reply.body.Bytes(), &dates) == nil && dates.CredentialExpiresAt != "" &&
+					dates.CredentialEvidenceUntil != "" {
+					_ = http.NewResponseController(w).Flush()
+					observation, _ := json.Marshal(dates)
+					report, stop := context.WithTimeout(r.Context(), time.Second)
+					defer stop()
+					if req, err := http.NewRequestWithContext(report, http.MethodPost, config.Bridge+"/observed", bytes.NewReader(observation)); err == nil {
+						req.Header.Set("Authorization", "Bearer "+config.Token)
+						client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}, CheckRedirect: func(*http.Request, []*http.Request) error {
+							return errors.New("fixture observation redirect")
+						}}
+						if received, err := client.Do(req); err == nil {
+							_ = received.Body.Close()
+						}
+					}
+				}
+			}
+		})
+	}, nil
+}

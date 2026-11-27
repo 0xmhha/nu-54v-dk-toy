@@ -1,21 +1,22 @@
 # P06 settlement contracts: Solidity + Foundry ([N07][N25]).
+CONTRACT_FORGE := python3 ../../scripts/contract_forge.py p06
+
 .PHONY: setup build test lint run docker snapshot
 
 setup:
 	forge --version
 
 build:
-	forge build
+	$(CONTRACT_FORGE) build
 
-# The gas snapshot excludes fuzz and invariant tests, whose gas varies run to run.
+# Gas snapshots cover deterministic v1 and v2 scenarios. Fuzz and invariant gas varies per run.
 SNAPSHOT_FILTER := --no-match-test testFuzz --no-match-contract SettlementInvariantTest
 
 test:
-	forge test
-	forge snapshot --check $(SNAPSHOT_FILTER)
+	exec python3 -B ../../scripts/contract_test_workspace.py p06 -- $(SNAPSHOT_FILTER)
 
 snapshot:
-	forge snapshot $(SNAPSHOT_FILTER)
+	$(CONTRACT_FORGE) snapshot $(SNAPSHOT_FILTER)
 
 lint:
 	forge fmt --check src test script

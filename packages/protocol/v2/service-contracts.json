@@ -1,0 +1,489 @@
+{
+  "schemaVersion": 2,
+  "maxEnvelopeBytes": 4096,
+  "maxEvidenceAgeSeconds": 300,
+  "operations": {
+    "C3/catalog.read": {
+      "mode": "read",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "page": "uint32"
+      },
+      "response": "result"
+    },
+    "C3/catalog.photo": {"mode":"read","roles":["customer","terminal"],"ttlSeconds":60,"fields":{"photo":"digest","offset":"uint32"},"response":"result"},
+    "C3/board.read": {"mode":"read","roles":["terminal"],"ttlSeconds":60,"fields":{},"response":"result"},
+    "C3/subscription.offers": {"mode":"read","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},
+    "C3/subscription.list": {"mode":"read","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},
+    "C3/invoice.list": {"mode":"read","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},
+    "C3/invoice.skip": {"mode":"command","roles":["customer"],"ttlSeconds":60,"fields":{},"response":"result"},
+    "C3/subscription.accept": {"mode":"command","roles":["customer"],"ttlSeconds":60,"fields":{"termsDigest":"digest"},"response":"result"},
+    "C3/subscription.pause": {"mode":"command","roles":["customer"],"ttlSeconds":60,"fields":{"expectedRevision":"uint64"},"response":"result"},
+    "C3/subscription.resume": {"mode":"command","roles":["customer"],"ttlSeconds":60,"fields":{"expectedRevision":"uint64"},"response":"result"},
+    "C3/subscription.cancel": {"mode":"command","roles":["customer"],"ttlSeconds":60,"fields":{"expectedRevision":"uint64"},"response":"result"},
+    "C3/subscription.reconsent": {"mode":"command","roles":["customer"],"ttlSeconds":60,"fields":{"offerRef":"uuid","termsDigest":"digest","expectedRevision":"uint64"},"response":"result"},
+    "C3/order.create": {
+      "mode": "command",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "asset": "address",
+        "quantity": "positive256",
+        "intentDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C3/order.cancel-public": {
+      "mode": "command",
+      "roles": ["terminal"],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    },
+    "C3/order.list": {
+      "mode": "read",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"afterSale": "uuid"},
+      "response": "result"
+    },
+    "C3/order.status": {
+      "mode": "read",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    },
+    "C3/order.nearby-result": {
+      "mode": "read",
+      "roles": ["terminal"],
+      "ttlSeconds": 60,
+      "fields": {"customerRef": "uuid", "byOrder": "uint32"},
+      "response": "result"
+    },
+    "C3/payment.forward": {
+      "mode": "command",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "quoteDigest": "digest",
+        "approvalDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C3/order.lock": {
+      "mode": "command",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "quoteDigest": "digest",
+        "confirmer": "address",
+        "lockDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C3/order.answer": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {
+        "action": "receipt|dispute|withdraw",
+        "claimableAt": "positive64"
+      },
+      "response": "result"
+    },
+    "C3/payer.enroll": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"payer": "address", "generation": "positive64"},
+      "response": "result"
+    },
+    "C3/payer.status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/wallet.return": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"payer": "address", "to": "address", "amount": "positive256", "validBefore": "time", "nonce": "digest"},
+      "response": "result"
+    },
+    "C3/wallet.return-status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/wallet.send": {
+      "mode": "command",
+      "roles": ["customer"],
+      "ttlSeconds": 60,
+      "fields": {"payer": "address", "to": "address", "token": "address", "amount": "positive256", "validBefore": "time", "nonce": "digest"},
+      "response": "result"
+    },
+    "C3/wallet.send-status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/faucet.claim": {"mode": "command", "roles": ["customer"], "ttlSeconds": 60, "fields": {"token": "address"}, "response": "result"},
+    "C3/faucet.status": {"mode": "read", "roles": ["customer"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/network.list": {"mode": "read", "roles": ["customer", "terminal", "operator"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/terminal.device": {"mode": "read", "roles": ["terminal", "operator"], "ttlSeconds": 60, "fields": {}, "response": "result"},
+    "C3/terminal.device-change": {
+      "mode": "command", "roles": ["operator"], "ttlSeconds": 60,
+      "fields": {"name": "read-server|language|idle-seconds", "valueDigest": "digest", "expectedRevision": "uint64"},
+      "response": "result"
+    },
+    "C4/mpc.sign": {
+      "mode": "command",
+      "roles": [
+        "wallet-owner"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "generation": "positive64",
+        "approvalRef": "uuid",
+        "preimageDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C4/mpc.status": {
+      "mode": "read",
+      "roles": [
+        "wallet-owner"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "priorRequestDigest": "digest",
+        "receiptRef": "uuid",
+        "generation": "positive64"
+      },
+      "response": "resume"
+    },
+    "C5/transaction.submit": {
+      "mode": "command",
+      "roles": [
+        "payer",
+        "sponsor"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "mode": "direct|sponsored",
+        "quoteDigest": "digest",
+        "txDigest": "digest",
+        "payer": "address",
+        "feePayer": "address",
+        "asset": "address",
+        "feeLimit": "positive256",
+        "nonce": "uint256",
+        "txExpiresAt": "time"
+      },
+      "response": "result"
+    },
+    "C5/transaction.status": {
+      "mode": "read",
+      "roles": [
+        "payer",
+        "sponsor"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "priorRequestDigest": "digest",
+        "receiptRef": "uuid",
+        "txDigest": "digest"
+      },
+      "response": "resume"
+    },
+    "C6/chain.append": {
+      "mode": "command",
+      "roles": [
+        "chain-ingester"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "manifestDigest": "digest",
+        "abiDigest": "digest",
+        "blockHash": "digest",
+        "parentHash": "digest",
+        "height": "uint64",
+        "logIndex": "uint32",
+        "fence": "positive64"
+      },
+      "response": "result"
+    },
+    "C7/evidence.read": {
+      "mode": "read",
+      "roles": [
+        "evidence-reader"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "kind": "finalized|revoked|unobserved"
+      },
+      "response": "evidence"
+    },
+    "C8/market.quote": {
+      "mode": "read",
+      "roles": [
+        "market-user"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "asset": "address",
+        "quantity": "positive256"
+      },
+      "response": "result"
+    },
+    "C8/travel.place.read": {
+      "mode": "read",
+      "roles": [
+        "travel-user"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "placeRef": "uuid"
+      },
+      "response": "result"
+    },
+    "C9/oidc.bind": {
+      "mode": "command",
+      "roles": [
+        "identity-provider"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "issuerRef": "uuid",
+        "audienceRef": "uuid",
+        "assertionDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C9/task.invoke": {
+      "mode": "command",
+      "roles": [
+        "service-provider"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "providerRef": "uuid",
+        "purpose": "place|voice|recommendation",
+        "consentVersion": "positive64",
+        "intentDigest": "digest"
+      },
+      "response": "result"
+    },
+    "C9/task.status": {
+      "mode": "read",
+      "roles": [
+        "service-provider"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "priorRequestDigest": "digest",
+        "receiptRef": "uuid",
+        "providerRef": "uuid",
+        "purpose": "place|voice|recommendation",
+        "consentVersion": "positive64"
+      },
+      "response": "resume"
+    },
+    "C9/task.revoke": {
+      "mode": "command",
+      "roles": [
+        "service-provider"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "providerRef": "uuid",
+        "taskRef": "uuid",
+        "purpose": "place|voice|recommendation",
+        "consentVersion": "positive64"
+      },
+      "response": "result"
+    },
+    "C9/task.delete": {
+      "mode": "command",
+      "roles": [
+        "service-provider"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "providerRef": "uuid",
+        "taskRef": "uuid",
+        "purpose": "place|voice|recommendation",
+        "consentVersion": "positive64"
+      },
+      "response": "result"
+    },
+    "C3/quote.issue": {
+      "mode": "command",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "claimDigest": "digest",
+        "orderRevision": "uint64"
+      },
+      "response": "result"
+    },
+    "C3/checkout.authorize": {
+      "mode": "command",
+      "roles": [
+        "customer",
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "customerRef": "uuid"
+      },
+      "response": "result"
+    },
+    "C3/staff.access": {
+      "mode": "read",
+      "roles": ["operator", "terminal", "finance"],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    },
+    "C3/terminal.orders": {
+      "mode": "read",
+      "roles": ["operator"],
+      "ttlSeconds": 60,
+      "fields": {
+        "kind": "preview|transition",
+        "scopeRef": "uuid",
+        "sourceRevision": "positive64",
+        "afterSale": "uuid"
+      },
+      "response": "result"
+    },
+    "C3/terminal.state": {
+      "mode": "read",
+      "roles": [
+        "terminal",
+        "operator"
+      ],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    },
+    "C3/terminal.mode": {
+      "mode": "command",
+      "roles": [
+        "operator"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "mode": "menu|pos",
+        "expectedRevision": "positive64"
+      },
+      "response": "result"
+    },
+    "C3/terminal.handoff": {
+      "mode": "command",
+      "roles": [
+        "operator"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "transitionRef": "uuid",
+        "targetRevision": "positive64"
+      },
+      "response": "result"
+    },
+    "C3/terminal.ack": {
+      "mode": "command",
+      "roles": [
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "transitionRef": "uuid",
+        "targetRevision": "positive64"
+      },
+      "response": "result"
+    },
+    "C3/checkout.request": {
+      "mode": "command",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    },
+    "C3/checkout.pos-nearby": {
+      "mode": "command",
+      "roles": ["terminal"],
+      "ttlSeconds": 60,
+      "fields": {"customerRef": "uuid", "mode": "register|resume"},
+      "response": "result"
+    },
+    "C3/checkout.pending": {
+      "mode": "read",
+      "roles": [
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    },
+    "C3/checkout.confirm": {
+      "mode": "command",
+      "roles": [
+        "terminal"
+      ],
+      "ttlSeconds": 60,
+      "fields": {
+        "customerRef": "uuid",
+        "code": "code8"
+      },
+      "response": "result"
+    },
+    "C3/checkout.claim": {
+      "mode": "read",
+      "roles": [
+        "customer"
+      ],
+      "ttlSeconds": 60,
+      "fields": {},
+      "response": "result"
+    }
+  },
+  "errorCodes": [
+    "BAD_REQUEST",
+    "UNSUPPORTED_VERSION",
+    "UNSUPPORTED_CAPABILITY",
+    "NOT_AUTHORIZED",
+    "EXPIRED",
+    "REPLAY_CONFLICT",
+    "CHECKOUT_CONFLICT",
+    "BUSY",
+    "UNKNOWN_RESULT",
+    "MISMATCHED_EVIDENCE",
+    "OUT_OF_STOCK",
+    "CATALOG_CHANGED"
+  ],
+  "commandReplay": {
+    "key": "Commands require a UUIDv4 idempotency key. Reads and recovery reads omit it.",
+    "sameIntent": "Retry the same key and canonical intent to retrieve the original persisted receipt.",
+    "changedIntent": "Reject the same key with a different intent as REPLAY_CONFLICT.",
+    "unknownResult": "Reconcile the original scoped receipt and request digest before starting a new command.",
+    "scope": "The authenticated tenant and object scope restrict receipt lookup."
+  },
+  "recovery": {
+    "REPLAY_CONFLICT": "reject",
+    "EXPIRED": "reconcile-before-new-authority",
+    "BUSY": "retry-same-intent",
+    "UNKNOWN_RESULT": "reconcile-prior-receipt"
+  }
+}

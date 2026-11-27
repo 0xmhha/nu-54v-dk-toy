@@ -1,0 +1,194 @@
+{
+  "format": "nu54-patch-ledger-v1",
+  "source": "docs/content/commercial/security-and-release.md",
+  "entries": [
+    {
+      "id": "GO-2025-4134",
+      "artifacts": [
+        "p05-opsctl",
+        "p05-opsd",
+        "p06-abi",
+        "p07-indexer"
+      ],
+      "component": "golang.org/x/crypto",
+      "observedSourceVersion": "v0.36.0",
+      "references": [
+        "https://pkg.go.dev/vuln/GO-2025-4134"
+      ],
+      "fixedMinimum": "v0.45.0",
+      "candidate": "v0.59.0 from source review",
+      "owner": "Go product owners",
+      "nextStep": "Resolve target modules; compare affected SSH symbols against source and binaries; run signing and keystore regression.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    },
+    {
+      "id": "GO-2026-5015",
+      "artifacts": [
+        "p05-opsctl",
+        "p05-opsd",
+        "p06-abi",
+        "p07-indexer"
+      ],
+      "component": "golang.org/x/crypto",
+      "observedSourceVersion": "v0.36.0",
+      "references": [
+        "https://pkg.go.dev/vuln/GO-2026-5015"
+      ],
+      "fixedMinimum": "v0.52.0",
+      "candidate": "v0.59.0 from source review",
+      "owner": "Go product owners",
+      "nextStep": "Resolve target modules and compatible Go version; compare SSH auth symbol reachability.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    },
+    {
+      "id": "GO-2026-4508",
+      "artifacts": [
+        "p05-opsctl",
+        "p05-opsd",
+        "p06-abi",
+        "p07-indexer"
+      ],
+      "component": "github.com/ethereum/go-ethereum",
+      "observedSourceVersion": "v1.16.4",
+      "references": [
+        "https://pkg.go.dev/vuln/GO-2026-4508"
+      ],
+      "fixedMinimum": "v1.17.0",
+      "candidate": null,
+      "owner": "Go product owners",
+      "nextStep": "Select a supported patched version; assess affected P2P symbols, then rerun RPC, ABI, signatures and indexed receipt tests.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    },
+    {
+      "id": "GHSA-9jrq-w75r-8gcw",
+      "artifacts": [
+        "p05-web"
+      ],
+      "component": "vite",
+      "observedSourceVersion": "7.3.6",
+      "references": [
+        "https://github.com/vitejs/vite/security/advisories/GHSA-9jrq-w75r-8gcw"
+      ],
+      "fixedMinimum": "7.3.7",
+      "candidate": null,
+      "owner": "P05 web",
+      "nextStep": "Check affected dev middleware conditions and bundled output; resolve a supported patch and rescan.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    },
+    {
+      "id": "FW-VENDOR-INVENTORY",
+      "artifacts": [
+        "p01-firmware"
+      ],
+      "component": "NCS, Zephyr, MCUboot, TF-M, CRACEN, board definition, secp256k1 and XKCP",
+      "observedSourceVersion": null,
+      "references": [],
+      "fixedMinimum": null,
+      "candidate": null,
+      "owner": "P01",
+      "nextStep": "Freeze west manifest; compare linked components and vendor commits against advisories, then run signer vectors and board acceptance.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    },
+    {
+      "id": "MOBILE-ARTIFACT-INVENTORY",
+      "artifacts": [
+        "p02-android",
+        "p04-android",
+        "p04-ios"
+      ],
+      "component": "RN, Metro, Hermes, noble and mobile native toolchains",
+      "observedSourceVersion": "RN 0.87.1",
+      "references": [],
+      "fixedMinimum": null,
+      "candidate": null,
+      "owner": "P02/P04",
+      "nextStep": "Resolve native dependency manifests and attach signed image hash, artifact SBOM and target-device regression.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    },
+    {
+      "id": "CONTRACT-TOOLCHAIN-INVENTORY",
+      "artifacts": [
+        "p06-contract-deployment",
+        "p06-contract-tests"
+      ],
+      "component": "solc, Foundry and forge-std",
+      "observedSourceVersion": "solc 0.8.30 / forge-std 1.10.0 (test)",
+      "references": [],
+      "fixedMinimum": null,
+      "candidate": null,
+      "owner": "P06",
+      "nextStep": "Pin toolchain digests and audit compiler and test vendor advisories; compare ABI and deployment runtime fingerprints.",
+      "status": "open",
+      "reachability": "unverified",
+      "deployedVersion": null,
+      "detectedAt": null,
+      "dueAt": null,
+      "resolvedVersion": null,
+      "buildHash": null,
+      "sbom": null,
+      "rescan": null,
+      "regression": null,
+      "installedVersion": null
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- BLE central for the payment device (N09). Android 12+ asks for scan and connect;
          scanning is not used to derive location. Older versions need the legacy set. -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
@@ -16,9 +20,15 @@
       android:icon="@mipmap/ic_launcher"
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
+      android:rollbackDataPolicy="retain"
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <meta-data android:name="nu54.market.profile" android:value="${nu54MarketProfile}" />
+      <meta-data android:name="nu54.p03.profile" android:value="${nu54P03Profile}" />
+      <receiver android:name=".ble.SubscriptionAlertReceiver" android:exported="false">
+        <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+      </receiver>
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -30,6 +40,16 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+          <intent-filter>
+              <action android:name="android.intent.action.VIEW" />
+              <category android:name="android.intent.category.DEFAULT" />
+              <category android:name="android.intent.category.BROWSABLE" />
+              <data android:scheme="nu54" android:host="order" />
+              <data android:scheme="nu54" android:host="subscriptions" />
+              <data android:scheme="nu54" android:host="shop" />
+              <data android:scheme="nu54" android:host="market-learning" />
+              <data android:scheme="nu54" android:host="commissioning" />
+          </intent-filter>
       </activity>
     </application>
 </manifest>

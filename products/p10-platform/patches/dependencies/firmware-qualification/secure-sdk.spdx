@@ -1,0 +1,2331 @@
+# Document Information
+
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: west-ncs-sbom-report
+DocumentNamespace: http://spdx.org/spdxdocs/west-ncs-sbom-667a76a8-6e61-463f-b0ea-7ba224455b7f
+
+# Creation Info
+
+Creator: Tool: west-ncs-sbom
+Created: 2026-11-21T02:35:18Z
+CreatorComment:<text>Generated with west-ncs-sbom. For details, see https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/introduction.html#licenses.</text>
+
+# Package Information
+
+PackageName: unknown-package
+SPDXID: SPDXRef-package-1
+PackageVersion: NoneVersion
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: NONE
+FilesAnalyzed: false
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# Package Information
+
+PackageName: Dependency information unavailable
+SPDXID: SPDXRef-package-2
+PackageVersion: N/A
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: NOASSERTION
+FilesAnalyzed: false
+PackageVerificationCode: NOASSERTION
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# Package Information
+
+PackageName: nrfconnect/sdk-hal_nordic
+SPDXID: SPDXRef-package-3
+PackageVersion: 69865c20dc4afbdd27060ad1e81af1b62d31f7af
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-hal_nordic
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-hal_nordic@69865c20dc4afbdd27060ad1e81af1b62d31f7af
+FilesAnalyzed: true
+PackageVerificationCode: 228084c3f08ab4a79716c5f1149c655bd4e2d87a
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/bsp/stable/mdk/system_nrf54l.c
+SPDXID: SPDXRef-file-1
+FileChecksum: SHA1: 09d4aa63517e5301d48054189bb0a3d71b5720b2
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_kmu.c
+SPDXID: SPDXRef-file-2
+FileChecksum: SHA1: 16e423e5331a5ee7d049f28343841555532b7b06
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_rramc.c
+SPDXID: SPDXRef-file-3
+FileChecksum: SHA1: c7247126fa0835c20d9163e7d67fe36249a96319
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/hal/nordic/nrfx/drivers/src/nrfx_uarte.c
+SPDXID: SPDXRef-file-4
+FileChecksum: SHA1: ee505edff4a59a51549a6c3416698735afb30428
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-nrf
+SPDXID: SPDXRef-package-4
+PackageVersion: b20f8619ba9a5530f8c34b0a130d829947cfe55d
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-nrf
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-nrf@b20f8619ba9a5530f8c34b0a130d829947cfe55d
+FilesAnalyzed: true
+PackageVerificationCode: b648b32e0639ecb0fd78599773f0ff803ffab7af
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/hardware/hardware.c
+SPDXID: SPDXRef-file-17
+FileChecksum: SHA1: 0089dc0e93f8f12ad05e7faf50a54cc0ac9aa3b7
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_ikg.c
+SPDXID: SPDXRef-file-26
+FileChecksum: SHA1: 010689a0bcc1c90e0ac94912ab2b5520b9b5fafe
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecdh/cracen_ecdh_montgomery.c
+SPDXID: SPDXRef-file-42
+FileChecksum: SHA1: 013d7725b541d338d2757ae72f2c5168b1bbebd6
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecdh/cracen_ecdh_weierstrass.c
+SPDXID: SPDXRef-file-43
+FileChecksum: SHA1: 055b37793a44b90dc050ecba158b0f5c0845d73d
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/common/ns_fault_service.c
+SPDXID: SPDXRef-file-8
+FileChecksum: SHA1: 07d56e6907f5c1884233677679f9e23d44a8c947
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/key_derivation/cracen_tls12.c
+SPDXID: SPDXRef-file-48
+FileChecksum: SHA1: 090577ccfd2a335da3c7cb643bceaa7b118867d8
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/common.c
+SPDXID: SPDXRef-file-13
+FileChecksum: SHA1: 0a862b89a65e523d27333240cdf71c4f71012a4b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_aead.c
+SPDXID: SPDXRef-file-21
+FileChecksum: SHA1: 0f10eec9b45f2aa2e15ec7924d31e6ada1496a86
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/ed448.c
+SPDXID: SPDXRef-file-59
+FileChecksum: SHA1: 13fcb2b65cdb343785016aa341883adf7b4af4fc
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/prng_pool.c
+SPDXID: SPDXRef-file-19
+FileChecksum: SHA1: 1713d5aff9e5335b3ce1e378eb027e0af440a81b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/interface/sxbuf/sxbufops.c
+SPDXID: SPDXRef-file-56
+FileChecksum: SHA1: 1ac0fb209f592ca0db0d99c40f9da5aaf7e8b7b5
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/hmac.c
+SPDXID: SPDXRef-file-79
+FileChecksum: SHA1: 1b9c0059c963ff485f2a7a6c1b685ff6a0841c3d
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/cracen_rndinrange.c
+SPDXID: SPDXRef-file-15
+FileChecksum: SHA1: 209702f2abfdf032835ddaf9276cd91554f929a4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_cipher.c
+SPDXID: SPDXRef-file-23
+FileChecksum: SHA1: 211700341a664dfbb190426dd1871698d7bdfe33
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/cracen_hmac.c
+SPDXID: SPDXRef-file-14
+FileChecksum: SHA1: 2150f6387524c3aa242fe1c75f62e342170d3cf7
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/hash.c
+SPDXID: SPDXRef-file-78
+FileChecksum: SHA1: 221b444b4c83b8dafb5476e0c7857972ff6aec68
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_keygen.c
+SPDXID: SPDXRef-file-36
+FileChecksum: SHA1: 22a81a49b7d6bf1877932264c7f310ef3c03218d
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_mac.c
+SPDXID: SPDXRef-file-30
+FileChecksum: SHA1: 23ea5e4fc579463df090082868e6b58675053c39
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_wpa3_key_management.c
+SPDXID: SPDXRef-file-53
+FileChecksum: SHA1: 248c7a85e9463e37b0d4c1914bebeb7c9fcc601f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/ec_helpers.c
+SPDXID: SPDXRef-file-16
+FileChecksum: SHA1: 284a766109f571d2fdfe29cc6814a6f81fb2b996
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/statuscodes.c
+SPDXID: SPDXRef-file-62
+FileChecksum: SHA1: 2e166f7b8b7323724480080a204972313f486f61
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/aes/cracen_aes_ecb.c
+SPDXID: SPDXRef-file-33
+FileChecksum: SHA1: 2f5d39c005b9a90d482d79bfab588c80e0576f88
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_key_management.c
+SPDXID: SPDXRef-file-35
+FileChecksum: SHA1: 328aa6713737c954fc269d3fde44357c3483ed7c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/iomem.c
+SPDXID: SPDXRef-file-60
+FileChecksum: SHA1: 37368631c7f8099ceed55e335eca65727385a9e7
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_hash.c
+SPDXID: SPDXRef-file-25
+FileChecksum: SHA1: 37c664d481abd371306105af72aea0532ef695a4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/keyref.c
+SPDXID: SPDXRef-file-80
+FileChecksum: SHA1: 3ecb849a0ea7e2b9b59a8868adbcd7572ead2d93
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecdsa.c
+SPDXID: SPDXRef-file-38
+FileChecksum: SHA1: 3f13738967affec1fce6ec022db3126f33aaab79
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/aead.c
+SPDXID: SPDXRef-file-72
+FileChecksum: SHA1: 4551049548a23ee4dab48a0373b549b415c3700e
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/common/tfm_hal_reset_halt.c
+SPDXID: SPDXRef-file-10
+FileChecksum: SHA1: 483b1bf9ca6044bc616f2ee2721c463b3b5586bf
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/ed25519.c
+SPDXID: SPDXRef-file-58
+FileChecksum: SHA1: 4b616c3e66a27c2d39cab7e39ddb606fc5e0d9a1
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/chachapoly.c
+SPDXID: SPDXRef-file-74
+FileChecksum: SHA1: 5aa2d4dd2bcfce65c4ec984f40af2f61fe9fb725
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmmask.c
+SPDXID: SPDXRef-file-77
+FileChecksum: SHA1: 5b24667e1a4f2391137891328c8aa1de9961eb3a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/lib/hw_unique_key/hw_unique_key_cracen_kmu.c
+SPDXID: SPDXRef-file-5
+FileChecksum: SHA1: 5ceb4e977db9c93bd89c5a5d2fea63a0e9482b2b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_spake2p_key_management.c
+SPDXID: SPDXRef-file-51
+FileChecksum: SHA1: 5d45620082d56cc6c0d0cab6caf39d1424ef655e
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/lib_kmu.c
+SPDXID: SPDXRef-file-18
+FileChecksum: SHA1: 5da482df5cc3530ebf4cc0a594b3ccdf5b2f0f4f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_helpers.c
+SPDXID: SPDXRef-file-34
+FileChecksum: SHA1: 5daba669dde018b6d88025f34b9739aabc7ed7ac
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/ba414_status.c
+SPDXID: SPDXRef-file-64
+FileChecksum: SHA1: 60bd7dc504e402f341e655a9630587d2c28c3f72
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/montgomery.c
+SPDXID: SPDXRef-file-61
+FileChecksum: SHA1: 623bce4d349f011541228cf00daabf53143b8340
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_montgomery.c
+SPDXID: SPDXRef-file-41
+FileChecksum: SHA1: 63c648f0dd192e282f64c3ab9c27c82f3da63ece
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_eddsa_ed25519.c
+SPDXID: SPDXRef-file-39
+FileChecksum: SHA1: 67a0c7bcbf1ffb1b73b8f8fd4de80b579daf8973
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ik/cmddefs_ik.c
+SPDXID: SPDXRef-file-70
+FileChecksum: SHA1: 68bb1909dcb5a7fe10d4d5a8c39f5285a66ec61b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/platform/baremetal/cmdma_hw.c
+SPDXID: SPDXRef-file-82
+FileChecksum: SHA1: 71a538b36d4e8503bdf2e332a1772ab4b388e427
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_core.c
+SPDXID: SPDXRef-file-88
+FileChecksum: SHA1: 75b817f267336f5100eeca732e7388c112483f14
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_events.c
+SPDXID: SPDXRef-file-89
+FileChecksum: SHA1: 7ad628b9531c0f769742b88338fe8ace5391ef91
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_ecjpake.c
+SPDXID: SPDXRef-file-66
+FileChecksum: SHA1: 7ce154dd60d564ed7f59448bc681e7618a1a7ce2
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/aes/cracen_aes_cbc.c
+SPDXID: SPDXRef-file-32
+FileChecksum: SHA1: 7e8a0085db4e275c9c40f697bc827623d70983eb
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/src/tfm_ioctl_s_api.c
+SPDXID: SPDXRef-file-11
+FileChecksum: SHA1: 8261b6244dc2ce44a96f6f9715501a0a51eb3cfd
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_modmath.c
+SPDXID: SPDXRef-file-67
+FileChecksum: SHA1: 8622d439f4b23204d5b373291349b3e86c45047c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/trng.c
+SPDXID: SPDXRef-file-85
+FileChecksum: SHA1: 86c6aa0b8178ab7d3675dde5c15bd26958ef7615
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_ctr_drbg.c
+SPDXID: SPDXRef-file-24
+FileChecksum: SHA1: 8fbdf26686983d294a4d4fe84fbc3365b6cb5cd1
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/baremetal_ba414e_with_ik/pk_baremetal.c
+SPDXID: SPDXRef-file-63
+FileChecksum: SHA1: 93ee8c448c938ae3fe3fae6db803103d6c9bc78c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/common/assert.c
+SPDXID: SPDXRef-file-6
+FileChecksum: SHA1: 953ef7aea0be970d929079b7e0cfe2c3549b9a34
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/key_derivation/cracen_kdf_common.c
+SPDXID: SPDXRef-file-46
+FileChecksum: SHA1: 9900ca952fbf2c487e399e624d37ffdeecd35685
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/common/dummy_provisioning.c
+SPDXID: SPDXRef-file-7
+FileChecksum: SHA1: a0501a7404affca9ca6d291a5e98570976239e01
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmac.c
+SPDXID: SPDXRef-file-75
+FileChecksum: SHA1: a0ca69b4a4f42041946febad86962507cf77be6a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ikg/cracen_ikg_operations.c
+SPDXID: SPDXRef-file-44
+FileChecksum: SHA1: a1c8342244c76842d99d43b85589ca91cfa65eb2
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_builtin_key_policy.c
+SPDXID: SPDXRef-file-22
+FileChecksum: SHA1: a277184dfddf4037692c0f3f9026624dc686b5f3
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ik/ikhardware.c
+SPDXID: SPDXRef-file-71
+FileChecksum: SHA1: a7f5864b6fe4a8732fdde50736b909aa5e5f16b8
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/platform/baremetal/interrupts.c
+SPDXID: SPDXRef-file-83
+FileChecksum: SHA1: a8896ca3e08b3e58a46310bffc3bedaad065e2ac
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/key_derivation/cracen_hkdf.c
+SPDXID: SPDXRef-file-45
+FileChecksum: SHA1: acc682cef17c23794221780f92218d1466649cc6
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_sign_verify.c
+SPDXID: SPDXRef-file-31
+FileChecksum: SHA1: b5a887d2320f096890c68d1ac04d7f48c926f06f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/mac/cracen_mac_hmac.c
+SPDXID: SPDXRef-file-50
+FileChecksum: SHA1: b67effb4f388843691f38b00ee6f208301c5c5b4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/src/tfm_platform_system.c
+SPDXID: SPDXRef-file-12
+FileChecksum: SHA1: b79b6841a6bac01e63c5bd845f2a2233d2009c92
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/blkcipher.c
+SPDXID: SPDXRef-file-73
+FileChecksum: SHA1: ba7d00ec38e44b08365a6f952990e574543f025b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/ec_curves.c
+SPDXID: SPDXRef-file-68
+FileChecksum: SHA1: bd0115e2972fa9af3f053a6034cf6df1c4c8da46
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/mbedtls_psa_platform.c
+SPDXID: SPDXRef-file-86
+FileChecksum: SHA1: bdaa525554614dccf555f4d02410a39b6e791ebe
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_key_management.c
+SPDXID: SPDXRef-file-28
+FileChecksum: SHA1: c4459136f668fd41884c76d1a63b768f378ddd27
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_ecc.c
+SPDXID: SPDXRef-file-65
+FileChecksum: SHA1: c73e2468615026adb3883e15429109364df2ddcd
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/blind.c
+SPDXID: SPDXRef-file-57
+FileChecksum: SHA1: cc19d2fde8a955f56978154213135efdf96d9168
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmdma.c
+SPDXID: SPDXRef-file-76
+FileChecksum: SHA1: cde9dd3c0a36153d23e378bd99b43d5a6cb4da2a
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_signature.c
+SPDXID: SPDXRef-file-37
+FileChecksum: SHA1: d347d4feba18ee2c632ead3a0a9b848e2ac32971
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/pkhardware_ba414e.c
+SPDXID: SPDXRef-file-69
+FileChecksum: SHA1: d388f6b848e834f706a4129fb74ef3c93a882a0b
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_eddsa_ed448.c
+SPDXID: SPDXRef-file-40
+FileChecksum: SHA1: db1b8225e4e3ca42569ad31dbc16bd7e2b0ba551
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/rsa/cracen_rsa_signature.c
+SPDXID: SPDXRef-file-55
+FileChecksum: SHA1: dcbd809f199ebaf5f0e8791b2abf497914a81c36
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/psa_crypto_driver_wrappers.c
+SPDXID: SPDXRef-file-87
+FileChecksum: SHA1: deb401772ade311dc1319817175127619cea2d0c
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/modules/trusted-firmware-m/tfm_boards/common/tfm_hal_platform.c
+SPDXID: SPDXRef-file-9
+FileChecksum: SHA1: df29c85500d9e0be532a963a9823ee44c8e6a0da
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_key_derivation.c
+SPDXID: SPDXRef-file-27
+FileChecksum: SHA1: e215167442685ac8a95f2750e3346408612bd88f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_mutexes.c
+SPDXID: SPDXRef-file-91
+FileChecksum: SHA1: e338a645b787f198383f0498e6c6b53193999414
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/utils/nrf_security_mem_helpers.c
+SPDXID: SPDXRef-file-90
+FileChecksum: SHA1: e7ee6d0eecb10e0864d5a2bbca420f6308db8837
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/mac/cracen_mac_cmac.c
+SPDXID: SPDXRef-file-49
+FileChecksum: SHA1: e9deb48940860ae769acb515b05e1bc0c8cfcb1f
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_srp_key_management.c
+SPDXID: SPDXRef-file-52
+FileChecksum: SHA1: ea0de39111720eb28e0f94d2b2cdeb36e0a173b4
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/rsa/cracen_rsa_key_management.c
+SPDXID: SPDXRef-file-54
+FileChecksum: SHA1: ec2baf64b8096f9753f4975d64a1f9e0a02dbbae
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_kmu.c
+SPDXID: SPDXRef-file-29
+FileChecksum: SHA1: f409d2dd6b2e8a5180c20b844a4a4f3334417ab8
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa.c
+SPDXID: SPDXRef-file-20
+FileChecksum: SHA1: f4511ceb0481514fe80c1747c4e46e64156fe880
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/mac.c
+SPDXID: SPDXRef-file-81
+FileChecksum: SHA1: f468f36d46a6f06f1b59d7109a6dc6a194db3d47
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/key_derivation/cracen_sp800_108_ctr_mac.c
+SPDXID: SPDXRef-file-47
+FileChecksum: SHA1: fc10aa1f9ddded33aae111f32cfbb78bbfc07806
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/sha3.c
+SPDXID: SPDXRef-file-84
+FileChecksum: SHA1: fd12cde3affb3b9ee2fb55a687c6e74b42266695
+LicenseConcluded: LicenseRef-NORDIC-5-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-oberon-psa-crypto
+SPDXID: SPDXRef-package-5
+PackageVersion: e8db62ed0fba5028e7ae0eba7b1fb63436ae6416
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-oberon-psa-crypto
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-oberon-psa-crypto@e8db62ed0fba5028e7ae0eba7b1fb63436ae6416
+FilesAnalyzed: true
+PackageVerificationCode: 58f559c1c8f954ba93665a9c040b836c8e8393b9
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto_client.c
+SPDXID: SPDXRef-file-93
+FileChecksum: SHA1: 1508b5d8babce8c9c9d648fcfeba6334160bb44b
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/platform.c
+SPDXID: SPDXRef-file-97
+FileChecksum: SHA1: 305557976a65d3d72bca909a0bc89170d5c960b9
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/memory_buffer_alloc.c
+SPDXID: SPDXRef-file-96
+FileChecksum: SHA1: 5a0882c19ee3f6019de078f6474c897e64aa00ec
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto_slot_management.c
+SPDXID: SPDXRef-file-94
+FileChecksum: SHA1: 8ac50e15e9aae0cb55b8308b11dec9b97276713c
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto.c
+SPDXID: SPDXRef-file-92
+FileChecksum: SHA1: a72737d6466be6ca05b57370d818f34c786bdce5
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/platform/platform_util.c
+SPDXID: SPDXRef-file-98
+FileChecksum: SHA1: ae09a5ff8ed3edd2b089127f48ad48d57f4acb8b
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/utilities/constant_time.c
+SPDXID: SPDXRef-file-99
+FileChecksum: SHA1: b951f1e00bb1eebb24fe32d1b6ad467c0878f386
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/crypto/oberon-psa-crypto/core/psa_crypto_storage.c
+SPDXID: SPDXRef-file-95
+FileChecksum: SHA1: d4569be29171d9aa8e59ae99085eefdeb2b6b708
+LicenseConcluded: APACHE-2.0 OR GPL-2.0-OR-LATER
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-trusted-firmware-m
+SPDXID: SPDXRef-package-6
+PackageVersion: b0d724bc0f2f46a396d59280476ec06fad1d4ecd
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-trusted-firmware-m
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-trusted-firmware-m@b0d724bc0f2f46a396d59280476ec06fad1d4ecd
+FilesAnalyzed: true
+PackageVerificationCode: e9cf5d33f498aec3cf4ffe839207bf29c282453d
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/nv_counters/ps_nv_counters.c
+SPDXID: SPDXRef-file-188
+FileChecksum: SHA1: 0258b979708da284b61ea54c6d30bf4212d61d0d
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash/its_flash_nor.c
+SPDXID: SPDXRef-file-162
+FileChecksum: SHA1: 051f87fa45b356e7e3c3c2d838a5edf2e14c6285
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_exit.c
+SPDXID: SPDXRef-file-172
+FileChecksum: SHA1: 0697f0f7cf5a6a254d3981c1c388ec9a8eac4652
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/startup.c
+SPDXID: SPDXRef-file-138
+FileChecksum: SHA1: 06c94e8316f09572e5ef9b1fed961dda125fb36b
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_aead.c
+SPDXID: SPDXRef-file-147
+FileChecksum: SHA1: 07703988c7012519f22187c1ac98cad8abb742bc
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_init.c
+SPDXID: SPDXRef-file-152
+FileChecksum: SHA1: 08ee619d802de721123ab75d70a8fef74f434004
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/services/src/tfm_platform_hal_ioctl.c
+SPDXID: SPDXRef-file-137
+FileChecksum: SHA1: 095a27f9795d88d289b46048f3e9b3132428af9e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/ns_agent_tz/psa_api_veneers_v80m.c
+SPDXID: SPDXRef-file-185
+FileChecksum: SHA1: 09600fbc86f00affdb5cf0b70e2e7896bf2bed0b
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/crypto/ps_crypto_interface.c
+SPDXID: SPDXRef-file-187
+FileChecksum: SHA1: 0cb86416f833043f5888d2fb37cfe0fefe0c6ba5
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_fatal_error.c
+SPDXID: SPDXRef-file-120
+FileChecksum: SHA1: 0fe1f29a33aa9bc563a1f57c016d4c19a1a0d67a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash_fs/its_flash_fs.c
+SPDXID: SPDXRef-file-164
+FileChecksum: SHA1: 11b2ce62bde3bb9dfd86f600930a5694520c3cab
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_start.c
+SPDXID: SPDXRef-file-175
+FileChecksum: SHA1: 136abdb72725e3aa764500e6a41d40c0c7576241
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/main.c
+SPDXID: SPDXRef-file-201
+FileChecksum: SHA1: 1627931f4b994099135c7bfbc32744cb6f6d98a0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/tfm_hal_isolation.c
+SPDXID: SPDXRef-file-143
+FileChecksum: SHA1: 166f948cbfdddb25e7d420d29156d71cd1c28afb
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_mac.c
+SPDXID: SPDXRef-file-157
+FileChecksum: SHA1: 16b4f284a0ec377f0c0ab5d603dc4c751242be1b
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_key_wrapping.c
+SPDXID: SPDXRef-file-155
+FileChecksum: SHA1: 179af9b3603a3a2b7191a1b28b1ee4850f31fe08
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_strlen.c
+SPDXID: SPDXRef-file-176
+FileChecksum: SHA1: 181a3318da764a78d0dc0cf9a66ad339d07ab661
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/interface/src/tfm_ps_api.c
+SPDXID: SPDXRef-file-103
+FileChecksum: SHA1: 1dfaa767283a0ab6b2bb16d377bc69b397fe6158
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/target_cfg_54l.c
+SPDXID: SPDXRef-file-142
+FileChecksum: SHA1: 2042c14a525f12f534f71513068cce9cf653be04
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/ps_object_system.c
+SPDXID: SPDXRef-file-190
+FileChecksum: SHA1: 21242512062d36c21637722ea298d871219982cd
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/tfm_hal_its_encryption_cracen.c
+SPDXID: SPDXRef-file-144
+FileChecksum: SHA1: 2ced7a13b0d7e5ccea800a591e625e0707c30156
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/ps_object_table.c
+SPDXID: SPDXRef-file-191
+FileChecksum: SHA1: 2db5d74555ff21a1c700827c682027b40ff6f9fb
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/platform/platform_sp.c
+SPDXID: SPDXRef-file-186
+FileChecksum: SHA1: 2e011a09eca8fbf1ce1015f7e4ecfb485efa886f
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/template/flash_otp_nv_counters_backend.c
+SPDXID: SPDXRef-file-114
+FileChecksum: SHA1: 30bd87c1398f0c5e9e5fc99166e4cbc728fd5a3a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/shared/crt_memset.c
+SPDXID: SPDXRef-file-196
+FileChecksum: SHA1: 31f1862db7fe420b7cbe38fce4ec2c2e735a98eb
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/interface/src/tfm_psa_call.c
+SPDXID: SPDXRef-file-104
+FileChecksum: SHA1: 32db5943125081480b53ace0bdf3c8533333a0a5
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/cmsis_drivers/Driver_USART.c
+SPDXID: SPDXRef-file-128
+FileChecksum: SHA1: 3333f2d102068fe2b1a1a3487dcd437db6c3cad7
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/spm_connection_pool.c
+SPDXID: SPDXRef-file-209
+FileChecksum: SHA1: 3505a5b27bcc9513a4ac35d15e9b9887f805017e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/psa_read_write_skip_api.c
+SPDXID: SPDXRef-file-206
+FileChecksum: SHA1: 36dd322f356f250bef77c51521655f49d62379c7
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/arch/tfm_arch_v8m_main.c
+SPDXID: SPDXRef-file-199
+FileChecksum: SHA1: 37cddbf0cffd70fbde5ad9ee851fc094a9b265ed
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/template/nv_counters.c
+SPDXID: SPDXRef-file-115
+FileChecksum: SHA1: 399fe3f2bab6bad097d7e5f5082b2785b7fa3c50
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/target_cfg.c
+SPDXID: SPDXRef-file-141
+FileChecksum: SHA1: 3a92217dc4de4272946152989003ac6f2a152071
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/ns_client_ext/tfm_spm_ns_ctx.c
+SPDXID: SPDXRef-file-216
+FileChecksum: SHA1: 3dd22de45d273d4dd4c06ebf7b963b70be1e0f2a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/cmsis_drivers/Driver_Flash.c
+SPDXID: SPDXRef-file-127
+FileChecksum: SHA1: 416d43c3c47d5227534e8f0f8fea48539de0eb57
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/nrf54l/nrf54l_init.c
+SPDXID: SPDXRef-file-146
+FileChecksum: SHA1: 45187e17e834d0220aeebc4fff538df3534455dc
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/startup_nrf54lx.c
+SPDXID: SPDXRef-file-140
+FileChecksum: SHA1: 4668c24bddab0d7a5256dd671bbe10e2d9d292c9
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/shared/crt_strncmp.c
+SPDXID: SPDXRef-file-197
+FileChecksum: SHA1: 47fb97ac0dc1e16f851d118843f07fc35955c99c
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/faults.c
+SPDXID: SPDXRef-file-129
+FileChecksum: SHA1: 499433bd12c57bbb75c71235de64a7747971c28a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/thread.c
+SPDXID: SPDXRef-file-214
+FileChecksum: SHA1: 511b459de661983f69332f39946ccf396edd040a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/interface/src/tfm_platform_api.c
+SPDXID: SPDXRef-file-102
+FileChecksum: SHA1: 5715b407ac64f7a3ec6a2da65143ced5caddc3f5
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/faults.c
+SPDXID: SPDXRef-file-112
+FileChecksum: SHA1: 59cbcbb416d0d042487c8972ac663b68ff9c7130
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/startup_nrf54l_common.c
+SPDXID: SPDXRef-file-139
+FileChecksum: SHA1: 5d6a84e0129b9c6dba390747e9c4eabd3e1e889c
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/secure_peripherals_defs.c
+SPDXID: SPDXRef-file-135
+FileChecksum: SHA1: 5e0785e00859fa3f561e4181488cc5b388040a92
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/tfm_svcalls.c
+SPDXID: SPDXRef-file-213
+FileChecksum: SHA1: 5ee4458ddc83c5dcf5a0a491f1f71444d2d7ff90
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/services/src/tfm_ioctl_core_s_api.c
+SPDXID: SPDXRef-file-136
+FileChecksum: SHA1: 5ef517d92bf6b4c66d597b4bff5f147fe6998eda
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/lib/fih/src/fih.c
+SPDXID: SPDXRef-file-107
+FileChecksum: SHA1: 617e042a7d832b8d267d470d352b4eb769110481
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash_fs/its_flash_fs_dblock.c
+SPDXID: SPDXRef-file-165
+FileChecksum: SHA1: 66600952c9dc9a565194473ebf95113475fcad4e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_key_derivation.c
+SPDXID: SPDXRef-file-153
+FileChecksum: SHA1: 68994d1b776f65cb6c62bfafa428d44ed7228f65
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_memcmp.c
+SPDXID: SPDXRef-file-173
+FileChecksum: SHA1: 68ea151d30ab85b3c408024d9ca00e8103abe7c7
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/ps_encrypted_object.c
+SPDXID: SPDXRef-file-189
+FileChecksum: SHA1: 6a017f68e2c2f9c69fea7a9f7a16d73d51b5502c
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/arch/tfm_arch.c
+SPDXID: SPDXRef-file-198
+FileChecksum: SHA1: 725bdf98e3eb4df3df166b6da8b0ed6702351906
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_hal_nvic.c
+SPDXID: SPDXRef-file-122
+FileChecksum: SHA1: 72af12a9ca9d2e0f098daca1c8e2ae1e4194d2b6
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash/its_flash.c
+SPDXID: SPDXRef-file-160
+FileChecksum: SHA1: 76cfa9d57940ddae16997694e529c3562413f082
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/ns_agent_tz/ns_agent_tz_v80m.c
+SPDXID: SPDXRef-file-184
+FileChecksum: SHA1: 77455cd738e442953555a6e17a79aea1cbf85b36
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/psa_interface_thread_fn_call.c
+SPDXID: SPDXRef-file-205
+FileChecksum: SHA1: 77f284af22edb7b25425a9ea2a88c5f44668ec96
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/hw_init.c
+SPDXID: SPDXRef-file-130
+FileChecksum: SHA1: 78957580e2597ad9bb35a65cea4f407dcaaa1a62
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/tfm_ps_req_mngr.c
+SPDXID: SPDXRef-file-194
+FileChecksum: SHA1: 7adac6b1ea48b1e9b0c733774954db6a00eede24
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/lib/ext/efi_soft_crc/src/efi_soft_crc.c
+SPDXID: SPDXRef-file-106
+FileChecksum: SHA1: 7cadf01ac4e5255c11290dd406d831f25bac8f76
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash/its_flash_ram.c
+SPDXID: SPDXRef-file-163
+FileChecksum: SHA1: 7dd03fb29a1f412388c6147948b3463859ef3512
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/exception_info.c
+SPDXID: SPDXRef-file-111
+FileChecksum: SHA1: 809ee4306db347317a0c605c3d880682e430c9a0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/uart_stdout.c
+SPDXID: SPDXRef-file-126
+FileChecksum: SHA1: 81393c2f9c8d6f345d8b38aaafa2725da0784226
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/assert.c
+SPDXID: SPDXRef-file-171
+FileChecksum: SHA1: 815ef7223f923bf30585e3479c63884b4c45cc07
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/utilities.c
+SPDXID: SPDXRef-file-215
+FileChecksum: SHA1: 84ad8b33ec9cbbfe2efefc5bc2935726a411a6ed
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/shared/crt_memcpy.c
+SPDXID: SPDXRef-file-195
+FileChecksum: SHA1: 895c042b0a6ec1059c2b717e6e8a4338f4b11c4e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/template/tfm_rotpk.c
+SPDXID: SPDXRef-file-117
+FileChecksum: SHA1: 8d02ece087e70f19e51075b594c6223faa3c8787
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/native_drivers/spu.c
+SPDXID: SPDXRef-file-132
+FileChecksum: SHA1: 8d444776b02099d85b83d320022ccc193f91b5be
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/spm_ipc.c
+SPDXID: SPDXRef-file-210
+FileChecksum: SHA1: 8e9d25a19d585a67b80eb82d6ec192fd29c85395
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/rom_loader.c
+SPDXID: SPDXRef-file-208
+FileChecksum: SHA1: 8f0e28b2d8bf6422511e1f328a13495bb71c9f53
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/template/otp_flash.c
+SPDXID: SPDXRef-file-116
+FileChecksum: SHA1: 9033761ac4ace09293eb5c66eeee21b3423d161c
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/lib/tfm_log/src/tfm_log.c
+SPDXID: SPDXRef-file-108
+FileChecksum: SHA1: 924dc6493b49b490d4ad992bf759a60484ed6e37
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_hal_its.c
+SPDXID: SPDXRef-file-121
+FileChecksum: SHA1: 937bb904d5440b09ad34cf6f2b8128c01eedf5be
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_alloc.c
+SPDXID: SPDXRef-file-148
+FileChecksum: SHA1: 95c166d36584b321e623e77eb1110db3d2f70d3f
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash_fs/its_flash_fs_mblock.c
+SPDXID: SPDXRef-file-166
+FileChecksum: SHA1: 96187444c8e7038a03b9e0d0b77ef8c34d96286f
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/psa_version_api.c
+SPDXID: SPDXRef-file-207
+FileChecksum: SHA1: a18e1f2fa78813c93e6d7857fda852d867ae195c
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_hash.c
+SPDXID: SPDXRef-file-151
+FileChecksum: SHA1: a2851fc0deff1c92c49337e8eed976a10c33d893
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/tfm_its_req_mngr.c
+SPDXID: SPDXRef-file-170
+FileChecksum: SHA1: a2ffe33fe8d04a06607c673d4489e63d7a09a241
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/template/tfm_shared_measurement_data.c
+SPDXID: SPDXRef-file-118
+FileChecksum: SHA1: a30a8c573a6207130846d1d30bd478fd8f4c9718
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/sfn_common_thread.c
+SPDXID: SPDXRef-file-181
+FileChecksum: SHA1: a3ebc3bf7e8f217c13b43c622cdbf298181022ac
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/flash/its_flash_nand.c
+SPDXID: SPDXRef-file-161
+FileChecksum: SHA1: a54c7caef2a49eb0d53f19d2371b41572f74c438
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/ps_utils.c
+SPDXID: SPDXRef-file-192
+FileChecksum: SHA1: a60b9b9fbfbe435a2787b5d299b08d7e9a8004ee
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/tfm_pools.c
+SPDXID: SPDXRef-file-212
+FileChecksum: SHA1: a69b527c2693adaeea54b38c49fabce4affd4315
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/psa_connection_api.c
+SPDXID: SPDXRef-file-204
+FileChecksum: SHA1: a795c544003aaaa4b9482c68986094f61beb5c8a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/tfm_hal_platform_common.c
+SPDXID: SPDXRef-file-145
+FileChecksum: SHA1: a86e56ff0442f144bc2e6a88b3d33c88acbd1dbd
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_boot_measurement.c
+SPDXID: SPDXRef-file-119
+FileChecksum: SHA1: ab3feae7a5da9a5747547c871a79b234a3dca7c3
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/native_drivers/mpu_armv8m_drv.c
+SPDXID: SPDXRef-file-131
+FileChecksum: SHA1: ac1efd64296317c1efe91a915de7f4ecc4ac70b7
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/service_api.c
+SPDXID: SPDXRef-file-180
+FileChecksum: SHA1: ace85d4a47b39d99f174e43c7261fbda1f30a7dd
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/lib/tfm_log_unpriv/src/tfm_log_unpriv.c
+SPDXID: SPDXRef-file-109
+FileChecksum: SHA1: adf24a1d940f08a33269f808b915bbcb492d23f6
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/its_utils.c
+SPDXID: SPDXRef-file-168
+FileChecksum: SHA1: ae3651c60ccda8c435b1226ced897bf095f5e629
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/tfm_boot_data.c
+SPDXID: SPDXRef-file-211
+FileChecksum: SHA1: b741186cac61c11fa03bf40ba008ad65b01c019e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_strnlen.c
+SPDXID: SPDXRef-file-177
+FileChecksum: SHA1: ba87aa43d78dc29938c9e74e29267286f09d3c34
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_hal_ps.c
+SPDXID: SPDXRef-file-123
+FileChecksum: SHA1: badafc6f0c1d94625c26295dd45dafe130e8ac78
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/interface/src/tfm_its_api.c
+SPDXID: SPDXRef-file-101
+FileChecksum: SHA1: bb4a918fac63a322603db785ec06c73f2d181514
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_hal_sp_logdev_periph.c
+SPDXID: SPDXRef-file-124
+FileChecksum: SHA1: c20565e0ee9f6ae849af3be6d43c71ae1c680fa7
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/tfm_internal_trusted_storage.c
+SPDXID: SPDXRef-file-169
+FileChecksum: SHA1: ca73b9fb41862e70ccc55beafafa444738803275
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/sprt_partition_metadata_indicator.c
+SPDXID: SPDXRef-file-182
+FileChecksum: SHA1: ce791bdc07cb26334f090e4173968976cb4e39a9
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_vprintf.c
+SPDXID: SPDXRef-file-178
+FileChecksum: SHA1: d17321d5a3bd0aec59c0a35b4f78ac322f8d2e53
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_key_management.c
+SPDXID: SPDXRef-file-154
+FileChecksum: SHA1: d355b7293951ca78b5ef8590d4f46801d34da2b0
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/ns_agent_tz/load_info_ns_agent_tz.c
+SPDXID: SPDXRef-file-183
+FileChecksum: SHA1: d63148c1aa58abb31ce25017847667cc1a04584d
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/nrf_exception_info.c
+SPDXID: SPDXRef-file-133
+FileChecksum: SHA1: d703c8d220cd3184d5b04474109ac28e1dbcf5b4
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_library.c
+SPDXID: SPDXRef-file-156
+FileChecksum: SHA1: d70c28bf7c340be4b7896e2a7cd7ed515c082201
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/tfm_hal_spm_logdev_peripheral.c
+SPDXID: SPDXRef-file-125
+FileChecksum: SHA1: d782e1a0ab43f1537fc5f19cdd91d58477589a3e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/lib/efi_guid/src/efi_guid.c
+SPDXID: SPDXRef-file-105
+FileChecksum: SHA1: d9821fd611b8c7e1c1b357f1c8cb6764558f0b83
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/interface/src/tfm_crypto_api.c
+SPDXID: SPDXRef-file-100
+FileChecksum: SHA1: da3df9b648679e9db309e70fef011c1f59ca7d82
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/psa_call_api.c
+SPDXID: SPDXRef-file-203
+FileChecksum: SHA1: de0e69b71569eb41277768f95ee1bd4955be4780
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_asymmetric.c
+SPDXID: SPDXRef-file-149
+FileChecksum: SHA1: df3276fff8e1ac71ae91049df7d35c89718ebeca
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_rng.c
+SPDXID: SPDXRef-file-159
+FileChecksum: SHA1: e8b684a9c8e50f15a5e539a4de5d0f7e615bae51
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/psa_api.c
+SPDXID: SPDXRef-file-202
+FileChecksum: SHA1: e913a2a0b8d89bc9b3e8e8e8154f85277607d92a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_pake.c
+SPDXID: SPDXRef-file-158
+FileChecksum: SHA1: ed57ceccb986963efc61552df4339d1cf7fbc9a7
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/lib/tfm_vprintf/src/tfm_vprintf.c
+SPDXID: SPDXRef-file-110
+FileChecksum: SHA1: ee1f9879f53854d628c3415457ccbfe4daa6ee8e
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/common/syscalls_stub.c
+SPDXID: SPDXRef-file-113
+FileChecksum: SHA1: efe5f1a3ea516278706cf17f4e0b4eebda747d0c
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/crt_memmove.c
+SPDXID: SPDXRef-file-174
+FileChecksum: SHA1: f047fb398baa622ad5967c83c54c9a3492eab940
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/spm/core/backend_ipc.c
+SPDXID: SPDXRef-file-200
+FileChecksum: SHA1: f08cdc8c34da515c76e105bf0b746ecb140e74da
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/protected_storage/tfm_protected_storage.c
+SPDXID: SPDXRef-file-193
+FileChecksum: SHA1: f1c2952689b55570c647805b424858674f898f4d
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/internal_trusted_storage/its_crypto_interface.c
+SPDXID: SPDXRef-file-167
+FileChecksum: SHA1: f22625db042d4d61684cbf2a94474ee30da0bea4
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/platform/ext/target/nordic_nrf/common/core/nrfx_glue.c
+SPDXID: SPDXRef-file-134
+FileChecksum: SHA1: fa928cb12c81ac704172bc66fff0c9541b63214a
+LicenseConcluded: NOASSERTION
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/lib/runtime/psa_api_ipc.c
+SPDXID: SPDXRef-file-179
+FileChecksum: SHA1: fb414e4097055c6f1cba1d0031b9a8a954209a5a
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# File
+
+FileName: ./sdk/modules/tee/tf-m/trusted-firmware-m/secure_fw/partitions/crypto/crypto_cipher.c
+SPDXID: SPDXRef-file-150
+FileChecksum: SHA1: ffbac7a449464021ea123847d6f0c40e9366ff81
+LicenseConcluded: BSD-3-CLAUSE
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Package Information
+
+PackageName: nrfconnect/sdk-zephyr
+SPDXID: SPDXRef-package-7
+PackageVersion: 33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6
+PackageSupplier: Organization: nrfconnect
+PackageDownloadLocation: https://github.com/nrfconnect/sdk-zephyr
+ExternalRef: PACKAGE-MANAGER purl pkg:github/nrfconnect/sdk-zephyr@33fa6a7aac6a4401d16a67cb9f27a3483fa02dd6
+FilesAnalyzed: true
+PackageVerificationCode: a7082d241bf952b361fd49f49d64d2ffa4233c6d
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseInfoFromFiles: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+PackageCopyrightText: NOASSERTION
+# File
+
+FileName: ./sdk/zephyr/soc/nordic/nrf54l/soc.c
+SPDXID: SPDXRef-file-217
+FileChecksum: SHA1: 0e7dae0a0dd26981fd71cd330a5cba95e5d832e8
+LicenseConcluded: APACHE-2.0
+LicenseInfoInFile: NOASSERTION
+FileCopyrightText: NOASSERTION
+
+# Relationships
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-1
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-2
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-3
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-4
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-5
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-6
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-package-7
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-1
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-2
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-3
+Relationship: SPDXRef-package-3 CONTAINS SPDXRef-file-4
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-17
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-26
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-42
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-43
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-8
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-48
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-13
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-21
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-59
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-19
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-56
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-79
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-15
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-23
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-14
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-78
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-36
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-30
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-53
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-16
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-62
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-33
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-35
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-60
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-25
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-80
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-38
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-72
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-10
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-58
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-74
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-77
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-5
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-51
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-18
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-34
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-64
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-61
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-41
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-39
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-70
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-82
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-88
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-89
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-66
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-32
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-11
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-67
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-85
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-24
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-63
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-6
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-46
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-7
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-75
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-44
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-22
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-71
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-83
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-45
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-31
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-50
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-12
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-73
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-68
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-86
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-28
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-65
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-57
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-76
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-37
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-69
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-40
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-55
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-87
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-9
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-27
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-91
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-90
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-49
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-52
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-54
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-29
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-20
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-81
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-47
+Relationship: SPDXRef-package-4 CONTAINS SPDXRef-file-84
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-93
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-97
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-96
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-94
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-92
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-98
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-99
+Relationship: SPDXRef-package-5 CONTAINS SPDXRef-file-95
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-188
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-162
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-172
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-138
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-147
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-152
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-137
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-185
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-187
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-120
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-164
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-175
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-201
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-143
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-157
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-155
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-176
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-103
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-142
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-190
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-144
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-191
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-186
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-114
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-196
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-104
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-128
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-209
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-206
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-199
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-115
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-141
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-216
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-127
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-146
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-140
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-197
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-129
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-214
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-102
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-112
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-139
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-135
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-213
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-136
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-107
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-165
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-153
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-173
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-189
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-198
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-122
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-160
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-184
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-205
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-130
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-194
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-106
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-163
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-111
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-126
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-171
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-215
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-195
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-117
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-132
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-210
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-208
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-116
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-108
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-121
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-148
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-166
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-207
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-151
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-170
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-118
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-181
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-161
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-192
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-212
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-204
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-145
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-119
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-131
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-180
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-109
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-168
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-211
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-177
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-123
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-101
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-124
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-169
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-182
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-178
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-154
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-183
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-133
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-156
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-125
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-105
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-100
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-203
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-149
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-159
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-202
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-158
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-110
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-113
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-174
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-200
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-193
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-167
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-134
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-179
+Relationship: SPDXRef-package-6 CONTAINS SPDXRef-file-150
+Relationship: SPDXRef-package-7 CONTAINS SPDXRef-file-217
+Relationship: SPDXRef-package-1 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-3 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-4 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-5 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-6 DEPENDS_ON SPDXRef-package-2
+Relationship: SPDXRef-package-7 DEPENDS_ON SPDXRef-package-2
+# Extracted Licenses
+
+LicenseID: LicenseRef-Nordic-5-Clause
+LicenseName: Nordic 5-Clause License
+ExtractedText: <text>Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form, except as embedded into a Nordic
+   Semiconductor ASA integrated circuit in a product or a software update for
+   such product, must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other
+   materials provided with the distribution.
+
+3. Neither the name of Nordic Semiconductor ASA nor the names of its
+   contributors may be used to endorse or promote products derived from this
+   software without specific prior written permission.
+
+4. This software, with or without modification, must only be used with a
+   Nordic Semiconductor ASA integrated circuit.
+
+5. Any software provided in binary form under this license must not be reverse
+   engineered, decompiled, modified and/or disassembled.
+
+THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+</text>

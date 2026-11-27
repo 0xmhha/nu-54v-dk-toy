@@ -63,6 +63,20 @@ type Central struct {
 	notes chan []byte
 }
 
+// ConnectRegistered connects only to the peer configured by the local installation.
+func ConnectRegistered(identifier string, random bool) (*Central, error) {
+	var address bluetooth.Address
+	address.Set(identifier)
+	if address == (bluetooth.Address{}) || !strings.EqualFold(address.String(), identifier) {
+		return nil, errors.New("registered BLE peer identity is invalid")
+	}
+	address.SetRandom(random)
+	if err := bluetooth.DefaultAdapter.Enable(); err != nil {
+		return nil, errors.New("registered BLE adapter is unavailable")
+	}
+	return Connect(Found{Address: address})
+}
+
 // Connect connects to a found device and subscribes to TX.
 func Connect(f Found) (*Central, error) {
 	dev, err := bluetooth.DefaultAdapter.Connect(f.Address, bluetooth.ConnectionParams{})

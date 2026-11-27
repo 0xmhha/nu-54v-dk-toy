@@ -20,6 +20,7 @@ typedef enum {
 	NU54_BTN_NONE = 0,
 	NU54_BTN_CLICK,
 	NU54_BTN_LONG,
+	NU54_BTN_CHORD, /* two buttons held together for NU54_CHORD_MS */
 } nu54_button_event_t;
 
 typedef struct {
@@ -35,5 +36,18 @@ nu54_button_event_t nu54_button_update(nu54_button_t *b, bool pressed, uint32_t 
 
 /* Call periodically while the button is held. Returns LONG once when the threshold passes. */
 nu54_button_event_t nu54_button_tick(nu54_button_t *b, uint32_t now_ms);
+
+/* Drops the rest of this press: no click and no long press follow. */
+void nu54_button_suppress(nu54_button_t *b);
+
+#define NU54_CHORD_MS 5000u
+
+typedef struct {
+	bool held, sent;
+	uint32_t since;
+} nu54_chord_t;
+
+/* Both buttons down for NU54_CHORD_MS returns CHORD once. Releasing either starts over. */
+nu54_button_event_t nu54_chord_tick(nu54_chord_t *c, bool both, uint32_t now_ms);
 
 #endif /* NU54_BUTTON_H */

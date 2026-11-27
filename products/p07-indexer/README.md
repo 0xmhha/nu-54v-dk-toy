@@ -40,3 +40,22 @@ StableNet의 canonical event를 업무 projection으로 만드는 제품이다.
 - [상거래 보정 설계](../../docs/content/specifications/commerce-consumer-repair-design.md)
 
 기존 저장소를 가져오기 전에 commit pin, 라이선스, 이력 보존 방식을 기록한다.
+
+## 데이터베이스 배포
+
+공용 v1 영수증과 커서에 마이그레이션 001을 유지하고, 002에서 독립된 `chainview` 스키마를 적용한다. `P07_MIGRATION_DATABASE_URL`을 사용하는 [제품 마이그레이션](../p10-platform/database/README.md)으로 배포한다. 런타임 로그인에는 기능별 그룹을 부여한다.
+
+| 그룹 역할 | 권한 |
+|---|---|
+| `nu54_p07_legacy` | 기존 인덱서의 영수증 읽기·삽입 및 커서 전진 |
+| `nu54_p07_ingest` | 세대별 블록·이벤트·증거 기록과 체크포인트 관리 |
+| `nu54_p07_read` | `chainview.active_evidence`에서 활성 정규 체인의 확정 증거 조회 |
+| `nu54_p07_switch` | 비교 증적이 있는 전환 요청 등록과 `chainview.apply_switch(request_id)` 실행 |
+
+전환 서비스가 운영자 인증과 비교 증적을 검증한다. DB는 준비된 세대를 잠그고 기대 revision을 대조해 읽기 대상과 적용 영수증을 한 번에 저장한다. 같은 요청을 재시도하면 기존 적용 시각을 반환한다. 신규 읽기 대상의 기대 revision은 0이다. `P07_DATABASE_URL`로 실행하는 기존 인덱서는 `nu54_p07_legacy`를 사용한다.
+
+[버전별 체인 수집·조회·장애 검증](chainview-v2.md)에서 P07 003의 프로필, 운영 명령, 읽기 권한 및 포크 시험을 확인할 수 있다. 주문 에스크로(OrderEscrow) 프로필과 `chainview.escrow_receipt`는 [같은 문서의 해당 절](chainview-v2.md#orderescrow-profile)에 있다.
+
+## 격리 복원 입구
+
+복원 관리 배포는 `P07_RECOVERY_DATABASE_URL`, `P07_RECOVERY_SCOPE`, `P07_RECOVERY_MANIFEST`를 함께 설정합니다. 일반 영수증·C7 조회, 체인 수집 및 부재 증명은 현재 세대의 입구 임대를 확인합니다. [P10 운영 구성과 복원 검증](../p10-platform/recovery/README.md)

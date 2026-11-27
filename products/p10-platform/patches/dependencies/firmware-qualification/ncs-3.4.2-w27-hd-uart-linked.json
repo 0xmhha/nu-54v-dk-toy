@@ -1,0 +1,57 @@
+{
+  "board": "nu54v_dk/nrf54l15/cpuapp/ns",
+  "debugProtected": false,
+  "hardwareCounterEnforced": false,
+  "hardwareQualificationObserved": false,
+  "linkedArtifacts": {
+    "app/compile_commands.json": "54b7767072a15e8d9d42d10ffac8dcdfeb55fba7842a402f80729c1d68ee22c1",
+    "app/tfm/bin/tfm_s.elf": "0b3fe008ccecfa612a92549040bc0da0d2444ed0a9a13aee91d97f3b517747fd",
+    "app/tfm/bin/tfm_s.map": "e5cbbe9ff6372201b51d9767c4eca63bf6f51c6f9a43ee910c1af0b8bf8cfade",
+    "app/tfm/compile_commands.json": "68e66f0da1c77e49b04eb392bacc3e07a5dbd5a2cd9f5805544ed47d593a5312",
+    "app/zephyr/.config": "98bc7f512bd5c7330f8838d681c72aff2a986848f30265a6a53ca07723e6f0e3",
+    "app/zephyr/zephyr.dts": "cf67765142466b4f7d299bf5fac2825144454f50af186540ea157b9f6b298236",
+    "app/zephyr/zephyr.elf": "fdbff8d8ecfa8f0f4f4f3a2855e033d2489221d6908c7276fb9d763443266ea9",
+    "app/zephyr/zephyr.map": "742535e2df43d4f236a0bedfedd48b6aa2a993a237c5eec8c4f19127a1405a35",
+    "app/zephyr/zephyr.signed.bin": "d78cf4bcacd1f3368f64cf2ed4dc2eedf7390621fef99e283d1b5082458ef6e7",
+    "app/zephyr/zephyr.signed.hex": "47e27a11a9c52712711ff2711fef88acaaf53c3ac2af6edf090d477eefb92310",
+    "mcuboot/compile_commands.json": "9c411f48468f2dc12303874fffdfd1158819ad9b37390c532aa63d3620227609",
+    "mcuboot/zephyr/.config": "a6aeef324aae911665e94bc1e658df647992ed735e865ef64600a3103f9a44b8",
+    "mcuboot/zephyr/zephyr.elf": "c9a6b892188e9056d0a256ad87344f5574cb8fa01130ec64bb4a583d6d2d16e6",
+    "mcuboot/zephyr/zephyr.map": "33f2674fcae317fd341a824aea54a0c585b651c5573e17e5fa40915e64e48fad",
+    "zephyr/.config": "e50b98b5e9885179ca0cb6a63133918cd2e88dd8e658c408b8c1efeb3e6e3411"
+  },
+  "mcubootComponent": {
+    "advisory": "GHSA-4fp3-3qw2-25jv",
+    "linkedTlvBoundaryLines": [
+      181,
+      182,
+      196
+    ],
+    "patchSha256": "02977b3489beaf5f47aad743ae840f2bb6291b9b72ca66013cd73263cb52e876",
+    "tlvSourceSha256": "0f7c8e66efbc5afb9a1b5616fc2a5dd0b389bce880d3e81f1af233d35a7546e2",
+    "upstreamCommit": "90f4e7c3ebe4cf9a5eb7d981220388ffdefd6d19",
+    "vendorCommit": "5d8736c1fd98959f9a607f59fe1a2d82c7e37bde"
+  },
+  "memoryBytes": {
+    "nonsecureFlashAvailable": 544624,
+    "nonsecureFlashUsed": 346068,
+    "nonsecureRamAvailable": 196608,
+    "nonsecureRamUsed": 166468,
+    "secureFlashAvailable": 129024,
+    "secureFlashUsed": 87664,
+    "secureRamAvailable": 65536,
+    "secureRamUsed": 53124
+  },
+  "ncsVersion": "3.4.2",
+  "p05ImageMeasurement": "8c1090f452a414f69153534cc07505d45c43eb4ce3ac26347c2a26b29e561900",
+  "profile": "owner-limits-tfm-hd-uart",
+  "profilePins": {
+    "recovery": "UARTE00 NS P2.00 RX / P2.02 TX",
+    "secureConsole": "UARTE30",
+    "vcom": "UARTE20"
+  },
+  "signedCounter": 2,
+  "sourceInputsSha256": "d5cb82a814f27331ec83e54ebb2712b802b1dbd0df1d1359a77bdf2f90c4867d",
+  "toolchain": "fa36dcc52a",
+  "toolchainArchiveSha512": "ba6f43bcea27c92d02b749938b94aee5722f84a17fc3774ff6b46a8833dee56b1d7307bd5d901a49eea3c28ecd2123501cd7ae94a3392ffaf2bd12d5e0eabce4"
+}

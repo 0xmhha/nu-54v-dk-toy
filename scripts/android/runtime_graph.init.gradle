@@ -1,0 +1,25 @@
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.UnresolvedDependencyResult
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.findProject(':app')
+    if (app == null) return
+    app.tasks.register('nu54PrintResolvedRuntime') {
+        doLast {
+            def variant = System.getenv('NU54_SCAN_VARIANT') ?: 'customRuntimeClasspath'
+            if (!(variant in ['customRuntimeClasspath', 'releaseRuntimeClasspath'])) {
+                throw new GradleException('Unsupported Android runtime variant')
+            }
+            def selection = app.configurations.getByName(variant).incoming.resolutionResult
+            if (selection.allDependencies.any { it instanceof UnresolvedDependencyResult }) {
+                throw new GradleException('Runtime graph has unresolved dependencies')
+            }
+            def coords = selection.allComponents.collect { it.id }.findAll { it instanceof ModuleComponentIdentifier }
+            def rows = coords.collect { it.group + ':' + it.module + ':' + it.version + '=' + variant }.sort()
+            if (rows.isEmpty()) throw new GradleException('No runtime modules found')
+            def output = System.getenv('NU54_SCAN_LOCK')
+            if (output == null || output.isEmpty()) throw new GradleException('NU54_SCAN_LOCK is required')
+            def destination = new File(output)
+            destination.text = rows.join('\n') + '\n'
+        }
+    }
+}

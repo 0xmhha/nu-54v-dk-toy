@@ -1,0 +1,45 @@
+{
+  "board": "nu54v_dk/nrf54l15/cpuapp/ns",
+  "ncsVersion": "3.4.2",
+  "profile": "protected-rental-counted-update-experimental",
+  "toolchain": "fa36dcc52a",
+  "toolchainArchiveSha512": "ba6f43bcea27c92d02b749938b94aee5722f84a17fc3774ff6b46a8833dee56b1d7307bd5d901a49eea3c28ecd2123501cd7ae94a3392ffaf2bd12d5e0eabce4",
+  "sdkCheckouts": 52,
+  "sourceInputs": 376,
+  "sourceInputsSha256": "26ba05f712112b740b0f709fa804ba9abc57b7904c8a940bc057b727b7b41309",
+  "linkedOwnerOperation": "0x74",
+  "finalElfCallsChecked": [
+    "device_install_rental_ack",
+    "psa_sign_hash"
+  ],
+  "armObjectSha256": {
+    "device_install": "365420ae5c60b315d48da3969be862f29e16355c16883e10cc8244997376a5cc",
+    "device_rental_journal_ps": "6ca639491c5c8b6d95e18fa04ef3758cee762967112f1a53941c3c014e3d745b",
+    "nu54_rental_freeze": "3f8e1afd1d13dff6908b5092fa1e59e5a62db4fa5bd54a80d5b986bfa4c2d34b",
+    "nu54_rental_registration": "65fdc89d457c5f6f3b3b3cee5c5e5b5d22281a10f6fbaa3d842ed9dc87b1e457"
+  },
+  "flags": {
+    "countedApplication": true,
+    "mcuboot": true,
+    "pilotTls": true,
+    "experimentalRentalJournalPs": true,
+    "tfmPsMaxAssetSizeBytes": 2048,
+    "tfmPsRollbackProtection": true
+  },
+  "signedAppSha256": "8150db468af3a2c1e814b04a8142dcf9f37efd7ee703789e79b55f1859210c1f",
+  "imgtoolVerified": true,
+  "signingKeyScope": "test",
+  "memoryBytes": {
+    "secureFlashUsed": 87792,
+    "secureFlashAvailable": 129024,
+    "secureRamUsed": 53124,
+    "secureRamAvailable": 65536,
+    "nonsecureFlashUsed": 370500,
+    "nonsecureFlashAvailable": 544624,
+    "nonsecureRamUsed": 174108,
+    "nonsecureRamAvailable": 196608
+  },
+  "mcubootHardwareCounterEnforced": false,
+  "perDeviceManufacturingQualification": false,
+  "physicalRadioQualification": false
+}

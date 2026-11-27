@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>체인 영수증 · NU Explorer</title>
+<link rel="stylesheet" href="/web/explorer.css">
+<script defer src="/web/explorer.js"></script>
+<body data-screen="public">
+<header><a href="/">NU Explorer</a><span>공개 체인 증거</span></header>
+<main>
+<h1>영수증 검색</h1>
+<p>배포와 공개 가맹점 키, 주문 키를 지정하세요. 이 조회에서는 결제나 환불을 실행할 수 없습니다.</p>
+<form id="receipt-form">
+<label>배포 <select id="deployment" required><option value="">배포 불러오는 중</option></select></label>
+<label>공개 가맹점 키 <input name="merchant" required spellcheck="false" autocomplete="off"></label>
+<label>검색 기준 <select name="lookup" id="lookup"><option value="order">공개 주문 키</option><option value="transaction">거래 해시</option></select></label>
+<label><span id="reference-label">공개 주문 키</span> <input name="order" required spellcheck="false" autocomplete="off"></label>
+<label id="log-field" hidden>로그 인덱스 (선택) <input name="logIndex" min="0" max="2147483647" step="1" type="number"></label>
+<button>영수증 찾기</button>
+</form>
+<p id="summary" aria-live="polite"></p>
+<section id="results" aria-label="영수증 결과"></section>
+</main>
+</body>
+</html>

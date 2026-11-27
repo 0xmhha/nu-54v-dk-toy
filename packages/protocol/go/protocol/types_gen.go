@@ -40,6 +40,14 @@ type WalletCheck struct {
 	Challenge [32]byte       `json:"challenge"`
 }
 
+// RentalFreezeRequestV2 is an EIP-712 struct signed by the operator or merchant.
+type RentalFreezeRequestV2 struct {
+	Binding      [32]byte `json:"binding"`
+	Challenge    [32]byte `json:"challenge"`
+	ChannelNonce [32]byte `json:"channelNonce"`
+	ExpiresAt    uint64   `json:"expiresAt"`
+}
+
 // MerchantAttestation is an EIP-712 struct signed by the operator or merchant.
 type MerchantAttestation struct {
 	Merchant   common.Address `json:"merchant"`
@@ -79,14 +87,15 @@ type KioskKey struct {
 
 // EncodeType holds the EIP-712 encodeType string of every struct.
 var EncodeType = map[string]string{
-	"PaymentAuthorization": "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
-	"LimitChange":          "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)",
-	"WalletCheck":          "WalletCheck(address device,bytes32 challenge)",
-	"MerchantAttestation":  "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
-	"MerchantOrder":        "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
-	"TimeAnchor":           "TimeAnchor(address device,uint64 timestamp)",
-	"DeviceReset":          "DeviceReset(address device,uint256 nonce)",
-	"KioskKey":             "KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)",
+	"PaymentAuthorization":  "PaymentAuthorization(uint256 chainId,address contract,address merchant,address payout,address token,uint256 amount,bytes32 orderId,uint256 nonce,uint64 expiry)",
+	"LimitChange":           "LimitChange(uint256 chainId,address contract,uint256 perPaymentLimit,uint256 dailyLimit,uint256 nonce,uint64 expiry)",
+	"WalletCheck":           "WalletCheck(address device,bytes32 challenge)",
+	"RentalFreezeRequestV2": "RentalFreezeRequestV2(bytes32 binding,bytes32 challenge,bytes32 channelNonce,uint64 expiresAt)",
+	"MerchantAttestation":   "MerchantAttestation(address merchant,address payout,string name,uint64 validFrom,uint64 validUntil)",
+	"MerchantOrder":         "MerchantOrder(bytes32 orderId,address token,uint256 amount,address payout,uint64 expiry)",
+	"TimeAnchor":            "TimeAnchor(address device,uint64 timestamp)",
+	"DeviceReset":           "DeviceReset(address device,uint256 nonce)",
+	"KioskKey":              "KioskKey(address merchant,bytes32 kioskEphemeral,bytes32 kioskNonce)",
 }
 
 // DeviceSignedTypes are the only structs the device signs ([N04]).
@@ -139,6 +148,15 @@ var MessageTypes = []string{
 	"session.cancel",
 	"payment.outcome",
 	"limit.result",
+	"rental.cleanup.challenge",
+	"rental.cleanup.challenge.result",
+	"rental.cleanup.admit",
+	"rental.cleanup.status",
+	"rental.freeze.challenge",
+	"rental.freeze.challenge.result",
+	"rental.freeze.v2",
+	"rental.freeze.result",
+	"rental.freeze.entry",
 	"setup.operator",
 	"setup.ack",
 	"device.reset",
@@ -291,14 +309,90 @@ var MessageFields = map[string]*ObjectKind{
 		"nonce":     {Name: "uint"},
 		"reason":    {Name: "text"},
 	}, Required: []string{"v", "type", "sessionId", "outcome"}},
-	"setup.operator": &ObjectKind{Fields: map[string]FieldKind{
+	"rental.cleanup.challenge": &ObjectKind{Fields: map[string]FieldKind{
 		"v":         {Name: "int"},
 		"type":      {Name: "text"},
 		"sessionId": {Name: "sessionId"},
-		"operator":  {Name: "hex20"},
-		"contract":  {Name: "hex20"},
-		"chainId":   {Name: "uint"},
-		"passkey":   {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId"}},
+	"rental.cleanup.challenge.result": &ObjectKind{Fields: map[string]FieldKind{
+		"v":            {Name: "int"},
+		"type":         {Name: "text"},
+		"sessionId":    {Name: "sessionId"},
+		"channelNonce": {Name: "hex32"},
+		"expiresAt":    {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "channelNonce", "expiresAt"}},
+	"rental.cleanup.admit": &ObjectKind{Fields: map[string]FieldKind{
+		"v":            {Name: "int"},
+		"type":         {Name: "text"},
+		"sessionId":    {Name: "sessionId"},
+		"channelNonce": {Name: "hex32"},
+		"intent":       {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "channelNonce", "intent"}},
+	"rental.cleanup.status": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+		"status":    {Name: "text"},
+	}, Required: []string{"v", "type", "sessionId", "status"}},
+	"rental.freeze.challenge": &ObjectKind{Fields: map[string]FieldKind{
+		"v":         {Name: "int"},
+		"type":      {Name: "text"},
+		"sessionId": {Name: "sessionId"},
+	}, Required: []string{"v", "type", "sessionId"}},
+	"rental.freeze.challenge.result": &ObjectKind{Fields: map[string]FieldKind{
+		"v":            {Name: "int"},
+		"type":         {Name: "text"},
+		"sessionId":    {Name: "sessionId"},
+		"channelNonce": {Name: "hex32"},
+		"expiresAt":    {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "channelNonce", "expiresAt"}},
+	"rental.freeze.v2": &ObjectKind{Fields: map[string]FieldKind{
+		"v":                 {Name: "int"},
+		"type":              {Name: "text"},
+		"sessionId":         {Name: "sessionId"},
+		"challenge":         {Name: "hex32"},
+		"channelNonce":      {Name: "hex32"},
+		"expiresAt":         {Name: "uint"},
+		"operatorSignature": {Name: "signature"},
+		"projectionIndex":   {Name: "uint"},
+	}, Required: []string{"v", "type", "sessionId", "challenge", "channelNonce", "expiresAt", "operatorSignature"}},
+	"rental.freeze.result": &ObjectKind{Fields: map[string]FieldKind{
+		"v":              {Name: "int"},
+		"type":           {Name: "text"},
+		"sessionId":      {Name: "sessionId"},
+		"binding":        {Name: "hex32"},
+		"challenge":      {Name: "hex32"},
+		"projectionRoot": {Name: "hex32"},
+		"firstNonce":     {Name: "uint"},
+		"nextNonce":      {Name: "uint"},
+		"entryCount":     {Name: "uint"},
+		"frozenAt":       {Name: "uint"},
+		"expiresAt":      {Name: "uint"},
+		"boardSignature": {Name: "signature"},
+	}, Required: []string{"v", "type", "sessionId", "binding", "challenge", "projectionRoot", "firstNonce", "nextNonce", "entryCount", "frozenAt", "expiresAt", "boardSignature"}},
+	"rental.freeze.entry": &ObjectKind{Fields: map[string]FieldKind{
+		"v":               {Name: "int"},
+		"type":            {Name: "text"},
+		"sessionId":       {Name: "sessionId"},
+		"projectionIndex": {Name: "uint"},
+		"projectionRoot":  {Name: "hex32"},
+		"kind":            {Name: "uint"},
+		"state":           {Name: "uint"},
+		"nonce":           {Name: "uint"},
+		"expiry":          {Name: "uint"},
+		"merchant":        {Name: "hex20"},
+		"orderId":         {Name: "hex32"},
+		"approvalDigest":  {Name: "hex32"},
+	}, Required: []string{"v", "type", "sessionId", "projectionIndex", "projectionRoot", "kind", "state", "nonce", "expiry", "merchant", "orderId", "approvalDigest"}},
+	"setup.operator": &ObjectKind{Fields: map[string]FieldKind{
+		"v":             {Name: "int"},
+		"type":          {Name: "text"},
+		"sessionId":     {Name: "sessionId"},
+		"operator":      {Name: "hex20"},
+		"contract":      {Name: "hex20"},
+		"chainId":       {Name: "uint"},
+		"passkey":       {Name: "uint"},
+		"rentalJournal": {Name: "bool"},
 	}, Required: []string{"v", "type", "sessionId", "operator", "contract", "chainId", "passkey"}},
 	"setup.ack": &ObjectKind{Fields: map[string]FieldKind{
 		"v":          {Name: "int"},

@@ -1,0 +1,224 @@
+import XCTest
+final class CafePickupInstalledApps: XCTestCase {
+  private let sale = "@SALE@"
+  private let gate = "@CONTROL@"
+  private let publicSale = "@PUBLIC_SALE@"
+  private let publicEvent = "@PUBLIC_EVENT@"
+  private let publicNumber = "@PUBLIC_NUMBER@"
+
+  private func control(_ name: String, write: Bool = false) -> String {
+    var request = URLRequest(url: URL(string: gate + "/" + name)!)
+    request.httpMethod = write ? "POST" : "GET"
+    request.timeoutInterval = 3
+    let semaphore = DispatchSemaphore(value: 0)
+    let output = ResultBox()
+    URLSession.shared.dataTask(with: request) { data, _, _ in
+      output.text = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
+      semaphore.signal()
+    }.resume()
+    guard semaphore.wait(timeout: .now() + 4) == .success else { return "" }
+    return output.text
+  }
+  private final class ResultBox: @unchecked Sendable { var text = "" }
+  private func wait(_ mark: String) {
+    let deadline = Date().addingTimeInterval(100)
+    while Date() < deadline {
+      if control(mark) == "yes" { return }
+      Thread.sleep(forTimeInterval: 0.25)
+    }
+    XCTFail("Missing staged fixture event " + mark)
+  }
+  private func mark(_ name: String) { XCTAssertEqual(control(name, write: true), "yes") }
+  private func tap(_ exact: String, in app: XCUIApplication) {
+    let button = app.buttons[exact]
+    XCTAssertTrue(button.waitForExistence(timeout: 10), exact)
+    for _ in 0..<6 where !button.isHittable { app.swipeUp() }
+    XCTAssertTrue(button.isHittable, exact)
+    button.tap()
+  }
+  private func loadCustomer(_ phone: XCUIApplication) {
+    phone.launch()
+    tap("내 결제", in: phone)
+    tap("매장 주문 " + sale, in: phone)
+  }
+  private func receipt(_ phone: XCUIApplication) -> String {
+    let receipt = phone.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "영수증 번호")).firstMatch
+    XCTAssertTrue(receipt.waitForExistence(timeout: 10))
+    return receipt.label
+  }
+  func testStaffPrepareAndHandover() {
+    continueAfterFailure = false
+    wait("checking")
+    let app = XCUIApplication(bundleIdentifier: "com.nu54kiosk.cafepickupqa")
+    func reopenOriginal() {
+      app.launch()
+      tap("직원 권한 확인", in: app)
+      tap("지점 픽업 대기열", in: app)
+      tap("지점 픽업 접수 조회", in: app)
+      tap("확인 중 주문 " + sale, in: app)
+      XCTAssertTrue(app.staticTexts["원주문 " + sale].exists)
+    }
+    func assertHeld() {
+      XCTAssertTrue(app.staticTexts["확정 지급과 이행 통지를 확인하기 전에는 준비를 시작할 수 없습니다."].exists)
+      XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "마지막 조회 ")).firstMatch.exists)
+      XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "이행 ID ")).firstMatch.exists)
+      XCTAssertFalse(app.buttons["준비 시작"].exists)
+      XCTAssertFalse(app.buttons["수령 완료 확인"].exists)
+      XCTAssertFalse(app.buttons["같은 원주문 영수증 열기"].exists)
+    }
+    reopenOriginal()
+    assertHeld()
+    app.terminate()
+    reopenOriginal()
+    tap("기존 지급 결과 재조회", in: app)
+    assertHeld()
+    mark("held-seen")
+    wait("accepted")
+    tap("기존 지급 결과 재조회", in: app)
+    let event = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "이행 ID ")).firstMatch
+    XCTAssertTrue(event.waitForExistence(timeout: 10))
+    let originalEvent = event.label
+    XCTAssertNotNil(UUID(uuidString: String(originalEvent.dropFirst("이행 ID ".count))))
+    XCTAssertTrue(app.buttons["같은 원주문 영수증 열기"].exists)
+    tap("준비 시작", in: app)
+    tap("준비 완료 확인", in: app)
+    XCTAssertTrue(app.buttons["수령 완료 확인"].waitForExistence(timeout: 10))
+    mark("ready")
+    wait("ready-seen")
+    tap("수령 완료 확인", in: app)
+    let collected = app.staticTexts.containing(NSPredicate(format:"label CONTAINS %@", "수령 완료")).firstMatch
+    XCTAssertTrue(collected.waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts[originalEvent].exists)
+    mark("collected")
+  }
+  func testPurchasedReceiptReadyAndCollectedAcrossRelaunch() {
+    continueAfterFailure = false
+    wait("checking")
+    let phone = XCUIApplication(bundleIdentifier: "com.nu54renter.cafepickupqa")
+    loadCustomer(phone)
+    XCTAssertTrue(phone.staticTexts["매장이 지급 요청을 받았습니다."].waitForExistence(timeout: 10))
+    XCTAssertFalse(phone.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "영수증 번호")).firstMatch.exists)
+    XCTAssertFalse(phone.buttons["지급 요청 제출"].exists)
+    XCTAssertFalse(phone.buttons["검증한 보드 찾기"].exists)
+    mark("buyer-held-seen")
+    phone.terminate()
+    wait("ready")
+    loadCustomer(phone)
+    XCTAssertTrue(phone.staticTexts["픽업 준비 완료"].waitForExistence(timeout: 10))
+    XCTAssertTrue(phone.staticTexts["매장 픽업대에서 같은 픽업 번호를 보여주세요."].exists)
+    let original = receipt(phone)
+    mark("ready-seen")
+    wait("collected")
+    phone.terminate()
+    loadCustomer(phone)
+    XCTAssertTrue(phone.staticTexts["픽업 수령 완료"].waitForExistence(timeout: 10))
+    XCTAssertEqual(receipt(phone), original)
+    mark("collected-seen")
+  }
+
+  private func shown(_ text: String, in app: XCUIApplication) {
+    XCTAssertTrue(app.staticTexts[text].firstMatch.waitForExistence(timeout: 12), text)
+  }
+  private struct ReadyEvidence: Decodable {
+    let event, hash, receipt: String
+    let pickup: Int
+    let paid, ready: String
+  }
+  private func evidence() throws -> ReadyEvidence {
+    wait("ready-seen")
+    return try JSONDecoder().decode(ReadyEvidence.self, from: Data(control("ready-data").utf8))
+  }
+  private func instant(_ value: String) throws -> Date {
+    let fractional = ISO8601DateFormatter()
+    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return try XCTUnwrap(fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value))
+  }
+  private func shownTime(_ title: String, formats: [DateFormatter], date: Date, app: XCUIApplication) {
+    let item = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", title + " ")).firstMatch
+    XCTAssertTrue(item.waitForExistence(timeout: 12), title)
+    let normalized: (String) -> String = { $0.filter { !$0.isWhitespace && $0 != "," } }
+    XCTAssertTrue(formats.contains { normalized(title + $0.string(from: date)) == normalized(item.label) }, title)
+  }
+  func testStaffNearbyReadyThenReturnToPublicOriginal() throws {
+    continueAfterFailure = false
+    wait("accepted")
+    let app = XCUIApplication(bundleIdentifier: "com.nu54kiosk.cafepickupqa")
+    func openKitchen() {
+      app.launch()
+      tap("직원 권한 확인", in: app)
+      tap("지점 픽업 대기열", in: app)
+    }
+    func lookup(_ original: String) {
+      let field = app.textFields["원주문 식별값"]
+      XCTAssertTrue(field.waitForExistence(timeout: 10))
+      for _ in 0..<6 where !field.isHittable { app.swipeDown() }
+      field.tap()
+      field.typeText(original)
+      tap("같은 원주문 픽업 조회", in: app)
+      shown("원주문 " + original, in: app)
+    }
+    openKitchen()
+    lookup(sale)
+    tap("준비 시작", in: app)
+    XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "픽업 가능 시각 ")).firstMatch.exists)
+    wait("may-ready")
+    tap("준비 완료 확인", in: app)
+    XCTAssertTrue(app.buttons["수령 완료 확인"].waitForExistence(timeout: 10))
+    mark("ready")
+    let proof = try evidence()
+    XCTAssertNotEqual(proof.event, publicEvent)
+    XCTAssertNotEqual(String(proof.pickup), publicNumber)
+    let local = DateFormatter()
+    local.locale = Locale(identifier: "ko-KR")
+    local.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Seoul"))
+    local.dateStyle = .medium
+    local.timeStyle = .short
+    let paid = try instant(proof.paid)
+    let ready = try instant(proof.ready)
+    XCTAssertNotEqual(local.string(from: paid), local.string(from: ready))
+    shown("픽업 번호 " + String(proof.pickup) + " · 준비 완료", in: app)
+    shown("이행 ID " + proof.event, in: app)
+    shown("지급 금액 8.00 TestUSDC", in: app)
+    shownTime("지급 확정 시각", formats: [local], date: paid, app: app)
+    shownTime("픽업 가능 시각", formats: [local], date: ready, app: app)
+    wait("buyer-done")
+    app.terminate()
+    openKitchen()
+    lookup(publicSale)
+    shown("픽업 번호 " + publicNumber + " · 준비 중", in: app)
+    shown("이행 ID " + publicEvent, in: app)
+    XCTAssertTrue(app.buttons["준비 완료 확인"].exists)
+    XCTAssertFalse(app.staticTexts["이행 ID " + proof.event].exists)
+    XCTAssertFalse(app.staticTexts["지급 금액 8.00 TestUSDC"].exists)
+    mark("staff-done")
+  }
+  func testNearbyCustomerReadsReadyOriginalAcrossRelaunch() throws {
+    continueAfterFailure = false
+    let phone = XCUIApplication(bundleIdentifier: "com.nu54renter.cafepickupqa")
+    let proof = try evidence()
+    let formats = [("en-US", "M/d/yyyy, h:mm:ss a"), ("ko-KR", "yyyy. M. d. a h:mm:ss")].map { locale, pattern in
+      let formatter = DateFormatter()
+      formatter.locale = Locale(identifier: locale)
+      formatter.timeZone = .current
+      formatter.calendar = Calendar(identifier: .gregorian)
+      formatter.dateFormat = pattern
+      return formatter
+    }
+    for _ in 0..<2 {
+      phone.launch()
+      tap("내 결제", in: phone)
+      XCTAssertFalse(phone.buttons["매장 주문 " + publicSale].exists)
+      tap("매장 주문 " + sale, in: phone)
+      shown("픽업 준비 완료", in: phone)
+      shown("픽업 번호 " + String(proof.pickup), in: phone)
+      shown("금액 8.00 TestUSDC", in: phone)
+      shown("확정 거래 " + proof.hash, in: phone)
+      XCTAssertEqual(receipt(phone), "영수증 번호 " + proof.receipt)
+      shownTime("지급 확정 시각", formats: formats, date: try instant(proof.paid), app: phone)
+      shownTime("픽업 가능 시각", formats: formats, date: try instant(proof.ready), app: phone)
+      XCTAssertFalse(phone.buttons["지급 요청 제출"].exists)
+      phone.terminate()
+    }
+    mark("buyer-done")
+  }
+}

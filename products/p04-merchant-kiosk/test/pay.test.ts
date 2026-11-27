@@ -7,7 +7,7 @@ import type { Chain, Hex } from "../src/chain/rpc.ts";
 import { anchorUsed, loadKiosk, pendingAnchor, type Loaded, type Provision, type Vault } from "../src/kiosk/config.ts";
 import { changeLimits, pay, resumeOrders, type Phase } from "../src/kiosk/pay.ts";
 import { OrderStore } from "../src/kiosk/orders.ts";
-import type { Outcome } from "../src/payment/submit.ts";
+import type { Outcome, Signed, SubmitContext } from "../src/payment/submit.ts";
 
 // Foundry public test mnemonic: 0 device, 1 operator, 2 merchant (test-only keys).
 const KEY = {
@@ -256,4 +256,50 @@ test("a device refusal and a missed press are recorded; an unsigned order is can
   await orders.create("0xstale", 1n); // crashed while waiting for the press
   const done = await resumeOrders({ kiosk, chain: chain(0n), orders });
   expect(done).toMatchObject([{ orderId: "0xstale", state: "cancelled" }]);
+});
+
+test("the normal v1 terminal reports the stored original and retries observation without another payment",async()=>{
+  const kiosk=await provisioned(), device=deviceLink();
+  const vault=new MemoryVault();
+  const orders=await OrderStore.open(vault);
+  const original={origin:"8ddb7d93-34c0-4312-9f20-941ff1215863",profileDigest:"33".repeat(32),merchantSignature:""};
+  const reserve=jest.fn(async(account:string,_order:unknown,merchantSignature:string)=>{
+    expect(account.toLowerCase()).toBe(DEVICE.toLowerCase());
+    expect(device.received.some(m=>m.type==="payment.prepare")).toBe(false);
+    return {...original,merchantSignature};
+  });
+  const report=jest.fn(async()=>false);
+  const approved = (signed: Signed, txHash: Hex): Outcome => ({
+    status: "approved",
+    txHash,
+    event: {
+      merchant: signed.auth.merchant,
+      orderId: signed.auth.orderId,
+      device: signed.device,
+      amount: BigInt(signed.auth.amount),
+      nonce: BigInt(signed.auth.nonce),
+      txHash,
+      block: 1n,
+    },
+  });
+  const submit = jest.fn(async (_context: SubmitContext, signed: Signed) =>
+    approved(signed, `0x${"01".repeat(32)}`));
+  const deps={kiosk,chain:chain(20n*10n**18n),orders,connect:device.connect,anchor:async()=>anchor,random,submit,
+    renterObservation:{reserve,report}};
+  expect(await pay(deps,20_000_000n)).toMatchObject({status:"approved"});
+  expect(reserve).toHaveBeenCalledTimes(1);
+  expect(submit).toHaveBeenCalledTimes(1);
+  expect(report).toHaveBeenCalledTimes(1);
+  expect(device.received.filter(message=>message.type==="payment.prepare")).toHaveLength(1);
+  const reopened=await OrderStore.open(vault);
+  const retained=reopened.pendingOriginReports();
+  expect(retained).toHaveLength(1);
+  const replay=jest.fn(async()=>true);
+  const settleAgain = jest.fn(async (_context: SubmitContext, signed: Signed) =>
+    approved(signed, `0x${"02".repeat(32)}`));
+  await resumeOrders({...deps,orders:reopened,renterObservation:{reserve,report:replay}},settleAgain);
+  expect(replay).toHaveBeenCalledWith(retained[0].renterOrigin,retained[0].signed);
+  expect(reopened.pendingOriginReports()).toHaveLength(0);
+  expect(settleAgain).not.toHaveBeenCalled();
+  expect(device.received.filter(message=>message.type==="payment.prepare")).toHaveLength(1);
 });

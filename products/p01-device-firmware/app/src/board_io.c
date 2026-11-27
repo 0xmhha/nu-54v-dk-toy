@@ -41,7 +41,12 @@ static struct gpio_callback button_cb[BOARD_IO_COUNT];
 static struct k_work_delayable debounce[BOARD_IO_COUNT];
 static struct k_work_delayable hold_poll;
 static nu54_button_t state[BOARD_IO_COUNT];
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+static nu54_chord_t reset_chord; /* SW2 and SW3 together */
+#endif
 static atomic_t debounce_pending;
+static atomic_t current_prompt, edge_prompt[BOARD_IO_COUNT];
+static uint32_t gesture_prompt[BOARD_IO_COUNT];
 
 K_MSGQ_DEFINE(button_events, sizeof(board_button_event_t), 8, 4);
 
@@ -50,7 +55,7 @@ static void post(uint8_t i, nu54_button_event_t ev)
 	if (ev == NU54_BTN_NONE) {
 		return;
 	}
-	board_button_event_t msg = {.button = i, .event = ev};
+	board_button_event_t msg = {.button = i, .event = ev, .prompt = gesture_prompt[i]};
 	if (k_msgq_put(&button_events, &msg, K_NO_WAIT) != 0) {
 		LOG_WRN("button event dropped (queue full)");
 	}
@@ -61,6 +66,21 @@ static void hold_poll_fn(struct k_work *work)
 	ARG_UNUSED(work);
 	bool any_held = false;
 	uint32_t now = k_uptime_get_32();
+
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	bool both = state[1].pressed && state[2].pressed && gpio_pin_get_dt(&buttons[1]) > 0 &&
+		    gpio_pin_get_dt(&buttons[2]) > 0;
+	if (both) {
+		/* The pair means only the reset gesture, never a rejection or the recovery window. */
+		nu54_button_suppress(&state[1]);
+		nu54_button_suppress(&state[2]);
+	}
+	nu54_button_event_t chord = nu54_chord_tick(&reset_chord, both, now);
+	if (chord != NU54_BTN_NONE) {
+		gesture_prompt[1] |= gesture_prompt[2]; /* a press begun during an approval stays tied to it */
+		post(1, chord);
+	}
+#endif
 
 	for (uint8_t i = 0; i < BOARD_IO_COUNT; i++) {
 		if (!state[i].pressed) {
@@ -89,6 +109,7 @@ static void debounce_fn(struct k_work *work)
 		atomic_clear_bit(&debounce_pending, i);
 		/* Count the press only if the button is still down after the debounce. */
 		if (gpio_pin_get_dt(&buttons[i]) > 0 && !state[i].pressed) {
+			gesture_prompt[i] = (uint32_t)atomic_get(&edge_prompt[i]);
 			nu54_button_update(&state[i], true, k_uptime_get_32());
 			k_work_schedule(&hold_poll, K_MSEC(HOLD_POLL_MS));
 		}
@@ -105,6 +126,7 @@ static void button_isr(const struct device *port, struct gpio_callback *cb, uint
 		}
 		/* One debounce per burst of edges: chatter does not count twice. */
 		if (!atomic_test_and_set_bit(&debounce_pending, i)) {
+			atomic_set(&edge_prompt[i], atomic_get(&current_prompt));
 			k_work_schedule(&debounce[i], K_MSEC(DEBOUNCE_MS));
 		}
 	}
@@ -136,6 +158,11 @@ int board_io_init(void)
 	return 0;
 }
 
+bool board_update_chord(void)
+{
+	return gpio_pin_get_dt(&buttons[0]) > 0 && gpio_pin_get_dt(&buttons[1]) > 0;
+}
+
 void board_led_set(uint8_t led, bool on)
 {
 	if (led < BOARD_IO_COUNT) {
@@ -148,6 +175,11 @@ void board_led_toggle(uint8_t led)
 	if (led < BOARD_IO_COUNT) {
 		gpio_pin_toggle_dt(&leds[led]);
 	}
+}
+
+void board_io_set_prompt(uint32_t prompt)
+{
+	atomic_set(&current_prompt, (atomic_val_t)prompt);
 }
 
 int board_button_wait(board_button_event_t *out, int32_t timeout_ms)

@@ -1,0 +1,6 @@
+**
+!products/p09-travel-ai/go.mod
+!products/p09-travel-ai/go.sum
+!products/p09-travel-ai/cmd/**/*.go
+!products/p09-travel-ai/internal/**/*.go
+products/p09-travel-ai/**/*_test.go

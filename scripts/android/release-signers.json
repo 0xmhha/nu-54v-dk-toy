@@ -1,0 +1,13 @@
+{
+  "debugSha256": "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c",
+  "apps": {
+    "com.nu54renter": {
+      "uploadSha256": null,
+      "distributionSha256": null
+    },
+    "com.nu54kiosk": {
+      "uploadSha256": null,
+      "distributionSha256": null
+    }
+  }
+}
