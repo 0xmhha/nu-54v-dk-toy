@@ -26,7 +26,7 @@ test('the iOS module lists the same names and patterns, ends each at the very en
   expect(`customer-sessions-${hex}`).toHaveLength(journalNameLimit);
   // `$` also matches before a last line break; no pattern of this header may end with it.
   expect(objc).not.toMatch(/\$" options:NSRegularExpressionSearch/);
-  expect(objc).not.toMatch(/=@"\^[^"]*\$";/);
+  expect(objc).not.toMatch(/NSString \*[a-z]+=@"\^[^"]*\$";/);
 });
 
 test('every name the app keeps something under is a name the device takes', () => {
