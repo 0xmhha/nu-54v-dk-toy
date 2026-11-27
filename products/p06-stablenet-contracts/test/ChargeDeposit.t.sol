@@ -764,6 +764,30 @@ contract ChargeDepositTest is ChargeBase {
         assertEq(usdc.balanceOf(stranger), 100e6);
     }
 
+    /// An account whose code is `0xef0100` and an address is a key that lent its account to that contract
+    /// (EIP-7702). The key can lend it elsewhere at any time, so it is no more a spender than a plain key.
+    function testAKeyThatLentItsAccountIsNotASpender() public {
+        Spender later = new Spender(deposit);
+        address lent = vm.addr(0xE0A);
+        vm.etch(lent, abi.encodePacked(hex"ef0100", address(later)));
+        assertEq(lent.code.length, 23);
+        address shortCode = address(0xC0DE);
+        vm.etch(shortCode, hex"00"); // a contract, however short: only the lent mark is refused
+        proposeOn(deposit, "setSpender", abi.encode(lent), "salt");
+        proposeOn(deposit, "setSpender", abi.encode(shortCode), "salt");
+        proposeOn(deposit, "setSpender", abi.encode(address(deposit)), "salt");
+        proposeOn(deposit, "setSpender", abi.encode(address(0)), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.setSpender(lent, "salt");
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.setSpender(address(deposit), "salt");
+        deposit.setSpender(shortCode, "salt");
+        assertEq(deposit.spender(), shortCode);
+        deposit.setSpender(address(0), "salt"); // two signers may also empty the place
+        assertEq(deposit.spender(), address(0));
+    }
+
     // ---- coins sent by mistake ----
 
     function testStrayCoinsGoBackOnceAndNeverTouchDeposits() public {

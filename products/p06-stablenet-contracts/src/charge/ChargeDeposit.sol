@@ -396,10 +396,12 @@ contract ChargeDeposit is ChargeGovernance {
         _send(usdc, to, amount);
     }
 
+    /// @notice A deployed contract or nothing. An account without code is a key, and so is an account whose
+    /// code only names the contract a key lent it to (EIP-7702): that key can lend it elsewhere at any time.
+    /// What a deployed contract lets its own keys do is for the two signers to read during the day of waiting.
     function setSpender(address to, bytes32 salt) external {
         _apply(SET_SPENDER, abi.encode(to), salt);
-        // A contract or nothing: a key can never be the spender.
-        if (to == address(this) || (to != address(0) && to.code.length == 0)) revert InvalidParameters();
+        if (to == address(this) || (to != address(0) && !_isContract(to))) revert InvalidParameters();
         spender = to;
         emit SpenderChanged(to);
     }
@@ -468,6 +470,15 @@ contract ChargeDeposit is ChargeGovernance {
 
     function _argumentsLength(bytes32 kind) internal pure override returns (uint256) {
         return kind == SET_SPENDER || kind == RAISE_LIMIT ? 32 : super._argumentsLength(kind);
+    }
+
+    /// @dev Code that starts with 0xef0100 is the mark of a lent key account (EIP-7702), not a contract. No
+    /// deployed contract starts with 0xef (EIP-3541).
+    function _isContract(address account) private view returns (bool) {
+        bytes memory code = account.code;
+        // Only the first three bytes are looked at.
+        // forge-lint: disable-next-line(unsafe-typecast)
+        return code.length != 0 && bytes3(code) != bytes3(0xef0100);
     }
 
     function _complete(bytes32 id, Deposit storage record, bytes32 wonBlockHash, bool bySigners) private {
