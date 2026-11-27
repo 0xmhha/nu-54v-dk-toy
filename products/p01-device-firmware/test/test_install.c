@@ -1,4 +1,5 @@
 #include "nu54_install.h"
+#include "nu54_keccak.h"
 #include "nu54_sig.h"
 #include "nu54_hd.h"
 
@@ -457,6 +458,58 @@ static void kept_grant_tests(void)
 	assert(late_board_takes(299, 1) && !late_board_takes(300, 1));
 }
 
+static bool recover_signer(const uint8_t digest[32], const uint8_t signature[65], uint8_t address[20])
+{
+	return nu54_sig_recover(digest, signature, 65, address) == NU54_SIG_OK;
+}
+
+/* A store's order at a board whose clock is late. The board judges the order by its latest
+ * possible time and refuses one that the store signed after it: the order's time of issue is
+ * then still ahead for the board. With the board's lower bound `late` seconds behind the
+ * calendar, its latest possible time `offset` above that, and an order that is `age` seconds old
+ * when it arrives, the order is refused once late > offset + age. That is seconds, not the 60 a
+ * reading of the 180-second rule alone gives. */
+static void late_clock_order_tests(void)
+{
+	static const nu54_v2_quote_crypto crypto = {nu54_keccak256, recover_signer};
+	const uint64_t calendar = UINT64_C(1800000000);
+	uint8_t order[NU54_V2_SIGNED_SIZE] = {0};
+	nu54_install_policy grant = {.not_after = calendar + 86400, .payer_role = NU54_V2_OWNER_ROLE,
+				     .merchant_key_version = 1, .beneficiary_version = 1, .merchant_signer = {9}};
+	nu54_v2_quote_policy staged;
+	/* A well-formed order with a signature of nobody: what is looked at here is the time, which
+	 * the board checks before the signature. */
+	for (size_t field = 0; field < NU54_V2_FIELD_COUNT; ++field) order[32 * field + 31] = 1;
+	integer_at_u64(order + NU54_V2_CHAIN_ID_OFFSET + 24, NU54_V2_PILOT_CHAIN);
+	order[NU54_V2_UNSIGNED_SIZE + 31] = order[NU54_V2_UNSIGNED_SIZE + 63] = 1;
+	order[NU54_V2_UNSIGNED_SIZE + 64] = 27;
+	memcpy(grant.merchant, order + NU54_V2_MERCHANT_ID_OFFSET, 32);
+
+	static const uint64_t offsets[] = {2, 60}, ages[] = {0, 3, 30};
+	for (size_t i = 0; i < 2; ++i) {
+		for (size_t j = 0; j < 3; ++j) {
+			const uint64_t signed_at = calendar - ages[j];
+			integer_at_u64(order + NU54_V2_ISSUED_AT_OFFSET + 24, signed_at);
+			integer_at_u64(order + NU54_V2_EXPIRES_AT_OFFSET + 24, signed_at + 120);
+			for (uint64_t late = 0; late <= offsets[i] + ages[j] + 1; ++late) {
+				const uint64_t latest = calendar - late + offsets[i];
+				assert(!nu54_install_quote(&grant, order, sizeof(order), latest, &staged) && staged.now == latest);
+				const int status = nu54_v2_quote_verify(order, sizeof(order), &staged, &crypto);
+				/* Taken as far as the time goes (the signature is then refused), or refused for the time. */
+				assert(status == (late > offsets[i] + ages[j] ? NU54_V2_STATUS_EXPIRED : NU54_V2_STATUS_UNTRUSTED_SIGNER));
+				assert(nu54_pilot_verify_quote(order, sizeof(order), &staged, &grant.allowlist, order + NU54_V2_PAYER_OFFSET + 12, 1));
+			}
+		}
+	}
+	/* The other end is judged by the same time: the order is not taken in its last second. */
+	integer_at_u64(order + NU54_V2_ISSUED_AT_OFFSET + 24, calendar);
+	integer_at_u64(order + NU54_V2_EXPIRES_AT_OFFSET + 24, calendar + 120);
+	assert(!nu54_install_quote(&grant, order, sizeof(order), calendar + 119, &staged));
+	assert(nu54_v2_quote_verify(order, sizeof(order), &staged, &crypto) == NU54_V2_STATUS_UNTRUSTED_SIGNER);
+	assert(!nu54_install_quote(&grant, order, sizeof(order), calendar + 120, &staged));
+	assert(nu54_v2_quote_verify(order, sizeof(order), &staged, &crypto) == NU54_V2_STATUS_EXPIRED);
+}
+
 static int present(void *opaque, const uint8_t *preimage, size_t length)
 {
 	return length == NU54_LOCAL_PREIMAGE_SIZE && !memcmp(opaque, preimage, length) ? 0 : -1;
@@ -870,6 +923,7 @@ int main(int argc, char **argv)
 	storage_boot_tests();
 	policy_tests();
 	kept_grant_tests();
+	late_clock_order_tests();
 	receipt_tests();
 	if (argc == 4 && !strcmp(argv[1], "--refuse-review")) {
 		struct payment original, other;
