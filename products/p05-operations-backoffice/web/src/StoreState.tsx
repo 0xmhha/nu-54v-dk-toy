@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PickupCheck } from "./PickupCheck";
 
 /** What the server keeps for the branch: its order state, closed days from today, sold-out products and recent changes. */
 export type OrderState = {
@@ -224,6 +225,8 @@ export function StoreState({ branch, zone, products, onState, money }: {
           고른 것을 다시 팔기</button>
         <p className="warning">품절은 그 상품의 모든 옵션 조합에 적용됩니다. 남은 수량은 그대로 두고, 다시 팔면 남은 수량대로 팝니다. 게시한 메뉴를 다시 게시하지 않아도 바로 적용됩니다.</p>
       </section>
+
+      <PickupCheck branch={branch} zone={zone} />
 
       <section aria-labelledby="order-cancel">
         <h2 id="order-cancel">주문 취소</h2>
