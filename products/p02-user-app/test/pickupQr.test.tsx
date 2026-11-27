@@ -4,7 +4,7 @@ import {AppState} from 'react-native';
 import {accountProofDigest, addressOfPrivateKey, bytesToHex, parsePickupQr, signDigest} from '@nu54/protocol';
 import {configuredEntrance, CustomerEntrance, EntranceError, issuePickupQr, shortAccount,
   type BoardLink, type EntrancePost, type IssuedPickup, type PickupBoard} from '../src/merchant/customerEntrance';
-import {automaticQrs, PickupQrScreen} from '../src/merchant/PickupQr';
+import {automaticQrs, PickupQrScreen, renewBefore} from '../src/merchant/PickupQr';
 import {OrderDetail} from '../src/merchant/OpenOrders';
 import type {OpenOrder} from '../src/merchant/orderRecords';
 
@@ -72,6 +72,13 @@ describe('the customer entrance client', () => {
       [400, {error: 'EXPIRED'}, 'EXPIRED'], [429, {error: 'BUSY'}, 'BUSY'], [404, null, 'REFUSED'], [503, {error: 'UNKNOWN'}, 'UNAVAILABLE']];
     for (const [status, body, code] of refusals)
       await expect(entrance([{status, body}]).client.pickupToken(challenge, proof, {branch, sale})).rejects.toEqual(new EntranceError(code as never));
+    // The reason of a 409: not ready, or already handed over and when. A server without reasons means not ready.
+    const conflict = (more: object) => entrance([{status: 409, body: {status: 'error', error: 'CHECKOUT_CONFLICT', ...more}}]).client.pickupToken(challenge, proof, {branch, sale});
+    await expect(conflict({reason: 'not_ready'})).rejects.toMatchObject({code: 'NOT_READY'});
+    await expect(conflict({reason: 'collected', recordedAt: 1_764_000_050})).rejects.toMatchObject({code: 'COLLECTED', at: 1_764_000_050});
+    await expect(conflict({reason: 'collected'})).rejects.toMatchObject({code: 'COLLECTED', at: undefined});
+    await expect(conflict({reason: 'collected', recordedAt: '1764000050'})).rejects.toMatchObject({code: 'COLLECTED', at: undefined});
+    await expect(conflict({reason: 'something new'})).rejects.toMatchObject({code: 'NOT_READY'});
     await expect(entrance().client.pickupChallenge('x', sale)).rejects.toThrow('CUSTOMER_ENTRANCE_REFUSED');
   });
 
@@ -104,14 +111,25 @@ describe('one pickup QR', () => {
     expect(calls[1].body.signature).toMatch(/^[0-9a-f]{130}$/);
   });
 
-  test('another board is named before the server is asked; a refusal of the server says the same', async () => {
+  test('another board is named before the server is asked; a proof the server refuses is not called another board', async () => {
     const {client, calls} = entrance();
     const other = board(otherKey);
     expect(await issuePickupQr(client, other, order)).toEqual({kind: 'other-board', payer, board: stranger});
     expect(calls).toEqual([]);
     expect(other.closed).toEqual([stranger]);
+    // The paying board is near and proved its account: two equal accounts are never shown as two boards.
     const refused = entrance([{status: 400, body: {status: 'error', error: 'MISMATCHED_EVIDENCE'}}]);
-    expect(await issuePickupQr(refused.client, board(), order)).toEqual({kind: 'other-board', payer, board: payer});
+    expect(await issuePickupQr(refused.client, board(), order)).toEqual({kind: 'mismatch'});
+  });
+
+  test('an order already handed over, with or without the time, and a request the server did not take', async () => {
+    const conflict = (more: object) => entrance([{status: 409, body: {status: 'error', error: 'CHECKOUT_CONFLICT', ...more}}]).client;
+    expect(await issuePickupQr(conflict({reason: 'collected', recordedAt: 1_764_000_050}), board(), order)).toEqual({kind: 'collected', at: 1_764_000_050});
+    expect(await issuePickupQr(conflict({reason: 'collected'}), board(), order)).toEqual({kind: 'collected'});
+    expect(await issuePickupQr(conflict({reason: 'not_ready'}), board(), order)).toEqual({kind: 'not-ready'});
+    expect(await issuePickupQr(entrance([{status: 404, body: null}]).client, board(), order)).toEqual({kind: 'refused'});
+    expect(await issuePickupQr(entrance([{status: 400, body: {status: 'error', error: 'BAD_REQUEST'}}]).client, board(), order)).toEqual({kind: 'refused'});
+    expect(await issuePickupQr(entrance([{status: 503, body: {status: 'error', error: 'UNKNOWN'}}]).client, board(), order)).toEqual({kind: 'unavailable'});
   });
 
   test('no board, a board that stops answering, an order not ready, a busy server and no entrance', async () => {
@@ -130,7 +148,7 @@ describe('one pickup QR', () => {
     expect((await issuePickupQr(once.client, board(), order)).kind).toBe('qr');
     expect(once.calls.map(call => call.path)).toEqual(['/v2/customer/challenge', '/v2/customer/proof', '/v2/customer/challenge', '/v2/customer/proof']);
     const twice = entrance([expired, expired]);
-    expect(await issuePickupQr(twice.client, board(), order)).toEqual({kind: 'unavailable'});
+    expect(await issuePickupQr(twice.client, board(), order)).toEqual({kind: 'refused'});
     expect(twice.calls).toHaveLength(4);
   });
 });
@@ -170,8 +188,11 @@ describe('the pickup QR screen', () => {
     await advance(8);
     expect(screen()).toContain('0:52');
     expect(issue).toHaveBeenCalledTimes(1);
-    await advance(47);
-    expect(issue).toHaveBeenCalledTimes(2); // five seconds before the end, with a new proof
+    await advance(60 - renewBefore - 9);
+    expect(issue).toHaveBeenCalledTimes(1);
+    await advance(1);
+    expect(issue).toHaveBeenCalledTimes(2); // fifteen seconds before the end, with a new proof
+    expect(renewBefore).toBe(15);
     expect(screen()).toContain('1:00');
     expect(tree.root.findAll(node => node.props.accessibilityLabel === '수령 QR' && node.props.source)[0].props.source.uri).not.toBe(first);
   });
@@ -196,7 +217,8 @@ describe('the pickup QR screen', () => {
     expect(screen()).toContain('결제한 보드가 필요합니다');
     expect(screen()).toContain('보드를 찾지 못했습니다');
     expect(screen()).toContain('수령 QR은 이 주문을 결제한 보드로 확인한 뒤에만 나옵니다. 보드를 켜고 휴대전화 가까이 두세요.');
-    expect(screen()).toContain('주문은 그대로 있습니다. 준비된 음료는 매장이 보관합니다.');
+    expect(screen()).toContain('주문은 그대로 있습니다. 결제 금액은 주문 계약에 보관 중입니다.');
+    expect(screen()).not.toContain('매장이 보관합니다');
     await press('다시 확인하기');
     expect(screen()).toContain('결제한 보드가 아닙니다');
     expect(screen()).toContain('연결된 보드의 계정이 이 주문의 결제 계정과 다릅니다');
@@ -214,6 +236,48 @@ describe('the pickup QR screen', () => {
     expect(back).toHaveBeenCalled();
     await render(undefined);
     expect(screen()).toContain('이 앱에는 수령 QR을 받을 매장 서버 주소가 아직 없습니다.');
+  });
+
+  test('an order already handed over says when, and offers no new QR', async () => {
+    const at = Math.floor(new Date(2026, 10, 27, 14, 5, 9).getTime() / 1000);
+    const issue = jest.fn(async (): Promise<IssuedPickup> => ({kind: 'collected', at}));
+    await render(issue);
+    expect(screen()).toContain('이미 전달된 주문입니다');
+    expect(screen()).toContain('매장이 14:05에 이 주문의 전달을 기록했습니다. 수령 QR은 더 나오지 않습니다. 주문 상태에서 확인하세요.');
+    expect(tree.root.findAll(node => node.props.accessibilityLabel === '다시 확인하기')).toHaveLength(0);
+    expect(tree.root.findAll(node => node.props.accessibilityLabel === '수령 QR')).toHaveLength(0);
+    await render(async () => ({kind: 'collected'}));
+    expect(screen()).toContain('매장이 이 주문의 전달을 이미 기록했습니다. 수령 QR은 더 나오지 않습니다.');
+  });
+
+  test('a proof the server refused and a request it did not take are not called a lost connection or another board', async () => {
+    await render(async () => ({kind: 'mismatch'}));
+    expect(screen()).toContain('매장 서버가 이 보드 계정의 확인을 받아들이지 않았습니다.');
+    expect(screen()).not.toContain('결제한 보드가 아닙니다');
+    expect(screen()).not.toContain('매장 서버에 닿지 못했습니다');
+    await render(async () => ({kind: 'refused'}));
+    expect(screen()).toContain('매장 서버가 이 요청을 받지 않았습니다. 다시 시도해도 같으면 매장에 문의하세요.');
+    expect(screen()).not.toContain('매장 서버에 닿지 못했습니다');
+    await render(async () => ({kind: 'unavailable'}));
+    expect(screen()).toContain('매장 서버에 닿지 못했습니다.');
+  });
+
+  test('a renewal that finds no board keeps the QR while it stands and asks again when it ends', async () => {
+    const answers: IssuedPickup[] = [qr(1), {kind: 'no-board'}, {kind: 'no-board'}];
+    const issue = jest.fn(async () => answers.shift()!);
+    await render(issue);
+    await advance(60 - renewBefore);
+    expect(issue).toHaveBeenCalledTimes(2);
+    expect(tree.root.findAll(node => node.props.accessibilityLabel === '수령 QR' && node.props.source).length).toBeGreaterThan(0);
+    expect(screen()).not.toContain('결제한 보드가 필요합니다');
+    await advance(renewBefore);
+    expect(issue).toHaveBeenCalledTimes(3);
+    expect(screen()).toContain('결제한 보드가 필요합니다');
+    // What the server decided about the order is said at once, with time left on the QR.
+    const handed: IssuedPickup[] = [qr(2), {kind: 'collected'}];
+    await render(async () => handed.shift()!);
+    await advance(60 - renewBefore);
+    expect(screen()).toContain('이미 전달된 주문입니다');
   });
 
   test('a QR that ends while the app is in the background is replaced when it comes back', async () => {

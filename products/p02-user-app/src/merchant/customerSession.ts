@@ -1,10 +1,11 @@
-import {bytesToHex, CommerceClient, hexToBytes, type CommerceProfile} from '@nu54/protocol';
-import {EntranceError, type BoardLink, type EntrancePost, type PickupBoard} from './customerEntrance.ts';
+import {bytesToHex, hexToBytes} from '@nu54/protocol';
+import {EntranceError, entranceRefusal as refusal, type BoardLink, type EntrancePost, type PickupBoard} from './customerEntrance.ts';
 
 // Customer sessions of the entrance (traveller-services.md chapter 9 item 2). A phone registers at no store: before
 // payment the board proves its account once and gets a session for that store's menu, cart, quote and payment; after
 // payment it proves the paying account once and gets a session for that one order until the order ends. A session
-// is a bearer token for C3 requests. It never hands over goods: a pickup QR needs a new proof each time.
+// is a bearer token for C3 requests (storeAccess.ts sends them). It never hands over goods: a pickup QR needs a new
+// proof each time.
 
 export type CustomerSession = {
   token: string; purpose: 'checkout' | 'order'; branch: string; sale?: string;
@@ -18,16 +19,6 @@ const hex32 = /^[0-9a-f]{64}$/;
 const account = /^0x[0-9a-f]{40}$/;
 const signature = /^[0-9a-f]{130}$/;
 const generation = /^[1-9][0-9]{0,17}$/;
-
-function refusal(reply: {status: number; body: unknown}): EntranceError {
-  const code = (reply.body as {error?: unknown} | null)?.error;
-  if (reply.status === 400 && code === 'MISMATCHED_EVIDENCE') return new EntranceError('MISMATCH');
-  if (reply.status === 409 && code === 'CHECKOUT_CONFLICT') return new EntranceError('NOT_READY');
-  if (reply.status === 400 && code === 'EXPIRED') return new EntranceError('EXPIRED');
-  if (reply.status === 429 || (reply.status === 503 && code === 'BUSY')) return new EntranceError('BUSY');
-  if (reply.status === 400 || reply.status === 404) return new EntranceError('REFUSED');
-  return new EntranceError('UNAVAILABLE');
-}
 
 export class SessionEntrance {
   constructor(private readonly post: EntrancePost) {}
@@ -66,12 +57,19 @@ export class SessionEntrance {
 
 export type SessionProblem =
   | {kind: 'no-board'}
+  /** The board near the phone has another account than this phone's; nothing was asked of the server. */
   | {kind: 'other-board'; expected: string; board: string}
+  /** The board of this account proved it and the server still did not accept the proof for what was asked. */
+  | {kind: 'mismatch'}
   /** The board of this account was registered again since the phone last tested it; the wallet tests it first. */
   | {kind: 'board-changed'}
   /** The account cannot start here now: its board changed while an order of it is still open. */
   | {kind: 'held'}
+  /** The server has too many requests now. The session, if there was one, stands. */
   | {kind: 'busy'}
+  /** The server answered and did not take the request. */
+  | {kind: 'refused'}
+  /** No answer from the server. */
   | {kind: 'unavailable'};
 export type OpenedSession = {kind: 'session'; session: CustomerSession} | SessionProblem;
 
@@ -114,33 +112,14 @@ export async function openCustomerSession(entrance: SessionEntrance | undefined,
     }
   } catch (error) {
     const code = error instanceof EntranceError ? error.code : 'UNAVAILABLE';
-    if (code === 'MISMATCH') return {kind: 'other-board', expected, board: link.account};
+    // The board near is this phone's (compared above), so a refused proof is not another board.
+    if (code === 'MISMATCH') return {kind: 'mismatch'};
     if (code === 'NOT_READY') return {kind: 'held'};
     if (code === 'BUSY') return {kind: 'busy'};
+    // A challenge that ran out twice is also an answer of the server, not a lost connection.
+    if (code === 'REFUSED' || code === 'EXPIRED') return {kind: 'refused'};
     return {kind: 'unavailable'};
   } finally {
     link.close();
   }
-}
-
-/** The session is over, or the request is outside what it covers. The caller proves the board again. */
-export class SessionEnded extends Error {
-  readonly code = 'CUSTOMER_SESSION_ENDED';
-  constructor() { super('CUSTOMER_SESSION_ENDED'); }
-}
-
-/**
- * The C3 client of one session: the same requests as an enrolled customer connection, sent to the entrance with the
- * session token. Its scope comes from the server's answer to the proof, never from the phone.
- */
-export function sessionClient(post: EntrancePost, session: CustomerSession, newId: () => Promise<string>, clock?: () => number): CommerceClient {
-  const profile: CommerceProfile = {role: 'customer', branchRef: session.branch, tenantRef: session.tenant, subjectRef: session.subject,
-    expiresAt: session.expiresAt};
-  return new CommerceClient(profile, async body => {
-    const reply = await post('/v2/customer/commerce', body, session.token);
-    if (reply.status === 404) throw new SessionEnded();
-    if (reply.status === 429) throw new Error('BUSY');
-    if (reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
-    return JSON.stringify(reply.body);
-  }, newId, clock);
 }

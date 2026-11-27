@@ -1,6 +1,6 @@
 import {accountProofDigest, addressOfPrivateKey, bytesToHex, signDigest} from '@nu54/protocol';
 import {EntranceError, type BoardLink, type EntrancePost, type PickupBoard} from '../src/merchant/customerEntrance';
-import {openCustomerSession, sessionClient, SessionEnded, SessionEntrance, type CustomerSession, type SessionScope} from '../src/merchant/customerSession';
+import {openCustomerSession, SessionEntrance, type CustomerSession, type SessionScope} from '../src/merchant/customerSession';
 
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: null}));
 
@@ -68,13 +68,15 @@ describe('a customer session from the board\'s account proof', () => {
     expect(await openCustomerSession(undefined, board(), payer, checkout)).toEqual({kind: 'unavailable'});
   });
 
-  test('the server\'s refusals: another account, an account held by an open order, a limit, no answer', async () => {
+  test('the server\'s refusals: a proof it does not accept, an account held by an open order, a limit, a request it does not take, no answer', async () => {
     const answer = (status: number, error: string) => openCustomerSession(entrance([{status, body: {status: 'error', error}}]).client, board(), payer, checkout);
-    expect(await answer(400, 'MISMATCHED_EVIDENCE')).toEqual({kind: 'other-board', expected: payer, board: payer});
+    // This phone's board is near and proved its account: the refusal is never shown as two equal accounts of two boards.
+    expect(await answer(400, 'MISMATCHED_EVIDENCE')).toEqual({kind: 'mismatch'});
     expect(await answer(409, 'CHECKOUT_CONFLICT')).toEqual({kind: 'held'});
     expect(await answer(429, 'BUSY')).toEqual({kind: 'busy'});
     expect(await answer(503, 'UNKNOWN')).toEqual({kind: 'unavailable'});
-    expect(await answer(404, '')).toEqual({kind: 'unavailable'});
+    expect(await answer(404, '')).toEqual({kind: 'refused'});
+    expect(await answer(400, 'BAD_REQUEST')).toEqual({kind: 'refused'});
   });
 
   test('a challenge that ran out is asked once more, not forever', async () => {
@@ -82,7 +84,7 @@ describe('a customer session from the board\'s account proof', () => {
     const twice = entrance([expired, granted(checkout)]);
     expect((await openCustomerSession(twice.client, board(), payer, checkout)).kind).toBe('session');
     expect(twice.calls.map(call => call.path)).toEqual(['/v2/customer/challenge', '/v2/customer/proof', '/v2/customer/challenge', '/v2/customer/proof']);
-    expect(await openCustomerSession(entrance([expired, expired]).client, board(), payer, checkout)).toEqual({kind: 'unavailable'});
+    expect(await openCustomerSession(entrance([expired, expired]).client, board(), payer, checkout)).toEqual({kind: 'refused'});
   });
 
   test('a session for another purpose, store or order, a pickup token, or a malformed one is not taken', async () => {
@@ -99,39 +101,5 @@ describe('a customer session from the board\'s account proof', () => {
     await expect(quiet.client.prove(value, proof, '0', checkout)).rejects.toEqual(new EntranceError('REFUSED'));
     await expect(quiet.client.challenge({purpose: 'order', branch, sale: 'x'})).rejects.toEqual(new EntranceError('REFUSED'));
     expect(quiet.calls).toEqual([]);
-  });
-});
-
-describe('C3 requests of a session', () => {
-  const newId = async () => '0fbc54ef-2827-4ab5-bfcd-3a27611c3009';
-  const now = () => 1_764_000_000;
-
-  test('go to the entrance with the session token, scoped as the server\'s answer said', async () => {
-    const sent: {path: string; body: {command: Record<string, unknown>}; token?: string}[] = [];
-    const post: EntrancePost = async (path, body, bearer) => { sent.push({path, body: JSON.parse(body), token: bearer}); return {status: 200, body: {status: 'unknown'}}; };
-    const client = sessionClient(post, session, newId, now);
-    expect(client.profile).toEqual({role: 'customer', branchRef: branch, tenantRef: tenant, subjectRef: subject, expiresAt: 1_764_000_900});
-    await expect(client.status(sale)).rejects.toThrow();
-    expect(sent).toHaveLength(1);
-    expect(sent[0].path).toBe('/v2/customer/commerce');
-    expect(sent[0].token).toBe(token);
-    expect(sent[0].body.command).toMatchObject({version: 2, contract: 'C3', operation: 'order.status', domainRef: branch, objectRef: sale, expiresAt: 1_764_000_030});
-  });
-
-  test('a session that ended, a limit and an answer outside the protocol are told apart', async () => {
-    const failing = (status: number, body: unknown) => sessionClient(async () => ({status, body}), session, newId, now).status(sale);
-    await expect(failing(404, null)).rejects.toBeInstanceOf(SessionEnded);
-    await expect(failing(404, null)).rejects.toMatchObject({code: 'CUSTOMER_SESSION_ENDED'});
-    await expect(failing(429, {status: 'error', error: 'BUSY'})).rejects.toThrow('BUSY');
-    await expect(failing(503, null)).rejects.toThrow('BAD_RESPONSE');
-    await expect(failing(200, 'ok')).rejects.toThrow('BAD_RESPONSE');
-  });
-
-  test('a request never outlives its session', async () => {
-    const sent: {command: {expiresAt: number}}[] = [];
-    const client = sessionClient(async (_path, body) => { sent.push(JSON.parse(body)); return {status: 404, body: null}; },
-      {...session, expiresAt: 1_764_000_010}, newId, now);
-    await expect(client.status(sale)).rejects.toBeInstanceOf(SessionEnded);
-    expect(sent[0].command.expiresAt).toBe(1_764_000_010);
   });
 });

@@ -14,10 +14,15 @@ export type EntrancePath = '/v2/customer/challenge' | '/v2/customer/proof' | '/v
 /** One request to the entrance. An empty body is a read; `session` goes only with `/v2/customer/commerce`. */
 export type EntrancePost = (path: EntrancePath, body: string, session?: string) => Promise<EntranceReply>;
 
-/** Codes the screens act on. UNAVAILABLE: no entrance address, no answer, or an answer that is not the protocol. */
-export type EntranceCode = 'MISMATCH' | 'NOT_READY' | 'EXPIRED' | 'BUSY' | 'REFUSED' | 'UNAVAILABLE';
+/**
+ * Codes the screens act on. MISMATCH: the server did not accept the account proof for what was asked. COLLECTED: the
+ * store already recorded the handover. REFUSED: the server answered and did not take the request. UNAVAILABLE: no
+ * entrance address, no answer, or an answer that is not the protocol.
+ */
+export type EntranceCode = 'MISMATCH' | 'NOT_READY' | 'COLLECTED' | 'EXPIRED' | 'BUSY' | 'REFUSED' | 'UNAVAILABLE';
 export class EntranceError extends Error {
-  constructor(readonly code: EntranceCode) { super(`CUSTOMER_ENTRANCE_${code}`); }
+  /** `at`: when the store recorded the handover, in seconds, when the server said so with COLLECTED. */
+  constructor(readonly code: EntranceCode, readonly at?: number) { super(`CUSTOMER_ENTRANCE_${code}`); }
 }
 
 /** The native half of the entrance connection (specs/NativeCommerceHttp.ts). */
@@ -70,10 +75,17 @@ const hex32 = /^[0-9a-f]{64}$/;
 const account = /^0x[0-9a-f]{40}$/;
 const signature = /^[0-9a-f]{130}$/;
 
-function refusal(reply: EntranceReply): EntranceError {
-  const code = (reply.body as {error?: unknown} | null)?.error;
+/** What an answer other than 200 to a challenge or a proof means. */
+export function entranceRefusal(reply: EntranceReply): EntranceError {
+  const body = reply.body as {error?: unknown; reason?: unknown; recordedAt?: unknown} | null;
+  const code = body?.error;
   if (reply.status === 400 && code === 'MISMATCHED_EVIDENCE') return new EntranceError('MISMATCH');
-  if (reply.status === 409 && code === 'CHECKOUT_CONFLICT') return new EntranceError('NOT_READY');
+  if (reply.status === 409 && code === 'CHECKOUT_CONFLICT') {
+    // An order already handed over says so and when. A server that names no reason is an older one.
+    if (body?.reason === 'collected')
+      return new EntranceError('COLLECTED', Number.isSafeInteger(body.recordedAt) && (body.recordedAt as number) > 0 ? body.recordedAt as number : undefined);
+    return new EntranceError('NOT_READY');
+  }
   if (reply.status === 400 && code === 'EXPIRED') return new EntranceError('EXPIRED');
   if (reply.status === 429 || (reply.status === 503 && code === 'BUSY')) return new EntranceError('BUSY');
   if (reply.status === 400 || reply.status === 404) return new EntranceError('REFUSED');
@@ -90,7 +102,7 @@ export class CustomerEntrance {
   async pickupChallenge(branch: string, sale: string): Promise<PickupChallenge> {
     if (!uuid.test(branch) || !uuid.test(sale)) throw new EntranceError('REFUSED');
     const reply = await this.post('/v2/customer/challenge', JSON.stringify({purpose: 'pickup', branchRef: branch, saleRef: sale}));
-    if (reply.status !== 200) throw refusal(reply);
+    if (reply.status !== 200) throw entranceRefusal(reply);
     const body = reply.body as {challenge?: unknown; expiresAt?: unknown} | null;
     if (typeof body?.challenge !== 'string' || !hex32.test(body.challenge) || /^0+$/.test(body.challenge) ||
         !Number.isSafeInteger(body.expiresAt)) throw new EntranceError('UNAVAILABLE');
@@ -102,7 +114,7 @@ export class CustomerEntrance {
     if (challenge.length !== 32 || !account.test(proof.account) || !signature.test(proof.signature)) throw new EntranceError('REFUSED');
     const reply = await this.post('/v2/customer/proof',
       JSON.stringify({challenge: bytesToHex(challenge, false), account: proof.account, signature: proof.signature}));
-    if (reply.status !== 200) throw refusal(reply);
+    if (reply.status !== 200) throw entranceRefusal(reply);
     const body = reply.body as {purpose?: unknown; branchRef?: unknown; saleRef?: unknown; pickupToken?: unknown; expiresAt?: unknown} | null;
     if (body?.purpose !== 'pickup' || body.branchRef !== order.branch || body.saleRef !== order.sale ||
         typeof body.pickupToken !== 'string' || !hex32.test(body.pickupToken) || !Number.isSafeInteger(body.expiresAt))
@@ -121,9 +133,17 @@ export type PickupBoard = {open(expected: string): Promise<BoardLink>};
 
 export type PickupProblem =
   | {kind: 'no-board'}
+  /** The board near the phone has another account than the order's payer; nothing was asked of the server. */
   | {kind: 'other-board'; payer: string; board: string}
+  /** The paying board proved its account and the server still did not accept it for this order. */
+  | {kind: 'mismatch'}
   | {kind: 'not-ready'}
+  /** The store already recorded the handover, at `at` (seconds) when the server said when. */
+  | {kind: 'collected'; at?: number}
   | {kind: 'busy'}
+  /** The server answered and did not take the request. */
+  | {kind: 'refused'}
+  /** No answer from the server. */
   | {kind: 'unavailable'};
 export type IssuedPickup = {kind: 'qr'; qr: string; expiresAt: number} | PickupProblem;
 
@@ -165,11 +185,18 @@ export async function issuePickupQr(entrance: CustomerEntrance | undefined, boar
       }
     }
   } catch (error) {
-    const code = error instanceof EntranceError ? error.code : 'UNAVAILABLE';
-    if (code === 'MISMATCH') return {kind: 'other-board', payer: order.payer, board: link.account};
-    if (code === 'NOT_READY') return {kind: 'not-ready'};
-    if (code === 'BUSY') return {kind: 'busy'};
-    return {kind: 'unavailable'};
+    if (!(error instanceof EntranceError)) return {kind: 'unavailable'};
+    switch (error.code) {
+      // The board near is the payer's (compared above), so this is not another board: the server does not hold
+      // this order as one this account can take now.
+      case 'MISMATCH': return {kind: 'mismatch'};
+      case 'NOT_READY': return {kind: 'not-ready'};
+      case 'COLLECTED': return {kind: 'collected', ...(error.at === undefined ? {} : {at: error.at})};
+      case 'BUSY': return {kind: 'busy'};
+      // A challenge that ran out twice is also an answer of the server, not a lost connection.
+      case 'REFUSED': case 'EXPIRED': return {kind: 'refused'};
+      default: return {kind: 'unavailable'};
+    }
   } finally {
     link.close();
   }
