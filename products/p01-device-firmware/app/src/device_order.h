@@ -25,6 +25,14 @@ bool device_order_open(uint64_t earliest, int64_t uptime_ms);
  * this start for NU54_ORDER_MAX_SECONDS from now, one of an earlier start until the board has run
  * for NU54_SPEND_ORDER_LIFE_MS. */
 void device_order_hold_open(uint64_t earliest, int64_t uptime_ms);
+/* What device_order_hold_open would hold, as running time from now in whole seconds, rounded up;
+ * zero when nothing is open. The caller saves it with the moved time before it moves the clock,
+ * so that a restart cannot lose it. */
+uint64_t device_order_hold_seconds(uint64_t earliest, int64_t uptime_ms);
+/* Call once at start, after device_order_start, with the hold the storage had: what the phone's
+ * time must not close stays open for that much running time, and for no more than one order life
+ * of it, as every order of an earlier start. */
+void device_order_resume(int64_t uptime_ms, uint64_t hold_seconds);
 int device_order_erase(void);
 
 #endif

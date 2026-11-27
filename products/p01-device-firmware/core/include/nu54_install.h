@@ -86,10 +86,12 @@ int nu54_install_restore(const uint8_t *bundle, size_t length, const uint8_t ide
 bool nu54_install_generation_current(uint64_t grant_generation, uint64_t board_generation, bool no_owner);
 
 /* The time the board keeps in storage: its trusted lower bound, how far the latest possible time
- * was above it, and how often the owner's phone moved the lower bound into a later day under this
- * grant. */
+ * was above it, how often the owner's phone moved the lower bound into a later day under this
+ * grant, and the board time up to which an order that was open when the phone moved the clock
+ * still counts as open (zero: none). The phone's time may be ahead of the calendar, so it must
+ * not end such an order for the board, and a restart must not forget that. */
 typedef struct {
-	uint64_t earliest, offset, phone_days;
+	uint64_t earliest, offset, phone_days, hold;
 } nu54_install_clock;
 
 /* The lower bound a restarted board continues from: the latest of what it saved and of its other
@@ -126,7 +128,7 @@ enum { NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3
  * moves back.
  *
  * Returns -1 for a message that is not well formed, else one of the results above. `next` is
- * written for NU54_CLOCK_MOVED only. */
+ * written for NU54_CLOCK_MOVED only; its hold is the current one, and the caller sets the new. */
 int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, uint64_t time,
 			   uint64_t expires, uint64_t session_seconds, nu54_install_clock *next);
 void nu54_install_clock_reply(int result, const nu54_install_clock *clock, uint64_t not_after,

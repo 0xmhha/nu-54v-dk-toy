@@ -321,7 +321,8 @@ uint64_t device_install_earliest(void);
 uint64_t device_install_now(void);
 const nu54_install_policy *device_install_policy(void);
 int64_t device_install_keep_time(void);
-int device_install_set_time(uint64_t, uint64_t, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+int device_install_set_time(uint64_t, uint64_t, uint64_t, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+uint64_t device_install_order_hold(void);
 /* The grant's time is a lower bound and lies 2 seconds back here. */
 #define GRANT_LAG 2
 
@@ -514,6 +515,7 @@ static void boot(void)
 		ready = true;
 		k_work_reschedule(&clock_worker, K_NO_WAIT);
 	}
+	resume_order_hold();
 	say_clock();
 	/* main(): a board without an owner gets ready for the next one by itself. */
 	if (device_pilot_owner_absent()) (void)pay_link_owner_wait(true);

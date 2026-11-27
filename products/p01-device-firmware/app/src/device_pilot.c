@@ -1403,10 +1403,12 @@ static int clock_request(nu54_v2_request *request, const nu54_install_policy *po
 	const uint64_t before = device_install_earliest();
 	/* The phone read its clock after this session began. */
 	const uint64_t session_seconds = uptime > session_began ? ((uint64_t)(uptime - session_began) + 999u) / 1000u : 0;
-	const int result = device_install_set_time(sys_get_be64(request->payload + 1), request->expires, session_seconds, reply);
+	/* Judged by the time before the move: the new time must not end an open order early, in this
+	 * start or after a restart. The hold goes into storage with the moved time. */
+	const int result = device_install_set_time(sys_get_be64(request->payload + 1), request->expires, session_seconds,
+						   device_order_hold_seconds(before, uptime), reply);
 	if (result < 0) return -1;
 	if (result == NU54_CLOCK_MOVED) {
-		/* Judged by the time before the move: the new time must not end an open order early. */
 		device_order_hold_open(before, uptime);
 		k_work_reschedule(&clock_worker, K_NO_WAIT);
 	}
@@ -2029,6 +2031,13 @@ static void keep_time(struct k_work *ignored)
 	k_mutex_unlock(&pilot_lock);
 	if (wait >= 0) k_work_reschedule(&clock_worker, K_MSEC(wait));
 }
+
+/* Once at start, after the stored grant was looked for, with or without one found: an order that
+ * was open when the owner's phone moved the clock stays open through the restart. */
+static void resume_order_hold(void)
+{
+	device_order_resume(k_uptime_get(), device_install_order_hold());
+}
 #endif
 
 void device_pilot_init(void)
@@ -2050,6 +2059,7 @@ void device_pilot_init(void)
 			free_tls_bank(bank);
 		}
 		mbedtls_platform_zeroize(install_bundle, sizeof(install_bundle));
+		resume_order_hold();
 	}
 #endif
 	/* Bluetooth and its bond settings are loaded before this runs (pay_link_init). A commercial

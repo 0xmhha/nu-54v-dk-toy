@@ -28,9 +28,17 @@ int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *,
 int64_t device_install_keep_time(void);
 /* The registered owner's phone tells the time; the caller has checked who asks. Forward only,
  * before the grant's end, saved before it is used. Returns NU54_CLOCK_MOVED, _NOT_FORWARD or
- * _PAST_END with the reply written, or -1. */
-int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds,
+ * _PAST_END with the reply written, or -1.
+ *
+ * `hold_seconds` is the running time for which an order that is open now must stay open whatever
+ * the new time says (device_order_hold_seconds). It is saved in the same write as the time, so
+ * that a restart right after the move keeps it. */
+int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds, uint64_t hold_seconds,
 			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE]);
+/* The running time, in seconds, that is left of the hold the storage has. Asked once at start,
+ * with or without a grant in use; a restart found the time it saved last, so this is at least
+ * what was left when the power went. */
+uint64_t device_install_order_hold(void);
 #endif
 /* A factory reset: removes the stored grant and the saved time and ends the grant in use. The
  * floors stay. Safe to repeat after a power cut. */

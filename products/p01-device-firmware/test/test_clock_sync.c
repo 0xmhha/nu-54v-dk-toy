@@ -298,6 +298,7 @@ static int board_restart(void)
 	device_order_start(); /* device_spending_init */
 	const int restored = restart();
 	if (!restored) grant_names_the_store();
+	resume_order_hold(); /* device_pilot_init, whether a grant was found or not */
 	return restored;
 }
 
@@ -499,7 +500,7 @@ static void test_what_is_refused(void)
 	assert(told().latest == real + NU54_CLOCK_PHONE_SECONDS && told().latest > board_end);
 	assert(!device_install_policy() && device_install_keep_time() == -1 && connect_phone() == -1);
 	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
-	assert(device_install_set_time(board_end - 2, board_end + 80, 0, reply) == -1 && device_install_earliest() == board_end - 3);
+	assert(device_install_set_time(board_end - 2, board_end + 80, 0, 0, reply) == -1 && device_install_earliest() == board_end - 3);
 	assert(board_restart() == 1 && !device_install_policy());
 
 	/* A message that claims a time and lives on long after it: refused whole. */
@@ -954,6 +955,154 @@ static void test_open_orders(void)
 	assert(!device_order_open(device_install_earliest(), uptime));
 }
 
+/* The independent audit's first finding: a moved clock and a restart together must not close an
+ * approved order before the token contract would. The order was approved with 117 seconds to run.
+ * Two seconds later a phone whose clock is 200 seconds ahead tells the time, and the power goes. */
+static void test_open_orders_through_restarts(void)
+{
+	nu54_order_record record = {.outcome = NU54_ORDER_APPROVED};
+
+	late_board(3 * 3600);
+	assert(!device_order_erase());
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record) && device_order_open(device_install_earliest(), uptime));
+	on_for(2);
+	real += 200;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(device_install_earliest() > record.expires && device_order_open(device_install_earliest(), uptime));
+	real -= 200; /* the calendar: the order has 115 seconds left */
+	const struct item moved = *item(INSTALL_CLOCK);
+	for (int i = 0; i < 3; ++i) { /* however often the board restarts */
+		assert(board_restart() == 0 && device_install_earliest() > record.expires);
+		const int64_t started = uptime;
+		assert(device_order_open(device_install_earliest(), uptime));
+		uptime = 115 * 1000;
+		assert(device_order_open(device_install_earliest(), uptime));
+		/* It ends with the running time an order can have at the most. */
+		uptime = started + NU54_ORDER_MAX_SECONDS * 1000 - 1;
+		assert(device_order_open(device_install_earliest(), uptime));
+		uptime += 1;
+		assert(!device_order_open(device_install_earliest(), uptime));
+		assert(!memcmp(item(INSTALL_CLOCK), &moved, sizeof(moved))); /* nothing was saved since the move */
+	}
+	/* The hold runs out with the board's time, also in storage: once the board has saved a time
+	 * past it, a restart holds nothing more. */
+	on_for(600);
+	assert(board_restart() == 0 && !device_install_order_hold() && !device_order_open(device_install_earliest(), uptime));
+
+	/* The same when the order is from an earlier start: restart, the phone's time, restart. */
+	late_board(3 * 3600);
+	assert(!device_order_erase());
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record));
+	assert(board_restart() == 0);
+	on_for(2);
+	assert(device_order_open(device_install_earliest(), uptime));
+	real += 200;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(device_install_earliest() > record.expires && device_order_open(device_install_earliest(), uptime));
+	/* The second start had run for some seconds of its order life when the clock moved. The third
+	 * holds the order for what was left of that life. */
+	const int64_t left = NU54_SPEND_ORDER_LIFE_MS - uptime;
+	assert(left % 1000 == 0 && left > NU54_ORDER_MAX_SECONDS * 1000);
+	assert(board_restart() == 0 && device_install_order_hold() == (uint64_t)left / 1000);
+	const int64_t started = uptime;
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime = started + left - 1;
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime += 1;
+	assert(!device_order_open(device_install_earliest(), uptime));
+
+	/* The move ended the grant by the board's time (its latest possible time passed the end), so
+	 * the restart finds no grant to take up. The order is held all the same. */
+	late_board(3 * 3600);
+	assert(!device_order_erase());
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record));
+	real = board_end - 2;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !device_install_policy());
+	assert(board_restart() == 1 && device_install_order_hold() == NU54_ORDER_MAX_SECONDS);
+	assert(device_order_open(device_install_earliest(), uptime));
+	/* A hold is never longer than one order life of running time, whatever storage says. */
+	nu54_install_clock stored;
+	memcpy(&stored, item(INSTALL_CLOCK)->data, sizeof(stored));
+	stored.hold += 40 * DAY;
+	memcpy(item(INSTALL_CLOCK)->data, &stored, sizeof(stored));
+	assert(board_restart() == 1 && device_install_order_hold() > 40 * DAY);
+	assert(!device_order_erase()); /* no record: only the hold speaks */
+	uptime = NU54_SPEND_ORDER_LIFE_MS - 1;
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime = NU54_SPEND_ORDER_LIFE_MS;
+	assert(!device_order_open(device_install_earliest(), uptime));
+
+	/* The power goes while the moved time is written. The hold is in the same write: the board
+	 * comes back with the old time, by which the order is open, or with the new time and the hold. */
+	for (int after = 0; after < 2; ++after) {
+		late_board(3 * 3600);
+		assert(!device_order_erase());
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+		record.expires = device_install_earliest() + 117;
+		assert(!device_order_store(1, &record));
+		real += 200;
+		assert(!connect_phone());
+		power_after = after;
+		writes_left = 0;
+		volatile bool finished = false;
+		if (!setjmp(power)) {
+			(void)tell_time(real);
+			finished = true;
+		}
+		writes_left = -1;
+		assert(!finished && board_restart() == 0);
+		assert((device_install_earliest() > record.expires) == after);
+		assert(device_install_order_hold() == (after ? NU54_ORDER_MAX_SECONDS : 0));
+		assert(device_order_open(device_install_earliest(), uptime));
+	}
+
+	/* A new grant brings the authority's time, which is not ahead of the calendar: the records are
+	 * judged by it again, and it leaves no hold in storage. */
+	uint8_t grant[GRANT_SIZE];
+	late_board(3 * 3600);
+	assert(!device_order_erase());
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record));
+	real += 200;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && device_install_order_hold());
+	make_grant(grant, 2, 1, real + 1, real + 10 * DAY);
+	assert(!install(grant) && !device_install_order_hold());
+	assert(device_order_open(device_install_earliest(), uptime)); /* this start still holds it */
+	assert(board_restart() == 0 && !device_order_open(device_install_earliest(), uptime));
+}
+
+/* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
+ * the grant goes with it, and an approved order counts as open for one order life of running time,
+ * as it does on every board that does not know the time. */
+static void test_saved_time_of_the_earlier_build(void)
+{
+	nu54_order_record record = {.outcome = NU54_ORDER_APPROVED};
+	uint8_t grant[GRANT_SIZE];
+	late_board(3 * 3600);
+	assert(!device_order_erase());
+	record.expires = device_install_earliest() + 117;
+	assert(!device_order_store(1, &record));
+	const uint64_t reached = device_install_earliest();
+	item(INSTALL_CLOCK)->size = 24;
+	assert(board_restart() == 1 && !device_install_policy() && !device_install_earliest());
+	assert(!item(INSTALL_GRANT) && !item(INSTALL_CLOCK) && item(INSTALL_FLOOR) && !device_install_order_hold());
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime = NU54_SPEND_ORDER_LIFE_MS - 1;
+	assert(device_order_open(device_install_earliest(), uptime));
+	uptime = NU54_SPEND_ORDER_LIFE_MS;
+	assert(!device_order_open(device_install_earliest(), uptime));
+	/* The operator's next grant is taken, from the time of the grant the board had committed. */
+	make_grant(grant, 2, 1, reached, reached + DAY);
+	assert(!install(grant) && device_install_policy() && board_restart() == 0);
+}
+
 int main(int argc, char **argv)
 {
 	uint8_t unsigned_quote[NU54_V2_UNSIGNED_SIZE];
@@ -981,6 +1130,8 @@ int main(int argc, char **argv)
 	test_a_phone_that_is_ahead();
 	test_whole_storage_put_back();
 	test_open_orders();
+	test_open_orders_through_restarts();
+	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;
 }

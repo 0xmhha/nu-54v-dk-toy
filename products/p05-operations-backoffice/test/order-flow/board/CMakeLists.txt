@@ -52,14 +52,15 @@ add_custom_command(OUTPUT ${EXTRACTED}
   COMMAND ${Python3_EXECUTABLE} -B ${P01}/test/extract_c.py ${EXTRACTED}
     ${P01}/app/src/device_install.c OFFER_TTL_MS INSTALL_GRANT INSTALL_CLOCK INSTALL_GRANT_PART GRANT_PART_SIZE GRANT_PARTS
       CLOCK_SAVE_SECONDS import_public verify device_install_verify_authority storage_found removed clock_load clock_store
-      grant_store grant_read device_install_forget device_install_earliest no_owner device_install_keep_time
-      device_install_set_time device_install_now device_install_policy
+      grant_store grant_read device_install_forget device_install_earliest no_owner hold_after device_install_keep_time
+      device_install_set_time device_install_order_hold device_install_now device_install_policy
     ${DEVICE_PILOT} RESET_NONCE_MS reset_display_input reset_install_input reset_link
       session_live owner_pin_live pilot_pin send_frame present load_refusal clear_legacy_bonds report_legacy_bonds
       owner_absent reset_nonce_issue journal_new_session reset_of_released spending_request spending_erase_and_reboot
       spending_button manage load_receipt send_receipt
       reclaim_receipt receipt_status payment_generation_current payment_address order_request order_button
       clock_request frame stream sign bind_session device_pilot_button device_pilot_owner_absent keep_time
+      resume_order_hold
   DEPENDS ${P01}/test/extract_c.py ${P01}/app/src/device_install.c ${DEVICE_PILOT} VERBATIM)
 
 add_executable(order-board board_host.c ${EXTRACTED}

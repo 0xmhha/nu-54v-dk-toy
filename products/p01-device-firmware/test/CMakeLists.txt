@@ -172,7 +172,8 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h
     INSTALL_CLOCK INSTALL_GRANT_PART GRANT_PART_SIZE GRANT_PARTS CLOCK_SAVE_SECONDS OFFER_TTL_MS storage_found
     removed clock_load clock_store grant_store grant_read device_install_forget device_install_earliest
     device_install_fence_wallet_expiry device_install_load no_owner device_install_restore
-    device_install_keep_time device_install_set_time device_install_now device_install_policy
+    hold_after device_install_keep_time device_install_set_time device_install_order_hold device_install_now
+    device_install_policy
   DEPENDS extract_c.py ../app/src/device_install.c VERBATIM)
 add_executable(test_install_store test_install_store.c install_store_fixture.h ../core/src/nu54_install.c
   ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h)
@@ -186,7 +187,7 @@ add_test(NAME install_store COMMAND test_install_store)
 # code with the real transport and a store's signed order.
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c clock_request order_request frame bind_session
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c clock_request order_request frame bind_session resume_order_hold
   DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
 add_executable(test_clock_sync test_clock_sync.c install_store_fixture.h ../app/src/device_order.c
   ../core/src/nu54_install.c ../core/src/nu54_order.c ../core/src/nu54_spending.c ../core/src/nu54_owner.c

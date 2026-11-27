@@ -101,11 +101,32 @@ static bool open_of_earlier_starts(uint64_t earliest, int64_t uptime_ms)
 	return uptime_ms < NU54_SPEND_ORDER_LIFE_MS && nu54_spend_order_open(load_of_earlier_starts, NULL, earliest, uptime_ms);
 }
 
-void device_order_hold_open(uint64_t earliest, int64_t uptime_ms)
+/* The running time until which what is open now stays open, whatever the clock says later. */
+static int64_t hold_until(uint64_t earliest, int64_t uptime_ms)
 {
 	int64_t until = 0;
 	if (open_of_this_start(earliest, uptime_ms)) until = uptime_ms + NU54_ORDER_MAX_SECONDS * INT64_C(1000);
 	else if (open_of_earlier_starts(earliest, uptime_ms)) until = NU54_SPEND_ORDER_LIFE_MS;
+	return until > held_open_until ? until : held_open_until;
+}
+
+void device_order_hold_open(uint64_t earliest, int64_t uptime_ms)
+{
+	held_open_until = hold_until(earliest, uptime_ms);
+}
+
+uint64_t device_order_hold_seconds(uint64_t earliest, int64_t uptime_ms)
+{
+	const int64_t until = hold_until(earliest, uptime_ms);
+	return until > uptime_ms ? ((uint64_t)(until - uptime_ms) + 999u) / 1000u : 0;
+}
+
+void device_order_resume(int64_t uptime_ms, uint64_t hold_seconds)
+{
+	const int64_t life = NU54_SPEND_ORDER_LIFE_MS;
+	if (!hold_seconds) return;
+	int64_t until = hold_seconds >= (uint64_t)life / 1000u ? life : uptime_ms + (int64_t)hold_seconds * 1000;
+	if (until > life) until = life;
 	if (until > held_open_until) held_open_until = until;
 }
 

@@ -22,7 +22,12 @@
 #define INSTALL_KEYS_WITNESS ((psa_storage_uid_t)0x5456)
 #define INSTALL_POLICY_WITNESS ((psa_storage_uid_t)0x5457)
 /* The grant itself, kept through a restart (spending profile): its length, the time the board
- * saves, and the grant in parts of the size one storage item takes in every profile. */
+ * saves, and the grant in parts of the size one storage item takes in every profile.
+ *
+ * The saved time is one nu54_install_clock: four 64-bit values in the board's byte order, 32
+ * bytes. A record of any other size is not a time (clock_load), and that includes the 24 bytes
+ * an earlier build of this profile wrote, which had no hold: such a board starts without its
+ * grant and waits for the operator's next one. */
 #define INSTALL_GRANT ((psa_storage_uid_t)0x5458)
 #define INSTALL_CLOCK ((psa_storage_uid_t)0x5459)
 #define INSTALL_GRANT_PART ((psa_storage_uid_t)0x5460)
@@ -46,6 +51,7 @@ _Static_assert(OFFER_TTL_MS / 1000 < NU54_PILOT_BRIEF_SECONDS, "a slow grant out
 #endif
 
 _Static_assert(sizeof(nu54_install_floor) <= 128, "P01 enrollment floor exceeds ITS limit");
+_Static_assert(sizeof(nu54_install_clock) == 32, "the saved time changed its format");
 
 static const char pin[] = CONFIG_NU54_INSTALL_AUTHORITY_HEX;
 static const uint8_t p256_spki_header[] = {
@@ -434,7 +440,8 @@ int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *
 	if (decoded.not_after - next.time <= offset ||
 	    adopt(bundle, ca_length, board_length, &decoded, next.time + offset, ca, board, key, profiles)) return -1;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
-	/* Kept for the next start. A failure here commits nothing; the grant in use stays in use. */
+	/* Kept for the next start. A failure here commits nothing; the grant in use stays in use.
+	 * The time is the authority's, which is not ahead of the calendar: it carries no hold. */
 	const nu54_install_clock start = {.earliest = next.time, .offset = offset};
 	if (grant_store(bundle, length) || clock_store(&start)) return -1;
 #endif
@@ -490,10 +497,17 @@ int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *c
 	return 0;
 }
 
+/* The hold of the saved time while it still lies ahead of `earliest`, else none. */
+static uint64_t hold_after(uint64_t earliest)
+{
+	return clock_saved.hold > earliest ? clock_saved.hold : 0;
+}
+
 int64_t device_install_keep_time(void)
 {
 	if (!active || clock_sealed) return -1;
-	const nu54_install_clock now = {device_install_earliest(), max_offset, clock_saved.phone_days};
+	const uint64_t earliest = device_install_earliest();
+	const nu54_install_clock now = {earliest, max_offset, clock_saved.phone_days, hold_after(earliest)};
 	/* A failed write is tried again at the next turn; the time in storage is then older, not wrong. */
 	if (now.earliest > clock_saved.earliest && !clock_store(&now) && now.earliest + now.offset >= policy.not_after) {
 		clock_sealed = true;
@@ -505,15 +519,22 @@ int64_t device_install_keep_time(void)
 /* The registered owner's phone tells the time (core/include/nu54_install.h). The caller has
  * checked who asks. A time that moves the clock is in storage before the board uses it, so a
  * restart goes on from it and a write that fails moves nothing. Returns the result of
- * nu54_install_clock_set with the reply written, or -1. */
-int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds,
+ * nu54_install_clock_set with the reply written, or -1.
+ *
+ * The phone's time may be ahead of the calendar. An order that is open by the board's time before
+ * the move is therefore held open for `hold_seconds` of running time after it. The hold is written
+ * as a board time, in the same record and the same write as the moved time: whatever a restart
+ * finds, it finds both or neither. */
+int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds, uint64_t hold_seconds,
 			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE])
 {
 	if (!device_install_policy()) return -1;
-	nu54_install_clock clock = {device_install_earliest(), max_offset, clock_saved.phone_days}, next;
+	const uint64_t earliest = device_install_earliest();
+	nu54_install_clock clock = {earliest, max_offset, clock_saved.phone_days, hold_after(earliest)}, next;
 	const int result = nu54_install_clock_set(&clock, policy.not_after, time, expires, session_seconds, &next);
 	if (result < 0) return -1;
 	if (result == NU54_CLOCK_MOVED) {
+		next.hold = !hold_seconds ? 0 : hold_seconds > UINT64_MAX - next.earliest ? UINT64_MAX : next.earliest + hold_seconds;
 		if (clock_store(&next)) return -1;
 		clock_base = next.earliest;
 		installed = k_uptime_get();
@@ -524,6 +545,13 @@ int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_se
 	}
 	nu54_install_clock_reply(result, &clock, policy.not_after, reply);
 	return result;
+}
+
+uint64_t device_install_order_hold(void)
+{
+	/* Without a grant in use the board has no running time: the saved one is where it stood. */
+	const uint64_t reached = active ? device_install_earliest() : clock_saved.earliest;
+	return clock_saved.hold > reached ? clock_saved.hold - reached : 0;
 }
 #endif
 

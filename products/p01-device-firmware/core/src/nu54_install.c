@@ -189,7 +189,7 @@ int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after
 	if (latest > time && latest - time > offset) offset = latest - time;
 	const bool later_day = time / 86400u > current->earliest / 86400u;
 	*next = (nu54_install_clock){.earliest = time, .offset = offset,
-		.phone_days = current->phone_days + (later_day && current->phone_days != UINT64_MAX)};
+		.phone_days = current->phone_days + (later_day && current->phone_days != UINT64_MAX), .hold = current->hold};
 	return NU54_CLOCK_MOVED;
 }
 
