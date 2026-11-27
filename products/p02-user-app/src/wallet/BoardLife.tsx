@@ -611,7 +611,7 @@ function ReturnPage(props: BoardLifeProps) {
     {loss.gate}
     {loss.open && <Chooser props={props} label="보드 초기화" run={reset} />}</>;
   return <>
-    <Notice title="초기화 결과를 확인하고 있습니다" body="보드의 LED가 1.5초씩 두 번 켜졌다면 초기화가 끝난 것입니다. 보드는 운영자 허가를 다시 받을 때까지 연결되지 않습니다." />
+    <Notice title="초기화 결과를 확인하고 있습니다" body="보드의 LED가 1.5초씩 두 번 켜졌다면 초기화가 끝난 것입니다. 보드는 블루투스로는 연결되지만, 운영자 허가를 다시 받을 때까지 이 앱의 요청에 답하지 않습니다." />
     <Chooser props={props} label="보드 상태 확인" run={handle => work(async () => {
       const state = await withBoard(handle, async session => (await session.status()).state);
       if (state === 'released' || state === 'new') await finishReset(props);
