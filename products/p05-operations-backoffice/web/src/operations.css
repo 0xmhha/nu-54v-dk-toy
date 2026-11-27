@@ -413,12 +413,14 @@ button.danger {
   font-size: 1.1rem;
 }
 .handed {
-  background: #d4efa7;
+  background: #e9f3df;
   color: #123a2b;
+  border: 2px solid #174b38;
 }
 .refused {
-  background: #f8e1df;
-  color: #6b1f1f;
+  background: #f6e3bf;
+  color: #5a3b05;
+  border: 2px solid #8a3b12;
 }
 .handed strong,
 .refused strong {
