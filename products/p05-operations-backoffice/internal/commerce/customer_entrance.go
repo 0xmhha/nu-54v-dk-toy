@@ -1,6 +1,7 @@
 package commerce
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -57,6 +58,15 @@ type CustomerEntrance struct {
 	// and so on the sessions and the new proven accounts one address starts in a time window. Pickup challenges are
 	// not counted: they end in a QR, and a waiting customer renews it every minute.
 	StartLimiter *RateLimiter
+	// Gate, when set, wraps what a request does once it is admitted. opsd passes the recovery gate, whose lease
+	// holds a connection of the control database for as long as the handler runs. A request enters it only after
+	// its address passed the rate limit, its body was read and it took a place in InFlight, so a refused request,
+	// the health route and a client that sends its body slowly hold no such connection.
+	Gate func(http.Handler) http.Handler
+	// InFlight is how many requests may be inside Gate at once: its capacity is the cap, and nil sets none. A
+	// request that finds no place within InFlightWait (one second when zero) is answered 503 with Retry-After.
+	InFlight     chan struct{}
+	InFlightWait time.Duration
 	// Limited counts refused requests by kind; opsd logs it.
 	Limited LimitedCount
 	// Zero values take the defaults below. The order session cap is provisional (an owner decision).
@@ -75,6 +85,9 @@ const (
 	defaultOrderLifetime     = 30 * 24 * time.Hour
 	defaultPickupLifetime    = 60 * time.Second
 	defaultRescanWindow      = 2 * time.Minute
+	defaultInFlightWait      = time.Second
+	// entranceBody is the longest body an entrance route reads (the C3 envelope).
+	entranceBody = 8192
 )
 
 func lifetime(set, fallback time.Duration) time.Duration {
@@ -179,7 +192,7 @@ func (c *LimitedCount) add(kind string) {
 
 // Drain returns the counts since the last call, by kind: "proof", "read", "photo", "address" (the ceiling of one
 // address over session requests), "session" (one session's own limit), "unknown" (session tokens the server does not
-// know) and "start" (challenges that can end in a session).
+// know), "start" (challenges that can end in a session) and "busy" (no place among the requests served at once).
 func (c *LimitedCount) Drain() map[string]int64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -193,6 +206,43 @@ func (c *CustomerEntrance) tooMany(w http.ResponseWriter, kind string, wait time
 	c.Limited.add(kind)
 	w.Header().Set("Retry-After", strconv.Itoa(max(1, int((wait+time.Second-1)/time.Second))))
 	writeJSON(w, http.StatusTooManyRequests, service.Reply{Status: "error", Error: service.Busy})
+}
+
+// admitted serves next for a request that passed its rate limit: with its body already read, inside the cap on
+// requests served at once, and inside the gate. The order keeps the gate's connection away from what a client
+// controls: how many requests it sends and how slowly it sends each.
+func (c *CustomerEntrance) admitted(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.Body != http.NoBody {
+			// One byte past the longest body is kept, so a longer one still fails its route's own length check.
+			body, err := io.ReadAll(io.LimitReader(r.Body, entranceBody+1))
+			if err != nil {
+				errorResponse(w, service.BadRequest, nil) // the client stopped sending
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewReader(body))
+		}
+		if c.InFlight != nil {
+			wait := time.NewTimer(lifetime(c.InFlightWait, defaultInFlightWait))
+			defer wait.Stop()
+			select {
+			case c.InFlight <- struct{}{}:
+				defer func() { <-c.InFlight }()
+			case <-wait.C:
+				c.Limited.add("busy")
+				w.Header().Set("Retry-After", "1")
+				writeJSON(w, http.StatusServiceUnavailable, service.Reply{Status: "error", Error: service.Busy})
+				return
+			case <-r.Context().Done():
+				return
+			}
+		}
+		if c.Gate != nil {
+			c.Gate(next).ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // clientKey is the peer a limit counts for, without its port. An IPv4 address is one client. An IPv6 client is its
@@ -220,8 +270,10 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 	if h.Customer == nil {
 		return
 	}
-	// The limiters are read when a request arrives, so a deployment may set them after the routes.
+	// The limiters are read when a request arrives, so a deployment may set them after the routes. A request that
+	// passes its limit is then admitted (CustomerEntrance.admitted); a refused one costs no more than the refusal.
 	limited := func(kind string, limiter func() *RateLimiter, next http.HandlerFunc) http.Handler {
+		admitted := h.Customer.admitted(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if active := limiter(); active != nil {
 				if allowed, wait := active.Take(clientKey(r)); !allowed {
@@ -229,7 +281,7 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 					return
 				}
 			}
-			next(w, r)
+			admitted.ServeHTTP(w, r)
 		})
 	}
 	first := func(limiters ...*RateLimiter) *RateLimiter {
@@ -247,7 +299,8 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		return limited("read", func() *RateLimiter { return first(h.Customer.ReadLimiter, h.Customer.Limiter) }, next)
 	}
 	photos := func() *RateLimiter { return first(h.Customer.PhotoLimiter, h.Customer.ReadLimiter, h.Customer.Limiter) }
-	// The listener's own health, outside every limit: it says nothing about a store or a customer.
+	// The listener's own health, outside every limit and outside the gate: it says nothing about a store or a
+	// customer, and it answers while the control database does not.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = io.WriteString(w, "ok\n")

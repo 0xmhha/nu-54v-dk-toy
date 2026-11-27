@@ -1,14 +1,18 @@
 package commerce
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -616,6 +620,123 @@ func TestSessionStartsPerAddress(t *testing.T) {
 		t.Fatalf("after the window: %d", again)
 	}
 	if counts := limits.Limited.Drain(); counts["start"] != 2 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+}
+
+// The recovery gate holds a control-database connection for as long as a request is inside it. A request enters it
+// only after its rate limit, with its body read and inside the cap on requests served at once; the health route
+// never does.
+func TestEntranceTakesTheGateLast(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	var inside, entered atomic.Int32
+	hold := make(chan struct{})
+	gate := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			entered.Add(1)
+			inside.Add(1)
+			defer inside.Add(-1)
+			if r.Header.Get("X-Hold") != "" {
+				<-hold
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+	limits := &CustomerEntrance{Limiter: NewRateLimiter(60, 2, func() time.Time { return now }), Gate: gate,
+		InFlight: make(chan struct{}, 2), InFlightWait: 20 * time.Millisecond}
+	mux := http.NewServeMux()
+	HTTP{Customer: limits}.RegisterCustomer(mux)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	get := func(path string, hold bool) *http.Response {
+		t.Helper()
+		req, _ := http.NewRequest("GET", server.URL+path, nil)
+		if hold {
+			req.Header.Set("X-Hold", "1")
+		}
+		reply, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reply.Body.Close()
+		return reply
+	}
+	menu := "/v2/customer/stores/" + branch + "/menu/0"
+
+	// Health is answered outside the gate; a limited request is refused outside it too.
+	for i := 0; i < 5; i++ {
+		if reply := get("/healthz", false); reply.StatusCode != http.StatusOK {
+			t.Fatalf("health: %d", reply.StatusCode)
+		}
+	}
+	if entered.Load() != 0 {
+		t.Fatalf("the health route entered the gate %d times", entered.Load())
+	}
+	if first, second := get(menu, false), get(menu, false); first.StatusCode != http.StatusNotFound || second.StatusCode != http.StatusNotFound {
+		t.Fatalf("allowed reads: %d %d", first.StatusCode, second.StatusCode)
+	}
+	if entered.Load() != 2 {
+		t.Fatalf("%d of 2 allowed requests entered the gate", entered.Load())
+	}
+	for i := 0; i < 20; i++ {
+		if reply := get(menu, false); reply.StatusCode != http.StatusTooManyRequests {
+			t.Fatalf("a limited read: %d", reply.StatusCode)
+		}
+	}
+	if entered.Load() != 2 {
+		t.Fatalf("limited requests entered the gate: %d entries", entered.Load())
+	}
+
+	// A body that arrives slowly is waited for outside the gate and outside the cap.
+	limits.Limiter = nil
+	connection, err := net.Dial("tcp", server.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	body := `{"purpose":"checkout","branchRef":"` + branch + `"}`
+	fmt.Fprintf(connection, "POST /v2/customer/challenge HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s", len(body), body[:10])
+	time.Sleep(100 * time.Millisecond)
+	if entered.Load() != 2 || len(limits.InFlight) != 0 {
+		t.Fatalf("a request with half a body holds the gate (%d entries) or a place (%d)", entered.Load(), len(limits.InFlight))
+	}
+	fmt.Fprint(connection, body[10:])
+	answer, err := http.ReadResponse(bufio.NewReader(connection), nil)
+	if err != nil || answer.StatusCode != http.StatusNotFound || entered.Load() != 3 { // no store behind this entrance
+		t.Fatalf("the completed request: %v %v, %d entries", answer, err, entered.Load())
+	}
+	// A body longer than any route reads is still refused by the route, as before.
+	long, err := http.Post(server.URL+"/v2/customer/challenge", "application/json", strings.NewReader(`{"purpose":"`+strings.Repeat("x", 20_000)+`"}`))
+	if err != nil || long.StatusCode != http.StatusBadRequest {
+		t.Fatalf("a long body: %v %v", long, err)
+	}
+
+	// Two requests fill the cap; the third waits its short time and is told to come back, without entering the gate.
+	held := make(chan int, 2)
+	for i := 0; i < 2; i++ {
+		go func() { held <- get(menu, true).StatusCode }()
+	}
+	for deadline := time.Now().Add(2 * time.Second); inside.Load() != 2; time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the held requests did not enter the gate")
+		}
+	}
+	before := entered.Load()
+	refused := get(menu, false)
+	if refused.StatusCode != http.StatusServiceUnavailable || refused.Header.Get("Retry-After") != "1" || entered.Load() != before {
+		t.Fatalf("over the cap: %d, Retry-After %q, %d new entries", refused.StatusCode, refused.Header.Get("Retry-After"), entered.Load()-before)
+	}
+	if reply := get("/healthz", false); reply.StatusCode != http.StatusOK { // health needs no place
+		t.Fatalf("health at the cap: %d", reply.StatusCode)
+	}
+	close(hold)
+	if first, second := <-held, <-held; first != http.StatusNotFound || second != http.StatusNotFound {
+		t.Fatalf("the held requests: %d %d", first, second)
+	}
+	if reply := get(menu, false); reply.StatusCode != http.StatusNotFound || len(limits.InFlight) != 0 {
+		t.Fatalf("after the cap cleared: %d, %d places taken", reply.StatusCode, len(limits.InFlight))
+	}
+	if counts := limits.Limited.Drain(); counts["busy"] != 1 || counts["read"] != 20 || len(counts) != 2 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
 }
