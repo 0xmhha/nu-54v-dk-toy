@@ -1,6 +1,9 @@
 """The --secure-key build profile of fw.py: target, inputs, refused combinations and host evidence."""
 
+import importlib
+import os
 from pathlib import Path
+import re
 import shutil
 from tempfile import TemporaryDirectory
 import unittest
@@ -70,7 +73,12 @@ def words(*values):
 # The first words of the images of a default spending build and of a --secure-key build.
 VECTORS = words(0x2001f600, 0x00029805, 0x0004b5ab, 0x000297f1)
 MCUBOOT_HEADER = words(0x96f3b83d, 0, 0x800, 0x54ab8, 0, 0x300, 0, 0)
-BOOT_IMAGE = intel_hex((0x0, words(0x20005208, 0x00005995, 0x0000689f, 0x00005981)))
+# MCUboot: its vectors, and the entry of its flash map that names the application slot it starts
+# (id and device, start, size), as the real images hold it.
+BOOT_VECTORS = words(0x20005208, 0x00005995, 0x0000689f, 0x00005981)
+INSTALLED_SLOT, SECURE_KEY_SLOT = words(0x10000, 0xb2000), words(0x10000, 0x157000)
+BOOT_CODE = BOOT_VECTORS + words(0x00000001) + INSTALLED_SLOT
+BOOT_IMAGE = intel_hex((0x0, BOOT_CODE))
 APP_IMAGE = intel_hex((0x10000, MCUBOOT_HEADER), (0x10800, VECTORS))
 SINGLE_IMAGE = intel_hex((0x0, VECTORS))
 # TF-M behind the same header: its entry veneers (SG, then a branch) and the non-secure half 128 KiB in.
@@ -184,6 +192,36 @@ class SecureKeyEvidenceTest(unittest.TestCase):
         self.write(app_map=link_map(" .rodata.cracen_table\n                0x0000000000013000       0x20 libdriver.a(t.o)\n"))
         with self.assertRaisesRegex(SystemExit, "non-secure application"):
             self.evidence()
+
+    def test_rejects_a_software_signer_in_the_application(self):
+        """Both PSA calls come from the TF-M API and no driver is linked, and the application still signs by itself."""
+        def placed(name, origin="app/libapp.a(wallet.c.obj)", address=0x41000):
+            return key_call(name, origin, address)
+
+        for name in ("secp256k1_ecdsa_sign", "secp256k1_ecdsa_sign_recoverable", "ocrypto_ecdsa_p256k1_det_sign_hash",
+                     "ocrypto_ecdsa_p256_sign", "uECC_sign", "mbedtls_ecdsa_sign_det_ext", "mbedtls_ecdsa_write_signature"):
+            with self.subTest(name=name):
+                self.write(app_map=link_map(KEY_CALLS_FROM_TFM + placed(name)))
+                with self.assertRaisesRegex(SystemExit, f"signs with a key of its own: {name}$"):
+                    self.evidence()
+        # A section without a symbol line, and a section whose name the compiler extended.
+        for section in (" .text.secp256k1_ecdsa_sign\n                0x00041000       0x58 app/libapp.a(w.c.obj)\n",
+                        " .text.secp256k1_ecdsa_sign.constprop.0\n                0x00041000       0x58 app/libapp.a(w.c.obj)\n"):
+            with self.subTest(section=section):
+                self.write(app_map=link_map(KEY_CALLS_FROM_TFM + section))
+                with self.assertRaisesRegex(SystemExit, "signs with a key of its own: secp256k1_ecdsa_sign$"):
+                    self.evidence()
+        # What the real application holds: parsing, normalising and verifying signatures, and the PSA calls.
+        kept = "".join(placed(name, address=0x41000 + 0x100 * index) for index, name in enumerate(
+            ("secp256k1_ecdsa_signature_normalize", "secp256k1_ecdsa_signature_parse_compact", "secp256k1_ecdsa_recover",
+             "secp256k1_ec_pubkey_create", "mbedtls_pk_sign", "mbedtls_ecdsa_raw_to_der", "device_spending_sign")))
+        self.write(app_map=link_map(KEY_CALLS_FROM_TFM + kept))
+        self.assertEqual(0, self.evidence())
+        # A signer the linker threw away is not in the image. Its strings may stay, as in the real build.
+        gone = placed("secp256k1_ecdsa_sign", address=0)
+        strings = " .rodata.secp256k1_ecdsa_sign.str1.1\n                0x0007934e       0x5d libnu54_secp256k1.a(secp256k1.c.obj)\n"
+        self.write(app_map=link_map(KEY_CALLS_FROM_TFM + strings, discarded=gone, dropped=gone))
+        self.assertEqual(0, self.evidence())
 
     def test_rejects_key_calls_that_are_not_the_tfm_api(self):
         """Without the driver the application could still sign in its own PSA core, as the default build does."""
@@ -331,7 +369,7 @@ class SecureKeyEvidenceTest(unittest.TestCase):
         slot_end = 0xc2000
         for images in ({"signed": intel_hex(NONSECURE_HALF)},
                        {"signed": intel_hex((0x10000, MCUBOOT_HEADER), (slot_end - 2, bytes(4)))},
-                       {"boot": intel_hex((0x0, VECTORS), (0xf7fe, bytes(4)))},
+                       {"boot": intel_hex((0x0, BOOT_CODE), (0xf7fe, bytes(4)))},
                        {"boot": APP_IMAGE}):
             with self.subTest(images=images):
                 shutil.rmtree(self.root / "mcuboot", ignore_errors=True)
@@ -339,9 +377,58 @@ class SecureKeyEvidenceTest(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit, "not qualified.*covers"):
                     self.flash()
         shutil.rmtree(self.root / "mcuboot")
-        self.images(boot=intel_hex((0x0, VECTORS), (0xf7fc, bytes(4))),
+        self.images(boot=intel_hex((0x0, BOOT_CODE), (0xf7fc, bytes(4))),
                     signed=intel_hex((0x10000, MCUBOOT_HEADER), (slot_end - 4, bytes(4))))
         self.assertEqual(["mcuboot/zephyr/zephyr.hex", "app/zephyr/zephyr.signed.hex"], self.written())
+
+    def test_flash_refuses_a_bootloader_of_another_layout_beside_the_installed_configuration(self):
+        """MCUboot of the --secure-key build has no gateway and fits the boot area. Its flash map tells."""
+        self.installed_configuration()
+        for boot in (intel_hex((0x0, BOOT_VECTORS + words(1) + SECURE_KEY_SLOT)),
+                     intel_hex((0x0, BOOT_VECTORS)),
+                     # The words of the installed slot, but not as an entry of a table of words.
+                     intel_hex((0x0, BOOT_VECTORS + b"\x00\x00" + INSTALLED_SLOT + b"\x00\x00")),
+                     intel_hex((0x0, BOOT_VECTORS + words(0xb2000, 0x10000))),
+                     # The start in one run and the size in the next.
+                     intel_hex((0x0, BOOT_VECTORS + INSTALLED_SLOT[:4]), (0x100, INSTALLED_SLOT[4:]))):
+            with self.subTest(boot=boot):
+                shutil.rmtree(self.root / "mcuboot", ignore_errors=True)
+                self.images(boot=boot)
+                with self.assertRaisesRegex(SystemExit, "mcuboot/zephyr/zephyr.hex.*not qualified.*application slot 0x10000-0xc2000"):
+                    self.flash()
+        shutil.rmtree(self.root / "mcuboot")
+        self.images(boot=intel_hex((0x0, BOOT_VECTORS), (0x7a30, words(1, 1) + INSTALLED_SLOT)))
+        self.assertEqual(["mcuboot/zephyr/zephyr.hex", "app/zephyr/zephyr.signed.hex"], self.written())
+        # The application is not asked for a flash map.
+        self.assertIsNone(fw.unqualified_image(self.root / "app/zephyr/zephyr.signed.hex", fw.APP_SLOT))
+
+    def test_flash_refuses_records_that_go_back_in_the_address_space(self):
+        """The same TF-M bytes in records that are no neighbours: no run holds a whole gateway."""
+        self.installed_configuration()
+
+        def record(kind, offset, data):
+            body = bytes([len(data), offset >> 8, offset & 0xff, kind]) + data
+            return ":" + (body + bytes([-sum(body) & 0xff])).hex().upper()
+
+        gateway = words(0xe97fe97f, 0xbb84f006)
+        ascending = [record(4, 0, b"\x00\x01"), record(0, 0x0000, MCUBOOT_HEADER[:16]), record(0, 0x0010, MCUBOOT_HEADER[16:]),
+                     record(0, 0x0800, VECTORS), record(0, 0x0c80, gateway[:2]), record(0, 0x0c82, gateway[2:]),
+                     record(1, 0, b"")]
+        self.images(signed="\n".join(ascending) + "\n")
+        with self.assertRaisesRegex(SystemExit, "not qualified.*secure gateway.*0x10c80"):
+            self.flash()
+        # The second half of the instruction first, and its first half after the vectors.
+        split = [ascending[0], ascending[1], ascending[2], ascending[5], ascending[3], ascending[4], ascending[6]]
+        # One address written twice: the flasher would keep the later bytes.
+        twice = [*ascending[:4], record(0, 0x0800, VECTORS), ascending[6]]
+        # Back to a lower address after a record that sets the upper address bits again.
+        wrapped = [*ascending[:4], record(4, 0, b"\x00\x00"), record(0, 0xfff0, bytes(16)), ascending[6]]
+        for name, lines in (("split", split), ("twice", twice), ("wrapped", wrapped)):
+            with self.subTest(name=name):
+                shutil.rmtree(self.root / "mcuboot")
+                self.images(signed="\n".join(lines) + "\n")
+                with self.assertRaisesRegex(SystemExit, "zephyr.signed.hex.*Intel HEX image with ascending addresses"):
+                    self.flash()
 
     def test_flash_refuses_an_image_it_cannot_read(self):
         self.installed_configuration()
@@ -374,6 +461,97 @@ class SecureKeyEvidenceTest(unittest.TestCase):
         single.write_text(intel_hex(NONSECURE_HALF))
         with self.assertRaisesRegex(SystemExit, "zephyr.hex.*not qualified.*covers 0x30000"):
             self.flash()
+
+
+class BuildDirectoryTest(unittest.TestCase):
+    """The directory this script judges is the directory the toolchain builds and flashes."""
+
+    def test_a_relative_build_directory_names_one_place(self):
+        with TemporaryDirectory() as root:
+            root = Path(root).resolve()
+            self.assertEqual(fw.PRODUCT / "build", fw.build_directory(None))
+            self.assertEqual(Path("/somewhere/else"), fw.build_directory("/somewhere/else"))
+            before = os.getcwd()
+            os.chdir(root)
+            try:
+                self.assertEqual(root / "out/board", fw.build_directory("out/board"))
+                self.assertEqual(root.parent / "board", fw.build_directory("../board"))
+            finally:
+                os.chdir(before)
+
+    def test_the_flasher_and_west_receive_absolute_paths(self):
+        """The toolchain is started in the SDK directory, where a relative path names another place."""
+        with TemporaryDirectory() as root:
+            root = Path(root).resolve()
+            build = root / "work/out/board"
+            for path, text in (("app/zephyr/.config", "CONFIG_NU54_SPENDING_PROFILE=y\n"),
+                               ("app/CMakeCache.txt", "BOARD:STRING=nu54v_dk/nrf54l15/cpuapp\n"),
+                               ("mcuboot/zephyr/.config", ""), ("mcuboot/zephyr/zephyr.hex", BOOT_IMAGE),
+                               ("app/zephyr/zephyr.signed.hex", APP_IMAGE)):
+                (build / path).parent.mkdir(parents=True, exist_ok=True)
+                (build / path).write_text(text)
+            # Under the SDK directory the same relative path holds a TrustZone image.
+            sdk = root / "sdk"
+            (sdk / "out/board/app/zephyr").mkdir(parents=True)
+            (sdk / "out/board/app/zephyr/zephyr.signed.hex").write_text(TFM_IMAGE)
+            before = os.getcwd()
+            os.chdir(root / "work")
+            self.addCleanup(importlib.reload, fw)
+            try:
+                with patch.dict("os.environ", {"P01_BUILD_DIR": "out/board", "NCS_DIR": str(sdk)}):
+                    importlib.reload(fw)
+                self.assertEqual(build, fw.BUILD_DIR)
+                with patch.object(fw, "nrfutil", return_value="nrfutil"), \
+                        patch.object(fw.subprocess, "run") as run:
+                    run.return_value.returncode = 0
+                    self.assertEqual(0, fw.main(["flash"]))
+                    flashed = [(call.args[0][-1], call.kwargs["cwd"]) for call in run.call_args_list]
+                    self.assertEqual(0, fw.main(["build"]))
+                    west = run.call_args.args[0]
+            finally:
+                os.chdir(before)
+            self.assertEqual([(str(build / "mcuboot/zephyr/zephyr.hex"), sdk), (str(build / "app/zephyr/zephyr.signed.hex"), sdk)],
+                             flashed)
+            self.assertEqual(str(build), west[west.index("-d") + 1])
+
+    def test_flash_refuses_a_relative_build_directory(self):
+        """Whatever set the directory: the flasher is never handed a path that depends on where it runs."""
+        with TemporaryDirectory() as root:
+            build = Path(root).resolve() / "out"
+            for path, text in (("app/zephyr/.config", ""), ("app/zephyr/zephyr.hex", SINGLE_IMAGE)):
+                (build / path).parent.mkdir(parents=True, exist_ok=True)
+                (build / path).write_text(text)
+            before = os.getcwd()
+            os.chdir(build.parent)
+            try:
+                with patch.object(fw, "BUILD_DIR", Path("out")), \
+                        patch.object(fw, "in_toolchain", side_effect=AssertionError("must not flash")), \
+                        self.assertRaisesRegex(SystemExit, "absolute"):
+                    fw.main(["flash"])
+            finally:
+                os.chdir(before)
+
+
+class InstalledLayoutTest(unittest.TestCase):
+    def test_the_flash_areas_are_the_partitions_of_the_sdk(self):
+        """`flash` judges images against these three areas; the board takes them from the SoC's partition file."""
+        partitions = fw.NCS_DIR / "zephyr/dts/vendor/nordic/nrf54l15_cpuapp_partition.dtsi"
+        if not partitions.is_file():
+            self.skipTest(f"no SDK at {fw.NCS_DIR}")
+        board = (fw.PRODUCT / "boards/nucode/nu54v_dk/nu54v_dk_nrf54l15_cpuapp.dts").read_text()
+        self.assertIn("#include <vendor/nordic/nrf54l15_cpuapp_partition.dtsi>", board)
+        self.assertNotIn("WITH_FLPR_PARTITIONS", board)
+        # The part of the file that applies without the FLPR core's partitions.
+        text = partitions.read_text()
+        common, _, rest = text.partition("#ifdef WITH_FLPR_PARTITIONS")
+        _, _, default = rest.partition("#else")
+        default, _, _ = default.partition("#endif")
+        found = {label: (int(start, 16), int(start, 16) + int(kib) * 1024) for label, start, kib in re.findall(
+            r'label = "([\w-]+)";(?:\s*/\*.*?\*/)?\s*reg = <(0x[0-9a-fA-F]+) DT_SIZE_K\((\d+)\)>', common + default, re.DOTALL)}
+        self.assertEqual({"mcuboot", "image-0", "image-1", "storage"}, set(found))
+        self.assertEqual(fw.BOOT_AREA, found["mcuboot"])
+        self.assertEqual(fw.APP_SLOT, found["image-0"])
+        self.assertEqual(fw.SINGLE_IMAGE_AREA, (found["mcuboot"][0], found["storage"][0]))
 
 
 if __name__ == "__main__":

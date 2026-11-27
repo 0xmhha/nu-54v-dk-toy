@@ -73,6 +73,11 @@ SECURE_BOARD = BOARD + "/ns"  # non-secure application beside TF-M
 SECURE_SIGNER = "cracen_ecdsa_sign_digest_deterministic"  # must link into TF-M, never into the application
 TFM_API_LIBRARY = "modules/trusted-firmware-m/libtfm_api.a"  # the non-secure PSA client: each call crosses into TF-M
 TFM_API_CALLS = ("psa_sign_hash", "psa_generate_key")  # the application must take these from that library
+# Code that signs with a key in the memory of whoever calls it: libsecp256k1's signers (its parsing and
+# verifying functions begin with the same letters and stay), Oberon's software ECDSA, micro-ecc and
+# the classic Mbed TLS ECDSA. None of it belongs in the application of a --secure-key build.
+SOFTWARE_SIGNERS = re.compile(r"secp256k1_ecdsa_sign(?:_recoverable)?|ocrypto_ecdsa_\w*sign\w*|uECC_sign\w*|"
+                              r"mbedtls_ecdsa_sign\w*|mbedtls_ecdsa_write_signature\w*")
 # Where `flash` may write, from the SoC's default partitions: MCUboot in the first 62 KiB, the signed
 # application in the 712 KiB slot at 0x10000, and without MCUboot one image from the start of the
 # flash up to the settings storage.
@@ -84,7 +89,18 @@ PYOCD_TARGET = "nrf54l"
 NCS_VERSION = os.environ.get("NCS_VERSION", "v3.4.2")
 NCS_DIR = Path(os.environ.get("NCS_DIR", f"/opt/nordic/ncs/{NCS_VERSION}"))
 REPO = PRODUCT.parents[1]
-BUILD_DIR = Path(os.environ.get("P01_BUILD_DIR", PRODUCT / "build"))
+
+
+def build_directory(raw: str | None) -> Path:
+    """The build directory as one absolute path.
+
+    This script reads and judges the directory from where it was started, while west and the flasher
+    run in the SDK directory (`in_toolchain`). A relative P01_BUILD_DIR would name two directories:
+    the one that was judged and the one that is built or flashed."""
+    return Path(raw).expanduser().resolve() if raw else PRODUCT / "build"
+
+
+BUILD_DIR = build_directory(os.environ.get("P01_BUILD_DIR"))
 RELEASE_POLICY = HERE / "release-policy.json"
 
 
@@ -406,6 +422,18 @@ def placed_in_image(link_map: Path, name: str) -> bool:
     return bool(re.search(section, placed, re.MULTILINE) or re.search(symbol, placed, re.MULTILINE))
 
 
+def software_signers(link_map: Path) -> list[str]:
+    """Functions of SOFTWARE_SIGNERS that a GNU ld map places in the image, by code section or by symbol.
+
+    Only code counts. The strings of a function the linker threw away can stay behind in a section
+    of its name (.rodata.<function>.str1.1), and they sign nothing."""
+    placed = memory_map(link_map)
+    used = r"0x0*[1-9a-fA-F][0-9a-fA-F]*"
+    sections = re.findall(rf"^[ \t]*\.text\.([\w$]+)(?:\.[\w.$]*)?\s+{used}\s+{used}\s", placed, re.MULTILINE)
+    symbols = re.findall(rf"^[ \t]+{used}[ \t]+([\w$]+)[ \t]*$", placed, re.MULTILINE)
+    return sorted({name for name in (*sections, *symbols) if SOFTWARE_SIGNERS.fullmatch(name)})
+
+
 def defined_by(link_map: Path, symbol: str) -> set[str]:
     """The input files whose sections define `symbol` in the image, as a GNU ld map names them.
 
@@ -446,6 +474,9 @@ def secure_key_evidence(public: Path) -> int:
         sys.exit("TF-M secure image does not contain the wallet signing code")
     if placed_in_image(app / "zephyr.map", "cracen_"):
         sys.exit("The non-secure application links key-handling driver code")
+    signers = software_signers(app / "zephyr.map")
+    if signers:
+        sys.exit("The non-secure application links code that signs with a key of its own: " + ", ".join(signers))
     # No driver in the application does not yet say who signs: a PSA core of its own would, with the
     # key in non-secure memory. The two calls must be the ones that hand over to TF-M.
     for name in TFM_API_CALLS:
@@ -511,6 +542,11 @@ def hex_runs(hex_file: Path) -> list[tuple[int, bytearray]]:
             if not line.startswith(":") or complete or len(record) != record[0] + 5 or sum(record) & 0xff:
                 raise ValueError(line)
             address = base + int.from_bytes(record[1:3], "big")
+            # Data that goes back in the address space could put the two halves of one instruction
+            # into runs that are no neighbours, or write an address twice. The tools that make the
+            # images write ascending addresses, so anything else is not judged at all.
+            if kind == 0 and runs and address < runs[-1][0] + len(runs[-1][1]):
+                raise ValueError(line)
             if kind == 0 and runs and runs[-1][0] + len(runs[-1][1]) == address:
                 runs[-1][1].extend(data)
             elif kind == 0:
@@ -524,17 +560,21 @@ def hex_runs(hex_file: Path) -> list[tuple[int, bytearray]]:
     except (ValueError, IndexError):
         complete = False
     if not complete or not runs:
-        sys.exit(f"{hex_file} is not a complete Intel HEX image; rebuild before flashing")
+        sys.exit(f"{hex_file} is not a complete Intel HEX image with ascending addresses; rebuild before flashing")
     return runs
 
 
-def unqualified_image(hex_file: Path, area: tuple[int, int]) -> str | None:
+def unqualified_image(hex_file: Path, area: tuple[int, int], boots: tuple[int, int] | None = None) -> str | None:
     """Why the bytes `flash` would write are not an image of the installed layout, or None.
 
     The generated configuration can be from another build than the image beside it, so the image
     itself is read. Its addresses alone do not tell: a TF-M image starts where the default
     application starts and fits the same slot. What it cannot be without is the secure gateway
-    instruction, the entry the non-secure side calls, and an image without TrustZone has none."""
+    instruction, the entry the non-secure side calls, and an image without TrustZone has none.
+
+    `boots` is given for MCUboot: the slot it must have been built to start. MCUboot of another
+    layout has no gateway and fits the same area, but its flash map names another slot: start and
+    size as two little-endian words. MCUboot of the --secure-key layout names 0x10000 and 0x157000."""
     runs = hex_runs(hex_file)
     for start, data in runs:
         at = data.find(SECURE_GATEWAY)
@@ -545,6 +585,17 @@ def unqualified_image(hex_file: Path, area: tuple[int, int]) -> str | None:
     first, end = min(start for start, _ in runs), max(start + len(data) for start, data in runs)
     if first != area[0] or end > area[1]:
         return f"it covers 0x{first:x}-0x{end:x}, the installed layout has 0x{area[0]:x}-0x{area[1]:x} for it"
+    if boots is not None:
+        slot = boots[0].to_bytes(4, "little") + (boots[1] - boots[0]).to_bytes(4, "little")
+        named = False
+        for start, data in runs:
+            at = data.find(slot)
+            while at >= 0 and (start + at) % 4:  # the flash map is a table of words
+                at = data.find(slot, at + 1)
+            named = named or at >= 0
+        if not named:
+            return (f"its flash map does not name the installed application slot 0x{boots[0]:x}-0x{boots[1]:x}: "
+                    "MCUboot of another layout")
     return None
 
 
@@ -560,20 +611,23 @@ def flash() -> int:
             sys.exit("MCUboot configuration missing; rebuild before flashing")
         if "CONFIG_MCUBOOT_HW_DOWNGRADE_PREVENTION=y" in config.read_text().splitlines():
             sys.exit("Hardware-counter firmware requires separately authorized manufacturing provisioning")
-        images = [(boot, BOOT_AREA), (BUILD_DIR / "app" / "zephyr" / "zephyr.signed.hex", APP_SLOT)]
+        images = [(boot, BOOT_AREA, APP_SLOT), (BUILD_DIR / "app" / "zephyr" / "zephyr.signed.hex", APP_SLOT, None)]
     else:
         merged = BUILD_DIR / "merged.hex"
-        images = [(merged if merged.exists() else BUILD_DIR / "app" / "zephyr" / "zephyr.hex", SINGLE_IMAGE_AREA)]
-    for hex_file, _ in images:
+        images = [(merged if merged.exists() else BUILD_DIR / "app" / "zephyr" / "zephyr.hex", SINGLE_IMAGE_AREA, None)]
+    for hex_file, _, _ in images:
         if not hex_file.exists():
             sys.exit(f"{hex_file} missing; run build first")
+        # The flasher runs in another directory than this script.
+        if not hex_file.is_absolute():
+            sys.exit(f"{hex_file} is not an absolute path; set P01_BUILD_DIR to one")
     # Every image is judged before the first one is written.
-    for hex_file, area in images:
-        found = unqualified_image(hex_file, area)
+    for hex_file, area, boots in images:
+        found = unqualified_image(hex_file, area, boots)
         if found:
             sys.exit(f"{hex_file.relative_to(BUILD_DIR)} is not an image of the installed layout and is "
                      f"not qualified for a board ({found})")
-    for hex_file, _ in images:
+    for hex_file, _, _ in images:
         rc = in_toolchain("pyocd", "flash", "-t", PYOCD_TARGET, str(hex_file))
         if rc:
             return rc
