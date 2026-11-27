@@ -15,6 +15,9 @@
 | `test/` | 요구사항 ID별 단위 시험, EIP-712 벡터 시험, 재진입 시험, invariant 시험 |
 | `script/Deploy.s.sol` | 시험 토큰, registry, 정산 컨트랙트 배포. 파라미터는 register에서 읽는다 |
 | `script/SoftwareSettle.s.sol` | 소프트웨어 서명으로 결제 1건(6주차 게이트 경로) |
+| `src/charge/` | 충전 계약: 출발 체인의 입금 계약 `ChargeDeposit`, StableNet의 원화 풀 `WonPool`, 키와 변경 절차, 고정 환율 공급자. 배포하지 않았다. [충전 계약 설계](../../docs/content/commercial/traveller-exchange-contracts.md) |
+| `src/test-token/TestChargeUSDC.sol` | 충전 시험용 USDC(6자리, `version()` 있음, 거절 기능 없음). 실제 자산이 아니다 |
+| `test/vectors/charge.vectors` | 충전의 서명 기준값. `test/ChargeVectors.t.sol`이 실제 계약으로 확인한다 |
 | `lib/forge-std/` | forge-std v1.10.0(MIT/Apache-2.0, `VENDORED.md`) |
 
 ```bash
