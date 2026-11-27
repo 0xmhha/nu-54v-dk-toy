@@ -320,6 +320,24 @@ Nothing is accepted past its end: that is still judged by the latest possible ti
 off by 5 seconds. A request record lasts for its TLS session (128 of them); a frame of an earlier session is
 refused by its epoch and counter, and answered orders stay in protected storage.
 
+**After a reset: owner wait.** A board without an owner starts advertising the owner service by itself:
+30 s at 100 to 150 ms, then at 1 to 1.2 s until three hours have passed (`CONFIG_NU54_OWNER_WAIT_*` in
+`app/Kconfig`). It stops when an owner registers, and SW4 starts it again. Advertising opens nothing: the
+grant still needs the SW4 window, and registration needs SW1 and a new PIN. A board with an owner
+advertises only after a button, as before. The power figures are estimates until measured; see
+[the design](../../docs/content/commercial/architecture/board-secure-key-and-advertising.md).
+
+**TrustZone build (not for a board yet).** `--secure-key` builds the same profile for
+`nu54v_dk/nrf54l15/cpuapp/ns`, where TF-M generates, uses and stores the wallet key in the secure side:
+
+```sh
+P01_BUILD_DIR=/tmp/p01-secure-key python3 scripts/fw.py build --release --spending --secure-key --pristine
+```
+
+The build checks the generated configuration, that the signing code links only into the TF-M image, and
+the MCUboot signature. It writes no release manifest, and `fw.py flash` refuses it. Its flash layout
+differs from the installed boards, so it is never an update for them. Nobody has run it on a board.
+
 **Reset.** The owner resets in the app (SW1 and PIN) or with the buttons: SW2 and SW3 for 5 seconds, the
 PIN, then SW1 long within 10 seconds. The operator signs a reset only for a forgotten PIN:
 
