@@ -542,7 +542,8 @@ int64_t device_install_keep_time(void)
  * The phone's time may be ahead of the calendar. An order that is open by the board's time before
  * the move is therefore held open for `hold_seconds` of running time after it. The hold is written
  * as a board time, in the same record and the same write as the moved time: whatever a restart
- * finds, it finds both or neither. */
+ * finds, it finds both or neither. That covers the orders approved before the move. One that is
+ * approved after it brings its own hold (device_install_hold_order). */
 int device_install_set_time(const nu54_install_clock_told *told, bool button, uint64_t hold_seconds,
 			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE])
 {
@@ -579,6 +580,22 @@ int device_install_set_time(const nu54_install_clock_told *told, bool button, ui
 	}
 	nu54_install_clock_reply(result, &clock, policy.not_after, reply);
 	return result;
+}
+
+/* An order is about to be approved. The time it is judged by may be ahead of the calendar, so it
+ * is held open for `hold_seconds` of running time from now (device_order_hold_approved), and here
+ * that hold goes into storage with the time the board has now: a restart goes on from both. This
+ * is one more write of the saved time for each approved order, and none where the storage already
+ * holds for as long. A hold that is in storage is never made shorter. */
+int device_install_hold_order(uint64_t hold_seconds)
+{
+	if (!device_install_policy()) return -1;
+	const uint64_t earliest = device_install_earliest();
+	/* The board's time counts whole seconds, and the one it is in has begun: one more covers it. */
+	const uint64_t until = hold_seconds >= UINT64_MAX - earliest ? UINT64_MAX : earliest + hold_seconds + 1;
+	if (hold_after(earliest) >= until) return 0;
+	const nu54_install_clock now = {earliest, max_offset, clock_saved.phone_days, until};
+	return clock_store(&now);
 }
 
 uint64_t device_install_order_hold(void)

@@ -121,6 +121,12 @@ uint64_t device_order_hold_seconds(uint64_t earliest, int64_t uptime_ms)
 	return until > uptime_ms ? ((uint64_t)(until - uptime_ms) + 999u) / 1000u : 0;
 }
 
+void device_order_hold_approved(int64_t uptime_ms, uint64_t seconds)
+{
+	const int64_t until = uptime_ms + (int64_t)seconds * 1000;
+	if (until > held_open_until) held_open_until = until;
+}
+
 void device_order_resume(int64_t uptime_ms, uint64_t hold_seconds)
 {
 	const int64_t life = NU54_SPEND_ORDER_LIFE_MS;

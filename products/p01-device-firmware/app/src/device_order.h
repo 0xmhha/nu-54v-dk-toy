@@ -29,6 +29,14 @@ void device_order_hold_open(uint64_t earliest, int64_t uptime_ms);
  * zero when nothing is open. The caller saves it with the moved time before it moves the clock,
  * so that a restart cannot lose it. */
 uint64_t device_order_hold_seconds(uint64_t earliest, int64_t uptime_ms);
+/* Call when an order is approved, before its record is stored. The record's end is the store's,
+ * by the calendar, and the board's time may be ahead of the calendar since the owner's phone moved
+ * it: by that time alone the order would end early for the board by as much as the clock is ahead.
+ * So the order stays open for `seconds` of running time from now, whatever the clock says: the
+ * time from the order's issue to its end, which the store signed and which is
+ * NU54_ORDER_MAX_SECONDS at the most. This only adds to what the record says. The caller has saved
+ * the same hold with the board's time (device_install_hold_order), so that a restart keeps it. */
+void device_order_hold_approved(int64_t uptime_ms, uint64_t seconds);
 /* Call once at start, after device_order_start, with the hold the storage had: what the phone's
  * time must not close stays open for that much running time, and for no more than one order life
  * of it, as every order of an earlier start. */

@@ -149,6 +149,7 @@ static bool display_confirmed;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 static unsigned order_slot;
 static uint64_t order_amount, order_expires;
+static uint64_t order_life; /* seconds from the order's issue to its end, as the store signed them */
 static nu54_spend_action spend_action;
 /* A time the owner's phone told that waits for SW1 (clock_request): the message as it arrived,
  * and the running time at which it ends by its own word. Gone with the session. */
@@ -265,6 +266,7 @@ static void reset_link(void)
 	order_slot = 0;
 	order_amount = 0;
 	order_expires = 0;
+	order_life = 0;
 	memset(&spend_action, 0, sizeof(spend_action));
 	memset(&clock_wait, 0, sizeof(clock_wait));
 #endif
@@ -1349,6 +1351,7 @@ static int order_request(nu54_v2_request *request, int state, uint64_t now, cons
 	if (found != NU54_PILOT_RECEIPT_NEW) return -1;
 	order_amount = sys_get_be64(quote + NU54_V2_AMOUNT_OFFSET + 24);
 	order_expires = sys_get_be64(quote + NU54_V2_EXPIRES_AT_OFFSET + 24);
+	order_life = order_expires - sys_get_be64(quote + NU54_V2_ISSUED_AT_OFFSET + 24);
 	if (!device_order_within_daily(device_install_earliest(), order_amount)) return -1;
 	if (state == NU54_V2_NEW && link.approval_generation &&
 	    link.approval_generation == vault->record.generation && trusted_now() < request->expires) {
@@ -1396,6 +1399,15 @@ static int order_button(uint32_t prompt, bool approved, bool *approval_stored)
 	    device_order_charge(device_install_earliest(), order_amount) ||
 	    nu54_pilot_complete(&approval, &link, policy->payer_generation, trusted_now(), prompt, NU54_LOCAL_APPROVE,
 				payer, sign, payer, record.signature)) return -1;
+	/* The record ends with the order, by the store's calendar. The board's time may be ahead of
+	 * that since the owner's phone moved it, and would then end the order early for a return or a
+	 * reset. So the order is also held open for as long as the store let it run, in running time
+	 * from now. The hold is in storage before the signature is stored or sent: where that write
+	 * fails the phone gets no signature, now or by asking again, and a restart never finds the
+	 * record without the hold. */
+	const uint64_t hold = order_life < NU54_ORDER_MAX_SECONDS ? order_life : NU54_ORDER_MAX_SECONDS;
+	if (device_install_hold_order(hold)) return -1;
+	device_order_hold_approved(k_uptime_get(), hold);
 	record.outcome = NU54_ORDER_APPROVED;
 	if (device_order_store(order_slot, &record)) return -1;
 	*approval_stored = true;

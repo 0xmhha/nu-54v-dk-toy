@@ -54,7 +54,7 @@ add_custom_command(OUTPUT ${EXTRACTED}
       CLOCK_SAVE_SECONDS CLOCK_SESSION_SECONDS CLOCK_FREE_SECONDS import_public verify device_install_verify_authority storage_found removed
       clock_load clock_store
       grant_store grant_read device_install_forget device_install_earliest no_owner hold_after device_install_keep_time
-      device_install_set_time device_install_order_hold device_install_now device_install_policy
+      device_install_set_time device_install_hold_order device_install_order_hold device_install_now device_install_policy
     ${DEVICE_PILOT} RESET_NONCE_MS reset_display_input reset_install_input reset_link
       session_live owner_pin_live pilot_pin send_frame present load_refusal clear_legacy_bonds report_legacy_bonds
       owner_absent reset_nonce_issue journal_new_session journal_follow_time reset_of_released spending_request

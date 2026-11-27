@@ -114,7 +114,7 @@ static nu54_owner_idle owner_idle;
 static uint8_t display_challenge[32], active_quote[NU54_V2_SIGNED_SIZE], display_signature[64], rental_review_hash[32];
 static size_t display_used;
 static unsigned order_slot;
-static uint64_t order_amount, order_expires;
+static uint64_t order_amount, order_expires, order_life;
 static nu54_spend_action spend_action;
 static struct {
 	nu54_install_clock_told told;

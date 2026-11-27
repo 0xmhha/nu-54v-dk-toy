@@ -94,7 +94,7 @@ static const nu54_owner_crypto owner_crypto;
 static bool recovering, display_confirmed = true;
 static int64_t recovery_window;
 static unsigned order_slot = 1;
-static uint64_t order_amount = 1, order_expires = NOW + 100;
+static uint64_t order_amount = 1, order_expires = NOW + 100, order_life = 100;
 static const uint8_t wallet[20] = {1};
 
 static nu54_vault vault;
@@ -126,6 +126,9 @@ static const nu54_install_policy *device_install_policy(void) { return &policy; 
 #define device_order_open(earliest, now) (order_open)
 #define device_order_charge(earliest, amount) ((amount) ? 0 : -1)
 #define device_order_store(slot, record) (stored = (record)->outcome, 0)
+/* What the hold of an approved order does is in test_clock_sync.c. */
+#define device_install_hold_order(seconds) ((void)(seconds), 0)
+#define device_order_hold_approved(uptime, seconds) ((void)(seconds))
 #define device_spending_address() (wallet)
 #define device_spending_return_address(out) (memset(out, 2, 20) != NULL)
 #define device_spending_set_return(address) (0)

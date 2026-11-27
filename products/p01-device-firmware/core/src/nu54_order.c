@@ -107,7 +107,11 @@ int nu54_order_stage(nu54_local_approval *approval, const nu54_v2_link *channel,
 	    /* The store must not hold the key that confirms receipt for the buyer. */
 	    !memcmp(confirmer, order->merchant_signer, 20) || !memcmp(confirmer, allowlist->beneficiary, 20)) return -1;
 	uint64_t expiry = word_u64(quote + NU54_V2_EXPIRES_AT_OFFSET);
-	if (!earliest || earliest > order->now || expiry - earliest > NU54_ORDER_MAX_SECONDS) return -1;
+	/* Neither from the board's time nor from the store's own issue time may it run for longer. The
+	 * board holds an approved order open for the time between the store's two ends
+	 * (device_pilot.c, order_button), which is the whole of it only up to that length. */
+	if (!earliest || earliest > order->now || expiry - earliest > NU54_ORDER_MAX_SECONDS ||
+	    expiry - word_u64(quote + NU54_V2_ISSUED_AT_OFFSET) > NU54_ORDER_MAX_SECONDS) return -1;
 	nu54_local_intent intent = {.generation = generation, .expires = expiry < request->expires ? expiry : request->expires,
 				    .physical_prompt = physical_prompt};
 	memcpy(intent.session, channel->epoch, sizeof(intent.session));

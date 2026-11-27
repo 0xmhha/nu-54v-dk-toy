@@ -322,6 +322,7 @@ uint64_t device_install_now(void);
 const nu54_install_policy *device_install_policy(void);
 int64_t device_install_keep_time(void);
 int device_install_set_time(const nu54_install_clock_told *, bool, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+int device_install_hold_order(uint64_t);
 uint64_t device_install_order_hold(void);
 /* The grant's time is a lower bound and lies 2 seconds back here. */
 #define GRANT_LAG 2
@@ -401,7 +402,7 @@ static uint8_t display_challenge[32], active_quote[NU54_V2_SIGNED_SIZE], display
 static size_t display_used;
 static bool display_confirmed;
 static unsigned order_slot;
-static uint64_t order_amount, order_expires;
+static uint64_t order_amount, order_expires, order_life;
 static nu54_spend_action spend_action;
 static struct {
 	nu54_install_clock_told told;

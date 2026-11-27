@@ -247,6 +247,43 @@ static void test_needs_a_testnet_grant(void)
 	memcpy(expected_preimage, preimage, sizeof(preimage));
 }
 
+/* The store's own two ends bound how long an order can run by the calendar, and the board holds an
+ * approved order open for that long (device_pilot.c, order_button). So an order that its store
+ * lets run for longer than NU54_ORDER_MAX_SECONDS is refused, however little of it is left by the
+ * board's time. */
+static void test_refuses_an_order_the_store_lets_run_too_long(void)
+{
+	uint8_t key[32] = {0}, digest[32], changed[NU54_V2_SIGNED_SIZE], raw[65], preimage[NU54_LOCAL_PREIMAGE_SIZE];
+	key[29] = 0x0a; key[30] = 0x11; key[31] = 0xce;
+	static const nu54_v2_quote_crypto hasher = {nu54_keccak256, NULL};
+	secp256k1_context *context = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+	const nu54_v2_quote_policy saved = order;
+	uint64_t end = 0;
+	for (size_t i = 24; i < 32; ++i) end = (end << 8) | quote[NU54_V2_EXPIRES_AT_OFFSET + i];
+	memcpy(preimage, expected_preimage, sizeof(preimage));
+	for (uint64_t life = NU54_ORDER_MAX_SECONDS; life <= NU54_ORDER_MAX_SECONDS + 1; ++life) {
+		/* The same order, issued `life` seconds before its end and signed by the store. */
+		secp256k1_ecdsa_recoverable_signature signature;
+		int id;
+		memcpy(changed, quote, sizeof(changed));
+		for (size_t i = 0; i < 8; ++i) changed[NU54_V2_ISSUED_AT_OFFSET + 31 - i] = (uint8_t)((end - life) >> (8 * i));
+		assert(nu54_v2_quote_digest(changed, NU54_V2_UNSIGNED_SIZE, &hasher, digest));
+		assert(secp256k1_ecdsa_sign_recoverable(context, &signature, digest, key, NULL, NULL));
+		secp256k1_ecdsa_recoverable_signature_serialize_compact(context, raw, &id, &signature);
+		raw[64] = (uint8_t)(27 + id);
+		memcpy(changed + NU54_V2_UNSIGNED_SIZE, raw, 65);
+		memcpy(order.expected, changed, sizeof(order.expected));
+		assert(nu54_order_preimage(changed, confirmer, expected_preimage));
+		/* Issued before the board's time, and little of it is left: only its length differs. */
+		assert(end - life < earliest && end - earliest < NU54_ORDER_MAX_SECONDS);
+		assert(stage(channel(), request(), confirmer, changed, allowlist, payer, GENERATION) ==
+		       (life > NU54_ORDER_MAX_SECONDS ? -1 : 0));
+	}
+	secp256k1_context_destroy(context);
+	order = saved;
+	memcpy(expected_preimage, preimage, sizeof(preimage));
+}
+
 static void test_decode(void)
 {
 	uint8_t body[NU54_ORDER_REQUEST_SIZE + 1] = {'N', '5', '4', 'O'};
@@ -394,6 +431,7 @@ int main(int argc, char **argv)
 	test_physical_approval_signs_exactly_once();
 	test_refuses_everything_outside_the_grant();
 	test_needs_a_testnet_grant();
+	test_refuses_an_order_the_store_lets_run_too_long();
 	test_decode();
 	test_daily_total();
 	test_records();

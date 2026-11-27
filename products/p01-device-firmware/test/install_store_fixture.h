@@ -167,6 +167,7 @@ int device_install_restore(uint8_t *, size_t, mbedtls_x509_crt *, mbedtls_x509_c
 			   device_tls_v2_profile [2]);
 int64_t device_install_keep_time(void);
 int device_install_set_time(const nu54_install_clock_told *, bool, uint64_t, uint8_t [NU54_CLOCK_SET_REPLY_SIZE]);
+int device_install_hold_order(uint64_t);
 uint64_t device_install_order_hold(void);
 int device_install_fence_wallet_expiry(uint64_t);
 const nu54_install_policy *device_install_policy(void);

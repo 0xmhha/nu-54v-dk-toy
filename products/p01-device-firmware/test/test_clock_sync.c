@@ -1,7 +1,7 @@
 /* The registered owner's phone sets the clock of a board that was without power (decision of
  * 2026-11-27). The board's clock and storage code (device_install.c), its message handling
- * (device_pilot.c: bind_session, frame, clock_request, order_request) and its order records
- * (device_order.c) run here as the board builds them, with the real transport, the real order
+ * (device_pilot.c: bind_session, frame, clock_request, order_request, order_button) and its order
+ * records (device_order.c) run here as the board builds them, with the real transport, the real order
  * checks and an order a store signed (packages/protocol/v2/testdata/order-lock.vectors). The TLS
  * handshake is a stand-in that judges the certificate's period with the board's own rule. */
 #include "install_store_fixture.h"
@@ -33,7 +33,7 @@ static int64_t session_began;
 static uint32_t next_prompt;
 static atomic_t pending_prompt;
 static unsigned order_slot, managed, clock_turns;
-static uint64_t order_amount, order_expires;
+static uint64_t order_amount, order_expires, order_life;
 static int tls, clock_worker;
 static struct {
 	nu54_install_clock_told told;
@@ -48,7 +48,7 @@ static uint32_t shown_prompt;
  * not see it. */
 static uint64_t real;
 
-static uint8_t quote[NU54_V2_SIGNED_SIZE], merchant_signer[20], confirmer[20];
+static uint8_t quote[NU54_V2_SIGNED_SIZE], merchant_signer[20], confirmer[20], payer_signature[65];
 static const uint8_t phone_key[32] = {7, 7}, other_key[32] = {8, 8};
 
 /* What the phone's certificate says, and whether its key is the one the handshake proved. */
@@ -75,6 +75,17 @@ static int present(void *context, const uint8_t *preimage, size_t length)
 	(void)context; (void)preimage;
 	return length == NU54_LOCAL_PREIMAGE_SIZE ? 0 : -1;
 }
+/* SW1 was pressed and the PIN is right; the keypad and its lamp are in test_spending_led.c. */
+static int pilot_pin(bool virgin, uint32_t prompt) { (void)virgin; (void)prompt; return 0; }
+static int32_t atomic_get(const atomic_t *value) { return *value; }
+#define status_led_event(event) ((void)0)
+/* The wallet key's signature of the store's order, as the contracts took it (the vector's). */
+static int sign(void *context, const uint8_t digest[32], uint8_t signature[64])
+{
+	(void)context; (void)digest;
+	memcpy(signature, payer_signature, 64);
+	return 0;
+}
 static bool payment_generation_current(const nu54_install_policy *current) { return current != NULL; }
 static bool payment_address(const nu54_install_policy *current, uint8_t address[20])
 {
@@ -97,7 +108,7 @@ static int device_tls_v2_bind(int *session, nu54_v2_link *out, nu54_v2_profile r
 }
 
 /* ---- the phone's end of the session ---- */
-static uint8_t answer[64];
+static uint8_t answer[96];
 static size_t answer_length;
 static bool answered;
 
@@ -112,7 +123,7 @@ static void end_session(void)
 	connection = NULL;
 	shown_prompt = 0;
 	order_slot = 0;
-	order_amount = order_expires = 0;
+	order_amount = order_expires = order_life = 0;
 	pending_prompt = 0;
 	display_confirmed = recovering = clock_only = false;
 	session_validity = (device_tls_v2_validity){0};
@@ -1813,6 +1824,248 @@ static void test_a_write_that_fails(void)
 	assert(!device_order_open(device_install_earliest(), uptime));
 }
 
+/* SW1 and the right PIN for the order the board asks about, as device_pilot_button: the board
+ * signs, keeps its answer and sends it. Returns what order_button returns. */
+static int approve(void)
+{
+	bool lamp = false;
+	assert(approval.pending && pending_prompt && connection);
+	const int took = order_button((uint32_t)pending_prompt, true, &lamp);
+	if (took) end_session(); /* failed: reset_link */
+	else pending_prompt = 0, shown_prompt = 0; /* answered */
+	return took;
+}
+
+/* What holds a return (0x7b) and a reset back: device_pilot.c asks this before either. */
+static bool held(void)
+{
+	return device_order_open(device_install_earliest(), uptime);
+}
+
+/* A board whose clock is right, with a registered owner and a grant. The owner's phone is `ahead`
+ * seconds ahead of the calendar and tells its time first (it tells none when it is not ahead).
+ * `wait` milliseconds later it brings the store's order, and the owner approves it with SW1 and
+ * the PIN. The store issued the order three seconds before; by the calendar, which the token
+ * contract goes by, it has 117 more to run. Returns the running time at the approval. */
+static int64_t approved_with_the_phone_ahead(uint64_t ahead, int64_t wait)
+{
+	late_board(0);
+	real = calendar + ahead;
+	assert(!connect_phone());
+	if (ahead) assert(!tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(device_install_earliest() == calendar + ahead);
+	uptime += wait;
+	assert(!pay() && approval.pending && order_expires == quote_end);
+	assert(!approve() && answered && answer_length == 65 && !memcmp(answer, payer_signature, 64));
+	return uptime;
+}
+
+/* The second independent audit's finding: the hold that keeps an approved order open was given
+ * only to orders that were open when the phone moved the clock. An order that was approved after
+ * the move was judged by its end against the board's time alone, and so it was closed early by as
+ * much as the clock was ahead: 45 s after the approval with the clock 72 s ahead, and 10 s after
+ * it with 107, while the token contract took the signature for 117 s. A return and a reset were
+ * then open. Now the approval itself holds the order for the time the store let it run. */
+static void test_orders_approved_after_the_clock_moved(void)
+{
+	const int64_t left = (int64_t)(quote_end - calendar) * 1000, life = (int64_t)(quote_end - quote_issued) * 1000;
+	static const uint64_t ahead[] = {0, 72, 107};
+	const uint64_t seconds = (uint64_t)life / 1000;
+	assert(left == 117000 && life == 120000 && seconds <= NU54_ORDER_MAX_SECONDS);
+
+	/* For as long as the order can execute, the board holds it, however far ahead its clock is. */
+	for (size_t i = 0; i < sizeof(ahead) / sizeof(ahead[0]); ++i) {
+		const int64_t approved = approved_with_the_phone_ahead(ahead[i], 0);
+		for (int64_t after = 0; after < left; after += 1000) {
+			uptime = approved + after;
+			assert(held());
+		}
+		uptime = approved + left - 1;
+		assert(held());
+	}
+	/* And for no longer than the store let it run, counted from the approval. */
+	for (size_t i = 0; i < sizeof(ahead) / sizeof(ahead[0]); ++i) {
+		const int64_t approved = approved_with_the_phone_ahead(ahead[i], 0);
+		uptime = approved + life - 1;
+		assert(held());
+		uptime += 1;
+		assert(!held());
+	}
+
+	/* What it costs: the saved time is written once more, with the hold, between the day's total
+	 * and the order's record. It is the time the board has, and the second it is in is counted. */
+	late_board(0);
+	real = calendar + 72;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !pay());
+	assert(order_life == seconds);
+	writes = 0;
+	assert(!approve() && writes == 3 && !link.closed);
+	assert(clock_saved.earliest == calendar + 72 && clock_saved.hold == calendar + 72 + seconds + 1);
+	/* The approval holds for no longer than an order may run, whatever length it is handed. (An
+	 * order that its store lets run for longer does not come this far: test_order.c.) */
+	late_board(0);
+	assert(!connect_phone() && !pay());
+	order_life = NU54_ORDER_MAX_SECONDS + 500;
+	assert(!approve() && clock_saved.hold == calendar + NU54_ORDER_MAX_SECONDS + 1);
+	uptime += NU54_ORDER_MAX_SECONDS * 1000 - 1;
+	assert(held());
+	uptime += 1;
+	assert(!held());
+
+	/* The power goes right after the approval, however often: every start holds the order for
+	 * what the storage has, and nothing was saved since. */
+	for (size_t i = 0; i < sizeof(ahead) / sizeof(ahead[0]); ++i) {
+		(void)approved_with_the_phone_ahead(ahead[i], 0);
+		for (int start = 0; start < 3; ++start) {
+			assert(board_restart() == 0 && device_install_earliest() == calendar + ahead[i]);
+			assert(device_install_order_hold() == seconds + 1);
+			const int64_t started = uptime;
+			uptime = started + left - 1;
+			assert(held());
+			uptime = started + life + 1000 - 1;
+			assert(held());
+			uptime += 1;
+			assert(!held());
+		}
+	}
+
+	/* The phone moves the clock again, after the board's time has passed the order's end. The
+	 * hold of the approval stays, in this start and through a restart. */
+	for (int restarted = 0; restarted < 2; ++restarted) {
+		const int64_t approved = approved_with_the_phone_ahead(107, 0);
+		uptime += 20000;
+		assert(device_install_earliest() > quote_end && held());
+		real += 20 + 50; /* the phone's clock ran on, and it is another 50 s ahead */
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+		assert(device_install_earliest() == real && held());
+		if (!restarted) {
+			uptime = approved + life - 1;
+			assert(held());
+			uptime += 1;
+			assert(!held());
+			continue;
+		}
+		assert(board_restart() == 0 && device_install_order_hold() == seconds - 20);
+		const int64_t started = uptime;
+		uptime = started + (life - 20000) - 1;
+		assert(held());
+		uptime += 1;
+		assert(!held());
+	}
+
+	/* The periodic save keeps the hold, shorter by the time the board has run. */
+	(void)approved_with_the_phone_ahead(72, 0);
+	uptime += 10000;
+	writes = 0;
+	(void)device_install_keep_time();
+	assert(writes == 1 && clock_saved.earliest == calendar + 72 + 10 && clock_saved.hold == calendar + 72 + seconds + 1);
+	assert(board_restart() == 0 && device_install_order_hold() == seconds + 1 - 10);
+	const int64_t started = uptime;
+	uptime = started + (left - 10000) - 1;
+	assert(held());
+	uptime = started + (life + 1000 - 10000) - 1;
+	assert(held());
+	uptime += 1;
+	assert(!held());
+	/* The board's time counts whole seconds. An approval late in one of them and a save early in
+	 * the next leave the storage no less of the hold than this start has. */
+	int64_t approved = approved_with_the_phone_ahead(72, 999);
+	uptime += 1;
+	(void)device_install_keep_time();
+	assert(clock_saved.earliest == calendar + 72 + 1);
+	const int64_t rest = approved + life - uptime;
+	assert(rest == life - 1 && board_restart() == 0 && (int64_t)device_install_order_hold() * 1000 >= rest);
+
+	/* The hold only adds. A board that is late judges the order by its own time for longer than
+	 * the store let it run, as before. */
+	late_board(5);
+	assert(!connect_phone() && !pay() && !approve());
+	approved = uptime;
+	uptime = approved + left + 5000 - 1;
+	assert(left + 5000 > life && held());
+	uptime += 1;
+	assert(!held());
+	/* And a hold that the storage has for longer is not made shorter, and costs no write: here
+	 * an order of this start was open when the phone moved the clock (180 s from the move). */
+	nu54_order_record record = {.outcome = NU54_ORDER_APPROVED};
+	late_board(3 * 3600);
+	record.expires = device_install_earliest() + 100;
+	assert(!device_order_store(1, &record));
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED);
+	assert(clock_saved.hold == real + NU54_ORDER_MAX_SECONDS && !pay());
+	writes = 0;
+	assert(!approve() && writes == 2 && clock_saved.hold == real + NU54_ORDER_MAX_SECONDS);
+	approved = uptime;
+	uptime = approved + NU54_ORDER_MAX_SECONDS * 1000 - 1;
+	assert(held());
+	uptime += 1;
+	assert(!held());
+	assert(board_restart() == 0 && device_install_order_hold() == NU54_ORDER_MAX_SECONDS);
+}
+
+/* The hold is in storage before the signature is stored or sent. A write that the storage refuses
+ * ends the approval, and no signature leaves the board, now or when the phone asks again. */
+static void test_an_approval_that_cannot_be_saved(void)
+{
+	const int64_t left = (int64_t)(quote_end - calendar) * 1000;
+	const uint64_t seconds = quote_end - quote_issued;
+
+	/* The write of the hold fails: the second of the three. Nothing was stored for the order. */
+	for (int after = 0; after < 2; ++after) {
+		late_board(0);
+		real = calendar + 72;
+		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !pay());
+		const nu54_install_clock kept = clock_saved;
+		fail_after = after;
+		fails_left = 1;
+		writes = 0;
+		assert(approve() == -1 && writes == 2 && fails_left == -1 && !answered && link.closed);
+		for (unsigned slot = 1; slot <= NU54_ORDER_RECORDS; ++slot) assert(!item(ORDER_RECORD + slot));
+		assert(!memcmp(&clock_saved, &kept, sizeof(kept)) && !held());
+		/* The phone asks again with the same request. There is no answer to read back: the board
+		 * asks for SW1 anew. */
+		assert(!connect_phone());
+		--request_count;
+		assert(!pay() && !answered && approval.pending);
+		/* Where the refused write reached the storage, a restart holds for an order that was never
+		 * signed: a return waits for as long as that order would have run, and no longer. */
+		assert(board_restart() == 0 && device_install_order_hold() == (after ? seconds + 1 : 0));
+		assert(held() == (after == 1));
+		uptime += (int64_t)(seconds + 1) * 1000;
+		assert(!held());
+	}
+
+	/* The write of the record fails: the third. Then the hold is there, in this start and in
+	 * storage. Where the record did not reach the storage there is no signature to read back. */
+	late_board(0);
+	real = calendar + 72;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !pay());
+	fail_after = false;
+	fails_left = 2;
+	assert(approve() == -1 && fails_left == -1 && !answered && !item(ORDER_RECORD + 1));
+	assert(clock_saved.hold == calendar + 72 + seconds + 1);
+	assert(!connect_phone());
+	--request_count;
+	assert(!pay() && !answered && approval.pending);
+	/* Where it did reach the storage, the phone that asks again gets the signature, and the order
+	 * is held for all the time it can execute, through a restart as well. */
+	late_board(0);
+	real = calendar + 72;
+	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !pay());
+	fail_after = true;
+	fails_left = 2;
+	assert(approve() == -1 && fails_left == -1 && !answered && item(ORDER_RECORD + 1));
+	const int64_t approved = uptime;
+	assert(!connect_phone());
+	--request_count;
+	assert(!pay() && answered && answer_length == 65 && !memcmp(answer, payer_signature, 64) && !approval.pending);
+	uptime = approved + left - 1;
+	assert(held());
+	assert(board_restart() == 0 && device_install_order_hold() == seconds + 1);
+	uptime += left - 1;
+	assert(held());
+}
+
 /* The saved time of the build before this one had no hold (24 bytes). It is not read as a time:
  * the grant goes with it, and an approved order counts as open for one order life of running time,
  * as it does on every board that does not know the time. */
@@ -1846,6 +2099,7 @@ int main(int argc, char **argv)
 	load_vector(argv[1], "merchantSignature", quote + NU54_V2_UNSIGNED_SIZE, 65);
 	load_vector(argv[1], "merchantSigner", merchant_signer, 20);
 	load_vector(argv[1], "confirmer", confirmer, 20);
+	load_vector(argv[1], "payerSignature", payer_signature, 65);
 	memcpy(quote, unsigned_quote, sizeof(unsigned_quote));
 	quote_issued = sys_get_be64(quote + NU54_V2_ISSUED_AT_OFFSET + 24);
 	quote_end = sys_get_be64(quote + NU54_V2_EXPIRES_AT_OFFSET + 24);
@@ -1871,6 +2125,8 @@ int main(int argc, char **argv)
 	test_the_phone_alone_moves_a_day();
 	test_a_session_from_before_the_owner();
 	test_a_write_that_fails();
+	test_orders_approved_after_the_clock_moved();
+	test_an_approval_that_cannot_be_saved();
 	test_saved_time_of_the_earlier_build();
 	puts("clock sync ok");
 	return 0;

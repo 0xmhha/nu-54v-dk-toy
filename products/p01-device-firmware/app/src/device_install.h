@@ -43,6 +43,11 @@ int64_t device_install_keep_time(void);
  * that a restart right after the move keeps it. */
 int device_install_set_time(const nu54_install_clock_told *told, bool button, uint64_t hold_seconds,
 			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE]);
+/* Call when an order is approved, before its signature is stored or sent: the order must count as
+ * open for `hold_seconds` of running time from now, whatever the time says later and through a
+ * restart (device_order_hold_approved has the reason). Saved as a board time with the time the
+ * board has now. Returns -1 when the storage refuses the write; the caller then approves nothing. */
+int device_install_hold_order(uint64_t hold_seconds);
 /* The running time, in seconds, that is left of the hold the storage has. Asked once at start,
  * with or without a grant in use; a restart found the time it saved last, so this is at least
  * what was left when the power went. */
