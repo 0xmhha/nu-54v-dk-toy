@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -134,6 +135,11 @@ func TestCustomerSessionScope(t *testing.T) {
 		return service.Request{Contract: "C3", Operation: operation, Domain: domain, Object: object}
 	}
 	checkout := customerSession{Branch: branch, Purpose: "checkout"}
+	// The whole allowance of a checkout session, by name: adding to it is a decision, not a side effect.
+	if got := append(slices.Clone(checkoutOperations), checkoutReads...); !slices.Equal(got, []string{"order.create", "checkout.claim",
+		"checkout.authorize", "quote.issue", "order.lock", "payment.forward", "catalog.read", "catalog.photo", "order.status"}) {
+		t.Fatalf("a checkout session is allowed %v", got)
+	}
 	for _, operation := range []string{"order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock", "payment.forward", "order.status"} {
 		if !checkout.allows(request(operation, branch, sale)) {
 			t.Fatalf("checkout session refused %s", operation)

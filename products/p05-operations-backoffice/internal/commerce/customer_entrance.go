@@ -490,13 +490,21 @@ type customerSession struct {
 	ExpiresAt                            time.Time
 }
 
-// Before payment: the menu, the cart, the customer's own claim on it, the quote, the board's signature for the
-// sponsored lock, and the status of what this account ordered here. The status is meant to reach every order of the
-// same account at this store, paid ones too: the page that just paid follows its order to the pickup number with the
-// session it has, and the owner database answers only for the session's own customer. There is no customer cancel: C3 has none (see
-// ledger.cancel_public_menu_order, which is the kiosk's), so an unpaid order ends with its quote.
-var checkoutOperations = []string{"catalog.read", "catalog.photo", "order.create", "checkout.claim", "checkout.authorize", "quote.issue",
-	"order.lock", "payment.forward", "order.status"}
+// What a checkout session may ask before payment, on an order of its own account at its branch: the cart, the
+// customer's own claim on it, the quote, and the board's signature for the sponsored lock. There is no customer
+// cancel in C3 (ledger.cancel_public_menu_order is the kiosk's); an unpaid order ends with its quote.
+var checkoutOperations = []string{"order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock", "payment.forward"}
+
+// checkoutReads is what a checkout session may read.
+//
+// order.status is allowed on purpose, and it reaches further than "before payment": it reads any order of the same
+// account at this branch, a paid one too. The app that just paid has only this session, and the payment result (paid
+// or not, then the pickup number) is the status of that order; without this read it could not learn it before it
+// proves the account again for an order session. The reach is the account's own orders and nothing else: the
+// session names no order, so the owner database decides, and ledger.commerce_order_receipt answers only the
+// customer the order belongs to (another account or another branch reads not found;
+// customer_entrance_postgres_test.go).
+var checkoutReads = []string{"catalog.read", "catalog.photo", "order.status"}
 
 // allows says whether one C3 request is inside the session. The owner database still checks each one.
 func (s customerSession) allows(req service.Request) bool {
@@ -506,9 +514,9 @@ func (s customerSession) allows(req service.Request) bool {
 	switch s.Purpose {
 	case "checkout":
 		if req.Operation == "catalog.read" || req.Operation == "catalog.photo" {
-			return req.Object == s.Branch
+			return req.Object == s.Branch // the menu and the photos of the session's own branch
 		}
-		return slices.Contains(checkoutOperations, req.Operation)
+		return slices.Contains(checkoutOperations, req.Operation) || slices.Contains(checkoutReads, req.Operation)
 	case "order":
 		// Status (with the ready notice), and the receipt confirmation, dispute or its withdrawal.
 		return req.Object == s.Sale && (req.Operation == "order.status" || req.Operation == "order.answer")
