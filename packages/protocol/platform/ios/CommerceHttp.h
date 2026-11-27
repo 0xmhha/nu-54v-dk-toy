@@ -122,6 +122,17 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   return result;
 }
 
+// The chain must end at `ca` for `host`, and the leaf must carry the pinned key. System roots are never consulted.
+static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *pin) {
+  if (!trust || !host.length || !ca || pin.length!=64) return NO;
+  id policy=CFBridgingRelease(SecPolicyCreateSSL(true,(__bridge CFStringRef)host));
+  BOOL anchored=SecTrustSetPolicies(trust,(__bridge CFTypeRef)policy)==errSecSuccess &&
+      SecTrustSetAnchorCertificates(trust,(__bridge CFArrayRef)@[ca])==errSecSuccess &&
+      SecTrustSetAnchorCertificatesOnly(trust,true)==errSecSuccess && SecTrustEvaluateWithError(trust,nullptr);
+  id key=anchored ? CFBridgingRelease(SecTrustCopyKey(trust)) : nil;
+  return [fingerprint(spki((__bridge SecKeyRef)key)) isEqual:pin];
+}
+
 @interface C3Exchange : NSObject <NSURLSessionDataDelegate>
 @property C3Enrollment *profile;
 @property NSMutableData *buffer;
@@ -143,13 +154,7 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   } else if ([peer.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust]) {
     SecTrustRef trust=peer.serverTrust;
     if (!trust) { complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil); return; }
-    id policy=CFBridgingRelease(SecPolicyCreateSSL(true,(__bridge CFStringRef)peer.host));
-    BOOL anchored=SecTrustSetPolicies(trust,(__bridge CFTypeRef)policy)==errSecSuccess &&
-        SecTrustSetAnchorCertificates(trust,(__bridge CFArrayRef)@[self.profile.ca])==errSecSuccess &&
-        SecTrustSetAnchorCertificatesOnly(trust,true)==errSecSuccess && SecTrustEvaluateWithError(trust,nullptr);
-    id key=anchored ? CFBridgingRelease(SecTrustCopyKey(trust)) : nil;
-    NSString *pin=fingerprint(spki((__bridge SecKeyRef)key));
-    if ([pin isEqual:self.profile.pin]) complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:trust]);
+    if (anchoredServer(trust,peer.host,self.profile.ca,self.profile.pin)) complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:trust]);
     else complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
   } else {
     complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
@@ -183,6 +188,59 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   [session finishTasksAndInvalidate];
 }
 @end
+
+#ifdef NU54_TRAVEL_RECORDER
+// One POST to the customer entrance, which asks for no client certificate. This delegate holds no identity, so a
+// request for one ends the connection.
+@interface C3Entrance : NSObject <NSURLSessionDataDelegate>
+@property NSString *host;
+@property NSString *pin;
+@property id ca;
+@property NSInteger status;
+@property NSMutableData *buffer;
+@property RCTPromiseResolveBlock resolve;
+@property RCTPromiseRejectBlock reject;
+@end
+@implementation C3Entrance
+- (void)URLSession:(NSURLSession *)session didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition,NSURLCredential *))complete {
+  NSURLProtectionSpace *peer=challenge.protectionSpace;
+  if ([peer.host isEqual:self.host] && !challenge.previousFailureCount &&
+      [peer.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust] &&
+      anchoredServer(peer.serverTrust,peer.host,self.ca,self.pin)) {
+    complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:peer.serverTrust]);
+  } else {
+    complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
+  }
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
+ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition,NSURLCredential *))complete {
+  [self URLSession:session didReceiveChallenge:challenge completionHandler:complete];
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
+ willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request
+ completionHandler:(void (^)(NSURLRequest *))complete { complete(nil); }
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveResponse:(NSURLResponse *)response
+ completionHandler:(void (^)(NSURLSessionResponseDisposition))complete {
+  NSInteger code=[response isKindOfClass:NSHTTPURLResponse.class] ? [(NSHTTPURLResponse *)response statusCode] : 0;
+  // What the entrance answers with. A redirect or anything else is not an answer.
+  BOOL answer=code==200 || code==400 || code==404 || code==409 || code==429 || code==503;
+  if (answer) self.status=code;
+  complete(answer ? NSURLSessionResponseAllow : NSURLSessionResponseCancel);
+}
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveData:(NSData *)data {
+  if (self.buffer.length+data.length>8192) [task cancel]; else [self.buffer appendData:data];
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
+  NSString *body=(error || !self.status) ? nil : [[NSString alloc] initWithData:self.buffer encoding:NSUTF8StringEncoding];
+  NSData *reply=body ? [NSJSONSerialization dataWithJSONObject:@{@"status":@(self.status),@"body":body} options:0 error:nullptr] : nil;
+  if (reply) self.resolve([[NSString alloc] initWithData:reply encoding:NSUTF8StringEncoding]);
+  else self.reject(@"COMMERCE_UNAVAILABLE",@"The customer entrance is unavailable",nil);
+  [session finishTasksAndInvalidate];
+}
+@end
+#endif
 
 @interface CommerceHttp : NSObject <NativeCommerceHttpSpec>
 @end
@@ -394,6 +452,54 @@ RCT_EXPORT_MODULE(CommerceHttp)
   NSString *wire=accept ? [NSString stringWithFormat:@"{\"account\":\"%@\"}",account] : @"";
   [self exchangeAt:@"customer" method:accept ? @"POST" : @"GET" path:path envelope:wire
       limit:1024 profileDigest:digest resolve:resolve reject:reject];
+}
+#endif
+
+#ifdef NU54_TRAVEL_RECORDER
+// The server is the one the enrolled customer connection trusts: the same `ca` and the same pinned leaf key from the
+// stored customer profile. Without that profile nothing is sent, and there is no other trust to fall back on.
+- (void)customerRequest:(NSString *)origin path:(NSString *)path body:(NSString *)body
+    resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  dispatch_async(_work,^{
+    NSData *payload=[body dataUsingEncoding:NSUTF8StringEncoding];
+    NSURLComponents *url=[NSURLComponents componentsWithString:origin];
+    if (![@[@"/v2/customer/challenge",@"/v2/customer/proof"] containsObject:path] || payload.length<2 || payload.length>1024 ||
+        ![url.scheme isEqual:@"https"] || !url.host.length || url.user || url.password || url.query || url.fragment ||
+        url.percentEncodedPath.length || (url.port && (url.port.integerValue<1 || url.port.integerValue>65535))) {
+      [self unavailable:reject]; return;
+    }
+    NSData *saved=[[self profile:@"customer"] dataUsingEncoding:NSUTF8StringEncoding];
+    id candidate=(saved.length && saved.length<=16384) ? [NSJSONSerialization JSONObjectWithData:saved options:0 error:nullptr] : nil;
+    NSDictionary *profile=[candidate isKindOfClass:NSDictionary.class] ? candidate : nil;
+    NSString *pin=profile[@"pin"];
+    id anchor=certificate(profile[@"ca"]);
+    if (!anchor || ![pin isKindOfClass:NSString.class] || pin.length!=64 ||
+        [pin rangeOfCharacterFromSet:[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet]].location!=NSNotFound) {
+      [self unavailable:reject]; return;
+    }
+    url.percentEncodedPath=path;
+    if (!url.URL) { [self unavailable:reject]; return; }
+    NSURLSessionConfiguration *config=NSURLSessionConfiguration.ephemeralSessionConfiguration;
+    config.TLSMinimumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    config.TLSMaximumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    config.timeoutIntervalForResource=8;
+    config.timeoutIntervalForRequest=8;
+    config.HTTPShouldSetCookies=NO;
+    config.HTTPCookieStorage=nil;
+    config.URLCredentialStorage=nil;
+    config.URLCache=nil;
+    config.requestCachePolicy=NSURLRequestReloadIgnoringLocalCacheData;
+    C3Entrance *delegate=[C3Entrance new];
+    delegate.host=url.host; delegate.pin=pin; delegate.ca=anchor;
+    delegate.resolve=resolve; delegate.reject=reject; delegate.buffer=[NSMutableData data];
+    NSURLSession *session=[NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:nil];
+    NSMutableURLRequest *request=[NSMutableURLRequest requestWithURL:url.URL];
+    request.HTTPMethod=@"POST";
+    request.HTTPBody=payload;
+    [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [request setValue:@"no-store" forHTTPHeaderField:@"Cache-Control"];
+    [[session dataTaskWithRequest:request] resume];
+  });
 }
 #endif
 

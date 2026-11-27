@@ -182,26 +182,15 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         return exchangeAt("travel",method,path,envelope,1_400_000)
     }
 
-    private fun exchangeAt(slot:String,method:String,path:String,envelope:String,maxSize:Int,profileDigest:String?=null):String {
-        val payload=envelope.encodeToByteArray()
-        require(if(method=="GET") payload.isEmpty() else payload.size in 2..maxSize)
-        val raw=load(slot)
-        if (profileDigest != null) {
-            val current=MessageDigest.getInstance("SHA-256").digest(raw.encodeToByteArray())
-                .joinToString("") { "%02x".format(it) }
-            require(current == profileDigest)
-        }
-        val profile=JSONObject(raw)
-        val (ca,chain,privateKey)=certificates(profile,slot)
+    /** Server trust for one handshake: the chain must end at `ca`, and the leaf must carry the pinned key. System roots are never consulted. */
+    private fun anchoredTrust(ca:X509Certificate, pin:String):X509TrustManager {
         val roots=KeyStore.getInstance(KeyStore.getDefaultType()).apply {
             load(null)
             setCertificateEntry("commerce-root",ca)
         }
         val trustFactory=TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(roots) }
         val anchored=trustFactory.trustManagers.filterIsInstance<X509TrustManager>().single()
-        val pin=profile.getString("pin")
-        val host=URI(profile.getString("endpoint")).host
-        val trust=object:X509TrustManager {
+        return object:X509TrustManager {
             override fun getAcceptedIssuers()=anchored.acceptedIssuers
             override fun checkClientTrusted(chain:Array<out X509Certificate>?, authType:String?) { throw CertificateException("wrong TLS role") }
             override fun checkServerTrusted(chain:Array<out X509Certificate>?,authType:String?) {
@@ -213,6 +202,88 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
                 // The exact pinned SPKI establishes the peer before mTLS sends credentials.
             }
         }
+    }
+
+    private fun readCapped(stream:java.io.InputStream, limit:Int):String = stream.use {
+        val input=java.io.ByteArrayOutputStream()
+        val buffer=ByteArray(4096)
+        while (true) {
+            val size=it.read(buffer)
+            if(size<0) break
+            require(input.size()+size<=limit)
+            input.write(buffer,0,size)
+        }
+        input.toString("UTF-8")
+    }
+
+    /**
+     * One POST to the customer entrance of the store server, which asks for no client certificate.
+     * The server is the one the enrolled customer connection trusts: the same `ca` and the same pinned leaf key from
+     * the stored customer profile. Without that profile nothing is sent. No key manager holds a key, so no client
+     * certificate can be offered. Answers `{"status":n,"body":"…"}`.
+     */
+    fun customerEntrance(origin:String, path:String, body:String):String {
+        require(path in setOf("/v2/customer/challenge","/v2/customer/proof"))
+        val payload=body.encodeToByteArray()
+        require(payload.size in 2..1024)
+        val base=URI(origin)
+        require(base.scheme=="https" && !base.host.isNullOrEmpty() && base.rawUserInfo==null && base.rawPath.isNullOrEmpty() &&
+            base.rawQuery==null && base.rawFragment==null && (base.port==-1 || base.port in 1..65535))
+        val profile=JSONObject(load("customer"))
+        val pin=profile.getString("pin")
+        require(Regex("[0-9a-f]{64}").matches(pin))
+        val ca=CertificateFactory.getInstance("X.509")
+            .generateCertificate(Base64.decode(profile.getString("ca"),Base64.NO_WRAP).inputStream()) as X509Certificate
+        val anonymous=object:X509ExtendedKeyManager() {
+            override fun getClientAliases(type:String?, issuers:Array<out Principal>?):Array<String>?=null
+            override fun chooseClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,socket:Socket?):String?=null
+            override fun chooseEngineClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,engine:SSLEngine?):String?=null
+            override fun getServerAliases(type:String?,issuers:Array<out Principal>?):Array<String>?=null
+            override fun chooseServerAlias(type:String?,issuers:Array<out Principal>?,socket:Socket?):String?=null
+            override fun getPrivateKey(alias:String?):PrivateKey?=null
+            override fun getCertificateChain(alias:String?):Array<X509Certificate>?=null
+        }
+        val tls=SSLContext.getInstance("TLSv1.3").apply { init(arrayOf(anonymous),arrayOf(anchoredTrust(ca,pin)),random) }
+        val host=base.host
+        val connection=java.net.URL("https",host,base.port,path).openConnection(java.net.Proxy.NO_PROXY) as HttpsURLConnection
+        try {
+            connection.sslSocketFactory=tls.socketFactory
+            connection.hostnameVerifier=javax.net.ssl.HostnameVerifier { name, session ->
+                name==host && session.protocol=="TLSv1.3" && HttpsURLConnection.getDefaultHostnameVerifier().verify(name,session)
+            }
+            connection.doOutput=true
+            connection.instanceFollowRedirects=false
+            connection.useCaches=false
+            connection.connectTimeout=5000
+            connection.readTimeout=7000
+            connection.requestMethod="POST"
+            connection.setRequestProperty("Content-Type","application/json")
+            connection.setRequestProperty("Cache-Control","no-store")
+            connection.outputStream.use { it.write(payload) }
+            val status=connection.responseCode
+            // What the entrance answers with. A redirect or anything else is not an answer.
+            require(status in setOf(200,400,404,409,429,503))
+            val stream=if(status==200) connection.inputStream else connection.errorStream
+            return JSONObject().put("status",status).put("body",if(stream==null) "" else readCapped(stream,8192)).toString()
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun exchangeAt(slot:String,method:String,path:String,envelope:String,maxSize:Int,profileDigest:String?=null):String {
+        val payload=envelope.encodeToByteArray()
+        require(if(method=="GET") payload.isEmpty() else payload.size in 2..maxSize)
+        val raw=load(slot)
+        if (profileDigest != null) {
+            val current=MessageDigest.getInstance("SHA-256").digest(raw.encodeToByteArray())
+                .joinToString("") { "%02x".format(it) }
+            require(current == profileDigest)
+        }
+        val profile=JSONObject(raw)
+        val (ca,chain,privateKey)=certificates(profile,slot)
+        val pin=profile.getString("pin")
+        val host=URI(profile.getString("endpoint")).host
+        val trust=anchoredTrust(ca,pin)
         val owner=object:X509ExtendedKeyManager() {
             override fun getClientAliases(type:String?, issuers:Array<out Principal>?)=if(type=="EC" || type?.startsWith("EC_")==true) arrayOf(slot) else null
             override fun chooseClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,socket:Socket?)=if(types?.any{it=="EC" || it.startsWith("EC_")}==true) slot else null
@@ -242,17 +313,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
             val status=connection.responseCode
             require(status in setOf(200,400,409,503))
             val stream=(if(status==200) connection.inputStream else connection.errorStream) ?: error("missing response")
-            return stream.use {
-                val input=java.io.ByteArrayOutputStream()
-                val buffer=ByteArray(4096)
-                while (true) {
-                    val size=it.read(buffer)
-                    if(size<0) break
-                    require(input.size()+size<=32768)
-                    input.write(buffer,0,size)
-                }
-                input.toString("UTF-8")
-            }
+            return readCapped(stream,32768)
         } finally {
             connection.disconnect()
         }
