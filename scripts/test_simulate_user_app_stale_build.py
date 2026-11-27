@@ -293,6 +293,29 @@ class BuildRecord(Repository):
         self.assertIn("is not the build at", self.stale(lambda: "0" * 64))
         self.assertIn("cannot be read", self.stale(lambda: None))
 
+    def test_the_installed_build_stays_current_when_a_lab_script_builds_the_file_again(self):
+        """test_owner_tls.sh and its neighbours write another app-debug.apk and install it on their own device."""
+        self.build()
+        recorded = build_record.file_digest(self.apk)
+        self.apk.write_bytes(b"built by test_owner_tls.sh for arm64-v8a")
+        self.assertIsNone(self.stale(lambda: recorded))
+        self.assertIn("built again without its record", self.stale())  # no emulator to ask: the file alone is judged
+        reason = self.stale(lambda: build_record.file_digest(self.apk))  # the lab's build on this emulator
+        self.assertIn("installed on the emulator is not the build", reason)
+        self.assertIn("built again without its record", reason)
+        self.write(KOTLIN, "class SubscriptionAlertsModule { fun ready() {} }\n")
+        self.assertIn(KOTLIN, self.stale(lambda: recorded))
+
+    def test_the_installed_build_stays_current_when_the_file_is_gone(self):
+        self.build()
+        recorded = build_record.file_digest(self.apk)
+        self.apk.unlink()
+        self.assertIsNone(self.stale(lambda: recorded))
+        self.assertIn("there is no debug app", self.stale())
+        reason = self.stale(lambda: "0" * 64)
+        self.assertIn("installed on the emulator is not the build", reason)
+        self.assertIn("there is no debug app", reason)
+
     def test_the_emulator_is_not_asked_about_a_stale_build(self):
         self.build()
         self.write(MANIFEST, "<manifest/>\n")
@@ -517,6 +540,15 @@ class Emulator(Repository):
     def test_an_emulator_with_another_build_stops_the_run(self):
         self.emulator(build=True)
         (self.device / "base.apk").write_bytes(b"built on 5 October")
+        self.assertStopped(self.emulator()[0], "installed on the emulator is not the build")
+
+    def test_a_file_built_again_by_a_lab_script_does_not_stop_the_run_of_the_installed_build(self):
+        self.emulator(build=True)
+        self.apk.write_bytes(b"built by test_market_lab.sh")
+        result, printed = self.emulator()
+        self.assertEqual(result, "", printed)
+        self.assertNotIn("STALE", printed)
+        (self.device / "base.apk").write_bytes(b"built by test_market_lab.sh")
         self.assertStopped(self.emulator()[0], "installed on the emulator is not the build")
 
     def test_a_document_changed_after_the_build_does_not_stop_the_run(self):

@@ -202,25 +202,21 @@ def stale(apk, root, inputs, installed=None):
     """Why the app cannot stand for the current sources, or None when it can.
 
     `installed` gives the digest of the APK on the emulator, or None when that cannot be read. Without it only the
-    APK in the build directory is judged.
+    APK in the build directory is judged. With it the installed app is judged: when it is the recorded build, the
+    file in the build directory may have been built again since, as the lab scripts beside gradlew do.
     """
-    if not apk.is_file():
-        return f"there is no debug app at {apk}, so the installed one cannot be traced to these sources"
+    gone = f"there is no debug app at {apk}, so the installed one cannot be traced to these sources"
     try:
         record = json.loads(record_path(apk).read_text())
         built, files = record["apk"], record["files"]
         if record["version"] != 1 or not isinstance(files, dict):
             raise ValueError(record["version"])
     except FileNotFoundError:
+        if not apk.is_file():
+            return gone
         return f"nothing records which sources {apk} was built from ({record_path(apk).name} is missing), so it may be an old build"
     except (OSError, ValueError, KeyError, TypeError):
         return f"{record_path(apk)} cannot be read, so {apk.name} may be an old build"
-    try:
-        local = file_digest(apk)
-    except OSError as error:
-        return unread(apk, error)
-    if local != built:
-        return f"{apk} was built again without its record, so its sources are not known"
     try:
         now = fingerprint(root, inputs)
     except Unlisted as error:
@@ -235,9 +231,18 @@ def stale(apk, root, inputs, installed=None):
         on_device = installed()
         if on_device is None:
             return "the app installed on the emulator cannot be read, so it cannot be compared with the build"
-        if on_device != built:
-            return f"the app installed on the emulator is not the build at {apk}"
-    return None
+        if on_device == built:
+            return None
+    try:
+        local = file_digest(apk) if apk.is_file() else None
+    except OSError as error:
+        return unread(apk, error)
+    file = None if local == built else gone if local is None else f"{apk} was built again without its record, so its sources are not known"
+    if installed is None:
+        return file
+    if file is None:
+        return f"the app installed on the emulator is not the build at {apk}"
+    return f"the app installed on the emulator is not the build that {record_path(apk).name} records, and {file}"
 
 
 def installed_digest(adb, package):
