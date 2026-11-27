@@ -15,8 +15,8 @@ import (
 // The store page (traveller-services.md chapter 9 items 6 and 7): customers pick a store from the app's list or open
 // one with its shortcut QR, before any account proof. The two reads on the customer entrance therefore take no
 // session; they answer only what the store published on the operations web, the store's registered name, whether it
-// takes orders now, the token it is paid in, its number in the order contract and the operator's contact. The store writes the page; nothing is made up
-// here, and a field the store left empty is left out.
+// takes orders now, its number in the order contract and the operator's contact. The store writes the page; nothing
+// is made up here, and a field the store left empty is left out.
 //
 // The status of a page says whether an order can be placed now (`orderable`), and when not, why (`reason`:
 // closed_day, paused, no_menu or outside_hours). Its `mode` is open or busy only while an order can be placed.
@@ -70,12 +70,12 @@ func (h HTTP) customerStore(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, page)
 }
 
-// storePayment is all a store page says about paying the store: the label of the token a board pays it in, when this
-// server issues its quotes, and the store's number in the order contract. The app holds the chain, the contract and
-// the token in its own build and reads that merchant's signer and beneficiary from the contract itself, so a page
-// never names an address, a chain, a signer or a limit: those would be values the app must not take from a server.
+// storePayment is all a store page says about paying the store: the store's number in the order contract, and only
+// when the store is paid through it. The app holds the chain, the contract and the token in its own build and reads
+// that merchant's signer and beneficiary from the contract itself, so a page never names a token, an address, a
+// chain, a signer or a limit: those would be values the app must not take from a server.
 func storePayment(profile Profile) map[string]string {
-	payment := map[string]string{"paymentToken": profile.Token.OrDollar().Label}
+	payment := map[string]string{}
 	if profile.Escrow && profile.MerchantID != ([32]byte{}) {
 		payment["merchantId"] = hex.EncodeToString(profile.MerchantID[:])
 	}

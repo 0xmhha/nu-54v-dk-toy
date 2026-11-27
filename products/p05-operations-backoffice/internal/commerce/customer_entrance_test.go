@@ -293,22 +293,22 @@ func TestPublicMenuIsTheOnlyReadWithoutProof(t *testing.T) {
 	}
 }
 
-// A store page tells the store's number in the order contract and the label of its token, and nothing else of the
-// payment profile. A store that is not paid through the order contract has no number to tell.
+// A store page tells the store's number in the order contract and nothing else of the payment profile: no token,
+// address, chain or signer. A store that is not paid through the order contract has nothing to tell.
 func TestStorePagePaymentFields(t *testing.T) {
 	profile := Profile{Chain: 8283, Contract: common.HexToAddress("0x" + strings.Repeat("3", 40)), Asset: common.HexToAddress("0x" + strings.Repeat("2", 40)),
 		Beneficiary: common.HexToAddress("0x" + strings.Repeat("4", 40)), Signer: common.HexToAddress("0x" + strings.Repeat("5", 40)),
-		MerchantID: [32]byte{0: 0xe1, 31: 0x07}, KeyVersion: 2, BeneficiaryVersion: 3, Escrow: true}
+		MerchantID: [32]byte{0: 0xe1, 31: 0x07}, KeyVersion: 2, BeneficiaryVersion: 3, Escrow: true, Token: wonForOptions}
 	got := storePayment(profile)
-	if len(got) != 2 || got["paymentToken"] != "TestUSDC" || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" {
+	if len(got) != 1 || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" {
 		t.Fatalf("escrow store: %v", got)
 	}
 	profile.Escrow = false
-	if got := storePayment(profile); len(got) != 1 || got["merchantId"] != "" {
-		t.Fatalf("a store outside the order contract told a merchant number: %v", got)
+	if got := storePayment(profile); len(got) != 0 {
+		t.Fatalf("a store outside the order contract told something of its payment: %v", got)
 	}
 	profile.Escrow, profile.MerchantID = true, [32]byte{}
-	if got := storePayment(profile); len(got) != 1 {
+	if got := storePayment(profile); len(got) != 0 {
 		t.Fatalf("an unset merchant number was told: %v", got)
 	}
 }

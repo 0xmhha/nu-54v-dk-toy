@@ -280,21 +280,22 @@ func TestPostgresStorePage(t *testing.T) {
 
 	// --- what customers read: the published fields, empty ones left out, and nothing else ---
 	got := read("/v2/customer/stores/"+cafe, 200)
-	allowed := []string{"branchRef", "name", "kind", "intro", "address", "phone", "amenities", "closedNote", "hours", "status", "paymentToken", "merchantId", "operatorContact"}
+	allowed := []string{"branchRef", "name", "kind", "intro", "address", "phone", "amenities", "closedNote", "hours", "status", "merchantId", "operatorContact"}
 	for key := range got {
 		if !slices.Contains(allowed, key) {
 			t.Fatalf("the page gives out %q: %v", key, got)
 		}
 	}
 	if len(got) != len(allowed) || got["branchRef"] != cafe || got["kind"] != "카페" || got["phone"] != "02-555-0100" ||
-		got["paymentToken"] != "tKRW" || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" || got["operatorContact"] != "help@operator.example" ||
+		got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" || got["operatorContact"] != "help@operator.example" ||
 		len(got["hours"].([]any)) != 7 || got["hours"].([]any)[6] != nil {
 		t.Fatalf("page: %v", got)
 	}
-	// The page tells the store's contract number only: no address, chain, signer or version of the payment profile.
+	// The page tells the store's contract number only: no token, address, chain, signer or version of the payment profile.
 	if raw, _ := json.Marshal(got); strings.Contains(string(raw), strings.Repeat("3", 40)) || strings.Contains(string(raw), strings.Repeat("4", 40)) ||
-		strings.Contains(string(raw), strings.Repeat("5", 40)) || strings.Contains(string(raw), strings.Repeat("2", 40)) || strings.Contains(string(raw), "8283") {
-		t.Fatalf("the page names a payment address or chain: %s", raw)
+		strings.Contains(string(raw), strings.Repeat("5", 40)) || strings.Contains(string(raw), strings.Repeat("2", 40)) || strings.Contains(string(raw), "8283") ||
+		strings.Contains(string(raw), "paymentToken") || strings.Contains(string(raw), "KRW") {
+		t.Fatalf("the page names a payment token, address or chain: %s", raw)
 	}
 	// The cafe has no menu on sale yet, so it does not read as open: no order can be placed with it.
 	status := got["status"].(map[string]any)
