@@ -9,6 +9,7 @@ import {
 import {CustomerOrders} from '../src/merchant/CustomerOrders';
 import {customerSubject} from '../src/merchant/storeAccess';
 import {readProfiles} from '../src/wallet/readProfiles';
+import {journalStore} from './fixtures/journal';
 import {
   boardSignature, branch as mockBranch, escrowStatus as mockEscrow, generation as mockGeneration, now, now as mockNow, order as mockIssued, payer as mockPayer, payerKey as mockPayerKey,
   policy as mockPolicy, quoteFor as mockQuoteFor, sale as mockSale, terminal as mockTerminal,
@@ -30,6 +31,9 @@ jest.mock('../src/merchant/customerEntranceDeployment.ts', () => ({__esModule: t
 type Sent = {path: string; operation?: string; body?: Record<string, unknown>; session?: string};
 const mockSent: Sent[] = [];
 const mockJournals = new Map<string, string>();
+// The sealed journal takes only the names the native module lists, as on a phone.
+const mockJournal = journalStore(mockJournals);
+let mockJournalDown = false;
 const mockProfileReads: string[] = [];
 const mockSessions = new Map<string, {purpose: string; sale?: string}>();
 let mockStage: 'none' | 'preview' | 'issued' | 'locked' | 'ready' | 'delivered' = 'none';
@@ -56,8 +60,14 @@ function mockOrderNow(): CommerceOrder {
 
 jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, default: {
   loadProfile: async (slot: string) => { mockProfileReads.push(slot); return ''; },
-  loadJournal: async (name: string) => mockJournals.get(name) ?? '',
-  saveJournal: async (name: string, value: string) => { mockJournals.set(name, value); },
+  loadJournal: async (name: string) => {
+    if (mockJournalDown && name.startsWith('customer-sessions-')) throw Object.assign(new Error('refused'), {code: 'COMMERCE_REFUSED'});
+    return mockJournal.loadJournal(name);
+  },
+  saveJournal: async (name: string, value: string) => {
+    if (mockJournalDown && name.startsWith('customer-sessions-')) throw Object.assign(new Error('refused'), {code: 'COMMERCE_REFUSED'});
+    return mockJournal.saveJournal(name, value);
+  },
   randomBytes: async (length: number) => mockBase64(new Uint8Array(length).fill(7)),
   exchange: async () => { throw new Error('a registered connection was used'); },
   // The customer entrance of the store server, as the native module reaches it with this build's anchor.
@@ -184,6 +194,7 @@ beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
   jest.spyOn(AppState, 'addEventListener').mockReturnValue({remove() {}});
   mockSent.length = 0; mockJournals.clear(); mockProfileReads.length = 0; mockSessions.clear(); mockLocks.length = 0; mockAnswers.length = 0; mockProofs.length = 0;
+  mockJournalDown = false;
   mockStage = 'none'; mockConfirmer = ''; mockOrigin = ''; mockStock = 3; mockMenuPrice = mockIssued.amount; mockSessionSeed = 1; mockEntranceDown = false; mockQuoteChange = undefined; mockHeld = false;
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset};
   Object.assign(mockChain, {merchant: {signer: mockPolicy.signer, beneficiary: mockPolicy.beneficiary, keyVersion: mockPolicy.keyVersion,
@@ -466,4 +477,101 @@ test('the merchant record a server could not choose: only the pinned contract is
   const asked = mockChain.calls.filter(call => call.data.startsWith('0x' + mockSelector('merchants(bytes32)')));
   expect(asked).toEqual([{to: mockPolicy.contract, data: '0x' + mockSelector('merchants(bytes32)') + mockPolicy.merchantId}]);
   expect(readProfiles.stable.evm).toBe('8283');
+});
+
+describe('coming back to a payment under review', () => {
+  const comeBack = async () => {
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockSent.length = 0; mockProofs.length = 0; mockChain.calls.length = 0;
+    await open();
+  };
+
+  test('the store\'s record is read again from the contract with no board near, and the payment goes on by it', async () => {
+    await toConfirm();
+    mockBoardNear = false;
+    await comeBack();
+    // What the kept payment was checked against is confirmed again before anything uses it: the chain, not a board.
+    expect(mockChain.calls.filter(call => call.to === mockPolicy.contract).map(call => call.data.slice(0, 10)))
+      .toEqual(['0x' + mockSelector('asset()'), '0x' + mockSelector('merchants(bytes32)')]);
+    expect(mockProofs).toEqual([]);
+    expect(sentPaths().filter(path => path === 'challenge' || path === 'proof')).toEqual([]);
+    expect(screen()).toContain('결제 내용을 확인하세요');
+    expect(screen()).not.toContain('체인에서');
+    mockBoardNear = true;
+    await press('내 보드 확인');
+    expect(screen()).toContain('95.50 TestUSDC');
+    expect(screen()).not.toContain('보드를 찾지 못했습니다');
+    // The store's session of before is gone with the page: the board proves its account once more, then approves.
+    await press('보드로 승인');
+    await tick(2500);
+    expect(mockProofs).toEqual([mockPayer, mockPayer]); // the checkout session again, then the paid order's own
+    expect(mockApprove).toHaveBeenCalledTimes(1);
+    expect(mockLocks).toHaveLength(1);
+    expect(screen()).toContain('주문이 접수되었습니다');
+    expect(screen()).not.toContain('키오스크 연결을 확인하고');
+  });
+
+  test('a record that cannot be read again is said as that, never as a board that was not found', async () => {
+    await toConfirm();
+    mockChain.down = true;
+    await comeBack();
+    expect(screen()).toContain('결제 내용을 확인하세요');
+    expect(screen()).toContain('결제 정보를 체인에서 다시 확인하지 못했습니다. 연결을 확인하고 다시 시도하세요.');
+    await press('내 보드 확인');
+    expect(screen()).toContain('결제 정보를 체인에서 다시 확인하지 못했습니다.');
+    expect(screen()).not.toContain('보드를 찾지 못했습니다');
+    expect(screen()).not.toContain('보드 상태를 확인하지 못했습니다');
+    expect(button('보드로 승인')).toBeUndefined();
+    expect(mockProofs).toEqual([]);
+    // Once the chain answers, the same button goes on.
+    mockChain.down = false;
+    await press('내 보드 확인');
+    expect(screen()).not.toContain('체인에서 다시 확인하지 못했습니다');
+    expect(screen()).toContain('95.50 TestUSDC');
+    expect(button('보드로 승인')).toBeDefined();
+  });
+
+  test('a signed payment that was not sent yet is not called a lost key when the record cannot be read', async () => {
+    await toConfirm();
+    await press('내 보드 확인');
+    // The board signs; the store's server stops answering before the signature is sent.
+    mockApprove.mockImplementationOnce(async (payment, phone, _request, onBoard) => {
+      onBoard();
+      mockEntranceDown = true;
+      return boardSignature(phone, undefined, Buffer.from((payment as {bytes: Uint8Array}).bytes).toString('hex'));
+    });
+    await press('보드로 승인');
+    expect(mockApprove).toHaveBeenCalledTimes(1);
+    expect(mockLocks).toEqual([]);
+    mockChain.down = true;
+    await comeBack();
+    expect(screen()).toContain('승인한 결제를 아직 보내지 못했습니다');
+    await press('같은 결제 보내기');
+    expect(screen()).not.toContain('주문 확인 키를 찾을 수 없습니다');
+    expect(screen()).toContain('결제 정보를 체인에서 다시 확인하지 못했습니다.');
+    expect(mockLocks).toEqual([]);
+    mockChain.down = false; mockEntranceDown = false;
+    await press('같은 결제 보내기');
+    await tick(2500);
+    expect(mockApprove).toHaveBeenCalledTimes(1); // the board is not asked again
+    expect(mockLocks).toHaveLength(1);
+    expect(screen()).toContain('주문이 접수되었습니다');
+  });
+});
+
+test('too many requests at the store\'s server is said as that, and the session is not asked for again', async () => {
+  await toOrder();
+  const {default: http} = jest.requireMock('../src/specs/NativeCommerceHttp.ts') as {default: {customerRequest: (...args: string[]) => Promise<string>}};
+  const real = http.customerRequest;
+  let busy = true;
+  jest.spyOn(http, 'customerRequest').mockImplementation(async (anchor, path, session, body) =>
+    busy && path === '/v2/customer/commerce' ? JSON.stringify({status: 429, body: JSON.stringify({status: 'error', error: 'BUSY'})}) : real(anchor, path, session, body));
+  mockSent.length = 0; mockProofs.length = 0;
+  await press('이 주문의 결제 내용 검토');
+  expect(screen()).toContain('요청이 많습니다. 잠시 뒤 다시 시도하세요.');
+  expect(mockProofs).toEqual([]);
+  busy = false;
+  await press('이 주문의 결제 내용 검토');
+  expect(screen()).toContain('결제 내용을 확인하세요');
+  expect(mockProofs).toEqual([]); // the checkout session stood all along
 });

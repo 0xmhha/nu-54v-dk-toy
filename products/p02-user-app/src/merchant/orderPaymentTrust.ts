@@ -113,8 +113,8 @@ export function pinnedPolicy(pin: OrderPaymentPin, merchantId: string, record: M
 
 /**
  * What a store's menu is shown with before the chain is read: the contract and token of the build, and nobody to pay.
- * It is not a pinned policy, so no quote verifies against it. `confirmPolicy` fills in the merchant record later, in
- * place, so every screen that already holds this policy pays by the confirmed one.
+ * It is not a pinned policy, so no quote verifies against it. `confirmPolicy` makes the pinned policy of the same
+ * store from it; this object stays as it is.
  */
 export function unconfirmedPolicy(pin: OrderPaymentPin, merchantId: string | undefined): CommercePaymentProfile {
   const nobody = '0x' + '0'.repeat(40);
@@ -123,12 +123,16 @@ export function unconfirmedPolicy(pin: OrderPaymentPin, merchantId: string | und
     keyVersion: 0, beneficiaryVersion: 0, maxBaseUnits: fromBoard(30_000_000n, paymentToken(pin)).toString()};
 }
 
-/** Makes an unconfirmed policy the pinned policy of its merchant, with the record the contract holds. */
-export function confirmPolicy(policy: CommercePaymentProfile, pin: OrderPaymentPin, record: MerchantRecord): void {
+/**
+ * The pinned policy of an unconfirmed policy's merchant, with the record the contract holds. It is a new object: the
+ * unconfirmed one is not changed, so a screen that holds it is drawn again with the new one, not altered under it.
+ */
+export function confirmPolicy(policy: CommercePaymentProfile, pin: OrderPaymentPin, record: MerchantRecord): CommercePaymentProfile {
+  // The placeholder number of a store that named none is nobody's.
+  if (/^0+$/.test(policy.merchantId)) throw new PaymentTrustError('MERCHANT_UNKNOWN');
   const checked = pinnedPolicy(pin, policy.merchantId, record);
   if (checked.contract !== policy.contract || checked.asset !== policy.asset) throw new PaymentTrustError('CONTRACT_MISMATCH');
-  Object.assign(policy, {signer: checked.signer, beneficiary: checked.beneficiary, keyVersion: checked.keyVersion, beneficiaryVersion: checked.beneficiaryVersion});
-  pinned.add(policy);
+  return checked;
 }
 
 /**

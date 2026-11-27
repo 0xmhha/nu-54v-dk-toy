@@ -7,11 +7,12 @@ import {serverFor} from '../wallet/networks.ts';
 import {decodeWalletStorage} from '../wallet/profile.ts';
 import {readProfiles, walletReadRpc} from '../wallet/readProfiles.ts';
 import {walletId} from './customerClient.ts';
-import {EntranceError, entranceAnchor, nativeEntrance, type EntrancePost, type PickupBoard} from './customerEntrance.ts';
+import {EntranceError, nativeEntrance, type EntrancePost, type PickupBoard} from './customerEntrance.ts';
 import {approvedCustomerEntrance, approvedOrderPayment} from './customerEntranceDeployment.ts';
 import {customerDigest, type CustomerJournal} from './customerJournal.ts';
 import {openCustomerSession, SessionEntrance, type CustomerSession, type SessionProblem, type SessionScope} from './customerSession.ts';
 import {confirmPolicy, isPinnedPolicy, orderPaymentPin, PaymentTrustError, readMerchantRecord, unconfirmedPolicy, type PaymentTrustCode} from './orderPaymentTrust.ts';
+import {ordersWithoutRegistration} from './orderRoute.ts';
 import {orderRecords} from './orderRecords.ts';
 
 // One store, ordered from without registering there (traveller-services.md chapter 9 items 2 and 6). The menu and
@@ -21,6 +22,12 @@ import {orderRecords} from './orderRecords.ts';
 // against the order contract of this build (orderPaymentTrust.ts) before that first proof.
 
 export type StoreChoice = {branch: string; name: string; merchantId?: string};
+
+/** The store's server has too many requests now. Nothing is known to have changed; the same request is sent again shortly. */
+export class StoreBusy extends Error {
+  readonly code = 'CUSTOMER_ENTRANCE_BUSY';
+  constructor() { super('BUSY'); }
+}
 
 /** The request needs the board's account proof first. `scope` says which one. */
 export class SessionNeeded extends Error {
@@ -59,15 +66,25 @@ export type AccessParts = {
 const margin = 40; // a request lives 30 seconds and must end before its session does
 const sessionsLimit = 32;
 
+/**
+ * The sealed journal did not take the order sessions. The board proves again, so nothing is lost but a proof; yet a
+ * name the native allow-list does not hold fails the same way on every phone, and did once without anyone seeing
+ * it. A development build says so.
+ */
+function sessionsNotKept(step: 'read' | 'written', error: unknown) {
+  if (__DEV__) console.error(`Order sessions were not ${step}: the sealed journal refused the name or the store.`, (error as {code?: string})?.code ?? error);
+}
+
 export class StoreAccess {
   readonly client: CommerceClient;
-  readonly policy: CommercePaymentProfile;
   readonly journals: {read(kind: CustomerJournal): Promise<string>; write(kind: CustomerJournal, value?: object): Promise<void>};
   /** What this access is, for telling one page's state from another's. */
   readonly id: string;
   private readonly profile: CommerceProfile;
   private checkout?: CustomerSession;
   private orders = new Map<string, CustomerSession>();
+  private current: CommercePaymentProfile;
+  private readonly sessionsName: string;
 
   private constructor(readonly store: StoreChoice, readonly account: string | undefined, private readonly parts: AccessParts) {
     const {branch} = store;
@@ -75,7 +92,8 @@ export class StoreAccess {
     // account's, or a placeholder while this phone has no board; the server's answer to a proof must name the same.
     this.profile = {role: 'customer', branchRef: branch, tenantRef: branch, subjectRef: account ? customerSubject(account) : branch, expiresAt: 4_102_444_800};
     this.id = customerDigest(JSON.stringify(['entrance', parts.origin, branch, this.profile.subjectRef]));
-    this.policy = unconfirmedPolicy(parts.pin, store.merchantId);
+    this.current = unconfirmedPolicy(parts.pin, store.merchantId);
+    this.sessionsName = `customer-sessions-${this.id}`;
     const name = (kind: string) => `customer-${kind}-${this.id}`;
     this.journals = {
       read: async kind => { const raw = await Http!.loadJournal(name(kind)); return raw === 'null' ? '' : raw; },
@@ -93,10 +111,22 @@ export class StoreAccess {
 
   get subject() { return this.profile.subjectRef; }
 
+  /**
+   * What this store is paid by: the unconfirmed policy of the build until the chain confirmed the store, then the
+   * pinned one. A confirmation puts a new object here; one handed out before is never changed.
+   */
+  get policy() { return this.current; }
+
   /** Order sessions outlive the page: each follows one paid order until it ends. They are kept in the sealed journal. */
   private async restore() {
+    let raw: string;
     try {
-      const raw = await Http!.loadJournal(`customer-sessions-${this.id}`);
+      raw = await Http!.loadJournal(this.sessionsName);
+    } catch (error) {
+      sessionsNotKept('read', error);
+      return;
+    }
+    try {
       const rows = raw ? JSON.parse(raw) as CustomerSession[] : [];
       for (const row of Array.isArray(rows) ? rows.slice(0, sessionsLimit) : []) {
         if (row?.purpose === 'order' && row.branch === this.store.branch && row.subject === this.subject && typeof row.sale === 'string' &&
@@ -105,11 +135,11 @@ export class StoreAccess {
           this.profile.tenantRef = row.tenant;
         }
       }
-    } catch { /* a journal that does not read keeps no session; the board proves again */ }
+    } catch { /* what was kept does not read as sessions; the board proves again */ }
   }
   private keep() {
     const live = [...this.orders.values()].filter(row => row.expiresAt > this.parts.now()).slice(-sessionsLimit);
-    return Http!.saveJournal(`customer-sessions-${this.id}`, JSON.stringify(live)).catch(() => {});
+    return Http!.saveJournal(this.sessionsName, JSON.stringify(live)).catch(error => sessionsNotKept('written', error));
   }
 
   private usable(session?: CustomerSession) {
@@ -140,7 +170,9 @@ export class StoreAccess {
         const path = command.operation === 'catalog.read' ? `/v2/customer/stores/${branch}/menu/${command.body.page}` as const
           : `/v2/customer/stores/${branch}/photos/${command.body.photo}/${command.body.offset}` as const;
         const reply = await this.parts.post(path, '');
-        if (reply.status === 429) throw new Error('BUSY');
+        if (reply.status === 429) throw new StoreBusy();
+        // A store that does not show its page to the public has no menu here either.
+        if (reply.status === 404 && command.operation === 'catalog.read') throw new Error('STORE_NOT_PUBLIC');
         if (reply.status !== 200 || reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
         const {requestId, requestDigest} = bindServiceRequestV2(command,
           {...this.profile, grants: [{domainRef: command.domainRef, objectRef: command.objectRef, operations: [`C3/${command.operation}`]}]}, this.parts.now());
@@ -157,7 +189,8 @@ export class StoreAccess {
         else if (session.sale) { this.orders.delete(session.sale); void this.keep(); }
         throw new SessionNeeded(scope);
       }
-      if (reply.status === 429) throw new Error('BUSY');
+      // Too many requests is no word about the session: it stands, and the same request is sent again shortly.
+      if (reply.status === 429) throw new StoreBusy();
       if (reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
       return JSON.stringify(reply.body);
     } catch (error) {
@@ -172,6 +205,29 @@ export class StoreAccess {
     return !!this.usable(scope.purpose === 'order' ? this.orders.get(scope.sale) : this.checkout);
   }
 
+  /** Reads the store's merchant record from the order contract of this build and makes the policy the pinned one. */
+  private async confirmBy(rpc: EvmRpc): Promise<AccessProblem | undefined> {
+    if (isPinnedPolicy(this.current)) return undefined;
+    if (!this.store.merchantId) return {kind: 'payment', code: 'NO_MERCHANT'};
+    try {
+      this.current = confirmPolicy(this.current, this.parts.pin, await readMerchantRecord(rpc, readProfiles.stable.anchor, this.parts.pin, this.store.merchantId));
+      return undefined;
+    } catch (error) {
+      return {kind: 'payment', code: error instanceof PaymentTrustError ? error.code : 'CHAIN_UNREADABLE'};
+    }
+  }
+
+  /**
+   * Confirms the policy from the chain alone: no board is asked and nothing goes to the store's server. A page that
+   * comes back to a payment it kept needs the same policy that payment was checked against, before any board is near.
+   */
+  async confirm(): Promise<AccessProblem | undefined> {
+    if (isPinnedPolicy(this.current)) return undefined;
+    const wallet = await this.parts.wallet().catch(() => undefined);
+    if (!wallet || !this.account || wallet.account !== this.account) return {kind: 'no-account'};
+    return this.confirmBy(wallet.rpc);
+  }
+
   /**
    * Makes sure the session of `scope` stands, asking the board for one account proof when it does not. Before a
    * checkout proof the store's merchant record is read from the order contract of this build; a store that cannot
@@ -182,13 +238,9 @@ export class StoreAccess {
     if (this.live(scope)) return undefined;
     const wallet = await this.parts.wallet().catch(() => undefined);
     if (!wallet || !this.account || wallet.account !== this.account) return {kind: 'no-account'};
-    if (scope.purpose === 'checkout' && !isPinnedPolicy(this.policy)) {
-      if (!this.store.merchantId) return {kind: 'payment', code: 'NO_MERCHANT'};
-      try {
-        confirmPolicy(this.policy, this.parts.pin, await readMerchantRecord(wallet.rpc, readProfiles.stable.anchor, this.parts.pin, this.store.merchantId));
-      } catch (error) {
-        return {kind: 'payment', code: error instanceof PaymentTrustError ? error.code : 'CHAIN_UNREADABLE'};
-      }
+    if (scope.purpose === 'checkout') {
+      const unpaid = await this.confirmBy(wallet.rpc);
+      if (unpaid) return unpaid;
     }
     const opened = await openCustomerSession(new SessionEntrance(this.parts.post), this.parts.board, this.account, scope, wallet.generation);
     if (opened.kind !== 'session') return opened;
@@ -234,7 +286,7 @@ const noBoard: PickupBoard = {open: async () => { throw new Error('BOARD_NOT_FOU
 export async function openStoreAccess(store: StoreChoice, board: PickupBoard = noBoard, anchor = approvedCustomerEntrance,
   payment = approvedOrderPayment): Promise<StoreAccess | undefined> {
   const pin = orderPaymentPin(payment);
-  if (!anchor || !entranceAnchor(anchor) || !pin || !Http) return undefined;
+  if (!anchor || !ordersWithoutRegistration(anchor, payment) || !pin || !Http) return undefined;
   return StoreAccess.open(store, {post: nativeEntrance(anchor), origin: anchor.origin, pin, board, wallet: () => testedWallet(pin.rpc),
     now: () => Math.floor(Date.now() / 1000)});
 }

@@ -3,7 +3,7 @@ import {resolve} from 'node:path';
 import {keccak_256} from '@noble/hashes/sha3';
 import {addressOfPrivateKey, bigToBytes, bytesToHex, hexToBytes, quoteV2Layout as q, utf8Encode, type CommercePaymentProfile} from '@nu54/protocol';
 import type {OrderPaymentPin} from '../src/merchant/customerEntranceDeployment';
-import {isPinnedPolicy, orderPaymentPin, PaymentTrustError, pinnedPolicy, readMerchantRecord, verifyPinnedQuote, type MerchantRecord} from '../src/merchant/orderPaymentTrust';
+import {confirmPolicy, isPinnedPolicy, orderPaymentPin, PaymentTrustError, pinnedPolicy, readMerchantRecord, unconfirmedPolicy, verifyPinnedQuote, type MerchantRecord} from '../src/merchant/orderPaymentTrust';
 import {reviewedPayment} from '../src/merchant/paymentCheckpoint';
 import {branch, generation, now, order, payer, policy, quote, quoteFor, sale} from './fixtures/order';
 
@@ -166,5 +166,29 @@ describe('a quote is checked against the pin and the on-chain record', () => {
     expect(() => verifyPinnedQuote(large, {...sameOrder(large), amount: '30000001'}, trusted, now, scope)).toThrow('PAYMENT_QUOTE_MISMATCH');
     const policyOf = (value: CommercePaymentProfile) => value.maxBaseUnits;
     expect(policyOf(pinnedPolicy({...pin, token: {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2}}, merchantId, record))).toBe('30000000');
+  });
+});
+
+describe('a store\'s policy before and after the chain is read', () => {
+  test('confirming makes a new pinned policy and leaves the unconfirmed one as it was', () => {
+    const shown = unconfirmedPolicy(pin, merchantId);
+    const before = JSON.stringify(shown);
+    expect(isPinnedPolicy(shown)).toBe(false);
+    const confirmed = confirmPolicy(shown, pin, record);
+    expect(confirmed).not.toBe(shown);
+    expect(isPinnedPolicy(confirmed)).toBe(true);
+    expect(confirmed).toMatchObject({...record, merchantId, contract: pin.contract, asset: pin.asset});
+    // A screen that still holds the first object is not paid by: it stays nobody's, and no quote verifies against it.
+    expect(JSON.stringify(shown)).toBe(before);
+    expect(isPinnedPolicy(shown)).toBe(false);
+    expect(/^0x0+$/.test(shown.signer) && /^0x0+$/.test(shown.beneficiary)).toBe(true);
+    expect(() => verifyPinnedQuote(quote, order, shown, now, {branch, sale})).toThrow('PAYMENT_PROFILE');
+    expect(verifyPinnedQuote(quote, order, confirmed, now, {branch, sale}).payer).toBe(payer);
+  });
+
+  test('a record of another contract or token than the unconfirmed policy names is not taken', () => {
+    const shown = unconfirmedPolicy(pin, merchantId);
+    expect(() => confirmPolicy(shown, {...pin, contract: '0x' + '6'.repeat(40)}, record)).toThrow('ORDER_PAYMENT_CONTRACT_MISMATCH');
+    expect(() => confirmPolicy(unconfirmedPolicy(pin, undefined), pin, record)).toThrow('ORDER_PAYMENT_MERCHANT_UNKNOWN');
   });
 });

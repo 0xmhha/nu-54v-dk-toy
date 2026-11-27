@@ -126,7 +126,8 @@ import {useScreenProtection} from '../ui/screenProtection.ts';
 import {isFormerBoard, OpenOrderCard, OrderDetail} from './OpenOrders.tsx';
 import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} from './OrderPayment.tsx';
 import {configuredEntrance, issuePickupQr, shortAccount} from './customerEntrance.ts';
-import {openStoreAccess, SessionNeeded, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
+import {isPinnedPolicy} from './orderPaymentTrust.ts';
+import {openStoreAccess, SessionNeeded, StoreBusy, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
 import {ownerPickupBoard} from './pickupBoard.ts';
 import {PickupQrScreen} from './PickupQr.tsx';
 
@@ -189,8 +190,11 @@ function orderRowDetail(row: CustomerOrderSummary, sent?: OpenOrder) {
   const state = sent?.stage ? openOrderLabel(sent) : orderStateLabel[row.state];
   return sent ? `${new Date(sent.sentAt * 1000).toLocaleString('ko-KR', {month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'})} · ${state}` : state;
 }
-/** Why an order at a store reached without a registration cannot go on, in the customer's words. */
-function accessProblemText(problem: AccessProblem | {kind: 'no-build'}) {
+/**
+ * Why an order at a store reached without a registration cannot go on, in the customer's words. `kept`: the page
+ * came back to a payment it had kept, so the order was started before.
+ */
+function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = false) {
   switch (problem.kind) {
     case 'no-build': return '이 앱에는 주문을 받을 매장 서버와 주문 계약이 아직 정해지지 않았습니다.';
     case 'no-account': return '주문하려면 먼저 지갑 탭에서 보드를 연결하고 서명 시험을 마치세요.';
@@ -199,8 +203,12 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}) {
     case 'board-changed': return '보드 등록이 바뀌었습니다. 지갑 탭의 보드 설정에서 서명 시험을 다시 한 뒤 주문하세요.';
     case 'held': return '이 보드 계정에 끝나지 않은 주문이 있어 지금은 새로 시작할 수 없습니다. 진행 중인 주문을 먼저 확인하세요.';
     case 'busy': return '요청이 많습니다. 잠시 뒤 다시 시도하세요.';
+    // The board near is this phone's own and proved its account; the server still did not accept it for what was asked.
+    case 'mismatch': return '매장 서버가 이 보드 계정의 확인을 받아들이지 않았습니다. 주문 상태를 다시 확인하고, 같은 안내가 나오면 매장에 문의하세요.';
+    case 'refused': return '매장 서버가 이 요청을 받지 않았습니다. 다시 시도해도 같으면 매장에 문의하세요.';
     case 'payment': return problem.code === 'NO_MERCHANT' ? '이 매장은 아직 앱에서 주문 결제를 받지 않습니다.'
-      : problem.code === 'CHAIN_UNREADABLE' ? '결제 정보를 체인에서 확인하지 못해 주문을 시작하지 않았습니다. 잠시 뒤 다시 시도하세요.'
+      : problem.code === 'CHAIN_UNREADABLE' ? (kept ? '결제 정보를 체인에서 다시 확인하지 못했습니다. 연결을 확인하고 다시 시도하세요.'
+        : '결제 정보를 체인에서 확인하지 못해 주문을 시작하지 않았습니다. 잠시 뒤 다시 시도하세요.')
       : '이 매장의 결제 정보가 이 앱의 주문 계약과 맞지 않아 주문할 수 없습니다. 운영자에게 문의하세요.';
     default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
   }
@@ -397,6 +405,12 @@ export function CustomerOrders({
   const [reviewClock, setReviewClock] = useState(now);
   const boardReview = useRef<object | undefined>(undefined);
   const [policy, setPolicy] = useState<CommercePaymentProfile>();
+  // A store page's policy is confirmed from the chain in the middle of a step and is then a new object, while the
+  // step that is running still holds the one its page was drawn with. The two differ only in who is paid (the
+  // merchant record), so whatever checks a payment reads the policy here, at the time of the check.
+  const policyNow = useRef<CommercePaymentProfile | undefined>(undefined);
+  const keepPolicy = useCallback((next?: CommercePaymentProfile) => { policyNow.current = next; setPolicy(next); }, []);
+  const trusted = (drawn: CommercePaymentProfile) => policyNow.current ?? drawn;
   const storeBranch = store?.branch, storeName = store?.name, storeMerchant = store?.merchantId;
   const [storeAccess, setStoreAccess] = useState<StoreAccess>();
   const [storeProblem, setStoreProblem] = useState<AccessProblem | {kind: 'no-build'}>();
@@ -487,7 +501,7 @@ export function CustomerOrders({
     setPoint(undefined);
     setNearbySoldOut(undefined);
     setTicket(undefined);
-    setPolicy(undefined);
+    keepPolicy(undefined);
     setOrderFocus(true);
     setOrderBoard(undefined);
     setOrderBlocked(undefined);
@@ -545,8 +559,12 @@ export function CustomerOrders({
         const actor = access.client;
         const pending = checkpoint(await access.journals.read('order'), actor);
         const payment = paymentCheckpoint(await access.journals.read('payment'), actor.profile.branchRef, actor.profile.subjectRef);
+        // A payment kept from before was checked against the store's record in the order contract. The record is
+        // read again here, with no board near, so the page goes on with the policy that payment was checked against.
+        const unconfirmed = payment ? await access.confirm() : undefined;
         if (!current()) return;
-        setPolicy(access.policy);
+        keepPolicy(access.policy);
+        if (unconfirmed) setStoreProblem(unconfirmed);
         setJournals(access.journals);
         setApproved(payment);
         setPoint(pending);
@@ -571,8 +589,12 @@ export function CustomerOrders({
             setCatalog(menu.catalog);
             if (menu.shop) setShop({identity: menu.shop, route: 'direct'});
             setStoreState({state: menu.orderState, checkedAt: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`});
-          } catch {
-            if (current()) setMessage('메뉴를 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.');
+          } catch (error) {
+            if (!current()) return;
+            if (error instanceof StoreBusy) setStoreProblem({kind: 'busy'});
+            else setMessage(error instanceof Error && error.message === 'STORE_NOT_PUBLIC'
+              ? '이 매장을 찾지 못했습니다. 매장이 문을 닫았거나, 이 앱에서 주문을 받지 않는 매장입니다.'
+              : '메뉴를 불러오지 못했습니다. 연결을 확인하고 다시 시도하세요.');
           }
         }
         return;
@@ -610,7 +632,7 @@ export function CustomerOrders({
           if (parseOrderLocator(initialLocator, now()).orderRef !== detail.id)
             throw new Error('WRONG_ORDER');
           if (current()) {
-            setPolicy(paymentProfile(raw));
+            keepPolicy(paymentProfile(raw));
             setOrder(detail);
             setClient(actor);
             setJournals(scopedJournals);
@@ -668,7 +690,7 @@ export function CustomerOrders({
           throw new Error('QR_JOURNAL');
         setTicket(value);
       } else setTicket(undefined);
-      setPolicy(paymentProfile(raw));
+      keepPolicy(paymentProfile(raw));
       setJournals(scopedJournals);
       setApproved(payment);
       setPoint(pending);
@@ -704,7 +726,7 @@ export function CustomerOrders({
     } catch {
       if (current()) { setPhase('locked'); showStranded(); }
     }
-  }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant]);
+  }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant, keepPolicy]);
 
   useEffect(() => {
     mounted.current = true;
@@ -821,6 +843,26 @@ export function CustomerOrders({
       paymentReviewStop(approved, now()) !== undefined);
   }
 
+  /** Takes over the policy the store access confirmed, for the next drawing and for the step that is running. */
+  function adoptStorePolicy() {
+    if (storeAccess && storeAccess.policy !== policyNow.current) keepPolicy(storeAccess.policy);
+  }
+
+  /**
+   * A kept payment of a store page is used only with the policy it was checked against: the store's record in the
+   * order contract. When that could not be read as the page came back, it is read again here, with no board. False
+   * when it still cannot be read; the page then says so and the step does not run.
+   */
+  async function storePolicyReady() {
+    if (!storeAccess || isPinnedPolicy(policyNow.current)) return true;
+    const revision = loadRevision.current;
+    const problem = await storeAccess.confirm();
+    if (!mounted.current || revision !== loadRevision.current) return false;
+    adoptStorePolicy();
+    setStoreProblem(problem);
+    return !problem;
+  }
+
   function work(action: () => Promise<void>, failure: string) {
     if (performing.current) return;
     const token = {};
@@ -836,11 +878,15 @@ export function CustomerOrders({
         if (!(error instanceof SessionNeeded) || !storeAccess) throw error;
         const problem = await storeAccess.ensure(error.scope);
         if (!live()) return;
+        adoptStorePolicy();
         setStoreProblem(problem);
         if (!problem) await action();
       })
-      .catch(() => {
-        if (live()) setMessage(failure);
+      .catch((error: unknown) => {
+        if (!live()) return;
+        // Too many requests at the store's server: nothing is known to have failed, and the session stands.
+        if (storeAccess && error instanceof StoreBusy) setStoreProblem({kind: 'busy'});
+        else setMessage(failure);
       })
       .finally(() => {
         if (performing.current === token) {
@@ -921,6 +967,7 @@ export function CustomerOrders({
       // the board proves its account. Stock is held only by the order that follows.
       const problem = await storeAccess.ensure({purpose: 'checkout', branch: storeAccess.store.branch});
       if (!mounted.current || revision !== loadRevision.current) return;
+      adoptStorePolicy();
       setStoreProblem(problem);
       if (problem) return;
     }
@@ -1408,7 +1455,7 @@ export function CustomerOrders({
     setOrderBlocked(undefined);
     if (escrow && quote.expiresAt <= now()) return block('expired');
     if (escrow && BigInt(sale.amount) > BigInt(policy.maxBaseUnits)) return block('over-limit');
-    const payment = reviewedPayment(quote, sale, policy, now(), {
+    const payment = reviewedPayment(quote, sale, trusted(policy), now(), {
       branch: client.profile.branchRef,
       customer: client.profile.subjectRef,
       ...expected,
@@ -1567,7 +1614,7 @@ export function CustomerOrders({
     }
     if (!matchesReviewedOrder(entry, current) || quote.signedQuote !== entry.quote.signedQuote)
       throw new Error('PAYMENT_ORDER_STATE');
-    reviewedPayment(quote, current, policy, now(), entry.scope);
+    reviewedPayment(quote, current, trusted(policy), now(), entry.scope);
     if (!mounted.current || revision !== loadRevision.current) throw new Error('PAYMENT_REVIEW_CHANGED');
     return {...entry, quote};
   }
@@ -1696,7 +1743,7 @@ export function CustomerOrders({
     const verified = reviewedPayment(
       approved.quote,
       approved.order,
-      policy,
+      trusted(policy),
       now(),
       approved.scope,
     );
@@ -1738,7 +1785,8 @@ export function CustomerOrders({
     const entry = approved;
     if (!entry?.confirmer || !OwnerWallet || !policy || paymentReviewStop(entry, now())) throw new Error('PAYMENT_BOARD_REQUIRED');
     const revision = loadRevision.current;
-    const payment = reviewedPayment(entry.quote, entry.order, policy, now(), entry.scope);
+    if (!(await storePolicyReady())) return;
+    const payment = reviewedPayment(entry.quote, entry.order, trusted(policy), now(), entry.scope);
     const local = decodeWalletStorage(await OwnerWallet.loadProfile());
     if (!local.enrollment || local.verified?.address !== payment.payer || BigInt(local.verified.generation) !== payment.generation) {
       setOrderBoard({request: entry.request, block: 'wrong-account'});
@@ -1833,7 +1881,7 @@ export function CustomerOrders({
         await keepPayment({...reviewed, reviewStop: current.state === 'checking' ? 'interrupted' : 'changed'});
         return;
       }
-      const payment = reviewedPayment(reviewed.quote, current, policy, now(), reviewed.scope);
+      const payment = reviewedPayment(reviewed.quote, current, trusted(policy), now(), reviewed.scope);
       if (needsMerchantSponsorship(reviewed)) {
         const before = verifyPresentedGasSponsor(reviewed.quote, current, policy, now(), reviewed.scope);
         try {
@@ -1933,6 +1981,9 @@ export function CustomerOrders({
       if (currentReview()) setMessage('보드가 승인했습니다. 같은 주문의 지급 결과를 확인하세요.');
     } catch (error) {
       if (!currentReview()) return;
+      // A store page's session that ran out, or a busy server, is not an answer about this payment: the step asks
+      // the board for the account proof and runs again, or says the server is busy.
+      if (error instanceof SessionNeeded || error instanceof StoreBusy) throw error;
       if (error instanceof Error && error.message === 'PAYMENT_REFUSED') {
         if (reviewed.confirmer) await orderRecords(Http!).answerRequest(reviewed.request, 'refused');
         await keepPayment({...activeReview, boardStarted, reviewStop: 'refused'});
@@ -2055,7 +2106,7 @@ export function CustomerOrders({
       if (prior.account !== witness.account || prior.grant !== witness.grant) throw new Error('GAS_SPONSOR_CHANGED');
       forwardReview = refreshed;
     }
-    const {payment, approval} = approvalForForward(forwardReview, policy, now());
+    const {payment, approval} = approvalForForward(forwardReview, trusted(policy), now());
     if (orderView.cafeReview && payment.payerRole === 'renter')
       verifyPresentedRentalEscrow(forwardReview.quote, orderView, policy, now(), entry.scope);
     const attempt = {...forwardReview, forwardAttempted: true as const};
@@ -2086,9 +2137,9 @@ export function CustomerOrders({
     if (live()) await observePayment(confirmed, client);
   }
 
-  /** The board account the reviewed order is paid from. */
+  /** The board account the reviewed order is paid from. It throws when the payment does not verify by the policy. */
   function orderAccount(entry: PaymentCheckpoint) {
-    const {payer, generation} = reviewedPayment(entry.quote, entry.order, policy!, entry.quote.expiresAt - 1, entry.scope);
+    const {payer, generation} = reviewedPayment(entry.quote, entry.order, trusted(policy!), entry.quote.expiresAt - 1, entry.scope);
     return {payer, generation: generation.toString()};
   }
 
@@ -2098,9 +2149,12 @@ export function CustomerOrders({
     const revision = loadRevision.current;
     const live = () => mounted.current && revision === loadRevision.current;
     const records = orderRecords(Http);
+    if (!(await storePolicyReady())) return;
+    // A payment that does not verify by the policy is not a lost key: only the key store's own answer says that.
+    const account = orderAccount(entry);
     if (!entry.forwardAttempted) {
       try {
-        await records.confirmer(orderAccount(entry), entry.confirmer);
+        await records.confirmer(account, entry.confirmer);
       } catch {
         if (live()) setOrderBoard({request: entry.request, block: 'key-lost'});
         return;
@@ -2123,9 +2177,9 @@ export function CustomerOrders({
       await keepPayment({...entry, authorization: undefined, boardSigned: true, reviewStop: 'changed'});
       return;
     }
-    const {payment, confirmer, lockDigest, signature} = lockForSubmit(entry, policy, now());
+    const {payment, confirmer, lockDigest, signature} = lockForSubmit(entry, trusted(policy), now());
     await records.keep({
-      ...orderAccount(entry), escrow: policy.contract, merchantId: policy.merchantId, sale: entry.order.id, branch: entry.branch, customer: entry.customer, confirmer, store: entry.store,
+      ...account, escrow: policy.contract, merchantId: policy.merchantId, sale: entry.order.id, branch: entry.branch, customer: entry.customer, confirmer, store: entry.store,
       asset: entry.order.asset, amount: entry.order.amount, orderKey: entry.quote.orderKey, sentAt: now(),
       // What was bought, kept for the receipt: the lines of the basket this order was made from.
       ...(point?.order === entry.order.id && point.selection ? (() => {
@@ -2161,7 +2215,8 @@ export function CustomerOrders({
     if (!policy || !Http) throw new Error('PAYMENT_PROFILE');
     const revision = loadRevision.current;
     const escrow = view.escrow;
-    const payment = reviewedPayment(entry.quote, entry.order, policy, entry.quote.expiresAt - 1, entry.scope);
+    if (!(await storePolicyReady())) return false;
+    const payment = reviewedPayment(entry.quote, entry.order, trusted(policy), entry.quote.expiresAt - 1, entry.scope);
     if (view.id !== entry.order.id || view.asset !== entry.order.asset || view.amount !== entry.order.amount ||
         (escrow && (!validOrderEscrowStatus(escrow) || escrow.confirmer !== entry.confirmer || escrow.payer !== payment.payer ||
           escrow.orderKey !== entry.quote.orderKey || escrow.escrow !== policy.contract)))
@@ -2336,6 +2391,7 @@ export function CustomerOrders({
   async function findOrderBoard() {
     setOrderBoard(undefined);
     const revision = loadRevision.current;
+    if (!(await storePolicyReady())) return;
     const found = await findBoard();
     if (!mounted.current || revision !== loadRevision.current) return;
     if (found.length === 1) await checkOrderBoard(found[0]);
@@ -2430,6 +2486,7 @@ export function CustomerOrders({
       // An answer goes with the session of this one order; the board that paid proves its account for it once.
       const problem = await storeAccess.ensure({purpose: 'order', branch: recorded.branch, sale: recorded.sale});
       if (!mounted.current || revision !== loadRevision.current) return;
+      adoptStorePolicy();
       setStoreProblem(problem);
       if (problem) return;
     }
@@ -2635,7 +2692,7 @@ export function CustomerOrders({
   if (orderView) {
     // Each step of the payment starts at its top, whatever was scrolled before.
     return <ScrollView key={orderView.kind} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-      <OrderPayment view={orderView} busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem) : '')}
+      <OrderPayment view={orderView} busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem, !!approved) : '')}
         t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text}
         actions={{
           findBoard: () => work(findOrderBoard, '보드를 찾지 못했습니다. 보드 전원과 블루투스 권한을 확인하세요.'),
