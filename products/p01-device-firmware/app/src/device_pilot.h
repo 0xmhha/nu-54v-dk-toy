@@ -12,6 +12,8 @@ void device_pilot_enrollment_window(void);
 int device_pilot_install_pins(uint8_t output[64]);
 bool device_pilot_recovery_window(void);
 bool device_pilot_active(void);
+/* A commercial board that works and has no owner: new, or after a factory reset. */
+bool device_pilot_owner_absent(void);
 void device_pilot_button(uint32_t prompt, bool approved);
 bool device_pilot_waiting(void);
 #if defined(CONFIG_NU54_SPENDING_PROFILE)

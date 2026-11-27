@@ -95,6 +95,56 @@ config NU54_SPENDING_DAILY_CAP
 	range 1 2000000000
 	default 100000000
 
+config NU54_OWNER_WAIT_ADV
+	bool "Advertise by itself while the board has no owner"
+	depends on NU54_PILOT_TLS
+	default y if NU54_SPENDING_PROFILE
+	help
+	  A commercial board without an owner (new, or after a factory reset) advertises the owner
+	  service by itself, so the next owner's phone finds it without a button. It starts fast and
+	  goes on slowly to save the battery (core/nu54_adv_schedule.h). A connection alone opens
+	  nothing: the board still asks for the operator's grant, SW1 and a new PIN. The enrollment
+	  window stays on SW4. A board with an owner advertises only after a button, as before.
+
+if NU54_OWNER_WAIT_ADV
+
+config NU54_OWNER_WAIT_FAST_SECONDS
+	int "Seconds of fast advertising after the board starts without an owner"
+	range 0 300
+	default 30
+	help
+	  0 starts with the slow interval. It may not be longer than the total time.
+
+config NU54_OWNER_WAIT_TOTAL_SECONDS
+	int "Seconds until a board without an owner stops advertising (0: never)"
+	range 0 604800
+	default 10800
+	help
+	  After this time the board is silent until SW4 is held. Longer finds the board later at the
+	  cost of the battery; the budget is in board-secure-key-and-advertising.md.
+
+config NU54_OWNER_WAIT_FAST_INTERVAL_MIN
+	int "Shortest fast advertising interval, in 0.625 ms"
+	range 32 16384
+	default 160
+
+config NU54_OWNER_WAIT_FAST_INTERVAL_MAX
+	int "Longest fast advertising interval, in 0.625 ms"
+	range NU54_OWNER_WAIT_FAST_INTERVAL_MIN 16384
+	default 240
+
+config NU54_OWNER_WAIT_SLOW_INTERVAL_MIN
+	int "Shortest slow advertising interval, in 0.625 ms"
+	range NU54_OWNER_WAIT_FAST_INTERVAL_MAX 16384
+	default 1600
+
+config NU54_OWNER_WAIT_SLOW_INTERVAL_MAX
+	int "Longest slow advertising interval, in 0.625 ms"
+	range NU54_OWNER_WAIT_SLOW_INTERVAL_MIN 16384
+	default 1920
+
+endif # NU54_OWNER_WAIT_ADV
+
 source "Kconfig.zephyr"
 
 config NU54_EXPERIMENTAL_PMIC_VIN_READ

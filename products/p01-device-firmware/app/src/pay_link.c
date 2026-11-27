@@ -459,6 +459,11 @@ int pay_link_pairing_mode(uint32_t seconds)
 	return ble_links_pairing_mode(seconds, device.passkey, unprovisioned);
 }
 
+int pay_link_owner_wait(bool on)
+{
+	return ble_links_owner_wait(on);
+}
+
 /* ---------------------------------------------------------------- init */
 
 /* device.paymentMode from the phone app (payment-protocol.md 3, P02-FR-08); on the work queue. */

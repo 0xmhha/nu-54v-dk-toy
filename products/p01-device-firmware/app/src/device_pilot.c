@@ -1818,6 +1818,16 @@ bool device_pilot_waiting(void)
 
 bool device_pilot_active(void) { return device_install_required(); }
 
+bool device_pilot_owner_absent(void)
+{
+	k_mutex_lock(&pilot_lock, K_FOREVER);
+	const nu54_vault *vault = device_vault_owner();
+	bool absent = initialized && device_pilot_active() &&
+		      (!vault->record.generation || (vault->record.flags & NU54_VAULT_RELEASED));
+	k_mutex_unlock(&pilot_lock);
+	return absent;
+}
+
 void device_pilot_enrollment_window(void)
 {
 	k_mutex_lock(&pilot_lock, K_FOREVER);

@@ -40,6 +40,7 @@ target_sources_ifdef(CONFIG_NU54_PILOT_TLS app PRIVATE src/device_tls_v2.c src/d
   src/device_install.c src/device_recovery_pin.c ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_install.c
   ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_running_firmware.c
   src/device_firmware_power.c ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_firmware_power.c)
+target_sources_ifdef(CONFIG_NU54_OWNER_WAIT_ADV app PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../core/src/nu54_adv_schedule.c)
 if(DEFINED NU54_PILOT_PROVISION OR DEFINED ENV{NU54_PILOT_PROVISION})
   message(FATAL_ERROR "Compiled-in pilot credentials have been replaced by signed runtime enrollment")
 endif()

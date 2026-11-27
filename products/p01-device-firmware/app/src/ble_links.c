@@ -14,6 +14,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+#include "nu54_adv_schedule.h"
+#endif
 #include "nu54_frame.h"
 #include "nu54_protocol.h"
 #include "status_led.h"
@@ -211,22 +214,54 @@ static const struct bt_data ad_pilot[] = {
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, UUID128(NU54_PILOT_SERVICE_UUID_PARTS)),
 };
 
-typedef enum { ADV_NONE, ADV_PAYMENT, ADV_PAIRING } adv_set_t;
+typedef enum { ADV_NONE, ADV_PAYMENT, ADV_PAIRING, ADV_OWNER_FAST, ADV_OWNER_SLOW } adv_set_t;
 static adv_set_t advertising; /* the set on air */
 
+/* Owner wait: the schedule a board without an owner advertises on by itself. The start and the
+ * end come from other threads than the Bluetooth callbacks that read it. */
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+BUILD_ASSERT(CONFIG_NU54_OWNER_WAIT_TOTAL_SECONDS == 0 ||
+	     CONFIG_NU54_OWNER_WAIT_FAST_SECONDS <= CONFIG_NU54_OWNER_WAIT_TOTAL_SECONDS,
+	     "the fast phase is part of the total time");
+static nu54_adv_schedule owner_wait;
+static void owner_wait_turn(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(owner_wait_timer, owner_wait_turn);
+#endif
+
+/* The owner-wait set to advertise now and its interval range, or ADV_NONE. */
+static adv_set_t owner_wait_set(uint16_t *min, uint16_t *max)
+{
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	const int64_t now = k_uptime_get();
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	nu54_adv_phase phase = nu54_adv_schedule_phase(&owner_wait, now);
+	(void)nu54_adv_schedule_interval(&owner_wait, now, min, max);
+	k_spin_unlock(&links_lock, key);
+	return phase == NU54_ADV_FAST ? ADV_OWNER_FAST : phase == NU54_ADV_SLOW ? ADV_OWNER_SLOW : ADV_NONE;
+#else
+	(void)min;
+	(void)max;
+	return ADV_NONE;
+#endif
+}
+
 /* Advertises the set the modes call for while a connection slot is free; pairing wins when both
- * are on (it carries the service UUID too). A change of set restarts advertising. */
+ * are on (it carries the service UUID too). A button mode wins over the owner wait, which only
+ * advertises while no central is connected. A change of set restarts advertising. */
 static int advertise(void)
 {
-	bool free_slot = false;
+	bool free_slot = false, idle = true;
 	for (int i = 0; i < LINK_MAX; i++) {
 		struct bt_conn *c = link_conn(i);
 		free_slot |= c == NULL;
+		idle &= c == NULL;
 		if (c) {
 			bt_conn_unref(c);
 		}
 	}
-	adv_set_t want = !free_slot ? ADV_NONE : pairing_mode ? ADV_PAIRING : payment_mode ? ADV_PAYMENT : ADV_NONE;
+	uint16_t owner_min = 0, owner_max = 0;
+	adv_set_t owner = idle ? owner_wait_set(&owner_min, &owner_max) : ADV_NONE;
+	adv_set_t want = !free_slot ? ADV_NONE : pairing_mode ? ADV_PAIRING : payment_mode ? ADV_PAYMENT : owner;
 	if (want == advertising) {
 		return 0;
 	}
@@ -236,7 +271,11 @@ static int advertise(void)
 		return 0;
 	}
 	int err;
-	if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active())
+	if (want == ADV_OWNER_FAST || want == ADV_OWNER_SLOW)
+		/* General discoverable and connectable, like the button window, at the schedule's interval. */
+		err = bt_le_adv_start(BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, owner_min, owner_max, NULL), ad_pilot,
+				      ARRAY_SIZE(ad_pilot), NULL, 0);
+	else if (IS_ENABLED(CONFIG_NU54_PILOT_TLS) && device_pilot_active())
 		err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pilot, ARRAY_SIZE(ad_pilot), NULL, 0);
 	else err = want == ADV_PAIRING
 			  ? bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad_pairing, ARRAY_SIZE(ad_pairing), sd_pairing, ARRAY_SIZE(sd_pairing))
@@ -245,8 +284,53 @@ static int advertise(void)
 		return err;
 	}
 	advertising = want;
-	LOG_INF("advertising for %s", want == ADV_PAIRING ? "pairing" : "payment");
+	LOG_INF("advertising for %s", want == ADV_PAIRING ? "pairing" : want == ADV_PAYMENT ? "payment" :
+		want == ADV_OWNER_FAST ? "the next owner (fast)" : "the next owner (slow)");
 	return 0;
+}
+
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+/* The schedule started, ended or changed phase: advertise at the interval of now, or stop. */
+static void owner_wait_turn(struct k_work *w)
+{
+	(void)w;
+	const int64_t now = k_uptime_get();
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	bool ended = owner_wait.running && nu54_adv_schedule_phase(&owner_wait, now) == NU54_ADV_OFF;
+	int64_t wait = nu54_adv_schedule_wait_ms(&owner_wait, now);
+	if (ended) nu54_adv_schedule_stop(&owner_wait);
+	k_spin_unlock(&links_lock, key);
+	if (ended) LOG_INF("owner wait ended: hold SW4 to advertise again");
+	int err = advertise();
+	if (err) LOG_ERR("owner wait advertising failed (%d)", err);
+	if (wait >= 0) k_work_reschedule(&owner_wait_timer, K_MSEC(wait));
+}
+#endif
+
+int ble_links_owner_wait(bool on)
+{
+#if defined(CONFIG_NU54_OWNER_WAIT_ADV)
+	static const nu54_adv_plan plan = {
+		.fast_seconds = CONFIG_NU54_OWNER_WAIT_FAST_SECONDS,
+		.total_seconds = CONFIG_NU54_OWNER_WAIT_TOTAL_SECONDS,
+		.fast_min = CONFIG_NU54_OWNER_WAIT_FAST_INTERVAL_MIN,
+		.fast_max = CONFIG_NU54_OWNER_WAIT_FAST_INTERVAL_MAX,
+		.slow_min = CONFIG_NU54_OWNER_WAIT_SLOW_INTERVAL_MIN,
+		.slow_max = CONFIG_NU54_OWNER_WAIT_SLOW_INTERVAL_MAX,
+	};
+	bool running = false;
+	k_spinlock_key_t key = k_spin_lock(&links_lock);
+	if (on) running = nu54_adv_schedule_start(&owner_wait, &plan, k_uptime_get());
+	else nu54_adv_schedule_stop(&owner_wait);
+	k_spin_unlock(&links_lock, key);
+	if (on && !running) return -EINVAL;
+	if (on) LOG_INF("owner wait: advertising for the next owner");
+	/* The timer advertises the first phase and follows the later ones. */
+	k_work_reschedule(&owner_wait_timer, K_NO_WAIT);
+	return 0;
+#else
+	return on ? -ENOTSUP : 0;
+#endif
 }
 
 /* A mode ended: advertise what is left, or stop. */
