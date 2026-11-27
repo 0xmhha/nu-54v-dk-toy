@@ -147,28 +147,42 @@ def write_record(apk, files):
 
 
 def build(apk, root, inputs, command, directory):
-    """Build the APK and record its inputs. No record remains when the build fails or the sources move under it."""
+    """Build the APK and record its inputs.
+
+    A build that fails, or whose sources move under it, writes no record. The record of the build before it is put
+    back: it names that build's APK by its digest, so it holds for as long as the failed build left that APK alone.
+    """
     try:
         before = fingerprint(root, inputs)
     except Unlisted as error:
         raise SystemExit(str(error)) from error
     if reason := uninstalled(root, inputs):
         raise SystemExit(reason)
-    record_path(apk).unlink(missing_ok=True)  # also leaves the output directory as the last build left it
+    record = record_path(apk)
     try:
-        subprocess.run(command, cwd=directory, check=True)
-    except (OSError, subprocess.CalledProcessError) as error:
-        raise SystemExit(f"the debug app did not build: {error}") from error
-    if not apk.is_file():
-        raise SystemExit(f"the build left no debug app at {apk}")
+        last = record.read_bytes()
+    except OSError:
+        last = None
+    record.unlink(missing_ok=True)  # the build finds its output directory as the last build left it
     try:
-        if fingerprint(root, inputs) != before:
-            raise SystemExit("the app's sources changed while it was building: build again")
-        write_record(apk, before)
-    except Unlisted as error:
-        raise SystemExit(str(error)) from error
-    except OSError as error:  # the APK cannot be read or the record cannot be written
-        raise SystemExit(f"the build cannot be recorded: {error}") from error
+        try:
+            subprocess.run(command, cwd=directory, check=True)
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise SystemExit(f"the debug app did not build: {error}") from error
+        if not apk.is_file():
+            raise SystemExit(f"the build left no debug app at {apk}")
+        try:
+            if fingerprint(root, inputs) != before:
+                raise SystemExit("the app's sources changed while it was building: build again")
+            write_record(apk, before)
+        except Unlisted as error:
+            raise SystemExit(str(error)) from error
+        except OSError as error:  # the APK cannot be read or the record cannot be written
+            raise SystemExit(f"the build cannot be recorded: {error}") from error
+    except BaseException:  # an interrupt too
+        if last is not None and record.parent.is_dir():
+            record.write_bytes(last)
+        raise
 
 
 def stale(apk, root, inputs, installed=None):

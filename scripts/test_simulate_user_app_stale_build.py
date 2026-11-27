@@ -42,6 +42,10 @@ if (here / "fail-the-build").exists():
     sys.exit(1)
 out = here / "app/build/outputs/apk/debug"
 out.mkdir(parents=True, exist_ok=True)
+(here / "app/build/records-seen").write_text("".join(path.name + "\\n" for path in out.glob("*.json")))
+if (here / "fail-after-packaging").exists():
+    (out / "app-debug.apk").write_bytes(b"half a build")
+    sys.exit(1)
 (out / "app-debug.apk").write_bytes(b"apk\\n" + b"".join(path.read_bytes() for path in sorted((here / "app/src").rglob("*")) if path.is_file()))
 if (here / "edit-while-building").exists():
     (here / "app/src/main/AndroidManifest.xml").write_text("<manifest edited='while building'/>\\n")
@@ -299,13 +303,37 @@ class BuildRecord(Repository):
         with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(outside.parent)}):
             self.assertIn("git cannot list the app's sources", build_record.stale(outside / simulation.APK, outside, build_record.USER_APP))
 
-    def test_a_failed_build_leaves_no_record(self):
-        self.build()
+    def test_a_failed_first_build_leaves_no_record(self):
         self.write(f"{APP}/android/fail-the-build", "")
         with self.assertRaises(SystemExit) as stopped:
             self.build()
         self.assertIn("did not build", str(stopped.exception))
         self.assertFalse(build_record.record_path(self.apk).exists())
+
+    def test_a_failed_build_keeps_the_record_of_the_app_it_left_untouched(self):
+        self.build()
+        record = build_record.record_path(self.apk).read_bytes()
+        self.write(f"{APP}/android/fail-the-build", "")
+        with self.assertRaises(SystemExit) as stopped:
+            self.build()
+        self.assertIn("did not build", str(stopped.exception))
+        self.assertEqual(build_record.record_path(self.apk).read_bytes(), record)
+        (self.root / APP / "android/fail-the-build").unlink()
+        self.assertIsNone(self.stale())
+
+    def test_a_build_that_fails_after_it_replaced_the_app_is_stale(self):
+        self.build()
+        self.write(f"{APP}/android/fail-after-packaging", "")
+        with self.assertRaises(SystemExit):
+            self.build()
+        (self.root / APP / "android/fail-after-packaging").unlink()
+        self.assertIn("built again without its record", self.stale())
+
+    def test_the_build_does_not_find_the_last_record_among_its_outputs(self):
+        self.build()
+        self.build()
+        self.assertEqual((self.root / APP / "android/app/build/records-seen").read_text(), "")
+        self.assertIsNone(self.stale())
 
     def test_sources_edited_during_the_build_leave_no_record(self):
         self.write(f"{APP}/android/edit-while-building", "")
@@ -313,6 +341,14 @@ class BuildRecord(Repository):
             self.build()
         self.assertIn("changed while it was building", str(stopped.exception))
         self.assertIn("nothing records which sources", self.stale())
+
+    def test_sources_edited_during_a_later_build_are_seen_against_the_record_kept(self):
+        self.build()
+        self.write(f"{APP}/android/edit-while-building", "")
+        with self.assertRaises(SystemExit) as stopped:
+            self.build()
+        self.assertIn("changed while it was building", str(stopped.exception))
+        self.assertIn(MANIFEST, self.stale())
 
     def test_node_modules_that_the_lockfile_does_not_name_refuse_the_build(self):
         self.write(LOCK, "lockfileVersion: '9.0'\n# pulled: another native dependency\n")
