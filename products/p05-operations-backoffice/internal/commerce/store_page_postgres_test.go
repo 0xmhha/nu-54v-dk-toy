@@ -106,7 +106,10 @@ func TestPostgresStorePage(t *testing.T) {
 	origin := "https://" + server.Listener.Addr().String()
 	h := HTTP{Store: store, OperatorOrigin: origin, Credentials: credentials,
 		Customer: &CustomerEntrance{Limiter: NewRateLimiter(600, 200, nil), OperatorContact: " help@operator.example "},
-		Profiles: map[string]Profile{cafe: {Chain: 8283, Asset: common.HexToAddress("0x" + strings.Repeat("2", 40)), Token: wonForOptions}}}
+		Profiles: map[string]Profile{cafe: {Chain: 8283, Contract: common.HexToAddress("0x" + strings.Repeat("3", 40)),
+			Asset: common.HexToAddress("0x" + strings.Repeat("2", 40)), Beneficiary: common.HexToAddress("0x" + strings.Repeat("4", 40)),
+			Signer: common.HexToAddress("0x" + strings.Repeat("5", 40)), MerchantID: [32]byte{0: 0xe1, 31: 0x07}, KeyVersion: 2,
+			BeneficiaryVersion: 3, Escrow: true, Token: wonForOptions}}}
 	h.Register(certified)
 	h.RegisterCustomer(entrance)
 	server.TLS = &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool}
@@ -180,7 +183,7 @@ func TestPostgresStorePage(t *testing.T) {
 	bare := read("/v2/customer/stores/"+bakery, 200)
 	status := bare["status"].(map[string]any)
 	if bare["name"] != "모퉁이 베이커리 "+suffix || bare["kind"] != nil || bare["hours"] != nil || status["mode"] != "open" ||
-		status["timezone"] != "Asia/Seoul" || bare["paymentToken"] != nil || bare["operatorContact"] != "help@operator.example" {
+		status["timezone"] != "Asia/Seoul" || bare["paymentToken"] != nil || bare["merchantId"] != nil || bare["operatorContact"] != "help@operator.example" {
 		t.Fatalf("bare page: %v", bare)
 	}
 	read("/v2/customer/stores/"+unnamed, 404) // no registered name, no page
@@ -228,15 +231,21 @@ func TestPostgresStorePage(t *testing.T) {
 
 	// --- what customers read: the published fields, empty ones left out, and nothing else ---
 	got := read("/v2/customer/stores/"+cafe, 200)
-	allowed := []string{"branchRef", "name", "kind", "intro", "address", "phone", "amenities", "closedNote", "hours", "status", "paymentToken", "operatorContact"}
+	allowed := []string{"branchRef", "name", "kind", "intro", "address", "phone", "amenities", "closedNote", "hours", "status", "paymentToken", "merchantId", "operatorContact"}
 	for key := range got {
 		if !slices.Contains(allowed, key) {
 			t.Fatalf("the page gives out %q: %v", key, got)
 		}
 	}
 	if len(got) != len(allowed) || got["branchRef"] != cafe || got["kind"] != "카페" || got["phone"] != "02-555-0100" ||
-		got["paymentToken"] != "tKRW" || len(got["hours"].([]any)) != 7 || got["hours"].([]any)[6] != nil {
+		got["paymentToken"] != "tKRW" || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" ||
+		len(got["hours"].([]any)) != 7 || got["hours"].([]any)[6] != nil {
 		t.Fatalf("page: %v", got)
+	}
+	// The page tells the store's contract number only: no address, chain, signer or version of the payment profile.
+	if raw, _ := json.Marshal(got); strings.Contains(string(raw), strings.Repeat("3", 40)) || strings.Contains(string(raw), strings.Repeat("4", 40)) ||
+		strings.Contains(string(raw), strings.Repeat("5", 40)) || strings.Contains(string(raw), strings.Repeat("2", 40)) || strings.Contains(string(raw), "8283") {
+		t.Fatalf("the page names a payment address or chain: %s", raw)
 	}
 	status = got["status"].(map[string]any)
 	if weekday, ok := status["weekday"].(float64); !ok || weekday < 0 || weekday > 6 || len(status["time"].(string)) != 5 {

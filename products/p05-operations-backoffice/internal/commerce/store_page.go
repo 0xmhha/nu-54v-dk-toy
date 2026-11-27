@@ -1,6 +1,7 @@
 package commerce
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -13,7 +14,7 @@ import (
 // The store page (traveller-services.md chapter 9 items 6 and 7): customers pick a store from the app's list or open
 // one with its shortcut QR, before any account proof. The two reads on the customer entrance therefore take no
 // session; they answer only what the store published on the operations web, the store's registered name, whether it
-// takes orders now, the token it is paid in and the operator's contact. The store writes the page; nothing is made up
+// takes orders now, the token it is paid in, its number in the order contract and the operator's contact. The store writes the page; nothing is made up
 // here, and a field the store left empty is left out.
 
 const storeListLimit = 200
@@ -49,14 +50,27 @@ func (h HTTP) customerStore(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	// The token a board pays this store in, when this server issues its quotes.
 	if profile, enrolled := h.Profiles[branch]; enrolled {
-		page["paymentToken"], _ = json.Marshal(profile.Token.OrDollar().Label)
+		for key, value := range storePayment(profile) {
+			page[key], _ = json.Marshal(value)
+		}
 	}
 	if contact := h.Customer.contact(); contact != "" {
 		page["operatorContact"], _ = json.Marshal(contact)
 	}
 	writeJSON(w, http.StatusOK, page)
+}
+
+// storePayment is all a store page says about paying the store: the label of the token a board pays it in, when this
+// server issues its quotes, and the store's number in the order contract. The app holds the chain, the contract and
+// the token in its own build and reads that merchant's signer and beneficiary from the contract itself, so a page
+// never names an address, a chain, a signer or a limit: those would be values the app must not take from a server.
+func storePayment(profile Profile) map[string]string {
+	payment := map[string]string{"paymentToken": profile.Token.OrDollar().Label}
+	if profile.Escrow && profile.MerchantID != ([32]byte{}) {
+		payment["merchantId"] = hex.EncodeToString(profile.MerchantID[:])
+	}
+	return payment
 }
 
 // contact is the operator's contact for payment and refund questions, when the deployment set a usable one.

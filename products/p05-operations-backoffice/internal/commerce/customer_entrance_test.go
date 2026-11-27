@@ -125,7 +125,7 @@ func TestCustomerSessionScope(t *testing.T) {
 		return service.Request{Contract: "C3", Operation: operation, Domain: domain, Object: object}
 	}
 	checkout := customerSession{Branch: branch, Purpose: "checkout"}
-	for _, operation := range []string{"order.create", "checkout.authorize", "quote.issue", "order.lock", "payment.forward", "order.status"} {
+	for _, operation := range []string{"order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock", "payment.forward", "order.status"} {
 		if !checkout.allows(request(operation, branch, sale)) {
 			t.Fatalf("checkout session refused %s", operation)
 		}
@@ -142,6 +142,9 @@ func TestCustomerSessionScope(t *testing.T) {
 		request("wallet.return", branch, sale),
 		request("terminal.state", branch, branch),
 		request("order.list", branch, sale),
+		request("order.cancel-public", branch, sale), // the kiosk's cancel, never a customer's
+		request("checkout.request", branch, sale),
+		request("checkout.confirm", branch, sale),
 	} {
 		if checkout.allows(refused) {
 			t.Fatalf("checkout session allowed %s on %s", refused.Operation, refused.Domain)
@@ -156,10 +159,30 @@ func TestCustomerSessionScope(t *testing.T) {
 			t.Fatalf("order session reached another order with %s", operation)
 		}
 	}
-	for _, operation := range []string{"order.create", "quote.issue", "order.lock", "catalog.read"} {
+	for _, operation := range []string{"order.create", "checkout.claim", "quote.issue", "order.lock", "catalog.read", "order.cancel-public"} {
 		if order.allows(request(operation, branch, sale)) {
 			t.Fatalf("order session allowed %s", operation)
 		}
+	}
+}
+
+// A store page tells the store's number in the order contract and the label of its token, and nothing else of the
+// payment profile. A store that is not paid through the order contract has no number to tell.
+func TestStorePagePaymentFields(t *testing.T) {
+	profile := Profile{Chain: 8283, Contract: common.HexToAddress("0x" + strings.Repeat("3", 40)), Asset: common.HexToAddress("0x" + strings.Repeat("2", 40)),
+		Beneficiary: common.HexToAddress("0x" + strings.Repeat("4", 40)), Signer: common.HexToAddress("0x" + strings.Repeat("5", 40)),
+		MerchantID: [32]byte{0: 0xe1, 31: 0x07}, KeyVersion: 2, BeneficiaryVersion: 3, Escrow: true}
+	got := storePayment(profile)
+	if len(got) != 2 || got["paymentToken"] != "TestUSDC" || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" {
+		t.Fatalf("escrow store: %v", got)
+	}
+	profile.Escrow = false
+	if got := storePayment(profile); len(got) != 1 || got["merchantId"] != "" {
+		t.Fatalf("a store outside the order contract told a merchant number: %v", got)
+	}
+	profile.Escrow, profile.MerchantID = true, [32]byte{}
+	if got := storePayment(profile); len(got) != 1 {
+		t.Fatalf("an unset merchant number was told: %v", got)
 	}
 }
 

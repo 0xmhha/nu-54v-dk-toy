@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -168,16 +169,18 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		}
 		return [32]byte(raw)
 	}
+	// The board's registration number, as the phone reads it from the board and sends it with a checkout proof.
+	const boardGeneration = "7"
 	prove := func(signer *ecdsa.PrivateKey, claimed common.Address, value [32]byte, want int) map[string]any {
 		t.Helper()
 		body := map[string]string{"challenge": hex.EncodeToString(value[:]), "account": strings.ToLower(claimed.Hex()),
-			"signature": hex.EncodeToString(signAccountProof(t, signer, value)), "generation": "1"}
+			"signature": hex.EncodeToString(signAccountProof(t, signer, value)), "generation": boardGeneration}
 		return call(customer, customers.URL+"/v2/customer/proof", nil, body, want)
 	}
 	command := func(session, operation, domain, object string, fields map[string]string, cart *Cart, want int) map[string]any {
 		t.Helper()
 		key := ""
-		if operation == "order.create" {
+		if operation == "order.create" || operation == "checkout.authorize" {
 			key = fresh()
 		}
 		envelope := map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: operation, RequestID: fresh(),
@@ -224,6 +227,27 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	sale := order(session, 200)["resultRef"].(string)
 	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a second unpaid hold for one account", got)
+	}
+	// The customer's claim on its own order: none yet, then the one the session authorizes. The quote is issued for
+	// the claim's payer, so the generation of the quote is the one the phone sent with the checkout proof.
+	if got := command(session, "checkout.claim", shop, sale, map[string]string{}, nil, 200); got["claim"] != nil {
+		t.Fatal("a claim before the customer asked for one", got)
+	}
+	claimed := command(session, "checkout.authorize", shop, sale, map[string]string{"customerRef": CustomerSubject(account)}, nil, 200)["claim"]
+	if read := command(session, "checkout.claim", shop, sale, map[string]string{}, nil, 200)["claim"]; claimed == nil ||
+		read.(map[string]any)["claimDigest"] != claimed.(map[string]any)["claimDigest"] {
+		t.Fatal("the session does not read back its own claim", claimed, read)
+	}
+	var claimPayer []byte
+	var claimGeneration, enrolledGeneration int64
+	if err := admin.QueryRow(ctx, `SELECT c.payer,c.payer_generation,e.payer_generation FROM ledger.checkout_claim c
+		JOIN ledger.payer_enrollment e USING (branch_id,actor_id) WHERE c.sale_id=$1`, sale).Scan(&claimPayer, &claimGeneration, &enrolledGeneration); err != nil ||
+		!bytes.Equal(claimPayer, account[:]) || strconv.FormatInt(claimGeneration, 10) != boardGeneration || claimGeneration != enrolledGeneration {
+		t.Fatal("the claim is not for the proven account and the generation of its proof", claimPayer, claimGeneration, enrolledGeneration, err)
+	}
+	// An order that is not this account's reads like an order without a claim, as on the certificate route.
+	if got := command(session, "checkout.claim", shop, fresh(), map[string]string{}, nil, 200); got["claim"] != nil {
+		t.Fatal("a claim on an order of nobody", got)
 	}
 	// The same account proven again elsewhere is the same customer: still one hold.
 	elsewhereSession := prove(board, account, challenge("checkout", elsewhere, ""), 200)["session"].(string)

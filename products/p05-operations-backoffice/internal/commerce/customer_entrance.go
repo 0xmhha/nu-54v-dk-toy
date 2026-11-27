@@ -317,7 +317,10 @@ type customerSession struct {
 	ExpiresAt                            time.Time
 }
 
-var checkoutOperations = []string{"catalog.read", "catalog.photo", "order.create", "checkout.authorize", "quote.issue",
+// Before payment: the menu, the cart, the customer's own claim on it, the quote, the board's signature for the
+// sponsored lock, and the status of what this account ordered here. There is no customer cancel: C3 has none (see
+// ledger.cancel_public_menu_order, which is the kiosk's), so an unpaid order ends with its quote.
+var checkoutOperations = []string{"catalog.read", "catalog.photo", "order.create", "checkout.claim", "checkout.authorize", "quote.issue",
 	"order.lock", "payment.forward", "order.status"}
 
 // allows says whether one C3 request is inside the session. The owner database still checks each one.
