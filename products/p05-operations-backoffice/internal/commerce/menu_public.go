@@ -10,7 +10,11 @@ import (
 )
 
 // The public menu (owner decision 2026-11-27): a customer reads a store's menu, its photos and what is sold out from
-// the store page, before any account proof, and keeps the cart on the phone. Only the two reads below are public.
+// the store page, before any account proof, and keeps the cart on the phone. Only the two reads below are public,
+// and only of a store that published its store page (store_page.go); any other store answers not found.
+//
+// The public menu tells no count of stock. `available` and `skuAvailable` of a row are 0 when it is sold out and
+// 1000 (the most one order line may ask for) when it is not; the counts are read with a session.
 // Nothing here holds stock, names a customer or an order, or says how the store is paid; the cart, the quote and the
 // payment still need the session of an account proof (customer_entrance.go), and stock is held only by that
 // session's order.
@@ -32,7 +36,7 @@ func pathNumber(text string, limit int64) (int64, bool) {
 	return value, err == nil && value >= 0 && value <= limit && strconv.FormatInt(value, 10) == text
 }
 
-// customerMenu answers one page (50 rows) of the published menu of a store that has a store page.
+// customerMenu answers one page (50 rows) of the published menu of a store that published its store page.
 func (h HTTP) customerMenu(w http.ResponseWriter, r *http.Request) {
 	branch := r.PathValue("branch")
 	page, ok := pathNumber(r.PathValue("page"), 32767)

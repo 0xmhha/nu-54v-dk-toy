@@ -171,44 +171,71 @@ func TestPostgresStorePage(t *testing.T) {
 		return []any{day, day, day, day, day, day, nil}
 	}
 	page := func() map[string]any {
-		return map[string]any{"listed": true, "kind": "카페", "intro": "  직접 볶은 원두로 내립니다  ", "address": "시험시 시험로 1",
+		return map[string]any{"published": true, "listed": true, "kind": "카페", "intro": "  직접 볶은 원두로 내립니다  ", "address": "시험시 시험로 1",
 			"directions": "", "phone": "02-555-0100", "amenities": "무선 인터넷", "parking": "", "closedNote": "매주 일요일",
 			"hours": weekdays("10:00", "21:00")}
 	}
 
-	// --- before the store writes anything: a named store has a page with its name and order state only ---
+	// --- nothing of a store is public until the store says so: its reference and its name open nothing ---
 	if got := listed(); len(got) != 0 {
 		t.Fatalf("a store that published nothing is listed: %v", got)
 	}
-	bare := read("/v2/customer/stores/"+bakery, 200)
-	status := bare["status"].(map[string]any)
-	if bare["name"] != "모퉁이 베이커리 "+suffix || bare["kind"] != nil || bare["hours"] != nil || status["mode"] != "open" ||
-		status["timezone"] != "Asia/Seoul" || bare["paymentToken"] != nil || bare["merchantId"] != nil || bare["operatorContact"] != "help@operator.example" {
-		t.Fatalf("bare page: %v", bare)
+	// Every closed store answers exactly like a branch that does not exist.
+	answer := func(path string) string {
+		t.Helper()
+		reply, err := http.Get(customers.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reply.Body.Close()
+		body, _ := io.ReadAll(reply.Body)
+		return reply.Status + " " + reply.Header.Get("Content-Type") + " " + string(body)
 	}
-	read("/v2/customer/stores/"+unnamed, 404) // no registered name, no page
-	read("/v2/customer/stores/"+fresh(), 404) // no such branch
+	absent := fresh()
+	closed := func(when, branch string) {
+		t.Helper()
+		for _, path := range []string{"", "/menu/0", "/photos/" + strings.Repeat("a", 64) + "/0"} {
+			got, none := answer("/v2/customer/stores/"+branch+path), answer("/v2/customer/stores/"+absent+path)
+			if got != none || !strings.HasPrefix(got, "404 ") {
+				t.Fatalf("%s%s: %q, a branch that does not exist answers %q", when, path, got, none)
+			}
+		}
+	}
+	closed("a store with a registered name and no page", bakery)
+	closed("a store without a registered name", unnamed)
 	read("/v2/customer/stores/not-a-branch", 404)
 	read("/v2/customer/stores?tenant="+tenant, 404)
+	// A page that is saved without being published stays closed, whatever it says about the list.
+	draft := page()
+	draft["published"] = false
+	if kept := write(ownCert, cafe, draft, 200); kept["saved"] != true || kept["published"] != false || kept["listed"] != true {
+		t.Fatalf("a saved, unpublished page: %v", kept)
+	}
+	closed("a store that saved its page without publishing it", cafe)
+	if got := listed(); len(got) != 0 {
+		t.Fatalf("an unpublished store is listed: %v", got)
+	}
 
-	// --- the store's operator writes the page; others cannot ---
+	// --- the store's operator writes and publishes the page; others cannot ---
 	saved := write(ownCert, cafe, page(), 200)
-	if saved["saved"] != true || saved["intro"] != "직접 볶은 원두로 내립니다" || saved["changedBy"] != operator {
+	if saved["saved"] != true || saved["published"] != true || saved["intro"] != "직접 볶은 원두로 내립니다" || saved["changedBy"] != operator {
 		t.Fatalf("saved: %v", saved)
 	}
 	write(strangerCert, cafe, page(), 404)
 	write(ownCert, unnamed, page(), 400) // a store without a registered name cannot publish
 	send(staff(ownCert), "POST", server.URL+"/v2/operations/store-page/"+cafe, map[string]string{"Content-Type": "application/json"}, page(), 404)
 	for name, broken := range map[string]func(map[string]any){
-		"missing field": func(p map[string]any) { delete(p, "parking") },
-		"unknown field": func(p map[string]any) { p["rating"] = "5" },
-		"no kind":       func(p map[string]any) { p["kind"] = " " },
-		"long intro":    func(p map[string]any) { p["intro"] = strings.Repeat("가", 201) },
-		"control char":  func(p map[string]any) { p["address"] = "a\nb" },
-		"phone":         func(p map[string]any) { p["phone"] = "call me" },
-		"six days":      func(p map[string]any) { p["hours"] = weekdays("10:00", "21:00")[:6] },
-		"bad time":      func(p map[string]any) { p["hours"] = weekdays("10:00", "24:00") },
-		"same time":     func(p map[string]any) { p["hours"] = weekdays("10:00", "10:00") },
+		"missing field":           func(p map[string]any) { delete(p, "parking") },
+		"not said whether public": func(p map[string]any) { delete(p, "published") },
+		"public is not yes or no": func(p map[string]any) { p["published"] = "yes" },
+		"unknown field":           func(p map[string]any) { p["rating"] = "5" },
+		"no kind":                 func(p map[string]any) { p["kind"] = " " },
+		"long intro":              func(p map[string]any) { p["intro"] = strings.Repeat("가", 201) },
+		"control char":            func(p map[string]any) { p["address"] = "a\nb" },
+		"phone":                   func(p map[string]any) { p["phone"] = "call me" },
+		"six days":                func(p map[string]any) { p["hours"] = weekdays("10:00", "21:00")[:6] },
+		"bad time":                func(p map[string]any) { p["hours"] = weekdays("10:00", "24:00") },
+		"same time":               func(p map[string]any) { p["hours"] = weekdays("10:00", "10:00") },
 		"extra hour key": func(p map[string]any) {
 			p["hours"].([]any)[6] = map[string]string{"opens": "10:00", "closes": "11:00", "note": "x"}
 		},
@@ -221,11 +248,11 @@ func TestPostgresStorePage(t *testing.T) {
 		}
 	}
 	own := send(staff(ownCert), "GET", server.URL+"/v2/operations/store-page/"+cafe, nil, nil, 200)
-	if own["kind"] != "카페" || own["listed"] != true || own["name"] != "여울 커피 "+suffix {
+	if own["kind"] != "카페" || own["published"] != true || own["listed"] != true || own["name"] != "여울 커피 "+suffix {
 		t.Fatalf("a refused change altered the page: %v", own)
 	}
 	send(staff(strangerCert), "GET", server.URL+"/v2/operations/store-page/"+cafe, nil, nil, 404)
-	if first := send(staff(strangerCert), "GET", server.URL+"/v2/operations/store-page/"+bakery, nil, nil, 200); first["saved"] != false || first["hours"] != nil {
+	if first := send(staff(strangerCert), "GET", server.URL+"/v2/operations/store-page/"+bakery, nil, nil, 200); first["saved"] != false || first["published"] != false || first["hours"] != nil {
 		t.Fatalf("unsaved page: %v", first)
 	}
 
@@ -238,7 +265,7 @@ func TestPostgresStorePage(t *testing.T) {
 		}
 	}
 	if len(got) != len(allowed) || got["branchRef"] != cafe || got["kind"] != "카페" || got["phone"] != "02-555-0100" ||
-		got["paymentToken"] != "tKRW" || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" ||
+		got["paymentToken"] != "tKRW" || got["merchantId"] != "e1"+strings.Repeat("0", 60)+"07" || got["operatorContact"] != "help@operator.example" ||
 		len(got["hours"].([]any)) != 7 || got["hours"].([]any)[6] != nil {
 		t.Fatalf("page: %v", got)
 	}
@@ -247,8 +274,8 @@ func TestPostgresStorePage(t *testing.T) {
 		strings.Contains(string(raw), strings.Repeat("5", 40)) || strings.Contains(string(raw), strings.Repeat("2", 40)) || strings.Contains(string(raw), "8283") {
 		t.Fatalf("the page names a payment address or chain: %s", raw)
 	}
-	status = got["status"].(map[string]any)
-	if weekday, ok := status["weekday"].(float64); !ok || weekday < 0 || weekday > 6 || len(status["time"].(string)) != 5 {
+	status := got["status"].(map[string]any)
+	if weekday, ok := status["weekday"].(float64); !ok || weekday < 0 || weekday > 6 || len(status["time"].(string)) != 5 || status["mode"] != "open" || status["timezone"] != "Asia/Seoul" {
 		t.Fatalf("status: %v", status)
 	}
 	rows := listed()
@@ -280,6 +307,15 @@ func TestPostgresStorePage(t *testing.T) {
 		t.Fatalf("an unlisted store is listed: %v", rows)
 	}
 	read("/v2/customer/stores/"+cafe, 200) // the shortcut QR still opens it
+	// Taking the page back closes it and takes it off the list, though it still says listed.
+	hidden := page()
+	hidden["published"] = false
+	write(ownCert, cafe, hidden, 200)
+	closed("a store that took its page back", cafe)
+	if rows = listed(); len(rows) != 1 || rows[0]["branchRef"] != bakery {
+		t.Fatalf("a store that took its page back is listed: %v", rows)
+	}
+	write(ownCert, cafe, unlisted, 200)
 
 	// --- the entrance limits these reads like its other requests ---
 	h.Customer.Limiter = NewRateLimiter(60, 2, nil)

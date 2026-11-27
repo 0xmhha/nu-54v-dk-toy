@@ -1,7 +1,11 @@
--- Every store has a store page in the customer app: what the store wrote about itself, where it is, when it is open,
+-- A store can have a store page in the customer app: what the store wrote about itself, where it is, when it is open,
 -- and the way to its menu. Customers pick a store from the app's list or open one with the store's shortcut QR before
 -- they prove anything, so the public reads take no actor and give out only what the store published here, the store's
 -- registered name and whether it takes orders now. Nothing about customers, orders, staff or the tenant is read.
+--
+-- Nothing of a store is public until the store says so: its page, its menu and its photos answer only while the
+-- store's page is published, which the store switches on the operations web and which is off until then. Knowing a
+-- store's reference opens nothing by itself.
 
 -- Monday first: seven entries, each null (closed that weekday) or {"opens":"HH:MM","closes":"HH:MM"} in the store's
 -- own time zone. A closing time before the opening time is on the next day.
@@ -19,7 +23,10 @@ $hours$;
 
 CREATE TABLE ledger.branch_store_page (
     branch_id uuid PRIMARY KEY REFERENCES ledger.branch,
-    -- A listed store appears in the app's store list. An unlisted one is still opened by its shortcut QR.
+    -- Published: customers can open the store's page and its menu. Off, both answer as a store that does not exist.
+    published boolean NOT NULL,
+    -- A listed store appears in the app's store list; it matters only while the page is published. A published,
+    -- unlisted store is opened by its shortcut QR.
     listed boolean NOT NULL,
     kind text NOT NULL CHECK (length(kind) BETWEEN 1 AND 40 AND kind !~ '[[:cntrl:]]' AND kind = btrim(kind)),
     intro text NOT NULL CHECK (length(intro) <= 200 AND intro !~ '[[:cntrl:]]' AND intro = btrim(intro)),
@@ -54,8 +61,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $stat
     WHERE b.id = branch
 $status$;
 
--- One store's page for anyone who has its reference (the shortcut QR or the list). A store that wrote no page still
--- has its registered name and its order state; a branch without a registered name has no page.
+-- One store's page for anyone who has its reference (the shortcut QR or the list), once the store published it. A
+-- store that did not, or that has no registered name, has no page: the answer is the one of no such store.
 CREATE FUNCTION ledger.public_store_page(branch uuid) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $page$
     SELECT jsonb_strip_nulls(jsonb_build_object(
@@ -64,11 +71,11 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $page
         'amenities', nullif(p.amenities, ''), 'parking', nullif(p.parking, ''), 'closedNote', nullif(p.closed_note, ''),
         'hours', p.hours, 'status', ledger.store_page_status(b.id)))
     FROM ledger.branch b JOIN ledger.operator_branch_label n ON n.branch_id = b.id
-    LEFT JOIN ledger.branch_store_page p ON p.branch_id = b.id
+    JOIN ledger.branch_store_page p ON p.branch_id = b.id AND p.published
     WHERE b.id = branch
 $page$;
 
--- The stores that chose to be listed, by name, with what a list row says: kind, address, hours and order state.
+-- The published stores that chose to be listed, by name, with what a list row says: kind, address, hours and order state.
 -- At most limit_ rows; the app searches these by name.
 CREATE FUNCTION ledger.public_store_list(limit_ integer) RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $list$
@@ -77,7 +84,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $list
             'address', nullif(p.address, ''), 'hours', p.hours, 'status', ledger.store_page_status(b.id))) AS store
         FROM ledger.branch_store_page p JOIN ledger.branch b ON b.id = p.branch_id
         JOIN ledger.operator_branch_label n ON n.branch_id = b.id
-        WHERE p.listed ORDER BY n.label, b.id LIMIT greatest(1, least(coalesce(limit_, 200), 200))) x
+        WHERE p.published AND p.listed ORDER BY n.label, b.id LIMIT greatest(1, least(coalesce(limit_, 200), 200))) x
 $list$;
 
 -- What the operations web shows and edits: the page as the store wrote it, or `saved: false` before the first save.
@@ -85,7 +92,8 @@ CREATE FUNCTION ledger.operator_store_page(tenant uuid, branch uuid, actor uuid)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $read$
 BEGIN
     PERFORM ledger.require_terminal_operator(tenant, branch, actor);
-    RETURN (SELECT jsonb_build_object('name', n.label, 'saved', p.branch_id IS NOT NULL, 'listed', coalesce(p.listed, false),
+    RETURN (SELECT jsonb_build_object('name', n.label, 'saved', p.branch_id IS NOT NULL,
+            'published', coalesce(p.published, false), 'listed', coalesce(p.listed, false),
             'kind', coalesce(p.kind, ''), 'intro', coalesce(p.intro, ''), 'address', coalesce(p.address, ''),
             'directions', coalesce(p.directions, ''), 'phone', coalesce(p.phone, ''), 'amenities', coalesce(p.amenities, ''),
             'parking', coalesce(p.parking, ''), 'closedNote', coalesce(p.closed_note, ''), 'hours', p.hours,
@@ -94,14 +102,16 @@ BEGIN
         LEFT JOIN ledger.branch_store_page p ON p.branch_id = b.id WHERE b.id = branch);
 END $read$;
 
--- The store writes its whole page at once. A store without a registered name cannot publish one.
+-- The store writes its whole page at once, with whether it is published and listed. A store without a registered
+-- name cannot save one.
 CREATE FUNCTION ledger.set_store_page(tenant uuid, branch uuid, actor uuid, page jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $write$
 DECLARE hours_ jsonb;
 BEGIN
     PERFORM ledger.require_terminal_operator(tenant, branch, actor);
     IF jsonb_typeof(page) IS DISTINCT FROM 'object'
-       OR page - ARRAY['listed','kind','intro','address','directions','phone','amenities','parking','closedNote','hours'] <> '{}'::jsonb
+       OR page - ARRAY['published','listed','kind','intro','address','directions','phone','amenities','parking','closedNote','hours'] <> '{}'::jsonb
+       OR jsonb_typeof(page->'published') IS DISTINCT FROM 'boolean'
        OR jsonb_typeof(page->'listed') IS DISTINCT FROM 'boolean'
        OR EXISTS (SELECT FROM unnest(ARRAY['kind','intro','address','directions','phone','amenities','parking','closedNote']) f(name)
                   WHERE jsonb_typeof(page->f.name) IS DISTINCT FROM 'string')
@@ -112,10 +122,11 @@ BEGIN
     IF hours_ IS NOT NULL AND NOT ledger.store_hours_valid(hours_) THEN
         RAISE EXCEPTION USING ERRCODE = '23514', MESSAGE = 'invalid store hours';
     END IF;
-    INSERT INTO ledger.branch_store_page VALUES (branch, (page->>'listed')::boolean, btrim(page->>'kind'), btrim(page->>'intro'),
+    INSERT INTO ledger.branch_store_page VALUES (branch, (page->>'published')::boolean, (page->>'listed')::boolean,
+        btrim(page->>'kind'), btrim(page->>'intro'),
         btrim(page->>'address'), btrim(page->>'directions'), btrim(page->>'phone'), btrim(page->>'amenities'),
         btrim(page->>'parking'), btrim(page->>'closedNote'), hours_, actor, clock_timestamp())
-    ON CONFLICT (branch_id) DO UPDATE SET listed = EXCLUDED.listed, kind = EXCLUDED.kind, intro = EXCLUDED.intro,
+    ON CONFLICT (branch_id) DO UPDATE SET published = EXCLUDED.published, listed = EXCLUDED.listed, kind = EXCLUDED.kind, intro = EXCLUDED.intro,
         address = EXCLUDED.address, directions = EXCLUDED.directions, phone = EXCLUDED.phone, amenities = EXCLUDED.amenities,
         parking = EXCLUDED.parking, closed_note = EXCLUDED.closed_note, hours = EXCLUDED.hours,
         changed_by = EXCLUDED.changed_by, changed_at = EXCLUDED.changed_at;

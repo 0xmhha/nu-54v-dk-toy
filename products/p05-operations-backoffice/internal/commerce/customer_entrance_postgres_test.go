@@ -265,14 +265,36 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		}
 		return text
 	}
+	// A registered name and a published menu open nothing: the store has to publish its store page first. Until
+	// then the menu and the photos answer like a store that does not exist, to a session's customer too.
+	storePage := func(published bool) {
+		t.Helper()
+		operate(ownCert, "/v2/operations/store-page/"+shop, map[string]any{"published": published, "listed": false, "kind": "카페", "intro": "",
+			"address": "", "directions": "", "phone": "", "amenities": "", "parking": "", "closedNote": "", "hours": nil}, 200)
+	}
+	for _, closed := range []func(){func() {}, func() { storePage(false) }} {
+		closed()
+		for _, path := range []string{"", "/menu/0", "/photos/" + photo + "/0", "/photos/" + thumb + "/0"} {
+			read("/v2/customer/stores/"+shop+path, 404)
+		}
+	}
+	storePage(true)
 	before := footprint()
 	menuKeys := []string{"catalog", "catalogVersion", "catalogOptions", "catalogPhotos", "shop", "orderState"}
+	// The public menu is the session's menu, but for the counts of stock: it says only sold out or not.
 	sameMenu := func(when string) map[string]any {
 		t.Helper()
 		public, proven := read("/v2/customer/stores/"+shop+"/menu/0", 200), command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)
 		for key := range public {
 			if !slices.Contains(menuKeys, key) {
 				t.Fatalf("%s: the public menu gives out %q: %v", when, key, public)
+			}
+		}
+		for _, item := range proven["catalog"].([]any) {
+			for _, count := range []string{"available", "skuAvailable"} {
+				if row := item.(map[string]any); row[count] != float64(0) {
+					row[count] = float64(1000)
+				}
 			}
 		}
 		for _, key := range menuKeys {
@@ -284,7 +306,14 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	}
 	menu := sameMenu("published")
 	row := menu["catalog"].([]any)[0].(map[string]any)
-	if len(menu["catalog"].([]any)) != 1 || row["sku"] != "tea" || row["available"] != float64(5) || row["unitPrice"] != "300000" || row["category"] == nil ||
+	counted := command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)["catalog"].([]any)[0].(map[string]any)
+	if counted["available"] != float64(5) || counted["skuAvailable"] != float64(5) {
+		t.Fatalf("a session does not read the counts: %v", counted)
+	}
+	if raw := mustJSON(t, menu); strings.Contains(raw, ":5,") || strings.Contains(raw, ":5}") {
+		t.Fatalf("the public menu tells a count of stock: %s", raw)
+	}
+	if len(menu["catalog"].([]any)) != 1 || row["sku"] != "tea" || row["available"] != float64(1000) || row["skuAvailable"] != float64(1000) || row["unitPrice"] != "300000" || row["category"] == nil ||
 		menu["shop"].(map[string]any)["branchLabel"] != "여울 커피 "+shop[:8] || menu["orderState"].(map[string]any)["mode"] != "open" ||
 		len(menu["catalogPhotos"].([]any)) != 1 || menu["catalogPhotos"].([]any)[0].(map[string]any)["thumb"] != thumb {
 		t.Fatalf("public menu: %v", menu)
@@ -298,6 +327,14 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	}
 	execute("DELETE FROM ledger.menu_sold_out WHERE branch_id=$1", shop)
 	execute("DELETE FROM ledger.branch_order_state WHERE branch_id=$1", shop)
+	// A count that ran out reads as sold out as well, and the last one left reads like any other.
+	for left, want := range map[int]float64{0: 0, 1: 1000} {
+		execute("UPDATE ledger.stock SET available=$2 WHERE branch_id=$1 AND sku='tea'", shop, left)
+		if row := sameMenu("stock left")["catalog"].([]any)[0].(map[string]any); row["available"] != want || row["skuAvailable"] != want {
+			t.Fatalf("%d left reads %v", left, row)
+		}
+	}
+	execute("UPDATE ledger.stock SET available=5 WHERE branch_id=$1 AND sku='tea'", shop)
 	// A page past the end is empty and says nothing more; a store without a store page has no public menu.
 	if past := read("/v2/customer/stores/"+shop+"/menu/1", 200); len(past["catalog"].([]any)) != 0 || past["shop"] != nil || past["orderState"] != nil {
 		t.Fatalf("page past the end: %v", past)
@@ -324,6 +361,13 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/%d", shop, photo, len(picture)), 400)    // past the end
 	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, strings.Repeat("a", 64)), 400) // not a photo of this store
 	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", elsewhere, photo), 404)              // no store page, no photos
+	// The store takes its page back: the menu and the photos close with it, and open again when it is published.
+	storePage(false)
+	read("/v2/customer/stores/"+shop+"/menu/0", 404)
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, photo), 404)
+	command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200) // a session's menu does not depend on it
+	storePage(true)
+	read("/v2/customer/stores/"+shop+"/menu/0", 200)
 	// Reading held no stock and made no order, customer, session or challenge.
 	if after := footprint(); after != before {
 		t.Fatalf("the public reads left a mark: %s, was %s", after, before)

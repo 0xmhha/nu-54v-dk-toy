@@ -16,10 +16,14 @@ import (
 // session; they answer only what the store published on the operations web, the store's registered name, whether it
 // takes orders now, the token it is paid in, its number in the order contract and the operator's contact. The store writes the page; nothing is made up
 // here, and a field the store left empty is left out.
+//
+// A store is public only when it said so: the page, the menu and the photos answer not found until the store
+// switches its page to published on the operations web (off by default). Whether a published store also appears in
+// the app's list is a second switch of its own.
 
 const storeListLimit = 200
 
-// customerStores lists the stores that chose to be listed, by name. The app searches the list by name itself.
+// customerStores lists the published stores that chose to be listed, by name. The app searches the list by name itself.
 func (h HTTP) customerStores(w http.ResponseWriter, r *http.Request) {
 	if h.Store == nil || r.URL.RawQuery != "" {
 		http.NotFound(w, r)
@@ -33,7 +37,8 @@ func (h HTTP) customerStores(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]json.RawMessage{"stores": stores})
 }
 
-// customerStore answers one store's page. A branch that does not exist or has no registered name is not found.
+// customerStore answers one store's page. A branch that does not exist, has no registered name or did not publish
+// its page is not found, all three alike.
 func (h HTTP) customerStore(w http.ResponseWriter, r *http.Request) {
 	branch := r.PathValue("branch")
 	if h.Store == nil || r.URL.RawQuery != "" || !operatorRef.MatchString(branch) {
@@ -88,6 +93,7 @@ func (c *CustomerEntrance) contact() string {
 // storePageChange is the whole page as the store's operator writes it. Hours is seven entries from Monday, each
 // null or {"opens","closes"}; null as a whole means the store has not said its hours.
 type storePageChange struct {
+	Published  *bool           `json:"published"`
 	Listed     *bool           `json:"listed"`
 	Kind       *string         `json:"kind"`
 	Intro      *string         `json:"intro"`
@@ -106,7 +112,7 @@ func (c storePageChange) complete() bool {
 			return false
 		}
 	}
-	return c.Listed != nil && len(c.Hours) != 0
+	return c.Published != nil && c.Listed != nil && len(c.Hours) != 0
 }
 
 func (h HTTP) registerStorePage(mux *http.ServeMux) {

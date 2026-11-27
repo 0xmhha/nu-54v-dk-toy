@@ -2,11 +2,22 @@
 -- from the store page, before any account proof, and keeps the cart on the phone. Stock is held only after the
 -- proof, by the session's order (migration 122). These two reads take no actor and no grant, so they answer only
 -- what a customer session reads as the same store's menu: nothing about a customer, an order or how the store is paid.
--- Only a store with a registered name, which is a store with a store page (migration 123), has a public menu.
+-- Only a store that published its store page (migration 123) has a public menu; any other answers as no such store.
+
+-- Whether the store's page is published, which is what makes its menu and photos public.
+CREATE FUNCTION ledger.store_page_published(branch_ uuid) RETURNS boolean
+LANGUAGE sql STABLE SET search_path=pg_catalog,pg_temp AS $published$
+    SELECT EXISTS (SELECT FROM ledger.branch_store_page p JOIN ledger.operator_branch_label l ON l.branch_id = p.branch_id
+                   WHERE p.branch_id = branch_ AND p.published)
+$published$;
+REVOKE ALL ON FUNCTION ledger.store_page_published(uuid) FROM PUBLIC;
 
 -- One page of the published menu with its choices, photo names, the store's name and whether it takes orders now.
 -- The rows are those of ledger.catalog_menu_photo_window for a customer of the branch, and the state is that of
--- ledger.customer_order_state; menu_public_postgres_test.go holds the two side by side.
+-- ledger.customer_order_state; customer_entrance_postgres_test.go holds the two side by side.
+--
+-- With one difference: no count of stock is public. `available` and `skuAvailable` say only whether the row is
+-- sold out: 0 when it is, 1000 (the most one order line may ask for) when it is not. A session reads the counts.
 CREATE FUNCTION ledger.public_menu_window(branch_ uuid, page_ integer)
 RETURNS TABLE(snapshot_version bigint, items jsonb, options jsonb, photos jsonb, state jsonb, label text)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $menu$
@@ -16,7 +27,7 @@ BEGIN
         RAISE EXCEPTION USING ERRCODE='23514', MESSAGE='invalid page';
     END IF;
     SELECT l.label INTO name_ FROM ledger.operator_branch_label l WHERE l.branch_id = branch_;
-    IF name_ IS NULL THEN
+    IF name_ IS NULL OR NOT ledger.store_page_published(branch_) THEN
         RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='no such store';
     END IF;
     -- The newest release, as ledger.catalog_page chooses it.
@@ -52,7 +63,8 @@ BEGIN
         SELECT CASE WHEN live AND EXISTS (SELECT FROM ledger.price p WHERE p.branch_id = branch_ AND p.version = newest) THEN newest END AS version,
                coalesce((SELECT jsonb_agg(jsonb_build_object('version', p.version, 'expiresAt', p.expires_at, 'sku', p.sku,
                    'optionKey', p.option_key, 'label', p.name, 'asset', p.asset_ref, 'unitPrice', p.unit_price::text,
-                   'available', p.available, 'skuAvailable', p.sku_available, 'metadata', p.metadata, 'category', p.category)
+                   'available', CASE WHEN p.available > 0 THEN 1000 ELSE 0 END,
+                   'skuAvailable', CASE WHEN p.sku_available > 0 THEN 1000 ELSE 0 END, 'metadata', p.metadata, 'category', p.category)
                    ORDER BY p.sku, p.option_key) FROM prices p), '[]'::jsonb) AS rows
     )
     SELECT page.version, page.rows,
@@ -81,14 +93,14 @@ BEGIN
 END
 $menu$;
 
--- A part of a published photo of a store with a store page, by its name, as ledger.catalog_photo_part reads it.
+-- A part of a published photo of a store with a published store page, by its name, as ledger.catalog_photo_part reads it.
 -- A part is at most 18,000 bytes; a photo is at most 150 KB (migration 115).
 CREATE FUNCTION ledger.public_menu_photo_part(branch_ uuid, digest_ text, offset_ integer)
 RETURNS TABLE(size integer, part bytea)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $photo$
 DECLARE image bytea;
 BEGIN
-    IF NOT EXISTS (SELECT FROM ledger.operator_branch_label l WHERE l.branch_id = branch_) THEN
+    IF NOT ledger.store_page_published(branch_) THEN
         RAISE EXCEPTION USING ERRCODE='42501', MESSAGE='no such store';
     END IF;
     SELECT CASE WHEN p.digest = digest_ THEN p.photo ELSE p.thumb END INTO image
