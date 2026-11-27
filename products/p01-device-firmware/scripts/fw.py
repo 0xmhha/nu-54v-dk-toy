@@ -353,6 +353,23 @@ def build(pristine: bool, rental: bool, release: bool, approtect: bool, official
         return rc
 
 
+def placed_in_image(link_map: Path, name: str) -> bool:
+    """Whether a GNU ld map places code or data named `name...` in the image.
+
+    Only the memory map counts. The listings before it name archive members that were pulled in and
+    input sections the linker discarded, so a name found there says nothing about the image. Inside
+    the memory map a section must have an address and a size, and /DISCARD/ is left out."""
+    text = link_map.read_text(errors="replace") if link_map.is_file() else ""
+    _, marker, placed = text.partition("\nLinker script and memory map\n")
+    if not marker:
+        sys.exit(f"{link_map} is not a linker map with a memory map")
+    placed = re.sub(r"^/DISCARD/[ \t]*\n(?:[ \t]+\S.*\n|[ \t]*\n)*", "", placed, flags=re.MULTILINE)
+    used = r"0x0*[1-9a-fA-F][0-9a-fA-F]*"
+    section = rf"^[ \t]*\.[\w.$]*\.{re.escape(name)}[\w.$]*\s+{used}\s+{used}\s"
+    symbol = rf"^[ \t]+{used}[ \t]+{re.escape(name)}\w*[ \t]*$"
+    return bool(re.search(section, placed, re.MULTILINE) or re.search(symbol, placed, re.MULTILINE))
+
+
 def secure_key_evidence(public: Path) -> int:
     """Host checks of a --secure-key build. It is not a release: no manifest is written.
 
@@ -360,16 +377,18 @@ def secure_key_evidence(public: Path) -> int:
     only a warning in the build log."""
     app = BUILD_DIR / "app/zephyr"
     config = set((app / ".config").read_text().splitlines())
+    # Without MBEDTLS_PSA_CRYPTO_STORAGE_C the SDK builds TF-M with CRYPTO_STORAGE_DISABLED: the
+    # secure side would then hold no persistent key at all.
     required = {"CONFIG_NU54_SECURE_KEY=y", "CONFIG_BUILD_WITH_TFM=y", "CONFIG_TRUSTED_EXECUTION_NONSECURE=y",
-                "CONFIG_TFM_ITS_ENCRYPTED=y", "CONFIG_PSA_CRYPTO_DRIVER_CRACEN=y", "CONFIG_TFM_ITS_NUM_ASSETS=64"}
-    forbidden = {"CONFIG_SECURE_STORAGE=y", "CONFIG_MBEDTLS_PSA_CRYPTO_STORAGE_C=y"}
+                "CONFIG_TFM_ITS_ENCRYPTED=y", "CONFIG_PSA_CRYPTO_DRIVER_CRACEN=y", "CONFIG_TFM_ITS_NUM_ASSETS=64",
+                "CONFIG_MBEDTLS_PSA_CRYPTO_STORAGE_C=y"}
+    forbidden = {"CONFIG_SECURE_STORAGE=y"}
     if not required <= config or forbidden & config:
         sys.exit("Built configuration does not keep the wallet key in the TF-M secure side: "
                  + ", ".join(sorted((required - config) | (forbidden & config))))
-    secure = BUILD_DIR / "app/tfm/bin/tfm_s.map"
-    if not secure.is_file() or SECURE_SIGNER not in secure.read_text():
+    if not placed_in_image(BUILD_DIR / "app/tfm/bin/tfm_s.map", SECURE_SIGNER):
         sys.exit("TF-M secure image does not contain the wallet signing code")
-    if "cracen_" in (app / "zephyr.map").read_text():
+    if placed_in_image(app / "zephyr.map", "cracen_"):
         sys.exit("The non-secure application links key-handling driver code")
     if in_toolchain("python3", str(HERE / "verify_release_image.py"), imgtool(), str(public),
                     str(app / "zephyr.signed.bin"), str(app / "zephyr.signed.hex")):
@@ -387,12 +406,34 @@ def keygen(path: str) -> int:
     return in_toolchain("python3", imgtool(), "keygen", "-k", str(key.resolve()), "-t", "ed25519")
 
 
+def trustzone_build() -> str | None:
+    """Why the build directory holds a TrustZone (TF-M) image, or None.
+
+    No such image is qualified for a board, so `flash` refuses all of them. One option of the
+    application is not enough to tell: a --secure-key build whose own option did not take effect is
+    still a TF-M image. A directory without the generated configuration cannot be judged."""
+    app_config = BUILD_DIR / "app" / "zephyr" / ".config"
+    if not app_config.is_file():
+        sys.exit("Application configuration missing; rebuild before flashing")
+    config = set(app_config.read_text().splitlines())
+    for option in ("CONFIG_NU54_SECURE_KEY=y", "CONFIG_BUILD_WITH_TFM=y", "CONFIG_TRUSTED_EXECUTION_NONSECURE=y"):
+        if option in config:
+            return option
+    for cache in (BUILD_DIR / "CMakeCache.txt", BUILD_DIR / "app" / "CMakeCache.txt"):
+        boards = re.findall(r"^(?:CACHED_)?BOARD:[A-Z]+=(.*)$", cache.read_text(), re.MULTILINE) if cache.is_file() else []
+        if any(board.strip().endswith("/ns") for board in boards):
+            return f"board target .../ns in {cache.relative_to(BUILD_DIR)}"
+    if (BUILD_DIR / "app" / "tfm").exists():
+        return "TF-M build output app/tfm"
+    return None
+
+
 def flash() -> int:
     # A release build has MCUboot and the signed app as two images; other builds have one.
     boot = BUILD_DIR / "mcuboot" / "zephyr" / "zephyr.hex"
-    app_config = BUILD_DIR / "app" / "zephyr" / ".config"
-    if app_config.is_file() and "CONFIG_NU54_SECURE_KEY=y" in app_config.read_text().splitlines():
-        sys.exit("The --secure-key image is build-verified only and is not qualified for a board")
+    found = trustzone_build()
+    if found:
+        sys.exit(f"TrustZone images are build-verified only and are not qualified for a board ({found})")
     if boot.exists():
         config = boot.parent / ".config"
         if not config.is_file():

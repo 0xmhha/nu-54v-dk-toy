@@ -152,12 +152,14 @@ config NU54_SECURE_KEY
 	default n
 	depends on NU54_SPENDING_PROFILE && BUILD_WITH_TFM && TFM_PARTITION_CRYPTO
 	depends on TFM_PARTITION_INTERNAL_TRUSTED_STORAGE && TFM_ITS_ENCRYPTED && !SECURE_STORAGE
+	depends on MBEDTLS_PSA_CRYPTO_STORAGE_C
 	help
 	  The wallet key is generated and used by TF-M's crypto partition and stored in the
 	  encrypted Internal Trusted Storage of the secure side (Arm TrustZone). The application
 	  is the non-secure image and can ask for a signature, the public key or the key's
 	  destruction, never for the key. Turning it on outside a TF-M build with encrypted
-	  storage stops the build. Build-verified only; see app/secure-key.conf.
+	  storage and persistent PSA keys stops the build. Build-verified only; see
+	  app/secure-key.conf.
 
 config NU54_EXPERIMENTAL_PMIC_VIN_READ
 	bool "Read qualified NU-54DK-C PMIC input status"
