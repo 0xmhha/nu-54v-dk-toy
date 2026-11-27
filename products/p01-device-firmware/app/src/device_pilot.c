@@ -138,6 +138,11 @@ static const nu54_owner_crypto owner_crypto = {owner_random, hash, owner_verify}
 static nu54_v2_journal journal = {journal_slots, ARRAY_SIZE(journal_slots), hash, 0};
 static bool initialized, ready, bound, recovering;
 static int64_t deadline, enrollment_window, recovery_window;
+/* The owner's certificate is not valid yet by a clock that may be late: this session may tell the
+ * time and nothing else (nu54_install_session_admits). */
+static bool clock_only;
+static device_tls_v2_validity session_validity; /* of the owner's certificates, where they were asked for */
+static int64_t session_began;                   /* uptime at the first byte of this TLS session */
 static nu54_owner_idle owner_idle;
 static uint8_t display_challenge[32], active_quote[NU54_V2_SIGNED_SIZE];
 static bool display_confirmed;
@@ -283,6 +288,8 @@ static void reset_link(void)
 	ring_buf_reset(&pilot_rx);
 	bound = false;
 	recovering = false;
+	clock_only = false;
+	session_validity = (device_tls_v2_validity){0};
 	wire_length = 0;
 	if (connection) bt_conn_unref(connection);
 	connection = NULL;
@@ -1374,6 +1381,46 @@ static int order_button(uint32_t prompt, bool approved, bool *approval_stored)
 }
 #endif
 
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+/* The registered owner's phone tells a board that was without power the time (decision of
+ * 2026-11-27; core/include/nu54_install.h). It is asked for neither the button nor the PIN: the
+ * board cannot take an order, a return or a reset before its clock is right, and each of those
+ * still asks for SW1 and the PIN. Who may tell the time is settled here: the phone whose key the
+ * vault holds as the owner, in a TLS session bound to that key, under a grant of the owner's
+ * generation. The caller has refused the message while anything waits for a button. */
+static int clock_request(nu54_v2_request *request, const nu54_install_policy *policy)
+{
+	const nu54_vault *vault = device_vault_owner();
+	uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE];
+	if (profile != NU54_V2_MANAGEMENT || link.peer != NU54_V2_OWNER || recovering || enrollment.issued ||
+	    !vault->enabled || !vault->record.generation || (vault->record.flags & NU54_VAULT_REVOKED) ||
+	    memcmp(vault->record.owner, link.peer_identity, sizeof(vault->record.owner)) ||
+	    policy->payer_generation != vault->record.generation ||
+	    request->payload_length != NU54_CLOCK_SET_REQUEST_SIZE || request->payload[0] != NU54_CLOCK_SET_OP) return -1;
+	const int64_t uptime = k_uptime_get();
+	const uint64_t before = device_install_earliest();
+	/* The phone read its clock after this session began. */
+	const uint64_t session_seconds = uptime > session_began ? ((uint64_t)(uptime - session_began) + 999u) / 1000u : 0;
+	const int result = device_install_set_time(sys_get_be64(request->payload + 1), request->expires, session_seconds, reply);
+	if (result < 0) return -1;
+	if (result == NU54_CLOCK_MOVED) {
+		/* Judged by the time before the move: the new time must not end an open order early. */
+		device_order_hold_open(before, uptime);
+		k_work_reschedule(&clock_worker, K_NO_WAIT);
+	}
+	request->command = NU54_V2_REPLY;
+	request->payload = reply;
+	request->payload_length = sizeof(reply);
+	if (nu54_v2_link_send(&link, request, send_frame, NULL)) return -1;
+	/* The session goes on only with certificates that are valid at the time the board has now: an
+	 * early one may have become valid, and a jump may have passed the end of another. */
+	if (nu54_install_certificate_window(session_validity.from, session_validity.until, trusted_now()) !=
+	    NU54_CERTIFICATE_CURRENT) return -1;
+	clock_only = false;
+	return 0;
+}
+#endif
+
 static int frame(const uint8_t *data, size_t length)
 {
 	nu54_v2_request request;
@@ -1385,6 +1432,14 @@ static int frame(const uint8_t *data, size_t length)
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 	if (spend_action.pending) return -1;
 #endif
+	if (!nu54_install_session_admits(clock_only, request.command)) return -1;
+	if (request.command == NU54_V2_CLOCK) {
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+		return clock_request(&request, policy);
+#else
+		return -1; /* only the profile that keeps its grant through a restart has a late clock */
+#endif
+	}
 #if defined(CONFIG_NU54_WALLET_CHAINS)
 	if (chains.pending) return -1;
 #endif
@@ -1535,6 +1590,25 @@ static int poll_install(int64_t now)
 	return 0;
 }
 
+/* Binds the session that just finished its handshake to the pinned peer. `now` is the board's
+ * latest possible time.
+ *
+ * A board that was without power is behind the calendar, so the certificate of its registered
+ * owner may have been issued after the time the board has reached. That owner, and nobody else,
+ * is then still let in, to tell the time and for nothing else (clock_only). */
+static int bind_session(const nu54_vault *vault, const uint8_t *pin, uint64_t now)
+{
+	device_tls_v2_validity *early = NULL;
+#if defined(CONFIG_NU54_SPENDING_PROFILE)
+	if (profile == NU54_V2_MANAGEMENT && pin == vault->record.owner) early = &session_validity;
+#else
+	(void)vault;
+#endif
+	if (device_tls_v2_bind(&tls, &link, profile, pin, &journal, now, early)) return -1;
+	clock_only = early && nu54_install_certificate_window(early->from, early->until, now) != NU54_CERTIFICATE_CURRENT;
+	return 0;
+}
+
 static void poll_tls(struct k_work *ignored)
 {
 	(void)ignored;
@@ -1568,10 +1642,10 @@ static void poll_tls(struct k_work *ignored)
 		if (k_uptime_get() < recovery_window) {
 			if (profile != NU54_V2_MANAGEMENT || !vault->record.generation ||
 			    (vault->record.flags & NU54_VAULT_REVOKED) ||
-			    device_tls_v2_bind(&tls, &link, profile, NULL, &journal, trusted_now()) ||
+			    device_tls_v2_bind(&tls, &link, profile, NULL, &journal, trusted_now(), NULL) ||
 			    !memcmp(pin, link.peer_identity, 32)) goto failed;
 			recovering = true;
-		} else if (device_tls_v2_bind(&tls, &link, profile, pin, &journal, trusted_now())) goto failed;
+		} else if (bind_session(vault, pin, trusted_now())) goto failed;
 		bound = true;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 		journal_new_session();
@@ -1989,7 +2063,8 @@ static ssize_t receive_bytes(struct bt_conn *conn, const struct bt_gatt_attr *at
 		profile = (nu54_v2_profile)bytes[0];
 		if (mbedtls_ssl_setup(&tls, &tls_banks[tls_bank].profiles[profile - 1].config)) goto done;
 		connection = bt_conn_ref(conn);
-		deadline = k_uptime_get() + PILOT_TIMEOUT_MS;
+		session_began = k_uptime_get();
+		deadline = session_began + PILOT_TIMEOUT_MS;
 		mbedtls_ssl_set_bio(&tls, NULL, push, pull, NULL);
 		++bytes;
 	} else if (connection != conn) goto done;

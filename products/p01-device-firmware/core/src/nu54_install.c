@@ -167,6 +167,55 @@ int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t
 	return (int64_t)seconds * 1000;
 }
 
+static void put_integer(uint8_t *out, size_t length, uint64_t value)
+{
+	while (length) {
+		out[--length] = (uint8_t)value;
+		value >>= 8;
+	}
+}
+
+int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, uint64_t time,
+			   uint64_t expires, uint64_t session_seconds, nu54_install_clock *next)
+{
+	if (!current || !next || !current->earliest || !time || expires <= time ||
+	    expires - time > NU54_PILOT_BRIEF_SECONDS) return -1;
+	if (time <= current->earliest) return NU54_CLOCK_NOT_FORWARD;
+	if (time >= not_after) return NU54_CLOCK_PAST_END;
+	const uint64_t latest = current->offset > UINT64_MAX - current->earliest ? UINT64_MAX :
+				current->earliest + current->offset;
+	uint64_t offset = session_seconds > UINT64_MAX - NU54_CLOCK_PHONE_SECONDS ? UINT64_MAX :
+			  session_seconds + NU54_CLOCK_PHONE_SECONDS;
+	if (latest > time && latest - time > offset) offset = latest - time;
+	const bool later_day = time / 86400u > current->earliest / 86400u;
+	*next = (nu54_install_clock){.earliest = time, .offset = offset,
+		.phone_days = current->phone_days + (later_day && current->phone_days != UINT64_MAX)};
+	return NU54_CLOCK_MOVED;
+}
+
+void nu54_install_clock_reply(int result, const nu54_install_clock *clock, uint64_t not_after,
+			      uint8_t out[NU54_CLOCK_SET_REPLY_SIZE])
+{
+	const uint64_t latest = clock->offset > UINT64_MAX - clock->earliest ? UINT64_MAX : clock->earliest + clock->offset;
+	out[0] = NU54_CLOCK_SET_OP;
+	out[1] = (uint8_t)result;
+	put_integer(out + 2, 8, clock->earliest);
+	put_integer(out + 10, 8, latest);
+	put_integer(out + 18, 8, not_after);
+	put_integer(out + 26, 4, clock->phone_days > UINT32_MAX ? UINT32_MAX : clock->phone_days);
+}
+
+int nu54_install_certificate_window(uint64_t from, uint64_t until, uint64_t now)
+{
+	if (!now || now >= until || from >= until) return NU54_CERTIFICATE_REFUSED;
+	return from <= now ? NU54_CERTIFICATE_CURRENT : NU54_CERTIFICATE_EARLY;
+}
+
+bool nu54_install_session_admits(bool clock_only, nu54_v2_command command)
+{
+	return !clock_only || command == NU54_V2_CLOCK;
+}
+
 int nu54_install_quote(const nu54_install_policy *policy, const uint8_t *payload, size_t length,
 		       uint64_t now, nu54_v2_quote_policy *order)
 {

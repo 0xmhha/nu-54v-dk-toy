@@ -37,7 +37,7 @@ cmake --build "$out/build" -j 4
     -I "$source/include" -I "$source/tf-psa-crypto/include" \
     -I "$source/tf-psa-crypto/drivers/builtin/include" \
     -I "$protocol/c/include" -I "$firmware/app/src" -I "$firmware/core/include" \
-    "$firmware/test/test_mbedtls_peer.c" "$firmware/app/src/device_tls_v2.c" \
+    "$firmware/test/test_mbedtls_peer.c" "$firmware/app/src/device_tls_v2.c" "$firmware/core/src/nu54_install.c" \
     "$protocol/c/src/nu54_transport_v2.c" "$out/build/library/libmbedtls.a" \
     "$out/build/library/libmbedx509.a" "$out/build/tf-psa-crypto/core/libtfpsacrypto.a" -o "$out/peer"
 cd "$out"

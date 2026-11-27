@@ -171,16 +171,35 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_install.c INSTALL_FLOOR INSTALL_REPLAY_FLOOR INSTALL_GRANT
     INSTALL_CLOCK INSTALL_GRANT_PART GRANT_PART_SIZE GRANT_PARTS CLOCK_SAVE_SECONDS OFFER_TTL_MS storage_found
     removed clock_load clock_store grant_store grant_read device_install_forget device_install_earliest
-    device_install_load no_owner device_install_restore device_install_keep_time device_install_now
-    device_install_policy
+    device_install_fence_wallet_expiry device_install_load no_owner device_install_restore
+    device_install_keep_time device_install_set_time device_install_now device_install_policy
   DEPENDS extract_c.py ../app/src/device_install.c VERBATIM)
-add_executable(test_install_store test_install_store.c ../core/src/nu54_install.c
+add_executable(test_install_store test_install_store.c install_store_fixture.h ../core/src/nu54_install.c
   ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h)
 target_include_directories(test_install_store BEFORE PRIVATE fakes-spending ${CMAKE_CURRENT_BINARY_DIR})
-target_compile_definitions(test_install_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1)
+target_compile_definitions(test_install_store PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_CLOCK_SAVE_SECONDS=600)
 target_link_libraries(test_install_store PRIVATE nu54_crypto)
 target_compile_options(test_install_store PRIVATE -Wall -Wextra -Werror)
 add_test(NAME install_store COMMAND test_install_store)
+
+# The owner's phone sets a restarted board's clock: the board's clock, storage, session and order
+# code with the real transport and a store's signed order.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/device_pilot.c clock_request order_request frame bind_session
+  DEPENDS extract_c.py ../app/src/device_pilot.c VERBATIM)
+add_executable(test_clock_sync test_clock_sync.c install_store_fixture.h ../app/src/device_order.c
+  ../core/src/nu54_install.c ../core/src/nu54_order.c ../core/src/nu54_spending.c ../core/src/nu54_owner.c
+  ../core/src/nu54_vault.c ../core/src/nu54_pilot.c ../core/src/nu54_local_approval.c
+  ../../../packages/protocol/c/src/nu54_quote_v2.c ../../../packages/protocol/c/src/nu54_transport_v2.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_install_store.h ${CMAKE_CURRENT_BINARY_DIR}/board_clock.h)
+target_include_directories(test_clock_sync BEFORE PRIVATE fakes-spending ../app/src ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(test_clock_sync PRIVATE CONFIG_NU54_SPENDING_PROFILE=1 CONFIG_NU54_CLOCK_SAVE_SECONDS=600
+  CONFIG_NU54_SPENDING_DAILY_CAP=20000000)
+target_link_libraries(test_clock_sync PRIVATE nu54_crypto)
+target_compile_options(test_clock_sync PRIVATE -Wall -Wextra -Werror)
+add_test(NAME clock_sync COMMAND test_clock_sync
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../../packages/protocol/v2/testdata/order-lock.vectors)
 
 add_executable(test_order test_order.c ../core/src/nu54_order.c ../core/src/nu54_pilot.c
   ../core/src/nu54_local_approval.c ../../../packages/protocol/c/src/nu54_quote_v2.c)

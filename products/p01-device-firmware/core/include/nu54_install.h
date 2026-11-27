@@ -85,10 +85,11 @@ int nu54_install_restore(const uint8_t *bundle, size_t length, const uint8_t ide
  * from before a reset matches neither. */
 bool nu54_install_generation_current(uint64_t grant_generation, uint64_t board_generation, bool no_owner);
 
-/* The time the board keeps in storage: its trusted lower bound and how far the latest possible
- * time was above it. */
+/* The time the board keeps in storage: its trusted lower bound, how far the latest possible time
+ * was above it, and how often the owner's phone moved the lower bound into a later day under this
+ * grant. */
 typedef struct {
-	uint64_t earliest, offset;
+	uint64_t earliest, offset, phone_days;
 } nu54_install_clock;
 
 /* The lower bound a restarted board continues from: the latest of what it saved and of its other
@@ -99,5 +100,45 @@ uint64_t nu54_install_resume(const nu54_install_clock *saved, uint64_t floor_tim
 /* Milliseconds until the time is saved next: every interval_seconds, and at the grant's end, so
  * that a restart after the end finds the end in storage. `latest` is the latest possible time. */
 int64_t nu54_install_clock_wait_ms(uint64_t latest, uint64_t not_after, uint32_t interval_seconds);
+
+/* ---- the owner's phone tells a restarted board the time (decision of 2026-11-27) ---- */
+
+/* Request: op, the phone's time as eight big-endian bytes, in a NU54_V2_CLOCK message.
+ * Reply: op, result, the board's earliest and latest possible time, the grant's end (8 each),
+ * and the number of times the phone's time opened a later day under this grant (4). */
+#define NU54_CLOCK_SET_OP 0x81
+#define NU54_CLOCK_SET_REQUEST_SIZE 9
+#define NU54_CLOCK_SET_REPLY_SIZE 30
+/* How far the phone's clock may be off (the same 5 s the short requests allow for). */
+#define NU54_CLOCK_PHONE_SECONDS 5
+enum { NU54_CLOCK_MOVED = 1, NU54_CLOCK_NOT_FORWARD = 2, NU54_CLOCK_PAST_END = 3 };
+
+/* Decides on the time a registered owner's phone tells in an authenticated session.
+ *
+ * The time only moves forward and stays before the grant's end. The message that carries it must
+ * end within NU54_PILOT_BRIEF_SECONDS after that time, by its own word: a message can then only
+ * ever set a time shortly before its own end, and one that is replayed after it ended is refused
+ * as ended, whatever it carries.
+ *
+ * `session_seconds` is how long the board has had this session. The phone read its clock after the
+ * session began, so the true time is at most that much, and the phone's own error, past the time
+ * it sent: that is the new distance to the latest possible time. The latest possible time never
+ * moves back.
+ *
+ * Returns -1 for a message that is not well formed, else one of the results above. `next` is
+ * written for NU54_CLOCK_MOVED only. */
+int nu54_install_clock_set(const nu54_install_clock *current, uint64_t not_after, uint64_t time,
+			   uint64_t expires, uint64_t session_seconds, nu54_install_clock *next);
+void nu54_install_clock_reply(int result, const nu54_install_clock *clock, uint64_t not_after,
+			      uint8_t out[NU54_CLOCK_SET_REPLY_SIZE]);
+
+/* Whether a peer certificate valid from `from` until `until` may open a session at the board's
+ * latest possible time `now`. One that has ended is refused. One that is not valid yet by a clock
+ * that may be late opens a session for the time command only (NU54_CERTIFICATE_EARLY), and only
+ * where the caller allows that. */
+enum { NU54_CERTIFICATE_REFUSED, NU54_CERTIFICATE_CURRENT, NU54_CERTIFICATE_EARLY };
+int nu54_install_certificate_window(uint64_t from, uint64_t until, uint64_t now);
+/* A session that was opened early may do nothing but tell the time. */
+bool nu54_install_session_admits(bool clock_only, nu54_v2_command command);
 
 #endif

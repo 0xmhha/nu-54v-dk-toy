@@ -1,5 +1,6 @@
 /* Exercise the board TLS adapter on streams without requiring BLE hardware. */
 #include "device_tls_v2.h"
+#include "nu54_install.h"
 #include <mbedtls/net_sockets.h>
 #include <psa/crypto.h>
 #include <signal.h>
@@ -44,8 +45,11 @@ static int sha256(const uint8_t *data, size_t length, uint8_t digest[32])
 		written == 32) ? 0 : -1;
 }
 
-static void exchange(mbedtls_x509_crt *ca, struct identity *board, struct identity *peer,
-		     const struct identity *pin, nu54_v2_profile route, bool expected, uint8_t epoch[16])
+/* `now` is the board's time when it binds the session. `validity`, when given, asks for the
+ * period of the peer's certificates and lets one through that is not valid yet at `now`. */
+static void exchange_at(mbedtls_x509_crt *ca, struct identity *board, struct identity *peer,
+			const struct identity *pin, nu54_v2_profile route, bool expected, uint8_t epoch[16],
+			uint64_t now, device_tls_v2_validity *validity)
 {
 	device_tls_v2_profile profile;
 	REQUIRE(device_tls_v2_configure(&profile, route, ca, &board->certificate, &board->key) == 0);
@@ -95,7 +99,7 @@ static void exchange(mbedtls_x509_crt *ca, struct identity *board, struct identi
 	nu54_v2_journal_entry entries[4] = {0};
 	nu54_v2_journal journal = {.entries = entries, .capacity = 4, .sha256 = sha256};
 	nu54_v2_link link;
-	int result = device_tls_v2_bind(&server, &link, route, peer_pin, &journal, (uint64_t)time(NULL));
+	int result = device_tls_v2_bind(&server, &link, route, peer_pin, &journal, now, validity);
 	REQUIRE((result == 0) == expected);
 	if (expected) {
 		REQUIRE(mbedtls_ssl_export_keying_material(&client, epoch, NU54_V2_EPOCH_SIZE,
@@ -109,6 +113,12 @@ static void exchange(mbedtls_x509_crt *ca, struct identity *board, struct identi
 	mbedtls_ssl_config_free(&profile.config);
 	mbedtls_net_free(&client_socket);
 	mbedtls_net_free(&server_socket);
+}
+
+static void exchange(mbedtls_x509_crt *ca, struct identity *board, struct identity *peer,
+		     const struct identity *pin, nu54_v2_profile route, bool expected, uint8_t epoch[16])
+{
+	exchange_at(ca, board, peer, pin, route, expected, epoch, (uint64_t)time(NULL), NULL);
 }
 
 int main(void)
@@ -130,9 +140,31 @@ int main(void)
 	exchange(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, true, second);
 	exchange(&ca, &board, &terminal, &terminal, NU54_V2_MANAGEMENT, false, second);
 	exchange(&ca, &board, &owner, &terminal, NU54_V2_MANAGEMENT, false, second);
+
+	/* A board that was without power is behind the calendar: the certificates were issued a few
+	 * seconds ago, and its clock says an hour ago. Such a certificate is refused, unless the
+	 * caller asks for the period, which only the pinned owner's session does. */
+	const uint64_t today = (uint64_t)time(NULL), late = today - 3600, far = today + 3 * 86400;
+	device_tls_v2_validity period = {0};
+	exchange_at(&ca, &board, &owner, &owner, NU54_V2_MANAGEMENT, false, second, late, NULL);
+	exchange_at(&ca, &board, &owner, &owner, NU54_V2_MANAGEMENT, true, second, late, &period);
+	REQUIRE(period.from > late && period.from <= today && period.until > today && period.until <= today + 86400);
+	REQUIRE(nu54_install_certificate_window(period.from, period.until, late) == NU54_CERTIFICATE_EARLY);
+	/* With a clock that is right the same call reports the same period. */
+	period = (device_tls_v2_validity){0};
+	exchange_at(&ca, &board, &owner, &owner, NU54_V2_MANAGEMENT, true, second, today, &period);
+	REQUIRE(nu54_install_certificate_window(period.from, period.until, today) == NU54_CERTIFICATE_CURRENT);
+	/* A certificate that has ended is refused either way, and so are another key and the payment route. */
+	exchange_at(&ca, &board, &owner, &owner, NU54_V2_MANAGEMENT, false, second, far, NULL);
+	exchange_at(&ca, &board, &owner, &owner, NU54_V2_MANAGEMENT, false, second, far, &period);
+	exchange_at(&ca, &board, &owner, &terminal, NU54_V2_MANAGEMENT, false, second, late, &period);
+	exchange_at(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, false, second, late, &period);
+	exchange_at(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, false, second, today, &period);
+	exchange_at(&ca, &board, &terminal, &terminal, NU54_V2_PAYMENT, false, second, late, NULL);
 	unload(&terminal);
 	unload(&owner);
 	unload(&board);
 	mbedtls_x509_crt_free(&ca);
-	puts("Mbed TLS 4.1.2 authenticated board adapter accepted both roles and fresh exporters and rejected wrong role and pin");
+	puts("Mbed TLS 4.1.2 authenticated board adapter accepted both roles and fresh exporters, rejected wrong role and pin, "
+	     "and took a certificate that is not valid yet only where its period was asked for");
 }

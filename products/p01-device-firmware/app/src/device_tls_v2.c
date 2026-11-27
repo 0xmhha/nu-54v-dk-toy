@@ -116,24 +116,39 @@ static bool epoch_seconds(const mbedtls_x509_time *time, uint64_t *out)
 	return true;
 }
 
+static int certificate_window(const mbedtls_x509_crt *certificate, uint64_t now, uint64_t *from, uint64_t *until)
+{
+	return certificate && epoch_seconds(&certificate->valid_from, from) && epoch_seconds(&certificate->valid_to, until) ?
+	       nu54_install_certificate_window(*from, *until, now) : NU54_CERTIFICATE_REFUSED;
+}
+
 bool device_tls_v2_certificate_current(const mbedtls_x509_crt *certificate, uint64_t now)
 {
 	uint64_t from, until;
-	return certificate && epoch_seconds(&certificate->valid_from, &from) &&
-	       epoch_seconds(&certificate->valid_to, &until) && from <= now && now < until;
+	return certificate_window(certificate, now, &from, &until) == NU54_CERTIFICATE_CURRENT;
 }
 
+/* `validity`, when given, receives the period in which every certificate the peer sent is valid,
+ * and a certificate that is not valid yet at `now` is then left to the caller. One that has ended
+ * is refused in either case. */
 static int peer_pin(mbedtls_ssl_context *tls, const char *alpn, const char *role,
-		    const uint8_t expected_peer[NU54_V2_PEER_SIZE], uint8_t output[NU54_V2_PEER_SIZE], uint64_t now)
+		    const uint8_t expected_peer[NU54_V2_PEER_SIZE], uint8_t output[NU54_V2_PEER_SIZE], uint64_t now,
+		    device_tls_v2_validity *validity)
 {
 	if (!tls || !role || (!expected_peer && !output) || mbedtls_ssl_get_version_number(tls) != MBEDTLS_SSL_VERSION_TLS1_3 ||
 	    mbedtls_ssl_get_verify_result(tls) != 0) return -1;
 	const char *selected = mbedtls_ssl_get_alpn_protocol(tls);
 	const mbedtls_x509_crt *peer = mbedtls_ssl_get_peer_cert(tls);
 	if (!selected || strcmp(selected, alpn) || !role_certificate(peer, role)) return -1;
+	device_tls_v2_validity all = {.from = 0, .until = UINT64_MAX};
 	for (const mbedtls_x509_crt *entry = peer; entry; entry = entry->next) {
-		if (!device_tls_v2_certificate_current(entry, now)) return -1;
+		uint64_t from, until;
+		const int window = certificate_window(entry, now, &from, &until);
+		if (window == NU54_CERTIFICATE_REFUSED || (window == NU54_CERTIFICATE_EARLY && !validity)) return -1;
+		if (from > all.from) all.from = from;
+		if (until < all.until) all.until = until;
 	}
+	if (validity) *validity = all;
 	uint8_t binding[NU54_V2_PEER_SIZE];
 	size_t length;
 	if (psa_hash_compute(PSA_ALG_SHA_256, peer->pk_raw.p, peer->pk_raw.len, binding, sizeof(binding), &length) != PSA_SUCCESS ||
@@ -144,18 +159,21 @@ static int peer_pin(mbedtls_ssl_context *tls, const char *alpn, const char *role
 
 int device_tls_recovery_pin(mbedtls_ssl_context *tls, const uint8_t expected_peer[32], uint64_t now)
 {
-	return peer_pin(tls, ACCESSORY_ALPN, "urn:nu54:role:recovery-accessory", expected_peer, NULL, now);
+	return peer_pin(tls, ACCESSORY_ALPN, "urn:nu54:role:recovery-accessory", expected_peer, NULL, now, NULL);
 }
 
 int device_tls_v2_bind(mbedtls_ssl_context *tls, nu54_v2_link *link, nu54_v2_profile route,
-		       const uint8_t expected_peer[NU54_V2_PEER_SIZE], nu54_v2_journal *journal, uint64_t now)
+		       const uint8_t expected_peer[NU54_V2_PEER_SIZE], nu54_v2_journal *journal, uint64_t now,
+		       device_tls_v2_validity *validity)
 {
 	const char *alpn = nu54_v2_alpn(route);
 	const char *role = route == NU54_V2_MANAGEMENT ? "urn:nu54:role:owner" :
 			   route == NU54_V2_PAYMENT ? "urn:nu54:role:terminal" : NULL;
 	uint8_t identity[NU54_V2_PEER_SIZE];
+	/* Only a pinned owner may come with a certificate that is not valid yet. */
 	if (!alpn || (!expected_peer && route != NU54_V2_MANAGEMENT) ||
-	    peer_pin(tls, alpn, role, expected_peer, identity, now)) return -1;
+	    (validity && (!expected_peer || route != NU54_V2_MANAGEMENT)) ||
+	    peer_pin(tls, alpn, role, expected_peer, identity, now, validity)) return -1;
 	uint8_t epoch[NU54_V2_EPOCH_SIZE];
 	if (mbedtls_ssl_export_keying_material(tls, epoch, sizeof(epoch), NU54_V2_EXPORTER_LABEL,
 					      sizeof(NU54_V2_EXPORTER_LABEL) - 1,

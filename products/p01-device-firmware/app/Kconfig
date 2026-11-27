@@ -158,6 +158,20 @@ config NU54_OWNER_WAIT_SLOW_INTERVAL_MAX
 
 endif # NU54_OWNER_WAIT_ADV
 
+config NU54_CLOCK_SAVE_SECONDS
+	int "Seconds between two saves of the board's time while a grant runs"
+	depends on NU54_SPENDING_PROFILE
+	range 60 86400
+	default 3600
+	help
+	  The spending profile keeps the operator's grant through a restart and continues from the
+	  time it saved last. Each save is one write to protected storage. A restart loses what
+	  passed since the last save, and the owner's phone sets the clock again at its next
+	  session (the time command), so the interval does not decide whether payments work after
+	  a restart. It decides how much of the grant's period a restart gives back in board time,
+	  and how often the storage is written. The time is also saved when the phone moves it and
+	  when the grant ends. One hour is 24 writes a day.
+
 source "Kconfig.zephyr"
 
 config NU54_SECURE_KEY

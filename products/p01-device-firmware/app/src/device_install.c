@@ -28,8 +28,15 @@
 #define INSTALL_GRANT_PART ((psa_storage_uid_t)0x5460)
 #define GRANT_PART_SIZE 128
 #define GRANT_PARTS ((NU54_INSTALL_BUNDLE_MAX + GRANT_PART_SIZE - 1) / GRANT_PART_SIZE)
-#define CLOCK_SAVE_SECONDS 600
+#define CLOCK_SAVE_SECONDS CONFIG_NU54_CLOCK_SAVE_SECONDS
 _Static_assert(INSTALL_GRANT_PART + GRANT_PARTS <= 0x5470, "the grant parts run into the next record");
+/* A part is exactly as large as one item of the default profile's storage may be: there is no
+ * margin, so a smaller item limit must fail the build and not the installation. */
+#if defined(CONFIG_SECURE_STORAGE_ITS_MAX_DATA_SIZE)
+_Static_assert(GRANT_PART_SIZE <= CONFIG_SECURE_STORAGE_ITS_MAX_DATA_SIZE, "a grant part exceeds one storage item");
+#elif defined(CONFIG_TFM_ITS_MAX_ASSET_SIZE)
+_Static_assert(GRANT_PART_SIZE <= CONFIG_TFM_ITS_MAX_ASSET_SIZE, "a grant part exceeds one storage asset");
+#endif
 #define ID_ALG PSA_ALG_ECDSA(PSA_ALG_SHA_256)
 #define PAY_ALG PSA_ALG_DETERMINISTIC_ECDSA(PSA_ALG_SHA_256)
 #define PUBLIC_TYPE PSA_KEY_TYPE_ECC_PUBLIC_KEY(PSA_ECC_FAMILY_SECP_R1)
@@ -196,13 +203,21 @@ static bool removed(psa_status_t status)
 	return status == PSA_SUCCESS || status == PSA_ERROR_DOES_NOT_EXIST;
 }
 
-/* The saved time is a floor like the others: a record that cannot be read is not absence. */
+/* The saved time serves the stored grant only. A record that cannot be read is not taken for a
+ * time: the board then does not know how far the grant has run, so the grant goes with it, and
+ * the board continues from its other floors, without a grant, until the operator installs one.
+ * It still starts, with or without an owner. */
 static int clock_load(void)
 {
 	unsigned found = 0;
 	clock_saved = (nu54_install_clock){0};
 	clock_sealed = false;
-	return storage_found(INSTALL_CLOCK, &clock_saved, sizeof(clock_saved), 1, &found);
+	if (storage_found(INSTALL_CLOCK, &clock_saved, sizeof(clock_saved), 1, &found)) {
+		/* A grant whose removal fails stays unused as well: nothing restores it without a saved time. */
+		(void)device_install_forget();
+		clock_saved = (nu54_install_clock){0};
+	}
+	return 0;
 }
 
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
@@ -420,7 +435,7 @@ int device_install_load(const uint8_t *bundle, size_t length, mbedtls_x509_crt *
 	    adopt(bundle, ca_length, board_length, &decoded, next.time + offset, ca, board, key, profiles)) return -1;
 #if defined(CONFIG_NU54_SPENDING_PROFILE)
 	/* Kept for the next start. A failure here commits nothing; the grant in use stays in use. */
-	const nu54_install_clock start = {next.time, offset};
+	const nu54_install_clock start = {.earliest = next.time, .offset = offset};
 	if (grant_store(bundle, length) || clock_store(&start)) return -1;
 #endif
 	if (psa_its_set(INSTALL_FLOOR, sizeof(next), &next, PSA_STORAGE_FLAG_NONE) != PSA_SUCCESS ||
@@ -478,13 +493,37 @@ int device_install_restore(uint8_t *bundle, size_t capacity, mbedtls_x509_crt *c
 int64_t device_install_keep_time(void)
 {
 	if (!active || clock_sealed) return -1;
-	const nu54_install_clock now = {device_install_earliest(), max_offset};
+	const nu54_install_clock now = {device_install_earliest(), max_offset, clock_saved.phone_days};
 	/* A failed write is tried again at the next turn; the time in storage is then older, not wrong. */
 	if (now.earliest > clock_saved.earliest && !clock_store(&now) && now.earliest + now.offset >= policy.not_after) {
 		clock_sealed = true;
 		return -1;
 	}
 	return nu54_install_clock_wait_ms(now.earliest + now.offset, policy.not_after, CLOCK_SAVE_SECONDS);
+}
+
+/* The registered owner's phone tells the time (core/include/nu54_install.h). The caller has
+ * checked who asks. A time that moves the clock is in storage before the board uses it, so a
+ * restart goes on from it and a write that fails moves nothing. Returns the result of
+ * nu54_install_clock_set with the reply written, or -1. */
+int device_install_set_time(uint64_t time, uint64_t expires, uint64_t session_seconds,
+			    uint8_t reply[NU54_CLOCK_SET_REPLY_SIZE])
+{
+	if (!device_install_policy()) return -1;
+	nu54_install_clock clock = {device_install_earliest(), max_offset, clock_saved.phone_days}, next;
+	const int result = nu54_install_clock_set(&clock, policy.not_after, time, expires, session_seconds, &next);
+	if (result < 0) return -1;
+	if (result == NU54_CLOCK_MOVED) {
+		if (clock_store(&next)) return -1;
+		clock_base = next.earliest;
+		installed = k_uptime_get();
+		max_offset = next.offset;
+		/* What was saved already says that the grant ended: nothing more is written for it. */
+		clock_sealed = next.offset >= policy.not_after - next.earliest;
+		clock = next;
+	}
+	nu54_install_clock_reply(result, &clock, policy.not_after, reply);
+	return result;
 }
 #endif
 
