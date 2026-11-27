@@ -12,6 +12,17 @@ import {
   type CommerceQuote,
 } from '@nu54/protocol';
 
+import {isPinnedPolicy, verifyPinnedQuote} from './orderPaymentTrust.ts';
+
+/**
+ * The quote under review, checked against what this phone trusts. A phone without a store registration trusts the
+ * order contract of its build and that contract's merchant record (orderPaymentTrust.ts); a registered phone trusts
+ * its registration's payment profile and the presentation signed for it.
+ */
+export function reviewedPayment(quote: CommerceQuote, order: CommerceOrder, profile: CommercePaymentProfile, now: number, scope: PresentationScope) {
+  return isPinnedPolicy(profile) ? verifyPinnedQuote(quote, order, profile, now, scope) : preparePresentedPayment(quote, order, profile, now, scope);
+}
+
 const stops = ['cancelled', 'expired', 'interrupted', 'changed', 'refused'] as const;
 export type PaymentReviewStop = typeof stops[number];
 
@@ -120,7 +131,7 @@ export function approvalForForward(
   profile: CommercePaymentProfile,
   now: number,
 ) {
-  const payment = preparePresentedPayment(
+  const payment = reviewedPayment(
     entry.quote,
     entry.order,
     profile,
@@ -144,7 +155,7 @@ export function lockForSubmit(
   profile: CommercePaymentProfile,
   now: number,
 ) {
-  const payment = preparePresentedPayment(entry.quote, entry.order, profile, now, entry.scope);
+  const payment = reviewedPayment(entry.quote, entry.order, profile, now, entry.scope);
   if (!entry.authorization || !entry.confirmer) throw new Error('PAYMENT_APPROVAL_PENDING');
   const tokenName = paymentToken(profile).name;
   const signature = verifyOrderLockFor(tokenName, payment, entry.confirmer, hexToBytes(entry.authorization), now);

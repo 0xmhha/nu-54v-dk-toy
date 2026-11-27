@@ -24,6 +24,11 @@ type Props = {
   reset: () => void;
   recover?: () => Promise<void>;
   wallet: () => void;
+  /**
+   * Opens a store's page. With it a store QR is a shortcut to that store's page, whichever store it names; without
+   * it (a build with no customer entrance) the QR is checked against the one store this phone is registered at.
+   */
+  page?: (branch: string) => void;
 };
 
 function Button({ title, disabled, onPress }: { title: string; disabled?: boolean; onPress: () => void }) {
@@ -47,6 +52,7 @@ export function ShopDiscovery({
   reset,
   recover,
   wallet,
+  page,
 }: Props) {
   const [state, setState] = useState<
     'search' | 'fallback' | 'offline' | 'confirm'
@@ -120,6 +126,10 @@ export function ShopDiscovery({
 
   async function openQr(raw: string) {
     const branch = readEntranceQr(raw);
+    if (page) {
+      page(branch);
+      return;
+    }
     lastQr.current = raw;
     reset();
     show(await online(branch));

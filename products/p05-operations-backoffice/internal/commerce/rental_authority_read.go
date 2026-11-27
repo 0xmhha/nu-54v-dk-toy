@@ -35,6 +35,7 @@ func OpenRentalAuthorityReader(ctx context.Context, dsn string, deployment core.
 	}
 	config.ConnConfig.RuntimeParams["lock_timeout"] = "2s"
 	config.ConnConfig.RuntimeParams["statement_timeout"] = "7s"
+	config.ConnConfig.RuntimeParams["jit"] = "off" // see commerce.Open
 	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, errors.New("protected rental authority reader connection failed")

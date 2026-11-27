@@ -88,6 +88,7 @@ func openProtectedCloseExecutor(ctx context.Context, dsn string, chain *core.Cha
 	}
 	config.ConnConfig.RuntimeParams["lock_timeout"] = "2s"
 	config.ConnConfig.RuntimeParams["statement_timeout"] = "7s"
+	config.ConnConfig.RuntimeParams["jit"] = "off" // see commerce.Open
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, errors.New("protected close database unavailable")

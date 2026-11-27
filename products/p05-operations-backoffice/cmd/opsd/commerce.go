@@ -505,43 +505,91 @@ func serveCommerce(lifetime context.Context, addr, database string, mux *http.Se
 	customerAddr := os.Getenv("P05_CUSTOMER_ADDR")
 	var customer *commerce.CustomerEntrance
 	if customerAddr != "" {
-		customer = &commerce.CustomerEntrance{Limiter: commerce.NewRateLimiter(60, 20, nil)}
+		// P05_CUSTOMER_OPERATOR_CONTACT is shown on every store page for payment and refund questions. The request
+		// limits and their sizes are commerce.NewCustomerLimits; the caps on what the entrance holds at once are
+		// in customer_listener.go. The cart of a proven account holds stock only after its balance was read from
+		// the chain, through the settlement client of the branch's approved target.
+		var funds commerce.PayerFunds
+		if forwarder != nil {
+			funds = forwarder
+		} else {
+			log.Print("customer entrance: no settlement targets are enrolled, so no balance can be read and carts of proven accounts are refused")
+		}
+		customer = newCustomerEntrance(os.Getenv("P05_CUSTOMER_OPERATOR_CONTACT"), gate, funds)
 	}
 	handlers := commerce.HTTP{Customer: customer, NetworkList: networks, QuoteAdmission: make(chan struct{}, 24), Store: store, Credentials: credentials, Profiles: profiles, Payment: payment, GasSponsors: sponsors, RentalEscrow: rentalEscrow, RentalReview: commissioning, PresentationKey: presentationKey, OperatorOrigin: origin, Rental: rentalControl, ProtectedClose: protectedClose, ProtectedWithdrawal: protectedWithdrawal == "1", RenterEvidence: renterEvidence, RenterV1Origins: renterV1Origins, Legacy: legacyControl, Firmware: firmware,
 		Signer: signer, Cipher: cipher}
 	handlers.Register(mux)
+	// The customer entrance is a second listener. When it stops serving for any reason but shutdown, opsd stops
+	// too: a process that answers staff but no customer must not look healthy.
+	var customerServer *http.Server
+	entranceFailed := make(chan error, 1)
 	if customer != nil {
+		share, err := connectionShare()
+		if err != nil {
+			return err
+		}
 		entrance := http.NewServeMux()
 		handlers.RegisterCustomer(entrance)
-		customerServer := &http.Server{Addr: customerAddr, Handler: gate.Handler(entrance), BaseContext: func(net.Listener) context.Context { return lifetime },
-			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second, WriteTimeout: 10 * time.Second, MaxHeaderBytes: 8 << 10,
-			TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.NoClientCert, Certificates: []tls.Certificate{certificate}}}
-		listener, err := net.Listen("tcp", customerAddr)
+		customerServer = customerEntranceServer(customerAddr, entrance, certificate, lifetime)
+		listener, err := listenCustomers(customerAddr, share)
 		if err != nil {
 			return fmt.Errorf("customer entrance: %w", err)
 		}
 		go func() {
 			if err := customerServer.ServeTLS(listener, "", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Printf("customer entrance stopped: %v", err)
+				entranceFailed <- err
 			}
 		}()
-		defer customerServer.Close()
+		// Refused requests leave one line every half minute: how many, and of which kind.
+		go func() {
+			tick := time.NewTicker(30 * time.Second)
+			defer tick.Stop()
+			for {
+				select {
+				case <-lifetime.Done():
+					return
+				case <-tick.C:
+					if counts := customer.Limited.Drain(); len(counts) != 0 {
+						log.Printf("customer entrance refused in 30s: issue=%d attempt=%d failed=%d account=%d proof=%d start=%d read=%d photo=%d address=%d live=%d session=%d unknown=%d hold=%d balance=%d busy=%d",
+							counts["issue"], counts["attempt"], counts["failed"], counts["account"], counts["proof"], counts["start"], counts["read"], counts["photo"],
+							counts["address"], counts["live"], counts["session"], counts["unknown"], counts["hold"], counts["balance"], counts["busy"])
+					}
+				}
+			}
+		}()
 	}
 	server := &http.Server{Addr: addr, Handler: gate.Handler(mux), BaseContext: func(net.Listener) context.Context { return lifetime }, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second,
 		WriteTimeout: 10 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert,
 			ClientCAs: roots, Certificates: []tls.Certificate{certificate}}}
-	shutdown := make(chan struct{})
+	shutdown := make(chan error, 1)
 	go func() {
-		defer close(shutdown)
-		<-lifetime.Done()
+		var failure error
+		select {
+		case <-lifetime.Done():
+		case failure = <-entranceFailed:
+		}
+		// Both listeners drain under the same deadline.
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		drained := make(chan struct{})
+		go func() {
+			defer close(drained)
+			if customerServer != nil {
+				_ = customerServer.Shutdown(ctx)
+			}
+		}()
 		_ = server.Shutdown(ctx)
+		<-drained
+		if failure != nil {
+			failure = fmt.Errorf("customer entrance stopped: %w", failure)
+		}
+		shutdown <- failure
 	}()
 	err = server.ListenAndServeTLS("", "")
 	if errors.Is(err, http.ErrServerClosed) {
-		<-shutdown
-		return nil
+		return <-shutdown
 	}
 	return err
 }

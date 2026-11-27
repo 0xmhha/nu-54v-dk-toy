@@ -1,0 +1,524 @@
+{
+  "about": [
+    "Answers of the customer entrance of opsd (p05 internal/commerce), as the phone app reads them.",
+    "Written by the tests of p05 internal/commerce/customer_contract_test.go from what the routes answered (NU54_WRITE_CUSTOMER_CONTRACT=1) and compared with them on every run.",
+    "Read by the phone app's parsers in p02 test/customerEntranceContract.test.ts. Do not edit by hand.",
+    "References, names, the store's clock, request ids and digests, tokens and times are samples; everything else is what the server answered."
+  ],
+  "answers": {
+    "busy-in-flight": {
+      "status": 503,
+      "retryAfter": 1,
+      "body": {
+        "error": "BUSY",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "busy-rate": {
+      "status": 429,
+      "retryAfter": 3,
+      "body": {
+        "error": "BUSY",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "busy-rate-session": {
+      "status": 429,
+      "retryAfter": 3,
+      "body": {
+        "error": "BUSY",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "cancel-not-found": {
+      "status": 404,
+      "body": null
+    },
+    "cancel-paid": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "paid",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "cancel-quote-issued": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "quote_issued",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "cancel-released": {
+      "status": 200,
+      "body": {
+        "saleRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3001",
+        "state": "closed",
+        "status": "ok"
+      }
+    },
+    "challenge": {
+      "status": 200,
+      "body": {
+        "challenge": "abababababababababababababababababababababababababababababababab",
+        "expiresAt": 1764201600
+      }
+    },
+    "challenge-account": {
+      "status": 200,
+      "body": {
+        "challenge": "abababababababababababababababababababababababababababababababab",
+        "expiresAt": 1764201600
+      }
+    },
+    "challenge-not-public": {
+      "status": 400,
+      "body": {
+        "error": "BAD_REQUEST",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "hold-balance-short": {
+      "status": 409,
+      "body": {
+        "balance": "299999",
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "balance_short",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "required": "300000",
+        "status": "error"
+      }
+    },
+    "hold-balance-unavailable": {
+      "status": 503,
+      "retryAfter": 3,
+      "body": {
+        "error": "BUSY",
+        "reason": "balance_unavailable",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
+    "hold-cart-released": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "cart_released",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
+    "hold-limit": {
+      "status": 429,
+      "retryAfter": 10,
+      "body": {
+        "error": "BUSY",
+        "reason": "hold_limit",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
+    "hold-orders-closed": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "orders_closed",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
+    "hold-other-cart": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "status": "error"
+      }
+    },
+    "menu-public": {
+      "status": 200,
+      "body": {
+        "catalog": [
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 0,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "cake",
+            "optionKey": "standard",
+            "sku": "cake",
+            "skuAvailable": 0,
+            "unitPrice": "550000",
+            "version": 1
+          },
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 1000,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "tea",
+            "optionKey": "standard",
+            "sku": "tea",
+            "skuAvailable": 1000,
+            "unitPrice": "300000",
+            "version": 1
+          }
+        ],
+        "catalogVersion": 1,
+        "orderState": {
+          "mode": "open"
+        },
+        "shop": {
+          "branch": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+          "branchLabel": "여울 커피"
+        }
+      }
+    },
+    "menu-session": {
+      "status": 200,
+      "body": {
+        "catalog": [
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 0,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "cake",
+            "optionKey": "standard",
+            "sku": "cake",
+            "skuAvailable": 0,
+            "unitPrice": "550000",
+            "version": 1
+          },
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 5,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "tea",
+            "optionKey": "standard",
+            "sku": "tea",
+            "skuAvailable": 5,
+            "unitPrice": "300000",
+            "version": 1
+          }
+        ],
+        "catalogVersion": 1,
+        "orderState": {
+          "mode": "open"
+        },
+        "requestDigest": "abababababababababababababababababababababababababababababababab",
+        "requestId": "0fbc54ef-2827-4ab5-bfcd-3a27611c3005",
+        "resultRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+        "shop": {
+          "branch": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+          "branchLabel": "여울 커피"
+        },
+        "status": "ok"
+      }
+    },
+    "menu-unpublished": {
+      "status": 404,
+      "body": null
+    },
+    "photo-unpublished": {
+      "status": 404,
+      "body": null
+    },
+    "pickup-collected": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "collected",
+        "recordedAt": 1764201600,
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "pickup-not-ready": {
+      "status": 409,
+      "body": {
+        "error": "CHECKOUT_CONFLICT",
+        "reason": "not_ready",
+        "requestDigest": "",
+        "requestId": "",
+        "status": "error"
+      }
+    },
+    "pickup-token": {
+      "status": 200,
+      "body": {
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+        "expiresAt": 1764201600,
+        "pickupToken": "abababababababababababababababababababababababababababababababab",
+        "purpose": "pickup",
+        "saleRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3001"
+      }
+    },
+    "proof-account": {
+      "status": 200,
+      "body": {
+        "openOrders": 1,
+        "purpose": "account"
+      }
+    },
+    "proof-checkout": {
+      "status": 200,
+      "body": {
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+        "expiresAt": 1764201600,
+        "purpose": "checkout",
+        "session": "abababababababababababababababababababababababababababababababab",
+        "subjectRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3004",
+        "tenantRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c39e0"
+      }
+    },
+    "store-list-last": {
+      "status": 200,
+      "body": {
+        "stores": [
+          {
+            "address": "시험시 초록로 2",
+            "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3003",
+            "kind": "베이커리",
+            "name": "초록 베이커리",
+            "status": {
+              "mode": "closed",
+              "orderable": false,
+              "reason": "no_menu",
+              "time": "10:31",
+              "timezone": "Asia/Seoul",
+              "weekday": 4
+            }
+          }
+        ]
+      }
+    },
+    "store-list-page": {
+      "status": 200,
+      "body": {
+        "next": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+        "stores": [
+          {
+            "address": "시험시 시험로 1",
+            "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+            "hours": [
+              {
+                "closes": "21:00",
+                "opens": "10:00"
+              },
+              {
+                "closes": "21:00",
+                "opens": "10:00"
+              },
+              {
+                "closes": "21:00",
+                "opens": "10:00"
+              },
+              {
+                "closes": "21:00",
+                "opens": "10:00"
+              },
+              {
+                "closes": "21:00",
+                "opens": "10:00"
+              },
+              {
+                "closes": "20:00",
+                "opens": "11:00"
+              },
+              null
+            ],
+            "kind": "카페",
+            "name": "여울 커피",
+            "status": {
+              "mode": "open",
+              "orderable": true,
+              "time": "10:31",
+              "timezone": "Asia/Seoul",
+              "weekday": 4
+            }
+          }
+        ]
+      }
+    },
+    "store-page": {
+      "status": 200,
+      "body": {
+        "address": "시험시 시험로 1",
+        "amenities": "무선 인터넷",
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+        "closedNote": "매주 일요일",
+        "directions": "역 2번 출구에서 걸어서 3분",
+        "hours": [
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "20:00",
+            "opens": "11:00"
+          },
+          null
+        ],
+        "intro": "직접 볶은 원두로 내립니다",
+        "kind": "카페",
+        "merchantId": "e100000000000000000000000000000000000000000000000000000000000007",
+        "name": "여울 커피",
+        "operatorContact": "help@operator.example",
+        "parking": "건물 뒤 2대",
+        "phone": "02-555-0100",
+        "status": {
+          "mode": "open",
+          "orderable": true,
+          "time": "10:31",
+          "timezone": "Asia/Seoul",
+          "weekday": 4
+        }
+      }
+    },
+    "store-page-busy": {
+      "status": 200,
+      "body": {
+        "address": "시험시 시험로 1",
+        "amenities": "무선 인터넷",
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+        "closedNote": "매주 일요일",
+        "directions": "역 2번 출구에서 걸어서 3분",
+        "hours": [
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "21:00",
+            "opens": "10:00"
+          },
+          {
+            "closes": "20:00",
+            "opens": "11:00"
+          },
+          null
+        ],
+        "intro": "직접 볶은 원두로 내립니다",
+        "kind": "카페",
+        "merchantId": "e100000000000000000000000000000000000000000000000000000000000007",
+        "name": "여울 커피",
+        "operatorContact": "help@operator.example",
+        "parking": "건물 뒤 2대",
+        "phone": "02-555-0100",
+        "status": {
+          "busyMinutes": 20,
+          "mode": "busy",
+          "orderable": true,
+          "time": "10:31",
+          "timezone": "Asia/Seoul",
+          "weekday": 4
+        }
+      }
+    },
+    "store-page-closed-day": {
+      "status": 200,
+      "body": {
+        "address": "시험시 초록로 2",
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3003",
+        "kind": "베이커리",
+        "name": "초록 베이커리",
+        "operatorContact": "help@operator.example",
+        "status": {
+          "mode": "closed",
+          "orderable": false,
+          "reason": "closed_day",
+          "time": "10:31",
+          "timezone": "Asia/Seoul",
+          "weekday": 4
+        }
+      }
+    },
+    "store-page-no-menu": {
+      "status": 200,
+      "body": {
+        "address": "시험시 초록로 2",
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3003",
+        "kind": "베이커리",
+        "name": "초록 베이커리",
+        "operatorContact": "help@operator.example",
+        "status": {
+          "mode": "closed",
+          "orderable": false,
+          "reason": "no_menu",
+          "time": "10:31",
+          "timezone": "Asia/Seoul",
+          "weekday": 4
+        }
+      }
+    },
+    "store-page-paused": {
+      "status": 200,
+      "body": {
+        "address": "시험시 초록로 2",
+        "branchRef": "0fbc54ef-2827-4ab5-bfcd-3a27611c3003",
+        "kind": "베이커리",
+        "name": "초록 베이커리",
+        "operatorContact": "help@operator.example",
+        "status": {
+          "mode": "paused",
+          "orderable": false,
+          "reason": "paused",
+          "resumeAt": "11:00",
+          "time": "10:31",
+          "timezone": "Asia/Seoul",
+          "weekday": 4
+        }
+      }
+    },
+    "store-page-unpublished": {
+      "status": 404,
+      "body": null
+    }
+  }
+}

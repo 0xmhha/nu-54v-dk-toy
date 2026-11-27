@@ -16,6 +16,7 @@ import { MenuDeclarations, menuDeclarationSummary } from "./MenuDeclarations";
 import { OptionReview, ProductEditor, ProductList } from "./MenuOptions";
 import { PhotoField, PhotoReview, photoLimit, type PhotoInfo } from "./MenuPhotos";
 import { StoreState, type Product as StoreProduct } from "./StoreState";
+import { StorePage } from "./StorePage";
 import { TaxField, TaxReview } from "./MenuTax";
 import { emptyGroup, emptyProduct, menuLines, productProblems, publishedProducts, rowLimit, savedProducts, type Product, type SavedOptions } from "./optionGroups";
 import { useRef, useState, type FormEvent } from "react";
@@ -687,6 +688,7 @@ function CatalogConsole({ initialBranch }: { initialBranch: string }) {
               money={site.asset ? (units) => tokenMoney(units, assetToken(site.asset!)) : undefined}
             />
           )}
+          <StorePage key={`page-${site.branch}`} branch={site.branch} zone={site.catalog.timezone} />
           {stale && (
             <section aria-label="편집본 충돌">
               <p>

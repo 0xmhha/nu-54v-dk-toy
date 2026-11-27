@@ -64,8 +64,9 @@ static BOOL journalName(NSString *name) {
 #ifndef NU54_TRAVEL_RECORDER
   if ([@[@"commerce-nearby-inbox-v2",@"commerce-denials-v2"] containsObject:name]) return YES;
 #endif
-  return [@[@"commerce-inbox-v2",@"customer-order-v2",@"customer-payment-v2",@"customer-qr-v2",@"terminal-payment-v2",@"terminal-mode-request-v2",@"terminal-mode-applied-v2",@"terminal-public-menu-v1",@"travel-pickup-kitchen-v1",@"subscription-alerts-v2",@"market-lab-8283-v1"] containsObject:name]
-      || ((name.length<=81) && [name rangeOfString:@"^(cloud-p03-[a-f0-9]{64}|travel-local-[a-f0-9-]{36}|travel-hold-[a-f0-9]{64}|pickup-v2-[a-f0-9]{64}|print-v1-[a-f0-9]{64}|pickup-legacy-[a-f0-9]{64}|customer-(order|payment|qr|legacy)-[a-f0-9]{64})$" options:NSRegularExpressionSearch].location!=NSNotFound);
+  return [@[@"commerce-inbox-v2",@"customer-order-v2",@"customer-payment-v2",@"customer-qr-v2",@"customer-stores-v1",@"terminal-payment-v2",@"terminal-mode-request-v2",@"terminal-mode-applied-v2",@"terminal-public-menu-v1",@"travel-pickup-kitchen-v1",@"subscription-alerts-v2",@"market-lab-8283-v1"] containsObject:name]
+      // The longest name is `customer-sessions-` and 64 characters: 82. `\z` is the very end; `$` would also match before a last line break.
+      || ((name.length<=82) && [name rangeOfString:@"^(cloud-p03-[a-f0-9]{64}|travel-local-[a-f0-9-]{36}|travel-hold-[a-f0-9]{64}|pickup-v2-[a-f0-9]{64}|print-v1-[a-f0-9]{64}|pickup-legacy-[a-f0-9]{64}|customer-(order|payment|qr|legacy|sessions)-[a-f0-9]{64})\\z" options:NSRegularExpressionSearch].location!=NSNotFound);
 }
 static NSMutableDictionary *profileQuery(NSString *slot) {
   return [@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,(__bridge id)kSecAttrService:service,
@@ -122,6 +123,19 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   return result;
 }
 
+// The chain must end at `ca` for `host`, and the leaf must carry one of the pinned keys. System roots are never
+// consulted. Only a P-256 key has a fingerprint here (spki above), so a pin of another key type never matches.
+static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSArray<NSString *> *pins) {
+  if (!trust || !host.length || !ca || !pins.count) return NO;
+  id policy=CFBridgingRelease(SecPolicyCreateSSL(true,(__bridge CFStringRef)host));
+  BOOL anchored=SecTrustSetPolicies(trust,(__bridge CFTypeRef)policy)==errSecSuccess &&
+      SecTrustSetAnchorCertificates(trust,(__bridge CFArrayRef)@[ca])==errSecSuccess &&
+      SecTrustSetAnchorCertificatesOnly(trust,true)==errSecSuccess && SecTrustEvaluateWithError(trust,nullptr);
+  id key=anchored ? CFBridgingRelease(SecTrustCopyKey(trust)) : nil;
+  NSString *seen=fingerprint(spki((__bridge SecKeyRef)key));
+  return seen.length==64 && [pins containsObject:seen];
+}
+
 @interface C3Exchange : NSObject <NSURLSessionDataDelegate>
 @property C3Enrollment *profile;
 @property NSMutableData *buffer;
@@ -143,13 +157,7 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   } else if ([peer.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust]) {
     SecTrustRef trust=peer.serverTrust;
     if (!trust) { complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil); return; }
-    id policy=CFBridgingRelease(SecPolicyCreateSSL(true,(__bridge CFStringRef)peer.host));
-    BOOL anchored=SecTrustSetPolicies(trust,(__bridge CFTypeRef)policy)==errSecSuccess &&
-        SecTrustSetAnchorCertificates(trust,(__bridge CFArrayRef)@[self.profile.ca])==errSecSuccess &&
-        SecTrustSetAnchorCertificatesOnly(trust,true)==errSecSuccess && SecTrustEvaluateWithError(trust,nullptr);
-    id key=anchored ? CFBridgingRelease(SecTrustCopyKey(trust)) : nil;
-    NSString *pin=fingerprint(spki((__bridge SecKeyRef)key));
-    if ([pin isEqual:self.profile.pin]) complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:trust]);
+    if (anchoredServer(trust,peer.host,self.profile.ca,@[self.profile.pin])) complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:trust]);
     else complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
   } else {
     complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
@@ -183,6 +191,69 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   [session finishTasksAndInvalidate];
 }
 @end
+
+#ifdef NU54_TRAVEL_RECORDER
+// One request to the customer entrance, which asks for no client certificate. This delegate holds no identity, so a
+// request for one ends the connection (the Android request goes on without a certificate instead). A body that is
+// not UTF-8 is no answer here (Android hands it back with the bad bytes replaced).
+@interface C3Entrance : NSObject <NSURLSessionDataDelegate>
+@property NSString *host;
+@property NSArray<NSString *> *pins;
+@property id ca;
+@property NSInteger status;
+@property NSNumber *retryAfter;
+@property NSUInteger limit;
+@property NSMutableData *buffer;
+@property RCTPromiseResolveBlock resolve;
+@property RCTPromiseRejectBlock reject;
+@end
+@implementation C3Entrance
+- (void)URLSession:(NSURLSession *)session didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition,NSURLCredential *))complete {
+  NSURLProtectionSpace *peer=challenge.protectionSpace;
+  if ([peer.host isEqual:self.host] && !challenge.previousFailureCount &&
+      [peer.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust] &&
+      anchoredServer(peer.serverTrust,peer.host,self.ca,self.pins)) {
+    complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:peer.serverTrust]);
+  } else {
+    complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
+  }
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
+ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition,NSURLCredential *))complete {
+  [self URLSession:session didReceiveChallenge:challenge completionHandler:complete];
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
+ willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request
+ completionHandler:(void (^)(NSURLRequest *))complete { complete(nil); }
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveResponse:(NSURLResponse *)response
+ completionHandler:(void (^)(NSURLSessionResponseDisposition))complete {
+  NSInteger code=[response isKindOfClass:NSHTTPURLResponse.class] ? [(NSHTTPURLResponse *)response statusCode] : 0;
+  // What the entrance answers with. A redirect or anything else is not an answer.
+  BOOL answer=code==200 || code==400 || code==404 || code==409 || code==429 || code==503;
+  if (answer) {
+    self.status=code;
+    // How long the server asks to wait before the next request, when it says so in whole seconds.
+    NSString *wait=[(NSHTTPURLResponse *)response valueForHTTPHeaderField:@"Retry-After"];
+    if (wait && [wait rangeOfString:@"^[1-9][0-9]{0,3}\\z" options:NSRegularExpressionSearch].location!=NSNotFound) self.retryAfter=@(wait.integerValue);
+  }
+  complete(answer ? NSURLSessionResponseAllow : NSURLSessionResponseCancel);
+}
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveData:(NSData *)data {
+  if (self.buffer.length+data.length>self.limit) [task cancel]; else [self.buffer appendData:data];
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
+  NSString *body=(error || !self.status) ? nil : [[NSString alloc] initWithData:self.buffer encoding:NSUTF8StringEncoding];
+  NSMutableDictionary *answer=body ? [@{@"status":@(self.status),@"body":body} mutableCopy] : nil;
+  if (self.retryAfter) answer[@"retryAfter"]=self.retryAfter;
+  NSData *reply=answer ? [NSJSONSerialization dataWithJSONObject:answer options:0 error:nullptr] : nil;
+  if (reply) self.resolve([[NSString alloc] initWithData:reply encoding:NSUTF8StringEncoding]);
+  else self.reject(@"COMMERCE_UNAVAILABLE",@"The customer entrance is unavailable",nil);
+  [session finishTasksAndInvalidate];
+}
+@end
+#endif
 
 @interface CommerceHttp : NSObject <NativeCommerceHttpSpec>
 @end
@@ -298,7 +369,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
     NSString *raw=[self profile:@"operator"];
     NSDictionary *profile=raw ? [NSJSONSerialization JSONObjectWithData:[raw dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nullptr] : nil;
     NSString *branch=profile[@"scope"][@"branchRef"];
-    NSString *pattern=@"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$";
+    NSString *pattern=@"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\\z";
     BOOL queue=[operation isEqual:@"queue"];
     BOOL decision=[operation isEqual:@"decision"];
     if (!branch || digest.length!=64 ||
@@ -382,10 +453,10 @@ RCT_EXPORT_MODULE(CommerceHttp)
 #ifdef NU54_TRAVEL_RECORDER
 - (void)exchangeRenterReturn:(NSString *)digest assignment:(NSString *)assignment account:(NSString *)account
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-  NSString *uuid=@"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
-  if ([digest rangeOfString:@"^[a-f0-9]{64}$" options:NSRegularExpressionSearch].location==NSNotFound ||
+  NSString *uuid=@"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z";
+  if ([digest rangeOfString:@"^[a-f0-9]{64}\\z" options:NSRegularExpressionSearch].location==NSNotFound ||
       [assignment rangeOfString:uuid options:NSRegularExpressionSearch].location==NSNotFound ||
-      (account.length && [account rangeOfString:@"^0x[a-f0-9]{40}$" options:NSRegularExpressionSearch].location==NSNotFound)) {
+      (account.length && [account rangeOfString:@"^0x[a-f0-9]{40}\\z" options:NSRegularExpressionSearch].location==NSNotFound)) {
     [self unavailable:reject]; return;
   }
   NSString *path=[@"/v2/renter/returns/" stringByAppendingString:assignment];
@@ -397,9 +468,86 @@ RCT_EXPORT_MODULE(CommerceHttp)
 }
 #endif
 
+#ifdef NU54_TRAVEL_RECORDER
+// The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the app's
+// deployment configuration. `pin` is one SHA-256 of a P-256 public key (SPKI), or a list of two while the server
+// changes its key: the current one and the next. No enrollment profile is read, and there is no other trust to fall back on. `session` is
+// the customer session token of /v2/customer/commerce and of /v2/customer/checkout/cancel (the unpaid cart a session
+// takes back), and empty elsewhere; the store list (a page of it with ?after=<store>), a store page, a menu page and a
+// menu photo part are read with GET and an empty body. The answer is {"status","body"}, with "retryAfter" in seconds
+// when the server sent a Retry-After of whole seconds.
+- (void)customerRequest:(NSString *)anchor path:(NSString *)path session:(NSString *)session body:(NSString *)body
+    resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  dispatch_async(_work,^{
+    NSCharacterSet *notHex=[[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"] invertedSet];
+    // The one query the entrance takes is the store list's `after=<store>`, for the page after that store.
+    NSString *nextPage=@"/v2/customer/stores?after=";
+    NSString *after=nil;
+    if ([path hasPrefix:nextPage] &&
+        [path rangeOfString:@"^/v2/customer/stores\\?after=[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\z" options:NSRegularExpressionSearch].location!=NSNotFound)
+      after=[path substringFromIndex:nextPage.length];
+    BOOL read=[path isEqual:@"/v2/customer/stores"] || after ||
+        [path rangeOfString:@"^/v2/customer/stores/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?\\z" options:NSRegularExpressionSearch].location!=NSNotFound;
+    BOOL commerce=[path isEqual:@"/v2/customer/commerce"];
+    BOOL cancel=[path isEqual:@"/v2/customer/checkout/cancel"];
+    NSData *payload=[body dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *given=[anchor dataUsingEncoding:NSUTF8StringEncoding];
+    id candidate=(given.length && given.length<=8192) ? [NSJSONSerialization JSONObjectWithData:given options:0 error:nullptr] : nil;
+    NSDictionary *trust=[candidate isKindOfClass:NSDictionary.class] ? candidate : nil;
+    NSString *origin=trust[@"origin"];
+    NSURLComponents *url=[origin isKindOfClass:NSString.class] ? [NSURLComponents componentsWithString:origin] : nil;
+    BOOL sized=read ? payload.length==0 : (payload.length>=2 && payload.length<=(commerce ? 8192 : cancel ? 256 : 1024));
+    BOOL held=(commerce || cancel) ? (session.length==64 && [session rangeOfCharacterFromSet:notHex].location==NSNotFound) : session.length==0;
+    if (!(read || commerce || cancel || [@[@"/v2/customer/challenge",@"/v2/customer/proof"] containsObject:path]) || !sized || !held ||
+        ![url.scheme isEqual:@"https"] || !url.host.length || url.user || url.password || url.query || url.fragment ||
+        url.percentEncodedPath.length || (url.port && (url.port.integerValue<1 || url.port.integerValue>65535))) {
+      [self unavailable:reject]; return;
+    }
+    id listed=trust[@"pin"];
+    NSArray *pins=@[];
+    if ([listed isKindOfClass:NSString.class]) pins=@[listed];
+    else if ([listed isKindOfClass:NSArray.class]) pins=listed;
+    BOOL pinned=pins.count>=1 && pins.count<=2 && [NSSet setWithArray:pins].count==pins.count;
+    for (id pin in pins)
+      pinned=pinned && [pin isKindOfClass:NSString.class] && [pin length]==64 && [pin rangeOfCharacterFromSet:notHex].location==NSNotFound;
+    id anchorCertificate=[trust[@"ca"] isKindOfClass:NSString.class] ? certificate(trust[@"ca"]) : nil;
+    if (!anchorCertificate || !pinned) {
+      [self unavailable:reject]; return;
+    }
+    url.percentEncodedPath=after ? @"/v2/customer/stores" : path;
+    if (after) url.percentEncodedQuery=[@"after=" stringByAppendingString:after];
+    if (!url.URL) { [self unavailable:reject]; return; }
+    NSURLSessionConfiguration *config=NSURLSessionConfiguration.ephemeralSessionConfiguration;
+    config.TLSMinimumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    config.TLSMaximumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    // No proxy of the system or of a network profile carries the request, as on Android (Proxy.NO_PROXY).
+    config.connectionProxyDictionary=@{};
+    config.timeoutIntervalForResource=8;
+    config.timeoutIntervalForRequest=8;
+    config.HTTPShouldSetCookies=NO;
+    config.HTTPCookieStorage=nil;
+    config.URLCredentialStorage=nil;
+    config.URLCache=nil;
+    config.requestCachePolicy=NSURLRequestReloadIgnoringLocalCacheData;
+    C3Entrance *delegate=[C3Entrance new];
+    delegate.host=url.host; delegate.pins=pins; delegate.ca=anchorCertificate;
+    delegate.limit=(read || commerce) ? 32768 : 8192;
+    delegate.resolve=resolve; delegate.reject=reject; delegate.buffer=[NSMutableData data];
+    NSURLSession *connection=[NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:nil];
+    NSMutableURLRequest *request=[NSMutableURLRequest requestWithURL:url.URL];
+    request.HTTPMethod=read ? @"GET" : @"POST";
+    if (!read) request.HTTPBody=payload;
+    [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [request setValue:@"no-store" forHTTPHeaderField:@"Cache-Control"];
+    if (commerce || cancel) [request setValue:[@"Bearer " stringByAppendingString:session] forHTTPHeaderField:@"Authorization"];
+    [[connection dataTaskWithRequest:request] resume];
+  });
+}
+#endif
+
 - (void)exchangeTravel:(NSString *)method path:(NSString *)path envelope:(NSString *)envelope
     resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-  NSRange match=[path rangeOfString:@"^/(consents|records(/[a-f0-9-]{36})?|visits|reviews|transcriptions|erasure(/[a-f0-9-]{36})?|itineraries/(preview|apply|generate|[a-f0-9-]{36}))$"
+  NSRange match=[path rangeOfString:@"^/(consents|records(/[a-f0-9-]{36})?|visits|reviews|transcriptions|erasure(/[a-f0-9-]{36})?|itineraries/(preview|apply|generate|[a-f0-9-]{36}))\\z"
        options:NSRegularExpressionSearch];
   if (match.location==NSNotFound || ![@[@"GET",@"POST"] containsObject:method]) {
     [self unavailable:reject]; return;
@@ -421,6 +569,8 @@ RCT_EXPORT_MODULE(CommerceHttp)
     NSURLSessionConfiguration *config=NSURLSessionConfiguration.ephemeralSessionConfiguration;
     config.TLSMinimumSupportedProtocolVersion=tls_protocol_version_TLSv13;
     config.TLSMaximumSupportedProtocolVersion=tls_protocol_version_TLSv13;
+    // No proxy of the system or of a network profile carries the request, as on Android (Proxy.NO_PROXY).
+    config.connectionProxyDictionary=@{};
     config.timeoutIntervalForResource=[path isEqual:@"/itineraries/generate"] ? 70 : 8;
     config.timeoutIntervalForRequest=config.timeoutIntervalForResource;
     config.HTTPShouldSetCookies=NO;

@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types test/money.mjs && node --experimental-strip-types test/prices.mjs && node --experimental-strip-types test/optionGroups.mjs && node --experimental-strip-types test/taxes.mjs && node --experimental-strip-types test/localSchedule.mjs"
+    "test": "node --experimental-strip-types test/money.mjs && node --experimental-strip-types test/prices.mjs && node --experimental-strip-types test/optionGroups.mjs && node --experimental-strip-types test/taxes.mjs && node --experimental-strip-types test/localSchedule.mjs && node --experimental-strip-types test/pickupScan.mjs && node --experimental-strip-types test/storePageForm.mjs"
   },
   "dependencies": {
     "@nu54/protocol": "workspace:*",

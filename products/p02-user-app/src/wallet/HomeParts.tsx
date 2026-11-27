@@ -2,6 +2,7 @@ import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {isFormerBoard, OpenOrderCard} from '../merchant/OpenOrders.tsx';
 import type {OpenOrder} from '../merchant/orderRecords.ts';
+import {ordersWithoutRegistration} from '../merchant/orderRoute.ts';
 import {Card, KitButton, Section} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
 import {boardSteps} from './boardSteps.ts';
@@ -12,8 +13,10 @@ type Say = (ko: string) => string;
 
 /** First steps of someone whose board is not connected yet. */
 export function FirstSteps({t, connect, disabled}: {t: Say; connect: () => void; disabled: boolean}) {
+  // A build that orders without a registration has no store step: nothing is registered at a store.
   const steps = [['보드 연결과 PIN 설정', 'SW4를 길게 누르고 앱 안내를 따라요'], ['서명 시험', '보드가 만든 주소를 앱이 검증해요'],
-    ['반납받을 주소 등록', '남은 돈이 돌아갈 원래 지갑 주소예요'], ['매장 등록', '나중에 해도 돼요'], ['원래 지갑에서 입금', '쓸 만큼만 넣어 두고 사용해요']];
+    ['반납받을 주소 등록', '남은 돈이 돌아갈 원래 지갑 주소예요'], ...(ordersWithoutRegistration() ? [] : [['매장 등록', '나중에 해도 돼요']]),
+    ['원래 지갑에서 입금', '쓸 만큼만 넣어 두고 사용해요']];
   return <>
     <Text style={type.body}>{t('보드가 결제 서명을 맡고, 이 앱이 보드의 화면 역할을 합니다. 원래 지갑은 노출되지 않아요.')}</Text>
     <Card style={styles.steps}>{steps.map(([title, detail], index) => <View key={title} style={styles.step}>

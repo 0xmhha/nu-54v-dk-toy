@@ -219,6 +219,7 @@ func (h HTTP) Register(mux *http.ServeMux) {
 	h.registerAccess(operators)
 	h.registerLegacy(operators)
 	h.registerFirmware(operators)
+	h.registerStorePage(operators)
 	if h.Customer != nil {
 		operators.HandleFunc("POST /v2/operations/pickup-scan/{branch}/{sale}", h.pickupScan)
 	}
@@ -460,8 +461,17 @@ func (h HTTP) serveFor(w http.ResponseWriter, r *http.Request, principal service
 			err = service.BadRequest
 		}
 	case "order.create":
-		if err = checkCart(bound, outer.Cart); err == nil {
+		err = checkCart(bound, outer.Cart)
+		var counted func(held bool)
+		if err == nil && session != nil {
+			// A proven account: its balance is read from the chain immediately before the hold (customer_funds.go).
+			counted, err = h.beforeHold(ctx, clientKey(r), bound, *outer.Cart)
+		}
+		if err == nil {
 			out.ResultRef, err = h.Store.Reserve(ctx, bound, *outer.Cart)
+		}
+		if counted != nil {
+			counted(err == nil)
 		}
 	case "order.nearby-result":
 		byOrder := req.Body["byOrder"]
@@ -694,6 +704,11 @@ func (h HTTP) issueWithReview(ctx context.Context, bound service.Bound, review *
 }
 
 func errorResponse(w http.ResponseWriter, err error, bound *service.Bound) {
+	var unheld *holdRefusal
+	if bound != nil && errors.As(err, &unheld) {
+		unheld.write(w, *bound)
+		return
+	}
 	var rejection *reservationRejection
 	if bound != nil && errors.As(err, &rejection) {
 		reply := service.Outcome(*bound, "error")

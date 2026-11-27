@@ -1,6 +1,7 @@
 // What the phone decides and remembers while a spending board is set up, returned and reset.
 // The board and the server have the last word; this file only keeps their steps in order.
 import {type CommerceClient, type CommerceOrder, hexToBytes, recoverSigner, orderTokenName, walletReturnDigestFor, type WalletReturn} from '@nu54/protocol';
+import {AccountAskError} from '../merchant/customerEntrance.ts';
 import {customerDigest} from '../merchant/customerJournal.ts';
 import {isOpenOrder, type OpenOrder, type OrderAccount} from '../merchant/orderRecords.ts';
 
@@ -109,8 +110,20 @@ export async function settleReturn(storage: Storage, client: CommerceClient, now
 }
 
 /** Why a board key must stay for now, and what could not be found out. */
-export type ResetBlock = {orders: number; returning: boolean; /** Order or return records on this phone. */ unreadable: boolean; server: 'ok' | 'none' | 'failed'};
-export const resetBlocked = (block: ResetBlock) => block.orders > 0 || block.returning;
+export type ResetBlock = {orders: number; returning: boolean; /** Order or return records on this phone. */ unreadable: boolean; server: 'ok' | 'none' | 'failed';
+  /** Money of a top-up is still on its way to this account (topUpUnfinished). */ toppingUp?: boolean;
+  /** The server was not asked because no board of the account answered to prove it (a build without a registration). */ boardAway?: boolean};
+export const resetBlocked = (block: ResetBlock) => block.orders > 0 || block.returning || !!block.toppingUp;
+
+/**
+ * Whether money of a top-up is still on its way to this board account. A reset before it arrives would send it to
+ * an account whose key is gone, so the reset and return pages wait for this the way they wait for an open order.
+ * The app keeps no top-up state yet (traveller-exchange.md), so the answer is no. The top-up flow answers here once
+ * it exists; nothing else needs to change for the pages to hold a reset back.
+ */
+export async function topUpUnfinished(_storage: Storage, _account: OrderAccount): Promise<boolean> {
+  return false;
+}
 export const resetUnknown = (block: ResetBlock) => block.unreadable || block.server === 'failed';
 
 const openEscrow = (order: CommerceOrder, account: OrderAccount) => order.escrow ?
@@ -118,10 +131,26 @@ const openEscrow = (order: CommerceOrder, account: OrderAccount) => order.escrow
 // More unknown orders than this are not asked one by one; the answer is then "not known".
 const asked = 60;
 
-/** Asks this phone's records and, with a store credential, the server. */
+/**
+ * Asks this phone's records and the server. The records hold every order this phone paid with the account, also
+ * those made from a store page without a registration; but a phone that was set up again, or another phone, holds
+ * none of them, so the records alone never say "no order is open".
+ *
+ * With a store credential the server is asked through it (`connect`). That route knows only the orders of the
+ * customer the store issued. A build that orders without a registration asks the customer entrance how many orders
+ * of the account are unfinished (`askEntrance`, the board's account proof and the number alone), and it asks
+ * whether or not the phone still holds a registration: an order made from a store page is not among the orders the
+ * registration lists. The number held back is the largest of what the phone knows and what either route counts: the
+ * same order is on every side, so they are not added. When a route that was asked did not answer, the answer is
+ * "not known" (`server: 'failed'`) whatever the other said, which the pages treat as they do on the earlier route.
+ */
 export async function readResetBlock(storage: Storage, records: {list(): Promise<OpenOrder[]>}, account: OrderAccount,
-  connect: () => Promise<CommerceClient | undefined>): Promise<ResetBlock> {
+  connect: () => Promise<CommerceClient | undefined>, toppingUp: typeof topUpUnfinished = topUpUnfinished,
+  askEntrance?: () => Promise<number>): Promise<ResetBlock> {
   const block: ResetBlock = {orders: 0, returning: false, unreadable: false, server: 'none'};
+  try {
+    if (await toppingUp(storage, account)) block.toppingUp = true;
+  } catch { block.unreadable = true; }
   let known: OpenOrder[] = [];
   const open = new Set<string>();
   try {
@@ -150,6 +179,15 @@ export async function readResetBlock(storage: Storage, records: {list(): Promise
     }
   } catch { block.server = 'failed'; }
   block.orders = open.size;
+  if (askEntrance) {
+    try {
+      block.orders = Math.max(open.size, await askEntrance());
+      if (block.server === 'none') block.server = 'ok';
+    } catch (error) {
+      block.server = 'failed';
+      if (error instanceof AccountAskError && error.reason === 'no-board') block.boardAway = true;
+    }
+  }
   return block;
 }
 

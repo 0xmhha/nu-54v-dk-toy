@@ -9,13 +9,19 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/0xmhha/nu-54v-dk-toy/packages/protocol/go/service"
 )
@@ -60,12 +67,33 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	}
 	defer store.Close()
 
+	// A customer's menu read is a statement of milliseconds, and nothing may make the server treat it as a heavy one:
+	// opsd's connections run without JIT, and the functions that answer one page say that they return one row, so
+	// the plan of a read is not costed a thousand times over (migration 125). Either alone keeps the read from being
+	// compiled; a first read that was compiled on a busy host ran into the statement timeout.
+	var jit, timeout string
+	if err := store.db.QueryRow(ctx, "SELECT current_setting('jit'), current_setting('statement_timeout')").Scan(&jit, &timeout); err != nil || jit != "off" || timeout != "7s" {
+		t.Fatalf("the commerce pool runs with jit %q and statement_timeout %q: %v", jit, timeout, err)
+	}
+	var planned int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='ledger'
+		AND p.proname IN ('catalog_category_window','catalog_menu_window','catalog_menu_photo_window','public_menu_window') AND p.proretset AND p.prorows=1`).Scan(&planned); err != nil || planned != 4 {
+		t.Fatalf("%d of the 4 menu page functions are planned as one row: %v", planned, err)
+	}
+
 	fresh := func() string { return uuidForCatalogFixture(t, ctx, admin) }
 	shop, elsewhere, operator, stranger, colleague := fresh(), fresh(), fresh(), fresh(), fresh()
 	for _, b := range []string{shop, elsewhere} {
 		execute("INSERT INTO ledger.branch VALUES ($1,$2,'Asia/Seoul','04:00')", b, tenant)
 		execute("INSERT INTO ledger.command_rule VALUES ($1,'proof test','fixture','dispose',interval '2 minutes')", b)
 	}
+	// A store takes customers only while its page is published (migration 126), so the shop has one from the start.
+	publish := func(branch, name string) {
+		t.Helper()
+		execute("INSERT INTO ledger.operator_branch_label VALUES ($1,$2)", branch, name)
+		execute(`INSERT INTO ledger.branch_store_page VALUES ($1,true,false,'카페','','','','','','','',NULL,$2,now())`, branch, operator)
+	}
+	publish(shop, "여울 커피 "+shop[:8])
 	execute("INSERT INTO ledger.login_subject VALUES ($2,$1)", operator, "proof_"+operator)
 	execute("INSERT INTO ledger.login_subject VALUES ($2,$1)", stranger, "proof_"+stranger)
 	execute("INSERT INTO ledger.staff_grant VALUES ($1,$2,'operator',now()-interval '1 minute',null)", shop, operator)
@@ -100,6 +128,14 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 	}
 	ownCert, strangerCert, colleagueCert := leaf(2, operator), leaf(3, stranger), leaf(4, colleague)
+	// A pickup terminal of this shop with its assignment: the certificate that hands orders over at the counter's own
+	// device. It does not scan a pickup QR.
+	counter := fresh()
+	execute("INSERT INTO ledger.commerce_grant(branch_id,actor_id,role_code,terminal_mode,valid_until) VALUES($1,$2,'terminal','menu',now()+interval '10 minutes')", shop, counter)
+	execute("INSERT INTO ledger.travel_pickup_terminal VALUES ($1,$2)", shop, counter)
+	counterCert := leaf(5, counter)
+	counterDigest := sha256.Sum256(counterCert.Certificate[0])
+	credentials[hex.EncodeToString(counterDigest[:])] = service.Principal{Tenant: tenant, Subject: counter, Role: "terminal", ExpiresAt: time.Now().Add(10 * time.Minute).Unix()}
 
 	asset := "0x" + strings.Repeat("2", 40)
 	certified, entrance := http.NewServeMux(), http.NewServeMux()
@@ -168,16 +204,18 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		}
 		return [32]byte(raw)
 	}
+	// The board's registration number, as the phone reads it from the board and sends it with a checkout proof.
+	const boardGeneration = "7"
 	prove := func(signer *ecdsa.PrivateKey, claimed common.Address, value [32]byte, want int) map[string]any {
 		t.Helper()
 		body := map[string]string{"challenge": hex.EncodeToString(value[:]), "account": strings.ToLower(claimed.Hex()),
-			"signature": hex.EncodeToString(signAccountProof(t, signer, value)), "generation": "1"}
+			"signature": hex.EncodeToString(signAccountProof(t, signer, value)), "generation": boardGeneration}
 		return call(customer, customers.URL+"/v2/customer/proof", nil, body, want)
 	}
 	command := func(session, operation, domain, object string, fields map[string]string, cart *Cart, want int) map[string]any {
 		t.Helper()
 		key := ""
-		if operation == "order.create" {
+		if operation == "order.create" || operation == "checkout.authorize" {
 			key = fresh()
 		}
 		envelope := map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: operation, RequestID: fresh(),
@@ -208,22 +246,348 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if got := prove(board, account, first, 400); got["error"] != string(service.Expired) {
 		t.Fatal("a challenge was accepted twice", got)
 	}
+	// A challenge is kept nowhere until it is used, so there is no row to age: the entrance's clock is put past the
+	// challenge's two minutes instead. The database refuses a challenge past its time by its own clock as well.
 	late := challenge("checkout", shop, "")
-	execute("UPDATE ledger.customer_challenge SET expires_at=now()-interval '1 second' WHERE challenge_hash=$1", hashOf(late[:]))
+	h.Customer.clock = func() time.Time { return time.Now().Add(121 * time.Second) }
 	if got := prove(board, account, late, 400); got["error"] != string(service.Expired) {
 		t.Fatal("an expired challenge was accepted", got)
+	}
+	h.Customer.clock = nil
+	var taken bool
+	if err := admin.QueryRow(ctx, "SELECT ledger.use_customer_challenge($1,'checkout',$2,NULL,clock_timestamp()-interval '1 second')",
+		hashOf(late[:]), shop).Scan(&taken); err != nil || taken {
+		t.Fatalf("the database took a challenge past its time: %v %v", taken, err)
+	}
+	var kept int
+	if err := admin.QueryRow(ctx, "SELECT count(*) FROM ledger.customer_challenge WHERE branch_id=$1", shop).Scan(&kept); err != nil || kept != 1 {
+		t.Fatalf("%d challenges of the store are kept after two were given and one was used: %v", kept, err)
 	}
 	call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": fresh()}, 400)
 
 	// --- before payment: the session covers this branch, and one unpaid hold per account ---
 	session := checkout["session"].(string)
+	// The same account's checkout session of the other branch, proven when a check first needs it.
+	elsewhereOf := func() string {
+		t.Helper()
+		return prove(board, account, challenge("checkout", elsewhere, ""), 200)["session"].(string)
+	}
 	command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)
 	command(session, "catalog.read", elsewhere, elsewhere, map[string]string{"page": "0"}, nil, 404) // another branch
 	command(session, "payer.status", shop, CustomerSubject(account), map[string]string{}, nil, 404)
 	command(strings.Repeat("ab", 32), "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
+
+	// --- the menu is public: read without a proof, the rows a session reads, and nothing held or made by reading ---
+	read := func(path string, want int) map[string]any {
+		t.Helper()
+		req, _ := http.NewRequestWithContext(ctx, "GET", customers.URL+path, nil)
+		reply, err := customer.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reply.Body.Close()
+		out, _ := io.ReadAll(reply.Body)
+		if reply.StatusCode != want {
+			t.Fatalf("%s: got %d, want %d: %s", path, reply.StatusCode, want, out)
+		}
+		var decoded map[string]any
+		_ = json.Unmarshal(out, &decoded)
+		return decoded
+	}
+	picture, small := bytes.Repeat([]byte{0x5a}, 20_000), bytes.Repeat([]byte{0x3c}, 900)
+	photo, thumb := hex.EncodeToString(hashOf(picture)), hex.EncodeToString(hashOf(small))
+	execute("INSERT INTO ledger.menu_category VALUES ($1,1,'warm',1,'{\"ko\":\"음료\",\"en\":\"Drinks\"}')", shop)
+	execute("INSERT INTO ledger.menu_sku_category VALUES ($1,1,'tea','warm')", shop)
+	execute("INSERT INTO ledger.menu_photo(branch_id,digest,thumb_digest,photo,thumb,uploaded_by,rights_confirmed_at) VALUES ($1,$2,$3,$4,$5,$6,now())",
+		shop, photo, thumb, picture, small, operator)
+	execute("INSERT INTO ledger.menu_sku_photo VALUES ($1,1,'tea',$2)", shop, photo)
+	footprint := func() string {
+		t.Helper()
+		var text string
+		if err := admin.QueryRow(ctx, `SELECT concat_ws('/',(SELECT available FROM ledger.stock WHERE branch_id=$1 AND sku='tea'),
+			(SELECT count(*) FROM ledger.order_checkout WHERE branch_id=$1),(SELECT count(*) FROM ledger.sale WHERE branch_id=$1),
+			(SELECT count(*) FROM ledger.commerce_grant WHERE branch_id=$1),(SELECT count(*) FROM ledger.customer_account),
+			(SELECT count(*) FROM ledger.customer_session),(SELECT count(*) FROM ledger.customer_challenge))`, shop).Scan(&text); err != nil {
+			t.Fatal(err)
+		}
+		return text
+	}
+	// A registered name and a published menu open nothing: the store has to publish its store page first. Until
+	// then the menu and the photos answer like a store that does not exist, to a session's customer too.
+	storePage := func(published bool) {
+		t.Helper()
+		operate(ownCert, "/v2/operations/store-page/"+shop, map[string]any{"published": published, "listed": false, "kind": "카페", "intro": "",
+			"address": "", "directions": "", "phone": "", "amenities": "", "parking": "", "closedNote": "", "hours": nil}, 200)
+	}
+	// Without a published page the store takes no customer either: the session that was given while it had one is
+	// not live, and a new challenge is answered like one for a branch that does not exist.
+	nowhere := call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": fresh()}, 400)
+	for _, closed := range []func(){func() { execute("DELETE FROM ledger.branch_store_page WHERE branch_id=$1", shop) }, func() { storePage(false) }} {
+		closed()
+		for _, path := range []string{"", "/menu/0", "/photos/" + photo + "/0", "/photos/" + thumb + "/0"} {
+			read("/v2/customer/stores/"+shop+path, 404)
+		}
+		command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
+		if got := call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "checkout", "branchRef": shop}, 400); !reflect.DeepEqual(got, nowhere) {
+			t.Fatalf("a store that is not public answers a challenge %v, a branch that does not exist %v", got, nowhere)
+		}
+	}
+	storePage(true)
+	before := footprint()
+	menuKeys := []string{"catalog", "catalogVersion", "catalogOptions", "catalogPhotos", "shop", "orderState"}
+	// The public menu is the session's menu, but for the counts of stock: it says only sold out or not.
+	sameMenu := func(when string) map[string]any {
+		t.Helper()
+		public, proven := read("/v2/customer/stores/"+shop+"/menu/0", 200), command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)
+		for key := range public {
+			if !slices.Contains(menuKeys, key) {
+				t.Fatalf("%s: the public menu gives out %q: %v", when, key, public)
+			}
+		}
+		for _, item := range proven["catalog"].([]any) {
+			for _, count := range []string{"available", "skuAvailable"} {
+				if row := item.(map[string]any); row[count] != float64(0) {
+					row[count] = float64(1000)
+				}
+			}
+		}
+		for _, key := range menuKeys {
+			if !reflect.DeepEqual(public[key], proven[key]) {
+				t.Fatalf("%s: %s differs\npublic: %v\nsession: %v", when, key, public[key], proven[key])
+			}
+		}
+		return public
+	}
+	menu := sameMenu("published")
+	row := menu["catalog"].([]any)[0].(map[string]any)
+	counted := command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)["catalog"].([]any)[0].(map[string]any)
+	if counted["available"] != float64(5) || counted["skuAvailable"] != float64(5) {
+		t.Fatalf("a session does not read the counts: %v", counted)
+	}
+	if raw := mustJSON(t, menu); strings.Contains(raw, ":5,") || strings.Contains(raw, ":5}") {
+		t.Fatalf("the public menu tells a count of stock: %s", raw)
+	}
+	if len(menu["catalog"].([]any)) != 1 || row["sku"] != "tea" || row["available"] != float64(1000) || row["skuAvailable"] != float64(1000) || row["unitPrice"] != "300000" || row["category"] == nil ||
+		menu["shop"].(map[string]any)["branchLabel"] != "여울 커피 "+shop[:8] || menu["orderState"].(map[string]any)["mode"] != "open" ||
+		len(menu["catalogPhotos"].([]any)) != 1 || menu["catalogPhotos"].([]any)[0].(map[string]any)["thumb"] != thumb {
+		t.Fatalf("public menu: %v", menu)
+	}
+	// What the store marks sold out, and that it stopped taking orders, read the same without a proof.
+	execute("INSERT INTO ledger.menu_sold_out VALUES ($1,'tea',$2,now())", shop, operator)
+	execute("INSERT INTO ledger.branch_order_state(branch_id,mode,busy_minutes,changed_by,changed_at) VALUES ($1,'busy',20,$2,now())", shop, operator)
+	stopped := sameMenu("sold out and busy")
+	if stopped["catalog"].([]any)[0].(map[string]any)["available"] != float64(0) || stopped["orderState"].(map[string]any)["mode"] != "busy" {
+		t.Fatalf("sold out and busy: %v", stopped)
+	}
+	execute("DELETE FROM ledger.menu_sold_out WHERE branch_id=$1", shop)
+	execute("DELETE FROM ledger.branch_order_state WHERE branch_id=$1", shop)
+	// A count that ran out reads as sold out as well, and the last one left reads like any other.
+	for left, want := range map[int]float64{0: 0, 1: 1000} {
+		execute("UPDATE ledger.stock SET available=$2 WHERE branch_id=$1 AND sku='tea'", shop, left)
+		if row := sameMenu("stock left")["catalog"].([]any)[0].(map[string]any); row["available"] != want || row["skuAvailable"] != want {
+			t.Fatalf("%d left reads %v", left, row)
+		}
+	}
+	execute("UPDATE ledger.stock SET available=5 WHERE branch_id=$1 AND sku='tea'", shop)
+	// A page past the end is empty and says nothing more; a store without a store page has no public menu.
+	if past := read("/v2/customer/stores/"+shop+"/menu/1", 200); len(past["catalog"].([]any)) != 0 || past["shop"] != nil || past["orderState"] != nil {
+		t.Fatalf("page past the end: %v", past)
+	}
+	read("/v2/customer/stores/"+elsewhere+"/menu/0", 404)
+	read("/v2/customer/stores/"+fresh()+"/menu/0", 404)
+	// A photo comes in parts of at most 18,000 bytes, the same bytes a session reads; only a published one of this store.
+	var whole []byte
+	for offset := 0; offset < len(picture); {
+		public := read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/%d", shop, photo, offset), 200)["photo"].(map[string]any)
+		proven := command(session, "catalog.photo", shop, shop, map[string]string{"photo": photo, "offset": strconv.Itoa(offset)}, nil, 200)["photo"]
+		part, _ := base64.StdEncoding.DecodeString(public["data"].(string))
+		if !reflect.DeepEqual(map[string]any(public), proven) || public["size"] != float64(len(picture)) || len(part) == 0 || len(part) > 18_000 {
+			t.Fatalf("photo part at %d: %v", offset, public)
+		}
+		whole, offset = append(whole, part...), offset+len(part)
+	}
+	if !bytes.Equal(whole, picture) {
+		t.Fatal("the public photo is not the published one")
+	}
+	if small := read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, thumb), 200)["photo"].(map[string]any); small["size"] != float64(900) {
+		t.Fatalf("thumb: %v", small)
+	}
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/%d", shop, photo, len(picture)), 400)    // past the end
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, strings.Repeat("a", 64)), 400) // not a photo of this store
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", elsewhere, photo), 404)              // no store page, no photos
+	// The store takes its page back: the menu and the photos close with it, and open again when it is published.
+	storePage(false)
+	read("/v2/customer/stores/"+shop+"/menu/0", 404)
+	read(fmt.Sprintf("/v2/customer/stores/%s/photos/%s/0", shop, photo), 404)
+	command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404) // the checkout session closes with the page
+	storePage(true)
+	read("/v2/customer/stores/"+shop+"/menu/0", 200)
+	// Reading held no stock and made no order, customer, session or challenge.
+	if after := footprint(); after != before {
+		t.Fatalf("the public reads left a mark: %s, was %s", after, before)
+	}
+	// Without a session the cart, the claim, the quote and the status stay out of reach.
+	for _, operation := range []string{"order.create", "checkout.claim", "checkout.authorize", "quote.issue", "order.lock", "order.status"} {
+		envelope := map[string]any{"command": service.Request{Version: 2, Contract: "C3", Operation: operation, RequestID: fresh(),
+			Domain: shop, Object: shop, ExpiresAt: time.Now().Unix() + 30, Body: map[string]string{}}}
+		call(customer, customers.URL+"/v2/customer/commerce", nil, envelope, 404)
+		call(customer, customers.URL+"/v2/customer/commerce", map[string]string{"Authorization": "Bearer "}, envelope, 404)
+	}
+	if after := footprint(); after != before {
+		t.Fatalf("requests without a session left a mark: %s, was %s", after, before)
+	}
+
+	// --- a cart holds stock only when its proven account can pay it as the chain stands now ---
+	tryOrder := func(session, ref, key string) (int, string, map[string]any) {
+		t.Helper()
+		cart := Cart{Origin: "menu", OriginRef: ref, MenuVersion: 1, Items: []Item{{SKU: "tea", Option: "standard", Qty: 1}}}
+		packed, _ := json.Marshal(cart)
+		digest := sha256.Sum256(packed)
+		raw, _ := json.Marshal(map[string]any{"cart": cart, "command": service.Request{Version: 2, Contract: "C3", Operation: "order.create",
+			RequestID: fresh(), Domain: shop, Object: ref, ExpiresAt: time.Now().Unix() + 30, IdempotencyKey: key,
+			Body: map[string]string{"asset": asset, "quantity": "1", "intentDigest": hex.EncodeToString(digest[:])}}})
+		req, _ := http.NewRequestWithContext(ctx, "POST", customers.URL+"/v2/customer/commerce", bytes.NewReader(raw))
+		req.Header.Set("Authorization", "Bearer "+session)
+		reply, err := customer.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reply.Body.Close()
+		var decoded map[string]any
+		_ = json.NewDecoder(reply.Body).Decode(&decoded)
+		return reply.StatusCode, reply.Header.Get("Retry-After"), decoded
+	}
+	unheld := footprint()
+	unread := func(when string) {
+		t.Helper()
+		status, retry, got := tryOrder(session, fresh(), fresh())
+		if status != 503 || retry != "3" || got["status"] != "error" || got["error"] != string(service.Busy) || got["reason"] != "balance_unavailable" ||
+			got["requestId"] == "" || got["required"] != nil || got["balance"] != nil {
+			t.Fatalf("%s: %d, Retry-After %q, %v", when, status, retry, got)
+		}
+		if after := footprint(); after != unheld {
+			t.Fatalf("%s: a refused cart left a mark: %s, was %s", when, after, unheld)
+		}
+	}
+	// No chain reader, or none for this store: a cart is not held on trust, and the answer does not say "try again
+	// shortly" about something that does not pass by waiting.
+	closedOrders := func(when string) {
+		t.Helper()
+		status, retry, got := tryOrder(session, fresh(), fresh())
+		if status != 409 || retry != "" || got["status"] != "error" || got["error"] != string(service.CheckoutConflict) || got["reason"] != "orders_closed" ||
+			got["requestId"] == "" || got["required"] != nil || got["balance"] != nil || footprint() != unheld {
+			t.Fatalf("%s: %d, Retry-After %q, %v", when, status, retry, got)
+		}
+	}
+	closedOrders("no chain reader")
+	funds := &fakeFunds{asset: common.HexToAddress(asset), err: service.Capability}
+	h.Customer.Funds = funds
+	closedOrders("no settlement target for the store")
+	funds.err = fmt.Errorf("rpc down")
+	unread("the chain cannot be read")
+	funds.err, funds.balance = nil, big.NewInt(299_999) // the tea costs 300000 base units
+	status, retry, short := tryOrder(session, fresh(), fresh())
+	if status != 409 || retry != "" || short["error"] != string(service.CheckoutConflict) || short["reason"] != "balance_short" ||
+		short["required"] != "300000" || short["balance"] != "299999" || short["requestDigest"] == "" || short["resultRef"] != nil {
+		t.Fatalf("a balance one unit short: %d %v", status, short)
+	}
+	if asked := funds.asked[len(funds.asked)-1]; asked != shop+"/"+strings.ToLower(account.Hex()) || footprint() != unheld {
+		t.Fatalf("asked %s; footprint %s, was %s", asked, footprint(), unheld)
+	}
+	// An account asks for a limited number of carts in a time window, whatever the balance says.
+	h.Customer.HoldAttempts = NewRateLimiter(6, 1, nil)
+	if status, _, got := tryOrder(session, fresh(), fresh()); status != 409 || got["reason"] != "balance_short" {
+		t.Fatalf("the first cart of the window: %d %v", status, got)
+	}
+	asks := len(funds.asked)
+	if status, retry, got := tryOrder(session, fresh(), fresh()); status != 429 || retry != "10" || got["error"] != string(service.Busy) ||
+		got["reason"] != "hold_limit" || len(funds.asked) != asks {
+		t.Fatalf("a second cart in the window: %d, Retry-After %q, %v", status, retry, got)
+	}
+	if counts := h.Customer.Limited.Drain(); counts["hold"] != 1 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	h.Customer.HoldAttempts = nil
+	// Enough, to the unit: the cart is held. The same request again reads its first answer without another look at
+	// the balance, so a retry after the payment is not refused for the money that payment took.
+	funds.balance = big.NewInt(300_000)
+	firstRef, firstKey := fresh(), fresh()
+	status, _, held := tryOrder(session, firstRef, firstKey)
+	if status != 200 || held["resultRef"] == nil || footprint() == unheld {
+		t.Fatalf("a cart its account can pay: %d %v", status, held)
+	}
+	funds.balance, asks = big.NewInt(0), len(funds.asked)
+	if status, _, again := tryOrder(session, firstRef, firstKey); status != 200 || again["resultRef"] != held["resultRef"] || len(funds.asked) != asks {
+		t.Fatalf("the same request again: %d %v (%d balance reads)", status, again, len(funds.asked)-asks)
+	}
+	if status, _, got := tryOrder(session, fresh(), fresh()); status != 409 || got["reason"] != "balance_short" || got["balance"] != "0" {
+		t.Fatalf("a new cart of an emptied account: %d %v", status, got)
+	}
+	funds.balance = big.NewInt(300_000)
+
+	// --- the customer takes the unpaid cart back, and can hold another at once ---
+	cancelHold := func(session, saleRef string, want int) map[string]any {
+		t.Helper()
+		return call(customer, customers.URL+"/v2/customer/checkout/cancel", map[string]string{"Authorization": "Bearer " + session}, map[string]string{"saleRef": saleRef}, want)
+	}
+	firstCart := held["resultRef"].(string)
+	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) { // one unpaid cart at a time
+		t.Fatal("a second cart while the first is held", got)
+	}
+	outsider := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)["session"].(string)
+	publish(elsewhere, "건너편 "+elsewhere[:8]) // the other branch takes customers from here on
+	away := elsewhereOf()
+	holding := footprint()
+	cancelHold(outsider, firstCart, 404) // another account's cart
+	cancelHold(away, firstCart, 404)     // the same account's session of another branch
+	cancelHold(session, fresh(), 404)    // no such order
+	cancelHold(strings.Repeat("ab", 32), firstCart, 404)
+	call(customer, customers.URL+"/v2/customer/checkout/cancel", map[string]string{"Authorization": "Bearer " + session}, map[string]string{"saleRef": "x"}, 400)
+	call(customer, customers.URL+"/v2/customer/checkout/cancel", map[string]string{"Authorization": "Bearer " + session},
+		map[string]string{"saleRef": firstCart, "branchRef": shop}, 400)
+	if after := footprint(); after != holding {
+		t.Fatalf("a refused cancel left a mark: %s, was %s", after, holding)
+	}
+	for i := 0; i < 2; i++ { // the same again is the same answer
+		if got := cancelHold(session, firstCart, 200); got["status"] != "ok" || got["saleRef"] != firstCart || got["state"] != "closed" || len(got) != 3 {
+			t.Fatalf("cancel %d: %v", i+1, got)
+		}
+	}
+	var closed string
+	var teaLeft, lines int
+	if err := admin.QueryRow(ctx, `SELECT (SELECT state FROM ledger.sale WHERE id=$1),(SELECT available FROM ledger.stock WHERE branch_id=$2 AND sku='tea'),
+		(SELECT count(*) FROM ledger.order_line WHERE sale_id=$1)`, firstCart, shop).Scan(&closed, &teaLeft, &lines); err != nil || closed != "closed" || teaLeft != 5 || lines != 1 {
+		t.Fatalf("after the cancel the order is %q with %d tea in stock and %d lines kept: %v", closed, teaLeft, lines, err)
+	}
+	if own := command(session, "order.status", shop, firstCart, map[string]string{}, nil, 200)["order"].(map[string]any); own["state"] != "closed" {
+		t.Fatalf("the cancelled cart reads %v", own)
+	}
+
+	// At once: the cancel freed the account's one hold.
 	sale := order(session, 200)["resultRef"].(string)
 	if got := order(session, 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a second unpaid hold for one account", got)
+	}
+	// The customer's claim on its own order: none yet, then the one the session authorizes. The quote is issued for
+	// the claim's payer, so the generation of the quote is the one the phone sent with the checkout proof.
+	if got := command(session, "checkout.claim", shop, sale, map[string]string{}, nil, 200); got["claim"] != nil {
+		t.Fatal("a claim before the customer asked for one", got)
+	}
+	claimed := command(session, "checkout.authorize", shop, sale, map[string]string{"customerRef": CustomerSubject(account)}, nil, 200)["claim"]
+	if read := command(session, "checkout.claim", shop, sale, map[string]string{}, nil, 200)["claim"]; claimed == nil ||
+		read.(map[string]any)["claimDigest"] != claimed.(map[string]any)["claimDigest"] {
+		t.Fatal("the session does not read back its own claim", claimed, read)
+	}
+	var claimPayer []byte
+	var claimGeneration, enrolledGeneration int64
+	if err := admin.QueryRow(ctx, `SELECT c.payer,c.payer_generation,e.payer_generation FROM ledger.checkout_claim c
+		JOIN ledger.payer_enrollment e USING (branch_id,actor_id) WHERE c.sale_id=$1`, sale).Scan(&claimPayer, &claimGeneration, &enrolledGeneration); err != nil ||
+		!bytes.Equal(claimPayer, account[:]) || strconv.FormatInt(claimGeneration, 10) != boardGeneration || claimGeneration != enrolledGeneration {
+		t.Fatal("the claim is not for the proven account and the generation of its proof", claimPayer, claimGeneration, enrolledGeneration, err)
+	}
+	// An order that is not this account's reads like an order without a claim, as on the certificate route.
+	if got := command(session, "checkout.claim", shop, fresh(), map[string]string{}, nil, 200); got["claim"] != nil {
+		t.Fatal("a claim on an order of nobody", got)
 	}
 	// The same account proven again elsewhere is the same customer: still one hold.
 	elsewhereSession := prove(board, account, challenge("checkout", elsewhere, ""), 200)["session"].(string)
@@ -234,6 +598,15 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	if err := admin.QueryRow(ctx, "SELECT creator::text FROM ledger.order_checkout WHERE sale_id=$1", sale).Scan(&holdsOf); err != nil ||
 		holdsOf != CustomerSubject(account) {
 		t.Fatal("the order is not the proven account's", holdsOf, err)
+	}
+
+	// --- once a quote was issued the cart is not taken back: it ends with that quote (seeded state) ---
+	execute("SET session_replication_role=replica")
+	execute(`UPDATE ledger.sale SET state='issued' WHERE id=$1`, sale)
+	execute("SET session_replication_role=origin")
+	quoted := footprint()
+	if got := cancelHold(session, sale, 409); got["error"] != string(service.CheckoutConflict) || got["reason"] != "quote_issued" || footprint() != quoted {
+		t.Fatalf("cancel after a quote was issued: %v (%s, was %s)", got, footprint(), quoted)
 	}
 
 	// --- the order is paid (seeded): quote signed for the account, payment, pickup number, escrow ---
@@ -263,20 +636,91 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatal("another board with a valid signature got the order", got)
 	}
 	prove(board, account, used, 400) // that challenge is used up
-	prove(board, account, challenge("order", elsewhere, sale), 400)
+	// An order is followed only at its own store: a challenge that names another store with it is not given at all.
+	call(customer, customers.URL+"/v2/customer/challenge", nil, map[string]string{"purpose": "order", "branchRef": elsewhere, "saleRef": sale}, 400)
 	ordered := prove(board, account, challenge("order", shop, sale), 200)
 	if ordered["saleRef"] != sale || ordered["purpose"] != "order" {
 		t.Fatal(ordered)
 	}
 	orderSession := ordered["session"].(string)
+	// A paid order is not cancelled on this route, by either session of its account.
+	paidFor := footprint()
+	if got := cancelHold(session, sale, 409); got["error"] != string(service.CheckoutConflict) || got["reason"] != "paid" {
+		t.Fatalf("cancel of a paid order: %v", got)
+	}
+	cancelHold(orderSession, sale, 404)
+	var still string
+	if err := admin.QueryRow(ctx, "SELECT state FROM ledger.sale WHERE id=$1", sale).Scan(&still); err != nil || still != "paid" || footprint() != paidFor {
+		t.Fatalf("a refused cancel changed the paid order: %q %v (%s, was %s)", still, err, footprint(), paidFor)
+	}
 	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
 	command(orderSession, "order.status", shop, fresh(), map[string]string{}, nil, 404)
 	command(orderSession, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
 	order(orderSession, 404)
+	// The checkout session of the same account reads its paid order too, on purpose: the page that just paid follows
+	// the order to its pickup number with the session it has. It reads no order of another account or another store.
+	if own := command(session, "order.status", shop, sale, map[string]string{}, nil, 200)["order"].(map[string]any); own["id"] != sale || own["state"] != "paid" {
+		t.Fatalf("the paying account's checkout session does not read its paid order: %v", own)
+	}
+	otherSession := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)["session"].(string)
+	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	command(elsewhereSession, "order.status", elsewhere, sale, map[string]string{}, nil, 404)
+	command(elsewhereSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	// Each session has its own request allowance, counted before anything of its address: one session using its up
+	// does not limit another, though both come from one address, and a request its own session refuses takes
+	// nothing from the address. A token the server does not know has an allowance of its own, apart from the proofs
+	// of its address. Checkout sessions share the ceiling of their address; the session of a paid order is not
+	// under it, so the customer who paid is answered while the address is at its ceiling.
+	h.Customer.SessionLimiter, h.Customer.UnknownLimiter = NewRateLimiter(60, 2, nil), NewRateLimiter(60, 2, nil)
+	h.Customer.AddressLimiter, h.Customer.Limiter, h.Customer.StartLimiter = NewRateLimiter(60, 7, nil), NewRateLimiter(60, 1, nil), NewRateLimiter(60, 1, nil)
+	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
+	command(session, "order.status", shop, sale, map[string]string{}, nil, 200)
+	for i := 0; i < 20; i++ { // its own limit, and none of these is a request of the address
+		command(session, "order.status", shop, sale, map[string]string{}, nil, 429)
+	}
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
+	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	for i, want := range []int{404, 404, 429} {
+		if got := command(strings.Repeat("cd", 32), "order.status", shop, sale, map[string]string{}, nil, want); want == 429 && got["error"] != string(service.Busy) {
+			t.Fatalf("unknown token %d: %v", i, got)
+		}
+	}
+	challenge("pickup", shop, sale)                                                           // the unknown tokens left the address its proof
+	command(elsewhereSession, "order.status", elsewhere, sale, map[string]string{}, nil, 404) // the seventh request of the address
+	command(otherSession, "order.status", shop, sale, map[string]string{}, nil, 429)          // its ceiling, though the session has an allowance left
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)          // the paid order is still answered
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 429)          // until its own allowance is used
+	if counts := h.Customer.Limited.Drain(); counts["session"] != 21 || counts["unknown"] != 1 || counts["address"] != 1 || len(counts) != 3 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	// One session start in the window for this account at this address, counted when a proof gives the session.
+	// A challenge is no start, however many are asked for; a pickup proof gives no session; and another account
+	// behind the same address has its own allowance, so the first one using its up does not stop it.
+	h.Customer.Limiter = nil
+	for i := 0; i < 3; i++ {
+		challenge("checkout", shop, "")
+	}
+	prove(board, account, challenge("checkout", shop, ""), 200)
+	unspent := challenge("checkout", shop, "")
+	if got := prove(board, account, unspent, 429); got["error"] != string(service.Busy) {
+		t.Fatalf("a second session start of the account in the window: %v", got)
+	}
+	prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("checkout", shop, ""), 200)
+	prove(board, account, challenge("pickup", shop, sale), 409) // not ready yet, and not counted as a start
+	if counts := h.Customer.Limited.Drain(); counts["start"] != 1 || len(counts) != 1 {
+		t.Fatalf("refusals by kind: %v", counts)
+	}
+	// The refused proof left its challenge unused: once the account has a start again, the same challenge gives one.
+	h.Customer.StartLimiter = nil
+	prove(board, account, unspent, 200)
+	h.Customer.SessionLimiter, h.Customer.UnknownLimiter, h.Customer.AddressLimiter, h.Customer.StartLimiter = nil, nil, nil, nil
 
 	// --- pickup: only when ready, only the payer, one use, short-lived, this branch and this order ---
 	if got := prove(board, account, challenge("pickup", shop, sale), 409); got["error"] != string(service.CheckoutConflict) {
 		t.Fatal("a pickup token for an order that is not ready", got)
+	}
+	if got := prove(board, account, challenge("pickup", shop, sale), 409); got["reason"] != "not_ready" || got["status"] != "error" || got["recordedAt"] != nil {
+		t.Fatal("an order that is not ready does not say so", got)
 	}
 	execute(`UPDATE ledger.travel_pickup_progress SET state='ready',revision=2 WHERE sale_id=$1`, sale)
 	prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("pickup", shop, sale), 400)
@@ -315,6 +759,22 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	scan(strangerCert, shop, sale, expired, 404) // and no reason either
 	call(staff(ownCert), server.URL+"/v2/operations/pickup-scan/"+shop+"/"+sale, map[string]string{"Origin": "https://elsewhere.example"},
 		map[string]string{"token": token}, 404) // not the operations web
+	// A pickup terminal holds the kitchen's handover authority and still does not scan a QR: the route is not found
+	// for it, the database refuses its role, and the token stays unused.
+	var assigned bool
+	if err := admin.QueryRow(ctx, "SELECT ledger.request_authority_live($1,$2,$3,'terminal',ARRAY['pickup_assignment'])", tenant, shop, counter).Scan(&assigned); err != nil || !assigned {
+		t.Fatal("the pickup terminal of this test has no assignment", assigned, err)
+	}
+	scan(counterCert, shop, sale, token, 404)
+	var denied *pgconn.PgError
+	if _, err := admin.Exec(ctx, "SELECT ledger.scan_pickup_token($1,$2,$3,'terminal',$4,$5,120)", tenant, shop, counter, sale, hashOfHex(t, token)); !errors.As(err, &denied) ||
+		denied.Code != "42501" || denied.Message != "a pickup QR is scanned by a store operator" {
+		t.Fatal("the database let a terminal scan a pickup QR", err)
+	}
+	var unused bool
+	if err := admin.QueryRow(ctx, "SELECT used_at IS NULL FROM ledger.pickup_token WHERE token_hash=$1", hashOfHex(t, token)).Scan(&unused); err != nil || !unused {
+		t.Fatal("a refused terminal used the token up", unused, err)
+	}
 	execute(`UPDATE ledger.travel_pickup_progress SET state='preparing' WHERE sale_id=$1`, sale)
 	refused(scan(ownCert, shop, sale, token, 409), service.CheckoutConflict, "not_ready")
 	execute(`UPDATE ledger.travel_pickup_progress SET state='ready' WHERE sale_id=$1`, sale)
@@ -362,6 +822,24 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 			+(SELECT count(*) FROM ledger.order_escrow_event WHERE sale_id=$1 AND kind='released')`, sale).Scan(&state, &delivers, &payouts); err != nil ||
 		state != "collected" || delivers != 1 || payouts != 0 {
 		t.Fatalf("scan recorded %q, %d delivery marks and %d payouts: %v", state, delivers, payouts, err)
+	}
+
+	// --- the order was handed over: a new pickup proof says so, with the time, and gives no QR; only to its payer ---
+	tokens := func() (count int) {
+		t.Helper()
+		if err := admin.QueryRow(ctx, "SELECT count(*) FROM ledger.pickup_token WHERE sale_id=$1", sale).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+	issued := tokens()
+	collected := prove(board, account, challenge("pickup", shop, sale), 409)
+	if at, _ := collected["recordedAt"].(float64); collected["status"] != "error" || collected["error"] != string(service.CheckoutConflict) ||
+		collected["reason"] != "collected" || at < recordedAt-1 || at > recordedAt+1 || collected["pickupToken"] != nil || tokens() != issued {
+		t.Fatalf("a pickup proof for an order already handed over: %v (handed over at %v)", collected, recordedAt)
+	}
+	if got := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("pickup", shop, sale), 400); got["error"] != string(service.Mismatch) || got["reason"] != nil {
+		t.Fatal("another account learned that the order was handed over", got)
 	}
 
 	// --- two scans of one QR at once record one handover: the same staff member gets the answer twice, once marked ---

@@ -1,5 +1,5 @@
 // The tokens of the wallet tab. Where a token comes from decides whether the board can send it; its symbol does not.
-import {dollarText, dollarToken, isWon, paymentToken, stableNetCoin, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
+import {commerceAmount, commerceCartAmount, dollarText, dollarToken, isWon, paymentToken, stableNetCoin, tokenAmount, type CommercePaymentProfile, type PaymentToken} from '@nu54/protocol';
 import {normalizeEvmAddress, readEvmReceiveBalance, type EvmChain} from './evmTransfer.ts';
 import {boardNetwork, isReadProfile, type Exchange, type NetworkRow} from './networks.ts';
 import {formatReadAmount, readCustomEvmBalance, readProfiles, walletReadRpc, type ReadProfileState} from './readProfiles.ts';
@@ -58,9 +58,65 @@ export const amountText = (units: string, decimals: number) => {
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + fraction.padEnd(2, '0');
 };
 
-const wonText = (units: string, decimals: number, language: 'ko' | 'en') => tokenAmount(units, {name: '', symbol: stableNetCoin.symbol, label: '', decimals}, language);
+/**
+ * What an amount is to the customer, which decides how the phone makes it whole (owner decision 2026-11-27: every
+ * won amount on the phone is a whole number of won; the operations web keeps the parts). What the customer has or
+ * gets back is cut off, so no screen shows more than there is. What the customer pays or lacks is rounded up,
+ * so no screen shows less than what leaves the wallet or less than what must be added. The tax inside a price is cut
+ * off. This is for the screen alone: what is sent, signed or compared stays in exact base units.
+ */
+export type Shown = 'balance' | 'refund' | 'tax' | 'charge' | 'shortfall';
+type Counted = Pick<PaymentToken, 'decimals' | 'symbol'>;
+const roundedUp: Shown[] = ['charge', 'shortfall'];
+/** Base units at a whole `unit`: cut off, or rounded up for what is paid or missing. Below zero it does the same. */
+function wholeUnits(units: bigint, unit: bigint, shown: Shown): bigint {
+  const rest = ((units % unit) + unit) % unit;
+  return rest === 0n ? units : units - rest + (roundedUp.includes(shown) ? unit : 0n);
+}
+/** The smallest amount of a store token a screen shows, in base units: one won, or one cent of a dollar token. */
+const shownUnit = (token: Counted) => 10n ** BigInt(isWon(token) ? token.decimals : Math.max(0, token.decimals - 2));
+/**
+ * An amount of a store token in base units, as the phone shows it: whole won. A dollar token keeps its own rule (its
+ * text is cut off at the cent), so its amount is returned as it is. Only for a screen, never for a request.
+ */
+export const shownUnits = (units: string | bigint, token: Counted, shown: Shown): bigint =>
+  isWon(token) ? wholeUnits(BigInt(units), shownUnit(token), shown) : BigInt(units);
+/**
+ * What a basket lacks, in base units, for the screen: counted in the smallest unit the basket shows (a whole won, or
+ * a cent) and never less than what is missing, so that adding it is enough. A balance is cut off, never rounded up
+ * (N31); what is missing is the other side of the same cut. Won are whole on a screen, so a part of a won that is
+ * missing reads as one won.
+ */
+export function missingUnits(required: bigint, balance: bigint, token: Counted): string {
+  return wholeUnits(required > balance ? required - balance : 0n, shownUnit(token), 'shortfall').toString();
+}
+/** A balance as the basket shows it, in base units: cut off at a whole won, or at a cent. Never rounded up. */
+export function shownBalance(balance: bigint, token: Counted): string {
+  return wholeUnits(balance, shownUnit(token), 'balance').toString();
+}
+/**
+ * The lines of a receipt in the base units the screen shows, so that the rows add up on it. Every amount is made
+ * whole on its running sum: the lines add up to the amount paid (rounded up) and their taxes to the tax (cut off).
+ * The supply value of a line is what is left of its shown amount, so supply value and tax add up to it as well.
+ * Without a token, or with a dollar token, nothing changes.
+ */
+export function receiptLines(items: {total: string | bigint; tax?: string | bigint}[], token?: Counted) {
+  const whole = (sum: bigint, shown: Shown) => token ? shownUnits(sum, token, shown) : sum;
+  let paid = 0n, taxed = 0n, shownPaid = 0n, shownTaxed = 0n;
+  return items.map(item => {
+    paid += BigInt(item.total);
+    taxed += BigInt(item.tax ?? 0);
+    const total = whole(paid, 'charge') - shownPaid, tax = whole(taxed, 'tax') - shownTaxed;
+    shownPaid += total;
+    shownTaxed += tax;
+    return {total, tax, supply: total - tax};
+  });
+}
+
+const wonText = (units: string, decimals: number, language: 'ko' | 'en') =>
+  tokenAmount(wholeUnits(BigInt(units), 10n ** BigInt(decimals), 'balance'), {name: '', symbol: stableNetCoin.symbol, label: '', decimals}, language);
 const dollarSymbols = ['TestUSDC', 'tUSDC', 'tUSDT', 'USDC', 'USDT'];
-/** A token's amount in a list: dollars cut off after two decimals, anything else in full. */
+/** A token's amount in a list: what is held or received. Won are whole and cut off, dollars are cut off after two decimals, anything else is in full. */
 export const tokenText = (units: string, token: Pick<ListedToken, 'symbol' | 'decimals' | 'won'>, language: 'ko' | 'en' = 'ko') => token.won
   ? wonText(units, token.decimals, language) : dollarSymbols.includes(token.symbol)
   ? dollarText(units, token.decimals).replace(/\B(?=(\d{3})+\.)/g, ',') : amountText(units, token.decimals);
@@ -71,12 +127,29 @@ export const storeOf = (policy: CommercePaymentProfile, branch?: string): Store 
 export const sameStore = (a: Store | undefined, b: Store) => !!a && a.asset === b.asset && JSON.stringify(a.token) === JSON.stringify(b.token);
 export const unknownAmount = {ko: '확인 안 됨', en: 'Not confirmed'};
 /** An amount of one asset. Only the registered store's token is known; nothing else is shown as if it were dollars. */
-export const assetMoney = (units: string | bigint, asset: string, store: Store | undefined, language: 'ko' | 'en' = 'ko') =>
-  store?.asset === asset.toLowerCase() ? storeMoney(units, store.token, language) : unknownAmount[language];
+export const assetMoney = (units: string | bigint, asset: string, store: Store | undefined, language: 'ko' | 'en' = 'ko', shown: Shown = 'balance') =>
+  store?.asset === asset.toLowerCase() ? storeMoney(units, store.token, language, shown) : unknownAmount[language];
 
-/** An amount of the store's token. Without a registration nobody knows which token a board signs. */
-export const storeMoney = (units: string | bigint, token: PaymentToken | undefined, language: 'ko' | 'en' = 'ko'): string =>
-  !token ? unknownAmount[language] : token.symbol === dollarToken.symbol ? `${tokenText(units.toString(), token)} ${token.label}` : tokenAmount(units, token, language);
+/**
+ * An amount of the store's token. Without a registration nobody knows which token a board signs. Won are whole: cut
+ * off unless `shown` says the amount is paid or missing.
+ */
+export const storeMoney = (units: string | bigint, token: PaymentToken | undefined, language: 'ko' | 'en' = 'ko', shown: Shown = 'balance'): string =>
+  !token ? unknownAmount[language] : token.symbol === dollarToken.symbol ? `${tokenText(units.toString(), token)} ${token.label}`
+    : tokenAmount(shownUnits(units, token, shown), token, language);
+
+const counted = /^(0|[1-9][0-9]*)$/;
+/** An order's amount in base units as the phone shows it: whole won of the registered store's token, anything else as it is. */
+export const orderUnits = (units: string | bigint, asset: string, policy: CommercePaymentProfile | undefined, shown: Shown): bigint =>
+  policy?.asset === asset ? shownUnits(units, paymentToken(policy), shown) : BigInt(units);
+const orderText = (units: string, asset: string, policy: CommercePaymentProfile | undefined, shown: Shown) =>
+  counted.test(units) ? orderUnits(units, asset, policy, shown).toString() : units;
+/** An amount of an order on the phone: the shared wording, in whole won. */
+export const orderMoney = (units: string, asset: string, policy: CommercePaymentProfile | undefined, shown: Shown, language: 'ko' | 'en' = 'ko') =>
+  commerceAmount(orderText(units, asset, policy, shown), asset, policy, language);
+/** An amount of a basket on the phone: the shared wording, in whole won. */
+export const cartMoney = (units: string, asset: string, policy: CommercePaymentProfile | undefined, shown: Shown, language: 'ko' | 'en' = 'ko') =>
+  commerceCartAmount(orderText(units, asset, policy, shown), asset, policy, language);
 
 export async function readToken(row: NetworkRow, token: WalletToken, account: string, exchange: Exchange): Promise<TokenAmount> {
   const rpc = walletReadRpc(row.server, exchange);

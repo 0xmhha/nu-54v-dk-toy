@@ -5,6 +5,7 @@ import {
   bindServiceRequestV2 as mockBind, dollarToken, namedTokenAbiSha256 as mockNamed, signDigest, toBase64 as mockBase64, walletReturnDigestFor, bytesToHex, type ServiceRequestV2, type WalletReturn, type WalletSend,
 } from '@nu54/protocol';
 import {orderRecords} from '../src/merchant/orderRecords';
+import {AmountLine} from '../src/merchant/paymentParts';
 import {BoardLife, type BoardLifeProps} from '../src/wallet/BoardLife';
 import {newReturn, returnRecord, verifyReturn, type ReturnRecord} from '../src/wallet/boardReturn';
 import {sendRecord, type SendRecord} from '../src/wallet/boardSend';
@@ -143,6 +144,9 @@ const fill = async (label: string, value: string) => {
   await render();
 };
 const start = async (amount = '50000') => { await open('send'); await fill('받는 주소', friend); await fill('금액', amount); await press('다음'); };
+// A won amount is typed in whole won (owner decision 2026-11-27): anything but digits is refused where it is typed.
+const wholeWonOnly = '원화는 1원 단위로만 보낼 수 있습니다. 소수점 없이 숫자만 입력하세요.';
+const typed = () => tree!.root.findAll(node => node.props.accessibilityLabel === '금액' && typeof node.props.onChangeText === 'function')[0].props.value as string;
 
 test('a return is shown in won and signed as won', async () => {
   await open('return');
@@ -188,9 +192,9 @@ test('a return of another store is neither signed nor shown as this store\'s mon
   expect(message).toContain('다른 매장에 등록되어');
   expect(session.signReturn).not.toHaveBeenCalled();
 });
-test('a transfer takes won with two decimals and is signed as won', async () => {
-  await start('1.001');
-  expect(message).toContain('소수점 아래 두 자리');
+test('a transfer takes whole won only and is signed as won', async () => {
+  await open('send'); await fill('받는 주소', friend); await fill('금액', '1.01');
+  expect([message, typed(), button('다음').props.disabled]).toEqual([wholeWonOnly, '', true]);
   await start();
   expect(text()).toContain('50,000원');
   expect(text()).toContain('370,000원');
@@ -386,7 +390,7 @@ describe('the coin', () => {
     expect(text()).not.toContain('0.000000000000000007');
     expect(!!button('보드 초기화')).toBe(true);
   });
-  test('a transfer takes hundredths of a won and stays within the board\'s limits', async () => {
+  test('a transfer takes whole won and stays within the board\'s limits', async () => {
     const limits = {account: payer, perPayment: 30_000_000n, daily: 100_000_000n, pinWait: 0, orderOpen: false, sends: true, leftToday: 40_000_000n};
     const ask = async (amount: string) => {
       await open('send');
@@ -395,15 +399,150 @@ describe('the coin', () => {
       for (const limit of ['300,000원', '400,000원']) expect(text()).toContain(limit);
       await fill('받는 주소', friend); await fill('금액', amount); await press('다음');
     };
-    await ask('300000.01');
+    await ask('300001');
     expect(message).toContain('보드 한도를 넘는 금액입니다');
-    await ask('0.005');
-    expect(message).toContain('소수점 아래 두 자리');
+    await open('send'); await fill('받는 주소', friend); await fill('금액', '0.01');
+    expect([message, typed(), button('다음').props.disabled]).toEqual([wholeWonOnly, '', true]);
     await ask('300000');
     expect(text()).toContain('300,000원');
     await press('이 내용으로 보내기');
     await press('보드로 승인');
     expect(session.signSend.mock.calls[0].slice(3)).toEqual(['WKRC', mockCoinPolicy.token]);
     expect(mockSent[0].body.amount).toBe((300_000n * wei).toString());
+  });
+});
+
+// Owner decision 2026-11-27: won are whole on the phone. Only the screen is whole: what is signed and sent is every base unit.
+describe('whole won on the screen, exact units to the board and the store', () => {
+  test('a balance with a part of a won reads cut off, and the return moves all of it', async () => {
+    mockBalance = '299999'; // 2,999.99 won
+    await open('return');
+    expect(text()).toContain('2,999원');
+    expect(text()).not.toContain('2,999.99');
+    await press('반납 시작');
+    expect((await record())?.amount).toBe('299999');
+    expect(text()).toContain('2,999원');
+    await press('보드로 승인');
+    expect(session.signReturn.mock.calls[0][1].amount).toBe(299_999n);
+    expect(mockSent[0]).toMatchObject({operation: 'wallet.return', body: {amount: '299999'}});
+  });
+  test('less than one won reads as none, is still returned, and the page says so', async () => {
+    mockBalance = '50';
+    await open('return');
+    expect(text()).toContain('0원');
+    expect(text()).toContain('1원보다 적은 금액이 남아 있습니다');
+    expect(!!button('잔액 없이 초기화로 진행')).toBe(false);
+    await press('반납 시작');
+    await press('보드로 승인');
+    expect(session.signReturn.mock.calls[0][1].amount).toBe(50n);
+    expect(mockSent[0]).toMatchObject({operation: 'wallet.return', body: {amount: '50'}});
+    mockJournals.clear();
+    await open('reset');
+    expect(text()).toContain('1원보다 적은 돈이 남아 있습니다');
+    expect(text()).not.toContain('남은 돈 0원');
+  });
+  test('no balance still offers the reset without a return', async () => {
+    mockBalance = '0';
+    await open('return');
+    expect(text()).not.toContain('1원보다 적은 금액');
+    expect(!!button('잔액 없이 초기화로 진행')).toBe(true);
+  });
+  // Owner decision 2026-11-27 (send screen): a won amount is typed in whole won, so the number on the screen is the
+  // number that is signed and sent. The part of a won an account holds leaves only through the return above.
+  /** The amount the review or the record shows as sent, and the same number in base units of a token. */
+  const shownSent = () => tree!.root.findAll(node => node.type === AmountLine && node.props.label === '보내는 금액')[0].props.amount as string;
+  const unitsOf = (shown: string, decimals: number) => {
+    expect(shown).toMatch(/^[0-9]{1,3}(,[0-9]{3})*원$/);
+    return BigInt(shown.replace(/[^0-9]/g, '')) * 10n ** BigInt(decimals);
+  };
+
+  test('sending everything sends the whole won; the part below one won stays and the page says where it goes', async () => {
+    mockBalance = '299999'; // 2,999.99 won
+    await start('3000');
+    expect(message).toBe('잔액보다 큰 금액입니다. 확정된 잔액은 2,999원입니다.');
+    await start('2999');
+    expect(shownSent()).toBe('2,999원');
+    expect(text()).toContain('1원보다 적은 금액이 남습니다. 보내기로는 보낼 수 없고, 반납할 때 함께 보냅니다.');
+    expect(tree!.root.findAll(node => node.props.label === '보낸 뒤 남는 금액')[0].props.value).toBe('0원');
+    expect(text()).not.toMatch(/[0-9]\.[0-9]+원/);
+    await press('이 내용으로 보내기');
+    expect((await sendRecord(Http).load())!.amount).toBe('299900');
+    expect(shownSent()).toBe('2,999원'); // the record shows the number the review showed
+    await press('보드로 승인');
+    expect(session.signSend.mock.calls[0][1].amount).toBe(299_900n);
+    expect(mockSent.at(-1)).toMatchObject({operation: 'wallet.send', body: {amount: '299900'}});
+    // The 0.99 won that stayed is what the return moves, exactly.
+    mockJournals.clear(); mockSent.length = 0;
+    mockBalance = '99';
+    await open('return');
+    expect(text()).toContain('1원보다 적은 금액이 남아 있습니다');
+    await press('반납 시작');
+    await press('보드로 승인');
+    expect(session.signReturn.mock.calls[0][1].amount).toBe(99n);
+  });
+
+  test('a whole balance leaves nothing behind and says nothing about a rest', async () => {
+    mockBalance = '300000';
+    await start('3000');
+    expect(shownSent()).toBe('3,000원');
+    expect(text()).not.toContain('1원보다 적은 금액이 남습니다');
+    await press('이 내용으로 보내기');
+    expect((await sendRecord(Http).load())!.amount).toBe('300000');
+  });
+
+  test('a pasted amount with a part of a won is refused where it is typed, not cut', async () => {
+    mockBalance = '299999';
+    await open('send'); await fill('받는 주소', friend);
+    await fill('금액', '2999');
+    expect([message, typed()]).toEqual(['', '2999']);
+    for (const pasted of ['2999.99', '2999.', '2,999', '2999원', ' 2999', '2999.00', '-2999', '2e3', '２９９９']) {
+      await fill('금액', pasted);
+      expect([pasted, message, typed()]).toEqual([pasted, wholeWonOnly, '2999']); // what was typed before stays
+    }
+    await fill('금액', '29990');
+    expect([message, typed()]).toEqual(['', '29990']); // digits clear the message
+    await fill('금액', '');
+    expect(typed()).toBe('');
+    // Digits that are no amount are refused at the next step, with the same rule in words.
+    for (const odd of ['0', '007']) {
+      await fill('금액', odd); await press('다음');
+      expect(message).toBe('금액이 맞지 않습니다. 원화는 1원 단위로 숫자만 입력하세요.');
+      expect(button('이 내용으로 보내기')).toBeUndefined();
+    }
+  });
+
+  test.each([
+    ['tKRW with 2 decimals', 'won' as const, 'NU54 Test KRW', 2, 10n ** 2n],
+    ['KRWC with 18 decimals', 'coin' as const, 'WKRC', 18, 10n ** 18n],
+  ])('%s: the base units signed and sent are the number on the screen times 10^decimals', async (_name, shop, name, decimals, one) => {
+    mockStore = shop; boardName = name;
+    mockBalance = (2999n * one + 99n * one / 100n).toString(); // 2,999.99 won
+    await start('3000');
+    expect(message).toBe('잔액보다 큰 금액입니다. 확정된 잔액은 2,999원입니다.');
+    await start('2999');
+    const reviewed = unitsOf(shownSent(), decimals);
+    expect(reviewed).toBe(2999n * one);
+    expect(text()).toContain('1원보다 적은 금액이 남습니다');
+    await press('이 내용으로 보내기');
+    const kept = (await sendRecord(Http).load())!;
+    expect([BigInt(kept.amount), unitsOf(shownSent(), decimals)]).toEqual([reviewed, reviewed]);
+    await press('보드로 승인');
+    expect(session.signSend.mock.calls[0][1].amount).toBe(reviewed);
+    expect(BigInt(mockSent.at(-1)!.body.amount as string)).toBe(reviewed);
+    expect(mockSent.at(-1)!.operation).toBe('wallet.send');
+  });
+
+  test('a dollar token is typed with two decimals, as before', async () => {
+    mockStore = 'usd'; boardName = dollarToken.name;
+    await start('1.234');
+    expect([message, typed()]).toEqual(['금액이 맞지 않습니다. 소수점 아래 두 자리까지 입력할 수 있습니다.', '1.234']);
+    await open('send'); await fill('받는 주소', friend); await fill('금액', '12.34');
+    expect([message, typed()]).toEqual(['', '12.34']);
+    await press('다음');
+    await press('이 내용으로 보내기');
+    expect((await sendRecord(Http).load())!.amount).toBe('12340000');
+    await press('보드로 승인');
+    expect(session.signSend.mock.calls[0][1].amount).toBe(12_340_000n);
+    expect(mockSent.at(-1)).toMatchObject({operation: 'wallet.send', body: {amount: '12340000'}});
   });
 });

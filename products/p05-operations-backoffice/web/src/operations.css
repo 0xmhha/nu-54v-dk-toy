@@ -385,3 +385,59 @@ button.danger {
   background: #8a3b12;
   border-color: #8a3b12;
 }
+
+/* Pickup QR check: the camera fits the column, the answer says at once whether to hand over. */
+.camera {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  max-width: 32rem;
+  border-radius: 0.6rem;
+  background: #182d25;
+  color: #f4f8ed;
+  padding: 0.6rem;
+  margin-block: 0.6rem;
+}
+.camera video {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0.4rem;
+}
+.camera button.secondary {
+  margin: 0;
+}
+.handed,
+.refused {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+}
+.handed {
+  background: #e9f3df;
+  color: #123a2b;
+  border: 2px solid #174b38;
+}
+.refused {
+  background: #f6e3bf;
+  color: #5a3b05;
+  border: 2px solid #8a3b12;
+}
+.handed strong,
+.refused strong {
+  font-size: 1.35rem;
+}
+.pickup-facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.2rem 1rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid #dbe3dc;
+}
+.pickup-facts dt {
+  font-size: 0.9em;
+  color: #4f655a;
+}
+.pickup-facts dd {
+  margin: 0;
+}

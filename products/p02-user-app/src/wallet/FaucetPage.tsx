@@ -2,6 +2,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import {stableNetCoin, type FaucetStatus, type FaucetToken} from '@nu54/protocol';
 import {walletId} from '../merchant/customerClient.ts';
+import {routeWords} from '../merchant/orderRoute.ts';
 import {Card, Chip, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
 import {credential} from './BoardLife.tsx';
@@ -10,8 +11,9 @@ import {tokenText} from './tokens.ts';
 type Say = (ko: string) => string;
 const reason = (error: unknown) => error instanceof Error ? error.message : '';
 
-/** What the server's answer to a request for test tokens means to the owner. */
-export function faucetFailure(error: unknown) {
+/** What the server's answer to a request for test tokens means to the owner, in the words of this build's route. */
+export const faucetFailure = (error: unknown) => routeWords(faucetAnswer(error));
+function faucetAnswer(error: unknown) {
   switch (reason(error)) {
     case 'NO_CREDENTIAL': return '먼저 매장 주문 등록이 필요합니다. 결제 탭에서 매장 담당자가 준 등록서를 입력하세요.';
     case 'UNSUPPORTED_CAPABILITY': return '이 매장에서는 시험 토큰을 주지 않습니다.';
@@ -86,7 +88,7 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
     {!!said && <Text accessibilityLiveRegion="polite" style={styles.said}>{said}</Text>}
     {!!problem && <><Text accessibilityLiveRegion="polite" style={styles.warn}>{t(problem)}</Text><KitButton label={t('다시 확인')} run={refresh} variant="secondary" /></>}
     {!status && !problem && <Text style={type.body}>{t('확인하는 중')}</Text>}
-    {status && other && <Text style={styles.warn}>{t(status.payer ? '다른 보드 계정이 이 매장에 등록되어 있습니다. 설정에서 매장 등록을 다시 하세요.' : '이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.')}</Text>}
+    {status && other && <Text style={styles.warn}>{t(routeWords(status.payer ? '다른 보드 계정이 이 매장에 등록되어 있습니다. 설정에서 매장 등록을 다시 하세요.' : '이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.'))}</Text>}
     {status && <>
       <View style={styles.list}>{status.tokens.map(token => {
         const taken = sends.includes(token.token);

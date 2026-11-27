@@ -366,7 +366,7 @@ func installSettlement(ctx, run context.Context, commerceDSN string, quoteCipher
 	}
 	ready = true
 	return &settlement.Forwarder{Store: forward, QuoteCipher: quoteCipher, RelayCipher: relay, Targets: activeTargets, GasSponsors: sponsors, MerchantIDs: merchantIDs,
-		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress),
+		Faucet: faucet, GasAccount: common.HexToAddress(gasAddress), Balances: settlement.AccountBalance(client),
 		RentalEscrow: settlement.RentalEscrow{Client: client, Targets: activeTargets, Reviews: reviews}}, closeAll, nil
 }
 

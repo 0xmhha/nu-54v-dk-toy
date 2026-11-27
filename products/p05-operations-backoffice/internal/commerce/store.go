@@ -27,6 +27,10 @@ func Open(ctx context.Context, url string) (*Store, error) {
 	}
 	config.ConnConfig.RuntimeParams["lock_timeout"] = "2s"
 	config.ConnConfig.RuntimeParams["statement_timeout"] = "7s"
+	// A statement here runs for milliseconds. PostgreSQL decides on JIT compilation from the estimated cost of a
+	// plan, not from its run time, and compiling (and first loading the compiler) can take longer than the
+	// statement timeout allows on a busy host, so a read that needs 2 ms ended as UNKNOWN_RESULT.
+	config.ConnConfig.RuntimeParams["jit"] = "off"
 	db, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, errors.New("commerce database connection failed")

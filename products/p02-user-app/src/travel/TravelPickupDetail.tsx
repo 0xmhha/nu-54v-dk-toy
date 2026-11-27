@@ -1,8 +1,9 @@
 import {useCallback, useEffect, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {commerceAmount, formatPickupTime, readPickupCustomer, type CommercePaymentProfile,
+import {formatPickupTime, readPickupCustomer, type CommercePaymentProfile,
   type PickupCustomerOrder, type PickupOrderState} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
+import {orderMoney} from '../wallet/tokens.ts';
 
 export const pickupStateLabel: Record<PickupOrderState, string> = {
   'waiting-payment': '지급 확인 중',
@@ -53,7 +54,7 @@ export function TravelPickupDetail({branch, sale, policy, orderRevision}: {
       {item.pickupNo !== undefined && <Text>주문번호 {item.pickupNo}</Text>}
       {item.refund && <>
         <Text>{refundLabel[item.refund.state]}</Text>
-        {item.refund.amount && <Text>환불 금액 {commerceAmount(item.refund.amount, item.asset, policy)}</Text>}
+        {item.refund.amount && <Text>환불 금액 {orderMoney(item.refund.amount, item.asset, policy, 'refund')}</Text>}
         {item.refund.receiptRef && <Text selectable>환불 지급 증거 {item.refund.receiptRef}</Text>}
       </>}
     </>}

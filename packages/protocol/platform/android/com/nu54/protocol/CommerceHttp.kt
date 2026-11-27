@@ -38,9 +38,9 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
     }
 
     private fun journalName(name:String):String {
-        require(name in setOf("commerce-inbox-v2","customer-order-v2","customer-payment-v2","customer-qr-v2","terminal-payment-v2","terminal-mode-request-v2","terminal-mode-applied-v2","terminal-public-menu-v1","travel-pickup-kitchen-v1","subscription-alerts-v2","market-lab-8283-v1")
+        require(name in setOf("commerce-inbox-v2","customer-order-v2","customer-payment-v2","customer-qr-v2","customer-stores-v1","terminal-payment-v2","terminal-mode-request-v2","terminal-mode-applied-v2","terminal-public-menu-v1","travel-pickup-kitchen-v1","subscription-alerts-v2","market-lab-8283-v1")
             || ("terminal" in slots && name in setOf("commerce-nearby-inbox-v2","commerce-denials-v2"))
-            || name.matches(Regex("cloud-p03-[a-f0-9]{64}|travel-local-[a-f0-9-]{36}|travel-hold-[a-f0-9]{64}|pickup-v2-[a-f0-9]{64}|print-v1-[a-f0-9]{64}|pickup-legacy-[a-f0-9]{64}|customer-(order|payment|qr|legacy)-[a-f0-9]{64}")))
+            || name.matches(Regex("cloud-p03-[a-f0-9]{64}|travel-local-[a-f0-9-]{36}|travel-hold-[a-f0-9]{64}|pickup-v2-[a-f0-9]{64}|print-v1-[a-f0-9]{64}|pickup-legacy-[a-f0-9]{64}|customer-(order|payment|qr|legacy|sessions)-[a-f0-9]{64}")))
         return "journal:$name"
     }
     @Synchronized
@@ -182,6 +182,118 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         return exchangeAt("travel",method,path,envelope,1_400_000)
     }
 
+    /** Server trust for one handshake: the chain must end at `ca`, and the leaf must carry one of the pinned keys. System roots are never consulted. */
+    private fun anchoredTrust(ca:X509Certificate, pins:Set<String>):X509TrustManager {
+        val roots=KeyStore.getInstance(KeyStore.getDefaultType()).apply {
+            load(null)
+            setCertificateEntry("commerce-root",ca)
+        }
+        val trustFactory=TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(roots) }
+        val anchored=trustFactory.trustManagers.filterIsInstance<X509TrustManager>().single()
+        return object:X509TrustManager {
+            override fun getAcceptedIssuers()=anchored.acceptedIssuers
+            override fun checkClientTrusted(chain:Array<out X509Certificate>?, authType:String?) { throw CertificateException("wrong TLS role") }
+            override fun checkServerTrusted(chain:Array<out X509Certificate>?,authType:String?) {
+                anchored.checkServerTrusted(chain,authType)
+                val leaf=chain?.firstOrNull() ?: throw CertificateException("missing server leaf")
+                val hash=MessageDigest.getInstance("SHA-256").digest(leaf.publicKey.encoded).joinToString(""){"%02x".format(it)}
+                if (hash !in pins) throw CertificateException("wrong commerce pin")
+                // The post-handshake HTTPS hostname verifier is also mandatory.
+                // The exact pinned SPKI establishes the peer before mTLS sends credentials.
+            }
+        }
+    }
+
+    private fun readCapped(stream:java.io.InputStream, limit:Int):String = stream.use {
+        val input=java.io.ByteArrayOutputStream()
+        val buffer=ByteArray(4096)
+        while (true) {
+            val size=it.read(buffer)
+            if(size<0) break
+            require(input.size()+size<=limit)
+            input.write(buffer,0,size)
+        }
+        input.toString("UTF-8")
+    }
+
+    /**
+     * One request to the customer entrance of the store server, which asks for no client certificate.
+     * The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the
+     * app's deployment configuration, the chain must end at that CA and the leaf must carry a pinned key. `pin` is
+     * one SHA-256 of a public key (SPKI, any key type), or a list of two while the server changes its key: the
+     * current one and the next. No enrollment profile is read and system roots are never consulted. No key manager
+     * holds a key, so no client certificate can be offered: a server that asks for one gets none and decides itself.
+     * A body that is not UTF-8 is handed back with the bad bytes replaced. `session` is the customer session token of `/v2/customer/commerce` and of
+     * `/v2/customer/checkout/cancel` (the unpaid cart a session takes back), and empty elsewhere; the store list (a page of it with
+     * `?after=<store>`), a store page, a menu page and a menu photo part are read with GET and an empty body.
+     * Answers `{"status":n,"body":"…"}`, and with `"retryAfter":seconds` when the server sent a Retry-After of whole seconds.
+     */
+    fun customerEntrance(anchor:String, path:String, session:String, body:String):String {
+        val reference="[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+        // The public reads: the store list and its next page, a store page, a page of its menu and a part of a menu photo.
+        // The one query the entrance takes is the list's `after=<store>`.
+        val read=path=="/v2/customer/stores" || Regex("/v2/customer/stores\\?after=$reference").matches(path) ||
+            Regex("/v2/customer/stores/$reference(/menu/(0|[1-9][0-9]{0,4})|/photos/[0-9a-f]{64}/(0|[1-9][0-9]{0,5}))?").matches(path)
+        val commerce=path=="/v2/customer/commerce"
+        val cancel=path=="/v2/customer/checkout/cancel"
+        require(read || commerce || cancel || path in setOf("/v2/customer/challenge","/v2/customer/proof"))
+        val payload=body.encodeToByteArray()
+        require(if(read) payload.isEmpty() else payload.size in 2..(if(commerce) 8192 else if(cancel) 256 else 1024))
+        require(if(commerce || cancel) Regex("[0-9a-f]{64}").matches(session) else session.isEmpty())
+        require(anchor.encodeToByteArray().size in 1..8192)
+        val trust=JSONObject(anchor)
+        val base=URI(trust.getString("origin"))
+        require(base.scheme=="https" && !base.host.isNullOrEmpty() && base.rawUserInfo==null && base.rawPath.isNullOrEmpty() &&
+            base.rawQuery==null && base.rawFragment==null && (base.port==-1 || base.port in 1..65535))
+        val pins=when(val given=trust.get("pin")) {
+            is String -> listOf(given)
+            is org.json.JSONArray -> List(given.length()) { given.getString(it) }
+            else -> emptyList()
+        }
+        require(pins.size in 1..2 && pins.toSet().size==pins.size && pins.all { Regex("[0-9a-f]{64}").matches(it) })
+        val ca=CertificateFactory.getInstance("X.509")
+            .generateCertificate(Base64.decode(trust.getString("ca"),Base64.NO_WRAP).inputStream()) as X509Certificate
+        val anonymous=object:X509ExtendedKeyManager() {
+            override fun getClientAliases(type:String?, issuers:Array<out Principal>?):Array<String>?=null
+            override fun chooseClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,socket:Socket?):String?=null
+            override fun chooseEngineClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,engine:SSLEngine?):String?=null
+            override fun getServerAliases(type:String?,issuers:Array<out Principal>?):Array<String>?=null
+            override fun chooseServerAlias(type:String?,issuers:Array<out Principal>?,socket:Socket?):String?=null
+            override fun getPrivateKey(alias:String?):PrivateKey?=null
+            override fun getCertificateChain(alias:String?):Array<X509Certificate>?=null
+        }
+        val tls=SSLContext.getInstance("TLSv1.3").apply { init(arrayOf(anonymous),arrayOf(anchoredTrust(ca,pins.toSet())),random) }
+        val host=base.host
+        val connection=java.net.URL("https",host,base.port,path).openConnection(java.net.Proxy.NO_PROXY) as HttpsURLConnection
+        try {
+            connection.sslSocketFactory=tls.socketFactory
+            connection.hostnameVerifier=javax.net.ssl.HostnameVerifier { name, session ->
+                name==host && session.protocol=="TLSv1.3" && HttpsURLConnection.getDefaultHostnameVerifier().verify(name,session)
+            }
+            connection.doOutput=!read
+            connection.instanceFollowRedirects=false
+            connection.useCaches=false
+            connection.connectTimeout=5000
+            connection.readTimeout=7000
+            connection.requestMethod=if(read) "GET" else "POST"
+            connection.setRequestProperty("Content-Type","application/json")
+            connection.setRequestProperty("Cache-Control","no-store")
+            if(commerce || cancel) connection.setRequestProperty("Authorization","Bearer $session")
+            if(!read) connection.outputStream.use { it.write(payload) }
+            val status=connection.responseCode
+            // What the entrance answers with. A redirect or anything else is not an answer.
+            require(status in setOf(200,400,404,409,429,503))
+            val stream=if(status==200) connection.inputStream else connection.errorStream
+            val limit=if(read || commerce) 32768 else 8192
+            val reply=JSONObject().put("status",status).put("body",if(stream==null) "" else readCapped(stream,limit))
+            // How long the server asks to wait before the next request, when it says so in whole seconds.
+            connection.getHeaderField("Retry-After")?.let { wait -> if(Regex("[1-9][0-9]{0,3}").matches(wait)) reply.put("retryAfter",wait.toInt()) }
+            return reply.toString()
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun exchangeAt(slot:String,method:String,path:String,envelope:String,maxSize:Int,profileDigest:String?=null):String {
         val payload=envelope.encodeToByteArray()
         require(if(method=="GET") payload.isEmpty() else payload.size in 2..maxSize)
@@ -193,26 +305,9 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         }
         val profile=JSONObject(raw)
         val (ca,chain,privateKey)=certificates(profile,slot)
-        val roots=KeyStore.getInstance(KeyStore.getDefaultType()).apply {
-            load(null)
-            setCertificateEntry("commerce-root",ca)
-        }
-        val trustFactory=TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply { init(roots) }
-        val anchored=trustFactory.trustManagers.filterIsInstance<X509TrustManager>().single()
         val pin=profile.getString("pin")
         val host=URI(profile.getString("endpoint")).host
-        val trust=object:X509TrustManager {
-            override fun getAcceptedIssuers()=anchored.acceptedIssuers
-            override fun checkClientTrusted(chain:Array<out X509Certificate>?, authType:String?) { throw CertificateException("wrong TLS role") }
-            override fun checkServerTrusted(chain:Array<out X509Certificate>?,authType:String?) {
-                anchored.checkServerTrusted(chain,authType)
-                val leaf=chain?.firstOrNull() ?: throw CertificateException("missing server leaf")
-                val hash=MessageDigest.getInstance("SHA-256").digest(leaf.publicKey.encoded).joinToString(""){"%02x".format(it)}
-                if (hash!=pin) throw CertificateException("wrong commerce pin")
-                // The post-handshake HTTPS hostname verifier is also mandatory.
-                // The exact pinned SPKI establishes the peer before mTLS sends credentials.
-            }
-        }
+        val trust=anchoredTrust(ca,setOf(pin))
         val owner=object:X509ExtendedKeyManager() {
             override fun getClientAliases(type:String?, issuers:Array<out Principal>?)=if(type=="EC" || type?.startsWith("EC_")==true) arrayOf(slot) else null
             override fun chooseClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,socket:Socket?)=if(types?.any{it=="EC" || it.startsWith("EC_")}==true) slot else null
@@ -242,17 +337,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
             val status=connection.responseCode
             require(status in setOf(200,400,409,503))
             val stream=(if(status==200) connection.inputStream else connection.errorStream) ?: error("missing response")
-            return stream.use {
-                val input=java.io.ByteArrayOutputStream()
-                val buffer=ByteArray(4096)
-                while (true) {
-                    val size=it.read(buffer)
-                    if(size<0) break
-                    require(input.size()+size<=32768)
-                    input.write(buffer,0,size)
-                }
-                input.toString("UTF-8")
-            }
+            return readCapped(stream,32768)
         } finally {
             connection.disconnect()
         }

@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {AppState, Pressable, StyleSheet, Text, View} from 'react-native';
-import type {OrderBuyerAction} from '@nu54/protocol';
+import type {OrderBuyerAction, PaymentToken} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import {Card, KitButton} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
@@ -8,6 +8,8 @@ import {onReturnChanged, returnRecord, settleReturn} from '../wallet/boardReturn
 import {clockMargin, customerClient, offeredAnswers, openOrderLabel, refreshOpenOrders} from './customerClient.ts';
 import {awaitsStore, isOpenOrder, onOrdersChanged, orderRecords, type OpenOrder} from './orderRecords.ts';
 import {AmountLine, PickupTicket} from './paymentParts.tsx';
+import {madeAtStorePage, openStoreAccess} from './storeAccess.ts';
+import {receiptLines} from '../wallet/tokens.ts';
 
 export type OrderPayer = {address: string; generation: number} | null;
 /** Paid by a board account this phone no longer uses. `null` means no account; undefined, not known yet. */
@@ -59,6 +61,14 @@ export function useOpenOrders(): OpenOrder[] {
         const raw = await storage.loadProfile('customer');
         if (live && raw && await returning()) await settleReturn(storage, customerClient(raw), () => Math.floor(Date.now() / 1000)).catch(() => {});
         if (live && raw && (await show()).length) await refreshOpenOrders(customerClient(raw));
+        // Orders made from a store page are read with the session each got from the board that paid it. One
+        // without a session keeps its last state until its page asks the board.
+        const entrance = live ? (await show()).filter(madeAtStorePage) : [];
+        for (const branch of new Set(entrance.map(row => row.branch))) {
+          const {store, merchantId} = entrance.find(row => row.branch === branch)!;
+          const access = await openStoreAccess({branch, name: store ?? '매장', merchantId});
+          if (live && access) await refreshOpenOrders(access.client);
+        }
       } catch { /* The last known state stays on screen. */ } finally {
         asking = false;
         if (live) await plan(await show());
@@ -90,13 +100,13 @@ export function remaining(seconds: number) {
   return [d && `${d}일`, h && `${h}시간`, !d && m && `${m}분`].filter(Boolean).join(' ');
 }
 
-function story(order: OpenOrder, now: number): string {
+function story(order: OpenOrder, now: number, pickupQr = false): string {
   switch (order.stage) {
     case 'locked':
       if (order.pickupNo === undefined) return '결제가 확정되었습니다. 주문번호를 기다리고 있습니다.';
       if (order.pickup === 'unfulfillable') return '매장이 이 주문을 준비할 수 없어 환불을 처리하고 있습니다.';
       if (order.pickup === 'collected') return '매장이 전달을 기록했습니다. 확정되면 받았는지 여기에서 묻습니다.';
-      if (order.pickup === 'ready') return '준비가 끝났습니다. 매장에서 주문번호를 보여 주고 받으세요.';
+      if (order.pickup === 'ready') return pickupQr ? '준비되었습니다. 카운터에서 수령 QR을 보여 주세요.' : '준비가 끝났습니다. 매장에서 주문번호를 보여 주고 받으세요.';
       return order.pickup === 'preparing' ? '매장이 준비하고 있습니다.' : '매장이 주문을 받았습니다.';
     case 'delivered':
       if (Math.abs(now - (order.claimableAt ?? 0)) <= clockMargin) return '매장이 전달했다고 알렸습니다. 확인 기간이 거의 끝났거나 막 끝났습니다. 받지 못했다면 지금 알려 주세요. 기간이 지났으면 서버가 받지 않습니다.';
@@ -119,10 +129,12 @@ const answers: Record<OrderBuyerAction, {label: string; warn?: string; confirm?:
 };
 
 /** One order from payment to its end, with the answers the buyer may give now. */
-export function OrderDetail({order, amount, money, fresh, mine = true, former = false, busy = false, message, now, actions}: {
+export function OrderDetail({order, amount, money, token, fresh, mine = true, former = false, busy = false, message, now, actions}: {
   order: OpenOrder; amount: string;
   /** Formats base units of this order's token, for the lines of the receipt. */
   money?: (units: string) => string;
+  /** This order's token, so that the receipt's rows are in the unit the screen shows and add up on it. */
+  token?: Pick<PaymentToken, 'decimals' | 'symbol'>;
   /** The state below comes from the server in this visit, so it can be answered. */
   fresh: boolean;
   /** This phone holds the key the order answers to. */
@@ -130,7 +142,9 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
   /** The paying board account is gone, so a refund cannot be reached. */
   former?: boolean;
   busy?: boolean; message?: string; now: number;
-  actions: {answer: (action: OrderBuyerAction) => void; refresh: () => void; back: () => void};
+  actions: {answer: (action: OrderBuyerAction) => void; refresh: () => void; back: () => void;
+    /** Opens the pickup QR of a ready order; without it the order is collected by its number as before. */
+    pickupQr?: () => void};
 }) {
   const [asking, setAsking] = useState<OrderBuyerAction>();
   const [clock, setClock] = useState(now);
@@ -142,6 +156,7 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
     return () => clearInterval(timer);
   }, [order.stage]);
   const ended = order.stage === 'refunded' || order.stage === 'failed' || order.pickup === 'unfulfillable';
+  const qr = !!actions.pickupQr && mine && order.stage === 'locked' && order.pickup === 'ready' && order.pickupNo !== undefined;
   const step = stepOf(order);
   const given = order.pendingAction ?? order.answer?.action;
   const offered = !given && fresh && mine && order.stage ? offeredAnswers({
@@ -158,12 +173,16 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
           <View style={[styles.bar, index <= step && styles.barDone, index === step && styles.barNow]} />
           <Text style={[styles.stepText, index === step && styles.stepNow]}>{label}</Text>
         </View>)}</View>}
-      <Text style={type.body} accessibilityLiveRegion="polite">{story(order, clock)}</Text>
+      <Text style={type.body} accessibilityLiveRegion="polite">{story(order, clock, qr)}</Text>
       <AmountLine amount={amount} label="결제 금액" />
       <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
     </Card>
+    {qr && <>
+      <KitButton label="수령 QR 받기" run={actions.pickupQr!} disabled={busy} />
+      <Text style={type.small}>{`결제한 보드로 확인한 뒤 QR이 나옵니다. ${amount}은 주문 계약에 보관 중이고, 직원이 QR을 찍어 전달을 기록하면 받았는지 여기에서 묻습니다.`}</Text>
+    </>}
     {order.items && money && order.items.reduce((sum, item) => sum + BigInt(item.total), 0n).toString() === order.amount &&
-      <Receipt items={order.items} money={money} taxFreeShop={order.taxFreeShop} />}
+      <Receipt items={order.items} money={money} token={token} taxFreeShop={order.taxFreeShop} />}
     {given && (order.pendingAction
       ? <View style={styles.notice}><Text style={styles.noticeText}>{`'${answers[given].label}' 답을 확인하고 있습니다. 확정되면 상태가 바뀝니다.`}</Text></View>
       : <View style={styles.notice}>
@@ -177,10 +196,36 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
     </View> : offered.map((action, index) => <KitButton key={action} label={answers[action].label} disabled={busy}
       variant={index === 0 && action === 'receipt' ? 'primary' : 'secondary'}
       run={() => answers[action].warn ? setAsking(action) : actions.answer(action)} />)}
-    {former && mine && <Text style={type.small}>초기화했거나 바꾼 이전 보드의 주문입니다. 받았다는 답은 보낼 수 있지만, 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.</Text>}
+    {former && mine && <Text style={type.small}>{madeAtStorePage(order)
+      // An order made from a store page is answered with that account's own proof, so the earlier promise does not hold for it.
+      ? '초기화했거나 바꾼 이전 보드의 주문입니다. 답을 보내거나 수령 QR을 받으려면 결제한 보드 계정의 확인이 필요합니다. 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.'
+      : '초기화했거나 바꾼 이전 보드의 주문입니다. 받았다는 답은 보낼 수 있지만, 환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다.'}</Text>}
     {!mine && isOpenOrder(order) && <Text style={type.small}>이 휴대전화로 결제한 주문이 아니어서 상태만 볼 수 있습니다.</Text>}
     {isOpenOrder(order) && <KitButton label="상태 다시 확인" run={actions.refresh} disabled={busy} variant="secondary" />}
     <KitButton label="결제 목록으로" run={actions.back} disabled={busy} variant="secondary" />
+  </View>;
+}
+
+/**
+ * An order made from a store page and paid with a board account this phone no longer holds. Following it, answering
+ * it and its pickup QR each need that account's proof, and a board that was reset holds another account. So nothing
+ * is asked of a board or a server here: the page shows what the phone last wrote down and says what cannot be done.
+ */
+export function FormerOrderDetail({order, amount, back, backLabel}: {order: OpenOrder; amount: string; back: () => void; backLabel: string}) {
+  return <View style={styles.detail} testID="former-order">
+    <Text accessibilityRole="header" style={type.title}>이전 보드의 주문</Text>
+    {order.pickupNo !== undefined ? <PickupTicket number={order.pickupNo} store={order.store} /> : <Text style={type.section}>{order.store ?? '매장 주문'}</Text>}
+    <Card>
+      <Text style={type.body}>{`마지막으로 확인한 상태 · ${openOrderLabel(order)}`}</Text>
+      <AmountLine amount={amount} label="결제 금액" />
+      <Text style={type.small}>{`결제한 때 ${day(order.sentAt)}`}</Text>
+    </Card>
+    <View style={styles.notice} accessibilityRole="alert">
+      <Text style={styles.noticeText}>지금 이 휴대전화에 연결된 보드 계정이 아니라, 초기화했거나 바꾼 이전 보드 계정으로 결제한 주문입니다.</Text>
+      <Text style={styles.noticeText}>주문 상태 확인, 받았다는 답, 이의, 수령 QR은 결제한 보드 계정의 확인이 필요해서 이 앱에서는 할 수 없습니다. 위 상태는 새로 확인한 것이 아닙니다.</Text>
+      <Text style={styles.noticeText}>환불되면 이전 보드 계정으로 가서 되찾을 수 없습니다. 매장이나 운영자에게 문의하세요.</Text>
+    </View>
+    <KitButton label={backLabel} run={back} variant="secondary" />
   </View>;
 }
 
@@ -210,31 +255,34 @@ const styles = StyleSheet.create({
 });
 
 /** What was bought, line by line: the price, and the supply value and tax inside it when the store said them. */
-function Receipt({items, money, taxFreeShop}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string; taxFreeShop?: string}) {
-  const refund = taxFreeShop ? items.filter(item => item.refund) : [];
+function Receipt({items, money, token, taxFreeShop}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string;
+  token?: Pick<PaymentToken, 'decimals' | 'symbol'>; taxFreeShop?: string}) {
   const taxed = items.every(item => item.tax !== undefined);
-  const sum = (pick: (item: (typeof items)[number]) => bigint) => items.reduce((total, item) => total + pick(item), 0n);
+  // Whole won on the phone: each row is in the unit the screen shows, and the sums are the sums of the rows above them.
+  const lines = receiptLines(items, token);
+  const sum = (pick: (line: (typeof lines)[number]) => bigint, rows = lines) => rows.reduce((total, line) => total + pick(line), 0n);
+  const refund = taxFreeShop ? lines.filter((_, index) => items[index].refund) : [];
   const row = (label: string, value: string, strong = false) => <View style={styles.receiptRow}>
     <Text style={strong ? type.label : type.small}>{label}</Text><Text style={strong ? type.label : type.small}>{value}</Text></View>;
   return <Card>
     <Text accessibilityRole="header" style={type.section}>영수증</Text>
     {items.map((item, index) => <View key={index} style={styles.receiptLine}>
-      {row(`${item.name} ×${item.quantity}`, money(item.total), true)}
+      {row(`${item.name} ×${item.quantity}`, money(lines[index].total.toString()), true)}
       {item.tax !== undefined && <>
         {row(`${item.taxKind === 'exempt' ? '면세' : '부가세 10% 포함'}${item.refund && taxFreeShop ? ' · 외국인 환급 대상 물품' : ''}`, '')}
-        {row('공급가액', money((BigInt(item.total) - BigInt(item.tax)).toString()))}
-        {row('세금', money(item.tax))}
+        {row('공급가액', money(lines[index].supply.toString()))}
+        {row('세금', money(lines[index].tax.toString()))}
         {row('뺀 금액', money('0'))}
       </>}
     </View>)}
     {taxed && <>
-      {row('공급가액 합계', money(sum(item => BigInt(item.total) - BigInt(item.tax!)).toString()))}
-      {row('세금 합계', money(sum(item => BigInt(item.tax!)).toString()))}
+      {row('공급가액 합계', money(sum(line => line.supply).toString()))}
+      {row('세금 합계', money(sum(line => line.tax).toString()))}
     </>}
-    {row('낸 금액', money(sum(item => BigInt(item.total)).toString()), true)}
+    {row('낸 금액', money(sum(line => line.total).toString()), true)}
     {refund.length > 0 && <View style={styles.refund}>
       <Text style={type.label}>외국인 세금 환급</Text>
-      <Text style={type.small}>{`환급 대상 물품 ${money(refund.reduce((sum, item) => sum + BigInt(item.total), 0n).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다(한 번 결제에 15,000원 이상). 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 환급되고, 환급액은 환급 창구의 수수료를 뺀 금액입니다.`}</Text>
+      <Text style={type.small}>{`환급 대상 물품 ${money(sum(line => line.total, refund).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다(한 번 결제에 15,000원 이상). 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 환급되고, 환급액은 환급 창구의 수수료를 뺀 금액입니다.`}</Text>
       <Text style={type.small}>{`면세판매장 지정 번호 ${taxFreeShop} (매장이 적은 번호)`}</Text>
       <Text style={type.small}>이 앱은 환급 금액을 계산하거나 돌려주지 않습니다.</Text>
     </View>}

@@ -29,6 +29,7 @@ func Open(ctx context.Context, url, capability string) (*Store, error) {
 	}
 	c.ConnConfig.RuntimeParams["lock_timeout"] = "2s"
 	c.ConnConfig.RuntimeParams["statement_timeout"] = "5s"
+	c.ConnConfig.RuntimeParams["jit"] = "off" // see commerce.Open
 	db, err := pgxpool.NewWithConfig(ctx, c)
 	if err != nil {
 		return nil, errors.New("could not connect to settlement data source")
@@ -67,6 +68,8 @@ type Forwarder struct {
 	// Faucet is nil where no store offers test tokens. GasAccount is shown to an operator.
 	Faucet     *Faucet
 	GasAccount common.Address
+	// Balances reads an account's balance of a token from the chain (AccountBalance). PayerBalance uses it.
+	Balances func(ctx context.Context, token, account common.Address) (*big.Int, error)
 }
 
 // Paused reports a branch whose deployment or token was refused at start.

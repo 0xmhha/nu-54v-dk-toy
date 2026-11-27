@@ -71,11 +71,11 @@ test('without a registration no record is worded as dollars', async () => {
   expect(text()).toContain('확인 안 됨');
   expect(text()).not.toContain('4.50');
 });
-test('lists cut dollars and keep won exact', () => {
+test('lists cut dollars and whole won', () => {
   expect([tokenText('82009999', {symbol: 'TestUSDC', decimals: 6}), tokenText('1234567899999', {symbol: 'tUSDC', decimals: 6})]).toEqual(['82.00', '1,234,567.89']);
   expect(tokenText('1250001', {symbol: 'tKRW', decimals: 2})).toBe('12,500.01');
   const store = storeOf(mockWon);
-  expect(assetMoney('1250001', mockPolicy.asset.toUpperCase().replace('0X', '0x'), store)).toBe('12,500.01원');
+  expect(assetMoney('1250001', mockPolicy.asset.toUpperCase().replace('0X', '0x'), store)).toBe('12,500원');
   expect(assetMoney('1250001', elsewhere, store)).toBe('확인 안 됨');
   expect(assetMoney('1250001', mockPolicy.asset, undefined)).toBe('확인 안 됨');
 });
