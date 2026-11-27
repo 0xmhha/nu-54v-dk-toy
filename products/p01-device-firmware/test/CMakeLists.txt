@@ -387,3 +387,16 @@ add_executable(test_adv_schedule test_adv_schedule.c ../core/src/nu54_adv_schedu
 target_include_directories(test_adv_schedule PRIVATE ../core/include)
 target_compile_options(test_adv_schedule PRIVATE -Wall -Wextra -Werror)
 add_test(NAME adv_schedule COMMAND test_adv_schedule)
+
+# The advertising and connection code of the board itself, over a fake controller.
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/board_links.h
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/extract_c.py ${CMAKE_CURRENT_BINARY_DIR}/board_links.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../app/src/ble_links.c set_mode owner_wait_phase start_set advertise_as advertise
+    adv_retry owner_wait_turn idle_guard ble_links_owner_wait stop_advertising_if_idle mode_end
+    ble_links_payment_mode connected
+  DEPENDS extract_c.py ../app/src/ble_links.c VERBATIM)
+add_executable(test_owner_wait_links test_owner_wait_links.c ../core/src/nu54_adv_schedule.c
+  ${CMAKE_CURRENT_BINARY_DIR}/board_links.h)
+target_include_directories(test_owner_wait_links PRIVATE ../core/include ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_options(test_owner_wait_links PRIVATE -Wall -Wextra -Werror)
+add_test(NAME owner_wait_links COMMAND test_owner_wait_links)

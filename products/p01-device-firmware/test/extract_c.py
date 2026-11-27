@@ -12,7 +12,7 @@ def definition(source, name):
     line = re.findall(rf"^(?:#define {name} |static \w+ {name}\[).*\n", source, re.MULTILINE)
     if len(line) == 1:
         return line[0]
-    found = re.findall(rf"^(?:static )?(?:int|bool|void) {name}\([^;{{]*\)\n\{{\n.*?^\}}\n", source, re.MULTILINE | re.DOTALL)
+    found = re.findall(rf"^(?:static )?\w+ {name}\([^;{{]*\)\n\{{\n.*?^\}}\n", source, re.MULTILINE | re.DOTALL)
     if len(found) != 1:
         raise SystemExit(f"expected exactly one definition of {name}")
     return found[0]

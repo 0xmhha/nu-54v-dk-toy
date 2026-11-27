@@ -42,10 +42,13 @@ bool ble_links_rental_peer(int link, uint64_t expected_epoch, uint8_t peer[BLE_R
 /* Link subscribed to TX notifications. */
 bool ble_links_listening(int link);
 
-/* Payment mode: advertise the payment service for `seconds`; 0 ends it. */
+/* Payment mode: advertise the payment service for `seconds`; 0 ends it. The window opens also
+ * when advertising cannot start at once: the start is tried again for about three seconds, and
+ * again at the next connection event. Always returns 0. */
 int ble_links_payment_mode(uint32_t seconds);
 
-/* Pairing mode: accept a new bond for `seconds`, with the label passkey or Just Works. */
+/* Pairing mode: accept a new bond for `seconds`, with the label passkey or Just Works. A failed
+ * start of advertising is handled as in payment mode. */
 int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works);
 
 /* Owner wait (CONFIG_NU54_OWNER_WAIT_ADV): a commercial board without an owner advertises the

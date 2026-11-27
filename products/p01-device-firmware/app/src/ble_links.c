@@ -217,7 +217,13 @@ static const struct bt_data ad_pilot[] = {
 
 /* The Bluetooth threads (connections), the system work queue (timers) and the main thread
  * (buttons) all change what is advertised. The lock makes one of them at a time decide and act,
- * and guards the set on air, the two button modes and the count of failed starts. */
+ * and guards the set on air, the two button modes and the count of failed starts.
+ *
+ * The holder waits inside the lock for the controller to answer a start or a stop. The system
+ * work queue may wait for the lock at that moment, so the host must not need that queue to send
+ * the command: it has to send from its own thread. */
+BUILD_ASSERT(IS_ENABLED(CONFIG_BT_TX_PROCESSOR_THREAD),
+	     "advertising is started under a lock the system work queue also takes");
 static K_MUTEX_DEFINE(adv_lock);
 static nu54_adv_set advertising; /* the set on air */
 static unsigned adv_failures;    /* failed starts in a row */
@@ -362,22 +368,32 @@ static void idle_guard(struct k_work *w)
 	bool watching = false;
 	for (int i = 0; i < LINK_MAX; i++) {
 		k_spinlock_key_t key = k_spin_lock(&links_lock);
-		struct bt_conn *c = owner_absent && links[i].conn ? bt_conn_ref(links[i].conn) : NULL;
+		const bool absent = owner_absent;
+		struct bt_conn *c = absent && links[i].conn ? bt_conn_ref(links[i].conn) : NULL;
 		int64_t since = links[i].idle_since;
 		k_spin_unlock(&links_lock, key);
 		if (!c) continue;
 		watching = true;
-		if (device_pilot_engaged(c)) {
+		switch (nu54_owner_wait_idle_verdict(absent, device_pilot_engaged(c), since, now,
+						     CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS)) {
+		case NU54_IDLE_RESTART:
 			key = k_spin_lock(&links_lock);
 			if (links[i].conn == c) links[i].idle_since = now;
 			k_spin_unlock(&links_lock, key);
-		} else if (nu54_owner_wait_idle_left_ms(since, now, CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS) == 0) {
+			break;
+		case NU54_IDLE_DROP:
 			LOG_INF("link %d: no installation or owner session, disconnecting", i);
 			(void)bt_conn_disconnect(c, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+			break;
+		default:
+			break;
 		}
 		bt_conn_unref(c);
 	}
-	if (watching) k_work_reschedule(&idle_guard_work, K_SECONDS(1));
+	/* Scheduled, not rescheduled, here and where a central connects: a check that is already
+	 * waiting keeps its time, so centrals that connect more often than once a second cannot put
+	 * it off for ever. */
+	if (watching) k_work_schedule(&idle_guard_work, K_SECONDS(1));
 }
 #endif
 
@@ -403,7 +419,7 @@ int ble_links_owner_wait(bool on)
 	}
 	owner_absent = on;
 	k_spin_unlock(&links_lock, key);
-	if (on && CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS > 0) k_work_reschedule(&idle_guard_work, K_SECONDS(1));
+	if (on && CONFIG_NU54_OWNER_WAIT_IDLE_SECONDS > 0) k_work_schedule(&idle_guard_work, K_SECONDS(1));
 	if (on && !running) return -EINVAL;
 	if (on) LOG_INF("owner wait: advertising for the next owner");
 	/* The timer advertises the first phase and follows the later ones. */
@@ -446,12 +462,11 @@ int ble_links_payment_mode(uint32_t seconds)
 		return 0;
 	}
 	set_mode(&payment_mode, true);
+	/* A start that fails is tried again (advertise_as), and the retry reads the mode. So the
+	 * window opens whatever the first start says; a failure of a moment would otherwise lose the
+	 * button press. */
 	int err = advertise();
-	if (err) {
-		set_mode(&payment_mode, false);
-		LOG_ERR("advertising failed (%d)", err);
-		return err;
-	}
+	if (err) LOG_WRN("advertising failed (%d): the window stays open for the retries", err);
 	status_led_mode(true);
 	k_work_reschedule(&mode_timer, K_SECONDS(seconds));
 	LOG_INF("payment mode for %u s", seconds);
@@ -482,7 +497,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	LOG_INF("central connected (link %d)", i);
 	handlers->connected(i, epoch);
 #if defined(CONFIG_NU54_OWNER_WAIT_ADV)
-	if (guard) k_work_reschedule(&idle_guard_work, K_SECONDS(1));
+	if (guard) k_work_schedule(&idle_guard_work, K_SECONDS(1));
 #endif
 	/* A connection stops connectable advertising; start again while there is room for another central. */
 	(void)advertise_as(true, false);
@@ -646,12 +661,9 @@ int ble_links_pairing_mode(uint32_t seconds, uint32_t passkey, bool just_works)
 	pairing_passkey = passkey;
 	auth_select(just_works);
 	set_mode(&pairing_mode, true);
+	/* As in payment mode: the retries of a failed start serve this window. */
 	int err = advertise();
-	if (err) {
-		set_mode(&pairing_mode, false);
-		LOG_ERR("advertising failed (%d)", err);
-		return err;
-	}
+	if (err) LOG_WRN("advertising failed (%d): the window stays open for the retries", err);
 	status_led_pairing(true);
 	k_work_reschedule(&pairing_timer, K_SECONDS(seconds));
 	LOG_INF("pairing mode for %u s (%s)", seconds, just_works ? "Just Works" : "label passkey");
