@@ -568,9 +568,12 @@ export function CustomerOrders({
         }
         const actor = access.client;
         // The order this page was opened for may belong to a board account the phone no longer holds. Its session
-        // needs that account's proof, so it is shown as last written down, and nothing is asked for it.
+        // needs that account's proof, so it is shown as last written down, and nothing is asked for it. A wallet that
+        // could not be read says nothing about which account the phone holds; the order then opens the usual way.
         const asked = initialOrder ? (await orderRecords(Http).list().catch(() => [])).find(row => row.sale === initialOrder && row.branch === storeBranch) : undefined;
-        const former = asked && madeAtStorePage(asked) && asked.customer !== access.subject ? asked : undefined;
+        const holder = asked && madeAtStorePage(asked) && OwnerWallet
+          ? await OwnerWallet.loadProfile().then(wallet => decodeWalletStorage(wallet).verified?.address ?? null, () => undefined) : undefined;
+        const former = asked && holder !== undefined && holder !== asked.payer ? asked : undefined;
         const pending = checkpoint(await access.journals.read('order'), actor);
         const payment = paymentCheckpoint(await access.journals.read('payment'), actor.profile.branchRef, actor.profile.subjectRef);
         // A payment kept from before was checked against the store's record in the order contract. The record is
@@ -887,6 +890,8 @@ export function CustomerOrders({
     const token = {};
     performing.current = token;
     setMessage('');
+    // A busy server was said for the step before; this one starts clean.
+    setStoreProblem(shown => shown?.kind === 'busy' ? undefined : shown);
     setBusy(true);
     const revision = loadRevision.current;
     const live = () => mounted.current && revision === loadRevision.current;
@@ -2893,7 +2898,7 @@ export function CustomerOrders({
             <Text accessibilityRole="header" style={s.cardTitle}>진행 중</Text>
             {made.map(row => <OpenOrderCard key={row.sale} order={row} former={isFormerBoard(row, boardAccount)}
               open={() => storeRoute.open({branch: row.branch, name: row.store ?? '매장', merchantId: row.merchantId}, row.sale)} />)}
-          </View> : <Text style={s.text}>진행 중인 주문이 없습니다.</Text>}
+          </View> : !others.length && <Text style={s.text}>진행 중인 주문이 없습니다.</Text>}
           {others.length > 0 && <Card>
             <Text accessibilityRole="header" style={s.cardTitle}>{`진행 중인 주문이 ${others.length}건 있습니다`}</Text>
             {others.map(row => <Text key={row.sale} style={s.text}>

@@ -279,4 +279,30 @@ describe('a build that orders without a registration', () => {
     await settle();
     expect(text()).toContain('직접 볶은 원두');
   });
+
+  test('a wallet that cannot be read does not make an order a former board\'s', async () => {
+    mockStored = tested();
+    await keep(made);
+    await bound();
+    await tap('결제', 'tab');
+    await settle();
+    const {default: wallet} = jest.requireMock('../src/specs/NativeOwnerWallet.ts') as {default: {loadProfile: () => Promise<string>}};
+    jest.spyOn(wallet, 'loadProfile').mockRejectedValue(new Error('locked'));
+    await tap('여울 커피 주문번호 17 준비 중');
+    await settle();
+    expect(tree.root.findAll(node => node.props.testID === 'former-order')).toHaveLength(0);
+    expect(text()).not.toContain('이전 보드의 주문');
+  });
+
+  test('orders of the earlier route without a registration are listed as what this app cannot open, with no word about registering', async () => {
+    mockStored = tested();
+    await keep({...made, customer: '0fbc54ef-2827-4ab5-bfcd-3a27611c39eb'}); // a customer a store issued, not the account's own
+    await bound();
+    await tap('결제', 'tab');
+    await settle();
+    expect(text()).toContain('진행 중인 주문이 1건 있습니다');
+    expect(text()).toContain('이 앱에서는 이 주문의 상태를 볼 수 없습니다. 매장에 문의하세요.');
+    expect(text()).not.toContain('진행 중인 주문이 없습니다.');
+    expect(none(registrationWords)).toEqual([]);
+  });
 });

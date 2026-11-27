@@ -573,5 +573,6 @@ test('too many requests at the store\'s server is said as that, and the session 
   busy = false;
   await press('이 주문의 결제 내용 검토');
   expect(screen()).toContain('결제 내용을 확인하세요');
+  expect(screen()).not.toContain('요청이 많습니다');
   expect(mockProofs).toEqual([]); // the checkout session stood all along
 });
