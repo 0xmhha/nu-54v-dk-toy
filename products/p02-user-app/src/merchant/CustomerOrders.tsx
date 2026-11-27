@@ -41,6 +41,7 @@ import {
   commerceLineTax,
   commerceCartAmount,
   commerceReservationRejected,
+  CommerceHoldRefusal,
   reviewCommerceCart,
   commerceMenuLabels,
   commerceMenuDisclosure,
@@ -212,6 +213,16 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = f
       : '이 매장의 결제 정보가 이 앱의 주문 계약과 맞지 않아 주문할 수 없습니다. 운영자에게 문의하세요.';
     default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
   }
+}
+/**
+ * What a basket lacks, in base units, for the screen: counted in the smallest unit a screen shows (a cent, or a
+ * hundredth of a won) and never less than what is missing, so that adding it is enough. A balance is cut off, never
+ * rounded up (N31); what is missing is the other side of the same cut.
+ */
+export function missingUnits(required: bigint, balance: bigint, decimals: number): string {
+  const unit = 10n ** BigInt(Math.max(0, decimals - 2));
+  const missing = required > balance ? required - balance : 0n;
+  return ((missing + unit - 1n) / unit * unit).toString();
 }
 const now = () => Math.floor(Date.now() / 1000);
 const identifier =
@@ -423,6 +434,9 @@ export function CustomerOrders({
   const [storeProblem, setStoreProblem] = useState<AccessProblem | {kind: 'no-build'}>();
   // The board account's balance of the store's token: undefined before it is read, null when it cannot be read.
   const [boardBalance, setBoardBalance] = useState<bigint | null>();
+  // The store's server read the balance from the chain and did not hold the cart: what the cart costs and what the
+  // account held then, in base units. It is about that basket only, and stands until the balance is read again.
+  const [shortHold, setShortHold] = useState<{required: bigint; balance: bigint; basket: CommerceSelection}>();
   // An order paid into the escrow takes the whole page until the owner closes it.
   const [orderFocus, setOrderFocus] = useState(true);
   const [orderBoard, setOrderBoard] = useState<{request: string; handle?: string; view?: OrderBoard; block?: OrderBlock; pinWait?: number}>();
@@ -548,6 +562,7 @@ export function CustomerOrders({
     setStoreAccess(undefined);
     setStoreProblem(undefined);
     setBoardBalance(undefined);
+    setShortHold(undefined);
     // Without a working registration the phone still knows its open orders and can say how to reach them.
     const showStranded = () => {
       if (Http) orderRecords(Http).list().then(rows => { if (current()) setStranded(rows.filter(isOpenOrder)); }).catch(() => {});
@@ -1009,6 +1024,8 @@ export function CustomerOrders({
     }
     if (!mounted.current || revision !== loadRevision.current) return;
     menuCheckedAt.current = now();
+    // After the proof the menu is the session's, which tells how many are left; the page shows that one from now on.
+    if (storeAccess) setCatalog(rows);
     const review = reviewCart(cart, rows);
     if (cartNeedsReview(review)) {
       applyCartReview(review, rows);
@@ -1107,6 +1124,30 @@ export function CustomerOrders({
       : '접수되지 않았습니다. 현재 옵션과 합계를 확인하세요.');
   }
 
+  /**
+   * The store's server did not hold the cart of this board account (customer_funds.go): no stock is held and no order
+   * exists, so the request is dropped and the basket stays. Only the limit on carts is counted before the server looks
+   * at the request, so a request that had been sent before is kept for that one and asked again later.
+   */
+  async function holdRefused(check: Checkpoint, refusal: CommerceHoldRefusal, first: boolean) {
+    if (refusal.reason === 'hold_limit' && !first) {
+      setMessage('짧은 시간에 주문 요청이 많아 접수 여부를 확인하지 못했습니다. 조금 뒤 저장한 주문을 다시 확인하세요.');
+      return;
+    }
+    await save();
+    // A request found again after the page was closed brings its basket back.
+    const basket = !first && check.selection ? check.selection : cart;
+    if (basket !== cart) setCart(basket);
+    if (refusal.reason === 'balance_short') {
+      const balance = BigInt(refusal.balance!);
+      setBoardBalance(balance);
+      setShortHold({required: BigInt(refusal.required!), balance, basket});
+      setMessage('보드 잔액이 모자라 주문을 접수하지 않았습니다. 모자란 금액을 확인하고 지갑에서 충전하세요.');
+    } else setMessage(refusal.reason === 'balance_unavailable'
+      ? '매장 서버가 보드 잔액을 확인하지 못해 주문을 접수하지 않았습니다. 잠시 뒤 다시 시도하세요.'
+      : '짧은 시간에 주문 요청이 많아 주문을 접수하지 않았습니다. 조금 뒤 다시 시도하세요.');
+  }
+
   async function reconcile(check: Checkpoint, initial = false) {
     if (!client) throw new Error('CLIENT_REQUIRED');
     const revision = loadRevision.current;
@@ -1175,6 +1216,18 @@ export function CustomerOrders({
       try {
         sale = await client.reserve(check.cart, check.asset, check.key);
       } catch (error) {
+        if (storeAccess && error instanceof CommerceHoldRefusal) {
+          if (stillCurrent()) await holdRefused(check, error, initial);
+          return;
+        }
+        // One board account holds one unpaid cart at a time, at any store. A first request refused for that left
+        // nothing behind; the basket stays for when the other order has ended.
+        if (storeAccess && initial && error instanceof Error && error.message === 'CHECKOUT_CONFLICT') {
+          if (!stillCurrent()) return;
+          await save();
+          setMessage('이 보드 계정이 잡아 둔 다른 미결제 주문이 있어 새 주문을 접수하지 못했습니다. 그 주문을 취소하거나 결제 시간이 끝난 뒤 다시 시도하세요.');
+          return;
+        }
         if (!commerceReservationRejected(error)) throw error;
         if (!stillCurrent()) return;
         await showRejectedCart(check, stillCurrent);
@@ -2356,7 +2409,13 @@ export function CustomerOrders({
     return !approved || (approved.order.id === sale && neverSent(approved));
   }
 
-  async function startNew() {
+  /**
+   * Leaves the unpaid order of this page. `again` puts its lines back into the basket to change them; without it the
+   * basket is emptied. An order made from a store page is taken back at the store first (storeAccess.cancelCart), so
+   * its stock is released and the account's one unpaid cart is free at once, not when the hold runs out. A paid
+   * order is not left here.
+   */
+  async function startNew(again = true) {
     const sale = point?.order;
     if (!sale || !Http || !canStartNew()) throw new Error('ORDER_PENDING');
     const revision = loadRevision.current;
@@ -2364,6 +2423,10 @@ export function CustomerOrders({
     const sent = (await orderRecords(Http).list()).some(row => row.sale === sale && row.stage !== 'failed');
     if (!mounted.current || revision !== loadRevision.current) return;
     if (sent) throw new Error('ORDER_PENDING');
+    const taken = storeAccess ? await storeAccess.cancelCart(sale) : undefined;
+    if (!mounted.current || revision !== loadRevision.current) return;
+    // A payment arrived or is being checked: the order stays, and its result is looked at first.
+    if (taken === 'paid') throw new Error('ORDER_PENDING');
     boardReview.current = undefined;
     ownerConnection.current?.close();
     ownerConnection.current = undefined;
@@ -2375,8 +2438,10 @@ export function CustomerOrders({
     setOrderBlocked(undefined);
     setOrderBoard(undefined);
     setOrderFocus(true);
-    setCart(selection);
-    setMessage('새로 주문할 수 있습니다. 이전 주문은 결제되지 않았고 매장이 닫습니다.');
+    setCart(again ? selection : {});
+    setMessage(`${again ? '새로 주문할 수 있습니다.' : '주문을 그만두었습니다.'} ${taken === 'released' ? '이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.'
+      : taken === 'quote-issued' ? '이전 주문은 결제 견적이 나와 있어 취소되지 않았습니다. 견적 시간이 끝나면 매장이 닫고, 그때까지는 새 주문이 접수되지 않을 수 있습니다.'
+      : '이전 주문은 결제되지 않았고 매장이 닫습니다.'}`);
   }
 
   function orderPaymentView(): OrderPaymentView | undefined {
@@ -2734,7 +2799,7 @@ export function CustomerOrders({
           check: () => work(reconcilePayment, '아직 결과를 받지 못했습니다. 다시 결제하지 말고 잠시 뒤 확인하세요.'),
           resend: () => work(() => submitLock(approved!), '아직 보내지 못했습니다. 키오스크에 다시 연결하고 시도하세요.'),
           close: () => work(closeOrder, '결제 기록을 정리하지 못했습니다.'),
-          startNew: () => work(startNew, '이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.'),
+          startNew: () => work(() => startNew(), '이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.'),
         }} />
     </ScrollView>;
   }
@@ -2777,9 +2842,11 @@ export function CustomerOrders({
     </ScrollView>;
   }
   const menuMoney = (units: string, asset: string) => commerceAmount(units, asset, policy);
+  // What the store's server said of this very basket when it did not hold it; a changed basket is another one.
+  const serverShort = shortHold && shortHold.basket === cart ? shortHold : undefined;
   // Known only for a store page's order, once the balance was read: the basket costs more than the board account holds.
-  const cartShort = !!storeAccess && typeof boardBalance === 'bigint' &&
-    commerceCartTotals(cart).some(row => row.asset === policy?.asset && BigInt(row.amount) > boardBalance);
+  const cartShort = !!storeAccess && (!!serverShort || (typeof boardBalance === 'bigint' &&
+    commerceCartTotals(cart).some(row => row.asset === policy?.asset && BigInt(row.amount) > boardBalance)));
   const oneOptionOnly = menuLocale === 'ko'
     ? '이 매장에서는 품목당 옵션을 하나씩 담을 수 있습니다. 옵션을 바꾸려면 담은 옵션을 먼저 빼세요.'
     : 'This store accepts one option per item. Remove the selected option to choose another.';
@@ -3150,6 +3217,9 @@ export function CustomerOrders({
           {!point && (shop || pickupMode) && (
             <StoreNotice state={storeState.state} refused={storeState.refused} checkedAt={storeStopped(storeState.state) ? storeState.checkedAt : undefined} />
           )}
+          {/* A store page's menu that was read and has no row: nothing is on sale now. The store page says why. */}
+          {!point && storeAccess && shop && !catalog.length && !!storeState.checkedAt && !storeStopped(storeState.state) && !message &&
+            <Text style={s.text}>지금 판매 중인 메뉴가 없습니다. 주문 받는 시간은 매장 화면에서 확인하세요.</Text>}
           {!point && (shop || pickupMode) && storeStopped(storeState.state) && (
             <Button label="다시 받는지 확인" disabled={busy}
               run={() => work(async () => { setCatalog(await readCatalog()); }, '매장 상태를 확인하지 못했습니다. 다시 시도하세요.')} />
@@ -3193,9 +3263,10 @@ export function CustomerOrders({
                   <Text style={s.text}>
                     {commerceMenuDisclosure(row, menuLocale)}
                   </Text>
+                  {/* A menu read without a proof tells sold out or on sale, never how many are left (row.uncounted). */}
                   {!menuReadOnly && <Text style={s.text}>
                     {available > 0
-                      ? `선택 ${quantity} · 가능 ${available}`
+                      ? row.uncounted ? `선택 ${quantity}` : `선택 ${quantity} · 가능 ${available}`
                       : menuLocale === 'ko'
                       ? '품절'
                       : 'Sold out'}
@@ -3307,15 +3378,18 @@ export function CustomerOrders({
             // The board is never asked to approve what its account cannot pay: a short balance is said at the basket.
             const total = commerceCartTotals(cart).find(row => row.asset === policy?.asset);
             if (!total || !policy) return null;
-            if (boardBalance === undefined || boardBalance === null) return <Text style={s.text}>{boardBalance === null
+            if (!serverShort && (boardBalance === undefined || boardBalance === null)) return <Text style={s.text}>{boardBalance === null
               ? '보드 잔액을 확인하지 못했습니다. 결제 전에 보드에서 다시 확인합니다.' : '보드 잔액을 확인하고 있습니다.'}</Text>;
+            // The numbers are the server's when it refused this basket for its balance, and the phone's own reading otherwise.
+            const held = (serverShort?.balance ?? boardBalance) as bigint, needed = serverShort?.required ?? BigInt(total.amount);
             return <>
-              <Text style={s.text}>{`보드 잔액 · ${commerceCartAmount(boardBalance.toString(), policy.asset, policy)}`}</Text>
+              <Text style={s.text}>{`보드 잔액 · ${commerceCartAmount(held.toString(), policy.asset, policy)}`}</Text>
               {cartShort && <>
+                <Text style={s.text}>{`모자란 금액 · ${commerceCartAmount(missingUnits(needed, held, paymentToken(policy).decimals), policy.asset, policy)}`}</Text>
                 <Text accessibilityRole="alert" style={s.text}>보드 잔액이 합계보다 적어 주문할 수 없습니다. 지갑에서 충전한 뒤 다시 확인하세요.</Text>
                 {openBoard && <Button label="충전하러 가기" variant="secondary" run={openBoard} />}
                 <Button label="잔액 다시 확인" variant="secondary" disabled={busy}
-                  run={() => work(async () => { setBoardBalance(await storeAccess.balance() ?? null); }, '보드 잔액을 확인하지 못했습니다.')} />
+                  run={() => work(async () => { setShortHold(undefined); setBoardBalance(await storeAccess.balance() ?? null); }, '보드 잔액을 확인하지 못했습니다.')} />
               </>}
             </>;
           })()}
@@ -3390,7 +3464,10 @@ export function CustomerOrders({
             />
           )}
           {!nearbySoldOut && canStartNew() && <Button label="새로 주문하기" disabled={busy}
-            run={() => work(startNew, '이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.')} />}
+            run={() => work(() => startNew(), '이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.')} />}
+          {/* An order made from a store page holds its stock, and its account's one unpaid cart, until it is taken back. */}
+          {!nearbySoldOut && storeAccess && canStartNew() && <Button label="주문 그만두기" variant="secondary" disabled={busy}
+            run={() => work(() => startNew(false), '이 주문의 결제 요청이 나갔을 수 있어 그만둘 수 없습니다. 결과를 먼저 확인하세요.')} />}
           </>}
           {order && (
             <View style={s.line}>

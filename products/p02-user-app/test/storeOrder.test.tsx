@@ -6,7 +6,8 @@ import {
   accountProofDigest as mockProofDigest, bindServiceRequestV2 as mockBind, bytesToBig, bytesToHex as mockHex, hexToBytes as mockBytes, quoteV2Layout as q,
   recoverSigner as mockRecover, signDigest as mockSign, toBase64 as mockBase64, utf8Encode, type CommerceOrder, type ServiceRequestV2,
 } from '@nu54/protocol';
-import {CustomerOrders} from '../src/merchant/CustomerOrders';
+import {CustomerOrders, missingUnits} from '../src/merchant/CustomerOrders';
+import {forgetEntranceWaits} from '../src/merchant/customerEntrance';
 import {customerSubject} from '../src/merchant/storeAccess';
 import {readProfiles} from '../src/wallet/readProfiles';
 import {journalStore} from './fixtures/journal';
@@ -45,6 +46,12 @@ let mockSessionSeed = 1;
 let mockEntranceDown = false;
 let mockQuoteChange: ((words: Uint8Array) => void) | undefined;
 let mockHeld = false;
+// What the server answers to the next carts instead of holding them, and to a cart that is taken back.
+let mockHold: {status: number; retryAfter?: number; more: Record<string, unknown>} | undefined;
+let mockCancel: 'closed' | 'quote_issued' | 'paid' | 'gone' = 'closed';
+const mockCancels: {sale: string; session: string}[] = [];
+const mockMenuRow = (available: number) => ({sku: 'latte', optionKey: 'iced', label: '라떼', asset: mockIssued.asset, version: 1, unitPrice: mockMenuPrice,
+  available, skuAvailable: available, expiresAt: new Date((mockNow + 3600) * 1000).toISOString()});
 const mockLocks: (ServiceRequestV2 & {approvalSignature?: string})[] = [];
 const mockAnswers: ServiceRequestV2[] = [];
 
@@ -74,15 +81,23 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
   customerRequest: async (anchor: string, path: string, session: string, body: string) => {
     if (JSON.parse(anchor).origin !== mockAnchor.origin) throw new Error('another server');
     if (mockEntranceDown) throw new Error('offline');
-    const answer = (status: number, value: unknown) => JSON.stringify({status, body: JSON.stringify(value)});
+    const answer = (status: number, value: unknown, retryAfter?: number) => JSON.stringify({status, body: JSON.stringify(value), ...(retryAfter ? {retryAfter} : {})});
     if (!body) {
       mockSent.push({path});
+      // The public menu tells sold out (0) or on sale (1000), never how many are left (opsd public_menu_window).
       if (path === `/v2/customer/stores/${mockBranch}/menu/0`) return answer(200, {shop: {branch: mockBranch, branchLabel: '그린 카페'}, orderState: {mode: 'open'},
-        catalogVersion: 1, catalog: [{sku: 'latte', optionKey: 'iced', label: '라떼', asset: mockIssued.asset, version: 1, unitPrice: mockMenuPrice,
-          available: mockStock, skuAvailable: mockStock, expiresAt: new Date((mockNow + 3600) * 1000).toISOString()}]});
+        catalogVersion: 1, catalog: [mockMenuRow(mockStock > 0 ? 1000 : 0)]});
       return answer(404, null);
     }
     const sent = JSON.parse(body);
+    if (path === '/v2/customer/checkout/cancel') {
+      mockSent.push({path, body: sent, session});
+      if (mockSessions.get(session)?.purpose !== 'checkout' || mockCancel === 'gone') return answer(404, null);
+      mockCancels.push({sale: sent.saleRef, session});
+      if (mockCancel !== 'closed') return answer(409, {requestId: '', requestDigest: '', status: 'error', error: 'CHECKOUT_CONFLICT', reason: mockCancel});
+      mockStage = 'none'; mockStock++;
+      return answer(200, {status: 'ok', saleRef: sent.saleRef, state: 'closed'});
+    }
     if (path === '/v2/customer/challenge') {
       mockSent.push({path, body: sent});
       return answer(200, {challenge: 'c1'.repeat(32), expiresAt: mockNow + 120});
@@ -104,13 +119,18 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     const {command, approvalSignature} = sent as {command: ServiceRequestV2; approvalSignature?: string};
     mockSent.push({path, operation: command.operation, session});
     const held = mockSessions.get(session);
-    const allowed = held?.purpose === 'checkout' ? ['order.create', 'checkout.claim', 'checkout.authorize', 'quote.issue', 'order.lock', 'order.status']
+    const allowed = held?.purpose === 'checkout' ? ['catalog.read', 'order.create', 'checkout.claim', 'checkout.authorize', 'quote.issue', 'order.lock', 'order.status']
       : held?.purpose === 'order' && held.sale === command.objectRef ? ['order.status', 'order.answer'] : [];
     if (!allowed.includes(command.operation)) return answer(404, null);
     // The server binds its answer to the session's customer and tenant, never to what the phone claims.
     const {requestId, requestDigest} = mockBind(command, {role: 'customer', tenantRef: mockTenant, subjectRef: mockSubject, expiresAt: mockNow + 900,
       grants: [{domainRef: command.domainRef, objectRef: command.objectRef, operations: [`C3/${command.operation}`]}]}, Math.floor(Date.now() / 1000));
     const ok = {requestId, requestDigest, status: 'ok', resultRef: command.objectRef};
+    // A session's menu is the public one with the counts of what is left.
+    if (command.operation === 'catalog.read') return command.objectRef !== mockBranch ? answer(404, null) : answer(200, {...ok, shop: {branch: mockBranch, branchLabel: '그린 카페'},
+      orderState: {mode: 'open'}, catalogVersion: 1, catalog: [mockMenuRow(mockStock)]});
+    if (command.operation === 'order.create' && mockHold)
+      return answer(mockHold.status, {requestId, requestDigest, status: 'error', ...mockHold.more}, mockHold.retryAfter);
     if (command.operation === 'order.create') { mockStage = 'preview'; mockStock--; mockOrigin = command.objectRef; return answer(200, {...ok, resultRef: mockSale}); }
     if (command.operation === 'order.status') return answer(200, {...ok, order: mockOrderNow()});
     if (command.operation === 'checkout.claim') return answer(200, ok);
@@ -196,6 +216,8 @@ beforeEach(() => {
   mockSent.length = 0; mockJournals.clear(); mockProfileReads.length = 0; mockSessions.clear(); mockLocks.length = 0; mockAnswers.length = 0; mockProofs.length = 0;
   mockJournalDown = false;
   mockStage = 'none'; mockConfirmer = ''; mockOrigin = ''; mockStock = 3; mockMenuPrice = mockIssued.amount; mockSessionSeed = 1; mockEntranceDown = false; mockQuoteChange = undefined; mockHeld = false;
+  mockHold = undefined; mockCancel = 'closed'; mockCancels.length = 0;
+  forgetEntranceWaits();
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset};
   Object.assign(mockChain, {merchant: {signer: mockPolicy.signer, beneficiary: mockPolicy.beneficiary, keyVersion: mockPolicy.keyVersion,
     beneficiaryVersion: mockPolicy.beneficiaryVersion, active: 1n}, balance: 95_500_000n, down: false});
@@ -245,7 +267,8 @@ test('the menu, prices and the basket need no board, no proof and no registratio
 
 test('asking for the order reads the merchant record, proves the account once, and only then holds the order', async () => {
   await toOrder();
-  expect(sentPaths()).toEqual(['stores/STORE/menu/0', 'challenge', 'proof', 'stores/STORE/menu/0', 'order.create', 'order.status']);
+  // After the proof the menu is read again through the session, which tells what is left, before the order is asked for.
+  expect(sentPaths()).toEqual(['stores/STORE/menu/0', 'challenge', 'proof', 'catalog.read', 'order.create', 'order.status']);
   expect(mockSent[1].body).toEqual({purpose: 'checkout', branchRef: mockBranch});
   // The generation sent with the proof is the board's, and the one the quote will be issued and signed for.
   expect(proofs()).toEqual([expect.objectContaining({account: mockPayer, generation: mockGeneration.toString(), challenge: 'c1'.repeat(32)})]);
@@ -575,4 +598,300 @@ test('too many requests at the store\'s server is said as that, and the session 
   expect(screen()).toContain('결제 내용을 확인하세요');
   expect(screen()).not.toContain('요청이 많습니다');
   expect(mockProofs).toEqual([]); // the checkout session stood all along
+});
+
+describe('what is left of a menu row', () => {
+  test('the menu read without a proof says on sale or sold out, and never a count', async () => {
+    await open();
+    await press('라떼 iced 추가');
+    expect(screen()).toContain('선택 1');
+    // 1000 is the server's word for "on sale" in the public menu; it is not a number of items.
+    expect(screen()).not.toContain('1000');
+    expect(screen()).not.toContain('가능');
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockStock = 0;
+    await open();
+    expect(screen()).toContain('품절');
+    expect(button('라떼 iced 추가')!.props.disabled).toBe(true);
+    expect(screen()).not.toContain('가능');
+  });
+
+  test('the count comes with the session\'s menu after the proof, and a basket larger than it is said before any order', async () => {
+    await open();
+    for (let n = 0; n < 4; n++) await press('라떼 iced 추가'); // three are left; the public menu does not say so
+    expect(screen()).toContain('선택 4');
+    await press('주문 접수 요청');
+    expect(sentPaths()).toEqual(['stores/STORE/menu/0', 'challenge', 'proof', 'catalog.read']);
+    expect(screen()).toContain('확보 못한 품목');
+    expect(screen()).toContain('×1');
+    expect(screen()).toContain('선택 3 · 가능 3');
+    expect(mockStock).toBe(3); // nothing was held for a basket that could not be filled
+    await press('바뀐 장바구니 확인 후 주문 접수');
+    expect(sentPaths().slice(-3)).toEqual(['catalog.read', 'order.create', 'order.status']);
+  });
+});
+
+describe('a cart the store\'s server does not hold', () => {
+  const short = {status: 409, more: {error: 'CHECKOUT_CONFLICT', reason: 'balance_short', required: '4500000', balance: '4499999'}};
+
+  test('a balance the server found short shows what is missing and the way to top up, and holds nothing', async () => {
+    mockHold = short; // the phone read 95.50 a moment ago; the server reads the chain immediately before the hold
+    await toOrder();
+    expect(sentPaths().slice(-1)).toEqual(['order.create']);
+    expect(screen()).toContain('보드 잔액이 모자라 주문을 접수하지 않았습니다. 모자란 금액을 확인하고 지갑에서 충전하세요.');
+    expect(screen()).toContain('보드 잔액 · 4.49 TestUSDC');
+    expect(screen()).toContain('모자란 금액 · 0.01 TestUSDC');
+    expect(screen()).toContain('보드 잔액이 합계보다 적어 주문할 수 없습니다.');
+    expect(button('주문 접수 요청')!.props.disabled).toBe(true);
+    expect(button('저장한 주문 다시 확인')).toBeUndefined(); // no order exists, so nothing is kept to look for
+    expect(mockStock).toBe(3);
+    expect(mockApprove).not.toHaveBeenCalled();
+    await press('충전하러 가기');
+    expect(openBoard).toHaveBeenCalledTimes(1);
+    // Topped up: the balance is read again, and the same basket is asked for with the session that stood.
+    mockHold = undefined;
+    await press('잔액 다시 확인');
+    expect(screen()).toContain('보드 잔액 · 95.50 TestUSDC');
+    expect(screen()).not.toContain('모자란 금액');
+    await press('주문 접수 요청');
+    expect(sentPaths().slice(-2)).toEqual(['order.create', 'order.status']);
+    expect(mockProofs).toEqual([mockPayer]);
+    expect(mockStock).toBe(2);
+  });
+
+  test('a basket that is changed is another basket: the server\'s word about the earlier one is dropped', async () => {
+    mockHold = short;
+    await toOrder();
+    expect(screen()).toContain('모자란 금액 · 0.01 TestUSDC');
+    await press('라떼 iced 추가');
+    // The balance the server read stays the newest one known; what is missing is counted for the basket on screen.
+    expect(screen()).toContain('보드 잔액 · 4.49 TestUSDC');
+    expect(screen()).toContain('모자란 금액 · 4.51 TestUSDC');
+  });
+
+  test('a balance the server could not read is "again shortly": nothing is held, and the phone waits before it asks again', async () => {
+    mockHold = {status: 503, retryAfter: 3, more: {error: 'BUSY', reason: 'balance_unavailable'}};
+    await toOrder();
+    expect(screen()).toContain('매장 서버가 보드 잔액을 확인하지 못해 주문을 접수하지 않았습니다. 잠시 뒤 다시 시도하세요.');
+    expect(screen()).not.toContain('모자란 금액');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    const asked = () => sentPaths().filter(path => path === 'order.create').length;
+    expect(asked()).toBe(1);
+    mockHold = undefined;
+    await press('주문 접수 요청'); // at once: the server asked for three seconds
+    expect(asked()).toBe(1);
+    expect(screen()).toContain('매장 서버가 보드 잔액을 확인하지 못해 주문을 접수하지 않았습니다.');
+    await tick(3000);
+    await press('주문 접수 요청');
+    expect(asked()).toBe(2);
+    expect(sentPaths().slice(-1)).toEqual(['order.status']);
+    expect(mockProofs).toEqual([mockPayer]); // the session stood all along
+  });
+
+  test('too many carts from this address is "again later", and is not a session that ended', async () => {
+    mockHold = {status: 429, retryAfter: 10, more: {error: 'BUSY', reason: 'hold_limit'}};
+    await toOrder();
+    expect(screen()).toContain('짧은 시간에 주문 요청이 많아 주문을 접수하지 않았습니다. 조금 뒤 다시 시도하세요.');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(mockStock).toBe(3);
+    mockHold = undefined;
+    await press('주문 접수 요청');
+    expect(sentPaths().filter(path => path === 'order.create')).toHaveLength(1);
+    // The wait is for carts only: the menu and the rest of the session are not held back by it.
+    expect(sentPaths().slice(-1)).toEqual(['catalog.read']);
+    await tick(10_000);
+    await press('주문 접수 요청');
+    expect(sentPaths().slice(-2)).toEqual(['order.create', 'order.status']);
+    expect(mockProofs).toEqual([mockPayer]);
+  });
+
+  test('another unpaid cart of the same account is said as that', async () => {
+    mockHold = {status: 409, more: {error: 'CHECKOUT_CONFLICT'}};
+    await toOrder();
+    expect(screen()).toContain('이 보드 계정이 잡아 둔 다른 미결제 주문이 있어 새 주문을 접수하지 못했습니다.');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(button('주문 접수 요청')!.props.disabled).toBe(false);
+  });
+
+  test('a refusal that names no reason the phone knows, or numbers that do not read, is not shown as a balance', async () => {
+    for (const more of [{error: 'CHECKOUT_CONFLICT', reason: 'balance_short', required: '4500000', balance: '4500000'},
+      {error: 'CHECKOUT_CONFLICT', reason: 'balance_short', required: '4.5', balance: '1'}, {error: 'BUSY', reason: 'balance_short', required: '2', balance: '1'},
+      {error: 'CHECKOUT_CONFLICT', reason: 'later'}]) {
+      mockHold = {status: 409, more};
+      await toOrder();
+      expect(screen()).toContain('접수 여부를 확인하지 못했습니다. 같은 주문을 다시 조회하세요.');
+      expect(screen()).not.toContain('모자란 금액');
+      await Renderer.act(async () => { tree!.unmount(); });
+      mockJournals.clear();
+    }
+  });
+});
+
+test('what is missing is counted in the unit the screen shows and is never less than what is missing', () => {
+  const {tokenAmount} = jest.requireActual('@nu54/protocol') as typeof import('@nu54/protocol');
+  const dollar = {name: 'NU54 Test USD', symbol: 'tUSDC', label: 'TestUSDC', decimals: 6};
+  const won = {name: 'NU54 Test KRW', symbol: 'tKRW', label: 'tKRW', decimals: 2};
+  const coin = {name: 'WKRC', symbol: 'WKRC', label: 'KRWC', decimals: 18, boardDecimals: 8};
+  const shown = (required: bigint, balance: bigint, token: typeof dollar) => tokenAmount(missingUnits(required, balance, token.decimals), token);
+  // Dollars: a balance is cut to the cent, so one base unit short reads as one cent short, and topping that up is enough.
+  expect(shown(4_500_000n, 4_499_999n, dollar)).toBe('0.01 TestUSDC');
+  expect(shown(4_500_000n, 4_490_000n, dollar)).toBe('0.01 TestUSDC');
+  expect(shown(4_500_000n, 4_489_999n, dollar)).toBe('0.02 TestUSDC');
+  expect(shown(9_000_000n, 0n, dollar)).toBe('9.00 TestUSDC');
+  // Won: whole won as they are; a token of 2 decimals has nothing to round.
+  expect(shown(300_000n, 299_900n, won)).toBe('1원');
+  expect(shown(1_250_000n, 0n, won)).toBe('12,500원');
+  expect(shown(300_000n, 299_999n, won)).toBe('0.01원');
+  // A token of 18 decimals is counted in the hundredth the screen shows.
+  expect(shown(3_000n * 10n ** 18n, 3_000n * 10n ** 18n - 1n, coin)).toBe('0.01원');
+  expect(shown(3_000n * 10n ** 18n, 2_000n * 10n ** 18n, coin)).toBe('1,000원');
+  expect(missingUnits(1n, 2n, 6)).toBe('0'); // nothing is missing
+});
+
+describe('too many requests', () => {
+  const {default: http} = jest.requireMock('../src/specs/NativeCommerceHttp.ts') as {default: {customerRequest: (...args: string[]) => Promise<string>}};
+  /** The server refuses session requests for their rate: 429, or 503 when it serves too many at once. */
+  function refuse(status: 429 | 503, retryAfter: number) {
+    const real = http.customerRequest;
+    const state = {busy: true, calls: 0};
+    jest.spyOn(http, 'customerRequest').mockImplementation(async (anchor, path, session, body) => {
+      if (path !== '/v2/customer/commerce') return real(anchor, path, session, body);
+      state.calls++;
+      return state.busy ? JSON.stringify({status, retryAfter, body: JSON.stringify({requestId: '', requestDigest: '', status: 'error', error: 'BUSY'})})
+        : real(anchor, path, session, body);
+    });
+    return state;
+  }
+
+  test.each<[429 | 503, number]>([[429, 5], [503, 1]])('a %i with Retry-After is "again shortly": the session stands and nothing is sent until the time has passed', async (status, wait) => {
+    await toOrder();
+    const state = refuse(status, wait);
+    mockProofs.length = 0;
+    await press('이 주문의 결제 내용 검토');
+    expect(screen()).toContain('요청이 많습니다. 잠시 뒤 다시 시도하세요.');
+    expect(state.calls).toBe(1);
+    // Pressing again, and the page's own timers, do not reach the server while it asked to wait.
+    await press('이 주문의 결제 내용 검토');
+    await tick(wait * 1000 - 1);
+    await press('이 주문의 결제 내용 검토');
+    expect(state.calls).toBe(1);
+    expect(screen()).toContain('요청이 많습니다. 잠시 뒤 다시 시도하세요.');
+    state.busy = false;
+    await tick(1);
+    await press('이 주문의 결제 내용 검토');
+    expect(screen()).toContain('결제 내용을 확인하세요');
+    expect(mockProofs).toEqual([]); // never taken for a session that ended: the board is not asked again
+  });
+
+  test('a busy server at the menu says so, and is not taken for a store with nothing on sale', async () => {
+    const real = http.customerRequest;
+    let busy = true, reads = 0;
+    jest.spyOn(http, 'customerRequest').mockImplementation(async (anchor, path, session, body) => {
+      if (!path.includes('/menu/')) return real(anchor, path, session, body);
+      reads++;
+      return busy ? JSON.stringify({status: 429, retryAfter: 2, body: JSON.stringify({requestId: '', requestDigest: '', status: 'error', error: 'BUSY'})}) : real(anchor, path, session, body);
+    });
+    await open();
+    expect(screen()).toContain('요청이 많습니다. 잠시 뒤 다시 시도하세요.');
+    expect(screen()).not.toContain('지금 판매 중인 메뉴가 없습니다');
+    expect(reads).toBe(1);
+  });
+});
+
+describe('taking an unpaid cart back', () => {
+  const cancels = () => mockSent.filter(item => item.path === '/v2/customer/checkout/cancel');
+
+  test('changing the order releases its hold at the store, and the basket comes back to be ordered again at once', async () => {
+    await toOrder();
+    expect(mockStock).toBe(2);
+    await press('새로 주문하기');
+    expect(cancels()).toEqual([{path: '/v2/customer/checkout/cancel', body: {saleRef: mockSale}, session: '01'.repeat(32)}]);
+    expect(mockStock).toBe(3);
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.');
+    expect(screen()).toContain('선택 1');
+    expect(mockProofs).toEqual([mockPayer]); // the session that made the cart takes it back; the board is not asked
+    await press('주문 접수 요청');
+    expect(sentPaths().slice(-2)).toEqual(['order.create', 'order.status']);
+    expect(mockStock).toBe(2);
+  });
+
+  test('giving the order up releases its hold and empties the basket', async () => {
+    await toOrder();
+    await press('주문 그만두기');
+    expect(mockCancels).toEqual([{sale: mockSale, session: '01'.repeat(32)}]);
+    expect(mockStock).toBe(3);
+    expect(screen()).toContain('주문을 그만두었습니다. 이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.');
+    expect(screen()).not.toContain('합계');
+    expect(button('저장한 주문 다시 확인')).toBeUndefined();
+    expect(button('라떼 iced 추가')).toBeDefined();
+  });
+
+  test('an order whose quote was issued is not taken back, and the page says how long its hold stays', async () => {
+    await toOrder();
+    mockCancel = 'quote_issued';
+    await press('새로 주문하기');
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 결제 견적이 나와 있어 취소되지 않았습니다. 견적 시간이 끝나면 매장이 닫고, 그때까지는 새 주문이 접수되지 않을 수 있습니다.');
+    expect(mockStock).toBe(2);
+  });
+
+  test('an order that was paid, or is being checked, is not cancelled here: it stays on the page', async () => {
+    await toOrder();
+    mockCancel = 'paid';
+    await press('새로 주문하기');
+    expect(screen()).toContain('이 주문의 결제 요청이 나갔을 수 있어 새로 주문할 수 없습니다. 결과를 먼저 확인하세요.');
+    expect(button('저장한 주문 다시 확인')).toBeDefined();
+    expect(button('이 주문의 결제 내용 검토')).toBeDefined();
+    expect(mockStock).toBe(2);
+    await press('주문 그만두기');
+    expect(screen()).toContain('이 주문의 결제 요청이 나갔을 수 있어 그만둘 수 없습니다. 결과를 먼저 확인하세요.');
+    expect(button('저장한 주문 다시 확인')).toBeDefined();
+  });
+
+  test('a session that ended is proven again once, and the cart is then taken back', async () => {
+    await toOrder();
+    mockSessions.clear();
+    await press('새로 주문하기');
+    expect(mockProofs).toEqual([mockPayer, mockPayer]);
+    expect(cancels().map(item => item.session)).toEqual(['01'.repeat(32), '02'.repeat(32)]);
+    expect(mockStock).toBe(3);
+    expect(screen()).toContain('이전 주문은 취소되어 잡아 둔 재고가 풀렸습니다.');
+  });
+
+  test('an order the server does not know as this account\'s is left without a word about a release', async () => {
+    await toOrder();
+    mockCancel = 'gone';
+    await press('새로 주문하기');
+    expect(cancels()).toHaveLength(2); // once, and once more with a new proof: not found is also how a session ends
+    expect(screen()).toContain('새로 주문할 수 있습니다. 이전 주문은 결제되지 않았고 매장이 닫습니다.');
+    expect(screen()).not.toContain('재고가 풀렸습니다');
+  });
+
+  test('a busy server leaves the order as it is, to be taken back later', async () => {
+    await toOrder();
+    const {default: http} = jest.requireMock('../src/specs/NativeCommerceHttp.ts') as {default: {customerRequest: (...args: string[]) => Promise<string>}};
+    const real = http.customerRequest;
+    jest.spyOn(http, 'customerRequest').mockImplementation(async (anchor, path, session, body) => path === '/v2/customer/checkout/cancel'
+      ? JSON.stringify({status: 429, retryAfter: 2, body: JSON.stringify({requestId: '', requestDigest: '', status: 'error', error: 'BUSY'})}) : real(anchor, path, session, body));
+    await press('주문 그만두기');
+    expect(screen()).toContain('요청이 많습니다. 잠시 뒤 다시 시도하세요.');
+    expect(button('저장한 주문 다시 확인')).toBeDefined();
+    expect(mockProofs).toEqual([mockPayer]);
+  });
+
+  test('a paid order offers no way to cancel it, and no cancel is ever sent for it', async () => {
+    await toConfirm();
+    await press('내 보드 확인');
+    await press('보드로 승인');
+    await tick(2500);
+    expect(screen()).toContain('주문이 접수되었습니다');
+    await press('확인');
+    expect(button('새로 주문하기')).toBeUndefined();
+    expect(button('주문 그만두기')).toBeUndefined();
+    await Renderer.act(async () => { tree!.unmount(); });
+    await open({initialOrder: mockSale});
+    await tick(0);
+    expect(button('새로 주문하기')).toBeUndefined();
+    expect(button('주문 그만두기')).toBeUndefined();
+    expect(cancels()).toEqual([]);
+  });
 });

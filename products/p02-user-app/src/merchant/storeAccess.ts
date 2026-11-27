@@ -1,5 +1,5 @@
 import {sha256} from '@noble/hashes/sha256';
-import {bindServiceRequestV2, bytesToHex, CommerceClient, hexToBytes, utf8Encode, type CommercePaymentProfile, type CommerceProfile, type ServiceRequestV2} from '@nu54/protocol';
+import {bindServiceRequestV2, bytesToHex, CommerceClient, CommerceHoldRefusal, hexToBytes, utf8Encode, type CommerceHoldReason, type CommercePaymentProfile, type CommerceProfile, type ServiceRequestV2} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import OwnerWallet from '../specs/NativeOwnerWallet.ts';
 import {readEvmReceiveBalance, type EvmRpc} from '../wallet/evmTransfer.ts';
@@ -7,7 +7,7 @@ import {serverFor} from '../wallet/networks.ts';
 import {decodeWalletStorage} from '../wallet/profile.ts';
 import {readProfiles, walletReadRpc} from '../wallet/readProfiles.ts';
 import {walletId} from './customerClient.ts';
-import {EntranceError, nativeEntrance, type EntrancePost, type PickupBoard} from './customerEntrance.ts';
+import {EntranceError, entranceBusy, nativeEntrance, type EntrancePost, type EntranceReply, type PickupBoard} from './customerEntrance.ts';
 import {approvedCustomerEntrance, approvedOrderPayment} from './customerEntranceDeployment.ts';
 import {customerDigest, type CustomerJournal} from './customerJournal.ts';
 import {openCustomerSession, SessionEntrance, type CustomerSession, type SessionProblem, type SessionScope} from './customerSession.ts';
@@ -23,10 +23,35 @@ import {orderRecords} from './orderRecords.ts';
 
 export type StoreChoice = {branch: string; name: string; merchantId?: string};
 
-/** The store's server has too many requests now. Nothing is known to have changed; the same request is sent again shortly. */
+/**
+ * The store's server has too many requests now. Nothing is known to have changed, and a session stands; the same
+ * request is sent again later. `retryAfter`: the seconds the server asked to wait, when it said so.
+ */
 export class StoreBusy extends Error {
   readonly code = 'CUSTOMER_ENTRANCE_BUSY';
-  constructor() { super('BUSY'); }
+  constructor(readonly retryAfter?: number) { super('BUSY'); }
+}
+
+/**
+ * What became of an unpaid cart the customer took back (opsd customerCancel). `released`: the hold is gone and the
+ * account can hold another cart now. `quote-issued`: a quote was issued, so the order ends with that quote and its
+ * stock stays held until then. `paid`: a payment arrived or is being checked; a paid order is not cancelled here.
+ * `not-found`: the server knows no such order of this account at this store.
+ */
+export type CartCancel = 'released' | 'quote-issued' | 'paid' | 'not-found';
+
+/**
+ * Reads the server's answer to a cart taken back. A plain not found reads as `not-found`; it is also how a session
+ * that ended answers, which the caller tells apart by asking once more with a new session. An answer that is none
+ * of these is not the protocol.
+ */
+export function readCartCancel(reply: EntranceReply, sale: string): CartCancel {
+  const body = reply.body as {status?: unknown; saleRef?: unknown; state?: unknown; error?: unknown; reason?: unknown} | null;
+  if (reply.status === 200 && body?.status === 'ok' && body.saleRef === sale && body.state === 'closed') return 'released';
+  if (reply.status === 409 && body?.error === 'CHECKOUT_CONFLICT' && body.reason === 'quote_issued') return 'quote-issued';
+  if (reply.status === 409 && body?.error === 'CHECKOUT_CONFLICT' && body.reason === 'paid') return 'paid';
+  if (reply.status === 404) return 'not-found';
+  throw new Error('BAD_RESPONSE');
 }
 
 /** The request needs the board's account proof first. `scope` says which one. */
@@ -97,6 +122,8 @@ export class StoreAccess {
   private orders = new Map<string, CustomerSession>();
   private current: CommercePaymentProfile;
   private readonly sessionsName: string;
+  private holdWait?: {until: number; reason: CommerceHoldReason};
+  private cancelAsked = '';
 
   private constructor(readonly store: StoreChoice, readonly account: string | undefined, private readonly parts: AccessParts) {
     const {branch} = store;
@@ -173,27 +200,52 @@ export class StoreAccess {
     return {scope: recorded?.stage && recorded.stage !== 'received' && recorded.stage !== 'submitted' && recorded.stage !== 'failed' ? paid : {purpose: 'checkout', branch}};
   }
 
+  /**
+   * Too many requests (429, or 503 with BUSY) is no word about the session or the order: nothing is known to have
+   * changed, and the same request is sent again later. Only a refusal that names a reason says more (a cart that was
+   * not held), and that one is read by whoever asked.
+   */
+  private static rateRefusal(reply: EntranceReply): StoreBusy | undefined {
+    return entranceBusy(reply) && (reply.body as {reason?: unknown} | null)?.reason === undefined ? new StoreBusy(reply.retryAfter) : undefined;
+  }
+
   private async exchange(body: string): Promise<string> {
     const {command} = JSON.parse(body) as {command: ServiceRequestV2};
     const branch = this.store.branch;
     try {
+      if (command.operation === 'catalog.read') {
+        // With a checkout session the menu is read through it: only that menu tells how many of each row are left.
+        // A session that ended, or that the server is too busy to serve, leaves the public menu, which never needs
+        // a board.
+        const session = this.usable(this.checkout);
+        const proven = session && await this.parts.post('/v2/customer/commerce', body, session.token).catch(() => undefined);
+        if (proven?.status === 200 && proven.body !== null && typeof proven.body === 'object') return JSON.stringify(proven.body);
+        if (proven?.status === 404 && session === this.checkout) this.checkout = undefined;
+      }
       if (command.operation === 'catalog.read' || command.operation === 'catalog.photo') {
         // Public reads: the menu page or the photo part, answered in the words of the same C3 reply.
         const path = command.operation === 'catalog.read' ? `/v2/customer/stores/${branch}/menu/${command.body.page}` as const
           : `/v2/customer/stores/${branch}/photos/${command.body.photo}/${command.body.offset}` as const;
         const reply = await this.parts.post(path, '');
-        if (reply.status === 429) throw new StoreBusy();
+        const busy = StoreAccess.rateRefusal(reply);
+        if (busy) throw busy;
         // A store that does not show its page to the public has no menu here either.
         if (reply.status === 404 && command.operation === 'catalog.read') throw new Error('STORE_NOT_PUBLIC');
         if (reply.status !== 200 || reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
         const {requestId, requestDigest} = bindServiceRequestV2(command,
           {...this.profile, grants: [{domainRef: command.domainRef, objectRef: command.objectRef, operations: [`C3/${command.operation}`]}]}, this.parts.now());
         const {shop, orderState, catalog, catalogVersion, catalogOptions, catalogPhotos, photo} = reply.body as Record<string, unknown>;
+        // The public menu tells no count of stock: `available` and `skuAvailable` are 0 (sold out) or 1000 (on sale,
+        // the most one order line may ask for). Each row is marked, so no screen shows 1000 as a number left.
+        const rows = Array.isArray(catalog) ? catalog.map(row => row && typeof row === 'object' ? {...row, uncounted: true} : row) : catalog;
         return JSON.stringify({requestId, requestDigest, status: 'ok', resultRef: branch,
-          ...(command.operation === 'catalog.read' ? {shop, orderState, catalog, catalogVersion, catalogOptions, catalogPhotos} : {photo})});
+          ...(command.operation === 'catalog.read' ? {shop, orderState, catalog: rows, catalogVersion, catalogOptions, catalogPhotos} : {photo})});
       }
       const {session, scope} = await this.sessionFor(command);
       if (!session) throw new SessionNeeded(scope);
+      // A cart the server did not hold a moment ago is not asked for again before the time it named.
+      if (command.operation === 'order.create' && this.holdWait && this.holdWait.until > Date.now())
+        throw new CommerceHoldRefusal('BUSY', this.holdWait.reason);
       const reply = await this.parts.post('/v2/customer/commerce', body, session.token);
       if (reply.status === 404) {
         // The session ended, or the request is outside it: the board proves again.
@@ -201,15 +253,53 @@ export class StoreAccess {
         else if (session.sale) { this.orders.delete(session.sale); void this.keep(); }
         throw new SessionNeeded(scope);
       }
-      // Too many requests is no word about the session: it stands, and the same request is sent again shortly.
-      if (reply.status === 429) throw new StoreBusy();
+      const busy = StoreAccess.rateRefusal(reply);
+      if (busy) throw busy;
       if (reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
+      // A cart that was not held because the balance could not be read, or because this address asked for too many,
+      // comes with the time to wait; the client reads the reason from the reply.
+      const reason = (reply.body as {reason?: unknown}).reason;
+      if (command.operation === 'order.create' && reply.retryAfter !== undefined && (reason === 'balance_unavailable' || reason === 'hold_limit'))
+        this.holdWait = {until: Date.now() + reply.retryAfter * 1000, reason};
       return JSON.stringify(reply.body);
     } catch (error) {
       // No answer from the entrance reads like any other lost connection to the store.
       if (error instanceof EntranceError && error.code === 'UNAVAILABLE') throw Object.assign(new Error('COMMERCE_NETWORK_OFFLINE'), {code: 'COMMERCE_NETWORK_OFFLINE'});
+      // A request held back while the phone waits out the server's Retry-After (customerEntrance.ts) was not sent.
+      if (error instanceof EntranceError && error.code === 'BUSY') throw new StoreBusy(error.retryAfter);
       throw error;
     }
+  }
+
+  /**
+   * Takes back the unpaid cart `sale` with the checkout session, so its stock is released at once and the account
+   * can hold another cart (one unpaid cart for each account). It cancels nothing that was paid. Without a checkout
+   * session it throws SessionNeeded: the board proves the account first.
+   */
+  async cancelCart(sale: string): Promise<CartCancel> {
+    const scope: SessionScope = {purpose: 'checkout', branch: this.store.branch};
+    const session = this.usable(this.checkout);
+    if (!session) throw new SessionNeeded(scope);
+    let reply: EntranceReply;
+    try {
+      reply = await this.parts.post('/v2/customer/checkout/cancel', JSON.stringify({saleRef: sale}), session.token);
+    } catch (error) {
+      if (error instanceof EntranceError && error.code === 'BUSY') throw new StoreBusy(error.retryAfter);
+      if (error instanceof EntranceError && error.code === 'UNAVAILABLE') throw Object.assign(new Error('COMMERCE_NETWORK_OFFLINE'), {code: 'COMMERCE_NETWORK_OFFLINE'});
+      throw error;
+    }
+    const busy = StoreAccess.rateRefusal(reply);
+    if (busy) throw busy;
+    const outcome = readCartCancel(reply, sale);
+    // Not found is a session that ended as well as an order that is not this account's. The board proves once more;
+    // the same answer to a new session is about the order.
+    if (outcome === 'not-found' && this.cancelAsked !== sale) {
+      this.cancelAsked = sale;
+      if (session === this.checkout) this.checkout = undefined;
+      throw new SessionNeeded(scope);
+    }
+    this.cancelAsked = '';
+    return outcome;
   }
 
   /** Whether the next request of this kind would go out without asking the board. */
