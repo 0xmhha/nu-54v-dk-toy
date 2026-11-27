@@ -395,33 +395,37 @@ contract ChargeHandler is ChargeBase {
 
     /// Two signers give one of the seven seats to a new key, on both contracts. The key in a seat that can
     /// cancel, the pauser or a signer, tries to stop its own replacement and must fail. Then the change goes
-    /// through; or another key stops it, and then it must not.
+    /// through; or another key stops it, and then it must not. A second replacement of the pauser that waits
+    /// beside the first must not apply once the first did.
     function replaceSeat(uint256 seed) external {
         uint256 seat = seed % 7;
         uint256 how = (seed / 7) % 4; // 0 and 1: nobody stops it; 2 and 3: another key does
-        address to = vm.addr(++newKeys);
+        uint256 key = ++newKeys;
+        address rival = vm.addr(++newKeys);
         bytes32 salt = bytes32(++salts);
         for (uint256 which; which < 2; ++which) {
             ChargeGovernance target = onContract(which);
             bytes32 action = seat < 4
-                ? proposeOn(target, "setKey", abi.encode(seat, to), salt)
-                : proposeOn(target, "setSigner", abi.encode(seat - 4, to), salt);
+                ? proposeOn(target, "setKey", abi.encode(seat, vm.addr(key)), salt)
+                : proposeOn(target, "setSigner", abi.encode(seat - 4, vm.addr(key)), salt);
+            if (seat == 3 && how < 2) proposeOn(target, "setKey", abi.encode(seat, rival), salt);
             if (seat >= 3) tryOwnCancel(target, action, seat);
             if (how >= 2) cancelAs(target, action, seat, how);
         }
         vm.warp(block.timestamp + 24 hours);
         for (uint256 which; which < 2; ++which) {
             ChargeGovernance target = onContract(which);
-            if (how < 2) {
-                if (seat < 4) target.setKey(ChargeGovernance.Key(seat), to, salt);
-                // The seat is 4, 5 or 6 here.
-                // forge-lint: disable-next-line(unsafe-typecast)
-                else target.setSigner(uint8(seat - 4), to, salt);
-            } else if (applies(target, seat, to, salt)) {
-                cancelBroken = true;
+            if (how >= 2) {
+                if (applies(target, seat, vm.addr(key), salt)) cancelBroken = true;
+                continue;
             }
+            if (seat < 4) target.setKey(ChargeGovernance.Key(seat), vm.addr(key), salt);
+            // The seat is 4, 5 or 6 here.
+            // forge-lint: disable-next-line(unsafe-typecast)
+            else target.setSigner(uint8(seat - 4), vm.addr(key), salt);
+            if (seat == 3 && applies(target, seat, rival, salt)) seatBroken = true;
         }
-        if (how < 2) seats[seat] = newKeys;
+        if (how < 2) seats[seat] = key;
     }
 
     function applies(ChargeGovernance target, uint256 seat, address to, bytes32 salt) internal returns (bool) {
@@ -503,11 +507,31 @@ contract ChargeHandler is ChargeBase {
 
     // ---- the emergency exit ----
 
-    /// Two signers propose the exit of one of the two contracts.
+    /// The pauser with one signer, in either order, and one signer twice are not two signers.
+    function tryWithoutTwoSigners(ChargeGovernance target, string memory kind, uint256 until) internal {
+        bytes[2] memory wrong = exitSignatures(target, kind, pauserKey(), signerKey(2), until);
+        bytes[2][3] memory attempts = [wrong, [wrong[1], wrong[0]], [wrong[1], wrong[1]]];
+        bool cancel = keccak256(bytes(kind)) == keccak256("cancelEmergencyExit");
+        for (uint256 i; i < attempts.length; ++i) {
+            vm.prank(vm.addr(pauserKey()));
+            if (cancel) {
+                try target.cancelEmergencyExit(until, attempts[i]) {
+                    seatBroken = true;
+                } catch {}
+            } else {
+                try target.proposeEmergencyExit(until, attempts[i]) {
+                    seatBroken = true;
+                } catch {}
+            }
+        }
+    }
+
+    /// Two signers propose the exit of one of the two contracts, after fewer than two signers tried.
     function exitPropose(uint256 seed) external {
         uint256 which = seed % 2;
         ChargeGovernance target = onContract(which);
         uint256 until = block.timestamp + 1 hours;
+        tryWithoutTwoSigners(target, "proposeEmergencyExit", until);
         bytes[2] memory signatures = exitSignatures(target, "proposeEmergencyExit", signerKey(0), signerKey(1), until);
         try target.proposeEmergencyExit(until, signatures) {
             exitAt[which] = block.timestamp;
@@ -521,11 +545,7 @@ contract ChargeHandler is ChargeBase {
         uint256 which = seed % 2;
         ChargeGovernance target = onContract(which);
         uint256 until = block.timestamp + 1 hours;
-        bytes[2] memory wrong = exitSignatures(target, "cancelEmergencyExit", pauserKey(), signerKey(2), until);
-        vm.prank(vm.addr(pauserKey()));
-        try target.cancelEmergencyExit(until, wrong) {
-            seatBroken = true;
-        } catch {}
+        tryWithoutTwoSigners(target, "cancelEmergencyExit", until);
         if ((seed / 2) % 4 != 0) return;
         bytes[2] memory signatures = exitSignatures(target, "cancelEmergencyExit", signerKey(1), signerKey(2), until);
         try target.cancelEmergencyExit(until, signatures) {
