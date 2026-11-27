@@ -139,8 +139,73 @@ contract ChargeGovernanceTest is ChargeBase {
         }
     }
 
-    /// Nothing unreadable ever waits: a proposal must be a change this contract has, with arguments of the
-    /// right size that name a key or a signer that exists.
+    /// An address in the arguments has nothing above its 20 bytes. The changing function encodes a clean
+    /// address, so a proposal with anything there would get a number that no call ever reaches: it would
+    /// wait and never be applied.
+    function testArgumentsWithAnUncleanAddressAreNotProposed() public {
+        uint256 until = block.timestamp + 1 days;
+        bytes[2] memory none;
+        uint256 unclean = uint256(uint160(next)) | (1 << 160);
+        uint256 topBit = uint256(uint160(next)) | (1 << 255);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_KEY, abi.encode(ChargeGovernance.Key.Relay, unclean), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_KEY, abi.encode(ChargeGovernance.Key.Pauser, topBit), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(SET_SIGNER, abi.encode(uint8(1), unclean), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.proposalRound(SET_SIGNER, abi.encode(uint8(1), topBit));
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.propose(keccak256("setSpender"), abi.encode(unclean), "salt", until, none);
+        toWon();
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("addOrigin"), abi.encode(uint256(10), unclean), "salt", until, none);
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        pool.propose(keccak256("returnToken"), abi.encode(topBit, uint256(1)), "salt", until, none);
+        // A number is no address: every bit of it counts.
+        proposeOn(pool, "addOrigin", abi.encode(type(uint256).max, next), "salt");
+        proposeOn(pool, "returnToken", abi.encode(next, type(uint256).max), "salt");
+        proposeOn(pool, "withdraw", abi.encode(type(uint256).max), "salt");
+        toSource();
+        proposeOn(deposit, "setRates", abi.encode(type(uint256).max, type(uint256).max), "salt");
+        // The largest clean address is taken.
+        proposeOn(deposit, "setKey", abi.encode(ChargeGovernance.Key.Relay, type(uint160).max), "salt");
+    }
+
+    /// What is let in names one call that exists. Whether the call then succeeds is checked when it is
+    /// applied: a change with a value the function refuses waits its day and fails then.
+    function testAChangeWithARefusedValueWaitsAndFailsWhenApplied() public {
+        bytes32 zeroRate = proposeOn(deposit, "setRates", abi.encode(uint256(0), RATE), "salt");
+        bytes32 keyInUse =
+            proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, vm.addr(QUOTER_KEY)), "salt");
+        assertEq(uint8(deposit.proposalStatus(zeroRate)), uint8(ChargeGovernance.Status.Waiting));
+        vm.warp(block.timestamp + 24 hours);
+        assertEq(uint8(deposit.proposalStatus(keyInUse)), uint8(ChargeGovernance.Status.Ready));
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.setRates(0, RATE, "salt");
+        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+        deposit.setKey(ChargeGovernance.Key.Relay, vm.addr(QUOTER_KEY), "salt");
+        assertEq(uint8(deposit.proposalStatus(zeroRate)), uint8(ChargeGovernance.Status.Ready));
+    }
+
+    /// The end of a signature binds only the moment it is used. A change proposed one second before the end
+    /// of its signatures still waits its day and is applied days after that end.
+    function testTheEndOfASignatureBindsOnlyTheMomentOfUse() public {
+        bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
+        uint256 until = block.timestamp + 30 days;
+        bytes[2] memory signatures = two(deposit, "propose", action, 0, until);
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures); // more than 7 days ahead
+        // The same signatures are taken once their end is within 7 days, however long ago they were made.
+        vm.warp(until - 1);
+        proposeKey(ChargeGovernance.Key.Relay, next, "salt", until, signatures);
+        vm.warp(until + 24 hours + 3 days - 1);
+        deposit.setKey(ChargeGovernance.Key.Relay, next, "salt");
+        assertEq(deposit.relay(), next);
+    }
+
+    /// A proposal must be a change this contract has, with arguments of the right size that name a key or
+    /// a signer that exists.
     function testOnlyAChangeTheContractCanApplyIsProposed() public {
         uint256 until = block.timestamp + 1 days;
         bytes[2] memory none;

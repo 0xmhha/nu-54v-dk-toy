@@ -138,7 +138,10 @@ contract WonPool is ChargeGovernance {
         }
         // The token view of the chain's coin answers an account's coin balance; a token of its own does not.
         // The deployer holds coins, so its two balances tell which of the two the asset is. A pool for the
-        // coin must therefore be deployed by an account that holds some.
+        // coin must therefore be deployed by an account that holds some. This catches a wrong `assetIsCoin`
+        // in an honest deployment and nothing more: a deployer without coins passes with the coin as a
+        // token, and so does any token that answers the deployer's coin balance. The deployment checklist
+        // reads the asset on the chain before deploying.
         bool coin = msg.sender.balance != 0 && _balanceOf(config.asset, msg.sender) == msg.sender.balance;
         if (coin != config.assetIsCoin) revert InvalidParameters();
         asset = config.asset;
@@ -334,11 +337,12 @@ contract WonPool is ChargeGovernance {
 
     // ---- internals ----
 
-    function _argumentsLength(bytes32 kind) internal pure override returns (uint256) {
-        if (kind == WITHDRAW) return 32;
-        if (kind == ADD_ORIGIN || kind == RETURN_TOKEN) return 64;
-        if (kind == RAISE_LIMITS) return 160;
-        return super._argumentsLength(kind);
+    function _shape(bytes32 kind) internal pure override returns (uint256, uint256) {
+        if (kind == WITHDRAW) return (32, 0);
+        if (kind == ADD_ORIGIN) return (64, 2);
+        if (kind == RETURN_TOKEN) return (64, 1);
+        if (kind == RAISE_LIMITS) return (160, 0);
+        return super._shape(kind);
     }
 
     /// @dev How the USDC arrived (`quote.method`) is the business of the deposit contract that took it; a

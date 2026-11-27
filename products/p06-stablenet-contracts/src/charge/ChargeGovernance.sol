@@ -70,7 +70,9 @@ abstract contract ChargeGovernance {
     uint64 public constant CHANGE_DELAY = 24 hours;
     /// @notice After the wait, a change can be applied for this long.
     uint64 public constant CHANGE_WINDOW = 3 days;
-    /// @notice No signature may be kept for longer than this.
+    /// @notice The `until` of a signature must lie within this time of the block that uses it. This binds
+    /// only the moment of use: it says nothing about when the signature was made, and a change proposed
+    /// before `until` still waits its day and is applied after `until`.
     uint64 public constant LONGEST_SIGNATURE = 7 days;
 
     bytes32 internal constant PROPOSE = keccak256("propose");
@@ -165,7 +167,8 @@ abstract contract ChargeGovernance {
         return ChargeTypes.domain(block.chainid, address(this));
     }
 
-    /// @notice What signers sign: the kind of action, what it is about, the round it is valid in and its end.
+    /// @notice What signers sign: the kind of action, what it is about, the round it is valid in and the time
+    /// before which it must be used.
     function actionDigest(bytes32 kind, bytes32 subject, uint256 round, uint256 until) public view returns (bytes32) {
         return ChargeTypes.digest(
             domainSeparator(), keccak256(abi.encode(ChargeTypes.ACTION_TYPEHASH, kind, subject, round, until))
@@ -287,7 +290,8 @@ abstract contract ChargeGovernance {
 
     /// @notice Switches off the relay, the quoter or the witness. Only two signers and a day bring a key back.
     /// Every waiting change is void after it, except one that replaces the pauser. A key that is off cannot
-    /// be switched off again, so the pauser voids once for every key two signers brought back.
+    /// be switched off again, so the pauser voids three times with the three keys of the deployment and once
+    /// more for every key two signers bring back.
     function disableKey(Key which) external onlyPauser {
         address was;
         if (which == Key.Relay) {
@@ -327,17 +331,25 @@ abstract contract ChargeGovernance {
         return Seat.None;
     }
 
-    /// @dev How many bytes the ABI-encoded arguments of a kind of change have; 0 for a kind this contract does
-    /// not have. Each contract adds its own kinds.
-    function _argumentsLength(bytes32 kind) internal pure virtual returns (uint256) {
-        return kind == SET_KEY || kind == SET_SIGNER || kind == SET_RATES ? 64 : 0;
+    /// @dev The shape of the ABI-encoded arguments of a kind of change: how many bytes they have, and which
+    /// of their words is an address (1 is the first word, 0 is none). A length of 0 is a kind this contract
+    /// does not have. Each contract adds its own kinds.
+    function _shape(bytes32 kind) internal pure virtual returns (uint256 length, uint256 addressWord) {
+        if (kind == SET_KEY || kind == SET_SIGNER) return (64, 2);
+        if (kind == SET_RATES) return (64, 0);
     }
 
-    /// @dev Whose place a change takes, read from its arguments when it is proposed. Only a change this
-    /// contract can apply is let in, so nothing unreadable ever waits.
+    /// @dev Whose place a change takes, read from its arguments when it is proposed. Only arguments that the
+    /// changing function would encode itself are let in: a kind this contract has, the right length, a key
+    /// or signer that exists and an address with nothing above its 20 bytes. So every waiting change names
+    /// one call that exists. Whether that call then succeeds (a new key that is free, a rate above zero, a
+    /// spender with code) is checked when it is applied: such a change waits and fails then.
     function _seatOf(bytes32 kind, bytes calldata arguments) private pure returns (Seat) {
-        uint256 length = _argumentsLength(kind);
+        (uint256 length, uint256 addressWord) = _shape(kind);
         if (length == 0 || arguments.length != length) revert InvalidParameters();
+        if (addressWord != 0 && uint256(bytes32(arguments[addressWord * 32 - 32:addressWord * 32])) >> 160 != 0) {
+            revert InvalidParameters();
+        }
         if (kind != SET_KEY && kind != SET_SIGNER) return Seat.None;
         uint256 first = uint256(bytes32(arguments[0:32]));
         if (kind == SET_KEY) {

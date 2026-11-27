@@ -469,8 +469,10 @@ contract ChargeDeposit is ChargeGovernance {
 
     // ---- internals ----
 
-    function _argumentsLength(bytes32 kind) internal pure override returns (uint256) {
-        return kind == SET_SPENDER || kind == RAISE_LIMIT ? 32 : super._argumentsLength(kind);
+    function _shape(bytes32 kind) internal pure override returns (uint256, uint256) {
+        if (kind == SET_SPENDER) return (32, 1);
+        if (kind == RAISE_LIMIT) return (32, 0);
+        return super._shape(kind);
     }
 
     /// @dev Code that starts with 0xef0100 is the mark of a lent key account (EIP-7702), not a contract. No

@@ -353,8 +353,9 @@ contract WonPoolTest is ChargeBase {
     }
 
     /// Whether the asset is the chain's coin is read from the asset: the token view of the coin answers the
-    /// deployer's coin balance, a token of its own does not. A pool that says otherwise is not deployed, so
-    /// no token pool takes plain coins that could never leave.
+    /// deployer's coin balance, a token of its own does not. A pool that says otherwise is not deployed.
+    /// The check guards an honest deployer against a wrong setting and nothing more: the two cases marked
+    /// "not caught" pass it with the wrong answer.
     function testDeploymentChecksWhetherTheAssetIsTheCoin() public {
         toWon();
         vm.deal(address(this), 1 ether);
@@ -363,14 +364,31 @@ contract WonPoolTest is ChargeBase {
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         new WonPool(keys(), config);
 
+        if (!assetIsCoin()) {
+            // A token balance above the coin balance is not the coin: the two must be equal.
+            TestKRW3009(asset).mint(address(this), 2 ether);
+            config = poolConfig(address(deposit));
+            assertFalse(new WonPool(keys(), config).assetIsCoin());
+            config.assetIsCoin = true;
+            vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+            new WonPool(keys(), config);
+        }
+
         // A deployer without coins cannot show that the asset is the coin.
         config = poolConfig(address(deposit));
         vm.deal(address(this), 0);
         if (assetIsCoin()) {
             vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
             new WonPool(keys(), config);
+            // Not caught: the same deployer names the coin a token and gets a token pool for the coin.
+            config.assetIsCoin = false;
+            assertFalse(new WonPool(keys(), config).assetIsCoin());
         } else {
             assertFalse(new WonPool(keys(), config).assetIsCoin());
+            // Not caught: a token that answers the deployer's coin balance passes as the coin.
+            vm.deal(address(this), 2 ether);
+            config.assetIsCoin = true;
+            assertTrue(new WonPool(keys(), config).assetIsCoin());
         }
     }
 
