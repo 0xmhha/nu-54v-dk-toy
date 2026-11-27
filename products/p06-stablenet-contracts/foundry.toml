@@ -18,6 +18,8 @@ fs_permissions = [
     { access = "read", path = "../../packages/protocol/v2/testdata" },
     # The deploy script reads the register parameters.
     { access = "read", path = "../../docs/content/planning/design-freeze-checkpoint-02.json" },
+    # The top-up signing vectors.
+    { access = "read", path = "test/vectors" },
 ]
 
 # Invariant runs are kept small for CI; raise them locally when hardening (WBS2-P06-05).
