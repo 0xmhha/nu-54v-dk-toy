@@ -184,6 +184,15 @@ contract ChargeDepositTest is ChargeBase {
         expectDepositRevert(quoteFor(100e6, address(pool)), ChargeDeposit.InvalidQuote.selector);
     }
 
+    /// Only the built method is taken; the number is in the quote so a second method can be told apart later.
+    /// The pool pays no board that is the pool itself or its asset, so no deposit is taken for one.
+    function testABoardThePoolRefusesIsRefusedAtTheDeposit() public {
+        expectDepositRevert(quoteFor(100e6, address(pool)), ChargeDeposit.InvalidQuote.selector);
+        expectDepositRevert(quoteFor(100e6, asset), ChargeDeposit.InvalidQuote.selector);
+        expectDepositRevert(quoteFor(100e6, address(0)), ChargeDeposit.InvalidQuote.selector);
+        assertEq(usdc.balanceOf(address(deposit)), 0);
+    }
+
     function testOnlyTheAuthorizationMethodIsTaken() public {
         ChargeTypes.Quote memory quote = quoteFor(100e6, board);
         quote.method = 2;

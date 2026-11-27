@@ -234,7 +234,8 @@ contract ChargeDeposit is ChargeGovernance {
     }
 
     /// @dev Everything a deposit needs except the money. A later deposit method checks the same and then
-    /// collects in its own way.
+    /// collects in its own way. The board is checked the way the pool checks it (`won` is the pool's asset),
+    /// so no deposit is taken for a board the pool is known to refuse.
     function _accept(ChargeTypes.Quote calldata quote, bytes calldata quoteSignature, uint8 method)
         private
         returns (bytes32 id)
@@ -247,7 +248,7 @@ contract ChargeDeposit is ChargeGovernance {
         if (
             quote.method != method || quote.usdc != usdc || quote.pool != pool || quote.won != won
                 || quote.wonChainId != wonChainId || quote.board == address(0) || quote.board == pool
-                || quote.payer == address(0) || quote.payer == address(this) || quote.feeWon != 0
+                || quote.board == won || quote.payer == address(0) || quote.payer == address(this) || quote.feeWon != 0
         ) revert InvalidQuote();
         if (
             quote.payBy != quote.expiresAt + ChargeTypes.PAY_WINDOW || block.timestamp >= quote.expiresAt
