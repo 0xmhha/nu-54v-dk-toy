@@ -182,8 +182,8 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         return exchangeAt("travel",method,path,envelope,1_400_000)
     }
 
-    /** Server trust for one handshake: the chain must end at `ca`, and the leaf must carry the pinned key. System roots are never consulted. */
-    private fun anchoredTrust(ca:X509Certificate, pin:String):X509TrustManager {
+    /** Server trust for one handshake: the chain must end at `ca`, and the leaf must carry one of the pinned keys. System roots are never consulted. */
+    private fun anchoredTrust(ca:X509Certificate, pins:Set<String>):X509TrustManager {
         val roots=KeyStore.getInstance(KeyStore.getDefaultType()).apply {
             load(null)
             setCertificateEntry("commerce-root",ca)
@@ -197,7 +197,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
                 anchored.checkServerTrusted(chain,authType)
                 val leaf=chain?.firstOrNull() ?: throw CertificateException("missing server leaf")
                 val hash=MessageDigest.getInstance("SHA-256").digest(leaf.publicKey.encoded).joinToString(""){"%02x".format(it)}
-                if (hash!=pin) throw CertificateException("wrong commerce pin")
+                if (hash !in pins) throw CertificateException("wrong commerce pin")
                 // The post-handshake HTTPS hostname verifier is also mandatory.
                 // The exact pinned SPKI establishes the peer before mTLS sends credentials.
             }
@@ -219,9 +219,11 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
     /**
      * One request to the customer entrance of the store server, which asks for no client certificate.
      * The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the
-     * app's deployment configuration, the chain must end at that CA and the leaf must carry that pinned key. No
-     * enrollment profile is read and system roots are never consulted. No key manager holds a key, so no client
-     * certificate can be offered. `session` is the customer session token of `/v2/customer/commerce` and empty
+     * app's deployment configuration, the chain must end at that CA and the leaf must carry a pinned key. `pin` is
+     * one SHA-256 of a public key (SPKI, any key type), or a list of two while the server changes its key: the
+     * current one and the next. No enrollment profile is read and system roots are never consulted. No key manager
+     * holds a key, so no client certificate can be offered: a server that asks for one gets none and decides itself.
+     * A body that is not UTF-8 is handed back with the bad bytes replaced. `session` is the customer session token of `/v2/customer/commerce` and empty
      * elsewhere; the store list, a store page, a menu page and a menu photo part are read with GET and an empty body.
      * Answers `{"status":n,"body":"…"}`.
      */
@@ -240,8 +242,12 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         val base=URI(trust.getString("origin"))
         require(base.scheme=="https" && !base.host.isNullOrEmpty() && base.rawUserInfo==null && base.rawPath.isNullOrEmpty() &&
             base.rawQuery==null && base.rawFragment==null && (base.port==-1 || base.port in 1..65535))
-        val pin=trust.getString("pin")
-        require(Regex("[0-9a-f]{64}").matches(pin))
+        val pins=when(val given=trust.get("pin")) {
+            is String -> listOf(given)
+            is org.json.JSONArray -> List(given.length()) { given.getString(it) }
+            else -> emptyList()
+        }
+        require(pins.size in 1..2 && pins.toSet().size==pins.size && pins.all { Regex("[0-9a-f]{64}").matches(it) })
         val ca=CertificateFactory.getInstance("X.509")
             .generateCertificate(Base64.decode(trust.getString("ca"),Base64.NO_WRAP).inputStream()) as X509Certificate
         val anonymous=object:X509ExtendedKeyManager() {
@@ -253,7 +259,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
             override fun getPrivateKey(alias:String?):PrivateKey?=null
             override fun getCertificateChain(alias:String?):Array<X509Certificate>?=null
         }
-        val tls=SSLContext.getInstance("TLSv1.3").apply { init(arrayOf(anonymous),arrayOf(anchoredTrust(ca,pin)),random) }
+        val tls=SSLContext.getInstance("TLSv1.3").apply { init(arrayOf(anonymous),arrayOf(anchoredTrust(ca,pins.toSet())),random) }
         val host=base.host
         val connection=java.net.URL("https",host,base.port,path).openConnection(java.net.Proxy.NO_PROXY) as HttpsURLConnection
         try {
@@ -295,7 +301,7 @@ class CommerceHttp(context: Context, private val slots: Set<String>) {
         val (ca,chain,privateKey)=certificates(profile,slot)
         val pin=profile.getString("pin")
         val host=URI(profile.getString("endpoint")).host
-        val trust=anchoredTrust(ca,pin)
+        val trust=anchoredTrust(ca,setOf(pin))
         val owner=object:X509ExtendedKeyManager() {
             override fun getClientAliases(type:String?, issuers:Array<out Principal>?)=if(type=="EC" || type?.startsWith("EC_")==true) arrayOf(slot) else null
             override fun chooseClientAlias(types:Array<out String>?,issuers:Array<out Principal>?,socket:Socket?)=if(types?.any{it=="EC" || it.startsWith("EC_")}==true) slot else null

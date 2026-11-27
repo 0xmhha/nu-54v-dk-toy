@@ -123,15 +123,17 @@ static C3Enrollment *enrollment(NSString *raw, NSString *slot) {
   return result;
 }
 
-// The chain must end at `ca` for `host`, and the leaf must carry the pinned key. System roots are never consulted.
-static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *pin) {
-  if (!trust || !host.length || !ca || pin.length!=64) return NO;
+// The chain must end at `ca` for `host`, and the leaf must carry one of the pinned keys. System roots are never
+// consulted. Only a P-256 key has a fingerprint here (spki above), so a pin of another key type never matches.
+static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSArray<NSString *> *pins) {
+  if (!trust || !host.length || !ca || !pins.count) return NO;
   id policy=CFBridgingRelease(SecPolicyCreateSSL(true,(__bridge CFStringRef)host));
   BOOL anchored=SecTrustSetPolicies(trust,(__bridge CFTypeRef)policy)==errSecSuccess &&
       SecTrustSetAnchorCertificates(trust,(__bridge CFArrayRef)@[ca])==errSecSuccess &&
       SecTrustSetAnchorCertificatesOnly(trust,true)==errSecSuccess && SecTrustEvaluateWithError(trust,nullptr);
   id key=anchored ? CFBridgingRelease(SecTrustCopyKey(trust)) : nil;
-  return [fingerprint(spki((__bridge SecKeyRef)key)) isEqual:pin];
+  NSString *seen=fingerprint(spki((__bridge SecKeyRef)key));
+  return seen.length==64 && [pins containsObject:seen];
 }
 
 @interface C3Exchange : NSObject <NSURLSessionDataDelegate>
@@ -155,7 +157,7 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *p
   } else if ([peer.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust]) {
     SecTrustRef trust=peer.serverTrust;
     if (!trust) { complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil); return; }
-    if (anchoredServer(trust,peer.host,self.profile.ca,self.profile.pin)) complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:trust]);
+    if (anchoredServer(trust,peer.host,self.profile.ca,@[self.profile.pin])) complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:trust]);
     else complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
   } else {
     complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
@@ -192,10 +194,11 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *p
 
 #ifdef NU54_TRAVEL_RECORDER
 // One request to the customer entrance, which asks for no client certificate. This delegate holds no identity, so a
-// request for one ends the connection.
+// request for one ends the connection (the Android request goes on without a certificate instead). A body that is
+// not UTF-8 is no answer here (Android hands it back with the bad bytes replaced).
 @interface C3Entrance : NSObject <NSURLSessionDataDelegate>
 @property NSString *host;
-@property NSString *pin;
+@property NSArray<NSString *> *pins;
 @property id ca;
 @property NSInteger status;
 @property NSUInteger limit;
@@ -209,7 +212,7 @@ static BOOL anchoredServer(SecTrustRef trust, NSString *host, id ca, NSString *p
   NSURLProtectionSpace *peer=challenge.protectionSpace;
   if ([peer.host isEqual:self.host] && !challenge.previousFailureCount &&
       [peer.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust] &&
-      anchoredServer(peer.serverTrust,peer.host,self.ca,self.pin)) {
+      anchoredServer(peer.serverTrust,peer.host,self.ca,self.pins)) {
     complete(NSURLSessionAuthChallengeUseCredential,[NSURLCredential credentialForTrust:peer.serverTrust]);
   } else {
     complete(NSURLSessionAuthChallengeCancelAuthenticationChallenge,nil);
@@ -459,7 +462,8 @@ RCT_EXPORT_MODULE(CommerceHttp)
 
 #ifdef NU54_TRAVEL_RECORDER
 // The server is accepted only by the trust anchor of this build: `anchor` is `{"origin","ca","pin"}` from the app's
-// deployment configuration. No enrollment profile is read, and there is no other trust to fall back on. `session` is
+// deployment configuration. `pin` is one SHA-256 of a P-256 public key (SPKI), or a list of two while the server
+// changes its key: the current one and the next. No enrollment profile is read, and there is no other trust to fall back on. `session` is
 // the customer session token of /v2/customer/commerce and empty elsewhere; the store list, a store page, a menu page
 // and a menu photo part are read with GET and an empty body.
 - (void)customerRequest:(NSString *)anchor path:(NSString *)path session:(NSString *)session body:(NSString *)body
@@ -482,10 +486,15 @@ RCT_EXPORT_MODULE(CommerceHttp)
         url.percentEncodedPath.length || (url.port && (url.port.integerValue<1 || url.port.integerValue>65535))) {
       [self unavailable:reject]; return;
     }
-    NSString *pin=trust[@"pin"];
+    id listed=trust[@"pin"];
+    NSArray *pins=@[];
+    if ([listed isKindOfClass:NSString.class]) pins=@[listed];
+    else if ([listed isKindOfClass:NSArray.class]) pins=listed;
+    BOOL pinned=pins.count>=1 && pins.count<=2 && [NSSet setWithArray:pins].count==pins.count;
+    for (id pin in pins)
+      pinned=pinned && [pin isKindOfClass:NSString.class] && [pin length]==64 && [pin rangeOfCharacterFromSet:notHex].location==NSNotFound;
     id anchorCertificate=[trust[@"ca"] isKindOfClass:NSString.class] ? certificate(trust[@"ca"]) : nil;
-    if (!anchorCertificate || ![pin isKindOfClass:NSString.class] || pin.length!=64 ||
-        [pin rangeOfCharacterFromSet:notHex].location!=NSNotFound) {
+    if (!anchorCertificate || !pinned) {
       [self unavailable:reject]; return;
     }
     url.percentEncodedPath=path;
@@ -503,7 +512,7 @@ RCT_EXPORT_MODULE(CommerceHttp)
     config.URLCache=nil;
     config.requestCachePolicy=NSURLRequestReloadIgnoringLocalCacheData;
     C3Entrance *delegate=[C3Entrance new];
-    delegate.host=url.host; delegate.pin=pin; delegate.ca=anchorCertificate;
+    delegate.host=url.host; delegate.pins=pins; delegate.ca=anchorCertificate;
     delegate.limit=(read || commerce) ? 32768 : 8192;
     delegate.resolve=resolve; delegate.reject=reject; delegate.buffer=[NSMutableData data];
     NSURLSession *connection=[NSURLSession sessionWithConfiguration:config delegate:delegate delegateQueue:nil];
