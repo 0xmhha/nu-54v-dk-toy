@@ -352,9 +352,14 @@ rule still holds for every other command. The moved time is in storage before it
   runs (90 s), and on SW1 takes the request as of its arrival, adding the seconds it has run since. SW2,
   any message and the end of the wait drop it. The phone hears nothing of the press and asks again in a
   new session.
-- **Open orders.** A phone's time may be ahead of the calendar, so it never ends an approved order for
-  the board early: what is open when the clock moves stays open for up to 180 s of running time, and
-  that hold is saved with the moved time, so a restart keeps it (for at most 240 s after the start).
+- **Open orders.** A phone's time may be ahead of the calendar, so the board does not judge an approved
+  order by that time alone. What is open when the clock moves stays open for up to 180 s of running
+  time, and that hold is saved with the moved time. An order that is approved after the move stays open
+  from its approval for the running time between its issue and its end, as the store signed them (180 s
+  at the most; the board refuses an order that its store lets run for longer). That hold is saved with
+  the board's time before the signature is stored or sent: one more write per approved order, and an
+  approval whose write fails gives no signature. A restart keeps either hold (for at most 240 s after
+  the start).
 
 An owner certificate issued while the board was off is not valid yet by the board's late clock. The board
 then still opens the session for the pinned owner, and that session takes the time command and nothing
