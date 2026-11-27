@@ -1,5 +1,6 @@
 import {Text, View} from 'react-native';
-import {commerceAmount, type CommercePaymentProfile} from '@nu54/protocol';
+import type {CommercePaymentProfile} from '@nu54/protocol';
+import {orderMoney, orderUnits} from '../wallet/tokens.ts';
 
 export type TravelTerms = {
   termsVersion: number;
@@ -45,12 +46,14 @@ export function BookingPolicy({terms}: {terms: TravelTerms}) {
 
 export function BookingPaymentTerms({payment, policy}: {payment: TravelBookingPayment; policy?: CommercePaymentProfile}) {
   const {booking, kind} = payment;
-  const amount = (units: string) => commerceAmount(units, booking.asset, policy);
+  // Whole won on the phone, rounded up: no row shows less than what is paid. The total is the sum of the two rows below it.
+  const amount = (units: string) => orderMoney(units, booking.asset, policy, 'charge');
+  const shown = (units: string) => orderUnits(units, booking.asset, policy, 'charge');
   return <View>
     <Text accessibilityRole="header">{kind === 'deposit' ? '예약금 지급 검토' : '잔금 지급 검토'}</Text>
     <Text selectable>원예약 {booking.id}</Text>
     <Text>이용 시각 · {bookingTime(booking.startsAt)} · {booking.partySize}명</Text>
-    <Text>예약 총액 {amount((BigInt(booking.deposit) + BigInt(booking.balance)).toString())}</Text>
+    <Text>예약 총액 {amount((shown(booking.deposit) + shown(booking.balance)).toString())}</Text>
     <Text>{kind === 'balance' ? '기확정 예약금' : '이번 예약금'} {amount(booking.deposit)}</Text>
     <Text>{kind === 'balance' ? '이번 잔금' : '별도 잔금'} {amount(booking.balance)}</Text>
     <BookingPolicy terms={booking} />

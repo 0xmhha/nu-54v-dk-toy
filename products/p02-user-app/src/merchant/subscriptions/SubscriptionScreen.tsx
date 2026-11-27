@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import {
-  commerceAmount,
   type CommerceClient,
   type CommercePaymentProfile,
   type SubscriptionInvoice,
@@ -17,6 +16,7 @@ import {
 } from '@nu54/protocol';
 import Http from '../../specs/NativeCommerceHttp.ts';
 import Alerts from '../../specs/NativeSubscriptionAlerts.ts';
+import {orderMoney} from '../../wallet/tokens.ts';
 
 const journal = 'subscription-alerts-v2';
 const day = 86_400_000;
@@ -83,7 +83,7 @@ const press = (label: string, run: () => void, disabled = false) => (
 );
 
 function amount(offer: SubscriptionOffer, policy?: CommercePaymentProfile) {
-  return commerceAmount(offer.amount, offer.asset, policy);
+  return orderMoney(offer.amount, offer.asset, policy, 'charge');
 }
 
 function cadence(offer: SubscriptionOffer) {
@@ -330,7 +330,7 @@ export function SubscriptionScreen({
       {openInvoices(visibleInvoices).map(row => (
         <View key={row.id} collapsable={false} style={styles.invoice}>
           <Text style={styles.text}>
-            {row.cycle} · {commerceAmount(row.amount, row.asset, policy)}
+            {row.cycle} · {orderMoney(row.amount, row.asset, policy, 'charge')}
           </Text>
           <Text style={styles.text}>납기 {new Date(row.dueAt).toLocaleString()}</Text>
           <Text style={styles.text}>{row.fulfillment === 'digital' ? '디지털 이용권' : '현장 수령'}</Text>

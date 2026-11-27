@@ -29,7 +29,6 @@ import {
   bytesToHex,
   hexToBytes,
   commerceProfile,
-  commerceAmount,
   fromBoard, paymentToken,
   commerceCartTotals,
   commerceLineKey,
@@ -39,7 +38,6 @@ import {
   CommercePhotoCache,
   commerceCartTax,
   commerceLineTax,
-  commerceCartAmount,
   commerceReservationRejected,
   CommerceHoldRefusal,
   reviewCommerceCart,
@@ -78,8 +76,6 @@ import {
   type CommerceQuote,
   paysThroughEscrow,
   type CommercePaymentProfile,
-  isWon,
-  type PaymentToken,
 } from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import {StoreNotice, storeStopped} from './StoreNotice.tsx';
@@ -133,6 +129,7 @@ import {isPinnedPolicy} from './orderPaymentTrust.ts';
 import {madeAtStorePage, openStoreAccess, SessionNeeded, StoreBusy, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
 import {ownerPickupBoard} from './pickupBoard.ts';
 import {PickupQrScreen} from './PickupQr.tsx';
+import {cartMoney, missingUnits, orderMoney, receiptLines, shownBalance} from '../wallet/tokens.ts';
 
 type RentalBoardReview = RentalReviewChallenge & {
   checkpoint: string;
@@ -218,24 +215,8 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = f
     default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
   }
 }
-/** The smallest amount of a token the basket shows, in base units: one won, or one cent of a dollar token. */
-const shownUnit = (token: Pick<PaymentToken, 'decimals' | 'symbol'>) => 10n ** BigInt(isWon(token) ? token.decimals : Math.max(0, token.decimals - 2));
-/**
- * What a basket lacks, in base units, for the screen: counted in the smallest unit the basket shows (a whole won, or
- * a cent) and never less than what is missing, so that adding it is enough. A balance is cut off, never rounded up
- * (N31); what is missing is the other side of the same cut. Won are whole on a screen, so a part of a won that is
- * missing reads as one won.
- */
-export function missingUnits(required: bigint, balance: bigint, token: Pick<PaymentToken, 'decimals' | 'symbol'>): string {
-  const unit = shownUnit(token);
-  const missing = required > balance ? required - balance : 0n;
-  return ((missing + unit - 1n) / unit * unit).toString();
-}
-/** A balance as the basket shows it, in base units: cut off at a whole won, or at a cent. Never rounded up. */
-export function shownBalance(balance: bigint, token: Pick<PaymentToken, 'decimals' | 'symbol'>): string {
-  const unit = shownUnit(token);
-  return (balance / unit * unit).toString();
-}
+// What a basket lacks and holds, in the unit its screen shows: the phone's one rule for whole won (wallet/tokens.ts).
+export {missingUnits, shownBalance};
 const now = () => Math.floor(Date.now() / 1000);
 /** How long after the hold's end the phone takes the hold for over: its clock and the store's may differ by this much. */
 const holdMargin = 120;
@@ -1948,7 +1929,7 @@ export function CustomerOrders({
     const balance = held?.amount === undefined ? undefined : BigInt(held.amount);
     if (!mounted.current || revision !== loadRevision.current) return;
     const amount = BigInt(entry.order.amount);
-    const show = (value: bigint) => commerceAmount(value.toString(), policy.asset, policy);
+    const show = (value: bigint) => orderMoney(value.toString(), policy.asset, policy, 'balance');
     const perPayment = fromBoard(board.perPayment, paymentToken(policy)), left = fromBoard(board.leftToday, paymentToken(policy));
     setOrderBoard({
       request: entry.request, handle, pinWait: board.pinWait,
@@ -2369,7 +2350,7 @@ export function CustomerOrders({
     if (!mounted.current || revision !== loadRevision.current) return locked || failed;
     setOpenOrders((await records.list()).filter(row => row.branch === entry.branch && row.customer === entry.customer));
     if (locked || failed) {
-      const shown = {sale: view.id, store: entry.store ?? '매장', amount: commerceAmount(view.amount, view.asset, policy)};
+      const shown = {sale: view.id, store: entry.store ?? '매장', amount: orderMoney(view.amount, view.asset, policy, 'charge')};
       setOrderOutcome(locked ? {...shown, kind: 'done', number: view.pickupNo!} : {...shown, kind: 'failed'});
       setPendingNearby(undefined);
       setOrderFocus(true);
@@ -2522,12 +2503,12 @@ export function CustomerOrders({
   function orderPaymentView(): OrderPaymentView | undefined {
     if (orderOutcome) return orderOutcome;
     if (orderBlocked) return {kind: 'confirm', store: shop?.identity.branchLabel ?? orderBlocked.sale.cafeReview?.branchLabel ?? '매장',
-      amount: commerceAmount(orderBlocked.sale.amount, orderBlocked.sale.asset, policy), items: [],
+      amount: orderMoney(orderBlocked.sale.amount, orderBlocked.sale.asset, policy, 'charge'), items: [],
       deadline: orderBlocked.until, spent: orderBlocked.spent, block: orderBlocked.block};
     if (travelBranch) return undefined;
     const entry = visibleReview ? approved : undefined;
     if (!entry?.confirmer || !orderFocus) return undefined;
-    const shown = {store: entry.store ?? '매장', amount: commerceAmount(entry.order.amount, entry.order.asset, policy)};
+    const shown = {store: entry.store ?? '매장', amount: orderMoney(entry.order.amount, entry.order.asset, policy, 'charge')};
     const board = orderBoard?.request === entry.request ? orderBoard : undefined;
     if (stoppedReview) {
       const signed = !!entry.boardSigned || !!entry.authorization;
@@ -2546,8 +2527,8 @@ export function CustomerOrders({
       items: point?.order === entry.order.id ? Object.values(point.selection ?? {}).map(({row, quantity}) => {
         const names = commerceMenuLabels(row, menuLocale);
         const line = commerceLineTax(row, quantity, policy);
-        return {label: `${names.name} ×${quantity}${line ? ` · 세금 ${commerceAmount(line.tax.toString(), row.asset, policy)} 포함` : ''}`,
-          amount: commerceCartAmount((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy)};
+        return {label: `${names.name} ×${quantity}${line ? ` · 세금 ${orderMoney(line.tax.toString(), row.asset, policy, 'tax')} 포함` : ''}`,
+          amount: cartMoney((BigInt(row.unitPrice) * BigInt(quantity)).toString(), row.asset, policy, 'charge')};
       }) : [],
     };
   }
@@ -2848,7 +2829,7 @@ export function CustomerOrders({
     </ScrollView>;
   }
   if (phase === 'active' && formerOrder) return <ScrollView contentContainerStyle={s.scroll}>
-    <FormerOrderDetail order={formerOrder} amount={commerceAmount(formerOrder.amount, formerOrder.asset, policy)} back={back} backLabel="매장 화면으로" />
+    <FormerOrderDetail order={formerOrder} amount={orderMoney(formerOrder.amount, formerOrder.asset, policy, 'charge')} back={back} backLabel="매장 화면으로" />
   </ScrollView>;
   const orderView = phase === 'active' && client && !showSubscriptions ? orderPaymentView() : undefined;
   const protectionNotice = <View style={s.scroll}>
@@ -2884,7 +2865,7 @@ export function CustomerOrders({
       <ScrollView contentContainerStyle={s.scroll}>
         <Text style={s.title} accessibilityRole="header">수취 주소 확인</Text>
         <Text style={s.text} selectable>서명 견적 수령 주소 {policy.beneficiary}</Text>
-        <Text style={s.text}>이번 지급 {commerceAmount(approved.order.amount, approved.order.asset, policy)}</Text>
+        <Text style={s.text}>이번 지급 {orderMoney(approved.order.amount, approved.order.asset, policy, 'charge')}</Text>
         <Button label="돌아가기" run={() => setRecipientQuote(undefined)} />
       </ScrollView>
     );
@@ -2907,7 +2888,8 @@ export function CustomerOrders({
           back={() => setPickupSale('')} />
       </ScrollView>;
     return <ScrollView contentContainerStyle={s.scroll}>
-      <OrderDetail order={shown} amount={commerceAmount(shown.amount, shown.asset, policy)} money={units => commerceAmount(units, shown.asset, policy)} fresh={order?.id === shown.sale} mine={!!recordedDetail} former={isFormerBoard(shown, boardAccount)}
+      <OrderDetail order={shown} amount={orderMoney(shown.amount, shown.asset, policy, 'charge')} money={units => orderMoney(units, shown.asset, policy, 'charge')}
+        token={policy?.asset === shown.asset ? paymentToken(policy) : undefined} fresh={order?.id === shown.sale} mine={!!recordedDetail} former={isFormerBoard(shown, boardAccount)}
         busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem) : '')} now={now()} actions={{
           answer: action => work(() => answerOrder(action), '답을 보내지 못했습니다. 상태를 다시 확인하세요.'),
           refresh: () => work(() => openOrderDetail(shown.sale), orderOffline),
@@ -2916,7 +2898,7 @@ export function CustomerOrders({
         }} />
     </ScrollView>;
   }
-  const menuMoney = (units: string, asset: string) => commerceAmount(units, asset, policy);
+  const menuMoney = (units: string, asset: string) => orderMoney(units, asset, policy, 'charge');
   // What the store's server said of this very basket when it did not hold it; a changed basket is another one.
   const serverShort = shortHold && shortHold.basket === cart ? shortHold : undefined;
   // Known only for a store page's order, once the balance was read: the basket costs more than the board account holds.
@@ -3219,7 +3201,7 @@ export function CustomerOrders({
           {!!orderRows.length && <Section title="매장 주문" aside={`${orderRows.length}건`}>
             {orderRows.map(row => (
               <Button key={row.id} testID={`매장 주문 ${row.id}`} disabled={busy} variant="row"
-                label={`${openOrders.find(item => item.sale === row.id)?.store ?? '매장 주문'} · ${commerceAmount(row.amount, row.asset, policy)}`}
+                label={`${openOrders.find(item => item.sale === row.id)?.store ?? '매장 주문'} · ${orderMoney(row.amount, row.asset, policy, 'charge')}`}
                 detail={orderRowDetail(row, openOrders.find(item => item.sale === row.id))}
                 run={() => work(() => openOrders.some(item => item.sale === row.id) ? openOrderDetail(row.id) : readHistoryOrder(row.id), '이 계정에서 열 수 없는 주문입니다.')} />
             ))}
@@ -3228,7 +3210,7 @@ export function CustomerOrders({
             run={() => work(nextOrderPage, '매장 주문을 더 불러올 수 없습니다.')} />}
           {!!invoiceRows.length && <Section title="구독 청구" aside={`${invoiceRows.length}건`}>
             {invoiceRows.map(row => (
-              <Button key={row.id} variant="row" label={`구독 회차 청구서 ${row.cycle} · ${commerceAmount(row.amount, row.asset, policy)} · ${orderStateLabel[row.state]}`} disabled={busy}
+              <Button key={row.id} variant="row" label={`구독 회차 청구서 ${row.cycle} · ${orderMoney(row.amount, row.asset, policy, 'charge')} · ${orderStateLabel[row.state]}`} disabled={busy}
                 run={() => work(() => readInvoice(row.saleRef), '이 계정에서 열 수 없는 청구서입니다.')} />
             ))}
           </Section>}
@@ -3333,7 +3315,7 @@ export function CustomerOrders({
                 <Fragment key={row.sku + '/' + row.optionKey}>{card}<View style={s.line}>
                   <Text style={s.text}>
                     {names.name} ·{' '}
-                    {commerceAmount(row.unitPrice, row.asset, policy)}
+                    {orderMoney(row.unitPrice, row.asset, policy, 'charge')}
                   </Text>
                   <Text style={s.text}>
                     {commerceMenuDisclosure(row, menuLocale)}
@@ -3413,20 +3395,22 @@ export function CustomerOrders({
               {cartReview.priceChanges.map(({ previous, current }) => {
                 const names = commerceMenuLabels(current, menuLocale);
                 return (
-                  <Text key={commerceLineKey(current)} style={s.text}>{`${names.name} · ${commerceCartAmount(
+                  <Text key={commerceLineKey(current)} style={s.text}>{`${names.name} · ${cartMoney(
                     previous.unitPrice,
                     previous.asset,
                     policy,
-                  )} → ${commerceCartAmount(
+                    'charge',
+                  )} → ${cartMoney(
                     current.unitPrice,
                     current.asset,
                     policy,
+                    'charge',
                   )}`}</Text>
                 );
               })}
               {cartReview.previousTotals.map(({ asset, amount }) => (
                 <Text key={asset} style={s.text}>
-                  {`기존 합계 · ${commerceCartAmount(amount, asset, policy)}`}
+                  {`기존 합계 · ${cartMoney(amount, asset, policy, 'charge')}`}
                 </Text>
               ))}
             </>
@@ -3436,16 +3420,18 @@ export function CustomerOrders({
               <Text key={asset} style={s.text}>
                 {`${
                   Boolean(cartReview?.priceChanges.length) ? '새 합계' : '합계'
-                } · ${commerceCartAmount(amount, asset, policy)}`}
+                } · ${cartMoney(amount, asset, policy, 'charge')}`}
               </Text>
             ))}
           {!point && (() => {
             // Shown only when the store said the tax of every line in the basket.
             const taxed = commerceCartTax(cart, policy);
             const asset = Object.values(cart)[0]?.row.asset;
-            return taxed && asset ? <>
-              <Text style={s.text}>{`공급가액 · ${commerceCartAmount(taxed.supply.toString(), asset, policy)}`}</Text>
-              <Text style={s.text}>{`세금(가격에 포함) · ${commerceCartAmount(taxed.tax.toString(), asset, policy)}`}</Text>
+            // The two rows add up to the total above them: the tax is cut off and the supply value is the rest.
+            const [shown] = taxed && policy ? receiptLines([taxed], paymentToken(policy)) : [];
+            return shown && asset ? <>
+              <Text style={s.text}>{`공급가액 · ${cartMoney(shown.supply.toString(), asset, policy, 'charge')}`}</Text>
+              <Text style={s.text}>{`세금(가격에 포함) · ${cartMoney(shown.tax.toString(), asset, policy, 'tax')}`}</Text>
               <Text style={s.text}>공급가액은 품목마다 원 단위에서 반올림하고, 남은 금액이 세금입니다.</Text>
             </> : null;
           })()}
@@ -3458,9 +3444,9 @@ export function CustomerOrders({
             // The numbers are the server's when it refused this basket for its balance, and the phone's own reading otherwise.
             const held = (serverShort?.balance ?? boardBalance) as bigint, needed = serverShort?.required ?? BigInt(total.amount);
             return <>
-              <Text style={s.text}>{`보드 잔액 · ${commerceCartAmount(shownBalance(held, paymentToken(policy)), policy.asset, policy)}`}</Text>
+              <Text style={s.text}>{`보드 잔액 · ${cartMoney(shownBalance(held, paymentToken(policy)), policy.asset, policy, 'balance')}`}</Text>
               {cartShort && <>
-                <Text style={s.text}>{`모자란 금액 · ${commerceCartAmount(missingUnits(needed, held, paymentToken(policy)), policy.asset, policy)}`}</Text>
+                <Text style={s.text}>{`모자란 금액 · ${cartMoney(missingUnits(needed, held, paymentToken(policy)), policy.asset, policy, 'shortfall')}`}</Text>
                 <Text accessibilityRole="alert" style={s.text}>보드 잔액이 합계보다 적어 주문할 수 없습니다. 지갑에서 충전한 뒤 다시 확인하세요.</Text>
                 {openBoard && <Button label="충전하러 가기" variant="secondary" run={openBoard} />}
                 <Button label="잔액 다시 확인" variant="secondary" disabled={busy}
@@ -3567,7 +3553,7 @@ export function CustomerOrders({
                   : travelPayment ? order.state === 'preview' ? '원주문 연결 · 견적 요청 전' : '견적 발행 · 지급 미확정'
                   : '주문이 연결되었습니다. 보드 승인 대기 중입니다.'}
               </Text>
-              <AmountLine amount={commerceAmount(order.amount, order.asset, policy)} />
+              <AmountLine amount={orderMoney(order.amount, order.asset, policy, 'charge')} />
               {travelPayment && travelOrderObservedAt !== undefined &&
                 <Text style={s.text}>마지막 조회 {new Date(travelOrderObservedAt).toLocaleString()}</Text>}
               {invoiceDetail && order.subscription && (
@@ -3673,10 +3659,11 @@ export function CustomerOrders({
             <View style={s.line}>
               <Text style={s.text}>
                 검토한 주문 {approved.order.id} · 금액{' '}
-                {commerceAmount(
+                {orderMoney(
                   approved.order.amount,
                   approved.order.asset,
                   policy,
+                  'charge',
                 )}
               </Text>
               {!stoppedReview && verifiedReview && policy && needsMerchantSponsorship(approved) && rentalReviewOpen && (
@@ -3731,7 +3718,7 @@ export function CustomerOrders({
                 Object.values(point.selection ?? {}).map(({row, quantity}) => {
                   const names = commerceMenuLabels(row, menuLocale);
                   return <Text key={commerceLineKey(row)} style={s.text}>
-                    {`${names.name} ×${quantity} · ${commerceCartAmount(row.unitPrice, row.asset, policy)}`}
+                    {`${names.name} ×${quantity} · ${cartMoney(row.unitPrice, row.asset, policy, 'charge')}`}
                   </Text>;
                 })}
               {approved.authorization && (

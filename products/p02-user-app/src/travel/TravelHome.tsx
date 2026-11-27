@@ -2,7 +2,7 @@ import {inputPlaceholder} from '../ui/theme.ts';
 import {sha256} from '@noble/hashes/sha256';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {AppState, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
-import {commerceAmount, commerceProfile, commerceRequestId, fromBase64, formatPickupTime, paymentProfile, readPickupCustomer, toBase64, utf8Encode, type CommercePaymentProfile, type PickupCustomerOrder} from '@nu54/protocol';
+import {commerceProfile, commerceRequestId, fromBase64, formatPickupTime, paymentProfile, readPickupCustomer, toBase64, utf8Encode, type CommercePaymentProfile, type PickupCustomerOrder} from '@nu54/protocol';
 
 import Http from '../specs/NativeCommerceHttp.ts';
 import {CustomerOrders} from '../merchant/CustomerOrders.tsx';
@@ -13,6 +13,7 @@ import {TravelMap} from './TravelMap.tsx';
 import {pickupStateLabel} from './TravelPickupDetail.tsx';
 import {TravelPrivate, type PrivateTravelScreen} from './TravelPrivate.tsx';
 import {approvedTravelOrigin} from './publicDeployment.ts';
+import {orderMoney, orderUnits, type Shown} from '../wallet/tokens.ts';
 import {actionBranch, defaultPlaceFilters, filterPlaces, geographicPoint, publicOrigin, publicSearchURL, publishedOpening, readPublicCatalog, type PlaceFilters, type Catalog, type MapInfo, type Place, type Region} from './catalog.ts';
 
 export type {TravelBookingScope} from './BookingPaymentTerms.tsx';
@@ -184,7 +185,9 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
     setDraft(undefined);
     setPage(0);
   }
-  const amount = (raw: string, asset: string) => policy?.asset === asset ? commerceAmount(raw, asset, policy) : '미등록 자산';
+  // Whole won on the phone: what is paid is rounded up and what comes back is cut off. A total is the sum of the rows it stands for.
+  const amount = (raw: string, asset: string, shown: Shown = 'charge') => policy?.asset === asset ? orderMoney(raw, asset, policy, shown) : '미등록 자산';
+  const paidUnits = (raw: string, asset: string) => orderUnits(raw, asset, policy, 'charge');
   const eligibleForPayment = (booking: Booking) => ['held', 'pending_payment'].includes(booking.state) && policy?.asset === booking.asset &&
     (booking.chainId === undefined || booking.chainId === policy.chain);
 
@@ -607,7 +610,7 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
       <Text selectable>{`예약 참조 ${item.id}`}</Text>
       <Text>{bookingStates[item.state] ?? '예약 상태 확인 중'} · {item.partySize}명</Text>
       <Text>{new Date(item.expiresAt).toLocaleString()}</Text>
-      <Text>{`총액 ${amount(fullAmount.toString(), item.asset)}`}</Text>
+      <Text>{`총액 ${amount((paidUnits(item.deposit, item.asset) + paidUnits(item.balance, item.asset)).toString(), item.asset)}`}</Text>
       <Text>예약금 {amount(item.deposit, item.asset)} · 잔금 {amount(item.balance, item.asset)}</Text>
       {paidAmount === fullAmount && <Text>{item.balance === '0' ? '예약금 지급이 확인됐어요' : '예약금과 잔금이 확인됐어요'}</Text>}
       {inProgress && <Text>{hasRefund ? '부분 환불' : '환불 확인 중'}</Text>}
@@ -619,7 +622,7 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
           {cancellation.preview.legs.map(leg => <View key={leg.saleRef}>
             <Text selectable>원주문 {leg.saleRef}</Text>
             <Text>{leg.kind === 'deposit' ? '예약금' : '잔금'} {leg.refundExpected === undefined ?
-              '지급이 확정되지 않아 예상 환불액을 표시할 수 없습니다.' : `예상 환불 ${amount(leg.refundExpected, item.asset)}`}</Text>
+              '지급이 확정되지 않아 예상 환불액을 표시할 수 없습니다.' : `예상 환불 ${amount(leg.refundExpected, item.asset, 'refund')}`}</Text>
           </View>)}
           <Action label="예약 취소 요청 확인" disabled={busy}
             onPress={() => {run(async () => {
@@ -643,12 +646,12 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
           leg.state === 'preview' ? '견적 요청 전' : leg.state === 'issued' ? '견적 발행 · 지급 미확정' : '지급 확인 중'}</Text>
         {!!leg.lastObservedAt && <Text>마지막 조회 {new Date(leg.lastObservedAt).toLocaleString()}</Text>}
         {!!leg.receiptRef && <Text selectable>원 지급 영수증 {leg.receiptRef}</Text>}
-        {leg.refunded !== '0' && <Text>{`확정 환불 ${amount(leg.refunded, item.asset)}`}</Text>}
+        {leg.refunded !== '0' && <Text>{`확정 환불 ${amount(leg.refunded, item.asset, 'refund')}`}</Text>}
         {leg.refundState === 'waiting-payment' && <Text>원 지급 확인 후 환불 여부 조회</Text>}
         {leg.refundState === 'not-due' && leg.state === 'paid' && <Text>해당 지급의 조건상 환불 없음</Text>}
         {leg.refundState === 'waiting-refund' && <Text>{leg.kind === 'deposit' ? '예약금 환불 확인 중' : '잔금 환불 확인 중'}</Text>}
         {leg.refundExpected !== undefined && leg.refundExpected !== '0' &&
-          <Text>조건에 따른 환불액 {amount(leg.refundExpected, item.asset)}</Text>}
+          <Text>조건에 따른 환불액 {amount(leg.refundExpected, item.asset, 'refund')}</Text>}
       </View>)}
       {eligibleForPayment(item) && entries && !entries.some(leg => leg.kind === 'deposit' && ['paid', 'closed'].includes(leg.state)) &&
         <Action label={entries.some(leg => leg.kind === 'deposit' && leg.state === 'checking') ? '같은 예약금 주문 조회' : '예약금 결제 검토'} disabled={busy}
@@ -795,7 +798,7 @@ export function TravelHome({back, backLabel, permission, bookingScope}: {
           {slots.map(slot => <View key={slot.id} style={styles.item}>
             <Text>{new Date(slot.startsAt).toLocaleString()} · 잔여 {slot.remaining}석</Text>
             <Text>1인 예약금 {amount(slot.deposit, slot.asset)} · 잔금 {amount(slot.balance, slot.asset)}</Text>
-            {count > 0 && <Text>{count}명 합계 {amount(((BigInt(slot.deposit) + BigInt(slot.balance)) * BigInt(count)).toString(), slot.asset)}</Text>}
+            {count > 0 && <Text>{count}명 합계 {amount(((paidUnits(slot.deposit, slot.asset) + paidUnits(slot.balance, slot.asset)) * BigInt(count)).toString(), slot.asset)}</Text>}
             <BookingPolicy terms={slot} />
             <Action label="이 조건으로 예약 보류" disabled={busy || !!pending || !count || count > slot.remaining || slot.asset !== policy?.asset}
               onPress={() => {run(() => hold(slot), '보류 결과를 확인하지 못했습니다. 같은 요청을 재시도하거나 내 예약을 확인하세요.');}} />

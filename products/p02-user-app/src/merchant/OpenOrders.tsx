@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {AppState, Pressable, StyleSheet, Text, View} from 'react-native';
-import type {OrderBuyerAction} from '@nu54/protocol';
+import type {OrderBuyerAction, PaymentToken} from '@nu54/protocol';
 import Http from '../specs/NativeCommerceHttp.ts';
 import {Card, KitButton} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
@@ -9,6 +9,7 @@ import {clockMargin, customerClient, offeredAnswers, openOrderLabel, refreshOpen
 import {awaitsStore, isOpenOrder, onOrdersChanged, orderRecords, type OpenOrder} from './orderRecords.ts';
 import {AmountLine, PickupTicket} from './paymentParts.tsx';
 import {madeAtStorePage, openStoreAccess} from './storeAccess.ts';
+import {receiptLines} from '../wallet/tokens.ts';
 
 export type OrderPayer = {address: string; generation: number} | null;
 /** Paid by a board account this phone no longer uses. `null` means no account; undefined, not known yet. */
@@ -128,10 +129,12 @@ const answers: Record<OrderBuyerAction, {label: string; warn?: string; confirm?:
 };
 
 /** One order from payment to its end, with the answers the buyer may give now. */
-export function OrderDetail({order, amount, money, fresh, mine = true, former = false, busy = false, message, now, actions}: {
+export function OrderDetail({order, amount, money, token, fresh, mine = true, former = false, busy = false, message, now, actions}: {
   order: OpenOrder; amount: string;
   /** Formats base units of this order's token, for the lines of the receipt. */
   money?: (units: string) => string;
+  /** This order's token, so that the receipt's rows are in the unit the screen shows and add up on it. */
+  token?: Pick<PaymentToken, 'decimals' | 'symbol'>;
   /** The state below comes from the server in this visit, so it can be answered. */
   fresh: boolean;
   /** This phone holds the key the order answers to. */
@@ -179,7 +182,7 @@ export function OrderDetail({order, amount, money, fresh, mine = true, former = 
       <Text style={type.small}>{`결제한 보드로 확인한 뒤 QR이 나옵니다. ${amount}은 주문 계약에 보관 중이고, 직원이 QR을 찍어 전달을 기록하면 받았는지 여기에서 묻습니다.`}</Text>
     </>}
     {order.items && money && order.items.reduce((sum, item) => sum + BigInt(item.total), 0n).toString() === order.amount &&
-      <Receipt items={order.items} money={money} taxFreeShop={order.taxFreeShop} />}
+      <Receipt items={order.items} money={money} token={token} taxFreeShop={order.taxFreeShop} />}
     {given && (order.pendingAction
       ? <View style={styles.notice}><Text style={styles.noticeText}>{`'${answers[given].label}' 답을 확인하고 있습니다. 확정되면 상태가 바뀝니다.`}</Text></View>
       : <View style={styles.notice}>
@@ -252,31 +255,34 @@ const styles = StyleSheet.create({
 });
 
 /** What was bought, line by line: the price, and the supply value and tax inside it when the store said them. */
-function Receipt({items, money, taxFreeShop}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string; taxFreeShop?: string}) {
-  const refund = taxFreeShop ? items.filter(item => item.refund) : [];
+function Receipt({items, money, token, taxFreeShop}: {items: NonNullable<OpenOrder['items']>; money: (units: string) => string;
+  token?: Pick<PaymentToken, 'decimals' | 'symbol'>; taxFreeShop?: string}) {
   const taxed = items.every(item => item.tax !== undefined);
-  const sum = (pick: (item: (typeof items)[number]) => bigint) => items.reduce((total, item) => total + pick(item), 0n);
+  // Whole won on the phone: each row is in the unit the screen shows, and the sums are the sums of the rows above them.
+  const lines = receiptLines(items, token);
+  const sum = (pick: (line: (typeof lines)[number]) => bigint, rows = lines) => rows.reduce((total, line) => total + pick(line), 0n);
+  const refund = taxFreeShop ? lines.filter((_, index) => items[index].refund) : [];
   const row = (label: string, value: string, strong = false) => <View style={styles.receiptRow}>
     <Text style={strong ? type.label : type.small}>{label}</Text><Text style={strong ? type.label : type.small}>{value}</Text></View>;
   return <Card>
     <Text accessibilityRole="header" style={type.section}>영수증</Text>
     {items.map((item, index) => <View key={index} style={styles.receiptLine}>
-      {row(`${item.name} ×${item.quantity}`, money(item.total), true)}
+      {row(`${item.name} ×${item.quantity}`, money(lines[index].total.toString()), true)}
       {item.tax !== undefined && <>
         {row(`${item.taxKind === 'exempt' ? '면세' : '부가세 10% 포함'}${item.refund && taxFreeShop ? ' · 외국인 환급 대상 물품' : ''}`, '')}
-        {row('공급가액', money((BigInt(item.total) - BigInt(item.tax)).toString()))}
-        {row('세금', money(item.tax))}
+        {row('공급가액', money(lines[index].supply.toString()))}
+        {row('세금', money(lines[index].tax.toString()))}
         {row('뺀 금액', money('0'))}
       </>}
     </View>)}
     {taxed && <>
-      {row('공급가액 합계', money(sum(item => BigInt(item.total) - BigInt(item.tax!)).toString()))}
-      {row('세금 합계', money(sum(item => BigInt(item.tax!)).toString()))}
+      {row('공급가액 합계', money(sum(line => line.supply).toString()))}
+      {row('세금 합계', money(sum(line => line.tax).toString()))}
     </>}
-    {row('낸 금액', money(sum(item => BigInt(item.total)).toString()), true)}
+    {row('낸 금액', money(sum(line => line.total).toString()), true)}
     {refund.length > 0 && <View style={styles.refund}>
       <Text style={type.label}>외국인 세금 환급</Text>
-      <Text style={type.small}>{`환급 대상 물품 ${money(refund.reduce((sum, item) => sum + BigInt(item.total), 0n).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다(한 번 결제에 15,000원 이상). 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 환급되고, 환급액은 환급 창구의 수수료를 뺀 금액입니다.`}</Text>
+      <Text style={type.small}>{`환급 대상 물품 ${money(sum(line => line.total, refund).toString())}. 이 화면과 여권을 매장 계산대에 보여 주면 환급 서류를 받을 수 있습니다(한 번 결제에 15,000원 이상). 구입일부터 3개월 안에 출국하며 물품을 가지고 나가야 환급되고, 환급액은 환급 창구의 수수료를 뺀 금액입니다.`}</Text>
       <Text style={type.small}>{`면세판매장 지정 번호 ${taxFreeShop} (매장이 적은 번호)`}</Text>
       <Text style={type.small}>이 앱은 환급 금액을 계산하거나 돌려주지 않습니다.</Text>
     </View>}
