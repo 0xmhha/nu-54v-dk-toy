@@ -688,6 +688,22 @@ class Run(Device):
         self.assertNotIn("PASS", printed)
         self.assertEqual(walks, [])
 
+    def test_a_refused_run_can_be_repeated_with_the_same_directory(self):
+        self.make_stale()
+        self.assertIn("older than its sources", self.run_simulation("--walk", str(self.evidence))[0])
+        self.assertFalse(self.evidence.exists())
+        ended, printed, _ = self.run_simulation("--build", "--walk", str(self.evidence))
+        self.assertIsNone(ended, printed)
+        self.assertTrue(self.evidence.is_dir())
+
+    def test_a_directory_that_is_there_already_stops_the_run_before_anything_is_built(self):
+        self.evidence.mkdir()
+        ended, _, walks = self.run_simulation("--build", "--walk", str(self.evidence))
+        self.assertIn("--walk takes a new directory", str(ended))
+        self.assertEqual(self.calls(), [])
+        self.assertFalse(self.apk.exists())
+        self.assertEqual(walks, [])
+
 
 if __name__ == "__main__":
     unittest.main()

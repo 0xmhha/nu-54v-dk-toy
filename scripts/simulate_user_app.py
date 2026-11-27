@@ -143,11 +143,14 @@ def main(arguments=None):
         parser.error("name the emulator")
     if args.walk:
         args.walk = args.walk.absolute()
-        args.walk.mkdir(parents=True)
+        if args.walk.exists():
+            raise SystemExit(f"{args.walk} is there already: --walk takes a new directory")
     adb, stale = emulator(args.serial, args.build, args.allow_stale_app)
     mark = STALE_MARK if stale else ""
-    if stale and args.walk:
-        (args.walk / "STALE-APP.txt").write_text(stale + "\n")
+    if args.walk:
+        args.walk.mkdir(parents=True)  # only now, so that a run refused for a stale app can be repeated with the same directory
+        if stale:
+            (args.walk / "STALE-APP.txt").write_text(stale + "\n")
     with world(args, adb) as host:
         if args.walk:
             from simulate_user_app_walk import Walk
