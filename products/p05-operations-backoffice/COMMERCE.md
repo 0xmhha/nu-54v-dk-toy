@@ -76,3 +76,38 @@ Set `P05_NETWORK_LIST_FILE` (absolute path) and `P05_NETWORK_LIST_OPERATOR` (add
 # list.json: {"v":1,"issuedAt":...,"expiresAt":...,"sequence":8,"networks":[{"chainId":8283,"name":"StableNet Testnet","rpc":"https://..."}]}
 bin/opsctl network-list sign --in list.json --last-sequence 7 > network-list.json
 ```
+
+## Whole won amounts
+
+For a won token (`tKRW`, or the chain's coin `KRWC`) opsd and the ledger take booking deposits and balances, subscription amounts and refunds in whole won only, as menu prices already are; a cancelled booking gets back its share rounded up to a whole won and never more than was paid. Dollar tokens are unchanged ([decision and worked examples](../../docs/content/commercial/traveller-services.md#7-정한-것)).
+
+The ledger learns what one won is from opsd: at every start opsd calls `ledger.declare_whole_amount` for the asset of each enrolled won branch (migration 127, `ledger.whole_amount_asset`). A declared unit never changes, and opsd does not start when the ledger refuses it. Apply the migration before the new opsd.
+
+Rows stored before the migration keep their amounts. Before deploying, list the rows of a won asset that carry a part of a won. The query only reads, and it also runs before migration 127 is applied. `unit` is one won in base units: `100` for `tKRW`, `1000000000000000000` for `KRWC`.
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -v asset=0x... -v unit=100 -f - <<'SQL'
+SELECT 'travel_slot' AS stored_in, branch_id, id, deposit::text AS amount, balance::text AS detail FROM ledger.travel_slot
+  WHERE asset_ref = :'asset' AND (deposit % :unit <> 0 OR balance % :unit <> 0)
+UNION ALL
+SELECT 'travel_booking', branch_id, id, deposit::text, balance::text FROM ledger.travel_booking
+  WHERE asset_ref = :'asset' AND (deposit % :unit <> 0 OR balance % :unit <> 0)
+UNION ALL
+SELECT 'subscription_offer', branch_id, id, amount::text, CASE WHEN enabled THEN 'enabled' ELSE 'disabled' END FROM ledger.subscription_offer
+  WHERE asset_ref = :'asset' AND amount % :unit <> 0
+UNION ALL
+SELECT 'subscription', branch_id, id, amount::text, state FROM ledger.subscription
+  WHERE asset_ref = :'asset' AND amount % :unit <> 0
+UNION ALL
+SELECT 'payment', s.branch_id, p.sale_id, p.principal::text, (p.reserved + p.in_flight + p.refunded)::text
+  FROM ledger.payment p JOIN ledger.sale s ON s.id = p.sale_id
+  WHERE p.asset_ref = :'asset' AND (p.principal % :unit <> 0 OR p.reserved % :unit <> 0 OR p.in_flight % :unit <> 0 OR p.refunded % :unit <> 0)
+UNION ALL
+SELECT 'refund', s.branch_id, r.id, r.amount::text, r.state
+  FROM ledger.refund r JOIN ledger.payment p ON p.sale_id = r.sale_id JOIN ledger.sale s ON s.id = r.sale_id
+  WHERE p.asset_ref = :'asset' AND r.amount % :unit <> 0
+ORDER BY 1, 2, 3;
+SQL
+```
+
+What each line means after the migration: a `travel_slot` takes no new hold until its amounts are whole won (change them with a new `terms_version`); a `subscription_offer` takes no new acceptance (publish a new version); a `travel_booking` and a `subscription` go on with their terms; a `payment` is refunded in whole won, and only all that is left of it may end in a part of a won; a `refund` that was already requested is sent as it is.
