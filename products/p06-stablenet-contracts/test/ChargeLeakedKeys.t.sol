@@ -507,6 +507,35 @@ contract ChargeLeakedKeysTest is ChargeBase {
         assertEq(assetBalance(board), 0);
     }
 
+    /// What two signers do at once, with no wait and nothing for the pauser to stop: a completion that was
+    /// never settled and whose USDC is still here can be taken back at any age and refunded. The USDC goes
+    /// to the paying wallet and to nobody else, so a traveller who was paid keeps the won and gets the USDC
+    /// back. Only money that already left, to a spender or through the exit, is out of their reach.
+    function testTwoLeakedSignersSendCompletedDepositsBackToTheirPayers() public {
+        ChargeTypes.Quote memory quote = quoteFor(100e6, board);
+        bytes32 id = depositIt(quote);
+        payIt(quote, false);
+        completeIt(id);
+        bytes32 taken = depositIt(quoteFor(40e6, board));
+        completeIt(taken);
+        proposeExitOn(deposit);
+        vm.warp(block.timestamp + 7 days);
+        deposit.emergencyExit(listOf(taken));
+        vm.warp(block.timestamp + 365 days);
+        vm.prank(pauser);
+        deposit.pauseDeposits(); // a pause stops no refund
+
+        rejectIt(id); // signers 1 and 2
+        refundBySigners(id);
+        assertEq(usdc.balanceOf(payer), 1_000_000e6 - 40e6);
+        assertEq(assetBalance(board), quote.wonAmount * scale());
+        uint256 until = block.timestamp + 1 days;
+        bytes[2] memory reject = two(deposit, "reject", taken, deposit.depositOf(taken).round, until);
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.reject(taken, until, reject);
+        assertEq(usdc.balanceOf(treasury), 40e6);
+    }
+
     function theirLimits() internal pure returns (WonPool.Limits memory) {
         return WonPool.Limits(POOL_SIZE, POOL_SIZE, POOL_SIZE, 0, 0);
     }
