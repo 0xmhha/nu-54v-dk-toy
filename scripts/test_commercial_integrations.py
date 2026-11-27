@@ -76,6 +76,7 @@ P05_COMMERCE_REQUIRED = {
     "TestPickupLifecycleEnvelopeCannotMixBookingAndTerminalChanges",
     "TestPostgresPublicMenuCancellationFencesHandoff", "TestPostgresRentalEvidenceWriterScope",
     "TestPostgresPrivateRentalCollectorAuthority", "TestPostgresRentalRuntimeWriterAuthenticatesBoardAndP07",
+    "TestPostgresCustomerContract",
     P05_SLOT_OPEN_TEST,
 }
 
