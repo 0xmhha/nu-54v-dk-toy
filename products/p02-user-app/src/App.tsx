@@ -7,10 +7,10 @@
  * the device buttons (P02-FR-06).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Keyboard, Linking, PermissionsAndroid, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { explorerTxUrl, fromBase64, GATT, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
+import { explorerTxUrl, fromBase64, GATT, makeEntranceQr, readEntranceQr, receiptAmount, toBase64, type DigitalReceipt } from '@nu54/protocol';
 import { ConfirmLink, PAYMENT_MODE_SECONDS, type PaymentMode, type Screen } from './link/confirmLink.ts';
 import { bodyLink } from './setup/channel.ts';
 import { SetupFlow, type DeviceRecord, type FoundDevice, type PinEntry, type SetupPlatform, type SetupState } from './setup/flow.ts';
@@ -23,6 +23,9 @@ import {useOpenOrders} from './merchant/OpenOrders.tsx';
 import {MarketLab} from './market/MarketLab.tsx';
 import {color, font} from './ui/theme.ts';
 import {ExploreHome} from './explore/ExploreHome.tsx';
+import {StoreFinder} from './merchant/StoreFinder.tsx';
+import {configuredDirectory} from './merchant/storeDirectory.ts';
+import ShopQr from './specs/NativeShopQr.ts';
 import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
 import { TravelHome, type TravelBookingScope } from './travel/TravelHome.tsx';
 
@@ -475,6 +478,15 @@ function Shell() {
   const openNearbyOrders = () => {
     openShopQr('');
   };
+  // The store list and store pages of this build; undefined while no entrance address is bound.
+  const storeDirectory = useMemo(() => configuredDirectory(), []);
+  // The store finder, or one store's page first when a shortcut QR named it. Each opening is a new screen.
+  const [finding, setFinding] = useState<{branch?: string; nonce: number}>();
+  const openStores = useCallback((branch?: string) => {
+    setShopping(false);
+    setExploring(false);
+    setFinding(previous => ({branch, nonce: (previous?.nonce ?? 0) + 1}));
+  }, []);
   useEffect(()=>{
     let present=true;
     let receivedLiveLink=false;
@@ -490,7 +502,11 @@ function Shell() {
         return;
       }
       if (url.startsWith('nu54://shop/')) {
-        openShopQr(url);
+        // A store shortcut opens that store's page. A build without the entrance address keeps the earlier menu route.
+        let branch: string | undefined;
+        try { branch = readEntranceQr(url); } catch {}
+        if (storeDirectory && branch) openStores(branch);
+        else openShopQr(url);
         return;
       }
       const subscription = /^nu54:\/\/subscriptions\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})$/.exec(url);
@@ -532,7 +548,7 @@ function Shell() {
       offer(event.url);
     });
     return ()=>{present=false;callback.remove();};
-  },[marketLearningRoute,openShopQr]);
+  },[marketLearningRoute,openShopQr,openStores,storeDirectory]);
   const [honorExistingRental, setHonorExistingRental] = useState(true);
   const rental = useCallback(() => setRenting(true), []);
   const profiles = () => {
@@ -581,10 +597,10 @@ function Shell() {
     });
     return ()=>listener.remove();
   },[exploreService, marketTravel, shopping, renting, closeTravel,closeMarket]);
-  const closeOverlays = () => { setShopping(false); setTravel(false); setMarketLab(false); setMarketTravel(false); setExploring(false); };
+  const closeOverlays = () => { setShopping(false); setTravel(false); setMarketLab(false); setMarketTravel(false); setExploring(false); setFinding(undefined); };
   const settingsScreens = ['settings', 'networks', 'legal', 'board', 'setup', 'return-address', 'reset', 'operator-reset', 'settings-access', 'settings-diagnostics', 'settings-device', 'policy-picker', 'lock-picker',
     'credentials', 'travel-privacy', 'policy', 'policy-applied', 'policy-device'];
-  const currentTab = shopping ? 'pay' : travel || marketLab || exploring || ['dapp', 'walletconnect', 'allowance'].includes(walletScreen) ? 'explore'
+  const currentTab = shopping ? 'pay' : finding || travel || marketLab || exploring || ['dapp', 'walletconnect', 'allowance'].includes(walletScreen) ? 'explore'
     : settingsScreens.includes(walletScreen) ? 'settings'
     : ['', 'home', 'profiles', 'practice', 'install'].includes(walletScreen) ? 'home' : 'wallet';
   const openSettings = () => { closeOverlays(); requestWallet('settings'); };
@@ -602,6 +618,13 @@ function Shell() {
     return () => listener.remove();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showTabs, travel, marketLab, exploreService, marketTravel, travelBooking]);
+  useEffect(() => {
+    // The store finder opens from the explore tab, and system Back returns there.
+    if (!showTabs || !finding || shopping) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { closeOverlays(); setExploring(true); return true; });
+    return () => listener.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTabs, finding, shopping]);
   useEffect(() => {
     // In the rental (trial) screens system Back returns to the wallet choice instead of leaving the app.
     if (!renting) return;
@@ -623,7 +646,14 @@ function Shell() {
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
         {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
-          initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : renting ? <View style={styles.root}>
+          initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : finding && !renting ? <ScrollView
+          contentContainerStyle={styles.finder} keyboardShouldPersistTaps="handled" testID="store-finder">
+          <StoreFinder key={finding.nonce} directory={storeDirectory} initialBranch={finding.branch}
+            scan={ShopQr ? () => ShopQr!.scan() : undefined}
+            back={() => { closeOverlays(); requestWallet('home'); }}
+            order={store => { setFinding(undefined); openShopQr(makeEntranceQr(store.branch)); }}
+            payQr={raw => { setFinding(undefined); openPaymentList(raw); setShopping(true); }} />
+        </ScrollView> : renting ? <View style={styles.root}>
           <Button label="지갑 프로필 선택" onPress={profiles} variant="secondary" />
           <Renter />
         </View> : marketLab ? <View style={styles.home}>
@@ -636,6 +666,7 @@ function Shell() {
         </View> : travel ? <TravelHome bookingScope={travelBooking} back={closeTravel} permission={bluetoothPermission} /> : exploring ? <ExploreHome
           places={[
             {label: '여행지 찾기', detail: '지도와 목록에서 장소를 찾고 예약합니다', run: () => { setExploring(false); setTravel(true); }},
+            {label: '매장 찾기', detail: '이름으로 매장을 찾아 매장 화면을 보고 미리 주문합니다', run: () => openStores()},
             {label: '가까운 매장에서 주문', detail: '근처 매장의 메뉴를 보고 주문합니다', run: () => { setExploring(false); openNearbyOrders(); }},
           ]}
           apps={[
@@ -672,6 +703,7 @@ function Shell() {
 // Rental (trial) screens use the same tokens and typeface as the wallet.
 const styles = StyleSheet.create({
   home: { flex: 1 },
+  finder: { paddingBottom: 24 },
   hidden: { display: 'none' },
   root: { flex: 1, backgroundColor: color.ground },
   page: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
