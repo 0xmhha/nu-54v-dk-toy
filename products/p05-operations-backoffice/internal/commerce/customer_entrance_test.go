@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -191,5 +192,31 @@ func TestCustomerEntranceKeepsCertificateRoutesApart(t *testing.T) {
 	customer.ServeHTTP(reply, req)
 	if reply.Code != http.StatusNotFound {
 		t.Fatalf("an unknown session answered %d", reply.Code)
+	}
+}
+
+// Each refused pickup scan names its reason in the service's error envelope; only a used QR carries the handover time.
+func TestPickupScanRefusalsAreDistinct(t *testing.T) {
+	const envelope = `{"requestId":"","requestDigest":"","status":"error","error":`
+	for outcome, want := range map[string]struct {
+		status int
+		body   string
+	}{
+		"expired":      {400, `"EXPIRED","reason":"expired"}`},
+		"already_used": {409, `"REPLAY_CONFLICT","reason":"already_used","recordedAt":1700000000}`},
+		"other_store":  {400, `"MISMATCHED_EVIDENCE","reason":"other_store"}`},
+		"other_order":  {400, `"MISMATCHED_EVIDENCE","reason":"other_order"}`},
+		"not_ready":    {409, `"CHECKOUT_CONFLICT","reason":"not_ready"}`},
+	} {
+		status, refusal, known := pickupRefusal(outcome, 1700000000)
+		raw, err := json.Marshal(refusal)
+		if err != nil || !known || status != want.status || string(raw) != envelope+want.body {
+			t.Fatalf("%s: %d %s (%v)", outcome, status, raw, err)
+		}
+	}
+	for _, outcome := range []string{"", "ok", "elsewhere"} {
+		if _, _, known := pickupRefusal(outcome, 0); known {
+			t.Fatalf("%q is a refusal", outcome)
+		}
 	}
 }

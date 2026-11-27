@@ -37,6 +37,8 @@ type CustomerEntrance struct {
 	Limiter *RateLimiter
 	// Zero values take the defaults below. The order session cap is provisional (an owner decision).
 	ChallengeLifetime, CheckoutLifetime, OrderLifetime, PickupLifetime time.Duration
+	// RescanWindow is how long after a handover the same staff member's repeated scan gets the first answer again.
+	RescanWindow time.Duration
 }
 
 const (
@@ -44,6 +46,7 @@ const (
 	defaultCheckoutLifetime  = 15 * time.Minute
 	defaultOrderLifetime     = 30 * 24 * time.Hour
 	defaultPickupLifetime    = 60 * time.Second
+	defaultRescanWindow      = 2 * time.Minute
 )
 
 func lifetime(set, fallback time.Duration) time.Duration {
@@ -204,11 +207,8 @@ func (h HTTP) customerChallenge(w http.ResponseWriter, r *http.Request) {
 func customerError(err error) error {
 	var pg *pgconn.PgError
 	if errors.As(err, &pg) {
-		switch pg.Code {
-		case "23503":
+		if pg.Code == "23503" {
 			return service.Forbidden
-		case "P0763":
-			return service.Mismatch
 		}
 	}
 	return domainError(err)
@@ -372,6 +372,34 @@ func (h HTTP) customerCommerce(w http.ResponseWriter, r *http.Request) {
 	h.serveFor(w, r, principal, &session)
 }
 
+// pickupScanRefusal is the service's error reply with the reason a pickup QR was refused, so the operations web can
+// say which. RecordedAt (Unix seconds) is the handover a used QR already recorded.
+type pickupScanRefusal struct {
+	service.Reply
+	Reason     string `json:"reason"`
+	RecordedAt int64  `json:"recordedAt,omitempty"`
+}
+
+// pickupRefusal turns a refused outcome of ledger.scan_pickup_token into its HTTP status and reply.
+func pickupRefusal(outcome string, recordedAt int64) (int, pickupScanRefusal, bool) {
+	refusal := pickupScanRefusal{Reply: service.Reply{Status: "error"}, Reason: outcome}
+	switch outcome {
+	case "expired": // past its time, never issued, or removed since: the customer shows a new QR
+		refusal.Error = service.Expired
+		return http.StatusBadRequest, refusal, true
+	case "already_used":
+		refusal.Error, refusal.RecordedAt = service.Conflict, recordedAt
+		return http.StatusConflict, refusal, true
+	case "other_store", "other_order":
+		refusal.Error = service.Mismatch
+		return http.StatusBadRequest, refusal, true
+	case "not_ready":
+		refusal.Error = service.CheckoutConflict
+		return http.StatusConflict, refusal, true
+	}
+	return 0, pickupScanRefusal{}, false
+}
+
 // pickupScan records the handover of the order the staff opened, when its QR is scanned on that order's page of the
 // operations web. It does not release funds: the delivered mark starts the buyer's receipt window as before.
 func (h HTTP) pickupScan(w http.ResponseWriter, r *http.Request) {
@@ -402,12 +430,30 @@ func (h HTTP) pickupScan(w http.ResponseWriter, r *http.Request) {
 		capability = "pickup_assignment"
 	}
 	ctx := authority.Scope(r.Context(), principal, branchRef, capability)
-	var reply json.RawMessage
-	err := h.Store.db.QueryRow(ctx, "SELECT ledger.scan_pickup_token($1,$2,$3,$4,$5,$6)",
-		principal.Tenant, branchRef, principal.Subject, principal.Role, sale, hash[:]).Scan(&reply)
+	var raw []byte
+	err := h.Store.db.QueryRow(ctx, "SELECT ledger.scan_pickup_token($1,$2,$3,$4,$5,$6,$7)",
+		principal.Tenant, branchRef, principal.Subject, principal.Role, sale, hash[:],
+		int(lifetime(h.Customer.RescanWindow, defaultRescanWindow)/time.Second)).Scan(&raw)
 	if err != nil {
 		errorResponse(w, customerError(err), nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, reply)
+	var result struct {
+		Outcome    string          `json:"outcome"`
+		RecordedAt int64           `json:"recordedAt"`
+		Reply      json.RawMessage `json:"reply"`
+	}
+	if json.Unmarshal(raw, &result) != nil {
+		errorResponse(w, service.Unknown, nil)
+		return
+	}
+	if status, refusal, refused := pickupRefusal(result.Outcome, result.RecordedAt); refused {
+		writeJSON(w, status, refusal)
+		return
+	}
+	if result.Outcome != "ok" || len(result.Reply) == 0 {
+		errorResponse(w, service.Unknown, nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, result.Reply)
 }

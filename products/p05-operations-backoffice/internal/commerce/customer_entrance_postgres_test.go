@@ -61,7 +61,7 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	defer store.Close()
 
 	fresh := func() string { return uuidForCatalogFixture(t, ctx, admin) }
-	shop, elsewhere, operator, stranger := fresh(), fresh(), fresh(), fresh()
+	shop, elsewhere, operator, stranger, colleague := fresh(), fresh(), fresh(), fresh(), fresh()
 	for _, b := range []string{shop, elsewhere} {
 		execute("INSERT INTO ledger.branch VALUES ($1,$2,'Asia/Seoul','04:00')", b, tenant)
 		execute("INSERT INTO ledger.command_rule VALUES ($1,'proof test','fixture','dispose',interval '2 minutes')", b)
@@ -72,8 +72,11 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	execute("INSERT INTO ledger.staff_grant VALUES ($1,$2,'operator',now()-interval '1 minute',null)", elsewhere, stranger)
 	execute("INSERT INTO ledger.finance_grant VALUES ($1,$2,'pickup_manage',now()+interval '10 minutes')", shop, operator)
 	execute("INSERT INTO ledger.finance_grant VALUES ($1,$2,'pickup_manage',now()+interval '10 minutes')", elsewhere, stranger)
+	execute("INSERT INTO ledger.login_subject VALUES ($2,$1)", colleague, "proof_"+colleague)
+	execute("INSERT INTO ledger.staff_grant VALUES ($1,$2,'operator',now()-interval '1 minute',null)", shop, colleague)
+	execute("INSERT INTO ledger.finance_grant VALUES ($1,$2,'pickup_manage',now()+interval '10 minutes')", shop, colleague)
 
-	// Two operator certificates: one of this shop, one of another shop.
+	// Three operator certificates: two of this shop, one of another shop.
 	caKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	caTemplate := &x509.Certificate{SerialNumber: big.NewInt(1), IsCA: true, BasicConstraintsValid: true,
 		NotBefore: time.Now().Add(-time.Minute), NotAfter: time.Now().Add(10 * time.Minute),
@@ -96,7 +99,7 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 			ExpiresAt: time.Now().Add(10 * time.Minute).Unix()}
 		return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 	}
-	ownCert, strangerCert := leaf(2, operator), leaf(3, stranger)
+	ownCert, strangerCert, colleagueCert := leaf(2, operator), leaf(3, stranger), leaf(4, colleague)
 
 	asset := "0x" + strings.Repeat("2", 40)
 	certified, entrance := http.NewServeMux(), http.NewServeMux()
@@ -249,6 +252,9 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 	execute(`WITH e AS (INSERT INTO ledger.fulfillment_outbox(sale_id,kind,source_ref,revision) VALUES($1,'paid',$1,1) RETURNING event_id,effect_key)
 		INSERT INTO ledger.consumer_receipt(event_id,effect_key,payload_digest,accepted_epoch) SELECT event_id,effect_key,decode(md5(random()::text)||md5(random()::text),'hex'),repeat('0',64) FROM e`, sale)
 	execute(`INSERT INTO ledger.travel_pickup_progress(sale_id,state,revision,updated_at) VALUES($1,'preparing',1,now())`, sale)
+	// The ordered combination has a name of its own (seeded: the test menu has one plain row).
+	execute(`INSERT INTO ledger.menu_sku_options(branch_id,version,sku,base,groups) VALUES($1,1,'tea','{}',
+		'[{"values":[{"key":"standard","labels":{"ko":"따뜻하게"}}]}]')`, shop)
 	execute("SET session_replication_role=origin")
 
 	// --- after payment: only the paying account gets the order session, and it covers that order only ---
@@ -286,31 +292,67 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Helper()
 		return operate(cert, "/v2/operations/pickup-scan/"+branchRef+"/"+saleRef, map[string]string{"token": token}, want)
 	}
+	// Every refusal says which it is, in the service's error envelope.
+	refused := func(got map[string]any, code service.Code, reason string) {
+		t.Helper()
+		if got["status"] != "error" || got["error"] != string(code) || got["reason"] != reason {
+			t.Fatalf("want %s/%s: %v", code, reason, got)
+		}
+		if _, timed := got["recordedAt"]; timed != (reason == "already_used") {
+			t.Fatalf("the handover time of a %s refusal: %v", reason, got)
+		}
+	}
 	expired := pickup()
 	execute("UPDATE ledger.pickup_token SET expires_at=now()-interval '1 second' WHERE token_hash=$1", hashOfHex(t, expired))
-	if got := scan(ownCert, shop, sale, expired, 400); got["error"] != string(service.Expired) {
-		t.Fatal("an expired pickup token", got)
-	}
+	refused(scan(ownCert, shop, sale, expired, 400), service.Expired, "expired")
+	refused(scan(ownCert, shop, sale, strings.Repeat("ab", 32), 400), service.Expired, "expired") // never issued, or long gone
 	token := pickup()
-	if got := scan(ownCert, shop, fresh(), token, 400); got["error"] != string(service.Mismatch) {
-		t.Fatal("the QR of another order was accepted", got)
-	}
-	scan(strangerCert, elsewhere, sale, token, 400) // another branch's staff, on their own branch
-	scan(strangerCert, shop, sale, token, 404)      // another branch's staff, on this branch
+	refused(scan(ownCert, shop, fresh(), token, 400), service.Mismatch, "other_order")
+	// Another branch's staff on their own branch learn that the QR is not theirs, and nothing else about it.
+	refused(scan(strangerCert, elsewhere, sale, token, 400), service.Mismatch, "other_store")
+	refused(scan(strangerCert, elsewhere, sale, expired, 400), service.Mismatch, "other_store")
+	scan(strangerCert, shop, sale, token, 404)   // another branch's staff, on this branch
+	scan(strangerCert, shop, sale, expired, 404) // and no reason either
 	call(staff(ownCert), server.URL+"/v2/operations/pickup-scan/"+shop+"/"+sale, map[string]string{"Origin": "https://elsewhere.example"},
 		map[string]string{"token": token}, 404) // not the operations web
 	execute(`UPDATE ledger.travel_pickup_progress SET state='preparing' WHERE sale_id=$1`, sale)
-	if got := scan(ownCert, shop, sale, token, 409); got["error"] != string(service.CheckoutConflict) {
-		t.Fatal("handed over an order that is not ready", got)
-	}
+	refused(scan(ownCert, shop, sale, token, 409), service.CheckoutConflict, "not_ready")
 	execute(`UPDATE ledger.travel_pickup_progress SET state='ready' WHERE sale_id=$1`, sale)
 	handed := scan(ownCert, shop, sale, token, 200)
-	items, _ := handed["items"].([]any)
-	if handed["saleRef"] != sale || handed["pickupNo"] != float64(7) || len(items) != 1 || items[0].(map[string]any)["label"] != "tea" {
+	recordedAt, _ := handed["recordedAt"].(float64)
+	if handed["saleRef"] != sale || handed["pickupNo"] != float64(7) || handed["revision"] != float64(3) ||
+		mustJSON(t, handed["items"]) != `[{"label":"tea","option":"standard","optionLabel":"따뜻하게","quantity":1}]` ||
+		time.Since(time.Unix(int64(recordedAt), 0)).Abs() > time.Minute || handed["alreadyRecorded"] != nil {
 		t.Fatal(handed)
 	}
-	if got := scan(ownCert, shop, sale, token, 400); got["error"] != string(service.Expired) {
-		t.Fatal("a pickup token was used twice", got)
+
+	// --- the reply was lost: the same staff member scans the same QR again and gets the first answer, marked ---
+	again := scan(ownCert, shop, sale, token, 200)
+	if again["alreadyRecorded"] != true {
+		t.Fatal("a repeated scan is not marked", again)
+	}
+	delete(again, "alreadyRecorded")
+	if first, second := mustJSON(t, handed), mustJSON(t, again); first != second {
+		t.Fatalf("a repeated scan answered %s, first %s", second, first)
+	}
+	// Any other reuse stays refused; a used QR on its own order's page comes with the time of the handover.
+	byColleague := scan(colleagueCert, shop, sale, token, 409)
+	refused(byColleague, service.Conflict, "already_used")
+	if byColleague["recordedAt"] != recordedAt {
+		t.Fatal("a colleague's repeated scan", byColleague)
+	}
+	refused(scan(ownCert, shop, fresh(), token, 400), service.Mismatch, "other_order")
+	refused(scan(strangerCert, elsewhere, sale, token, 400), service.Mismatch, "other_store")
+	execute("UPDATE ledger.pickup_token SET used_at=used_at-interval '10 minutes' WHERE token_hash=$1", hashOfHex(t, token))
+	afterwards := scan(ownCert, shop, sale, token, 409)
+	refused(afterwards, service.Conflict, "already_used")
+	if afterwards["recordedAt"] != recordedAt-600 {
+		t.Fatal("a late repeated scan", afterwards)
+	}
+	var uses, steps int
+	if err := admin.QueryRow(ctx, `SELECT (SELECT count(*) FROM ledger.pickup_token WHERE sale_id=$1 AND used_at IS NOT NULL),
+		(SELECT count(*) FROM ledger.travel_pickup_transition WHERE sale_id=$1)`, sale).Scan(&uses, &steps); err != nil || uses != 1 || steps != 1 {
+		t.Fatalf("%d tokens used and %d pickup steps: %v", uses, steps, err)
 	}
 	var state string
 	var delivers, payouts int
@@ -320,6 +362,48 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 			+(SELECT count(*) FROM ledger.order_escrow_event WHERE sale_id=$1 AND kind='released')`, sale).Scan(&state, &delivers, &payouts); err != nil ||
 		state != "collected" || delivers != 1 || payouts != 0 {
 		t.Fatalf("scan recorded %q, %d delivery marks and %d payouts: %v", state, delivers, payouts, err)
+	}
+
+	// --- two scans of one QR at once record one handover: the same staff member gets the answer twice, once marked ---
+	execute("SET session_replication_role=replica") // the order is ready once more, as if it had not been handed over
+	execute(`UPDATE ledger.travel_pickup_progress SET state='ready' WHERE sale_id=$1`, sale)
+	execute(`DELETE FROM ledger.escrow_action WHERE sale_id=$1 AND kind='deliver'`, sale)
+	execute("SET session_replication_role=origin")
+	raced := pickup()
+	type answer struct {
+		status int
+		body   map[string]any
+	}
+	answers := make(chan answer, 2)
+	for _, client := range []*http.Client{staff(ownCert), staff(ownCert)} {
+		go func() {
+			req, _ := http.NewRequestWithContext(ctx, "POST", server.URL+"/v2/operations/pickup-scan/"+shop+"/"+sale,
+				strings.NewReader(`{"token":"`+raced+`"}`))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Origin", origin)
+			var got answer
+			if reply, err := client.Do(req); err == nil {
+				got.status = reply.StatusCode
+				_ = json.NewDecoder(reply.Body).Decode(&got.body)
+				reply.Body.Close()
+			}
+			answers <- got
+		}()
+	}
+	marked := 0
+	for range 2 {
+		got := <-answers
+		if got.status != 200 || got.body["saleRef"] != sale {
+			t.Fatal("a scan at the same time", got)
+		}
+		if got.body["alreadyRecorded"] == true {
+			marked++
+		}
+	}
+	if err := admin.QueryRow(ctx, `SELECT (SELECT count(*) FROM ledger.travel_pickup_transition WHERE sale_id=$1),
+		(SELECT count(*) FROM ledger.escrow_action WHERE sale_id=$1 AND kind='deliver')`, sale).Scan(&steps, &delivers); err != nil ||
+		marked != 1 || steps != 2 || delivers != 1 {
+		t.Fatalf("two scans at once: %d marked, %d pickup steps, %d delivery marks: %v", marked, steps, delivers, err)
 	}
 
 	// --- the order session ends with the order ---
@@ -334,6 +418,15 @@ func mustKey(t *testing.T) *ecdsa.PrivateKey {
 		t.Fatal(err)
 	}
 	return key
+}
+
+func mustJSON(t *testing.T, value any) string {
+	t.Helper()
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
 }
 
 func hashOf(value []byte) []byte {

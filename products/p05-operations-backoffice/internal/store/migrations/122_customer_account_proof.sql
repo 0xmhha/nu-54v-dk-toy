@@ -169,33 +169,61 @@ CREATE TRIGGER one_customer_hold BEFORE INSERT ON ledger.order_checkout FOR EACH
 -- Staff scan a ready order's QR on the order page they opened. The token must be this branch's, unused, unexpired and
 -- for the order selected; the order must be ready. The handover is recorded through the kitchen's own change, which
 -- checks the staff member's authority and queues the escrow delivery mark. Payout keeps its receipt and window rules.
-CREATE FUNCTION ledger.scan_pickup_token(tenant_ uuid,branch_ uuid,actor_ uuid,role_ text,sale_ uuid,hash_ bytea)
+--
+-- A refusal is an outcome, so the page can say which: expired (also a token never issued or already removed),
+-- other_store (nothing else is said about a token of another branch), other_order, already_used (with the time of
+-- the handover) and not_ready. Staff without the handover authority on this branch get no outcome at all.
+--
+-- When the answer to a recorded handover was lost, the same staff member scanning the same token on the same order
+-- within rescan_seconds_ gets that answer again, marked alreadyRecorded, and nothing is written. The token row is
+-- locked first, so of two scans at once exactly one records the handover.
+CREATE FUNCTION ledger.scan_pickup_token(tenant_ uuid,branch_ uuid,actor_ uuid,role_ text,sale_ uuid,hash_ bytea,
+    rescan_seconds_ integer)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $scan$
-DECLARE t ledger.pickup_token; k ledger.travel_pickup_progress; revision_ bigint;
+DECLARE t ledger.pickup_token; k ledger.travel_pickup_progress; revision_ bigint; again boolean:=false;
 BEGIN
-    SELECT * INTO t FROM ledger.pickup_token x
-        WHERE x.token_hash=hash_ AND x.branch_id=branch_ AND x.used_at IS NULL AND x.expires_at>clock_timestamp() FOR UPDATE;
-    IF NOT FOUND THEN RAISE EXCEPTION 'pickup token unavailable' USING ERRCODE='P0502'; END IF;
-    IF t.sale_id IS DISTINCT FROM sale_ THEN RAISE EXCEPTION 'pickup token of another order' USING ERRCODE='P0763'; END IF;
-    SELECT * INTO k FROM ledger.travel_pickup_progress p WHERE p.sale_id=t.sale_id FOR UPDATE;
-    IF k.state IS DISTINCT FROM 'ready' THEN RAISE EXCEPTION 'order is not ready' USING ERRCODE='P0761'; END IF;
-    UPDATE ledger.pickup_token SET used_at=clock_timestamp(),used_by=actor_ WHERE token_hash=hash_;
-    revision_:=ledger.kiosk_pickup_change(tenant_,branch_,actor_,t.sale_id,encode(substring(hash_ FROM 1 FOR 16),'hex')::uuid,
-        k.revision,'collected',role_);
-    RETURN jsonb_build_object('saleRef',t.sale_id,'revision',revision_,
+    IF rescan_seconds_ IS NULL OR rescan_seconds_ NOT BETWEEN 0 AND 600 THEN
+        RAISE EXCEPTION 'invalid rescan window' USING ERRCODE='23514';
+    END IF;
+    PERFORM ledger.kiosk_require_pickup(tenant_,branch_,actor_,role_);
+    SELECT * INTO t FROM ledger.pickup_token x WHERE x.token_hash=hash_ FOR UPDATE;
+    IF NOT FOUND THEN RETURN jsonb_build_object('outcome','expired'); END IF;
+    IF t.branch_id IS DISTINCT FROM branch_ THEN RETURN jsonb_build_object('outcome','other_store'); END IF;
+    IF t.sale_id IS DISTINCT FROM sale_ THEN RETURN jsonb_build_object('outcome','other_order'); END IF;
+    IF t.used_at IS NOT NULL THEN
+        SELECT * INTO k FROM ledger.travel_pickup_progress p WHERE p.sale_id=t.sale_id;
+        IF t.used_by IS DISTINCT FROM actor_ OR t.used_at<=clock_timestamp()-make_interval(secs=>rescan_seconds_)
+           OR k.state IS DISTINCT FROM 'collected' THEN
+            RETURN jsonb_build_object('outcome','already_used','recordedAt',floor(extract(epoch FROM t.used_at))::bigint);
+        END IF;
+        again:=true;
+        revision_:=k.revision;
+    ELSE
+        IF t.expires_at<=clock_timestamp() THEN RETURN jsonb_build_object('outcome','expired'); END IF;
+        SELECT * INTO k FROM ledger.travel_pickup_progress p WHERE p.sale_id=t.sale_id FOR UPDATE;
+        IF k.state IS DISTINCT FROM 'ready' THEN RETURN jsonb_build_object('outcome','not_ready'); END IF;
+        UPDATE ledger.pickup_token SET used_at=clock_timestamp(),used_by=actor_ WHERE token_hash=hash_ RETURNING * INTO t;
+        revision_:=ledger.kiosk_pickup_change(tenant_,branch_,actor_,t.sale_id,encode(substring(hash_ FROM 1 FOR 16),'hex')::uuid,
+            k.revision,'collected',role_);
+    END IF;
+    -- Lines read like the kitchen queue and the order page: the option key, and its name when the menu gave one.
+    RETURN jsonb_build_object('outcome','ok','reply',jsonb_build_object('saleRef',t.sale_id,'revision',revision_,
         'pickupNo',(SELECT p.number FROM ledger.pickup p WHERE p.sale_id=t.sale_id),
-        'items',coalesce((SELECT jsonb_agg(jsonb_build_object('label',x.label,'option',l.option_key,'quantity',l.quantity)
+        'recordedAt',floor(extract(epoch FROM t.used_at))::bigint,
+        'items',coalesce((SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object('label',x.label,'option',l.option_key,
+                'optionLabel',ledger.order_option_label(l.branch_id,l.menu_version,l.sku,l.option_key),'quantity',l.quantity))
             ORDER BY l.sku COLLATE "C",l.option_key COLLATE "C")
             FROM ledger.order_line l JOIN ledger.price x ON
               (x.branch_id,x.version,x.sku,x.option_key)=(l.branch_id,l.menu_version,l.sku,l.option_key)
-            WHERE l.sale_id=t.sale_id),'[]'::jsonb));
+            WHERE l.sale_id=t.sale_id),'[]'::jsonb))
+        ||CASE WHEN again THEN jsonb_build_object('alreadyRecorded',true) ELSE '{}'::jsonb END);
 END
 $scan$;
 
 REVOKE ALL ON FUNCTION ledger.issue_customer_challenge(uuid,text,uuid,bytea,integer),
     ledger.prove_customer_account(bytea,bytea,uuid,bigint,bytea,integer,integer,integer),
     ledger.customer_session_live(bytea),ledger.one_customer_hold(),
-    ledger.scan_pickup_token(uuid,uuid,uuid,text,uuid,bytea) FROM PUBLIC;
+    ledger.scan_pickup_token(uuid,uuid,uuid,text,uuid,bytea,integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ledger.issue_customer_challenge(uuid,text,uuid,bytea,integer),
     ledger.prove_customer_account(bytea,bytea,uuid,bigint,bytea,integer,integer,integer),
-    ledger.customer_session_live(bytea),ledger.scan_pickup_token(uuid,uuid,uuid,text,uuid,bytea) TO nu54_p05_commerce;
+    ledger.customer_session_live(bytea),ledger.scan_pickup_token(uuid,uuid,uuid,text,uuid,bytea,integer) TO nu54_p05_commerce;
