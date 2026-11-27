@@ -304,7 +304,10 @@ export function CustomerOrders({
   travelCheckout,
   subscriptionLink,
   store,
+  openStorePage,
 }: {
+  /** Opens a store's page from its shortcut QR; undefined in a build without the customer entrance. */
+  openStorePage?: (branch: string) => void;
   /**
    * A store picked from its store page. The phone orders there through the customer entrance without registering:
    * the menu is public, and the board proves its account when the order is asked for (storeAccess.ts).
@@ -3006,7 +3009,7 @@ export function CustomerOrders({
           {!pickupMode && !shop && (
             <ShopDiscovery initialQr={entrancePending ? initialShopQr : undefined} offline={shopOffline} permissionDenied={shopPermissionDenied}
               find={findNearby} select={connectNearby} online={checkOnlineShop}
-              readQr={scanShopQr} open={openConfirmedShop} reset={resetShop} wallet={back}
+              readQr={scanShopQr} open={openConfirmedShop} reset={resetShop} wallet={back} page={openStorePage}
               recover={approved?.order.id || point?.order || ticket?.order ? recoverOriginal : undefined} />
           )}
           {!pickupMode && shop && (

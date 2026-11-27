@@ -662,7 +662,7 @@ function Shell() {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
-        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder}
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder} openStorePage={storeDirectory ? openStores : undefined}
           openPayments={openPaymentList} openTravel={openTravelBookings} back={closePayments}
           initialLocator={orderLink} subscriptionLink={subscriptionLink} permission={bluetoothPermission} /> : finding && !renting ? <ScrollView
           contentContainerStyle={styles.finder} keyboardShouldPersistTaps="handled" testID="store-finder">
