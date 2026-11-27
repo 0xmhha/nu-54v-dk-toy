@@ -69,7 +69,7 @@ contract ChargeLeakedKeysTest is ChargeBase {
         pool.disableKey(ChargeGovernance.Key.Relay);
         vm.stopPrank();
         assertEq(pool.generation(), 3);
-        assertEq(pool.signerGeneration(), 0);
+        assertEq(pool.pauserRound(), 0);
         cancelByPauser(pool, second, ChargeGovernance.InvalidState.selector); // void already
 
         // For as long as it is the pauser it makes the signatures that undo its pause useless.

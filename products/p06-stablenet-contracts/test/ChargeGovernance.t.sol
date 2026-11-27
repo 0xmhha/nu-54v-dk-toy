@@ -275,7 +275,7 @@ contract ChargeGovernanceTest is ChargeBase {
         vm.stopPrank();
         assertEq(deposit.relay(), address(0));
         assertEq(deposit.generation(), 1);
-        assertEq(deposit.signerGeneration(), 0);
+        assertEq(deposit.pauserRound(), 0);
 
         vm.warp(block.timestamp + 24 hours);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
@@ -362,6 +362,33 @@ contract ChargeGovernanceTest is ChargeBase {
         assertTrue(deposit.depositsPaused());
     }
 
+    /// The new pauser cannot stop a change that takes its place. So when one replacement is applied, every
+    /// other one that was waiting for that seat is void, and only those: a change of another kind stays.
+    function testApplyingAPauserReplacementVoidsTheOthersForThatSeat() public {
+        address other = address(0xE0B);
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Pauser, next), "salt");
+        bytes32 second = proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Pauser, other), "salt");
+        proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, other), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        deposit.setKey(ChargeGovernance.Key.Pauser, next, "salt");
+        assertEq(deposit.pauserRound(), 1);
+        assertEq(deposit.generation(), 0);
+        assertEq(deposit.proposalRound(SET_KEY, keyArgs(ChargeGovernance.Key.Pauser, other)), 1);
+
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.setKey(ChargeGovernance.Key.Pauser, other, "salt");
+        uint256 until = block.timestamp + 1 days;
+        bytes memory cancel = sign(SIGNER3_KEY, deposit.actionDigest(keccak256("cancel"), second, 0, until));
+        vm.expectRevert(ChargeGovernance.InvalidState.selector);
+        deposit.cancelProposal(second, until, cancel); // nothing waits for that seat any more
+        assertEq(deposit.pauser(), next);
+        deposit.setKey(ChargeGovernance.Key.Relay, other, "salt");
+        assertEq(deposit.relay(), other);
+
+        // A replacement of another key leaves the round of the pauser's seat alone.
+        assertEq(deposit.pauserRound(), 1);
+    }
+
     function testAReplacedSignerNoLongerCounts() public {
         uint256 newKey = 0xA008;
         proposeOn(deposit, "setSigner", signerArgs(0, vm.addr(newKey)), "salt");
@@ -374,7 +401,7 @@ contract ChargeGovernanceTest is ChargeBase {
         deposit.setSigner(0, vm.addr(newKey), "salt");
         assertEq(deposit.signers(0), vm.addr(newKey));
         assertEq(deposit.generation(), 1);
-        assertEq(deposit.signerGeneration(), 1);
+        assertEq(deposit.pauserRound(), 1);
 
         bytes32 action = keyAction(ChargeGovernance.Key.Relay, next, "salt");
         uint256 until = block.timestamp + 1 days;

@@ -77,9 +77,10 @@ abstract contract ChargeGovernance {
     /// @notice Grows when a signer changes or a key is switched off; every earlier proposal is then void,
     /// except one that replaces the pauser.
     uint256 public generation;
-    /// @notice Grows only when a signer changes. A proposal that replaces the pauser is counted in this one,
-    /// so the pauser cannot void it by switching keys off.
-    uint256 public signerGeneration;
+    /// @notice The round of the pauser's seat. A proposal that replaces the pauser is counted in this one, so
+    /// the pauser cannot void it by switching keys off. It grows when a signer changes and when a replacement
+    /// of the pauser is applied: every other proposal for that seat is then void.
+    uint256 public pauserRound;
     /// @notice The quoted rate must lie in this range, in 0.01 won for one whole USDC.
     uint256 public minRate;
     uint256 public maxRate;
@@ -213,10 +214,17 @@ abstract contract ChargeGovernance {
     function setKey(Key which, address to, bytes32 salt) external {
         _apply(SET_KEY, abi.encode(which, to), salt);
         _checkUnused(to);
-        if (which == Key.Relay) relay = to;
-        else if (which == Key.Quoter) quoter = to;
-        else if (which == Key.Witness) witness = to;
-        else pauser = to;
+        if (which == Key.Relay) {
+            relay = to;
+        } else if (which == Key.Quoter) {
+            quoter = to;
+        } else if (which == Key.Witness) {
+            witness = to;
+        } else {
+            // The new pauser cannot stop a change that takes its place, so none is left waiting behind it.
+            pauser = to;
+            pauserRound += 1;
+        }
         emit KeyChanged(which, to);
     }
 
@@ -225,7 +233,7 @@ abstract contract ChargeGovernance {
         _checkUnused(to);
         signers[index] = to;
         generation += 1;
-        signerGeneration += 1;
+        pauserRound += 1;
         emit SignerChanged(index, to);
     }
 
@@ -303,9 +311,9 @@ abstract contract ChargeGovernance {
     }
 
     /// @dev The pauser moves `generation` by switching a key off. Its own replacement is therefore counted
-    /// in the generation that only a change of signers moves.
+    /// in a round that the pauser cannot move.
     function _roundOf(Seat seat) private view returns (uint256) {
-        return seat == Seat.Pauser ? signerGeneration : generation;
+        return seat == Seat.Pauser ? pauserRound : generation;
     }
 
     function _waits(Proposal storage proposal) private view returns (bool) {
