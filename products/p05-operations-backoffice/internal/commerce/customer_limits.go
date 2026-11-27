@@ -67,8 +67,8 @@ import (
 //	                minutes each) alive at once and 43,200 new accounts a day.
 //	StartLimiter    sessions an account starts, per account at its address: 6 at once, then 1 every 10 seconds. An
 //	                order takes two (before and after payment).
-//	ReadLimiter     public reads, per address: 120 at once, then 10 a second. Opening a store is the list, the page
-//	                and at most 13 menu pages (600 rows, 50 a page).
+//	ReadLimiter     public reads and the health route, per address: 120 at once, then 10 a second. Opening a store is
+//	                the list, the page and at most 13 menu pages (600 rows, 50 a page).
 //	PhotoLimiter    menu photo parts, per address: 240 at once, then 20 a second; a part is at most 18,000 bytes.
 //	AddressLimiter  requests whose session token was not lately seen live, per address, before the token is read:
 //	                60 at once, then 1 a second. After a restart every session is counted here once; a made-up token

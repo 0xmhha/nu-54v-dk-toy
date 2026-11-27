@@ -61,7 +61,8 @@ type CustomerEntrance struct {
 	// database decides whether the account paid that order. IssueLimiter, AttemptLimiter, ReadLimiter, PhotoLimiter
 	// and AddressLimiter fall back to it when they are not set.
 	Limiter *RateLimiter
-	// ReadLimiter is the limit of each address on the public reads: the store list, a store page and a menu page.
+	// ReadLimiter is the limit of each address on the public reads: the store list, a store page, a menu page and
+	// the health route.
 	ReadLimiter *RateLimiter
 	// PhotoLimiter is the limit of each address on public menu photo parts; nil leaves them under ReadLimiter.
 	PhotoLimiter *RateLimiter
@@ -290,9 +291,16 @@ func (h HTTP) RegisterCustomer(mux *http.ServeMux) {
 		return limited("read", func() *RateLimiter { return first(h.Customer.ReadLimiter, h.Customer.Limiter) }, next)
 	}
 	photos := func() *RateLimiter { return first(h.Customer.PhotoLimiter, h.Customer.ReadLimiter, h.Customer.Limiter) }
-	// The listener's own health, outside every limit and outside the gate: it says nothing about a store or a
-	// customer, and it answers while the control database does not.
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+	// The listener's own health: under the limit of public reads, so it does not keep a connection open for
+	// nothing, and outside the gate and the cap on requests at once: it says nothing about a store or a customer,
+	// and it answers while the control database does not.
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if active := first(h.Customer.ReadLimiter, h.Customer.Limiter); active != nil {
+			if allowed, wait := active.Take(clientKey(r)); !allowed {
+				h.Customer.tooMany(w, "read", wait)
+				return
+			}
+		}
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = io.WriteString(w, "ok\n")
 	})

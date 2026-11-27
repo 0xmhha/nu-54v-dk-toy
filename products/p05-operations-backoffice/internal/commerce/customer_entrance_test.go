@@ -238,13 +238,18 @@ func TestPublicMenuRateLimit(t *testing.T) {
 	if send(apart, menu, "198.51.100.7") != http.StatusNotFound {
 		t.Fatal("a limited prover cannot read the menu")
 	}
-	// The health route is outside every limit, and each refusal was counted by its kind.
-	for i := 0; i < 5; i++ {
-		if code := send(apart, "/healthz", "198.51.100.7"); code != http.StatusOK {
-			t.Fatalf("health: %d", code)
+	// The health route is counted like a public read, so asking it again and again keeps no connection open for
+	// nothing; another address is not held back by that. Each refusal was counted by its kind.
+	now = now.Add(time.Second)
+	for i, want := range []int{http.StatusOK, http.StatusTooManyRequests, http.StatusTooManyRequests} {
+		if code := send(apart, "/healthz", "198.51.100.7"); code != want {
+			t.Fatalf("health request %d: %d, want %d", i+1, code, want)
 		}
 	}
-	if counts := apartLimits.Limited.Drain(); counts["read"] != 2 || counts["photo"] != 2 || counts["proof"] != 1 || counts["session"] != 0 {
+	if code := send(apart, "/healthz", "198.51.100.8"); code != http.StatusOK {
+		t.Fatalf("health for another address: %d", code)
+	}
+	if counts := apartLimits.Limited.Drain(); counts["read"] != 4 || counts["photo"] != 2 || counts["proof"] != 1 || counts["session"] != 0 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
 	if counts := apartLimits.Limited.Drain(); len(counts) != 0 {
@@ -993,15 +998,17 @@ func TestEntranceTakesTheGateLast(t *testing.T) {
 	}
 	menu := "/v2/customer/stores/" + branch + "/menu/0"
 
-	// Health is answered outside the gate; a limited request is refused outside it too.
-	for i := 0; i < 5; i++ {
-		if reply := get("/healthz", false); reply.StatusCode != http.StatusOK {
-			t.Fatalf("health: %d", reply.StatusCode)
+	// Health is answered outside the gate, and is counted like a public read; a limited request is refused outside
+	// the gate too.
+	for i, want := range []int{http.StatusOK, http.StatusOK, http.StatusTooManyRequests, http.StatusTooManyRequests} {
+		if reply := get("/healthz", false); reply.StatusCode != want {
+			t.Fatalf("health request %d: %d, want %d", i+1, reply.StatusCode, want)
 		}
 	}
 	if entered.Load() != 0 {
 		t.Fatalf("the health route entered the gate %d times", entered.Load())
 	}
+	now = now.Add(time.Minute)
 	if first, second := get(menu, false), get(menu, false); first.StatusCode != http.StatusNotFound || second.StatusCode != http.StatusNotFound {
 		t.Fatalf("allowed reads: %d %d", first.StatusCode, second.StatusCode)
 	}
@@ -1066,7 +1073,7 @@ func TestEntranceTakesTheGateLast(t *testing.T) {
 	if reply := get(menu, false); reply.StatusCode != http.StatusNotFound || len(limits.InFlight) != 0 {
 		t.Fatalf("after the cap cleared: %d, %d places taken", reply.StatusCode, len(limits.InFlight))
 	}
-	if counts := limits.Limited.Drain(); counts["busy"] != 1 || counts["read"] != 20 || len(counts) != 2 {
+	if counts := limits.Limited.Drain(); counts["busy"] != 1 || counts["read"] != 22 || len(counts) != 2 {
 		t.Fatalf("refusals by kind: %v", counts)
 	}
 }
