@@ -15,9 +15,14 @@ int device_order_charge(uint64_t earliest, uint64_t amount);
 
 /* Call once at start, before the first order: no record was written in this start yet. */
 void device_order_start(void);
-/* True while an approved order could still execute. An order answered since this start is open
- * until the board's time passes its end. One from an earlier start is open for at most
- * NU54_SPEND_ORDER_LIFE_MS of running time, also under a grant that was kept through the restart. */
+/* True while an approved order could still execute. Any one of three keeps it open:
+ * - the record of an order answered since this start, until the board's time passes its end;
+ * - the record of one from an earlier start, until its end as well and for at most
+ *   NU54_SPEND_ORDER_LIFE_MS (240 s) of running time, also under a grant that was kept through
+ *   the restart;
+ * - a hold, until the running time it names, whatever the board's time and the records say. A
+ *   hold is set when the owner's phone moves the clock (device_order_hold_open), at each approval
+ *   (device_order_hold_approved) and from the storage at start (device_order_resume). */
 bool device_order_open(uint64_t earliest, int64_t uptime_ms);
 /* Call with the time before the owner's phone moves the clock. The new time must not end an open
  * order for the board earlier than it ends for the token contract. What is open now therefore
