@@ -4,7 +4,7 @@ import {bytesToHex, fromBase64, fromBoard, isWon, type PaymentToken, type Wallet
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
-import {routeWords} from '../merchant/orderRoute.ts';
+import {notHereYet, routeWords} from '../merchant/orderRoute.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
@@ -164,6 +164,8 @@ export function SendPage(props: BoardLifeProps) {
   }
 
   if (!verified || !board) return <Notice body="먼저 보드 연결과 서명 시험을 마치세요." />;
+  // A build that orders from store pages has no store to relay a transfer: said in place of the form.
+  if (props.unrelayed) return <Notice tone="stop" title={notHereYet.send.title} body={notHereYet.send.body} />;
   if (problem) return <><Notice body={problem} /><KitButton label="다시 확인" run={() => work(list, sendFailure)} disabled={props.busy} variant="secondary" /></>;
   if (!props.fixture && !held) return <Text style={type.body}>보내기를 확인하고 있습니다.</Text>;
   if (props.storeRead === 'loading') return <Text style={type.body}>{routeWords('매장 등록을 확인하고 있습니다.')}</Text>;

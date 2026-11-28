@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import {stableNetCoin, type FaucetStatus, type FaucetToken} from '@nu54/protocol';
 import {walletId} from '../merchant/customerClient.ts';
-import {routeWords} from '../merchant/orderRoute.ts';
+import {notHereYet, ordersWithoutRegistration, routeWords} from '../merchant/orderRoute.ts';
 import {Card, Chip, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, radius, type} from '../ui/theme.ts';
 import {credential} from './BoardLife.tsx';
@@ -53,7 +53,14 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
     for (const token of next.tokens) if (token.state === 'open' || token.claim?.state === 'final') keys.current.delete(token.token);
     return next;
   }, []);
-  const refresh = useCallback(() => { read().catch(error => setProblem(faucetFailure(error))); }, [read]);
+  // No store registered this phone, in a build that orders from store pages: nobody hands out test tokens here.
+  const [unrelayed, setUnrelayed] = useState(false);
+  const refresh = useCallback(() => {
+    read().catch(error => {
+      if (error instanceof Error && error.message === 'NO_CREDENTIAL' && ordersWithoutRegistration()) setUnrelayed(true);
+      else setProblem(faucetFailure(error));
+    });
+  }, [read]);
   useEffect(refresh, [refresh]);
   const open = !!status?.tokens.some(token => token.state === 'open');
   useEffect(() => {
@@ -86,8 +93,9 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
     <Text accessibilityRole="header" style={type.title}>{t('시험 토큰 받기')}</Text>
     <Text style={type.body}>{t('시험용 토큰입니다. 실제 돈이 아니고 바꿀 수 없습니다.')}</Text>
     {!!said && <Text accessibilityLiveRegion="polite" style={styles.said}>{said}</Text>}
+    {unrelayed && <View accessibilityRole="alert"><Text style={styles.warn}>{t(notHereYet.faucet.title)}</Text><Text style={type.body}>{t(notHereYet.faucet.body)}</Text></View>}
     {!!problem && <><Text accessibilityLiveRegion="polite" style={styles.warn}>{t(problem)}</Text><KitButton label={t('다시 확인')} run={refresh} variant="secondary" /></>}
-    {!status && !problem && <Text style={type.body}>{t('확인하는 중')}</Text>}
+    {!status && !problem && !unrelayed && <Text style={type.body}>{t('확인하는 중')}</Text>}
     {status && other && <Text style={styles.warn}>{t(routeWords(status.payer ? '다른 보드 계정이 이 매장에 등록되어 있습니다. 설정에서 매장 등록을 다시 하세요.' : '이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.'))}</Text>}
     {status && <>
       <View style={styles.list}>{status.tokens.map(token => {
@@ -101,7 +109,7 @@ export function FaucetPage({t, account, sends, won = {}, gasCoin}: {
       })}</View>
       <Card><Row label={t('받는 계정')} value={`${account.slice(0, 6)}…${account.slice(-4)}`} /><Row label={t('수수료')} value={t('운영 서버가 냅니다')} /></Card>
     </>}
-    <Text style={type.small}>{t('매장 결제와 반납에는 가스 코인이 필요하지 않습니다.')}</Text>
+    <Text style={type.small}>{t(unrelayed ? '매장 결제에는 가스 코인이 필요하지 않습니다.' : '매장 결제와 반납에는 가스 코인이 필요하지 않습니다.')}</Text>
     {!!gasCoin && <KitButton label={t('가스 코인 받는 곳 열기')} variant="secondary" run={() => { Linking.openURL(gasCoin).catch(() => {}); }} />}
   </View>;
 }

@@ -34,6 +34,19 @@ const withoutRegistrationWords: Record<string, string> = {
   'Signing test, return address, store enrollment': 'Signing test, return address',
 };
 
+/**
+ * What the pages that move the board account's money say in a build that orders from store pages, on a phone no
+ * store registered: in place of the action, that this app cannot do it yet and what the customer can do instead.
+ * Nothing in such a build sends the money back to the wallet it came from, so no page says to return it first;
+ * the reset page says that what is left is lost (`reset`, after its own first sentences).
+ */
+export const notHereYet = {
+  return: {title: '이 앱에서는 아직 반납할 수 없습니다', body: '보드 계정의 돈을 원래 지갑으로 돌려보내는 기능이 이 앱에는 아직 없습니다. 남은 돈은 매장 주문에 쓸 수 있습니다.'},
+  send: {title: '이 앱에서는 아직 보낼 수 없습니다', body: '보드 계정의 돈을 다른 주소로 보내는 기능이 이 앱에는 아직 없습니다. 남은 돈은 매장 주문에 쓸 수 있습니다.'},
+  faucet: {title: '이 앱에서는 아직 시험 토큰을 받을 수 없습니다', body: '원래 지갑에서 보드 계정 주소로 입금하세요. 주소는 지갑 탭의 받기에서 볼 수 있습니다.'},
+  reset: '이 앱에서는 아직 반납할 수 없어, 남은 돈을 원래 지갑으로 돌려받을 방법이 없습니다.',
+};
+
 /** `text` as this build says it: unchanged on the earlier route, and without the way to a registration elsewhere. */
 export const routeWords = (text: string, withoutRegistration = ordersWithoutRegistration()): string =>
   withoutRegistration ? withoutRegistrationWords[text] ?? text : text;
