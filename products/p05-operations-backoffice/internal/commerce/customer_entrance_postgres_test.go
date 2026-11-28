@@ -389,6 +389,57 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		}
 	}
 	execute("UPDATE ledger.stock SET available=5 WHERE branch_id=$1 AND sku='tea'", shop)
+	// A store that takes no order now, because it paused or today is its closed day, still shows its menu to read
+	// (migration 128): the same rows, on sale or sold out and never a count, with the state that says why no order
+	// is taken. Ordering stays closed: the session's own menu has no row to order then, and a cart is not held.
+	for _, stop := range []struct{ mode, set, clear string }{
+		{"paused", "INSERT INTO ledger.branch_order_state(branch_id,mode,resume_note,changed_by,changed_at) VALUES ($1,'paused','15:30',$2,now())",
+			"DELETE FROM ledger.branch_order_state WHERE branch_id=$1"},
+		{"closed", "INSERT INTO ledger.branch_closed_day VALUES ($1,ledger.branch_today($1,clock_timestamp()),$2,now())",
+			"DELETE FROM ledger.branch_closed_day WHERE branch_id=$1"},
+	} {
+		execute(stop.set, shop, operator)
+		shown := read("/v2/customer/stores/"+shop+"/menu/0", 200)
+		for key := range shown {
+			if !slices.Contains(menuKeys, key) {
+				t.Fatalf("%s: the public menu gives out %q: %v", stop.mode, key, shown)
+			}
+		}
+		rows, _ := shown["catalog"].([]any)
+		if len(rows) != 1 || !reflect.DeepEqual(rows[0], row) || shown["orderState"].(map[string]any)["mode"] != stop.mode ||
+			shown["catalogVersion"] != menu["catalogVersion"] || !reflect.DeepEqual(shown["catalogPhotos"], menu["catalogPhotos"]) {
+			t.Fatalf("the menu of a store that is %s: %v", stop.mode, shown)
+		}
+		if raw := mustJSON(t, shown); strings.Contains(raw, ":5,") || strings.Contains(raw, ":5}") {
+			t.Fatalf("the menu of a store that is %s tells a count of stock: %s", stop.mode, raw)
+		}
+		execute("UPDATE ledger.stock SET available=0 WHERE branch_id=$1 AND sku='tea'", shop)
+		if gone := read("/v2/customer/stores/"+shop+"/menu/0", 200)["catalog"].([]any)[0].(map[string]any); gone["available"] != float64(0) || gone["skuAvailable"] != float64(0) {
+			t.Fatalf("a sold out row of a store that is %s reads %v", stop.mode, gone)
+		}
+		execute("UPDATE ledger.stock SET available=5 WHERE branch_id=$1 AND sku='tea'", shop)
+		proven := command(session, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 200)
+		if held, _ := proven["catalog"].([]any); len(held) != 0 || mustJSON(t, proven["orderState"]) != mustJSON(t, shown["orderState"]) {
+			t.Fatalf("the session's menu of a store that is %s offers rows to order, or says another state: %v", stop.mode, proven)
+		}
+		closed := footprint()
+		if refused := order(session, 409); refused["error"] != string(service.CheckoutConflict) || footprint() != closed {
+			t.Fatalf("a store that is %s held a cart: %v (%s, was %s)", stop.mode, refused, footprint(), closed)
+		}
+		execute(stop.clear, shop)
+	}
+	// A menu that is not on sale at this hour, or not on sale at all, has no row to show, as before.
+	var onSaleFrom, onSaleUntil time.Time
+	if err := admin.QueryRow(ctx, "SELECT published_at,expires_at FROM ledger.menu_release WHERE branch_id=$1", shop).Scan(&onSaleFrom, &onSaleUntil); err != nil {
+		t.Fatal(err)
+	}
+	execute("SET session_replication_role=replica")
+	execute("UPDATE ledger.menu_release SET published_at=$2,expires_at=$3 WHERE branch_id=$1", shop, time.Now().Add(-2*time.Hour), time.Now().Add(-time.Minute))
+	if none := read("/v2/customer/stores/"+shop+"/menu/0", 200); len(none["catalog"].([]any)) != 0 || none["catalogVersion"] != nil {
+		t.Fatalf("a menu that ran out is shown: %v", none)
+	}
+	execute("UPDATE ledger.menu_release SET published_at=$2,expires_at=$3 WHERE branch_id=$1", shop, onSaleFrom, onSaleUntil)
+	execute("SET session_replication_role=origin")
 	// A page past the end is empty and says nothing more; a store without a store page has no public menu.
 	if past := read("/v2/customer/stores/"+shop+"/menu/1", 200); len(past["catalog"].([]any)) != 0 || past["shop"] != nil || past["orderState"] != nil {
 		t.Fatalf("page past the end: %v", past)
@@ -884,9 +935,54 @@ func TestPostgresCustomerAccountProof(t *testing.T) {
 		t.Fatalf("two scans at once: %d marked, %d pickup steps, %d delivery marks: %v", marked, steps, delivers, err)
 	}
 
-	// --- the order session ends with the order ---
-	execute("UPDATE ledger.order_escrow SET settled=true WHERE sale_id=$1", sale)
+	// --- the order ended: its session still reads the final state, for a day, and takes no answer any more ---
+	// The ledger writes the end of an order as record_escrow_event does: settled, at its own clock (check_at).
+	settle := func(ago string) {
+		t.Helper()
+		execute("UPDATE ledger.order_escrow SET settled=true, check_at=clock_timestamp()-$2::interval WHERE sale_id=$1", sale, ago)
+	}
+	h.Customer.SessionLimiter, h.Customer.UnknownLimiter, h.Customer.AddressLimiter = nil, nil, nil
+	// The session that followed the order was proven long before the order ended.
+	execute("UPDATE ledger.customer_session SET created_at=created_at-interval '3 hours' WHERE token_hash=$1", hashOfHex(t, orderSession))
+	settle("0")
+	if ended := command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)["order"].(map[string]any); ended["id"] != sale || ended["state"] != "paid" {
+		t.Fatalf("the session of an order that just ended does not read it: %v", ended)
+	}
+	// The session of an order is for that order alone, ended or not.
+	command(orderSession, "order.status", shop, fresh(), map[string]string{}, nil, 404)
+	command(orderSession, "catalog.read", shop, shop, map[string]string{"page": "0"}, nil, 404)
+	order(orderSession, 404)
+	cancelHold(orderSession, sale, 404)
+	settle("23 hours 59 minutes")
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
+	// A day after the end the session that was there is over, like any session that ended.
+	settle("24 hours 1 minute")
 	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	// The paying board can still prove its account for the order, and the session it gets reads the final state for
+	// ten minutes: a phone that was away when the order ended learns its end with one proof. Another account gets
+	// nothing, as before.
+	if got := prove(otherBoard, crypto.PubkeyToAddress(otherBoard.PublicKey), challenge("order", shop, sale), 400); got["error"] != string(service.Mismatch) {
+		t.Fatal("another account got a session for an order that ended", got)
+	}
+	afterEnd := prove(board, account, challenge("order", shop, sale), 200)["session"].(string)
+	if ended := command(afterEnd, "order.status", shop, sale, map[string]string{}, nil, 200)["order"].(map[string]any); ended["id"] != sale || ended["state"] != "paid" {
+		t.Fatalf("a session proven after the order ended does not read it: %v", ended)
+	}
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 404) // the old one stays over
+	execute("UPDATE ledger.customer_session SET created_at=created_at-interval '9 minutes 50 seconds' WHERE token_hash=$1", hashOfHex(t, afterEnd))
+	command(afterEnd, "order.status", shop, sale, map[string]string{}, nil, 200)
+	execute("UPDATE ledger.customer_session SET created_at=created_at-interval '20 seconds' WHERE token_hash=$1", hashOfHex(t, afterEnd))
+	command(afterEnd, "order.status", shop, sale, map[string]string{}, nil, 404)
+	// An order that has not ended is followed as long as its session lives, however old the session is.
+	execute("UPDATE ledger.order_escrow SET settled=false WHERE sale_id=$1", sale)
+	command(afterEnd, "order.status", shop, sale, map[string]string{}, nil, 200)
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 200)
+	// A sale that was closed has no session to follow it, as before.
+	execute("SET session_replication_role=replica")
+	execute("UPDATE ledger.sale SET state='closed' WHERE id=$1", sale)
+	execute("SET session_replication_role=origin")
+	command(orderSession, "order.status", shop, sale, map[string]string{}, nil, 404)
+	command(afterEnd, "order.status", shop, sale, map[string]string{}, nil, 404)
 }
 
 func mustKey(t *testing.T) *ecdsa.PrivateKey {

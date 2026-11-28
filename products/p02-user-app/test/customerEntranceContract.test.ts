@@ -11,6 +11,7 @@ import {SessionEntrance} from '../src/merchant/customerSession';
 import {orderPaymentPin} from '../src/merchant/orderPaymentTrust';
 import {readCartCancel, StoreAccess, StoreBusy} from '../src/merchant/storeAccess';
 import {StoreDirectory, storeNow} from '../src/merchant/storeDirectory';
+import {storeStopped} from '../src/merchant/StoreNotice';
 import {journalStore} from './fixtures/journal';
 
 // The phone's parsers against what the store server really answers. The answers are in one file,
@@ -160,6 +161,19 @@ const read: Record<string, () => Promise<void> | void> = {
     // 1000 is the server's word for "on sale" and the most one line may ask for; every public row is marked, so no
     // screen shows it as a count. A sold-out row still takes nothing into the basket.
     expect(menu.catalog.map(row => commerceLineCapacity(row, {}))).toEqual([0, 1000]);
+  },
+  // A store that takes no order now still shows its menu to read: the same rows, and the state that says why.
+  'menu-public-closed-day': async () => {
+    const menu = await (await access(answering('menu-public-closed-day'))).client.publishedMenu();
+    expect(menu.orderState).toEqual({mode: 'closed'});
+    expect(storeStopped(menu.orderState)).toBe(true);
+    expect(menu.catalog.map(row => [row.sku, row.available, row.skuAvailable, row.uncounted])).toEqual([['cake', 0, 0, true], ['tea', 1000, 1000, true]]);
+  },
+  'menu-public-paused': async () => {
+    const menu = await (await access(answering('menu-public-paused'))).client.publishedMenu();
+    expect(menu.orderState).toEqual({mode: 'paused', resumeAt: '11:00'});
+    expect(storeStopped(menu.orderState)).toBe(true);
+    expect(menu.catalog.map(row => [row.sku, row.available, row.skuAvailable, row.uncounted])).toEqual([['cake', 0, 0, true], ['tea', 1000, 1000, true]]);
   },
   'menu-session': async () => {
     const menu = await sessionClient('menu-session').publishedMenu();

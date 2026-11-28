@@ -50,7 +50,7 @@ var (
 	customerContractPlain    = []string{"busy-rate", "busy-in-flight"}
 	customerContractDatabase = []string{"busy-rate-session", "challenge", "proof-checkout", "store-list-page", "store-list-last", "store-page", "store-page-busy",
 		"store-page-no-menu", "store-page-closed-day", "store-page-paused", "store-page-unpublished", "menu-unpublished", "photo-unpublished",
-		"menu-public", "menu-session", "hold-orders-closed", "hold-balance-unavailable", "hold-balance-short", "hold-limit", "hold-other-cart",
+		"menu-public", "menu-public-closed-day", "menu-public-paused", "menu-session", "hold-orders-closed", "hold-balance-unavailable", "hold-balance-short", "hold-limit", "hold-other-cart",
 		"hold-cart-released", "cancel-released", "cancel-quote-issued", "cancel-paid", "cancel-not-found", "pickup-not-ready", "pickup-token",
 		"pickup-collected", "challenge-not-public", "challenge-account", "proof-account"}
 )
@@ -484,6 +484,13 @@ func TestPostgresCustomerContract(t *testing.T) {
 
 	// --- the public menu: on sale or sold out, never a count ---
 	take("menu-public", send("GET", "/v2/customer/stores/"+cafe+"/menu/0", "", nil), map[string]any{"catalog.*.expiresAt": contractExpiry})
+	// A store that takes no order now still shows its menu to read, with the state that says why (migration 128).
+	execute("INSERT INTO ledger.branch_closed_day VALUES ($1,ledger.branch_today($1,clock_timestamp()),$2,now())", cafe, operator)
+	take("menu-public-closed-day", send("GET", "/v2/customer/stores/"+cafe+"/menu/0", "", nil), map[string]any{"catalog.*.expiresAt": contractExpiry})
+	execute("DELETE FROM ledger.branch_closed_day WHERE branch_id=$1", cafe)
+	execute("INSERT INTO ledger.branch_order_state VALUES ($1,'paused',NULL,'11:00',$2,now())", cafe, operator)
+	take("menu-public-paused", send("GET", "/v2/customer/stores/"+cafe+"/menu/0", "", nil), map[string]any{"catalog.*.expiresAt": contractExpiry})
+	execute("DELETE FROM ledger.branch_order_state WHERE branch_id=$1", cafe)
 
 	// --- the account proof, and the menu its session reads: the same rows with what is left ---
 	prove := func(purpose, sale string) reply {
