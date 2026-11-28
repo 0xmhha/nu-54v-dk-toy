@@ -149,37 +149,60 @@ class EntranceWalk(Walk):
         self.tap("매장 찾기")
         self.sees("모든 매장")
 
-    def on_store_page(self, name=None, seconds=40):
-        """Waits for a store page: its order button is there, and the finder's search field is not."""
+    def on_store_page(self, name=None, seconds=40, menu=True):
+        """Waits for a store page: its order button is there, and the finder's search field is not. A store with no
+        menu on sale has no such button (`menu` false): its page is known by the reason it gives."""
         deadline = time.monotonic() + seconds
         while True:
             seen = self.words()
-            if "매장 이름" not in seen and ("메뉴 보고 주문" in seen or "메뉴만 보기" in seen) and (name is None or name in seen):
+            there = "메뉴 보고 주문" in seen or "메뉴만 보기" in seen if menu else any("주문을 받지 않습니다" in word for word in seen)
+            if "매장 이름" not in seen and there and (name is None or name in seen):
                 return
             assert time.monotonic() < deadline, f"no store page: {' | '.join(seen)[:600]}"
             time.sleep(1)
 
-    def store_page(self, name):
+    def store_page(self, name, menu=True):
         """The store page, found by name the way a customer finds it."""
         self.finder()
         self.type("매장 이름", name.split()[0])
         self.tap(name)
-        self.on_store_page(name)
+        self.on_store_page(name, menu=menu)
 
-    def menu(self, name=CAFE, button="메뉴 보고 주문"):
+    def menu(self, name=CAFE, button="메뉴 보고 주문", empty=False):
+        """The menu of a store. The app keeps what a customer left in a basket while they are away from the store, so
+        a flow that starts anew at a store where the flow before left something first takes that out (`empty`)."""
         self.store_page(name)
         self.tap(button)
         self.sees(f"{name} 메뉴")
+        if empty:
+            self.empty_basket()
+
+    def empty_basket(self):
+        """Takes out every product of the basket, from the top of the menu to its end, and comes back to the top."""
+        last = None
+        for _ in range(40):
+            nodes = self.nodes()
+            out = next((node for node in nodes if node["words"][1].endswith(" 빼기") and node["enabled"]
+                        and 60 < (node["box"][1] + node["box"][3]) // 2 < self.height * 88 // 100), None)
+            if out:
+                self.touch(out)
+                continue
+            seen = [(node["words"], node["box"]) for node in nodes]
+            if seen == last:
+                break
+            last = seen
+            self.swipe()
+        self.top()
 
     def add(self, product, count=1):
         for _ in range(count):
             self.tap(f"{product} 추가")
 
     def ask_for_order(self):
-        """The basket's button is below the menu; what it says comes at the top of the page."""
+        """The basket's button is below the menu and what it says is drawn at the top of the page: the page brings
+        the answer into view itself, so nothing here scrolls to it."""
         self.tap("주문 접수 요청")
         time.sleep(2)
-        self.top()
 
     def held(self):
         self.sees("주문이 연결되었습니다", 30)
@@ -213,13 +236,20 @@ class EntranceWalk(Walk):
         self.touch(node)
         self.sees("주문 단계")
 
+    def ask_again(self):
+        """Presses "상태 다시 확인" when it is on the screen. An order that just ended no longer has the button, so
+        one that went away between two looks at the screen is no failure."""
+        node = next((node for node in self.nodes() if "상태 다시 확인" in node["words"] and node["tap"] and node["enabled"]
+                     and 60 < (node["box"][1] + node["box"][3]) // 2 < self.height * 88 // 100), None)
+        if node:
+            self.touch(node)
+
     def refresh(self, text, seconds=60):
         """The order page asks again by itself; the customer can ask too."""
         deadline = time.monotonic() + seconds
         while not self.shown(text):
             assert time.monotonic() < deadline, f"not on the screen: {text}: {' | '.join(self.words())[:600]}"
-            if "상태 다시 확인" in self.words():
-                self.tap("상태 다시 확인")
+            self.ask_again()
             time.sleep(3)
 
     def reset_page(self):
@@ -303,13 +333,12 @@ class EntranceWalk(Walk):
             assert "지도 앱을 열지 못했습니다. 주소를 길게 눌러 복사하세요." in self.page(), "the map row did nothing"
         self.top()
         self.on_store_page(CAFE)
-        # No order now, each with its own reason; the menu can still be read.
-        unread = []
-        for number, name, line, reason in (
-                (14, HANOK, "오늘 쉽니다", "오늘은 쉬는 날이라 주문을 받지 않습니다. 메뉴는 볼 수 있습니다."),
-                (16, SEOCHON, "주문 잠시 멈춤 · 15:30쯤 다시 받습니다", "매장이 주문을 잠시 멈췄습니다. 15:30쯤 다시 받는다고 알렸습니다. 메뉴는 볼 수 있습니다."),
-                # This store wrote its hours, so its line says where the day stands by them; the reason is below it.
-                (18, NIGHT, "", "지금 판매 중인 메뉴가 없어 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.")):
+        # No order now, each with its own reason. A store that only stopped taking orders, for the day or for a
+        # while, shows its menu to read: the products and their prices, and nothing to put in a basket.
+        for number, name, line, reason, notice in (
+                (14, HANOK, "오늘 쉽니다", "오늘은 쉬는 날이라 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.", "오늘은 매장이 쉬는 날입니다"),
+                (16, SEOCHON, "주문 잠시 멈춤 · 15:30쯤 다시 받습니다", "매장이 주문을 잠시 멈췄습니다. 15:30쯤 다시 받는다고 알렸습니다. 메뉴는 볼 수 있습니다.",
+                 "매장이 주문을 잠시 멈췄습니다")):
             self.store_page(name)
             seen = self.words()
             assert reason in seen and "메뉴만 보기" in seen and "메뉴 보고 주문" not in seen, f"{name}: {seen}"
@@ -317,21 +346,31 @@ class EntranceWalk(Walk):
             self.shot(f"{number:03d}-store-{name.split()[0].lower()}-no-orders")
             self.tap("메뉴만 보기")
             self.sees(f"{name} 메뉴")
-            time.sleep(2)
-            self.shot(f"{number + 1:03d}-menu-{name.split()[0].lower()}-read-only")
+            self.sees(notice)
             menu = self.page()
-            assert "주문 접수 요청" not in menu, f"{name} takes no order and offers one"
-            if name == NIGHT:
-                assert "지금 판매 중인 메뉴가 없습니다. 주문 받는 시간은 매장 화면에서 확인하세요." in menu, menu
-            elif not any(word.startswith("아메리카노") for word in menu):
-                unread.append(f"{name}: {[word for word in menu if word not in TABS][2:]}")
+            product = "아메리카노 · " + self.of("아메리카노")
+            assert any(product in word for word in menu), f"the store page says the menu of {name} can be read, and it shows no product: {[word for word in menu if word not in TABS][2:]}"
+            self.find("아메리카노 · " + self.of("아메리카노")) if product in menu else self.swipe()
+            self.shot(f"{number + 1:03d}-menu-{name.split()[0].lower()}-read-only")
+            self.top()
+            offered = [word for word in menu if word.endswith(" 추가") or word in ("주문 접수 요청", "옵션 라떼 옵션 고르기")]
+            assert not offered, f"{name} takes no order and its menu offers {offered}"
+            assert not any("가능" in word or "1000" in word for word in menu), f"the menu of {name} tells a count: {menu}"
             self.tap("매장 화면으로")
             self.on_store_page(name)
+        # A store with nothing on sale. This walk first expected its page to say "메뉴는 볼 수 있습니다." and to open a
+        # menu that held one sentence; a page must not promise a menu that is not there, so the page now says only
+        # why no order is taken, and has no button to a menu.
+        self.store_page(NIGHT, menu=False)
+        seen = self.page()
+        assert "지금 판매 중인 메뉴가 없어 주문을 받지 않습니다." in seen, f"{NIGHT}: {seen}"
+        promised = [word for word in seen if "메뉴는 볼 수 있습니다" in word or word in ("메뉴만 보기", "메뉴 보고 주문")]
+        assert not promised, f"{NIGHT} has nothing on sale and its page promises a menu: {promised}"
+        self.shot("018-store-night-no-menu")
         self.store_page(BUSY)
         self.sees("바쁨, 약 15분")
         assert "메뉴 보고 주문" in self.words(), "a busy store takes orders"
         self.shot("020-store-busy")
-        assert not unread, f"the store page says the menu can be read, and its menu shows no product: {'; '.join(unread)}"
 
     def shortcut_qr(self):
         # The store's shortcut QR holds its reference alone; this store is in no list.
@@ -423,10 +462,13 @@ class EntranceWalk(Walk):
         self.shot("034-basket-without-board")
         asked = self.step("entrance", change={})["answered"]
         assert not [kind for kind in asked if kind.split()[0] in ("challenge", "proof") or "." in kind.split()[0]], f"reading the menu asked a board or a session: {asked}"
-        # Asking for the order without a board account: the answer is at the top of the page, above the menu.
+        # Asking for the order without a board account: the answer is drawn above the menu, and the page shows it
+        # where the customer is left after the press.
         self.tap("주문 접수 요청")
         time.sleep(2)
         self.shot("035-order-asked-without-board-as-left")
+        assert self.shown("주문하려면 먼저 지갑 탭에서 보드를 연결하고 서명 시험을 마치세요."), \
+            f"after '주문 접수 요청' the screen shows no answer: {[word for word in self.words() if word not in TABS][:6]}"
         self.top()
         self.sees("주문하려면 먼저 지갑 탭에서 보드를 연결하고 서명 시험을 마치세요.")
         self.shot("036-order-needs-board")
@@ -474,28 +516,34 @@ class EntranceWalk(Walk):
             time.sleep(2)
         self.sees("모자란 금액 · " + self.price(1_501, 151))
         self.shot("108-basket-balance-part-of-a-unit")
-        # The wallet tab: the token a board of this build pays in, and what the account holds of it.
+        # The wallet tab: the token a board of this build pays in, and what the account holds of it, cut off.
+        held = f"{self.label} 2,999원" if self.won else "TestUSDC 2.99"
         self.tap("지갑")
         self.sees("토큰 추가")
-        time.sleep(6)
+        self.sees(held, 60)
         self.shot("109-wallet-part-of-a-unit")
-        listed = [word for word in self.words() if word.startswith(self.label + " ")]
-        # Sending and test tokens go through a store's registration, which this build does not set up.
-        for number, button, name in ((110, "보내기", "send"), (111, "시험 토큰", "test-tokens")):
+        rows = [word for word in self.words() if word.startswith(self.label + " ")]
+        assert rows and all(word.startswith(held + ",") or word == held for word in rows), f"the wallet shows more than is held, or a part of a unit: {rows}"
+        # Sending, test tokens and the return go through a store's registered connection, which this build does not
+        # set up. Each page says so in place of its action, and what the customer can do instead.
+        for number, button, name, said, dead in (
+                (110, "보내기", "send", "이 앱에서는 아직 보낼 수 없습니다", ("다시 확인", "다음")),
+                (111, "시험 토큰", "test-tokens", "이 앱에서는 아직 시험 토큰을 받을 수 없습니다", ("다시 확인",)),
+                (112, "반납", "return", "이 앱에서는 아직 반납할 수 없습니다", ("반납 시작", "잔액 없이 초기화로 진행"))):
             self.tap("지갑")
             self.tap(button)
-            self.sees("이 앱에서는 아직 쓸 수 없는 기능입니다.")
+            self.sees(said, 60)
             self.shot(f"{number:03d}-{name}-not-in-this-build")
-            self.back()
-        # The return shows what would come back and its address, and says the same once it is asked for.
-        self.tap("지갑")
-        self.tap("반납")
-        self.sees("돌려받을 금액 " + self.price(2_999, 299), 60)
-        self.tap("반납 시작")
-        self.sees("이 앱에서는 아직 쓸 수 없는 기능입니다.", 30)
-        self.shot("112-return-not-in-this-build")
-        self.tap("돌아가기")
-        assert listed, f"the wallet tab does not list {self.label}, the token a board of this build pays in, though the account holds {self.price(2_999, 299)}"
+            seen = self.page()
+            offered = [label for label in dead if label in seen]
+            assert not offered, f"{button} cannot work in this build and its page offers {offered}"
+            assert not any("쓸 수 없는 기능" in word for word in seen), f"{button}: the page says only that something cannot be used: {seen}"
+            if button == "반납":
+                assert any(self.price(2_999, 299) in word for word in seen), f"the return page does not say what the account holds: {seen}"
+                assert not any("돌려받을 금액" in word for word in seen), f"the return page promises money back: {seen}"
+                self.tap("돌아가기")
+            else:
+                self.back()
 
     def reset_without_orders(self):
         """The questions before a factory reset, for an account that never ordered."""
@@ -505,6 +553,10 @@ class EntranceWalk(Walk):
         self.sees(f"남은 돈 {self.price(2_999, 299)}을 잃습니다.")
         assert not self.shown("끝나지 않은 주문이 있"), "an account without an order is held back"
         self.shot("113-reset-no-open-order")
+        # Nothing in this build sends the money back, so the page does not say to return it first.
+        seen = self.page()
+        assert any("이 앱에서는 아직 반납할 수 없어, 남은 돈을 원래 지갑으로 돌려받을 방법이 없습니다." in word for word in seen), f"the reset page does not say the money cannot be returned: {seen}"
+        assert "먼저 반납하기" not in seen and not any("먼저 반납하세요" in word for word in seen), "the reset page says to return first, which this build cannot do"
         assert self.answered("proof 200") > asked, "the entrance was not asked how many orders of the account are unfinished"
         # The entrance cannot be asked: not known, never "none".
         self.tap("홈")
@@ -528,7 +580,7 @@ class EntranceWalk(Walk):
 
     def shortfall(self):
         """A basket the board account cannot pay: what is missing, the way to top up, and the basket after it."""
-        self.menu()
+        self.menu(empty=True)
         self.add("아메리카노")
         self.find("주문 접수 요청")
         self.sees("모자란 금액 · " + self.price(1_501, 151), 60)
@@ -553,7 +605,7 @@ class EntranceWalk(Walk):
 
     def checkout(self):
         """The board proves its account once, with no button; the menu is read again with what is left; the cart is held."""
-        self.menu()
+        self.menu(empty=True)
         self.add("아메리카노")
         self.add("치즈케이크", 2)
         self.find("주문 접수 요청")
@@ -578,6 +630,9 @@ class EntranceWalk(Walk):
         self.top()
         self.sees("금액 " + self.of("아메리카노", "치즈케이크"))
         self.shot("125-order-held")
+        # A customer knows the order by its store, its amount and its number: the card shows no reference of it.
+        coded = [word for word in self.page() if re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", word)]
+        assert not coded, f"the card of a held order shows a reference: {coded}"
         assert self.answered("proof 200") == proofs + 1, "the board was asked again for the same store"
         # Giving the order up releases its stock at the store.
         self.tap("주문 그만두기")
@@ -651,7 +706,7 @@ class EntranceWalk(Walk):
         assert not unsaid, f"a connection lost at the payment review is not said as one; the page says: {unsaid}"
 
     def pay(self):
-        self.menu()
+        self.menu(empty=True)
         self.add("아메리카노")
         self.add("치즈케이크")
         total = self.of("아메리카노", "치즈케이크")
@@ -738,18 +793,25 @@ class EntranceWalk(Walk):
         self.shot("148-order-answer-sent")
         deadline, done = time.monotonic() + 100, "받았다고 확인해서 매장에 지급되었습니다"
         while not self.shown(done) and time.monotonic() < deadline:
-            if "상태 다시 확인" in self.words():
-                self.tap("상태 다시 확인")
+            self.ask_again()
             time.sleep(5)
         self.shot("149-order-after-the-answer")
         seen, after = self.words(), self.step("entrance", change={})["answered"]
         self.tap("홈")
         time.sleep(3)
         self.shot("150-home-after-the-answer")
+        home = self.words()
         since = {kind: after.get(kind, 0) - before.get(kind, 0) for kind in ("order.answer 200", "order.status 200", "order.status 404", "proof 200")}
         assert any(done in word for word in seen), (
             f"100 seconds after the answer the order page does not say that the store was paid: {[word for word in seen if '답' in word or '단계' in word]}; "
             f"since the answer the entrance answered {since}")
+        # The order's own session read its end: the server turned no status read away, and the board proved its account
+        # at most once more (for the answer itself, when the session was not there).
+        assert since["order.status 404"] == 0 and since["proof 200"] <= 1, f"the phone lost the order's session while it waited for the end: {since}"
+        offered = [label for label in ("상태 다시 확인", "받았어요", "못 받았어요", "수령 QR 받기") if label in seen]
+        assert not offered, f"an order that ended still offers {offered}"
+        listed = [word for word in home if word.startswith(f"{CAFE} 주문번호")]
+        assert not listed, f"the order that ended is still in progress on the home tab: {listed}"
 
     def reset_with_open_order(self):
         """An order that is paid and not handed over holds the board's key: no return and no reset from the app."""
@@ -802,6 +864,10 @@ class EntranceWalk(Walk):
         self.tap("홈")
         self.sees("이전 보드 · ", 60)
         self.shot("159-home-orders-of-former-board")
+        # The board was just asked for its limits: the home tab says them in the token of this build's order contract.
+        limits = [word for word in self.words() if "오늘 더 승인할 수 있는 금액" in word or "하루에" in word or word == "확인 안 됨"]
+        assert any("하루에" in word for word in limits) and not any("확인 안 됨" in word for word in limits), \
+            f"the home tab does not say the board's limits in the token of this build: {limits}"
         self.touch(next(node for node in self.nodes() if node["words"][1].startswith(f"{CAFE} 주문번호")))
         self.sees("이전 보드의 주문", 60)
         self.shot("160-order-of-former-board")
