@@ -196,6 +196,7 @@ function orderRowDetail(row: CustomerOrderSummary, sent?: OpenOrder) {
  * Why an order at a store reached without a registration cannot go on, in the customer's words. `kept`: the page
  * came back to a payment it had kept, so the order was started before.
  */
+const storeUnreached = '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
 function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = false) {
   switch (problem.kind) {
     case 'no-build': return '이 앱에는 주문을 받을 매장 서버와 주문 계약이 아직 정해지지 않았습니다.';
@@ -214,7 +215,7 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = f
       : problem.code === 'CHAIN_UNREADABLE' ? (kept ? '결제 정보를 체인에서 다시 확인하지 못했습니다. 연결을 확인하고 다시 시도하세요.'
         : '결제 정보를 체인에서 확인하지 못해 주문을 시작하지 않았습니다. 잠시 뒤 다시 시도하세요.')
       : '이 매장의 결제 정보가 이 앱의 주문 계약과 맞지 않아 주문할 수 없습니다. 운영자에게 문의하세요.';
-    default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
+    default: return storeUnreached;
   }
 }
 // What a basket lacks and holds, in the unit its screen shows: the phone's one rule for whole won (wallet/tokens.ts).
@@ -909,7 +910,7 @@ export function CustomerOrders({
     return !problem;
   }
 
-  function work(action: () => Promise<void>, failure: string) {
+  function work(action: () => Promise<void>, failure: string | ((error: unknown) => string)) {
     if (performing.current) return;
     const token = {};
     performing.current = token;
@@ -934,7 +935,7 @@ export function CustomerOrders({
         if (!live()) return;
         // Too many requests at the store's server: nothing is known to have failed, and the session stands.
         if (storeAccess && error instanceof StoreBusy) setStoreProblem({kind: 'busy'});
-        else setMessage(failure);
+        else setMessage(typeof failure === 'string' ? failure : failure(error));
       })
       .finally(() => {
         if (performing.current === token) {
@@ -3645,7 +3646,9 @@ export function CustomerOrders({
                     run={() =>
                       work(
                         () => preparePayment(order),
-                        '주문, 자산, 보드 주소 또는 독립 복구 상태를 확인할 수 없습니다.',
+                        // No answer from the store's server is a lost connection, and the order stays as it is.
+                        error => storeAccess && isMenuNetworkOffline(error) ? storeUnreached
+                          : '주문, 자산, 보드 주소 또는 독립 복구 상태를 확인할 수 없습니다.',
                       )
                     }
                   />

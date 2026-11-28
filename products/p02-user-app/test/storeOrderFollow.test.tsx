@@ -363,3 +363,28 @@ describe('a store server that no longer answers for an order', () => {
     expect(screen()).toContain(unread);
   });
 });
+
+describe('where a store page says what happened', () => {
+  test('a connection lost at the payment review is said as a lost connection, and the order stays', async () => {
+    await toOrder();
+    mockEntranceDown = true;
+    await press('이 주문의 결제 내용 검토');
+    expect(screen()).toContain('매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.');
+    expect(screen()).not.toContain('독립 복구');
+    // The order is still the one the store holds: it can be reviewed again and paid.
+    expect(button('주문 그만두기')).toBeDefined();
+    mockEntranceDown = false;
+    await press('이 주문의 결제 내용 검토');
+    expect(screen()).toContain('결제 내용을 확인하세요');
+    expect(mockCreateKeys).toHaveLength(1);
+  });
+
+  test('a quote the phone does not trust is still not called a lost connection', async () => {
+    mockChain.merchant.signer = '0x' + '9'.repeat(40);
+    await toOrder();
+    await press('이 주문의 결제 내용 검토');
+    expect(screen()).toContain('주문, 자산, 보드 주소 또는 독립 복구 상태를 확인할 수 없습니다.');
+    expect(screen()).not.toContain('매장 서버에 연결하지 못했습니다.');
+  });
+
+});
