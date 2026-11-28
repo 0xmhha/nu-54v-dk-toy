@@ -314,6 +314,27 @@ jobs:
           python3 scripts/fw.py build --release --approtect --security-counter=2
           NU54_FOTA_TEST_BUILD="$P01_BUILD_DIR" go test -count=1 -run '^TestFirmwareVerifiesCountedReleaseImage$' ../p05-operations-backoffice/internal/commerce
           cp "$P01_BUILD_DIR"/{release-manifest.json,release-public.pem,west-frozen.yml,tls-stack.cdx.json} "$RUNNER_TEMP/p01-build-evidence/"
+      - name: Build the spending wallet for long standby and for TrustZone
+        run: |
+          # Two more release builds, as a developer makes them; neither image is released or flashed.
+          # --standby reads the generated configuration back (no UART driver in the application) and
+          # goes through the release checks. --secure-key builds for cpuapp/ns with the wallet key in
+          # TF-M and checks the configuration, both linker maps and the MCUboot signature; fw.py then
+          # prints "Build-verified TrustZone spending image". Either build fails the job by its exit.
+          export NCS_DIR="$HOME/ncs/$NCS_VERSION"
+          export NU54_SIGNING_KEY="$RUNNER_TEMP/nu54-ci-firmware.pem"
+          trap 'rm -f "$NU54_SIGNING_KEY"' EXIT
+          # The profile pins an enrollment authority. This one is thrown away: the public P-256
+          # point (04, X, Y) is the last 65 bytes of the DER public key.
+          NU54_INSTALL_AUTHORITY_HEX="$(openssl ecparam -name prime256v1 -genkey -noout |
+            openssl ec -pubout -outform DER | tail -c 65 | od -An -v -tx1 | tr -d ' \n')"
+          export NU54_INSTALL_AUTHORITY_HEX
+          cd products/p01-device-firmware
+          python3 scripts/fw.py keygen "$NU54_SIGNING_KEY"
+          {
+            P01_BUILD_DIR="$(mktemp -d "$RUNNER_TEMP/p01-standby.XXXXXX")" python3 scripts/fw.py build --release --spending --standby
+            P01_BUILD_DIR="$(mktemp -d "$RUNNER_TEMP/p01-secure-key.XXXXXX")" python3 scripts/fw.py build --release --spending --secure-key
+          } 2>&1 | tee "$RUNNER_TEMP/p01-build-evidence/spending-profiles.log"
       - name: Upload board build evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
