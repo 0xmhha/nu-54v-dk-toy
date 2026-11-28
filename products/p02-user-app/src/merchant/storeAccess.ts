@@ -62,6 +62,11 @@ export class SessionNeeded extends Error {
 
 export type AccessProblem =
   | SessionProblem
+  /**
+   * The store's server did not answer about this order although the board proved the paying account for it. The
+   * board is not asked again before `until` (seconds); the page shows what the phone wrote down last.
+   */
+  | {kind: 'order-unread'; until: number}
   /** This phone has no board account yet: the wallet connects and tests a board first. */
   | {kind: 'no-account'}
   /** The store cannot be paid from this build now: it has no number in the order contract, or the chain said no. */
@@ -102,6 +107,15 @@ export type AccessParts = {
 
 const margin = 40; // a request lives 30 seconds and must end before its session does
 const sessionsLimit = 32;
+
+// What the server refused about the session of one order, for as long as the app runs. A session that ended is
+// proven again once. When the server turns that new session away as well, or does not take the proof for the order,
+// another proof would change nothing: the board is left alone for a time that doubles with every such refusal, up
+// to half an hour. An answer about the order clears it.
+const firstWait = 60, longestWait = 1800;
+const unread = new Map<string, {reproven?: string; strikes: number; until: number}>();
+/** Forgets what was refused; for tests, which run in one process. */
+export function forgetOrderRefusals() { unread.clear(); }
 
 /**
  * The sealed journal did not take the order sessions. The board proves again, so nothing is lost but a proof; yet a
@@ -181,6 +195,22 @@ export class StoreAccess {
     return Http!.saveJournal(this.sessionsName, JSON.stringify(live)).catch(error => sessionsNotKept('written', error));
   }
 
+  /**
+   * The server ended the session `token` of `sale`, or (without a token) did not take a proof for the order. Only a
+   * session that was proven after an earlier refusal, or a refused proof, holds the board back.
+   */
+  private refused(sale: string, token?: string) {
+    const key = `${this.id}/${sale}`, known = unread.get(key);
+    if (token !== undefined && known?.reproven !== token) { unread.set(key, {strikes: known?.strikes ?? 0, until: 0}); return; }
+    const strikes = (known?.strikes ?? 0) + 1;
+    unread.set(key, {strikes, until: this.parts.now() + Math.min(firstWait * 2 ** Math.min(strikes - 1, 10), longestWait)});
+  }
+  /** Until when the board is not asked about `sale` again; undefined when it may be asked now. */
+  private heldBack(sale: string) {
+    const until = unread.get(`${this.id}/${sale}`)?.until ?? 0;
+    return until > this.parts.now() ? until : undefined;
+  }
+
   private usable(session?: CustomerSession) {
     return session && session.expiresAt - this.parts.now() > margin ? session : undefined;
   }
@@ -248,13 +278,14 @@ export class StoreAccess {
         throw new CommerceHoldRefusal('BUSY', this.holdWait.reason);
       const reply = await this.parts.post('/v2/customer/commerce', body, session.token);
       if (reply.status === 404) {
-        // The session ended, or the request is outside it: the board proves again.
+        // The session ended, or the request is outside it: the board proves again, once (refused, above).
         if (session === this.checkout) this.checkout = undefined;
-        else if (session.sale) { this.orders.delete(session.sale); void this.keep(); }
+        else if (session.sale) { this.orders.delete(session.sale); void this.keep(); this.refused(session.sale, session.token); }
         throw new SessionNeeded(scope);
       }
       const busy = StoreAccess.rateRefusal(reply);
       if (busy) throw busy;
+      if (session.sale) unread.delete(`${this.id}/${session.sale}`);
       if (reply.body === null || typeof reply.body !== 'object') throw new Error('BAD_RESPONSE');
       // A cart that was not held because the balance could not be read, or because this account asked for too many,
       // comes with the time to wait; the client reads the reason from the reply.
@@ -338,6 +369,9 @@ export class StoreAccess {
   async ensure(scope: SessionScope): Promise<AccessProblem | undefined> {
     if (scope.branch !== this.store.branch) return {kind: 'unavailable'};
     if (this.live(scope)) return undefined;
+    // The server already turned a new proof for this order away: the board is not asked again for a while.
+    const waiting = scope.purpose === 'order' ? this.heldBack(scope.sale) : undefined;
+    if (waiting) return {kind: 'order-unread', until: waiting};
     const wallet = await this.parts.wallet().catch(() => undefined);
     if (!wallet || !this.account || wallet.account !== this.account) return {kind: 'no-account'};
     if (scope.purpose === 'checkout') {
@@ -345,13 +379,21 @@ export class StoreAccess {
       if (unpaid) return unpaid;
     }
     const opened = await openCustomerSession(new SessionEntrance(this.parts.post), this.parts.board, this.account, scope, wallet.generation);
+    // The board proved the paying account and the server still gave no session for the order: asking again would
+    // only use the board again.
+    if (scope.purpose === 'order' && (opened.kind === 'mismatch' || opened.kind === 'refused')) this.refused(scope.sale);
     if (opened.kind !== 'session') return opened;
     const {session} = opened;
     // The server must speak of the customer this phone derived from the same account.
     if (session.subject !== this.subject) return {kind: 'unavailable'};
     this.profile.tenantRef = session.tenant;
-    if (session.purpose === 'order' && session.sale) { this.orders.set(session.sale, session); await this.keep(); }
-    else this.checkout = session;
+    if (session.purpose === 'order' && session.sale) {
+      // A session proven after the server ended the one before: when this one is refused too, the board rests.
+      const known = unread.get(`${this.id}/${session.sale}`);
+      if (known) known.reproven = session.token;
+      this.orders.set(session.sale, session);
+      await this.keep();
+    } else this.checkout = session;
     return undefined;
   }
 

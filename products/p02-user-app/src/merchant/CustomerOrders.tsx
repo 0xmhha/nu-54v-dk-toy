@@ -208,6 +208,8 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = f
     // The board near is this phone's own and proved its account; the server still did not accept it for what was asked.
     case 'mismatch': return '매장 서버가 이 보드 계정의 확인을 받아들이지 않았습니다. 주문 상태를 다시 확인하고, 같은 안내가 나오면 매장에 문의하세요.';
     case 'refused': return '매장 서버가 이 요청을 받지 않았습니다. 다시 시도해도 같으면 매장에 문의하세요.';
+    // The board proved the paying account and the server still said nothing of the order; the board rests for a while.
+    case 'order-unread': return '매장 서버가 이 주문의 상태를 지금 알려 주지 않습니다. 아래는 이 휴대전화가 마지막으로 확인한 상태입니다. 몇 분 뒤 다시 확인하세요.';
     case 'payment': return problem.code === 'NO_MERCHANT' ? '이 매장은 아직 앱에서 주문 결제를 받지 않습니다.'
       : problem.code === 'CHAIN_UNREADABLE' ? (kept ? '결제 정보를 체인에서 다시 확인하지 못했습니다. 연결을 확인하고 다시 시도하세요.'
         : '결제 정보를 체인에서 확인하지 못해 주문을 시작하지 않았습니다. 잠시 뒤 다시 시도하세요.')
