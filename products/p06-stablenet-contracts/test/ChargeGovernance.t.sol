@@ -256,6 +256,32 @@ contract ChargeGovernanceTest is ChargeBase {
         proposeOn(pool, "returnToken", abi.encode(next, uint256(1)), "salt");
     }
 
+    /// A key number and a signer number are read as the whole 32-byte word of the arguments. 259 is not
+    /// key 3 and 258 is not signer 2, though their last byte says so. `setKey` and `setSigner` could never
+    /// be called with such a number, so the change is refused when it is proposed, with two good signatures.
+    function testAKeyOrSignerNumberIsNotReadByItsLastByte() public {
+        bytes4 refused = ChargeGovernance.InvalidParameters.selector;
+        uint256[4] memory above = [uint256(1) << 8, 1 << 16, 1 << 160, 1 << 255];
+        for (uint256 i; i < above.length; ++i) {
+            for (uint256 low; low < 4; ++low) {
+                bytes memory arguments = abi.encode(above[i] | low, next);
+                expectProposeRevert(deposit, "setKey", arguments, refused);
+                vm.expectRevert(refused);
+                deposit.proposalRound(SET_KEY, arguments);
+                if (low == 3) continue;
+                expectProposeRevert(deposit, "setSigner", arguments, refused);
+                vm.expectRevert(refused);
+                deposit.proposalRound(SET_SIGNER, arguments);
+            }
+        }
+        toWon();
+        expectProposeRevert(pool, "setKey", abi.encode(uint256(259), next), refused);
+        expectProposeRevert(pool, "setSigner", abi.encode(uint256(258), next), refused);
+        // The same numbers with nothing above the last byte are proposed.
+        proposeOn(pool, "setKey", abi.encode(uint256(3), next), "salt");
+        proposeOn(pool, "setSigner", abi.encode(uint256(2), next), "salt");
+    }
+
     function testAChangeWaitsADayAndLapsesThreeDaysLater() public {
         proposeOn(deposit, "setKey", keyArgs(ChargeGovernance.Key.Relay, next), "salt");
         uint256 proposedAt = block.timestamp;
