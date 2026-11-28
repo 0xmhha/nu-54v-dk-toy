@@ -294,7 +294,17 @@ int device_recovery_pin_guarded(bool virgin, device_pin_guard guard, void *conte
 }
 int32_t device_recovery_pin_wait(void) { return 0; }
 int device_recovery_pin_erase(void) { return 0; }
-int board_button_wait(board_button_event_t *out, int32_t timeout) { (void)out; (void)timeout; return -1; }
+/* The buttons of the owner's own factory reset (device_pilot_button_reset). SW2 with SW3 and the PIN are the
+ * `factory` command; the long press of SW1 that confirms the reset is given once, when that command asks for it. */
+static bool long_press_waits;
+int board_button_wait(board_button_event_t *out, int32_t timeout)
+{
+	(void)timeout;
+	if (!long_press_waits) return -1;
+	long_press_waits = false;
+	*out = (board_button_event_t){.button = 0, .event = NU54_BTN_LONG};
+	return 0;
+}
 static uint32_t shown_prompt;
 void board_io_set_prompt(uint32_t prompt) { shown_prompt = prompt; if (prompt) say("prompt"); }
 void status_led_waiting(bool on) { (void)on; }
@@ -302,6 +312,7 @@ void status_led_event(nu54_event_t event) { say("lamp %d", (int)event); }
 void status_led_pressed(void) {}
 void status_led_clear(void) {}
 void status_led_reset_done(void) { say("erased"); }
+void status_led_reset_armed(bool on) { (void)on; }
 bool status_led_locate(bool start) { (void)start; return false; }
 
 /* ---- the grant (device_install.c) ----
@@ -444,6 +455,7 @@ static bool payment_generation_current(const nu54_install_policy *policy);
 static bool payment_address(const nu54_install_policy *policy, uint8_t address[20]);
 static int sign(void *context, const uint8_t digest[32], uint8_t signature[64]);
 void device_pilot_button(uint32_t prompt, bool approved);
+void device_pilot_button_reset(void);
 int device_install_verify_authority(const uint8_t *data, size_t length, const uint8_t signature[64]);
 #ifdef NU54_TOKEN_UNIT
 #include "token_unit.h"
@@ -658,6 +670,14 @@ static void command(char *line)
 		return;
 	}
 	else if (!strcmp(word, "boot")) { boot(); return; }
+	else if (!strcmp(word, "factory")) {
+		/* The owner resets the board with its buttons and no phone. It erases itself and restarts ("erased",
+		 * "booted"), or shows a refusal ("lamp 2") while a session, a request or an approved order needs it. */
+		long_press_waits = true;
+		device_pilot_button_reset();
+		long_press_waits = false;
+		return;
+	}
 	else assert(!"unknown command");
 	say("ok");
 }
