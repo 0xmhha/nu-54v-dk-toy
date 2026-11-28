@@ -26,6 +26,7 @@ import {ExploreHome} from './explore/ExploreHome.tsx';
 import {StoreFinder} from './merchant/StoreFinder.tsx';
 import {ordersWithoutRegistration} from './merchant/orderRoute.ts';
 import {madeAtStorePage, type StoreChoice} from './merchant/storeAccess.ts';
+import {storeVisits} from './merchant/storeVisit.ts';
 import {configuredDirectory} from './merchant/storeDirectory.ts';
 import ShopQr from './specs/NativeShopQr.ts';
 import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
@@ -470,6 +471,8 @@ function Shell() {
   const [shownOrder, setShownOrder] = useState('');
   // A store picked from its store page, ordered from without a registration (merchant/storeAccess.ts).
   const [storeOrder, setStoreOrder] = useState<StoreChoice>();
+  // What the customer left at store pages while the app runs: a basket, or an order that waits for its payment.
+  const visits = useMemo(() => storeVisits(), []);
   const openShopQr = useCallback((raw: string) => {
     setStoreOrder(undefined);
     setOrderLink('');
@@ -667,7 +670,7 @@ function Shell() {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
-        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder}
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder} storeVisits={visits}
           // Only a build that takes the order from the store page sends a store QR there. With the entrance alone the
           // page's order button comes back here, and sending it to the page again would never end.
           openStorePage={registrationFree ? openStores : undefined}

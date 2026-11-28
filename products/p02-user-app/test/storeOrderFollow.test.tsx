@@ -10,6 +10,7 @@ import {CustomerOrders} from '../src/merchant/CustomerOrders';
 import {forgetEntranceWaits} from '../src/merchant/customerEntrance';
 import {orderRecords} from '../src/merchant/orderRecords';
 import {customerSubject, forgetOrderRefusals} from '../src/merchant/storeAccess';
+import {storeVisits, type StoreVisits} from '../src/merchant/storeVisit';
 import {journalStore} from './fixtures/journal';
 import {
   boardSignature, branch as mockBranch, escrowStatus as mockEscrow, generation as mockGeneration, now, now as mockNow, order as mockIssued, payer as mockPayer, payerKey as mockPayerKey,
@@ -216,9 +217,11 @@ const tick = (ms: number) => Renderer.act(async () => { await jest.advanceTimers
 const store = {branch: mockBranch, name: '그린 카페', merchantId: mockPolicy.merchantId};
 const back = jest.fn(), openBoard = jest.fn();
 async function open(props: Partial<React.ComponentProps<typeof CustomerOrders>> = {}) {
-  await Renderer.act(async () => { tree = Renderer.create(<CustomerOrders back={back} openBoard={openBoard} initialLocator="" shopEntry store={store} permission={async () => true} {...props} />); });
+  await Renderer.act(async () => { tree = Renderer.create(<CustomerOrders back={back} openBoard={openBoard} initialLocator="" shopEntry store={store} storeVisits={visits} permission={async () => true} {...props} />); });
   await tick(0);
 }
+// What the app keeps of a store page while it runs; a page opened without it starts empty.
+let visits: StoreVisits;
 // Where the page was scrolled to: the scroll view of the test renderer records every call.
 const scrolls = () => (tree!.root.findAllByType(ScrollView)[0].instance as unknown as {scrollTo: jest.Mock}).scrollTo;
 const scrolled = () => scrolls().mock.calls.map(([to]) => (to as {y: number}).y);
@@ -231,7 +234,7 @@ beforeEach(() => {
   mockStage = 'none'; mockConfirmer = ''; mockOrigin = ''; mockStock = 3; mockMenuPrice = mockIssued.amount; mockSessionSeed = 1; mockEntranceDown = false; mockQuoteChange = undefined; mockHeld = false;
   mockHold = undefined; mockCancel = 'closed'; mockCancels.length = 0; mockClosedUnpaid = false; mockCreateKeys.length = 0;
   mockPending = undefined; mockOrderSessionsEnd = false; mockOrderProofRefused = false;
-  forgetEntranceWaits(); forgetOrderRefusals();
+  forgetEntranceWaits(); forgetOrderRefusals(); visits = storeVisits();
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset};
   Object.assign(mockChain, {merchant: {signer: mockPolicy.signer, beneficiary: mockPolicy.beneficiary, keyVersion: mockPolicy.keyVersion,
     beneficiaryVersion: mockPolicy.beneficiaryVersion, active: 1n}, balance: 95_500_000n, down: false});
@@ -434,5 +437,62 @@ describe('where a store page says what happened', () => {
     expect(screen()).toContain('결제 기한이 지났습니다');
     expect(screen()).toContain('빠져나간 돈은 없습니다. 새 결제 내용이 있는지 확인하고, 없으면 매장 화면에서 다시 주문하세요.');
     expect(screen()).not.toContain('키오스크에서 새로 주문하세요');
+  });
+});
+
+describe('the basket of a store page', () => {
+  test('stays when the customer leaves to top up and comes back, and is read against the menu as it is then', async () => {
+    mockChain.balance = 1_000_000n;
+    await open();
+    await press('라떼 iced 추가');
+    await press('라떼 iced 추가');
+    expect(screen()).toContain('모자란 금액');
+    await press('충전하러 가기');
+    expect(openBoard).toHaveBeenCalledTimes(1);
+    // The payment tab closes with the page; the board account is topped up meanwhile.
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockChain.balance = 95_500_000n;
+    await open();
+    expect(screen()).toContain('선택 2');
+    expect(screen()).toContain('합계');
+    expect(screen()).toContain('9.00 TestUSDC');
+    expect(screen()).not.toContain('모자란 금액');
+    // The same basket is ordered: one cart, with the two that were picked before.
+    await press('주문 접수 요청');
+    expect(mockCreateKeys).toHaveLength(1);
+    expect(mockStock).toBe(2);
+    // An order the store holds is no basket to bring back.
+    await Renderer.act(async () => { tree!.unmount(); });
+    await open();
+    expect(button('저장한 주문 다시 확인')).toBeDefined();
+    expect(screen()).not.toContain('합계');
+  });
+
+  test('a product that sold out or changed its price meanwhile is said on the way back, before any order', async () => {
+    await open();
+    await press('라떼 iced 추가');
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockMenuPrice = '5000000';
+    await open();
+    expect(screen()).toContain('새 합계');
+    expect(screen()).toContain('5.00 TestUSDC');
+    await Renderer.act(async () => { tree!.unmount(); });
+    mockStock = 0;
+    await open();
+    expect(screen()).not.toContain('선택 1');
+    expect(button('주문 접수 요청')).toBeUndefined();
+    expect(mockCreateKeys).toEqual([]);
+  });
+
+  test('is gone once it was given up or paid, and is another store\'s at another store', async () => {
+    await toOrder();
+    await press('주문 그만두기');
+    await Renderer.act(async () => { tree!.unmount(); });
+    await open();
+    expect(screen()).not.toContain('합계');
+    await press('라떼 iced 추가');
+    await Renderer.act(async () => { tree!.unmount(); });
+    await open({store: {...store, branch: '0fbc54ef-2827-4ab5-bfcd-3a27611c39aa'}});
+    expect(screen()).not.toContain('합계');
   });
 });

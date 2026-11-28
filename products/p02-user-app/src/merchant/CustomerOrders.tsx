@@ -127,6 +127,7 @@ import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} f
 import {configuredEntrance, issuePickupQr, shortAccount} from './customerEntrance.ts';
 import {isPinnedPolicy} from './orderPaymentTrust.ts';
 import {madeAtStorePage, openStoreAccess, SessionNeeded, StoreBusy, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
+import type {StoreVisits} from './storeVisit.ts';
 import {ownerPickupBoard} from './pickupBoard.ts';
 import {PickupQrScreen} from './PickupQr.tsx';
 import {cartMoney, missingUnits, orderMoney, receiptLines, shownBalance} from '../wallet/tokens.ts';
@@ -333,9 +334,15 @@ export function CustomerOrders({
   travelCheckout,
   subscriptionLink,
   store,
+  storeVisits,
   openStorePage,
   storeRoute,
 }: {
+  /**
+   * Where the app keeps what the customer left at a store page: the basket comes back from it when the page opens
+   * again, and the page writes down what it holds (storeVisit.ts). Without it a page starts empty every time.
+   */
+  storeVisits?: StoreVisits;
   /** Opens a store's page from its shortcut QR; undefined unless the build takes the order from that page. */
   openStorePage?: (branch: string) => void;
   /**
@@ -441,6 +448,12 @@ export function CustomerOrders({
   const storeBranch = store?.branch, storeName = store?.name, storeMerchant = store?.merchantId;
   const registrationFree = !!storeRoute;
   const [storeAccess, setStoreAccess] = useState<StoreAccess>();
+  // The access whose page has taken back the basket left at its store; from then on the page writes its own down.
+  const [basketOf, setBasketOf] = useState<StoreAccess>();
+  useEffect(() => {
+    if (!storeAccess || basketOf !== storeAccess) return;
+    storeVisits?.keep(storeAccess.store.branch, {basket: point ? undefined : cart, checkout: !!point || !!approved});
+  }, [storeVisits, storeAccess, basketOf, cart, point, approved]);
   const [storeProblem, setStoreProblem] = useState<AccessProblem | {kind: 'no-build'}>();
   // The board account's balance of the store's token: undefined before it is read, null when it cannot be read.
   const [boardBalance, setBoardBalance] = useState<bigint | null>();
@@ -571,6 +584,7 @@ export function CustomerOrders({
     setCounterQrAllowed(false);
     setMessage('');
     setStoreAccess(undefined);
+    setBasketOf(undefined);
     setStoreProblem(undefined);
     setBoardBalance(undefined);
     setShortHold(undefined);
@@ -624,7 +638,8 @@ export function CustomerOrders({
         // An order with a session of its own is read again; the others keep what the phone last wrote down.
         void refreshOpenOrders(actor).then(rows => { if (current()) setOpenOrders(rows); }).catch(() => {});
         void access.balance().then(value => { if (current()) setBoardBalance(value ?? null); });
-        if (!pending) {
+        if (pending) setBasketOf(access);
+        else {
           try {
             const menu = await actor.publishedMenu();
             if (!current()) return;
@@ -633,6 +648,15 @@ export function CustomerOrders({
             setCatalog(menu.catalog);
             if (menu.shop) setShop({identity: menu.shop, route: 'direct'});
             setStoreState({state: menu.orderState, checkedAt: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`});
+            // The basket the customer left here (to top up, or for another tab) comes back, read against the menu
+            // as it is now: a price that changed or a product that sold out meanwhile is said before any order.
+            const left = storeVisits?.basket(storeBranch);
+            if (left) {
+              const review = reviewCommerceCart(left, menu.catalog);
+              setCart(review.selection);
+              if (review.priceChanges.length || review.shortages.length) setCartReview(review);
+            }
+            setBasketOf(access);
           } catch (error) {
             if (!current()) return;
             if (error instanceof StoreBusy) setStoreProblem({kind: 'busy'});
@@ -774,7 +798,7 @@ export function CustomerOrders({
       if (current()) { setPhase('locked'); showStranded(); }
     }
   }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant, keepPolicy,
-    initialOrder, registrationFree]);
+    initialOrder, registrationFree, storeVisits]);
 
   useEffect(() => {
     mounted.current = true;
