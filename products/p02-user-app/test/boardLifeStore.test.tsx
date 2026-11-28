@@ -466,7 +466,7 @@ describe('what this app cannot do yet is said in place of the action', () => {
     expect(text()).toContain(cannotReturn);
     expect(text()).toContain(noWayBack);
     expect(text()).toContain('420,000원');
-    for (const dead of ['반납 시작', '잔액 없이 초기화로 진행', '잔액 다시 확인']) expect([dead, button(dead)]).toEqual([dead, undefined]);
+    for (const dead of ['반납 시작', '잔액 없이 초기화로 진행', '잔액 다시 확인']) expect([dead, !!button(dead)]).toEqual([dead, false]);
     expect(text()).not.toContain('돌려받을 금액');
     expect(text()).not.toContain('원래 지갑으로 보내고, 확정된 뒤에 보드를 초기화합니다');
     expect(message).toBe('');

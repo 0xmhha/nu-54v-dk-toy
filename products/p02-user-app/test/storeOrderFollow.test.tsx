@@ -45,6 +45,9 @@ let mockPending: 'receipt' | undefined;
 let mockOrderSessionsEnd = false;
 // A proof for an order the server does not take: the order is not one it follows any more.
 let mockOrderProofRefused = false;
+// What the store says about taking orders now. A store that stopped still shows its menu to read; the menu a
+// session reads has no row to order then (opsd, migration 128).
+let mockStoreMode: {mode: 'open'} | {mode: 'closed'} | {mode: 'paused'; resumeAt?: string} = {mode: 'open'};
 let mockConfirmer = '';
 let mockOrigin = '';
 let mockStock = 3;
@@ -96,7 +99,7 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     if (!body) {
       mockSent.push({path});
       // The public menu tells sold out (0) or on sale (1000), never how many are left (opsd public_menu_window).
-      if (path === `/v2/customer/stores/${mockBranch}/menu/0`) return answer(200, {shop: {branch: mockBranch, branchLabel: '그린 카페'}, orderState: {mode: 'open'},
+      if (path === `/v2/customer/stores/${mockBranch}/menu/0`) return answer(200, {shop: {branch: mockBranch, branchLabel: '그린 카페'}, orderState: mockStoreMode,
         catalogVersion: 1, catalog: [mockMenuRow(mockStock > 0 ? 1000 : 0)]});
       return answer(404, null);
     }
@@ -140,7 +143,7 @@ jest.mock('../src/specs/NativeCommerceHttp.ts', () => ({__esModule: true, defaul
     const ok = {requestId, requestDigest, status: 'ok', resultRef: command.objectRef};
     // A session's menu is the public one with the counts of what is left.
     if (command.operation === 'catalog.read') return command.objectRef !== mockBranch ? answer(404, null) : answer(200, {...ok, shop: {branch: mockBranch, branchLabel: '그린 카페'},
-      orderState: {mode: 'open'}, catalogVersion: 1, catalog: [mockMenuRow(mockStock)]});
+      orderState: mockStoreMode, catalogVersion: 1, catalog: mockStoreMode.mode === 'open' ? [mockMenuRow(mockStock)] : []});
     if (command.operation === 'order.create') mockCreateKeys.push(command.idempotencyKey ?? "");
     if (command.operation === 'order.create' && mockHold)
       return answer(mockHold.status, {requestId, requestDigest, status: 'error', ...mockHold.more}, mockHold.retryAfter);
@@ -233,7 +236,7 @@ beforeEach(() => {
   mockJournalDown = false;
   mockStage = 'none'; mockConfirmer = ''; mockOrigin = ''; mockStock = 3; mockMenuPrice = mockIssued.amount; mockSessionSeed = 1; mockEntranceDown = false; mockQuoteChange = undefined; mockHeld = false;
   mockHold = undefined; mockCancel = 'closed'; mockCancels.length = 0; mockClosedUnpaid = false; mockCreateKeys.length = 0;
-  mockPending = undefined; mockOrderSessionsEnd = false; mockOrderProofRefused = false;
+  mockPending = undefined; mockOrderSessionsEnd = false; mockOrderProofRefused = false; mockStoreMode = {mode: 'open'};
   forgetEntranceWaits(); forgetOrderRefusals(); visits = storeVisits();
   mockPin = {chain: 8283, contract: mockPolicy.contract, asset: mockPolicy.asset};
   Object.assign(mockChain, {merchant: {signer: mockPolicy.signer, beneficiary: mockPolicy.beneficiary, keyVersion: mockPolicy.keyVersion,
@@ -509,4 +512,47 @@ test('a store page lists the orders paid there above its menu, and one opens fro
   await tick(0);
   expect(tree!.root.findAll(node => node.props.testID === 'order-detail').length).toBeGreaterThan(0);
   expect(screen()).toContain('준비되었습니다. 카운터에서 수령 QR을 보여 주세요.');
+});
+
+describe('the menu of a store that takes no order now', () => {
+  test.each<[typeof mockStoreMode, string, string]>([
+    [{mode: 'paused', resumeAt: '15:30'}, '매장이 주문을 잠시 멈췄습니다', '15:30쯤 다시 받는다고 알렸습니다.'],
+    [{mode: 'closed'}, '오늘은 매장이 쉬는 날입니다', '다음 날부터 다시 받습니다.'],
+  ])('shows its products and prices to read, and no way to put one in a basket: %j', async (mode, title, detail) => {
+    mockStoreMode = mode;
+    await open();
+    expect(screen()).toContain('그린 카페 메뉴');
+    expect(screen()).toContain('라떼');
+    expect(screen()).toContain('4.50 TestUSDC');
+    expect(screen()).toContain(title);
+    expect(screen()).toContain(detail);
+    expect(screen()).not.toContain('지금 판매 중인 메뉴가 없습니다.');
+    for (const label of ['라떼 iced 추가', '라떼 iced 빼기', '주문 접수 요청']) expect([label, !!button(label)]).toEqual([label, false]);
+    expect(screen()).not.toContain('선택 0');
+    expect(button('다시 받는지 확인')).toBeDefined();
+    expect(mockProofs).toEqual([]);
+  });
+
+  test('a product that is sold out still says so', async () => {
+    mockStoreMode = {mode: 'paused'}; mockStock = 0;
+    await open();
+    expect(screen()).toContain('4.50 TestUSDC');
+    expect(screen()).toContain('품절');
+  });
+
+  test('a store with nothing on sale says only that', async () => {
+    mockStock = 3;
+    const menu = jest.requireMock('../src/specs/NativeCommerceHttp.ts').default;
+    const request = menu.customerRequest;
+    menu.customerRequest = async (anchor: string, path: string, session: string, body: string) => path.endsWith('/menu/0') && !body
+      ? JSON.stringify({status: 200, body: JSON.stringify({shop: {branch: mockBranch, branchLabel: '그린 카페'}, orderState: {mode: 'open'}, catalog: []})})
+      : request(anchor, path, session, body);
+    try {
+      await open();
+      expect(screen()).toContain('지금 판매 중인 메뉴가 없습니다. 주문 받는 시간은 매장 화면에서 확인하세요.');
+      expect(button('주문 접수 요청')).toBeUndefined();
+    } finally {
+      menu.customerRequest = request;
+    }
+  });
 });

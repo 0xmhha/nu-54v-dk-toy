@@ -1,5 +1,6 @@
 import {keccak_256} from '@noble/hashes/sha3';
 import {accountProofDigest, addressOfPrivateKey, bytesToHex, signDigest, utf8Encode} from '@nu54/protocol';
+import {bindServiceRequestV2, type ServiceRequestV2} from '@nu54/protocol';
 import type {BoardLink, EntrancePost, PickupBoard} from '../src/merchant/customerEntrance';
 import {isPinnedPolicy} from '../src/merchant/orderPaymentTrust';
 import {customerSubject, StoreAccess, StoreBusy, type AccessParts} from '../src/merchant/storeAccess';
@@ -161,5 +162,45 @@ describe('order sessions', () => {
     await expect(hidden.client.publishedMenu()).rejects.toThrow('STORE_NOT_PUBLIC');
     const busy = await setup(path => path.includes('/menu/') ? {status: 429, body: null} : undefined).open();
     await expect(busy.client.publishedMenu()).rejects.toBeInstanceOf(StoreBusy);
+  });
+});
+
+describe('the menu of a store that takes no order now', () => {
+  /** The server's answer to one request of a session, bound to the session's customer as the server binds it. */
+  const answerTo = (body: string) => {
+    const {command} = JSON.parse(body) as {command: ServiceRequestV2};
+    const {requestId, requestDigest} = bindServiceRequestV2(command, {role: 'customer', tenantRef: tenant, subjectRef: customerSubject(payer), expiresAt: clock + 900,
+      grants: [{domainRef: command.domainRef, objectRef: command.objectRef, operations: [`C3/${command.operation}`]}]}, clock);
+    return {requestId, requestDigest, status: 'ok', resultRef: command.objectRef};
+  };
+  const row = (available: number) => ({sku: 'tea', optionKey: 'standard', label: 'tea', asset: pin.asset, version: 1, unitPrice: '300000', available, skuAvailable: available,
+    expiresAt: new Date((clock + 3600) * 1000).toISOString()});
+  const shop = {branch, branchLabel: '여울 커피'};
+
+  test('is the public one, with its rows to read, also while the phone holds a session whose menu has no row to order', async () => {
+    let mode: {mode: 'open'} | {mode: 'paused'; resumeAt: string} | {mode: 'closed'} = {mode: 'paused', resumeAt: '15:30'};
+    const world = setup((path, body) => {
+      // The session's menu: what is left of each row while the store takes orders, and no row when it does not.
+      if (path === '/v2/customer/commerce') return {status: 200, body: {...answerTo(body), shop, orderState: mode, catalogVersion: 1, catalog: mode.mode === 'open' ? [row(5)] : []}};
+      if (path.endsWith('/menu/0')) return {status: 200, body: {shop, orderState: mode, catalogVersion: 1, catalog: [row(1000)]}};
+      return undefined;
+    });
+    const access = await world.open();
+    expect(await access.ensure({purpose: 'checkout', branch})).toBeUndefined();
+    for (const stopped of [{mode: 'paused' as const, resumeAt: '15:30'}, {mode: 'closed' as const}]) {
+      mode = stopped;
+      world.sent.length = 0;
+      const menu = await access.client.publishedMenu();
+      expect(menu.orderState).toEqual(stopped);
+      expect(menu.catalog.map(item => [item.sku, item.available, item.uncounted])).toEqual([['tea', 1000, true]]);
+      expect(world.sent.map(item => item.path)).toEqual(['/v2/customer/commerce', `/v2/customer/stores/${branch}/menu/0`]);
+    }
+    // A store that takes orders is read through the session, which tells how many are left.
+    mode = {mode: 'open'};
+    world.sent.length = 0;
+    const open = await access.client.publishedMenu();
+    expect(open.catalog.map(item => [item.sku, item.available, item.uncounted])).toEqual([['tea', 5, undefined]]);
+    expect(world.sent.map(item => item.path)).toEqual(['/v2/customer/commerce']);
+    expect(world.proofs).toEqual([payer]);
   });
 });

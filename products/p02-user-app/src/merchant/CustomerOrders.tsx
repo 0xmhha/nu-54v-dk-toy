@@ -2958,7 +2958,10 @@ export function CustomerOrders({
     ? '이 매장에서는 품목당 옵션을 하나씩 담을 수 있습니다. 옵션을 바꾸려면 담은 옵션을 먼저 빼세요.'
     : 'This store accepts one option per item. Remove the selected option to choose another.';
   const choiceRows = choosing ? catalog.filter(row => row.sku === choosing && row.choices) : [];
-  if (phase === 'active' && client && !deniedLink && !showSubscriptions && !point && !menuReadOnly && (shop || pickupMode) && choiceRows.length) {
+  // The menu of a store page that takes no order now (it paused, or today is its closed day) is there to read: its
+  // rows offer nothing to put in a basket. So is the last menu of a store that cannot be reached (menuReadOnly).
+  const menuToRead = menuReadOnly || (!!storeAccess && storeStopped(storeState.state));
+  if (phase === 'active' && client && !deniedLink && !showSubscriptions && !point && !menuToRead && (shop || pickupMode) && choiceRows.length) {
     return <MenuChoices key={choosing} rows={choiceRows} cart={cart} locale={menuLocale} money={menuMoney} disabled={busy} photos={photos}
       blocked={row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart) ? oneOptionOnly : undefined}
       add={(row, quantity) => {
@@ -3351,7 +3354,7 @@ export function CustomerOrders({
           )}
           {!point && (shop || pickupMode) && <ShopMenuCategories
             categories={categories} selected={selectedCategory} select={setMenuCategory} locale={menuLocale} />}
-          {!point && !menuReadOnly && (shop || pickupMode) && catalog.some(row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart)) && (
+          {!point && !menuToRead && (shop || pickupMode) && catalog.some(row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart)) && (
             <Text style={s.text}>{oneOptionOnly}</Text>
           )}
           {!point && (shop || pickupMode) &&
@@ -3360,7 +3363,7 @@ export function CustomerOrders({
               // Combinations are picked on their own page; the ones in the basket stay in the list, after the product.
               const card = row.choices && catalog.find(item => item.sku === row.sku) === row ? <ChoiceCard key={row.sku}
                 rows={catalog.filter(item => item.sku === row.sku)} cart={cart} locale={menuLocale} money={menuMoney}
-                pick={menuReadOnly ? undefined : {run: () => setChoosing(row.sku), disabled: busy}} /> : null;
+                pick={menuToRead ? undefined : {run: () => setChoosing(row.sku), disabled: busy}} /> : null;
               if (row.choices && !cart[commerceLineKey(row)]) return card;
               const names = commerceMenuLabels(row, menuLocale);
               const key = commerceLineKey(row);
@@ -3377,14 +3380,15 @@ export function CustomerOrders({
                     {commerceMenuDisclosure(row, menuLocale)}
                   </Text>
                   {/* A menu read without a proof tells sold out or on sale, never how many are left (row.uncounted). */}
-                  {!menuReadOnly && <Text style={s.text}>
+                  {/* A menu that is only read still says what is sold out; it counts no choice. */}
+                  {!menuReadOnly && (!menuToRead || available <= 0) && <Text style={s.text}>
                     {available > 0
                       ? row.uncounted ? `선택 ${quantity}` : `선택 ${quantity} · 가능 ${available}`
                       : menuLocale === 'ko'
                       ? '품절'
                       : 'Sold out'}
                   </Text>}
-                  {!menuReadOnly && <Button
+                  {!menuToRead && <Button
                     label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                       menuLocale === 'ko' ? '추가' : 'Add'
                     }`}
@@ -3399,7 +3403,7 @@ export function CustomerOrders({
                       })
                     }
                   />}
-                  {!menuReadOnly && !!quantity && (
+                  {!menuToRead && !!quantity && (
                     <Button
                       label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                         menuLocale === 'ko' ? '빼기' : 'Remove'
@@ -3510,7 +3514,7 @@ export function CustomerOrders({
               </>}
             </>;
           })()}
-          {!point && !menuReadOnly && (shop || pickupMode) && Object.keys(cart).length > 0 && (
+          {!point && !menuToRead && (shop || pickupMode) && Object.keys(cart).length > 0 && (
             <Button
               label={
                 pickupChoice

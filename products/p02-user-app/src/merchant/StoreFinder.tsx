@@ -259,15 +259,17 @@ export function StorePageView({page, note, back, order, call, map, reserve, paym
   reserve?: () => void;
 }) {
   const now = storeNow(page);
-  // Why no order can be placed now is the server's reason, said as it is; the menu can still be read.
+  // Why no order can be placed now is the server's reason, said as it is. The menu can still be read when the store
+  // only stopped taking orders; a store with no menu on sale now is not said to have one, and no button leads to it.
+  const menu = order && page.status.reason !== 'no_menu' && page.status.reason !== 'outside_hours' ? order : undefined;
   const facts = [page.amenities && ['편의', page.amenities], page.parking && ['주차', page.parking],
     ['결제', payment ? `보드 결제 · ${payment}` : '보드 결제']].filter(Boolean) as [string, string][];
   return <View style={styles.page}>
     <Text accessibilityRole="header" style={type.title}>{page.name}</Text>
     <Text style={[type.body, now.shut && styles.shut]} accessibilityLabel={`지금 ${now.line}`}>{[page.kind, now.line].filter(Boolean).join(' · ')}</Text>
     {!!page.intro && <Text style={type.body}>{page.intro}</Text>}
-    {order && <KitButton label={now.shut ? '메뉴만 보기' : '메뉴 보고 주문'} run={order} />}
-    {now.shut && <Text accessibilityRole="alert" style={type.small}>{`${now.why ?? '지금은 주문을 받지 않습니다.'}${order ? ' 메뉴는 볼 수 있습니다.' : ''}`}</Text>}
+    {menu && <KitButton label={now.shut ? '메뉴만 보기' : '메뉴 보고 주문'} run={menu} />}
+    {now.shut && <Text accessibilityRole="alert" style={type.small}>{`${now.why ?? '지금은 주문을 받지 않습니다.'}${menu ? ' 메뉴는 볼 수 있습니다.' : ''}`}</Text>}
     {page.reservations && reserve && <KitButton label="예약" run={reserve} variant="secondary" />}
     {!!page.phone && <KitButton label="전화" detail={page.phone} run={() => call(page.phone!)} variant="secondary" />}
     {(!!page.address || !!page.directions) && <Section title="위치">

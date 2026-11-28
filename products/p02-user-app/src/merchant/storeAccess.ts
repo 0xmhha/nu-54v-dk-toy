@@ -249,7 +249,10 @@ export class StoreAccess {
         // a board.
         const session = this.usable(this.checkout);
         const proven = session && await this.parts.post('/v2/customer/commerce', body, session.token).catch(() => undefined);
-        if (proven?.status === 200 && proven.body !== null && typeof proven.body === 'object') return JSON.stringify(proven.body);
+        // A store that paused, or is closed today, takes no order, and the menu its session reads has no row to
+        // order. Its menu can still be read: the public one shows the rows, with the same state beside them.
+        const stopped = ['paused', 'closed'].includes((proven?.body as {orderState?: {mode?: unknown}} | null)?.orderState?.mode as string);
+        if (proven?.status === 200 && proven.body !== null && typeof proven.body === 'object' && !stopped) return JSON.stringify(proven.body);
         if (proven?.status === 404 && session === this.checkout) this.checkout = undefined;
       }
       if (command.operation === 'catalog.read' || command.operation === 'catalog.photo') {
