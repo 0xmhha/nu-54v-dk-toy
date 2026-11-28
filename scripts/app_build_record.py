@@ -64,6 +64,29 @@ USER_APP = Inputs(
     # node_modules by hand are not seen.
     installed=(("pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml"),))
 
+# The kiosk app's debug APK, by the same rule: the whole app directory is taken and what is left out is named. Its
+# app/build.gradle applies the same shared Gradle files and the same package's Kotlin sources as the user app's, so
+# those are inputs of both apps; nothing below the other app's directory is an input of either.
+KIOSK_APP = Inputs(
+    take=("products/p04-merchant-kiosk", "packages/protocol/platform",  # nu54-mobile.gradle adds the package's Kotlin sources to the app
+          "scripts/android/legal-notices.gradle", "scripts/android/release-signers.json",  # applied by app/build.gradle
+          "scripts/android/release-signing.gradle", "scripts/android/runtime-constraints.gradle",
+          ".npmrc", "pnpm-lock.yaml"),  # which native dependencies node_modules holds, and where
+    leave=("products/p04-merchant-kiosk/src",  # screens and logic: the bundler serves them as they are
+           *(f"products/p04-merchant-kiosk/{name}" for name in (  # read by the bundler, the tests and the checks only
+               "index.js", "app.json", "babel.config.js", "metro.config.js", "jest.config.js", "tsconfig.json",
+               ".eslintrc.js", ".prettierrc.js", ".watchmanconfig", "Makefile", "test",
+               "scripts", "dev", ".env.example",  # the tools that provision a development kiosk, their test values and settings
+               "Gemfile", "Gemfile.lock", ".bundle")),  # Ruby, which installs the pods of the iOS app
+           "packages/protocol/platform/test",
+           "products/p04-merchant-kiosk/ios", "packages/protocol/platform/ios", "packages/protocol/platform/Nu54ProtocolMobile.podspec"),
+    keep=("products/p04-merchant-kiosk/src/specs",),  # the build generates native code from these
+    written=(*(f"/products/p04-merchant-kiosk/{name}/" for name in ("android/build", "android/app/build", "android/app/.cxx", "android/.gradle", "android/.kotlin", "coverage",
+                                                                     "vendor/bundle")),  # where .bundle/config has Ruby keep its gems
+             # What a package manager, an editor and the machine write, and the secrets, are the same beside both apps.
+             *(pattern for pattern in USER_APP.written if not pattern.startswith("/"))),
+    installed=USER_APP.installed)
+
 
 class Unlisted(Exception):
     """The sources cannot be listed or read."""
