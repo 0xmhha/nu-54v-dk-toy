@@ -10,6 +10,9 @@ TABS = ("홈", "결제", "지갑", "둘러보기", "설정")
 
 
 class Walk:
+    # A flow the ones after it cannot do without: when it fails the walk ends.
+    NEEDED = ("agree", "set_up", "deposit")
+
     def __init__(self, adb, step, evidence, token="usd", mark=""):
         self.adb, self.step, self.evidence = adb, step, evidence
         self.mark = mark  # goes on every result line, for a run that an old app was let into
@@ -175,14 +178,20 @@ class Walk:
         self.tap("동의하고 시작")
         self.wait_for_app()
 
-    def set_up(self):
-        document, home = self.step("enrollment"), self.step("state")["home"]
+    def connect_board(self, register="01-register", address="02-return-address"):
+        """The board's registration, its signing test and its return address: the same on every route."""
+        document = self.step("enrollment")
         self.tap("보드 연결 시작")
         self.type("발급 등록서", json.dumps(document, separators=(",", ":")))
         self.type("기기 식별값", document["device"])
         self.type("발급 문서의 서버 공개키 지문", document["boardSPKI"])
         self.tap("개인 기기 찾기")
-        self.pressed_late("기기 등록 시작", "01-register")
+        self.register_board(register, address)
+
+    def register_board(self, register, address):
+        """From the board in the list of devices to its saved return address."""
+        home = self.step("state")["home"]
+        self.pressed_late("기기 등록 시작", register)
         self.sees("등록을 기기에서 확인했습니다")
         self.tap("보드 설정 이어서 하기")
         self.tap("내 보드 찾기")
@@ -192,9 +201,12 @@ class Walk:
         self.type("원래 지갑 주소", home)
         self.type("원래 지갑 주소 다시", home)
         self.tap("주소 확인")
-        self.pressed_late("보드에 저장", "02-return-address")
+        self.pressed_late("보드에 저장", address)
         self.sees("반납받을 주소를 저장했습니다")
         self.tap("돌아가기")
+
+    def set_up(self):
+        self.connect_board()
         self.tap("이 매장에 보드 등록")
         self.sees("이 매장에 보드 계정을 등록했습니다")
 
@@ -537,7 +549,7 @@ class Walk:
                     self.failed += 1
                     self.shot("FAILED-" + flow.__name__)
                     print(f"FAIL {name}{self.mark}: {error}", flush=True)
-                    if flow in flows[:3]:
+                    if flow.__name__ in self.NEEDED:
                         break  # the rest needs a board with money
             log = self.adb("logcat", "-d", "-v", "brief").stdout.decode(errors="replace")
             crashes = [line for line in log.splitlines() if re.search(r"AndroidRuntime.*FATAL|ANR in " + PACKAGE + r"|E/ReactNativeJS", line)]

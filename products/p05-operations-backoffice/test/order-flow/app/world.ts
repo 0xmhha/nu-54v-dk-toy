@@ -8,6 +8,7 @@ import {CommerceClient, NearbyCommerceLink, paymentToken, type CommercePaymentPr
 import {MerchantInbox} from '../../../../p04-merchant-kiosk/src/kiosk/merchantInbox';
 import {NearbyJournals} from '../../../../p04-merchant-kiosk/src/kiosk/nearbyJournals';
 import {NearbyRelay, type RelayProgress} from '../../../../p04-merchant-kiosk/src/kiosk/nearbyRelay';
+import {journalAllowed} from '../../../../p02-user-app/test/fixtures/journal';
 import {Board, epochOf} from './board';
 
 export type Identity = {subject: string; cert: string; key: string};
@@ -15,6 +16,8 @@ export const fixture = JSON.parse(readFileSync(process.env.NU54_ORDER_FLOW_FIXTU
   shop: 'usd' | 'won' | 'krwc' | 'refused'; /** Base units in one unit of the board. */ unit: string; /** Stores that run at once on this server. */ shops: number;
   endpoint: string; ca: string; expiresAt: number; tenant: string; branch: string; rpc: string; control: string; secret: string; home: string;
   amount: string; directory: string; payment: CommercePaymentProfile; customer: Identity; terminal: Identity; kitchen: Identity; finance1: Identity; finance2: Identity;
+  /** The customer entrance of a run that opened one, as a phone's build pins it, and the other stores of its store finder by a short name. */
+  entrance?: {origin: string; ca: string; pin: string}; stores?: Record<string, string>;
 };
 /** How this store's token signs and is shown. */
 export const token = paymentToken(fixture.payment);
@@ -81,8 +84,8 @@ export const boardSPKI = createHash('sha256').update('order-flow board').digest(
 export const board = new Board(process.env.NU54_ORDER_FLOW_BOARD!, token);
 
 export const journals = new Map<string, string>();
-// The names CommerceHttp.kt seals.
-const journalName = /^(customer-(order|payment|qr)-v2|customer-(order|payment|qr|legacy)-[a-f0-9]{64}|subscription-alerts-v2)$/;
+// The names CommerceHttp.kt seals, as the user app's own tests hold them against the native sources.
+const journalName = {test: journalAllowed};
 export const customerProfile = JSON.stringify({
   scope: {role: 'customer', tenantRef: fixture.tenant, branchRef: fixture.branch, subjectRef: fixture.customer.subject, expiresAt: fixture.expiresAt},
   pin: 'a'.repeat(64), payment: fixture.payment, nearby: {},

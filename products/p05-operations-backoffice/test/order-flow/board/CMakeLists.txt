@@ -58,7 +58,7 @@ add_custom_command(OUTPUT ${EXTRACTED}
     ${DEVICE_PILOT} RESET_NONCE_MS reset_display_input reset_install_input reset_link
       session_live owner_pin_live pilot_pin send_frame present load_refusal clear_legacy_bonds report_legacy_bonds
       owner_absent reset_nonce_issue journal_new_session journal_follow_time reset_of_released spending_request
-      spending_erase_and_reboot
+      spending_erase_and_reboot device_pilot_button_reset
       spending_button manage load_receipt send_receipt
       reclaim_receipt receipt_status payment_generation_current payment_address order_request order_button
       clock_teller clock_take clock_session_goes_on clock_request clock_wait_over clock_button frame stream sign

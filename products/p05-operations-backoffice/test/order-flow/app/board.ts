@@ -102,6 +102,11 @@ export class Board {
     this.write(line);
     return heard;
   }
+  /**
+   * The owner resets the board with its own buttons, without a phone. Answers whether it erased itself: it refuses
+   * while a session, a request or an approved order still needs it. A reset board needs the operator's grant again.
+   */
+  async factoryReset() { return (await this.command('factory', 'booted', 'lamp')).startsWith('booted'); }
   /** Power cycle. The board keeps the operator's grant and goes on from the time it saved last, so its clock is late. */
   boot() { return this.command('boot', 'booted'); }
   /** The operator installs a grant that runs for `life` seconds; `ahead` is how many seconds the signing took. */

@@ -93,7 +93,12 @@ def wait_for(process, log, word, seconds):
 
 @contextmanager
 def world(args, adb):
-    """The board, the kiosk and the store, the bundler, and the app started among them. Gives the host's process."""
+    """The board, the kiosk and the store, the bundler, and the app started among them. Gives the host's process.
+
+    With --route entrance the store server also opens its customer entrance on a port of its own, and the host
+    writes what a build would bind of it (the entrance's origin, CA and key, the order contract and the token) into
+    the run's directory. Only the bundler of this run is told where: see metro.config.js beside the stand-ins.
+    """
     tools = flow.postgres_tools(args.postgres_bin)
     with integration_workspace("nu54-app-", str(tools / "pg_ctl"), "data", flow.secure_env()) as (scratch, env):
         shared = run_command(["go", "env", "GOCACHE"], env=flow.secure_env(), capture_output=True, text=True, check=True).stdout.strip()
@@ -111,16 +116,24 @@ def world(args, adb):
                 stack.callback(process.stop)
                 process.start(command, cwd=cwd, env={**env, **extra}, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT)
                 return process
-            bundler = start("bundler", ["npx", "react-native", "start", "--port", str(BUNDLER), "--config", str(SIMULATOR / "metro.config.js")], APP, {})
+            bound = {}
+            if args.route == "entrance":
+                binding = scratch.resolve() / "order-binding"
+                binding.mkdir()
+                bound = {"NU54_SIMULATOR_ORDER_BINDING": str(binding / "customerEntranceDeployment.js")}
             host = start("host", [str(built["server"]), "-test.run", "^TestOrderFlow$", "-test.v", "-test.timeout", f"{MINUTES + 5}m"],
                          flow.ROOT / flow.P05 / "internal/settlement", {
                              "P05_SETTLEMENT_TEST_DATABASE_URL": dsn, "P05_SETTLEMENT_TEST_INDEXER": str(built["indexer"]),
                              "P05_SETTLEMENT_TEST_RPC": "http://127.0.0.1:1", "FOUNDRY_OUT": str(built["contracts"]),
                              "NU54_ORDER_FLOW_BOARD": str(built["board"]), "NU54_ORDER_FLOW_BOARD_WON": str(built["board_won"]), "NU54_ORDER_FLOW_BOARD_KRWC": str(built["board_krwc"]),
                              "NU54_ORDER_FLOW_TOKEN": args.token, "NU54_ORDER_FLOW_JEST": str(SIMULATOR / "jest.config.cjs"),
-                             "NU54_ORDER_FLOW_MINUTES": str(MINUTES)})
-            wait_for(bundler, log / "bundler.log", "Dev server ready", 60)
+                             "NU54_ORDER_FLOW_MINUTES": str(MINUTES),
+                             # The customer entrance, on any free port of this machine: only the host process calls it.
+                             **({"P05_CUSTOMER_ADDR": "127.0.0.1:0", **bound} if bound else {})})
+            # The host first: the bundler of an entrance run reads what the host wrote when it starts.
             wait_for(host, log / "host.log", "SIMULATOR-READY", 120)
+            bundler = start("bundler", ["npx", "react-native", "start", "--port", str(BUNDLER), "--config", str(SIMULATOR / "metro.config.js")], APP, bound)
+            wait_for(bundler, log / "bundler.log", "Dev server ready", 60)
             adb("shell", "am", "force-stop", PACKAGE)
             adb("shell", "am", "start", "-n", f"{PACKAGE}/.MainActivity")
             print(f"Ready for {MINUTES - 2} minutes. The app is starting on {args.serial}; the first bundle takes a minute.", flush=True)
@@ -134,6 +147,12 @@ def main(arguments=None):
     parser.add_argument("--step", nargs=2, metavar=("NAME", "JSON"), help="take one step in a running simulation, for example --step order '{\"quantity\":2}'")
     parser.add_argument("--postgres-bin", type=Path, default=os.environ.get("POSTGRES_BIN"), help="directory with the PostgreSQL tools")
     parser.add_argument("--token", choices=("usd", "won", "krwc"), default="usd", help="the store's token")
+    parser.add_argument("--route", choices=("registration", "entrance"), default="registration",
+                        help="how the phone orders: registered at the store (what the repository's build does), or through the store server's "
+                        "customer entrance without a registration, bound for this run alone")
+    parser.add_argument("--part", choices=("stores", "orders", "won-wallet"), help="with --route entrance and --walk: `stores` or `orders`, this part of "
+                        "the walk alone, into a directory that may hold the other part already; without it both parts, each in a world of its own. "
+                        "With a registration and a won token: `won-wallet`, the wallet's whole won amounts in place of the sixteen flows")
     parser.add_argument("--build", action="store_true", help="build the debug app from the current sources, record what it was built from and install it")
     parser.add_argument("--allow-stale-app", action="store_true", help="run although the installed app is not known to be built from the current sources; "
                         f"every result line then says STALE APP ALLOWED and a run without a failure ends with {STALE_EXIT} instead of 0")
@@ -143,25 +162,44 @@ def main(arguments=None):
         return
     if not args.serial:
         parser.error("name the emulator")
+    wallet = args.part == "won-wallet"
+    if args.part and not (args.walk and (args.route == "registration" and args.token != "usd" if wallet else args.route == "entrance")):
+        parser.error("--part won-wallet goes with --walk and a won token on the route with a registration" if wallet
+                     else "--part stores and --part orders go with --walk and --route entrance")
     if args.walk:
         args.walk = args.walk.absolute()
-        if args.walk.exists():
+        if args.walk.exists() and not (args.part and not wallet and args.walk.is_dir()):
             raise SystemExit(f"{args.walk} is there already: --walk takes a new directory")
     adb, stale = emulator(args.serial, args.build, args.allow_stale_app)
     mark = STALE_MARK if stale else ""
     if args.walk:
-        args.walk.mkdir(parents=True)  # only now, so that a run refused for a stale app can be repeated with the same directory
+        args.walk.mkdir(parents=True, exist_ok=True)  # only now, so that a run refused for a stale app can be repeated with the same directory
         if stale:
             (args.walk / "STALE-APP.txt").write_text(stale + "\n")
-    with world(args, adb) as host:
-        if args.walk:
-            from simulate_user_app_walk import Walk
-            if failed := Walk(adb, step, args.walk, args.token, mark).run():
-                raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
-            print(f"PASS user app{mark}", flush=True)
-        else:
-            print("Take steps from another terminal with --step. Interrupt to end.", flush=True)
-            host.child.wait()
+    if args.walk and args.route == "entrance":
+        # One world lives 43 minutes, which the whole route does not fit in: each part starts a phone of its own.
+        from simulate_user_app_entrance_walk import PARTS, EntranceWalk
+        failed = 0
+        for part in [args.part] if args.part else list(PARTS):
+            with world(args, adb):
+                print(f"The {part} part of the route without a registration", flush=True)
+                failed += EntranceWalk(adb, step, args.walk, args.token, mark, part).run()
+        if failed:
+            raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
+        print(f"PASS user app{mark}", flush=True)
+    else:
+        with world(args, adb) as host:
+            if args.walk:
+                if wallet:
+                    from simulate_user_app_won_walk import WonWalletWalk as Walk
+                else:
+                    from simulate_user_app_walk import Walk
+                if failed := Walk(adb, step, args.walk, args.token, mark).run():
+                    raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
+                print(f"PASS user app{mark}", flush=True)
+            else:
+                print("Take steps from another terminal with --step. Interrupt to end.", flush=True)
+                host.child.wait()
     if stale:
         raise SystemExit(STALE_EXIT)
 
