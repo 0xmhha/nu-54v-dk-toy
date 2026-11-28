@@ -140,6 +140,7 @@ jobs:
           python3 -B scripts/test_bitcoin_core_workspace.py
           python3 -B scripts/test_commercial_integration_gate.py
           python3 -B scripts/test_simulate_user_app_stale_build.py
+          python3 -B scripts/test_simulate_kiosk_app_stale_build.py
           python3 -B products/p05-operations-backoffice/test/pickup-native/test_cafe_simulators.py
           python3 -B scripts/ios/scene-smoke/test_run_cleanup.py \
             SceneCleanup.test_repeated_signals_during_exit_cleanup SceneCleanup.test_installed_runners_own_spec_during_allocation_and_exit
