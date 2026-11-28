@@ -150,8 +150,9 @@ def main(arguments=None):
     parser.add_argument("--route", choices=("registration", "entrance"), default="registration",
                         help="how the phone orders: registered at the store (what the repository's build does), or through the store server's "
                         "customer entrance without a registration, bound for this run alone")
-    parser.add_argument("--part", choices=("stores", "orders"), help="with --route entrance and --walk: this part of the walk alone, into a directory "
-                        "that may hold the other part already; without it both parts, each in a world of its own")
+    parser.add_argument("--part", choices=("stores", "orders", "won-wallet"), help="with --route entrance and --walk: `stores` or `orders`, this part of "
+                        "the walk alone, into a directory that may hold the other part already; without it both parts, each in a world of its own. "
+                        "With a registration and a won token: `won-wallet`, the wallet's whole won amounts in place of the sixteen flows")
     parser.add_argument("--build", action="store_true", help="build the debug app from the current sources, record what it was built from and install it")
     parser.add_argument("--allow-stale-app", action="store_true", help="run although the installed app is not known to be built from the current sources; "
                         f"every result line then says STALE APP ALLOWED and a run without a failure ends with {STALE_EXIT} instead of 0")
@@ -161,11 +162,13 @@ def main(arguments=None):
         return
     if not args.serial:
         parser.error("name the emulator")
-    if args.part and not (args.walk and args.route == "entrance"):
-        parser.error("--part goes with --walk and --route entrance")
+    wallet = args.part == "won-wallet"
+    if args.part and not (args.walk and (args.route == "registration" and args.token != "usd" if wallet else args.route == "entrance")):
+        parser.error("--part won-wallet goes with --walk and a won token on the route with a registration" if wallet
+                     else "--part stores and --part orders go with --walk and --route entrance")
     if args.walk:
         args.walk = args.walk.absolute()
-        if args.walk.exists() and not (args.part and args.walk.is_dir()):
+        if args.walk.exists() and not (args.part and not wallet and args.walk.is_dir()):
             raise SystemExit(f"{args.walk} is there already: --walk takes a new directory")
     adb, stale = emulator(args.serial, args.build, args.allow_stale_app)
     mark = STALE_MARK if stale else ""
@@ -187,7 +190,10 @@ def main(arguments=None):
     else:
         with world(args, adb) as host:
             if args.walk:
-                from simulate_user_app_walk import Walk
+                if wallet:
+                    from simulate_user_app_won_walk import WonWalletWalk as Walk
+                else:
+                    from simulate_user_app_walk import Walk
                 if failed := Walk(adb, step, args.walk, args.token, mark).run():
                     raise SystemExit(f"FAIL user app{mark}: {failed} flows failed; see {args.walk}")
                 print(f"PASS user app{mark}", flush=True)

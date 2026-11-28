@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import simulate_user_app as simulation
 import simulate_user_app_entrance_walk as entrance
 import simulate_user_app_walk as registration
+import simulate_user_app_won_walk as won_wallet
 
 ROOT = Path(__file__).resolve().parents[1]
 FLOW = ROOT / "products/p05-operations-backoffice/test/order-flow"
@@ -45,6 +46,11 @@ class Flows(unittest.TestCase):
         self.assertEqual(len(walk.flows()), 16)
         self.assertEqual(walk.NEEDED, ("agree", "set_up", "deposit"))
         self.assertEqual([flow.__name__ for flow in walk.flows()][:3], ["agree", "set_up", "deposit"])
+
+    def test_the_won_wallet_has_its_own_flows_after_the_setup(self):
+        walk = won_wallet.WonWalletWalk(adb, None, Path("unused"), "won")
+        self.assertEqual([flow.__name__ for flow in walk.flows()], ["agree", "set_up", "part_of_a_won", "decimal_refused", "whole_won_sent", "below_one_won"])
+        self.assertEqual(walk.NEEDED, ("agree", "set_up", "part_of_a_won"))
 
     def test_won_are_whole_and_dollars_have_cents(self):
         won, usd = (entrance.EntranceWalk(adb, None, Path("unused"), token, "", "orders") for token in ("won", "usd"))
@@ -135,6 +141,7 @@ class Run(unittest.TestCase):
 
         with mock.patch.object(simulation, "emulator", lambda *given: (adb, "")), mock.patch.object(simulation, "world", world), \
                 mock.patch.object(entrance, "EntranceWalk", Walk), mock.patch.object(registration, "Walk", Walk), \
+                mock.patch.object(won_wallet, "WonWalletWalk", Walk), \
                 redirect_stdout(printed), redirect_stderr(printed):
             try:
                 ended = simulation.main(["emulator-5554", *arguments])
@@ -175,7 +182,20 @@ class Run(unittest.TestCase):
         for arguments in (["--part", "stores"], ["--part", "stores", "--walk", str(self.evidence)], ["--route", "entrance", "--part", "orders"]):
             ended, printed, worlds, _ = self.run_simulation(*arguments)
             self.assertEqual((ended, worlds), (2, []))
-            self.assertIn("--part goes with --walk and --route entrance", printed)
+            self.assertIn("--part stores and --part orders go with --walk and --route entrance", printed)
+
+    def test_the_won_wallet_is_walked_with_a_registration_and_a_won_token(self):
+        ended, printed, worlds, walks = self.run_simulation("--token", "won", "--walk", str(self.evidence), "--part", "won-wallet")
+        self.assertIsNone(ended)
+        self.assertEqual((worlds, walks), (["registration"], [("won", "")]))
+        self.assertEqual(printed.splitlines()[-1], "PASS user app")
+        for arguments in (["--walk", str(self.evidence) + "2", "--part", "won-wallet"], ["--token", "won", "--part", "won-wallet"],
+                          ["--token", "won", "--route", "entrance", "--walk", str(self.evidence) + "2", "--part", "won-wallet"]):
+            ended, printed, worlds, _ = self.run_simulation(*arguments)
+            self.assertEqual((ended, worlds), (2, []))
+            self.assertIn("--part won-wallet goes with --walk and a won token on the route with a registration", printed)
+        # Like the sixteen flows it takes a new directory.
+        self.assertIn("--walk takes a new directory", self.run_simulation("--token", "won", "--walk", str(self.evidence), "--part", "won-wallet")[0])
 
     def test_the_route_with_a_registration_is_walked_as_before(self):
         ended, printed, worlds, walks = self.run_simulation("--walk", str(self.evidence))
