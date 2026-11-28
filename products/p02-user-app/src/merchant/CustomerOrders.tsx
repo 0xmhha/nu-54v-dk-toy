@@ -3666,7 +3666,9 @@ export function CustomerOrders({
                     }
                   />
                 )}
-              {!order.escrow && <Text style={s.text} selectable>
+              {/* The order's reference is no word for a customer: an order from a store page is known by its store, its
+                  amount and its number. The earlier route keeps it, where staff may ask for it. */}
+              {!order.escrow && !storeAccess && <Text style={s.text} selectable>
                 {order.id}
               </Text>}
               {invoiceDetail && approved?.order.id !== order.id && (

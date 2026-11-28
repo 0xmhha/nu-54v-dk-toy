@@ -419,4 +419,11 @@ describe('where a store page says what happened', () => {
     expect(scrolled().length).toBeGreaterThan(0);
   });
 
+  test('the card of a held order shows no reference of the order', async () => {
+    await toOrder();
+    expect(screen()).toContain('주문이 연결되었습니다. 보드 승인 대기 중입니다.');
+    expect(screen()).not.toContain(mockSale);
+    expect(screen()).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
+  });
+
 });
