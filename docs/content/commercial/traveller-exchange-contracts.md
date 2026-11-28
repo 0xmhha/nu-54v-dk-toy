@@ -2,7 +2,7 @@
 
 2026-11-27 · 상태: **계약과 Foundry 시험만 있다. 어느 체인에도 배포하지 않았다.** 서버, 앱, 배포 스크립트는 없다. 되바꾸기는 만들지 않았다.
 
-[충전과 되바꾸기 규격](traveller-exchange.md)의 충전 부분을 계약으로 옮긴 기록이다. 규격 1장과 2026-11-27 결정을 따랐고, 규격 2~10장에서 아직 확인받지 않은 것은 10장에 모았다. 같은 날 독립 감사와 재감사의 지적을 반영했고, 소유자 결정 두 가지(비상 인출, 정지 키 교체의 일괄 무효)를 넣었다. 대기 중인 변경을 멈추는 규칙과 키가 샜을 때의 표는 5장, 남은 위험은 9장, 그대로 둔 기본값은 10장, 비상 인출은 14장, 서버가 쓰는 함수·이벤트·서명은 15장, 배포 점검표는 16장에 있다. 코드는 [`products/p06-stablenet-contracts/src/charge`](../../../products/p06-stablenet-contracts/src/charge)에 있다.
+[충전과 되바꾸기 규격](traveller-exchange.md)의 충전 부분을 계약으로 옮긴 기록이다. 규격 1장과 2026-11-27 결정을 따랐고, 규격 2~10장에서 아직 확인받지 않은 것은 10장에 모았다. 같은 날 독립 감사와 재감사의 지적을 반영했고, 소유자 결정 두 가지(비상 인출, 정지 키 교체의 일괄 무효)를 넣었다. 2026-11-28에 셋째 감사가 남긴 낮은 등급의 항목을 반영했다. 코드가 바뀐 것은 하나다. 비상 인출이 남은 것이 없는 입금을 건너뛴다(14장). 대기 중인 변경을 멈추는 규칙과 키가 샜을 때의 표는 5장, 남은 위험은 9장, 그대로 둔 기본값은 10장, 비상 인출은 14장, 서버가 쓰는 함수·이벤트·서명은 15장, 배포 점검표는 16장에 있다. 코드는 [`products/p06-stablenet-contracts/src/charge`](../../../products/p06-stablenet-contracts/src/charge)에 있다.
 
 ## 1. 만든 것
 
@@ -16,7 +16,7 @@
 | `src/test-token/TestChargeUSDC.sol` | 시험 USDC. 6자리, `version()`은 `"2"`, 거절 기능 없음 |
 | `test/vectors/charge.vectors` | 서버와 지갑이 만들어야 하는 서명의 기준값 |
 
-두 계약은 업그레이드할 수 없고 소유자 키가 없다. 체인 번호, 상대 계약 주소, 금고 주소는 생성자 값이고 바꿀 수 없다. 다른 체인에 배포하면 생성자가 실패한다. 배포되는 코드는 `ChargeDeposit` 21,426바이트, `WonPool` 18,495바이트이고 한도는 24,576바이트다(solc 0.8.39, 최적화 200회).
+두 계약은 업그레이드할 수 없고 소유자 키가 없다. 체인 번호, 상대 계약 주소, 금고 주소는 생성자 값이고 바꿀 수 없다. 다른 체인에 배포하면 생성자가 실패한다. 배포되는 코드는 `ChargeDeposit` 21,409바이트, `WonPool` 18,495바이트이고 한도는 24,576바이트다(solc 0.8.39, 최적화 200회).
 
 ## 2. 한 건의 흐름
 
@@ -335,7 +335,7 @@ sequenceDiagram
 
 - 서명은 `Action(kind, subject, round, until)`이다. `kind`는 `keccak256("proposeEmergencyExit")` 또는 `keccak256("cancelEmergencyExit")`, `subject`는 금고 주소를 32바이트로 쓴 값, `round`는 보낼 때의 `exitRound`다. 처음 제안을 0회차에 서명했으면 그 취소는 1회차에 서명한다. 도메인이 계약과 체인을 묶으므로 입금 계약과 풀에 따로 서명한다. 시험 `testExitSignaturesAreForOneContractAndOneChain`, `testACancelSignedForOneExitDoesNotStopTheNext`.
 - 이벤트는 `EmergencyExitProposed(round, readyAt, lapsesAt)`, `EmergencyExitCancelled(round)`, `EmergencyExitTaken(id, treasury, amount)`다. `id`는 입금 번호이고 풀에서는 0이다.
-- 입금 계약의 실행은 입금 번호의 목록을 받는다. 가스 한도 안에서 나눠 부른다. 같은 번호를 두 번 넣거나 남은 것이 없는 입금을 넣으면 실패한다. 그냥 보낸 코인(`totalHeld` 밖의 USDC)은 가져가지 않는다.
+- 입금 계약의 실행은 입금 번호의 목록을 받는다. 가스 한도 안에서 나눠 부른다. 확정된 완료 입금인데 남은 것이 없으면(이미 가져갔거나 spender가 다 썼다) 이벤트도 이체도 없이 건너뛴다. 그래서 누가 목록의 한 건을 먼저 가져가도 나머지는 그대로 나가고, 같은 번호를 두 번 넣으면 한 번만 나간다. 실패하지 않고 조용히 건너뛰므로 무엇이 나갔는지는 `EmergencyExitTaken`으로 센다. 그 밖에 가져갈 수 없는 입금(없는 번호, 입금됨, 거절됨, 이의, 환불됨, 이의 기간 안의 완료)이 하나라도 있으면 전과 같이 거래 전체가 실패한다. 2026-11-28 전에는 남은 것이 없는 입금도 거래 전체를 실패시켰고, 한 건을 먼저 가져가는 거래 하나로 긴 목록의 호출 전체를 실패시킬 수 있었다. 시험 `testADepositTakenFirstDoesNotFailTheRestOfTheList`, `testADepositNamedTwiceIsPaidOnce`, `testADepositThatCannotBeTakenStillFailsTheWholeList`. 그냥 보낸 코인(`totalHeld` 밖의 USDC)은 가져가지 않는다.
 - 토큰이 금고 잔액에 정확히 넣지 않으면 거래가 되돌아가고 돈은 계약에 남는다. 실행 중에 토큰이 되부르면 `Reentered`로 막힌다. 시험 `testAnExitThatDoesNotArriveInFullIsUndone`, `testCallingBackDuringAnExitMovesNothingElse`.
 
 ### 정지 키와 서명자 한 명이 샜을 때의 순서
