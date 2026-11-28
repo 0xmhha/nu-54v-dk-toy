@@ -2016,10 +2016,13 @@ static void test_an_approval_that_cannot_be_saved(void)
 		real = calendar + 72;
 		assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !pay());
 		const nu54_install_clock kept = clock_saved;
+		const uint64_t amount = order_amount, left_today = device_order_daily_left(device_install_earliest());
 		fail_after = after;
 		fails_left = 1;
 		writes = 0;
 		assert(approve() == -1 && writes == 2 && fails_left == -1 && !answered && link.closed);
+		/* The daily total was the first write, before there was a signature: it stays spent. */
+		assert(amount && device_order_daily_left(device_install_earliest()) == left_today - amount);
 		for (unsigned slot = 1; slot <= NU54_ORDER_RECORDS; ++slot) assert(!item(ORDER_RECORD + slot));
 		assert(!memcmp(&clock_saved, &kept, sizeof(kept)) && !held());
 		/* The phone asks again with the same request. There is no answer to read back: the board
@@ -2040,10 +2043,12 @@ static void test_an_approval_that_cannot_be_saved(void)
 	late_board(0);
 	real = calendar + 72;
 	assert(!connect_phone() && !tell_time(real) && told().result == NU54_CLOCK_MOVED && !pay());
+	const uint64_t amount = order_amount, left_today = device_order_daily_left(device_install_earliest());
 	fail_after = false;
 	fails_left = 2;
 	assert(approve() == -1 && fails_left == -1 && !answered && !item(ORDER_RECORD + 1));
 	assert(clock_saved.hold == calendar + 72 + seconds + 1);
+	assert(amount && device_order_daily_left(device_install_earliest()) == left_today - amount);
 	assert(!connect_phone());
 	--request_count;
 	assert(!pay() && !answered && approval.pending);
