@@ -2,7 +2,7 @@
 
 2026-11-27 · 상태: **계약과 Foundry 시험만 있다. 어느 체인에도 배포하지 않았다.** 서버, 앱, 배포 스크립트는 없다. 되바꾸기는 만들지 않았다.
 
-[충전과 되바꾸기 규격](traveller-exchange.md)의 충전 부분을 계약으로 옮긴 기록이다. 규격 1장과 2026-11-27 결정을 따랐고, 규격 2~10장에서 아직 확인받지 않은 것은 10장에 모았다. 같은 날 독립 감사와 재감사의 지적을 반영했고, 소유자 결정 두 가지(비상 인출, 정지 키 교체의 일괄 무효)를 넣었다. 대기 중인 변경을 멈추는 규칙과 키가 샜을 때의 표는 5장, 남은 위험은 9장, 그대로 둔 기본값은 10장, 비상 인출은 14장, 서버가 쓰는 함수·이벤트·서명은 15장, 배포 점검표는 16장에 있다. 코드는 [`products/p06-stablenet-contracts/src/charge`](../../../products/p06-stablenet-contracts/src/charge)에 있다.
+[충전과 되바꾸기 규격](traveller-exchange.md)의 충전 부분을 계약으로 옮긴 기록이다. 규격 1장과 2026-11-27 결정을 따랐고, 규격 2~10장에서 아직 확인받지 않은 것은 10장에 모았다. 같은 날 독립 감사와 재감사의 지적을 반영했고, 소유자 결정 두 가지(비상 인출, 정지 키 교체의 일괄 무효)를 넣었다. 2026-11-28에 셋째 감사가 남긴 낮은 등급의 항목을 반영했다. 코드가 바뀐 것은 하나다. 비상 인출이 남은 것이 없는 입금을 건너뛴다(14장). 대기 중인 변경을 멈추는 규칙과 키가 샜을 때의 표는 5장, 남은 위험은 9장, 그대로 둔 기본값은 10장, 비상 인출은 14장, 서버가 쓰는 함수·이벤트·서명은 15장, 배포 점검표는 16장에 있다. 코드는 [`products/p06-stablenet-contracts/src/charge`](../../../products/p06-stablenet-contracts/src/charge)에 있다.
 
 ## 1. 만든 것
 
@@ -16,7 +16,7 @@
 | `src/test-token/TestChargeUSDC.sol` | 시험 USDC. 6자리, `version()`은 `"2"`, 거절 기능 없음 |
 | `test/vectors/charge.vectors` | 서버와 지갑이 만들어야 하는 서명의 기준값 |
 
-두 계약은 업그레이드할 수 없고 소유자 키가 없다. 체인 번호, 상대 계약 주소, 금고 주소는 생성자 값이고 바꿀 수 없다. 다른 체인에 배포하면 생성자가 실패한다. 배포되는 코드는 `ChargeDeposit` 21,426바이트, `WonPool` 18,495바이트이고 한도는 24,576바이트다(solc 0.8.39, 최적화 200회).
+두 계약은 업그레이드할 수 없고 소유자 키가 없다. 체인 번호, 상대 계약 주소, 금고 주소는 생성자 값이고 바꿀 수 없다. 다른 체인에 배포하면 생성자가 실패한다. 배포되는 코드는 `ChargeDeposit` 21,409바이트, `WonPool` 18,495바이트이고 한도는 24,576바이트다(solc 0.8.39, 최적화 200회).
 
 ## 2. 한 건의 흐름
 
@@ -86,7 +86,7 @@ sequenceDiagram
 
 - `propose(kind, arguments, salt, until, 서명 둘)`. `kind`는 바꾸는 함수 이름의 keccak256이고 `arguments`는 그 함수의 인자에서 `salt`를 뺀 `abi.encode`다.
 - 변경 번호는 `actionOf(kind, arguments, salt)`이고 `keccak256(abi.encode(kind, 인자…, salt))`와 같다. `propose` 서명의 `subject`가 이 번호다. 기준값 파일의 `propose…Kind`, `…Arguments`, `…Salt`, `…Action` 줄이 재료와 결과다.
-- 계약에 없는 종류, 길이가 맞지 않는 인자, 없는 키 번호와 서명자 번호, 주소 칸의 위 12바이트가 0이 아닌 인자는 제안할 때 거절한다. 그래서 대기 중인 제안은 모두 그 종류의 함수 호출 하나로 옮겨진다. 값이 틀린 제안은 거절하지 않는다. 이미 쓰는 주소로의 키 교체, 0인 환율, 최소보다 작은 한도 같은 제안은 대기에 들어가고 적용할 때 실패한다. 시험 `testArgumentsWithAnUncleanAddressAreNotProposed`, `testAChangeWithARefusedValueWaitsAndFailsWhenApplied`.
+- 계약에 없는 종류, 길이가 맞지 않는 인자, 없는 키 번호와 서명자 번호, 주소 칸의 위 12바이트가 0이 아닌 인자는 제안할 때 거절한다. 키 번호와 서명자 번호는 32바이트 전체로 읽는다. 259는 마지막 바이트가 3이어도 키 3이 아니고 제안에서 거절된다. 그래서 대기 중인 제안은 모두 그 종류의 함수 호출 하나로 옮겨진다. 값이 틀린 제안은 거절하지 않는다. 이미 쓰는 주소로의 키 교체, 0인 환율, 최소보다 작은 한도 같은 제안은 대기에 들어가고 적용할 때 실패한다. 시험 `testArgumentsWithAnUncleanAddressAreNotProposed`, `testAKeyOrSignerNumberIsNotReadByItsLastByte`, `testAChangeWithARefusedValueWaitsAndFailsWhenApplied`.
 - `setSpender`만은 제안할 때도 값을 본다. 그 주소에 코드가 있고 코드 해시가 인자와 같아야 제안이 들어간다(8장).
 - `ChangeProposed(action, kind, arguments, salt, round, readyAt, lapsesAt)` 이벤트가 전부를 싣는다.
 - 취소는 `cancelProposal(action, until, signature)`다. 서명자 한 명이 `Action(keccak256("cancel"), action, 제안의 round, until)`에 서명하고 누구나 보낸다. 정지 키는 빈 서명으로 직접 부른다. 제안의 `round`는 `proposals(action)`의 넷째 값이고 `ChangeProposed`의 `round`와 같다. `ChangeCancelled(action, by)`의 `by`는 취소한 자리다(1 정지 키, 2·3·4 서명자 1·2·3).
@@ -154,7 +154,7 @@ sequenceDiagram
 | 샌 키 | 빼앗기는 것 | 묶이는 것과 기간 | 끝나는 길 | 그래도 잃는 것 |
 |---|---|---|---|---|
 | 정지 키 + 서명자 하나 | 없다 | 서로의 교체를 취소해 모든 변경이 영원히 막힌다. 풀 인출과 spender 지정이 안 된다. 비상 인출이 열리기까지 7일 동안 풀의 원화와 완료된 USDC가 계약에 남는다. 입금은 묶이지 않는다(서명자 둘의 환불, 7일 뒤 스스로 환불) | 정직한 서명자 둘이 두 계약에 비상 인출을 제안한다. 7일 뒤 누구나 풀의 원화 전부와 확정된 완료 USDC를 금고로 보낸다. 샌 두 키는 취소하지 못한다. 시험 `testTheExitEndsALeakedPauserWithALeakedSigner` | 7일, 그리고 이 두 계약에서의 서비스. 샌 키는 자리를 지키므로 새로 배포한다. 그 7일 동안 샌 정지 키가 지급을 멈추면 들어온 입금은 환불로 끝난다 |
-| 서명자 둘 (정직한 정지 키와 셋째 서명자가 남음) | 공격자의 주소로 가는 것은 공격자가 직접 입금하고 지급받은 건의 환불뿐이다(이중 지급). 그러나 확정되지 않았고 USDC가 아직 계약에 남아 있는 완료 입금은 서명자 둘이 언제든 거절하고 환불할 수 있다. 그 USDC는 입금한 지갑으로 돌아가고 운영자가 그만큼 잃는다. 정지로 막지 못한다. 시험 `testTwoLeakedSignersSendCompletedDepositsBackToTheirPayers`. 취소를 한 번 놓치면 72시간 안에 전부(아래 줄과 같다). 시험 `testOneMissedCancelOutOfTwentyEndsInATakeoverInThreeDays` | 정직한 쪽은 풀의 돈과 완료된 USDC를 꺼낼 길이 없다. 인출도 비상 인출도 서명자 둘이 필요하다. 샌 둘이 비상 인출을 제안하면 정직한 쪽은 막지 못하고, 7일 뒤 돈은 금고로 가며 서비스가 멈춘다 | 계약 안에는 없다. 정지 키가 지급을 멈추고 셋째 서명자 교체를 한 건씩 취소하며, 셋째 서명자가 정지 키 교체를 서명 하나로 전부 무효로 만든다. 이것을 새로 배포할 때까지 24시간마다 빠짐없이 해야 한다 | 서비스. 샌 둘이 지급되지 않은 입금을 완료로 기록하고 이의에 스스로 답하면 그 USDC는 여행자가 아니라 금고로 간다. 시험 `testTwoLeakedSignersForceTheExitButOnlyToTheTreasury` |
+| 서명자 둘 (정직한 정지 키와 셋째 서명자가 남음) | 공격자의 주소로 가는 것은 셋이다. 공격자가 직접 입금하고 지급받은 건의 환불(이중 지급), 입금 없이 입금 계약에 들어온 USDC(`totalHeld`를 넘는 잔액), 입금 계약에 있는 다른 토큰 전부다. 뒤의 둘은 서명자 둘이 `returnStray`로 대기 없이 아무 주소로나 보낸다. 계약은 서명에 적힌 거래 해시와 로그 번호가 실제 로그인지 확인하지 못한다. 입금의 몫(`totalHeld`)은 이 길로 나가지 않는다. 시험 `testStrayCoinsGoBackOnceAndNeverTouchDeposits`, `testAnotherStrayTokenGoesBackTheSameWay`. 그리고 확정되지 않았고 USDC가 아직 계약에 남아 있는 완료 입금은 서명자 둘이 언제든 거절하고 환불할 수 있다. 그 USDC는 입금한 지갑으로 돌아가고 운영자가 그만큼 잃는다. 정지로 막지 못한다. 시험 `testTwoLeakedSignersSendCompletedDepositsBackToTheirPayers`. 취소를 한 번 놓치면 72시간 안에 전부(아래 줄과 같다). 시험 `testOneMissedCancelOutOfTwentyEndsInATakeoverInThreeDays` | 정직한 쪽은 풀의 돈과 완료된 USDC를 꺼낼 길이 없다. 인출도 비상 인출도 서명자 둘이 필요하다. 샌 둘이 비상 인출을 제안하면 정직한 쪽은 막지 못하고, 7일 뒤 돈은 금고로 가며 서비스가 멈춘다 | 계약 안에는 없다. 정지 키가 지급을 멈추고 셋째 서명자 교체를 한 건씩 취소하며, 셋째 서명자가 정지 키 교체를 서명 하나로 전부 무효로 만든다. 이것을 새로 배포할 때까지 24시간마다 빠짐없이 해야 한다 | 서비스. 샌 둘이 지급되지 않은 입금을 완료로 기록하고 이의에 스스로 답하면 그 USDC는 여행자가 아니라 금고로 간다. 시험 `testTwoLeakedSignersForceTheExitButOnlyToTheTreasury` |
 | 서명자 둘 + 정지 키 (정직한 셋째 서명자만 남음) | 전부. 24시간 뒤 셋째 서명자가 교체되고, 48시간 뒤 공격자의 중계·견적·입금 확인 키와 올린 한도가 적용돼 풀 전체가 지급으로 나간다. 완료된 USDC는 확정됐거나 이의 기간이 지난 것부터 48시간 뒤 공격자의 spender로 나간다. 나머지와 아직 열려 있는 입금은 공격자가 완료로 기록해 이의 기간이 끝나는 대로 나간다(길면 완료 7일 뒤) | 해당 없다 | 없다. 셋째 서명자는 자기 교체만 빼고 취소할 수 있을 뿐이고, 비상 인출은 서명자 둘이 있어야 제안된다. 시험 `testTwoLeakedSignersWithThePauserTakeThePoolInTwoDays` | 풀의 원화 전부와 입금 계약의 USDC 전부. 풀 인출만은 금고로밖에 못 간다 |
 
 중계·견적·입금 확인 키 셋이 함께 샌 경우와 중계·입금 확인 둘이 함께 샌 경우는 9장에 있다.
@@ -223,7 +223,7 @@ sequenceDiagram
 - **[치명] 서명자 둘과 정지 키가 함께 새면 전부 잃는다.** 정직한 셋째 서명자는 자기 교체를 취소하지 못하고 정지 키는 공격자의 것이다. 24시간 뒤 셋째 서명자가 교체되고 48시간 뒤 나머지 변경이 적용된다. 풀은 공격자의 키와 올린 한도로 지급돼 나가고, 완료된 USDC는 공격자의 spender로 나간다. 비상 인출은 서명자 둘이 있어야 제안되므로 이 경우에는 쓸 수 없다. 시험 `testTwoLeakedSignersWithThePauserTakeThePoolInTwoDays`.
 - **[중요] 서명자 둘이 새면 정직한 쪽은 돈을 꺼낼 길이 없다.** 인출, spender 지정, 비상 인출 모두 서명자 둘이 필요하다. 정직한 정지 키와 셋째 서명자는 샌 둘의 제안을 24시간마다 빠짐없이 취소해야 하고, 한 번 놓치면 72시간 안에 전부 넘어간다. 정지 키 교체 쪽은 셋째 서명자의 서명 하나로 전부 무효가 되지만(5장), 셋째 서명자 교체 쪽은 정지 키가 한 건씩 취소해야 한다. 정지 키는 자기 교체를, 셋째 서명자는 자기 교체를 취소하지 못한다. 시험 `testTwoLeakedSignersAreStoppedByThePauserAndTheThirdSigner`, `testOneMissedCancelOutOfTwentyEndsInATakeoverInThreeDays`.
 - **[중요] 서명자 둘이 새면 비상 인출을 막을 수 없다.** 정직한 정지 키와 셋째 서명자는 취소하지 못한다. 7일 뒤 풀의 원화와 확정된 완료 USDC가 금고로 가고 서비스가 멈춘다. 돈은 금고 밖으로 가지 않는다. 비상 인출을 정한 2026-11-27 결정이 받아들인 값이다(14장).
-- **[중요] 비상 인출의 안전은 금고 주소 하나에 달려 있다.** 금고는 바꿀 수 없다. 금고 키와 서명자 둘이 함께 새면 정직한 정지 키와 셋째 서명자가 막을 수 없는 길로 7일 뒤 돈이 공격자에게 간다. 결정 전에는 금고로 가는 길이 24시간짜리 인출뿐이었고 그것은 한 명이 취소할 수 있었다. 금고 키를 잃으면 비상 인출로 보낸 돈은 되찾지 못한다(16장).
+- **[중요] 비상 인출의 안전은 금고 주소 하나에 달려 있다.** 금고는 바꿀 수 없다. 금고 키와 서명자 둘이 함께 새면 정직한 정지 키와 셋째 서명자가 막을 수 없는 길로 7일 뒤 돈이 공격자에게 간다. 풀의 원화와 확정된 완료 USDC만이 아니고 아직 열려 있는 입금도 간다. 서명자 둘이 지급됐다고 거짓으로 완료 기록하고(`completeBySigners`), 여행자가 이의하면 스스로 답해(`confirmPaid`) 바로 확정하거나 이의 없이 7일을 넘기면, 비상 인출이 그 입금까지 금고로 보낸다. 시험 `testTwoLeakedSignersForceTheExitButOnlyToTheTreasury`가 금고까지 가는 것을 보인다. 결정 전에는 금고로 가는 길이 24시간짜리 인출뿐이었고 그것은 한 명이 취소할 수 있었다. 금고 키를 잃으면 비상 인출로 보낸 돈은 되찾지 못한다(16장).
 - 정지 키와 서명자 한 명이 함께 새면 모든 변경이 막힌다. 샌 서명자가 정지 키의 교체를, 샌 정지 키가 그 서명자의 교체를 취소한다. 2026-11-27 결정(바뀌는 자리의 거부권만 없앤다)이 남긴 값이고, 같은 날의 비상 인출 결정이 끝을 냈다. 정직한 서명자 둘이 비상 인출을 제안하면 7일 뒤 풀의 원화와 확정된 완료 USDC가 금고로 간다. 그 7일과 이 계약들에서의 서비스는 잃는다. 입금은 묶이지 않는다. 남은 서명자 둘이 환불하고 7일 뒤에는 누구나 환불한다. 확정되지 않은 완료 입금은 서명자 둘이 거절해(`reject`) 여행자에게 환불할 수도 있다. 시험 `testALeakedPauserWithALeakedSignerBlocksEveryChangeOnBothContracts`, `testTheExitEndsALeakedPauserWithALeakedSigner`.
 - 샌 정지 키 하나는 교체가 적용될 때까지 24시간 동안 지급을 멈추고 다른 변경을 취소한다. 꺼진 키와 한도를 되살리는 데 24시간이 더 든다. 그동안의 입금은 환불로 끝난다. 시험 `testALeakedPauserDelaysButCannotLockThePool`.
 - 거짓 이의에 서명자가 14일 동안 답하지 않으면 두 번 나간다.
@@ -335,7 +335,7 @@ sequenceDiagram
 
 - 서명은 `Action(kind, subject, round, until)`이다. `kind`는 `keccak256("proposeEmergencyExit")` 또는 `keccak256("cancelEmergencyExit")`, `subject`는 금고 주소를 32바이트로 쓴 값, `round`는 보낼 때의 `exitRound`다. 처음 제안을 0회차에 서명했으면 그 취소는 1회차에 서명한다. 도메인이 계약과 체인을 묶으므로 입금 계약과 풀에 따로 서명한다. 시험 `testExitSignaturesAreForOneContractAndOneChain`, `testACancelSignedForOneExitDoesNotStopTheNext`.
 - 이벤트는 `EmergencyExitProposed(round, readyAt, lapsesAt)`, `EmergencyExitCancelled(round)`, `EmergencyExitTaken(id, treasury, amount)`다. `id`는 입금 번호이고 풀에서는 0이다.
-- 입금 계약의 실행은 입금 번호의 목록을 받는다. 가스 한도 안에서 나눠 부른다. 같은 번호를 두 번 넣거나 남은 것이 없는 입금을 넣으면 실패한다. 그냥 보낸 코인(`totalHeld` 밖의 USDC)은 가져가지 않는다.
+- 입금 계약의 실행은 입금 번호의 목록을 받는다. 가스 한도 안에서 나눠 부른다. 확정된 완료 입금인데 남은 것이 없으면(이미 가져갔거나 spender가 다 썼다) 이벤트도 이체도 없이 건너뛴다. 그래서 누가 목록의 한 건을 먼저 가져가도 나머지는 그대로 나가고, 같은 번호를 두 번 넣으면 한 번만 나간다. 실패하지 않고 조용히 건너뛰므로 무엇이 나갔는지는 `EmergencyExitTaken`으로 센다. 그 밖에 가져갈 수 없는 입금(없는 번호, 입금됨, 거절됨, 이의, 환불됨, 이의 기간 안의 완료)이 하나라도 있으면 전과 같이 거래 전체가 실패한다. 2026-11-28 전에는 남은 것이 없는 입금도 거래 전체를 실패시켰고, 한 건을 먼저 가져가는 거래 하나로 긴 목록의 호출 전체를 실패시킬 수 있었다. 시험 `testADepositTakenFirstDoesNotFailTheRestOfTheList`, `testADepositNamedTwiceIsPaidOnce`, `testADepositThatCannotBeTakenStillFailsTheWholeList`. 그냥 보낸 코인(`totalHeld` 밖의 USDC)은 가져가지 않는다.
 - 토큰이 금고 잔액에 정확히 넣지 않으면 거래가 되돌아가고 돈은 계약에 남는다. 실행 중에 토큰이 되부르면 `Reentered`로 막힌다. 시험 `testAnExitThatDoesNotArriveInFullIsUndone`, `testCallingBackDuringAnExitMovesNothingElse`.
 
 ### 정지 키와 서명자 한 명이 샜을 때의 순서
@@ -346,7 +346,7 @@ sequenceDiagram
 4. 7일 뒤 누구나 풀의 `emergencyExit()`와 입금 계약의 `emergencyExit(ids)`를 부른다. 그 뒤 7일 안에 이의 기간이 끝나는 완료 입금을 마저 보낸다.
 5. 두 계약은 버리고 새로 배포한다. 샌 두 키는 옛 계약의 자리를 그대로 가진다.
 
-시험 `testTheExitEndsALeakedPauserWithALeakedSigner`가 이 순서를 두 계약에서 7일 동안 날마다 모든 취소와 함께 돌린다. `testTheDepositExitTakesOnlyMoneyNoTravellerCanStillClaim`은 입금이 모든 상태에 하나씩 있을 때 실행하고, 환불을 제안 전·대기 중·열린 동안·지난 뒤에 각각 한다. 불변식 `invariant_onlyTwoSignersMoveTheExitAndNoKeyKeepsItsSeat`는 임의의 순서에서 비상 인출의 상태가 서명자 둘의 호출로만 바뀌는지 본다.
+시험 `testTheExitEndsALeakedPauserWithALeakedSigner`가 이 순서를 두 계약에서 7일 동안 날마다 모든 취소와 함께 돌린다. `testTheDepositExitTakesOnlyMoneyNoTravellerCanStillClaim`은 입금이 모든 상태에 하나씩 있을 때 실행하고, 환불을 제안 전·대기 중·열린 동안·지난 뒤에 각각 한다. 불변식 `invariant_onlyTwoSignersMoveTheExitAndNoKeyKeepsItsSeat`는 임의의 순서에서 비상 인출의 상태가 서명자 둘의 호출로만 바뀌는지 본다. 정지 키의 호출 여덟 가지(`narrowRates`, `removeOrigin`, `lowerLimit`, `lowerLimits`, `clearSpender`, `disableKey`, `pauseDeposits`, `pausePays`)가 대기 중인 비상 인출을 그대로 두는지는 이름이 `…LeavesTheExitWaiting`으로 끝나는 시험 여덟 개가 하나씩 본다.
 
 ## 15. 서버가 쓰는 바깥 인터페이스
 
@@ -416,7 +416,16 @@ sequenceDiagram
 
 - 제안 하나를 가리키는 키는 **(계약, `action`, `round`)** 이다. 계약은 체인 번호와 주소다. 같은 `action`은 회차가 바뀌면 같은 `salt`로 다시 제안할 수 있고, 그때 계약의 기록은 새 제안으로 덮인다. `action`만으로 저장하면 무효가 된 옛 제안과 새 제안이 섞인다.
 - 취소 서명은 그 제안의 `round`로 만든다. 지금의 `generation`이나 `pauserRound`로 만들면 회차가 바뀐 뒤의 제안에는 맞지만, 그때는 옛 제안이 이미 무효다.
-- 비상 인출을 가리키는 키는 (계약, `EmergencyExitProposed.round`)다.
+- 비상 인출을 가리키는 키는 (계약, `EmergencyExitProposed.round`)다. `EmergencyExitCancelled(round)`의 `round`는 그 비상 인출의 `EmergencyExitProposed.round`에 1을 더한 값이다. 제안이 회차 하나를 쓰고 취소가 그다음 회차를 쓴다.
+- `ChangeApplied(action)`과 `ChangeCancelled(action, by)`에는 회차가 없다. 같은 `action`이 회차가 바뀐 뒤 같은 `salt`로 다시 제안되면 `proposals(action)`은 적용됨·취소됨 기록까지 새 제안으로 덮인다. 그래서 두 이벤트는 같은 계약의 로그 순서에서 그보다 앞선 가장 가까운 같은 `action`의 `ChangeProposed`와 짝지어 회차를 정한다.
+
+### 비상 인출을 읽고 실행할 때
+
+- `exitProposedAt()`은 취소될 때만 0이 된다. 기간이 지난 뒤에도 옛 제안 시각이 그대로 남고 다음 제안이 덮어쓴다. 지금 상태는 `emergencyExitStatus()`로 읽는다(3이 기간 지남).
+- 기간이 지났다는 이벤트는 없다. 변경 제안도 비상 인출도 시각만으로 끝난다. 서버는 제안 이벤트의 `lapsesAt`을 저장하거나 `proposalStatus(action)`, `emergencyExitStatus()`를 읽는다.
+- 계약은 입금 번호의 목록을 주지 않는다. 번호는 `Deposited` 이벤트로 모은다. 비상 인출이 가져갈 수 있는 입금은 `depositOf(id)`가 `state == 2`(완료)이고 `left > 0`이며, `settled`가 참이거나 블록 시각이 `completedAt + 7일` 이상인 것이다. 견주는 시각은 그 거래가 들어가는 블록의 시각이다. 1초 이르면 아직 확정되지 않은 그 한 건 때문에 거래 전체가 `InvalidTime`으로 실패한다. 서버 시계가 아니라 가장 최근 블록의 시각으로 고르고 여유를 둔다.
+- `left`가 0인 완료 입금은 목록에 있어도 실패하지 않고 `EmergencyExitTaken` 없이 지나간다(14장). 거래가 성공했다는 것만으로 목록 전부가 나갔다고 기록하지 않는다.
+- 서명만 하고 올리지 않은 비상 인출 제안은 보관하지 않는다. `exitRound`가 그대로이고 서명한 둘이 서명자로 남아 있는 한, 그 서명은 `until` 전 7일 동안 가진 사람 누구나 올릴 수 있다. 키 끄기, 정지, 정지 키 교체, 다른 변경은 그 서명을 못 쓰게 하지 못한다. `until`이 지나기 전에 못 쓰게 하는 길은 서명한 서명자를 교체하거나(24시간), 서명자 둘이 비상 인출을 제안했다가 취소해 `exitRound`를 넘기는 것뿐이다. 서명은 올릴 때 만들고 `until`은 짧게 잡는다.
 
 ## 16. 배포 점검표
 
@@ -433,5 +442,6 @@ sequenceDiagram
 | 입금 계약의 `pool`, `won`, `wonChainId`와 풀의 출발지 `(체인 번호, 입금 계약 주소)`가 서로를 가리킨다 | 틀리면 견적이 한쪽에서 거절된다. 바꿀 수 없다 |
 | 배포 뒤 `relay()`, `quoter()`, `witness()`, `pauser()`, `signers(0…2)`, `treasury()`, 한도, 환율 범위를 두 계약에서 읽어 적어 둔다 | 생성자 값이 그대로 들어갔는지 본다 |
 | 서명자 셋이 `voidPauserReplacements`와 `cancel` 서명을 24시간 안에 만들 수 있다. 정지 키가 `cancelProposal`을 24시간 안에 보낼 수 있다 | `ChangeProposed`를 보고 24시간 안에 취소하지 못하면 그 변경은 적용된다(9장) |
+| 정지 키 교체가 대기하는 동안 서명자 교체를 대기에 두지 않는다. 둘 다 바꿔야 하면 정지 키 교체를 적용한 뒤에 서명자 교체를 제안한다 | 서명자 교체는 24시간 뒤 누구나 적용할 수 있고, 적용되면 `pauserRound`가 늘어 대기 중인 정지 키 교체가 모두 무효가 된다(5장). 샌 정지 키가 그 적용 거래를 먼저 보내면 자기 교체를 다시 24시간 미룬다 |
 | `ChangeProposed`, `EmergencyExitProposed`, `KeyChanged`, `SignerChanged`에 경보를 건다 | 비상 인출은 7일 전에 보이고, 원치 않으면 서명자 둘이 취소한다 |
 | spender를 정할 때: 그 계약이 프록시가 아니고, 위임 호출과 자기 파괴가 없고, 제안에 넣은 코드 해시가 읽은 코드의 것이다 | 계약은 해시만 비교한다(8장) |
