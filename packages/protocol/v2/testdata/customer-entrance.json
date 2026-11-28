@@ -191,6 +191,81 @@
         }
       }
     },
+    "menu-public-closed-day": {
+      "status": 200,
+      "body": {
+        "catalog": [
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 0,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "cake",
+            "optionKey": "standard",
+            "sku": "cake",
+            "skuAvailable": 0,
+            "unitPrice": "550000",
+            "version": 1
+          },
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 1000,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "tea",
+            "optionKey": "standard",
+            "sku": "tea",
+            "skuAvailable": 1000,
+            "unitPrice": "300000",
+            "version": 1
+          }
+        ],
+        "catalogVersion": 1,
+        "orderState": {
+          "mode": "closed"
+        },
+        "shop": {
+          "branch": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+          "branchLabel": "여울 커피"
+        }
+      }
+    },
+    "menu-public-paused": {
+      "status": 200,
+      "body": {
+        "catalog": [
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 0,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "cake",
+            "optionKey": "standard",
+            "sku": "cake",
+            "skuAvailable": 0,
+            "unitPrice": "550000",
+            "version": 1
+          },
+          {
+            "asset": "0x2222222222222222222222222222222222222222",
+            "available": 1000,
+            "expiresAt": "2026-11-27T12:00:00Z",
+            "label": "tea",
+            "optionKey": "standard",
+            "sku": "tea",
+            "skuAvailable": 1000,
+            "unitPrice": "300000",
+            "version": 1
+          }
+        ],
+        "catalogVersion": 1,
+        "orderState": {
+          "mode": "paused",
+          "resumeAt": "11:00"
+        },
+        "shop": {
+          "branch": "0fbc54ef-2827-4ab5-bfcd-3a27611c3002",
+          "branchLabel": "여울 커피"
+        }
+      }
+    },
     "menu-session": {
       "status": 200,
       "body": {

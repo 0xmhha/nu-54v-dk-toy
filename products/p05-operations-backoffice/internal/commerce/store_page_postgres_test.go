@@ -328,10 +328,11 @@ func TestPostgresStorePage(t *testing.T) {
 		if status["mode"] != mode || status["orderable"] != orderable || status["reason"] != reason {
 			t.Fatalf("%s: %v, want %s, orderable %v, reason %v", when, status, mode, orderable, reason)
 		}
-		// The menu a customer opens agrees: rows to order from exactly when an order can be placed.
+		// The menu a customer opens agrees: it has rows exactly while a menu is on sale. A store that only stopped
+		// taking orders, because it paused or today is its closed day, still shows them to read (migration 128).
 		rows := len(read("/v2/customer/stores/"+cafe+"/menu/0", 200)["catalog"].([]any))
-		if (rows != 0) != orderable {
-			t.Fatalf("%s: the status says orderable %v and the menu has %d rows", when, orderable, rows)
+		if readable := orderable || reason == "paused" || reason == "closed_day"; (rows != 0) != readable {
+			t.Fatalf("%s: the status says orderable %v (%v) and the menu has %d rows", when, orderable, reason, rows)
 		}
 		return status
 	}

@@ -1,5 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
-import {readNetworkList, type NetworkList} from '@nu54/protocol';
+import {paymentToken, readNetworkList, type CommercePaymentProfile, type NetworkList} from '@nu54/protocol';
+import {orderPaymentPin} from '../merchant/orderPaymentTrust.ts';
+import {ordersWithoutRegistration} from '../merchant/orderRoute.ts';
 import {NETWORK} from '../setup/network.ts';
 import {credential} from './BoardLife.tsx';
 import {checkServer, networkRows, type Exchange} from './networks.ts';
@@ -31,8 +33,21 @@ export function fromOperator(list: NetworkList): WalletAdvice {
 }
 
 /**
+ * What a build that orders from store pages knows without any registration: the token of the order contract it binds
+ * is the one a board of this build pays in, and the contract's read server is where its chain is asked
+ * (customerEntranceDeployment.ts). Undefined in a build of the earlier route, where a store's registration says both.
+ */
+export function buildAdvice(): WalletAdvice | undefined {
+  const pin = ordersWithoutRegistration() ? orderPaymentPin() : undefined;
+  if (!pin) return undefined;
+  return {...(pin.rpc ? {store: pin.rpc} : {}), signed: [storeToken(pin as unknown as CommercePaymentProfile)],
+    registered: {asset: pin.asset.toLowerCase(), token: paymentToken(pin)}};
+}
+
+/**
  * Servers and tokens others named for this phone: the store registration's StableNet server and the one token
  * the board's firmware signs, and the operator's signed list. `round` changes when the registration may have.
+ * A phone without a registration takes them from the order contract of its build, when the build binds one.
  */
 export function useWalletAdvice(active: boolean, round: unknown, sequence: number, keepSequence: (value: number) => void): WalletAdvice | undefined {
   const [store, setStore] = useState<WalletAdvice>(), [operator, setOperator] = useState<WalletAdvice>();
@@ -54,7 +69,8 @@ export function useWalletAdvice(active: boolean, round: unknown, sequence: numbe
     }).catch(async () => {
       // A store with another contract still names the token of its amounts.
       const registered = await registeredStore().catch(() => undefined);
-      if (live) setStore(old => old ?? (registered ? {registered} : {}));
+      const build = registered ? undefined : buildAdvice();
+      if (live) setStore(old => build ? same(build)(old) : old ?? (registered ? {registered} : {}));
     });
     return () => { live = false; };
   }, [active, round]);

@@ -10,6 +10,7 @@ import {BoardLife, setupSteps, type BoardLifeProps} from '../src/wallet/BoardLif
 import {readResetBlock, resetBlocked, resetUnknown} from '../src/wallet/boardReturn';
 import {boardTurn} from '../src/wallet/boardTurn';
 import {faucetFailure} from '../src/wallet/FaucetPage';
+import {FaucetPage} from '../src/wallet/FaucetPage';
 import {FirstSteps} from '../src/wallet/HomeParts';
 import {sendFailure} from '../src/wallet/SendPage';
 import {defaultReadState} from '../src/wallet/readProfiles';
@@ -177,8 +178,8 @@ describe('the words of the two routes', () => {
     expect(said(sendFailure(new Error('NO_CREDENTIAL')))).toEqual([]);
     await open('return');
     expect(said(text())).toEqual([]);
-    await press('반납 시작');
-    expect(message).toBe('이 앱에서는 아직 쓸 수 없는 기능입니다.');
+    expect(button('반납 시작')).toBeUndefined();
+    expect(text()).toContain('이 앱에서는 아직 반납할 수 없습니다');
     mockPin = undefined;
     expect(faucetFailure(new Error('MISMATCHED_EVIDENCE'))).toBe('이 매장에 보드 계정이 등록되어 있지 않습니다. 설정에서 매장 등록을 먼저 하세요.');
     expect(faucetFailure(new Error('NO_CREDENTIAL'))).toBe('먼저 매장 주문 등록이 필요합니다. 결제 탭에서 매장 담당자가 준 등록서를 입력하세요.');
@@ -451,5 +452,66 @@ describe('one connection to the board at a time', () => {
     await expect(third).resolves.toBe(3);
     await first;
     expect(order).toEqual(['first opens', 'first ends', 'second', 'third']);
+  });
+});
+
+// Returning, sending and test tokens go through a store's registered connection, which a build that orders from
+// store pages does not set up. Its pages say so before anything is pressed, offer no action that cannot work, and
+// never tell the customer to return money first.
+describe('what this app cannot do yet is said in place of the action', () => {
+  const cannotReturn = '이 앱에서는 아직 반납할 수 없습니다';
+  const noWayBack = '보드 계정의 돈을 원래 지갑으로 돌려보내는 기능이 이 앱에는 아직 없습니다. 남은 돈은 매장 주문에 쓸 수 있습니다.';
+
+  test('the return page shows what the account holds, and neither an amount to get back nor a button to start', async () => {
+    await open('return');
+    expect(text()).toContain(cannotReturn);
+    expect(text()).toContain(noWayBack);
+    expect(text()).toContain('420,000원');
+    for (const dead of ['반납 시작', '잔액 없이 초기화로 진행', '잔액 다시 확인']) expect([dead, !!button(dead)]).toEqual([dead, false]);
+    expect(text()).not.toContain('돌려받을 금액');
+    expect(text()).not.toContain('원래 지갑으로 보내고, 확정된 뒤에 보드를 초기화합니다');
+    expect(message).toBe('');
+    expect(mockCalls).toEqual([]);
+  });
+
+  test('the reset page says the money is lost with no way to return it here, and does not say to return first', async () => {
+    await open('reset');
+    expect(text()).toContain('보드의 키와 PIN, 등록을 지웁니다. 되돌릴 수 없고, 남은 돈은 되찾을 수 없습니다. 이 앱에서는 아직 반납할 수 없어, 남은 돈을 원래 지갑으로 돌려받을 방법이 없습니다.');
+    expect(text()).toContain('남은 돈 420,000원을 잃습니다.');
+    expect(text()).not.toContain('먼저 반납하세요');
+    expect(button('먼저 반납하기')).toBeUndefined();
+    // The reset itself stays possible: the customer is told what it costs, not held back.
+    expect(button('앱에서 초기화 계속')).toBeDefined();
+  });
+
+  test('the send page says it before any field is shown, and offers no check that cannot succeed', async () => {
+    await open('send');
+    expect(text()).toContain('이 앱에서는 아직 보낼 수 없습니다');
+    expect(text()).toContain('보드 계정의 돈을 다른 주소로 보내는 기능이 이 앱에는 아직 없습니다. 남은 돈은 매장 주문에 쓸 수 있습니다.');
+    expect(button('다시 확인')).toBeUndefined();
+    expect(button('다음')).toBeUndefined();
+    expect(said(text())).toEqual([]);
+  });
+
+  test('the test token page says where the money comes from instead', async () => {
+    let page!: Renderer.ReactTestRenderer;
+    await Renderer.act(async () => { page = Renderer.create(<FaucetPage t={value => value} account={payer} sends={[mockPolicy.asset]} />); });
+    await flush();
+    const shown = JSON.stringify(page.toJSON());
+    expect(shown).toContain('이 앱에서는 아직 시험 토큰을 받을 수 없습니다');
+    expect(shown).toContain('원래 지갑에서 보드 계정 주소로 입금하세요. 주소는 지갑 탭의 받기에서 볼 수 있습니다.');
+    expect(page.root.findAll(node => node.props.label === '다시 확인')).toHaveLength(0);
+    expect(shown).not.toContain('반납');
+    expect(said(shown)).toEqual([]);
+    await Renderer.act(async () => { page.unmount(); });
+  });
+
+  test('a build of the earlier route keeps its return page and its way to return first', async () => {
+    mockPin = undefined;
+    await open('reset');
+    expect(text()).toContain('돈이 남아 있으면 먼저 반납하세요.');
+    expect(button('먼저 반납하기')).toBeDefined();
+    await open('return');
+    expect(text()).not.toContain(cannotReturn);
   });
 });

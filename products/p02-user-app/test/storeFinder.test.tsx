@@ -326,8 +326,6 @@ describe('the store page', () => {
   });
 
   test.each<[StorePage['status'], string, string]>([
-    [{mode: 'closed', orderable: false, reason: 'no_menu', ...now}, '카페 · 영업 중 · 판매 중인 메뉴 없음 · 21:00에 영업 종료', '지금 판매 중인 메뉴가 없어 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.'],
-    [{mode: 'closed', orderable: false, reason: 'outside_hours', ...now}, '카페 · 영업 중 · 지금은 주문 시간 아님 · 21:00에 영업 종료', '지금은 메뉴를 판매하는 시간이 아니라 주문을 받지 않습니다. 메뉴는 볼 수 있습니다.'],
     [{mode: 'paused', orderable: false, reason: 'paused', resumeAt: '11:00', ...now}, '카페 · 영업 중 · 주문 잠시 멈춤 · 11:00쯤 다시 받습니다 · 21:00에 영업 종료', '매장이 주문을 잠시 멈췄습니다. 11:00쯤 다시 받는다고 알렸습니다. 메뉴는 볼 수 있습니다.'],
   ])('a store the server takes no order for says the server\'s reason and offers the menu only to read: %j', async (status, line, why) => {
     await show({...page, status});
@@ -336,6 +334,20 @@ describe('the store page', () => {
     expect(labels()).toContain('메뉴만 보기');
     expect(labels()).not.toContain('메뉴 보고 주문');
     expect(screen()).not.toContain('오늘 쉽니다'); // a closed mode is not a day off
+  });
+
+  // The server shows no row of a menu that is not on sale, at this hour or at all: the page says why no order is
+  // taken and promises no menu.
+  test.each<[StorePage['status'], string, string]>([
+    [{mode: 'closed', orderable: false, reason: 'no_menu', ...now}, '카페 · 영업 중 · 판매 중인 메뉴 없음 · 21:00에 영업 종료', '지금 판매 중인 메뉴가 없어 주문을 받지 않습니다.'],
+    [{mode: 'closed', orderable: false, reason: 'outside_hours', ...now}, '카페 · 영업 중 · 지금은 주문 시간 아님 · 21:00에 영업 종료', '지금은 메뉴를 판매하는 시간이 아니라 주문을 받지 않습니다.'],
+  ])('a store with no menu on sale now says the server\'s reason and offers no menu: %j', async (status, line, why) => {
+    await show({...page, status});
+    expect(screen()).toContain(line);
+    expect(screen()).toContain(why);
+    expect(screen()).not.toContain('메뉴는 볼 수 있습니다');
+    expect(labels()).not.toContain('메뉴만 보기');
+    expect(labels()).not.toContain('메뉴 보고 주문');
   });
 
   test('a store the server takes an order for is offered the order, whatever the hours it wrote say', async () => {

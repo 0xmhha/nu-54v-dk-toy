@@ -127,6 +127,7 @@ import {OrderPayment, type OrderBlock, type OrderBoard, type OrderPaymentView} f
 import {configuredEntrance, issuePickupQr, shortAccount} from './customerEntrance.ts';
 import {isPinnedPolicy} from './orderPaymentTrust.ts';
 import {madeAtStorePage, openStoreAccess, SessionNeeded, StoreBusy, type AccessProblem, type StoreAccess, type StoreChoice} from './storeAccess.ts';
+import type {StoreVisits} from './storeVisit.ts';
 import {ownerPickupBoard} from './pickupBoard.ts';
 import {PickupQrScreen} from './PickupQr.tsx';
 import {cartMoney, missingUnits, orderMoney, receiptLines, shownBalance} from '../wallet/tokens.ts';
@@ -196,6 +197,7 @@ function orderRowDetail(row: CustomerOrderSummary, sent?: OpenOrder) {
  * Why an order at a store reached without a registration cannot go on, in the customer's words. `kept`: the page
  * came back to a payment it had kept, so the order was started before.
  */
+const storeUnreached = '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
 function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = false) {
   switch (problem.kind) {
     case 'no-build': return '이 앱에는 주문을 받을 매장 서버와 주문 계약이 아직 정해지지 않았습니다.';
@@ -208,11 +210,13 @@ function accessProblemText(problem: AccessProblem | {kind: 'no-build'}, kept = f
     // The board near is this phone's own and proved its account; the server still did not accept it for what was asked.
     case 'mismatch': return '매장 서버가 이 보드 계정의 확인을 받아들이지 않았습니다. 주문 상태를 다시 확인하고, 같은 안내가 나오면 매장에 문의하세요.';
     case 'refused': return '매장 서버가 이 요청을 받지 않았습니다. 다시 시도해도 같으면 매장에 문의하세요.';
+    // The board proved the paying account and the server still said nothing of the order; the board rests for a while.
+    case 'order-unread': return '매장 서버가 이 주문의 상태를 지금 알려 주지 않습니다. 아래는 이 휴대전화가 마지막으로 확인한 상태입니다. 몇 분 뒤 다시 확인하세요.';
     case 'payment': return problem.code === 'NO_MERCHANT' ? '이 매장은 아직 앱에서 주문 결제를 받지 않습니다.'
       : problem.code === 'CHAIN_UNREADABLE' ? (kept ? '결제 정보를 체인에서 다시 확인하지 못했습니다. 연결을 확인하고 다시 시도하세요.'
         : '결제 정보를 체인에서 확인하지 못해 주문을 시작하지 않았습니다. 잠시 뒤 다시 시도하세요.')
       : '이 매장의 결제 정보가 이 앱의 주문 계약과 맞지 않아 주문할 수 없습니다. 운영자에게 문의하세요.';
-    default: return '매장 서버에 연결하지 못했습니다. 연결을 확인하고 다시 시도하세요.';
+    default: return storeUnreached;
   }
 }
 // What a basket lacks and holds, in the unit its screen shows: the phone's one rule for whole won (wallet/tokens.ts).
@@ -330,9 +334,15 @@ export function CustomerOrders({
   travelCheckout,
   subscriptionLink,
   store,
+  storeVisits,
   openStorePage,
   storeRoute,
 }: {
+  /**
+   * Where the app keeps what the customer left at a store page: the basket comes back from it when the page opens
+   * again, and the page writes down what it holds (storeVisit.ts). Without it a page starts empty every time.
+   */
+  storeVisits?: StoreVisits;
   /** Opens a store's page from its shortcut QR; undefined unless the build takes the order from that page. */
   openStorePage?: (branch: string) => void;
   /**
@@ -438,6 +448,12 @@ export function CustomerOrders({
   const storeBranch = store?.branch, storeName = store?.name, storeMerchant = store?.merchantId;
   const registrationFree = !!storeRoute;
   const [storeAccess, setStoreAccess] = useState<StoreAccess>();
+  // The access whose page has taken back the basket left at its store; from then on the page writes its own down.
+  const [basketOf, setBasketOf] = useState<StoreAccess>();
+  useEffect(() => {
+    if (!storeAccess || basketOf !== storeAccess) return;
+    storeVisits?.keep(storeAccess.store.branch, {basket: point ? undefined : cart, checkout: !!point || !!approved});
+  }, [storeVisits, storeAccess, basketOf, cart, point, approved]);
   const [storeProblem, setStoreProblem] = useState<AccessProblem | {kind: 'no-build'}>();
   // The board account's balance of the store's token: undefined before it is read, null when it cannot be read.
   const [boardBalance, setBoardBalance] = useState<bigint | null>();
@@ -479,6 +495,7 @@ export function CustomerOrders({
   const [deniedLink, setDeniedLink] = useState(false);
   const [counterQrAllowed, setCounterQrAllowed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [stepsDone, setStepsDone] = useState(0);
   const performing = useRef<object | undefined>(undefined);
   const mounted = useRef(true);
 
@@ -567,6 +584,7 @@ export function CustomerOrders({
     setCounterQrAllowed(false);
     setMessage('');
     setStoreAccess(undefined);
+    setBasketOf(undefined);
     setStoreProblem(undefined);
     setBoardBalance(undefined);
     setShortHold(undefined);
@@ -620,7 +638,8 @@ export function CustomerOrders({
         // An order with a session of its own is read again; the others keep what the phone last wrote down.
         void refreshOpenOrders(actor).then(rows => { if (current()) setOpenOrders(rows); }).catch(() => {});
         void access.balance().then(value => { if (current()) setBoardBalance(value ?? null); });
-        if (!pending) {
+        if (pending) setBasketOf(access);
+        else {
           try {
             const menu = await actor.publishedMenu();
             if (!current()) return;
@@ -629,6 +648,15 @@ export function CustomerOrders({
             setCatalog(menu.catalog);
             if (menu.shop) setShop({identity: menu.shop, route: 'direct'});
             setStoreState({state: menu.orderState, checkedAt: `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`});
+            // The basket the customer left here (to top up, or for another tab) comes back, read against the menu
+            // as it is now: a price that changed or a product that sold out meanwhile is said before any order.
+            const left = storeVisits?.basket(storeBranch);
+            if (left) {
+              const review = reviewCommerceCart(left, menu.catalog);
+              setCart(review.selection);
+              if (review.priceChanges.length || review.shortages.length) setCartReview(review);
+            }
+            setBasketOf(access);
           } catch (error) {
             if (!current()) return;
             if (error instanceof StoreBusy) setStoreProblem({kind: 'busy'});
@@ -770,7 +798,7 @@ export function CustomerOrders({
       if (current()) { setPhase('locked'); showStranded(); }
     }
   }, [initialLocator, loadHistory, shopEntry, subscriptionLink, travelBranch, travelSale, travelPayment, matchesTravelOrder, storeBranch, storeName, storeMerchant, keepPolicy,
-    initialOrder, registrationFree]);
+    initialOrder, registrationFree, storeVisits]);
 
   useEffect(() => {
     mounted.current = true;
@@ -859,7 +887,17 @@ export function CustomerOrders({
   useEffect(() => {
     // Messages are drawn above the page; a button far below must bring them into view.
     if (message) page.current?.scrollTo({y: 0, animated: true});
-  }, [message]);
+  }, [message, stepsDone]);
+  useEffect(() => {
+    // So is what a store page says about the board, the account or the store's server: the answer to "주문 접수 요청"
+    // at the end of a long menu must not stay out of sight above it.
+    if (storeProblem) page.current?.scrollTo({y: 0, animated: true});
+  }, [storeProblem]);
+  // An order the store now holds is drawn at the top as well, in place of the basket the button was under.
+  const heldOrder = point?.order;
+  useEffect(() => {
+    if (heldOrder && storeBranch) page.current?.scrollTo({y: 0, animated: true});
+  }, [heldOrder, storeBranch]);
 
   const closeDetail = () => { setDetailSale(''); setPickupSale(''); setOrder(undefined); setLookupOrder(undefined); setMessage(''); };
   const detailShown = useRef(false);
@@ -907,7 +945,7 @@ export function CustomerOrders({
     return !problem;
   }
 
-  function work(action: () => Promise<void>, failure: string) {
+  function work(action: () => Promise<void>, failure: string | ((error: unknown) => string)) {
     if (performing.current) return;
     const token = {};
     performing.current = token;
@@ -932,13 +970,15 @@ export function CustomerOrders({
         if (!live()) return;
         // Too many requests at the store's server: nothing is known to have failed, and the session stands.
         if (storeAccess && error instanceof StoreBusy) setStoreProblem({kind: 'busy'});
-        else setMessage(failure);
+        else setMessage(typeof failure === 'string' ? failure : failure(error));
       })
       .finally(() => {
         if (performing.current === token) {
           performing.current = undefined;
           if (mounted.current) setBusy(false);
         }
+        // What the step said is drawn at the top of the page, also when it says the same as the step before.
+        if (live()) setStepsDone(count => count + 1);
       });
   }
 
@@ -2850,7 +2890,7 @@ export function CustomerOrders({
   if (orderView) {
     // Each step of the payment starts at its top, whatever was scrolled before.
     return <ScrollView key={orderView.kind} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-      <OrderPayment view={orderView} busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem, !!approved) : '')}
+      <OrderPayment view={orderView} busy={busy} storePage={!!storeAccess} message={message || (storeProblem ? accessProblemText(storeProblem, !!approved) : '')}
         t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text}
         actions={{
           findBoard: () => work(findOrderBoard, '보드를 찾지 못했습니다. 보드 전원과 블루투스 권한을 확인하세요.'),
@@ -2918,7 +2958,10 @@ export function CustomerOrders({
     ? '이 매장에서는 품목당 옵션을 하나씩 담을 수 있습니다. 옵션을 바꾸려면 담은 옵션을 먼저 빼세요.'
     : 'This store accepts one option per item. Remove the selected option to choose another.';
   const choiceRows = choosing ? catalog.filter(row => row.sku === choosing && row.choices) : [];
-  if (phase === 'active' && client && !deniedLink && !showSubscriptions && !point && !menuReadOnly && (shop || pickupMode) && choiceRows.length) {
+  // The menu of a store page that takes no order now (it paused, or today is its closed day) is there to read: its
+  // rows offer nothing to put in a basket. So is the last menu of a store that cannot be reached (menuReadOnly).
+  const menuToRead = menuReadOnly || (!!storeAccess && storeStopped(storeState.state));
+  if (phase === 'active' && client && !deniedLink && !showSubscriptions && !point && !menuToRead && (shop || pickupMode) && choiceRows.length) {
     return <MenuChoices key={choosing} rows={choiceRows} cart={cart} locale={menuLocale} money={menuMoney} disabled={busy} photos={photos}
       blocked={row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart) ? oneOptionOnly : undefined}
       add={(row, quantity) => {
@@ -2998,7 +3041,7 @@ export function CustomerOrders({
           )}
   </View>;
   const title = invoiceDetail && !showSubscriptions ? '구독 회차 청구서' : travelPayment ? '원예약 지급 주문'
-    : travelBranch || initialLocator || shopEntry ? '내 매장 주문' : '내 결제와 미결 청구';
+    : travelBranch || initialLocator || shopEntry ? (storeBranch ? '매장 주문' : '내 매장 주문') : '내 결제와 미결 청구';
   return (
     <ScrollView
       ref={page}
@@ -3266,6 +3309,12 @@ export function CustomerOrders({
                 : shop.route === 'relay' ? '온라인 단말 중계' : '휴대전화 온라인 연결'}</Text>}
               {storeAccess ? <Button label="매장 화면으로" variant="secondary" disabled={busy} run={back} />
                 : <Button label="매장 다시 선택" disabled={busy} run={resetShop} />}
+              {/* The payment tab is where an order's state is read: an order paid at this store is on its page too. */}
+              {storeAccess && !point && openOrders.some(row => isOpenOrder(row) && madeAtStorePage(row)) && <View style={s.inProgress}>
+                <Text accessibilityRole="header" style={s.cardTitle}>진행 중</Text>
+                {openOrders.filter(row => isOpenOrder(row) && madeAtStorePage(row)).map(row => <OpenOrderCard key={row.sale} order={row}
+                  former={isFormerBoard(row, boardAccount)} open={() => work(() => openOrderDetail(row.sale), orderOffline)} />)}
+              </View>}
             </>
           )}
           {(shopEntry || pickupMode) && pairView}
@@ -3305,7 +3354,7 @@ export function CustomerOrders({
           )}
           {!point && (shop || pickupMode) && <ShopMenuCategories
             categories={categories} selected={selectedCategory} select={setMenuCategory} locale={menuLocale} />}
-          {!point && !menuReadOnly && (shop || pickupMode) && catalog.some(row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart)) && (
+          {!point && !menuToRead && (shop || pickupMode) && catalog.some(row => row.skuAvailable === undefined && commerceHasSiblingOption(row, cart)) && (
             <Text style={s.text}>{oneOptionOnly}</Text>
           )}
           {!point && (shop || pickupMode) &&
@@ -3314,7 +3363,7 @@ export function CustomerOrders({
               // Combinations are picked on their own page; the ones in the basket stay in the list, after the product.
               const card = row.choices && catalog.find(item => item.sku === row.sku) === row ? <ChoiceCard key={row.sku}
                 rows={catalog.filter(item => item.sku === row.sku)} cart={cart} locale={menuLocale} money={menuMoney}
-                pick={menuReadOnly ? undefined : {run: () => setChoosing(row.sku), disabled: busy}} /> : null;
+                pick={menuToRead ? undefined : {run: () => setChoosing(row.sku), disabled: busy}} /> : null;
               if (row.choices && !cart[commerceLineKey(row)]) return card;
               const names = commerceMenuLabels(row, menuLocale);
               const key = commerceLineKey(row);
@@ -3331,14 +3380,15 @@ export function CustomerOrders({
                     {commerceMenuDisclosure(row, menuLocale)}
                   </Text>
                   {/* A menu read without a proof tells sold out or on sale, never how many are left (row.uncounted). */}
-                  {!menuReadOnly && <Text style={s.text}>
+                  {/* A menu that is only read still says what is sold out; it counts no choice. */}
+                  {!menuReadOnly && (!menuToRead || available <= 0) && <Text style={s.text}>
                     {available > 0
                       ? row.uncounted ? `선택 ${quantity}` : `선택 ${quantity} · 가능 ${available}`
                       : menuLocale === 'ko'
                       ? '품절'
                       : 'Sold out'}
                   </Text>}
-                  {!menuReadOnly && <Button
+                  {!menuToRead && <Button
                     label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                       menuLocale === 'ko' ? '추가' : 'Add'
                     }`}
@@ -3353,7 +3403,7 @@ export function CustomerOrders({
                       })
                     }
                   />}
-                  {!menuReadOnly && !!quantity && (
+                  {!menuToRead && !!quantity && (
                     <Button
                       label={`${names.name === names.product ? names.product : `${names.product} ${names.option}`} ${
                         menuLocale === 'ko' ? '빼기' : 'Remove'
@@ -3464,7 +3514,7 @@ export function CustomerOrders({
               </>}
             </>;
           })()}
-          {!point && !menuReadOnly && (shop || pickupMode) && Object.keys(cart).length > 0 && (
+          {!point && !menuToRead && (shop || pickupMode) && Object.keys(cart).length > 0 && (
             <Button
               label={
                 pickupChoice
@@ -3643,12 +3693,16 @@ export function CustomerOrders({
                     run={() =>
                       work(
                         () => preparePayment(order),
-                        '주문, 자산, 보드 주소 또는 독립 복구 상태를 확인할 수 없습니다.',
+                        // No answer from the store's server is a lost connection, and the order stays as it is.
+                        error => storeAccess && isMenuNetworkOffline(error) ? storeUnreached
+                          : '주문, 자산, 보드 주소 또는 독립 복구 상태를 확인할 수 없습니다.',
                       )
                     }
                   />
                 )}
-              {!order.escrow && <Text style={s.text} selectable>
+              {/* The order's reference is no word for a customer: an order from a store page is known by its store, its
+                  amount and its number. The earlier route keeps it, where staff may ask for it. */}
+              {!order.escrow && !storeAccess && <Text style={s.text} selectable>
                 {order.id}
               </Text>}
               {invoiceDetail && approved?.order.id !== order.id && (

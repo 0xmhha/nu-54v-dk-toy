@@ -4,7 +4,7 @@ import {bytesToHex, fromBase64, fromBoard, isWon, type PaymentToken, type Wallet
 import Http from '../specs/NativeCommerceHttp.ts';
 import ShopQr from '../specs/NativeShopQr.ts';
 import {walletId} from '../merchant/customerClient.ts';
-import {routeWords} from '../merchant/orderRoute.ts';
+import {notHereYet, routeWords} from '../merchant/orderRoute.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
 import {color, font, inputPlaceholder, radius, type} from '../ui/theme.ts';
@@ -29,6 +29,11 @@ const sendDecimals = (token: PaymentToken) => isWon(token) ? 0 : Math.min(2, tok
 const decimalWords = (decimals: number) => ['없음', '한', '두', '세', '네', '다섯', '여섯'][decimals] ?? String(decimals);
 /** Said where a won amount is typed or pasted with anything but digits: it is refused, never cut to whole won. */
 const wholeWonOnly = '원화는 1원 단위로만 보낼 수 있습니다. 소수점 없이 숫자만 입력하세요.';
+/**
+ * Said at the amount field after a character was refused, until the customer takes a character out of the field.
+ * The field then holds another number than was typed (1000.5 leaves 10005), so the page does not go on with it.
+ */
+const refusedInAmount = `${wholeWonOnly} 방금 입력한 소수점이나 기호는 금액에 들어가지 않았습니다. 금액 칸의 숫자를 지우거나 고친 뒤 계속하세요.`;
 
 /** What the server's refusal of a transfer means, in the words of this build's route. The rest is worded as for a return. */
 export function sendFailure(error: unknown): string {
@@ -68,6 +73,8 @@ export function SendPage(props: BoardLifeProps) {
   const [held, setHeld] = useState<WalletSends>(), [problem, setProblem] = useState('');
   const [to, setTo] = useState(''), [amount, setAmount] = useState(''), [label, setLabel] = useState('');
   const [review, setReview] = useState<{to: string; units: bigint}>();
+  // A character the amount field refused. It stands until the customer deletes from the field, or leaves the page.
+  const [refused, setRefused] = useState(false);
   const [clock, setClock] = useState(now());
   const keep = useCallback(async (next?: SendRecord) => { await sendRecord(Http!).save(next); setRecord(next ?? null); }, []);
   const list = useCallback(async () => {
@@ -157,6 +164,8 @@ export function SendPage(props: BoardLifeProps) {
   }
 
   if (!verified || !board) return <Notice body="먼저 보드 연결과 서명 시험을 마치세요." />;
+  // A build that orders from store pages has no store to relay a transfer: said in place of the form.
+  if (props.unrelayed) return <Notice tone="stop" title={notHereYet.send.title} body={notHereYet.send.body} />;
   if (problem) return <><Notice body={problem} /><KitButton label="다시 확인" run={() => work(list, sendFailure)} disabled={props.busy} variant="secondary" /></>;
   if (!props.fixture && !held) return <Text style={type.body}>보내기를 확인하고 있습니다.</Text>;
   if (props.storeRead === 'loading') return <Text style={type.body}>{routeWords('매장 등록을 확인하고 있습니다.')}</Text>;
@@ -166,13 +175,16 @@ export function SendPage(props: BoardLifeProps) {
     <KitButton label="반납 보기" run={() => props.go('return')} variant="secondary" /></Notice>;
   const contacts = (stored.walletRead?.contacts ?? []).filter(item => item.id === 'stable');
   const won = isWon(store.token);
-  // A won amount takes digits alone. Anything else, typed or pasted, leaves what was there and says why.
+  // A won amount takes digits alone. Anything else, typed or pasted, leaves what was there and says why at the field.
+  // The digits typed after it still arrive, so the field may read another amount than was meant: the sentence stays
+  // and the page does not go on until the customer has taken a character out, which only they do on purpose.
   const typeAmount = (value: string) => {
-    if (won && !/^[0-9]*$/.test(value)) { say(wholeWonOnly); return; }
-    if (won) say('');
+    if (won && !/^[0-9]*$/.test(value)) { setRefused(true); return; }
+    if (refused && value.length < amount.length) setRefused(false);
     setAmount(value);
   };
   const inspect = () => {
+    if (refused) return;
     try {
       const target = readRecipient(to);
       if (target === board.account) { say('보드 계정 자신에게는 보낼 수 없습니다.'); return; }
@@ -245,7 +257,8 @@ export function SendPage(props: BoardLifeProps) {
     <Text style={styles.label}>금액</Text>
     <TextInput accessibilityLabel="금액" placeholder={won ? '0' : '0.00'} placeholderTextColor={inputPlaceholder} value={amount} onChangeText={typeAmount} style={styles.input}
       maxLength={24} keyboardType={won ? 'number-pad' : 'decimal-pad'} editable={!props.busy} />
-    <KitButton label="다음" run={inspect} disabled={props.busy || !to.trim() || !amount.trim() || (!!held && held.remaining < 1)} />
+    {refused && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.refused}>{refusedInAmount}</Text>}
+    <KitButton label="다음" run={inspect} disabled={props.busy || refused || !to.trim() || !amount.trim() || (!!held && held.remaining < 1)} />
     {!!held && held.remaining < 1 && <Notice body="오늘 보낼 수 있는 횟수를 다 썼습니다. 24시간이 지나면 다시 보낼 수 있습니다." />}
   </>;
 }
@@ -254,5 +267,6 @@ const styles = StyleSheet.create({
   label: {fontFamily: font, fontSize: 14, fontWeight: '700', color: color.mute},
   address: {fontFamily: 'monospace', fontSize: 14, lineHeight: 20, color: color.ink, backgroundColor: color.ground, borderRadius: 8, padding: 10},
   input: {fontFamily: font, fontSize: 15, borderWidth: 1, borderColor: '#8fa497', borderRadius: radius.m, padding: 12, minHeight: 50, color: color.ink, backgroundColor: color.sheet},
+  refused: {fontFamily: font, fontSize: 15, lineHeight: 22, color: '#5a3b05', backgroundColor: color.amberBg, borderRadius: radius.m, padding: 12},
   list: {borderRadius: radius.m, overflow: 'hidden', borderWidth: 1, borderColor: color.line, gap: 1, backgroundColor: color.line},
 });

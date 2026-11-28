@@ -26,6 +26,7 @@ import {ExploreHome} from './explore/ExploreHome.tsx';
 import {StoreFinder} from './merchant/StoreFinder.tsx';
 import {ordersWithoutRegistration} from './merchant/orderRoute.ts';
 import {madeAtStorePage, type StoreChoice} from './merchant/storeAccess.ts';
+import {storeVisits} from './merchant/storeVisit.ts';
 import {configuredDirectory} from './merchant/storeDirectory.ts';
 import ShopQr from './specs/NativeShopQr.ts';
 import {KitButton, TabBar, type ButtonVariant} from './ui/kit.tsx';
@@ -470,6 +471,8 @@ function Shell() {
   const [shownOrder, setShownOrder] = useState('');
   // A store picked from its store page, ordered from without a registration (merchant/storeAccess.ts).
   const [storeOrder, setStoreOrder] = useState<StoreChoice>();
+  // What the customer left at store pages while the app runs: a basket, or an order that waits for its payment.
+  const visits = useMemo(() => storeVisits(), []);
   const openShopQr = useCallback((raw: string) => {
     setStoreOrder(undefined);
     setOrderLink('');
@@ -582,6 +585,14 @@ function Shell() {
     // An order started from a store page goes back to that page.
     if (left && storeDirectory) openStores(left.branch);
   };
+  /**
+   * The customer's orders, from a page that says "진행 중인 주문 보기". A build that orders from store pages shows
+   * the list of them, never the menu of the store that was open last.
+   */
+  const openOrderList = () => {
+    if (registrationFree) { openPaymentList(); setShownOrder(''); }
+    setShopping(true);
+  };
   /** The menu of a store page, and from there the order. `sale` opens one of its orders first. */
   const openStoreOrder = (store: StoreChoice, sale = '') => {
     openPaymentList();
@@ -667,7 +678,7 @@ function Shell() {
       <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.root}>
         <View style={[styles.page, keyboard > 0 && {paddingBottom: keyboard}]}>
-        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder}
+        {shopping ? <CustomerOrders tabbed={showTabs} initialOrder={shownOrder} openBoard={openBoard} key={incomingPaymentLink} initialCounterQr={counterQr} initialShopQr={shopQr} shopEntry={shopEntry} openShopQr={openShopQr} store={storeOrder} storeVisits={visits}
           // Only a build that takes the order from the store page sends a store QR there. With the entrance alone the
           // page's order button comes back here, and sending it to the page again would never end.
           openStorePage={registrationFree ? openStores : undefined}
@@ -717,7 +728,7 @@ function Shell() {
               {label: '매장 QR 결제', run: () => { if (registrationFree) openStores(); else { openPaymentList(); setShopping(true); } }},
               {label: '근처 매장', run: openNearbyOrders},
               {label: '여행 예약', run: () => { setTravel(true); }},
-            ]} requestScreen={walletRequest} onScreenChange={setWalletScreen} onPracticeChange={setPracticing} rental={rental} orders={()=>setShopping(true)} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
+            ]} requestScreen={walletRequest} onScreenChange={setWalletScreen} onPracticeChange={setPracticing} rental={rental} orders={openOrderList} permission={bluetoothPermission} honorExistingRental={honorExistingRental}
             initialExplore={resumeExplore.current} onExploreRestored={onExploreRestored}
             exploreSite={exploreSite} onExploreSiteChange={setExploreSite}
             openExploreTravel={()=>{setExploreService('travel');setTravel(true);}}
@@ -727,7 +738,14 @@ function Shell() {
         </View>
         {showTabs && !keyboard && <TabBar current={currentTab} disabled={false} tabs={[
           {key: 'home', label: '홈', run: () => { closeOverlays(); requestWallet('home'); }},
-          {key: 'pay', label: '결제', run: () => { closeOverlays(); setShownOrder(''); setShopping(true); }},
+          {key: 'pay', label: '결제', run: () => {
+            closeOverlays();
+            // In a build that orders from store pages the tab is the customer's orders. It goes back to the store
+            // they were at only while a basket or an unpaid order of theirs waits there.
+            if (registrationFree && storeOrder && !visits.unfinished(storeOrder.branch)) openPaymentList();
+            setShownOrder('');
+            setShopping(true);
+          }},
           {key: 'wallet', label: '지갑', run: () => { closeOverlays(); requestWallet('owner'); }},
           {key: 'explore', label: '둘러보기', run: () => { closeOverlays(); setExploring(true); }},
           {key: 'settings', label: '설정', run: openSettings},

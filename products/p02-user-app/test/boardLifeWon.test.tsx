@@ -147,6 +147,13 @@ const start = async (amount = '50000') => { await open('send'); await fill('받�
 // A won amount is typed in whole won (owner decision 2026-11-27): anything but digits is refused where it is typed.
 const wholeWonOnly = '원화는 1원 단위로만 보낼 수 있습니다. 소수점 없이 숫자만 입력하세요.';
 const typed = () => tree!.root.findAll(node => node.props.accessibilityLabel === '금액' && typeof node.props.onChangeText === 'function')[0].props.value as string;
+// What the amount field says below itself after it refused a character; '' when it says nothing.
+const refusedAtField = `${wholeWonOnly} 방금 입력한 소수점이나 기호는 금액에 들어가지 않았습니다. 금액 칸의 숫자를 지우거나 고친 뒤 계속하세요.`;
+const atField = () => {
+  const rows = tree!.root.findAll(node => node.props.accessibilityLabel === '금액' && typeof node.props.onChangeText === 'function')[0].parent!.children;
+  const field = rows.findIndex(node => typeof node !== 'string' && node.props.accessibilityLabel === '금액'), next = rows[field + 1];
+  return typeof next !== 'string' && next.props.accessibilityRole === 'alert' ? String(next.props.children) : '';
+};
 
 test('a return is shown in won and signed as won', async () => {
   await open('return');
@@ -194,7 +201,7 @@ test('a return of another store is neither signed nor shown as this store\'s mon
 });
 test('a transfer takes whole won only and is signed as won', async () => {
   await open('send'); await fill('받는 주소', friend); await fill('금액', '1.01');
-  expect([message, typed(), button('다음').props.disabled]).toEqual([wholeWonOnly, '', true]);
+  expect([message, atField(), typed(), button('다음').props.disabled]).toEqual(['', refusedAtField, '', true]);
   await start();
   expect(text()).toContain('50,000원');
   expect(text()).toContain('370,000원');
@@ -402,7 +409,7 @@ describe('the coin', () => {
     await ask('300001');
     expect(message).toContain('보드 한도를 넘는 금액입니다');
     await open('send'); await fill('받는 주소', friend); await fill('금액', '0.01');
-    expect([message, typed(), button('다음').props.disabled]).toEqual([wholeWonOnly, '', true]);
+    expect([message, atField(), typed(), button('다음').props.disabled]).toEqual(['', refusedAtField, '', true]);
     await ask('300000');
     expect(text()).toContain('300,000원');
     await press('이 내용으로 보내기');
@@ -497,18 +504,44 @@ describe('whole won on the screen, exact units to the board and the store', () =
     expect([message, typed()]).toEqual(['', '2999']);
     for (const pasted of ['2999.99', '2999.', '2,999', '2999원', ' 2999', '2999.00', '-2999', '2e3', '２９９９']) {
       await fill('금액', pasted);
-      expect([pasted, message, typed()]).toEqual([pasted, wholeWonOnly, '2999']); // what was typed before stays
+      expect([pasted, message, atField(), typed()]).toEqual([pasted, '', refusedAtField, '2999']); // what was typed before stays
     }
     await fill('금액', '29990');
-    expect([message, typed()]).toEqual(['', '29990']); // digits clear the message
+    expect([atField(), typed(), button('다음').props.disabled]).toEqual([refusedAtField, '29990', true]); // a digit more does not take the sentence away
     await fill('금액', '');
-    expect(typed()).toBe('');
+    expect([atField(), typed()]).toEqual(['', '']); // the customer cleared the field
     // Digits that are no amount are refused at the next step, with the same rule in words.
     for (const odd of ['0', '007']) {
       await fill('금액', odd); await press('다음');
       expect(message).toBe('금액이 맞지 않습니다. 원화는 1원 단위로 숫자만 입력하세요.');
       expect(button('이 내용으로 보내기')).toBeUndefined();
     }
+  });
+
+  test('1000.5 typed key by key never offers 10,005 won without a word: the sentence stays at the field until a character is deleted', async () => {
+    mockBalance = '4200000';
+    await open('send'); await fill('받는 주소', friend);
+    for (const [value, field, said] of [['1', '1', ''], ['10', '10', ''], ['100', '100', ''], ['1000', '1000', ''],
+      ['1000.', '1000', refusedAtField], ['10005', '10005', refusedAtField]]) {
+      await fill('금액', value);
+      expect([value, typed(), atField()]).toEqual([value, field, said]);
+    }
+    // The field reads 10005, which nobody typed: the page does not go on with it, and says why where the customer looks.
+    expect(button('다음').props.disabled).toBe(true);
+    expect(message).toBe('');
+    await Renderer.act(async () => { button('다음').props.run(); });
+    await render();
+    expect(button('이 내용으로 보내기')).toBeUndefined();
+    // Deleting a character is the customer's own change: the sentence goes, and the amount on the next page is the one in the field.
+    await fill('금액', '1000');
+    expect([typed(), atField(), button('다음').props.disabled]).toEqual(['1000', '', false]);
+    await press('다음');
+    expect(shownSent()).toBe('1,000원');
+    // Leaving the page drops it too.
+    await open('send'); await fill('받는 주소', friend); await fill('금액', '5.');
+    expect(atField()).toBe(refusedAtField);
+    await open('send');
+    expect([atField(), typed()]).toEqual(['', '']);
   });
 
   test.each([

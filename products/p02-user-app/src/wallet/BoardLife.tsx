@@ -10,7 +10,7 @@ import {customerClient, walletId} from '../merchant/customerClient.ts';
 import {accountOpenOrders, configuredEntrance} from '../merchant/customerEntrance.ts';
 import {orderPaymentPin} from '../merchant/orderPaymentTrust.ts';
 import {orderRecords} from '../merchant/orderRecords.ts';
-import {ordersWithoutRegistration, routeWords} from '../merchant/orderRoute.ts';
+import {notHereYet, ordersWithoutRegistration, routeWords} from '../merchant/orderRoute.ts';
 import {recentStores} from '../merchant/storeDirectory.ts';
 import {AmountLine} from '../merchant/paymentParts.tsx';
 import {Card, KitButton, Row} from '../ui/kit.tsx';
@@ -58,6 +58,11 @@ export type BoardLifeProps = {
   store?: Store;
   /** Whether the registration was read; set by BoardLife for its pages. */
   storeRead?: 'loading' | 'done'; readStore?: () => void;
+  /**
+   * No store registered this phone, in a build that orders from store pages: nothing relays a return or a transfer
+   * of the board account's money (orderRoute.ts notHereYet). Set by BoardLife for its pages.
+   */
+  unrelayed?: boolean;
   /** Tokens the operator lists for StableNet. */
   listed?: ListedToken[];
 };
@@ -555,6 +560,11 @@ function ReturnPage(props: BoardLifeProps) {
     if (block.returning) return <Notice title="진행 중인 반납이 있습니다" body="매장 서버가 이 계정의 반납을 처리하고 있습니다. 끝난 뒤 다시 확인하세요." />;
     if (block.toppingUp) return <Notice tone="stop" title="끝나지 않은 충전이 있습니다" body="충전한 돈이 보드 계정에 들어올 때까지 반납할 수 없습니다." />;
     if (unfinished(stored)) return <Notice tone="stop" title="반납할 수 없습니다" body="결과를 모르는 다른 전송이나 서명이 있습니다. 먼저 그 결과를 확인하세요." />;
+    // Said in place of the amount to get back and the button to start: neither would lead anywhere in this build.
+    if (props.unrelayed) return <>
+      <Notice tone="stop" title={notHereYet.return.title} body={notHereYet.return.body} />
+      <Card><AmountLine amount={balance === undefined ? '확인하는 중' : balance?.text ?? '확인 안 됨'} label="보드 계정에 남은 돈" /></Card>
+    </>;
     if (!board.returnAddress) return <Notice title="반납받을 주소가 없습니다" body="원래 지갑 주소를 보드에 먼저 저장하세요.">
       <KitButton label="반납받을 주소 등록" run={() => props.go('return-address')} variant="secondary" /></Notice>;
     const start = () => work(async () => {
@@ -680,9 +690,9 @@ function ResetPage(props: BoardLifeProps) {
     unfinished(stored) ? '결과를 모르는 다른 전송이나 서명이 있습니다.' : '',
   ].filter(Boolean);
   return <>
-    <Notice tone="stop" title="공장 초기화" body="보드의 키와 PIN, 등록을 지웁니다. 되돌릴 수 없고, 남은 돈은 되찾을 수 없습니다. 돈이 남아 있으면 먼저 반납하세요.">
+    <Notice tone="stop" title="공장 초기화" body={`보드의 키와 PIN, 등록을 지웁니다. 되돌릴 수 없고, 남은 돈은 되찾을 수 없습니다. ${props.unrelayed ? notHereYet.reset : '돈이 남아 있으면 먼저 반납하세요.'}`}>
       {risk.map(text => <Text key={text} style={styles.risk}>{text}</Text>)}
-      <KitButton label="먼저 반납하기" run={() => props.go('return')} variant="secondary" disabled={props.busy} /></Notice>
+      {!props.unrelayed && <KitButton label="먼저 반납하기" run={() => props.go('return')} variant="secondary" disabled={props.busy} />}</Notice>
     {wait > 0 && <Notice title="PIN 입력을 기다려야 합니다" body={`약 ${Math.ceil(wait / 60)}분 뒤에 다시 입력할 수 있습니다. 전원을 껐다 켜면 처음부터 다시 기다립니다.`} />}
     {gate}
     {verified && loss.gate}
@@ -800,17 +810,24 @@ export const boardLifeTitles: Record<BoardLifeScreen, string> = {
 /** Read when these pages open, and again on request. `undefined` while it is read, without one, or when it cannot be read. */
 function useStore(fixture?: Store) {
   const [store, setStore] = useState(fixture), [storeRead, setRead] = useState<'loading' | 'done'>(fixture ? 'done' : 'loading');
+  const [unrelayed, setUnrelayed] = useState(false);
   const live = useRef(true);
   const readStore = useCallback(() => {
-    // Without a registration, a build that orders without one still knows its token: its order contract's.
-    registeredStore().catch(() => undefined).then(value => { if (live.current) { setStore(value ?? buildStore()); setRead('done'); } });
+    // Without a registration, a build that orders without one still knows its token: its order contract's. It has
+    // no store to relay a return or a transfer, though, and the pages say so in place of those actions.
+    registeredStore().catch(() => undefined).then(value => {
+      if (!live.current) return;
+      setStore(value ?? buildStore());
+      setUnrelayed(!value && !!buildPayment());
+      setRead('done');
+    });
   }, []);
   useEffect(() => {
     live.current = true;
     if (!fixture) readStore();
     return () => { live.current = false; };
   }, [fixture, readStore]);
-  return {store, storeRead, readStore};
+  return {store, storeRead, readStore, unrelayed};
 }
 
 export function BoardLife(given: BoardLifeProps) {
