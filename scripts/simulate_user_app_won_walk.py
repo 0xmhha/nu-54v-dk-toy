@@ -52,30 +52,36 @@ class WonWalletWalk(Walk):
         self.shot("04-send-with-part-of-a-won")
 
     def decimal_refused(self):
-        """A won amount takes digits alone: a decimal point is refused with a sentence, and is not cut off."""
+        """A won amount takes digits alone: a decimal point is refused with a sentence at the field, and the sentence
+        stays while the customer types on, so that 1000.5 never becomes 10,005 won without a word."""
         self.to_send()
         self.type("받는 주소", "0x" + "f1" * 20)
         self.type("금액", "1000.")
         self.sees(WHOLE_WON_ONLY)
         assert self.field("금액") == "1000", f"the field took the decimal point: {self.field('금액')}"
+        field, said = self.find("금액")["box"], next(node["box"] for node in self.nodes() if WHOLE_WON_ONLY in node["words"][0])
+        assert 0 <= said[1] - field[3] < 80, f"the sentence is not directly below the amount field: field {field}, sentence {said}"
         self.shot("05-send-decimal-point-refused")
-        for _ in range(4):  # the sentence is above the form
-            self.swipe(False)
-        self.shot("06-send-decimal-point-refused-sentence")
-        # The customer goes on typing the amount they meant, 1000.5.
+        # The customer goes on typing the amount they meant, 1000.5: the field now reads a number nobody typed.
         self.type("금액", "5")
         after, said = self.field("금액"), self.shown(WHOLE_WON_ONLY)
-        self.shot("07-send-after-the-refused-point")
-        self.tap("다음")
-        time.sleep(2)
-        self.shot("08-send-review-after-the-refused-point")
-        review = self.words()
-        if "이 내용으로 보내기" in review:
+        self.shot("06-send-after-the-refused-point")
+        assert said and not self.find("다음")["enabled"], (
+            f"1000.5 was typed and the field reads {after}; the sentence {'stays' if said else 'is gone'} and the next page can be opened")
+        # Taking a character out is the customer's own change: the sentence goes and the page goes on with what the field holds.
+        self.touch(self.find("금액"))
+        self.shell("input", "keyevent", "123")  # to the end of the field
+        self.shell("input", "keyevent", "67")
+        if b"mInputShown=true" in self.shell("dumpsys", "input_method"):
             self.back()
+        assert self.field("금액") == "1000" and not self.shown(WHOLE_WON_ONLY), f"after a character was deleted: {self.field('금액')}, {self.words()}"
+        self.shot("07-send-after-a-character-was-deleted")
+        self.tap("다음")
+        self.sees("처음 보내는 주소입니다")
+        self.sees("1,000원")
+        self.shot("08-send-review-after-the-correction")
+        self.tap("고치기")
         self.tap("지갑")
-        assert after != "10005" or said, (
-            f"1000.5 was typed and the field reads {after} with no word about it; the next page then offers to send "
-            f"{[word for word in review if '원' in word and ',' in word][:2]}")
 
     def whole_won_sent(self):
         """A whole amount goes out as typed; what stays below one won is said before the board is asked."""
