@@ -6,7 +6,8 @@ import {orderRecords, type OpenOrder} from '../src/merchant/orderRecords';
 import {customerSubject} from '../src/merchant/storeAccess';
 import {journalStore} from './fixtures/journal';
 
-// A build that orders from store pages: what becomes of a basket when the customer leaves the payment tab. The app, its tabs and the store's page are real; the store server answers
+// A build that orders from store pages: where the payment tab and "진행 중인 주문 보기" lead, and what becomes of a
+// basket when the customer leaves the tab. The app, its tabs and the store's page are real; the store server answers
 // the public reads of one cafe.
 
 let mockStored = '';
@@ -84,6 +85,7 @@ async function toMenu() {
   await tap('메뉴 보고 주문');
   expect(text()).toContain('여울 커피 메뉴');
 }
+const orderCard = '여울 커피 주문번호 17 준비 중';
 
 test('a basket stays when the customer leaves the payment tab and comes back to it', async () => {
   await toMenu();
@@ -94,4 +96,35 @@ test('a basket stays when the customer leaves the payment tab and comes back to 
     await tap('결제', 'tab');
     expect([tab, selected(), text().includes('여울 커피 메뉴'), text().includes('선택 1')]).toEqual([tab, ['결제'], true, true]);
   }
+});
+
+test('without a basket or an unpaid order at a store, the payment tab is the list of the customer\'s orders', async () => {
+  await toMenu();
+  await tap('홈', 'tab');
+  await tap('결제', 'tab');
+  expect(selected()).toEqual(['결제']);
+  expect(text()).not.toContain('여울 커피 메뉴');
+  expect(pick(orderCard)).toBeDefined();
+  expect(pick('매장 찾기')).toBeDefined();
+  // The order opens from the list, with its store.
+  await tap(orderCard);
+  expect(tree.root.findAll(node => node.props.testID === 'order-detail').length).toBeGreaterThan(0);
+});
+
+test('"진행 중인 주문 보기" on the reset page leads to the orders, never to the menu of the store that was open last', async () => {
+  // A store's menu was open last, with something in its basket.
+  await toMenu();
+  await tap('라떼 추가');
+  await tap('설정', 'tab');
+  await tap('내 보드');
+  await tap('공장 초기화');
+  expect(text()).toContain('끝나지 않은 주문이 있습니다');
+  expect(text()).toContain('주문 1건을 먼저 끝내세요.');
+  await tap('진행 중인 주문 보기');
+  expect(selected()).toEqual(['결제']);
+  expect(text()).not.toContain('여울 커피 메뉴');
+  expect(pick(orderCard)).toBeDefined();
+  // The basket is still at its store, for when the customer goes back there.
+  await toMenu();
+  expect(text()).toContain('선택 1');
 });

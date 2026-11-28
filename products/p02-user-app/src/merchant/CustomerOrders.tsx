@@ -3306,6 +3306,12 @@ export function CustomerOrders({
                 : shop.route === 'relay' ? '온라인 단말 중계' : '휴대전화 온라인 연결'}</Text>}
               {storeAccess ? <Button label="매장 화면으로" variant="secondary" disabled={busy} run={back} />
                 : <Button label="매장 다시 선택" disabled={busy} run={resetShop} />}
+              {/* The payment tab is where an order's state is read: an order paid at this store is on its page too. */}
+              {storeAccess && !point && openOrders.some(row => isOpenOrder(row) && madeAtStorePage(row)) && <View style={s.inProgress}>
+                <Text accessibilityRole="header" style={s.cardTitle}>진행 중</Text>
+                {openOrders.filter(row => isOpenOrder(row) && madeAtStorePage(row)).map(row => <OpenOrderCard key={row.sale} order={row}
+                  former={isFormerBoard(row, boardAccount)} open={() => work(() => openOrderDetail(row.sale), orderOffline)} />)}
+              </View>}
             </>
           )}
           {(shopEntry || pickupMode) && pairView}

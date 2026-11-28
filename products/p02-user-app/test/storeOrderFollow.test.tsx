@@ -496,3 +496,17 @@ describe('the basket of a store page', () => {
     expect(screen()).not.toContain('합계');
   });
 });
+
+test('a store page lists the orders paid there above its menu, and one opens from it', async () => {
+  await paid();
+  mockStage = 'ready';
+  await open();
+  await tick(0);
+  expect(screen()).toContain('그린 카페 메뉴');
+  const card = tree!.root.findAll(node => node.props.accessibilityLabel === '그린 카페 주문번호 17 준비 완료' && typeof node.props.onPress === 'function')[0];
+  expect(card).toBeDefined();
+  await Renderer.act(async () => { card.props.onPress(); });
+  await tick(0);
+  expect(tree!.root.findAll(node => node.props.testID === 'order-detail').length).toBeGreaterThan(0);
+  expect(screen()).toContain('준비되었습니다. 카운터에서 수령 QR을 보여 주세요.');
+});
