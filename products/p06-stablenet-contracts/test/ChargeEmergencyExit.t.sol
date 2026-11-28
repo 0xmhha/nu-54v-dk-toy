@@ -379,12 +379,13 @@ contract ChargeEmergencyExitTest is ChargeBase {
         config.treasury = address(0);
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         new ChargeDeposit(keys(), config);
-        config.treasury = vm.addr(SIGNER2_KEY);
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        new ChargeDeposit(keys(), config);
-        config.treasury = vm.addr(PAUSER_KEY);
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        new ChargeDeposit(keys(), config);
+        uint256[7] memory seats =
+            [RELAY_KEY, QUOTER_KEY, WITNESS_KEY, PAUSER_KEY, SIGNER1_KEY, SIGNER2_KEY, SIGNER3_KEY];
+        for (uint256 i; i < seats.length; ++i) {
+            config.treasury = vm.addr(seats[i]);
+            vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+            new ChargeDeposit(keys(), config);
+        }
         config.treasury = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         new ChargeDeposit(keys(), config); // the contract itself
@@ -400,9 +401,11 @@ contract ChargeEmergencyExitTest is ChargeBase {
         toWon();
         assertEq(pool.treasury(), treasury);
         WonPool.Config memory poolValues = poolConfig(address(deposit));
-        poolValues.treasury = vm.addr(RELAY_KEY);
-        vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
-        new WonPool(keys(), poolValues);
+        for (uint256 i; i < seats.length; ++i) {
+            poolValues.treasury = vm.addr(seats[i]);
+            vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
+            new WonPool(keys(), poolValues);
+        }
         poolValues.treasury = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
         vm.expectRevert(ChargeGovernance.InvalidParameters.selector);
         new WonPool(keys(), poolValues);
