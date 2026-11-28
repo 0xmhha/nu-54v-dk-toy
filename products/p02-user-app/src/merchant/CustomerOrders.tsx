@@ -482,6 +482,7 @@ export function CustomerOrders({
   const [deniedLink, setDeniedLink] = useState(false);
   const [counterQrAllowed, setCounterQrAllowed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [stepsDone, setStepsDone] = useState(0);
   const performing = useRef<object | undefined>(undefined);
   const mounted = useRef(true);
 
@@ -862,7 +863,17 @@ export function CustomerOrders({
   useEffect(() => {
     // Messages are drawn above the page; a button far below must bring them into view.
     if (message) page.current?.scrollTo({y: 0, animated: true});
-  }, [message]);
+  }, [message, stepsDone]);
+  useEffect(() => {
+    // So is what a store page says about the board, the account or the store's server: the answer to "주문 접수 요청"
+    // at the end of a long menu must not stay out of sight above it.
+    if (storeProblem) page.current?.scrollTo({y: 0, animated: true});
+  }, [storeProblem]);
+  // An order the store now holds is drawn at the top as well, in place of the basket the button was under.
+  const heldOrder = point?.order;
+  useEffect(() => {
+    if (heldOrder && storeBranch) page.current?.scrollTo({y: 0, animated: true});
+  }, [heldOrder, storeBranch]);
 
   const closeDetail = () => { setDetailSale(''); setPickupSale(''); setOrder(undefined); setLookupOrder(undefined); setMessage(''); };
   const detailShown = useRef(false);
@@ -942,6 +953,8 @@ export function CustomerOrders({
           performing.current = undefined;
           if (mounted.current) setBusy(false);
         }
+        // What the step said is drawn at the top of the page, also when it says the same as the step before.
+        if (live()) setStepsDone(count => count + 1);
       });
   }
 

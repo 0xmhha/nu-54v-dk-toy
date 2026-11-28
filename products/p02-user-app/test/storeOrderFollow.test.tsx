@@ -1,5 +1,5 @@
 import React from 'react';
-import {AppState} from 'react-native';
+import {AppState, ScrollView} from 'react-native';
 import Renderer from 'react-test-renderer';
 import {keccak_256} from '@noble/hashes/sha3';
 import {
@@ -219,6 +219,9 @@ async function open(props: Partial<React.ComponentProps<typeof CustomerOrders>> 
   await Renderer.act(async () => { tree = Renderer.create(<CustomerOrders back={back} openBoard={openBoard} initialLocator="" shopEntry store={store} permission={async () => true} {...props} />); });
   await tick(0);
 }
+// Where the page was scrolled to: the scroll view of the test renderer records every call.
+const scrolls = () => (tree!.root.findAllByType(ScrollView)[0].instance as unknown as {scrollTo: jest.Mock}).scrollTo;
+const scrolled = () => scrolls().mock.calls.map(([to]) => (to as {y: number}).y);
 
 beforeEach(() => {
   jest.useFakeTimers({now: now * 1000});
@@ -385,6 +388,35 @@ describe('where a store page says what happened', () => {
     await press('이 주문의 결제 내용 검토');
     expect(screen()).toContain('주문, 자산, 보드 주소 또는 독립 복구 상태를 확인할 수 없습니다.');
     expect(screen()).not.toContain('매장 서버에 연결하지 못했습니다.');
+  });
+
+  test('"주문 접수 요청" at the end of a long menu brings its answer into view', async () => {
+    // No board account: the answer is the sentence at the top of the page.
+    mockWallet = {mode: 'personal'};
+    await open();
+    await press('라떼 iced 추가');
+    scrolls().mockClear();
+    await press('주문 접수 요청');
+    expect(screen()).toContain('주문하려면 먼저 지갑 탭에서 보드를 연결하고 서명 시험을 마치세요.');
+    expect(scrolled()).toEqual([0]);
+    // Asked again, with the same answer: the page comes to the answer again.
+    await press('주문 접수 요청');
+    expect(scrolled()).toEqual([0, 0]);
+  });
+
+  test('a held order and a server that is busy are brought into view too', async () => {
+    await open();
+    await press('라떼 iced 추가');
+    mockHold = {status: 429, retryAfter: 10, more: {error: 'BUSY', reason: 'hold_limit'}};
+    scrolls().mockClear();
+    await press('주문 접수 요청');
+    expect(scrolled()).toEqual([0]);
+    mockHold = undefined;
+    await tick(11_000);
+    scrolls().mockClear();
+    await press('주문 접수 요청');
+    expect(screen()).toContain('주문이 연결되었습니다');
+    expect(scrolled().length).toBeGreaterThan(0);
   });
 
 });
