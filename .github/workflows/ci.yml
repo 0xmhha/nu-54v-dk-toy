@@ -231,9 +231,13 @@ jobs:
         # This only fills Gradle's cache: the build below still decides whether the job passes.
         run: |
           cd "products/${{ matrix.product == 'p02' && 'p02-user-app' || 'p04-merchant-kiosk' }}/android"
+          refresh=""
           for attempt in 1 2 3 4; do
-            if ./gradlew --no-daemon help > "$RUNNER_TEMP/gradle-plugins.log" 2>&1; then break; fi
-            tail -n 5 "$RUNNER_TEMP/gradle-plugins.log"
+            if ./gradlew --no-daemon $refresh help > "$RUNNER_TEMP/gradle-plugins.log" 2>&1; then break; fi
+            # Say why, and make the next try ask the repositories again: on 2026-11-28 a first try failed
+            # after 21 s and the three plain tries after it ended within 4 s each, too fast to have asked.
+            grep -A 8 -m 1 "What went wrong" "$RUNNER_TEMP/gradle-plugins.log" || tail -n 20 "$RUNNER_TEMP/gradle-plugins.log"
+            refresh="--refresh-dependencies"
             sleep 30
           done
       - run: bash scripts/android/test_release.sh ${{ matrix.product }}
