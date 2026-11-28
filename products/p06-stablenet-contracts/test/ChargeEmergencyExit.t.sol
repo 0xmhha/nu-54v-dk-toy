@@ -231,6 +231,144 @@ contract ChargeEmergencyExitTest is ChargeBase {
         assertEq(exitStatus(deposit), READY);
     }
 
+    // ---- what the pauser does leaves a waiting exit as it is: one test for each of its calls ----
+
+    /// Both exits wait, with one deposit that is final on the day they open. Returns that deposit and the
+    /// time of the two proposals.
+    function bothExitsWait() internal returns (bytes32 id, uint256 proposedAt) {
+        toSource();
+        id = depositIt(quoteFor(100e6, board));
+        completeIt(id);
+        proposeExitOn(deposit);
+        toWon();
+        proposeExitOn(pool);
+        toSource();
+        proposedAt = block.timestamp;
+    }
+
+    /// Both exits are where the two signers left them: not cancelled, not void and not started again. They
+    /// open on their day and pay the treasury.
+    function assertBothExitsStandAndPay(bytes32 id, uint256 proposedAt) internal {
+        ChargeGovernance[2] memory both = [ChargeGovernance(deposit), ChargeGovernance(pool)];
+        for (uint256 i; i < both.length; ++i) {
+            assertEq(both[i].exitProposedAt(), proposedAt);
+            assertEq(both[i].exitRound(), 1);
+            assertEq(exitStatus(both[i]), WAITING);
+        }
+        vm.warp(proposedAt + 7 days);
+        toSource();
+        assertEq(exitStatus(deposit), READY);
+        vm.prank(stranger);
+        deposit.emergencyExit(listOf(id));
+        assertEq(usdc.balanceOf(treasury), 100e6);
+        toWon();
+        assertEq(exitStatus(pool), READY);
+        vm.prank(stranger);
+        pool.emergencyExit();
+        assertEq(assetBalance(treasury), POOL_SIZE * scale());
+    }
+
+    function testNarrowingTheRatesLeavesTheExitWaiting() public {
+        // A range that is wider than one value, so that narrowing it changes something.
+        proposeOn(deposit, "setRates", abi.encode(RATE - 10, RATE + 10), "salt");
+        toWon();
+        proposeOn(pool, "setRates", abi.encode(RATE - 10, RATE + 10), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        pool.setRates(RATE - 10, RATE + 10, "salt");
+        toSource();
+        deposit.setRates(RATE - 10, RATE + 10, "salt");
+
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.startPrank(pauser);
+        deposit.narrowRates(RATE, RATE);
+        pool.narrowRates(RATE, RATE);
+        vm.stopPrank();
+        assertEq(deposit.minRate(), RATE);
+        assertEq(deposit.maxRate(), RATE);
+        assertEq(pool.minRate(), RATE);
+        assertEq(pool.maxRate(), RATE);
+        assertBothExitsStandAndPay(id, proposedAt);
+    }
+
+    function testRemovingAnOriginLeavesTheExitWaiting() public {
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.prank(pauser);
+        pool.removeOrigin(SOURCE_CHAIN, address(deposit));
+        assertFalse(pool.isOrigin(SOURCE_CHAIN, address(deposit)));
+        assertBothExitsStandAndPay(id, proposedAt);
+    }
+
+    function testLoweringTheDepositLimitLeavesTheExitWaiting() public {
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.prank(pauser);
+        deposit.lowerLimit(MIN_WON);
+        assertEq(deposit.maxWon(), MIN_WON);
+        assertBothExitsStandAndPay(id, proposedAt);
+    }
+
+    function testLoweringThePoolLimitsLeavesTheExitWaiting() public {
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.prank(pauser);
+        pool.lowerLimits(WonPool.Limits(MIN_WON, 0, 0, 0, 0));
+        (uint256 perPayout, uint256 accountDaily,,,) = pool.limits();
+        assertEq(perPayout, MIN_WON);
+        assertEq(accountDaily, 0);
+        assertBothExitsStandAndPay(id, proposedAt);
+    }
+
+    function testClearingTheSpenderLeavesTheExitWaiting() public {
+        Spender later = new Spender(deposit);
+        proposeOn(deposit, "setSpender", spenderArgs(address(later)), "salt");
+        vm.warp(block.timestamp + 24 hours);
+        deposit.setSpender(address(later), address(later).codehash, "salt");
+
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.prank(pauser);
+        deposit.clearSpender();
+        assertEq(deposit.spender(), address(0));
+        assertBothExitsStandAndPay(id, proposedAt);
+    }
+
+    function testSwitchingEveryKeyOffLeavesTheExitWaiting() public {
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.startPrank(pauser);
+        for (uint256 k; k < 3; ++k) {
+            deposit.disableKey(ChargeGovernance.Key(k));
+            pool.disableKey(ChargeGovernance.Key(k));
+        }
+        vm.stopPrank();
+        assertEq(deposit.generation(), 3);
+        assertEq(pool.generation(), 3);
+        assertEq(pool.relay(), address(0));
+        assertBothExitsStandAndPay(id, proposedAt);
+    }
+
+    function testPausingDepositsLeavesTheExitWaiting() public {
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.prank(pauser);
+        deposit.pauseDeposits();
+        assertTrue(deposit.depositsPaused());
+        assertBothExitsStandAndPay(id, proposedAt);
+        assertTrue(deposit.depositsPaused()); // and the exit undid no pause
+    }
+
+    function testPausingPayoutsLeavesTheExitWaiting() public {
+        (bytes32 id, uint256 proposedAt) = bothExitsWait();
+        vm.warp(proposedAt + 3 days);
+        vm.prank(pauser);
+        pool.pausePays();
+        assertTrue(pool.paysPaused());
+        assertBothExitsStandAndPay(id, proposedAt);
+        assertTrue(pool.paysPaused());
+    }
+
     // ---- where the money goes ----
 
     /// The treasury is fixed at deployment on both contracts and is never one of the seven keys, at

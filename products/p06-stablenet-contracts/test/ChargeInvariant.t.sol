@@ -11,7 +11,8 @@ import {TestKRW3009} from "../src/test-token/TestKRW3009.sol";
 
 /// Drives both contracts with every key in play: deposits, payouts with and without a deposit behind them,
 /// completions, contests, answers, refunds, spending, stray coins and time; and between them the pauser
-/// stopping and narrowing, two signers undoing it, and pool withdrawals that go through or are cancelled.
+/// stopping and narrowing (rates and origins too), two signers undoing it, and pool withdrawals that go
+/// through or are cancelled.
 /// Every seat is given to new keys, with the key in the seat trying to stop it; another token is returned
 /// from the pool; and the emergency exit is proposed, cancelled and used on both contracts.
 /// A call that the contracts refuse is simply skipped; what is recorded here is only what went through.
@@ -182,12 +183,17 @@ contract ChargeHandler is ChargeBase {
         } catch {}
     }
 
-    /// A payout must not go through while payouts are paused, a hot key is off, or over the limits as they
-    /// are now for one payout.
+    /// A payout must not go through while payouts are paused, a hot key is off, the origin was removed, or
+    /// over the limits as they are now for one payout.
     function payStopped(ChargeTypes.Quote memory quote, bool fast) internal view returns (bool) {
         (uint256 perPayout,,, uint256 fastPerPayout,) = pool.limits();
         return pool.paysPaused() || pool.relay() == address(0) || pool.quoter() == address(0)
-            || pool.witness() == address(0) || quote.wonAmount > perPayout || (fast && quote.wonAmount > fastPerPayout);
+            || pool.witness() == address(0) || originGone() || quote.wonAmount > perPayout
+            || (fast && quote.wonAmount > fastPerPayout);
+    }
+
+    function originGone() internal view returns (bool) {
+        return !pool.isOrigin(SOURCE_CHAIN, address(deposit));
     }
 
     /// Right after a payout, what is counted for the day is within the limits as they are now.
@@ -297,9 +303,9 @@ contract ChargeHandler is ChargeBase {
 
     /// The pauser stops or narrows one thing on one of the two contracts.
     function narrow(uint256 seed) external {
-        uint256 what = seed % 7;
-        uint256 rest = seed / 7;
-        if (what < 4) toSource();
+        uint256 what = seed % 10;
+        uint256 rest = seed / 10;
+        if (what < 4 || what == 7) toSource();
         else toWon();
         vm.startPrank(vm.addr(pauserKey()));
         if (what == 0) {
@@ -314,15 +320,21 @@ contract ChargeHandler is ChargeBase {
             pool.pausePays();
         } else if (what == 5) {
             try pool.disableKey(ChargeGovernance.Key(rest % 3)) {} catch {}
-        } else {
+        } else if (what == 6) {
             (uint256 a, uint256 b, uint256 c, uint256 d, uint256 e) = pool.limits();
             pool.lowerLimits(WonPool.Limits(a / 2, b / 2, c / 2, d / 2, e / 2));
+        } else if (what == 7) {
+            deposit.narrowRates(RATE, RATE); // the range is one value already; the call still goes through
+        } else if (what == 8) {
+            pool.narrowRates(RATE, RATE);
+        } else {
+            pool.removeOrigin(SOURCE_CHAIN, address(deposit));
         }
         vm.stopPrank();
     }
 
     /// Two signers undo every pause at once and, after a day, bring back every key that is off, the first
-    /// limits and the spender.
+    /// limits, the spender and the origin.
     function restore() external {
         uint256 until = block.timestamp + 1 hours;
         toSource();
@@ -350,6 +362,7 @@ contract ChargeHandler is ChargeBase {
             if (offPool[k]) proposeOn(pool, "setKey", abi.encode(k, hotKey(k)), salt);
         }
         if (limitsLow) proposeOn(pool, "raiseLimits", abi.encode(limits()), salt);
+        if (originGone()) proposeOn(pool, "addOrigin", abi.encode(SOURCE_CHAIN, address(deposit)), salt);
 
         vm.warp(block.timestamp + 24 hours);
         for (uint256 k; k < 3; ++k) {
@@ -359,6 +372,7 @@ contract ChargeHandler is ChargeBase {
         if (limitLow) deposit.raiseLimit(MAX_WON, salt);
         if (spenderGone) deposit.setSpender(address(this), address(this).codehash, salt);
         if (limitsLow) pool.raiseLimits(limits(), salt);
+        if (originGone()) pool.addOrigin(SOURCE_CHAIN, address(deposit), salt);
     }
 
     function hotKey(uint256 k) internal view returns (address) {
