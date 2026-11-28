@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {Vm} from "forge-std/Vm.sol";
 import {ChargeBase} from "./ChargeBase.t.sol";
 import {ChargeTypes} from "../src/charge/ChargeTypes.sol";
 import {ChargeGovernance} from "../src/charge/ChargeGovernance.sol";
@@ -400,9 +401,6 @@ contract ChargeEmergencyExitTest is ChargeBase {
         (ids[0], ids[1], ids[2]) = (d.old, d.open, d.settled);
         vm.expectRevert(ChargeGovernance.InvalidState.selector);
         deposit.emergencyExit(ids);
-        (ids[0], ids[1], ids[2]) = (d.old, d.settled, d.old); // named twice
-        vm.expectRevert(ChargeGovernance.InvalidState.selector);
-        deposit.emergencyExit(ids);
         assertEq(usdc.balanceOf(treasury), 0);
         assertEq(deposit.totalHeld(), 196e6);
 
@@ -420,8 +418,9 @@ contract ChargeEmergencyExitTest is ChargeBase {
         assertEq(usdc.balanceOf(address(deposit)), 46e6 + 5e6);
         assertEq(deposit.depositOf(d.old).left, 0);
         assertEq(uint8(state(d.old)), uint8(ChargeDeposit.State.Completed));
-        vm.expectRevert(ChargeGovernance.InvalidState.selector);
-        deposit.emergencyExit(listOf(d.old)); // nothing is left of it
+        deposit.emergencyExit(listOf(d.old)); // nothing is left of it, and nothing moves
+        assertEq(usdc.balanceOf(treasury), 150e6);
+        assertEq(deposit.totalHeld(), 46e6);
         assertTrue(deposit.depositsPaused());
         // As after spending, a completion whose money has left is not taken back.
         uint256 until = block.timestamp + 1 days;
@@ -450,6 +449,143 @@ contract ChargeEmergencyExitTest is ChargeBase {
         assertEq(usdc.balanceOf(treasury), 150e6);
         assertEq(deposit.totalHeld(), 0);
         assertEq(usdc.balanceOf(address(deposit)), 5e6); // the stray coins were never touched
+    }
+
+    /// `count` deposits of 10, 11, 12… USDC, completed and never contested, and the exit open on the day the
+    /// last of them can no longer be contested.
+    function finalDeposits(uint256 count) internal returns (bytes32[] memory ids) {
+        ids = new bytes32[](count);
+        for (uint256 i; i < count; ++i) {
+            ids[i] = depositIt(quoteFor((10 + i) * 1e6, board));
+            completeIt(ids[i]);
+        }
+        proposeExitOn(deposit);
+        vm.warp(block.timestamp + 7 days);
+    }
+
+    /// How many `EmergencyExitTaken` the deposit contract emitted since `vm.recordLogs()`, and for how much.
+    function takenSinceRecording() internal returns (uint256 events, uint256 amount) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter != address(deposit)) continue;
+            if (logs[i].topics[0] != ChargeGovernance.EmergencyExitTaken.selector) continue;
+            events += 1;
+            amount += abi.decode(logs[i].data, (uint256));
+        }
+    }
+
+    /// Somebody takes one deposit of a list first. The list still goes through: that deposit is passed over
+    /// without an event and without money, and all the others are taken. So nobody makes a long call fail by
+    /// sending a short one ahead of it.
+    function testADepositTakenFirstDoesNotFailTheRestOfTheList() public {
+        bytes32[] memory ids = finalDeposits(5); // 10 + 11 + 12 + 13 + 14 = 60 USDC
+        vm.prank(stranger);
+        deposit.emergencyExit(listOf(ids[2])); // sent ahead of the list
+        assertEq(usdc.balanceOf(treasury), 12e6);
+
+        vm.recordLogs();
+        deposit.emergencyExit(ids);
+        (uint256 events, uint256 amount) = takenSinceRecording();
+        assertEq(events, 4);
+        assertEq(amount, 48e6);
+        assertEq(usdc.balanceOf(treasury), 60e6);
+        assertEq(deposit.totalHeld(), 0);
+        assertEq(usdc.balanceOf(address(deposit)), 0);
+        for (uint256 i; i < ids.length; ++i) {
+            assertEq(deposit.depositOf(ids[i]).left, 0);
+        }
+    }
+
+    /// A deposit named twice is paid once, and a list of deposits that were all taken moves nothing.
+    function testADepositNamedTwiceIsPaidOnce() public {
+        bytes32[] memory pair = finalDeposits(2); // 10 + 11 USDC
+        usdc.mint(address(deposit), 5e6); // stray coins
+        bytes32[] memory ids = new bytes32[](5);
+        (ids[0], ids[1], ids[2], ids[3], ids[4]) = (pair[0], pair[1], pair[0], pair[0], pair[1]);
+
+        vm.recordLogs();
+        deposit.emergencyExit(ids);
+        (uint256 events, uint256 amount) = takenSinceRecording();
+        assertEq(events, 2);
+        assertEq(amount, 21e6);
+        assertEq(usdc.balanceOf(treasury), 21e6);
+        assertEq(deposit.totalHeld(), 0);
+        assertEq(usdc.balanceOf(address(deposit)), 5e6);
+
+        vm.recordLogs();
+        deposit.emergencyExit(ids);
+        (events, amount) = takenSinceRecording();
+        assertEq(events, 0);
+        assertEq(usdc.balanceOf(treasury), 21e6);
+        assertEq(deposit.totalHeld(), 0);
+        assertEq(usdc.balanceOf(address(deposit)), 5e6); // the stray coins are not what is "left"
+    }
+
+    /// Only a deposit with nothing left is passed over. Every other deposit that cannot be taken still undoes
+    /// the whole call, also behind one that is passed over: unknown, open, rejected, contested, refunded and
+    /// completed less than seven days ago.
+    function testADepositThatCannotBeTakenStillFailsTheWholeList() public {
+        bytes32[] memory final_ = finalDeposits(2);
+        bytes32 open = depositIt(quoteFor(20e6, board));
+        bytes32 rejected = depositIt(quoteFor(21e6, board));
+        completeIt(rejected);
+        rejectIt(rejected);
+        bytes32 contested = depositIt(quoteFor(22e6, board));
+        completeIt(contested);
+        contestIt(contested);
+        bytes32 fresh = depositIt(quoteFor(23e6, board));
+        completeIt(fresh);
+        bytes32 refunded = depositIt(quoteFor(24e6, board));
+        vm.warp(block.timestamp + 5 hours);
+        refundBySigners(refunded); // nothing is left of it either, but it is not completed
+        deposit.emergencyExit(listOf(final_[0])); // taken: the one kind that is passed over
+
+        bytes32[5] memory never = [bytes32("no deposit"), open, rejected, contested, refunded];
+        bytes32[] memory ids = new bytes32[](3);
+        for (uint256 i; i < never.length; ++i) {
+            (ids[0], ids[1], ids[2]) = (final_[0], never[i], final_[1]);
+            vm.expectRevert(ChargeGovernance.InvalidState.selector);
+            deposit.emergencyExit(ids);
+            (ids[0], ids[1], ids[2]) = (final_[1], final_[0], never[i]);
+            vm.expectRevert(ChargeGovernance.InvalidState.selector);
+            deposit.emergencyExit(ids);
+        }
+        (ids[0], ids[1], ids[2]) = (final_[0], final_[1], fresh);
+        vm.expectRevert(ChargeGovernance.InvalidTime.selector);
+        deposit.emergencyExit(ids);
+        assertEq(usdc.balanceOf(treasury), 10e6);
+        assertEq(deposit.depositOf(final_[1]).left, 11e6);
+        assertEq(deposit.totalHeld(), 11e6 + 20e6 + 21e6 + 22e6 + 23e6);
+    }
+
+    /// Any list made of four final deposits, in any order, with repeats and with some taken before: the
+    /// treasury receives what was left of each deposit named, once, and the sum held falls by the same.
+    function testFuzzAnyListPaysEachDepositNamedOnce(uint256 seed, uint8 length) public {
+        bytes32[] memory four = finalDeposits(4);
+        for (uint256 i; i < four.length; ++i) {
+            if (((seed >> i) & 1) == 1) deposit.emergencyExit(listOf(four[i]));
+        }
+        uint256 before = usdc.balanceOf(treasury);
+        uint256 held = deposit.totalHeld();
+        assertEq(before + held, 46e6);
+
+        bytes32[] memory ids = new bytes32[](length % 13);
+        uint256 expected;
+        for (uint256 i; i < ids.length; ++i) {
+            ids[i] = four[uint256(keccak256(abi.encode(seed, i))) % 4];
+            bool named;
+            for (uint256 j; j < i; ++j) {
+                if (ids[j] == ids[i]) named = true;
+            }
+            if (!named) expected += deposit.depositOf(ids[i]).left;
+        }
+        vm.recordLogs();
+        deposit.emergencyExit(ids);
+        (, uint256 amount) = takenSinceRecording();
+        assertEq(amount, expected);
+        assertEq(usdc.balanceOf(treasury), before + expected);
+        assertEq(deposit.totalHeld(), held - expected);
+        assertEq(usdc.balanceOf(address(deposit)), held - expected);
     }
 
     /// A completion becomes final while the exit is open: by the end of its contest window, or at once when

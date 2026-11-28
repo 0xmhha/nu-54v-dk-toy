@@ -427,6 +427,8 @@ contract ChargeDeposit is ChargeGovernance {
     /// window makes the whole call fail, so no money a traveller can still claim leaves this way, and every
     /// refund works as before, during and after an exit. Stray coins are not touched either. As with the
     /// spender, two signers can no longer take a completion back (`reject`) once its money has left.
+    /// A final deposit of which nothing is left is passed over without an event: one that was taken ahead of
+    /// this call does not fail the rest of the list, and one named twice is paid once.
     function emergencyExit(bytes32[] calldata ids) external guarded {
         _checkExitOpen();
         uint256 total;
@@ -434,7 +436,7 @@ contract ChargeDeposit is ChargeGovernance {
             Deposit storage record = deposits[ids[i]];
             _checkFinal(record);
             uint256 amount = record.left;
-            if (amount == 0) revert InvalidState();
+            if (amount == 0) continue;
             record.left = 0;
             total += amount;
             emit EmergencyExitTaken(ids[i], treasury, amount);
