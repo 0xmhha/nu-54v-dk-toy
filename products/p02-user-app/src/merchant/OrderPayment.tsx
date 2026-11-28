@@ -50,6 +50,9 @@ const stops: Record<Extract<OrderPaymentView, {kind: 'stopped'}>['reason'], [str
   interrupted: ['보드 연결이 끊겼습니다', '같은 보드에 다시 연결해 결과를 확인하세요.'],
 };
 
+/** A payment that ran out, for an order made from a store page: there is no kiosk to order at again. */
+const expiredAtStorePage = '빠져나간 돈은 없습니다. 새 결제 내용이 있는지 확인하고, 없으면 매장 화면에서 다시 주문하세요.';
+
 /** Seconds left, read once a second. */
 function useLeft(deadline: number) {
   const left = () => Math.max(0, deadline - Math.floor(Date.now() / 1000));
@@ -74,12 +77,13 @@ function Left({deadline, label, onGreen = false}: {deadline: number; label: stri
 
 const spentNotice = (amount: string) => `보드가 이미 승인해서 오늘 남은 한도가 ${amount}만큼 줄었습니다.`;
 
-function Stopped({view, actions, busy}: {view: Extract<OrderPaymentView, {kind: 'stopped'}>; actions: OrderPaymentActions; busy: boolean}) {
+function Stopped({view, actions, busy, storePage}: {view: Extract<OrderPaymentView, {kind: 'stopped'}>; actions: OrderPaymentActions; busy: boolean; storePage: boolean}) {
   const left = useLeft(view.until ?? 0);
   const held = view.until !== undefined && left > 0;
   return <>
     <Notice title={stops[view.reason][0]} tone="stop" detail={held
-      ? `빠져나간 돈은 없습니다. 보드는 같은 결제를 다시 묻지 않습니다. ${view.fresh ? '지금 새로 주문하거나, ' : ''}아래 시간이 지나면 새 결제 내용이 있는지 확인하${view.fresh ? '세요.' : '고, 없으면 키오스크에서 새로 주문하세요.'}` : stops[view.reason][1]}>
+      ? `빠져나간 돈은 없습니다. 보드는 같은 결제를 다시 묻지 않습니다. ${view.fresh ? '지금 새로 주문하거나, ' : ''}아래 시간이 지나면 새 결제 내용이 있는지 확인하${view.fresh ? '세요.' : '고, 없으면 키오스크에서 새로 주문하세요.'}`
+      : view.reason === 'expired' && storePage ? expiredAtStorePage : stops[view.reason][1]}>
       {view.spent && <Text style={styles.noticeBody}>{spentNotice(view.amount)}</Text>}
     </Notice>
     {held && <Left deadline={view.until!} label="다시 확인할 때까지" />}
@@ -97,10 +101,10 @@ function Notice({title, detail, tone = 'wait', children}: {title: string; detail
   </View>;
 }
 
-function Confirm({view, actions, busy}: {view: Extract<OrderPaymentView, {kind: 'confirm'}>; actions: OrderPaymentActions; busy: boolean}) {
+function Confirm({view, actions, busy, storePage}: {view: Extract<OrderPaymentView, {kind: 'confirm'}>; actions: OrderPaymentActions; busy: boolean; storePage: boolean}) {
   const expired = useLeft(view.deadline ?? 0) === 0 && view.deadline !== undefined;
   const reason: OrderBlock | undefined = expired && (!view.block || view.block === 'answered') ? 'expired' : view.block;
-  const block = reason && blocks[reason];
+  const block = reason && (reason === 'expired' && storePage ? {...blocks.expired, detail: expiredAtStorePage} : blocks[reason]);
   return <>
     <Card tone="green" style={styles.amountCard}>
       <Text style={styles.store}>{view.store}</Text>
@@ -137,14 +141,16 @@ const titles: Record<OrderPaymentView['kind'], string> = {
   unknown: '결제 결과를 확인하고 있습니다', done: '주문이 접수되었습니다', failed: '결제되지 않았습니다',
 };
 
-export function OrderPayment({view, actions, busy = false, message, t = text => text}: {
+export function OrderPayment({view, actions, busy = false, message, storePage = false, t = text => text}: {
   view: OrderPaymentView; actions: OrderPaymentActions; busy?: boolean; message?: string; t?: (text: string) => string;
+  /** The order was made from a store page, with no kiosk: a payment that ran out is ordered again from that page. */
+  storePage?: boolean;
 }) {
   const summary = <Card><Text style={type.label}>{view.store}</Text><AmountLine amount={view.amount} /></Card>;
   return <View style={styles.screen} testID="order-payment">
     <Text accessibilityRole="header" style={type.title}>{titles[view.kind]}</Text>
     {!!message && <Text accessibilityLiveRegion="polite" style={type.body}>{message}</Text>}
-    {view.kind === 'confirm' && <Confirm view={view} actions={actions} busy={busy} />}
+    {view.kind === 'confirm' && <Confirm view={view} actions={actions} busy={busy} storePage={storePage} />}
     {view.kind === 'waiting' && <>
       {summary}
       <Left deadline={view.deadline} label="승인할 수 있는 시간" />
@@ -154,7 +160,7 @@ export function OrderPayment({view, actions, busy = false, message, t = text => 
     </>}
     {view.kind === 'stopped' && <>
       {summary}
-      <Stopped view={view} actions={actions} busy={busy} />
+      <Stopped view={view} actions={actions} busy={busy} storePage={storePage} />
     </>}
     {view.kind === 'submitting' && <>
       {summary}

@@ -2866,7 +2866,7 @@ export function CustomerOrders({
   if (orderView) {
     // Each step of the payment starts at its top, whatever was scrolled before.
     return <ScrollView key={orderView.kind} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-      <OrderPayment view={orderView} busy={busy} message={message || (storeProblem ? accessProblemText(storeProblem, !!approved) : '')}
+      <OrderPayment view={orderView} busy={busy} storePage={!!storeAccess} message={message || (storeProblem ? accessProblemText(storeProblem, !!approved) : '')}
         t={text => menuLocale === 'en' ? walletEnglish[text] ?? text : text}
         actions={{
           findBoard: () => work(findOrderBoard, '보드를 찾지 못했습니다. 보드 전원과 블루투스 권한을 확인하세요.'),

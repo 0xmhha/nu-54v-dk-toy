@@ -426,4 +426,13 @@ describe('where a store page says what happened', () => {
     expect(screen()).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
   });
 
+  test('a payment whose time ran out says to order again from the store page, not at a kiosk', async () => {
+    await toOrder();
+    await press('이 주문의 결제 내용 검토');
+    expect(screen()).toContain('결제 내용을 확인하세요');
+    await tick(121_000);
+    expect(screen()).toContain('결제 기한이 지났습니다');
+    expect(screen()).toContain('빠져나간 돈은 없습니다. 새 결제 내용이 있는지 확인하고, 없으면 매장 화면에서 다시 주문하세요.');
+    expect(screen()).not.toContain('키오스크에서 새로 주문하세요');
+  });
 });
