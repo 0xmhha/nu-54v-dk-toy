@@ -3041,7 +3041,7 @@ export function CustomerOrders({
           )}
   </View>;
   const title = invoiceDetail && !showSubscriptions ? '구독 회차 청구서' : travelPayment ? '원예약 지급 주문'
-    : travelBranch || initialLocator || shopEntry ? '내 매장 주문' : '내 결제와 미결 청구';
+    : travelBranch || initialLocator || shopEntry ? (storeBranch ? '매장 주문' : '내 매장 주문') : '내 결제와 미결 청구';
   return (
     <ScrollView
       ref={page}
