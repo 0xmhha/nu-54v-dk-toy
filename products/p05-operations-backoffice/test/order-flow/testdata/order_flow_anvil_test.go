@@ -5,15 +5,21 @@ package settlement
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -49,6 +55,8 @@ type shop struct {
 	first        int // its first client certificate
 	board, only  string
 	holders      sync.Map // accounts that may hold its token, besides the known ones
+	// finder is the other stores of a run with a customer entrance, by a short name; see seedFinder.
+	finder map[string]string
 }
 
 // The positions of a shop's identities among its certificates. The customer starts without a board account: it enrolls its own.
@@ -145,6 +153,9 @@ func (s *shop) seed(t *testing.T, db *pgxpool.Pool, tenant string, life time.Dur
 				"optionGroupLabels": map[string]string{"ko": "온도 · 크기"}}})
 		}
 	}
+	if entranceAddress() != "" {
+		breakdown = append(breakdown, s.seedFinder(t, db, tenant, life)...)
+	}
 	fixtureExec(t, db, "INSERT INTO ledger.catalog_pricing VALUES($1,1,NULL,$2)", s.branch, breakdown)
 	fixtureExec(t, db, `INSERT INTO ledger.menu_sku_options VALUES($1,1,'option-latte','{"label":"Option latte"}',
 		'[{"key":"temp","labels":{"ko":"온도"},"values":[{"key":"hot","labels":{"ko":"뜨겁게"}},{"key":"ice","labels":{"ko":"차갑게"}}]},
@@ -153,6 +164,114 @@ func (s *shop) seed(t *testing.T, db *pgxpool.Pool, tenant string, life time.Dur
 		Signer: fixtureSigner(101).Address(), MerchantID: [32]byte{31: 50}, KeyVersion: 1, BeneficiaryVersion: 1, CommitmentKey: [32]byte{31: 9}, Escrow: true, Token: s.target.Token}
 	digest := s.profile.Digest()
 	fixtureExec(t, db, "INSERT INTO ledger.issuance_profile VALUES($1,1,$2,120,true)", s.branch, digest[:])
+}
+
+// entranceAddress is where a local run opens the customer entrance, as opsd reads it; empty opens none.
+func entranceAddress() string { return os.Getenv("P05_CUSTOMER_ADDR") }
+
+// finderMenu is what the stores of a run with a customer entrance sell besides the two products every run has: names
+// a customer reads, a count that runs out and a product that is sold out. Prices are in won at a won store and in
+// cents at the dollar store, so both read as a cafe's.
+var finderMenu = []struct {
+	sku, name, korean string
+	won, cents, stock int64
+}{
+	{"americano", "Americano", "아메리카노", 4_500, 450, 60},
+	{"cheesecake", "Cheesecake", "치즈케이크", 6_500, 650, 3},
+	{"scone", "Scone", "스콘", 3_800, 380, 0},
+}
+
+// seedFinder writes what the store finder and the store pages of a local run need, and returns the menu rows it added
+// to this store. The other stores have a name, the kitchen's operator grant and, where one is named, a menu; the
+// run's operator publishes every page and sets every state through the operations routes (simulator/host.test.ts).
+//
+//	hanok    closes today (a closed day)
+//	seochon  pauses its orders
+//	night    has no menu on sale
+//	busy     is busy, and has no number in the order contract
+//	garden   has this store's number in the order contract but no settlement target, so no cart of a board is held
+//	alley    is published and not listed: only its shortcut QR opens it
+func (s *shop) seedFinder(t *testing.T, db *pgxpool.Pool, tenant string, life time.Duration) []map[string]any {
+	t.Helper()
+	price := func(won, cents int64) string {
+		if s.target.Token == (commerce.Token{}) {
+			return s.units(cents * 10_000).String()
+		}
+		return s.units(won * 100).String()
+	}
+	menu := func(branch string) (rows []map[string]any) {
+		fixtureExec(t, db, "INSERT INTO ledger.menu_release VALUES($1,1,now()-interval '1 minute',now()+$2*interval '1 second') ON CONFLICT DO NOTHING",
+			branch, max(15*time.Minute, life).Seconds())
+		for _, product := range finderMenu {
+			fixtureExec(t, db, "INSERT INTO ledger.price VALUES($1,1,$2,'standard',$3,$4,$5::text::numeric)", branch, product.sku, product.name, lower(s.target.Asset), price(product.won, product.cents))
+			fixtureExec(t, db, "INSERT INTO ledger.stock VALUES($1,$2,$3)", branch, product.sku, product.stock)
+			rows = append(rows, map[string]any{"sku": product.sku, "option": "standard", "required": false, "metadata": map[string]any{"labels": map[string]string{"ko": product.korean}}})
+		}
+		return rows
+	}
+	operator := s.actors[kitchen]
+	fixtureExec(t, db, "INSERT INTO ledger.login_subject VALUES($2,$1) ON CONFLICT DO NOTHING", operator, "cafe_"+operator)
+	fixtureExec(t, db, "INSERT INTO ledger.staff_grant VALUES($1,$2,'operator',now()-interval '1 minute',null) ON CONFLICT DO NOTHING", s.branch, operator)
+	s.finder = map[string]string{}
+	for _, other := range []struct {
+		key, name string
+		menu      bool
+	}{{"hanok", "Hanok tea house 한옥 찻집", true}, {"seochon", "Seochon bakery 서촌 빵집", true}, {"night", "Night bar 심야 술집", false},
+		{"busy", "Busy noodle 바쁜 국수", true}, {"garden", "Garden brunch 가든 브런치", true}, {"alley", "Back alley 골목 가게", true}} {
+		branch := fixtureUUID(t, db)
+		s.finder[other.key] = branch
+		fixtureExec(t, db, "INSERT INTO ledger.branch VALUES($1,$2,'Asia/Seoul','04:00')", branch, tenant)
+		fixtureExec(t, db, "INSERT INTO ledger.operator_branch_label VALUES($1,$2)", branch, other.name)
+		fixtureExec(t, db, "INSERT INTO ledger.command_rule VALUES($1,'escrow','escrow','escrow',interval '15 minutes')", branch)
+		fixtureExec(t, db, "INSERT INTO ledger.staff_grant VALUES($1,$2,'operator',now()-interval '1 minute',null)", branch, operator)
+		if other.menu {
+			fixtureExec(t, db, "INSERT INTO ledger.catalog_pricing VALUES($1,1,NULL,$2)", branch, menu(branch))
+		}
+	}
+	return menu(s.branch)
+}
+
+// startEntrance serves the customer entrance on its own listener as cmd/opsd does (customerEntranceServer): TLS 1.3,
+// no client certificate, HTTP/1.1 only and the same deadlines. The certificate is issued by a CA made for this run.
+// It answers the origin, that CA (DER in base64) and the SHA-256 of the certificate's public key, which are what a
+// phone's build pins (customerEntranceDeployment.ts). opsd's caps on connections (limitListener) are not here.
+func startEntrance(t *testing.T, address string, handler http.Handler) map[string]string {
+	t.Helper()
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	authority, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	must(err)
+	now := time.Now()
+	root := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "NU54 order flow entrance CA"}, IsCA: true, BasicConstraintsValid: true,
+		KeyUsage: x509.KeyUsageCertSign, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(2 * time.Hour)}
+	rootDER, err := x509.CreateCertificate(rand.Reader, root, root, &authority.PublicKey, authority)
+	must(err)
+	parent, err := x509.ParseCertificate(rootDER)
+	must(err)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	must(err)
+	listener, err := net.Listen("tcp", address)
+	must(err)
+	host, _, err := net.SplitHostPort(listener.Addr().String())
+	must(err)
+	leaf := &x509.Certificate{SerialNumber: big.NewInt(2), Subject: pkix.Name{CommonName: host}, IPAddresses: []net.IP{net.ParseIP(host)},
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}, KeyUsage: x509.KeyUsageDigitalSignature, NotBefore: root.NotBefore, NotAfter: root.NotAfter}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leaf, parent, &key.PublicKey, authority)
+	must(err)
+	public, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	must(err)
+	pin := sha256.Sum256(public)
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 8 * time.Second, WriteTimeout: 10 * time.Second,
+		IdleTimeout: 8 * time.Second, MaxHeaderBytes: 8 << 10, TLSNextProto: map[string]func(*http.Server, *tls.Conn, http.Handler){},
+		TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, ClientAuth: tls.NoClientCert, NextProtos: []string{"http/1.1"},
+			Certificates: []tls.Certificate{{Certificate: [][]byte{leafDER}, PrivateKey: key}}}}
+	go func() { _ = server.ServeTLS(listener, "", "") }()
+	t.Cleanup(func() { _ = server.Close() })
+	return map[string]string{"origin": "https://" + listener.Addr().String(), "ca": base64.StdEncoding.EncodeToString(rootDER), "pin": hex.EncodeToString(pin[:])}
 }
 
 // deploySponsor puts one GasSponsor before the escrows and the tokens, for the stores' gas account.
@@ -479,11 +598,32 @@ func TestOrderFlow(t *testing.T) {
 			CurrentPublication: func(at time.Time) bool { return at.Before(until) }}, known && p.Contract == target.Contract && payer != gas
 	}
 	mux := http.NewServeMux()
+	forwarder := Forwarder{Store: login("nu54_p05_commerce"), QuoteCipher: qCipher, RelayCipher: relayCipher, Targets: active,
+		GasSponsors: sponsors, MerchantIDs: merchantIDs, Faucet: faucet, GasAccount: gas, Balances: AccountBalance(client),
+		RentalEscrow: RentalEscrow{Client: client, Targets: active, Reviews: reviews}}
 	commerceHTTP := commerce.HTTP{Store: commerceStore, GasSponsors: sponsors, Credentials: credentials, Signer: fixtureSigner(101), Cipher: qCipher,
-		Payment: Forwarder{Store: login("nu54_p05_commerce"), QuoteCipher: qCipher, RelayCipher: relayCipher, Targets: active,
-			GasSponsors: sponsors, MerchantIDs: merchantIDs, Faucet: faucet, GasAccount: gas,
-			RentalEscrow: RentalEscrow{Client: client, Targets: active, Reviews: reviews}},
-		Profiles: profiles, PresentationKey: ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32))}
+		Payment: forwarder, Profiles: profiles, PresentationKey: ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x31}, 32))}
+	// The customer entrance of a local run, as cmd/opsd composes it for P05_CUSTOMER_ADDR (newCustomerEntrance): every
+	// request limit, the caps on requests and balance reads at once, and the chain reader of the stores' targets.
+	var entrance map[string]string
+	var customers *commerce.CustomerEntrance
+	if address := entranceAddress(); address != "" {
+		customers = commerce.NewCustomerLimits(nil)
+		customers.OperatorContact = "NU54 운영팀 help@nu54.example"
+		customers.InFlight, customers.BalanceReads, customers.Funds = make(chan struct{}, 16), make(chan struct{}, 4), forwarder
+		customers.ListPage = 3 // six stores are listed, so the list has a second page
+		commerceHTTP.Customer, commerceHTTP.OperatorOrigin = customers, "https://ops.test"
+		for _, s := range open {
+			// A store with this store's number in the order contract and no settlement target: its page names the
+			// number, and the entrance holds no cart for it.
+			profiles[s.finder["garden"]] = s.profile
+			digest := s.profile.Digest()
+			fixtureExec(t, db, "INSERT INTO ledger.issuance_profile VALUES($1,1,$2,120,true)", s.finder["garden"], digest[:])
+		}
+		routes := http.NewServeMux()
+		commerceHTTP.RegisterCustomer(routes)
+		entrance = startEntrance(t, address, routes)
+	}
 	(FinanceHTTP{Store: login("nu54_p05_finance"), Funds: LiveChain{client}, Targets: targets, Merchants: merchants, Deployments: reviews, GasAccount: gas,
 		Evidence: proof, CloseStore: login("nu54_p05_settlement"), QuoteCipher: qCipher, OperatorOrigin: "https://ops.test",
 		Resolver: fixtureSigner(106).Address(), Credentials: financeCredentials}).Register(mux)
@@ -624,6 +764,8 @@ func TestOrderFlow(t *testing.T) {
 				Op, Address, OrderKey, Amount, Method string
 				On                                    bool
 				Seconds                               int64
+				Store, Sku, Kind                      string
+				Count, PerMinute, Burst               int
 			}
 			if r.Header.Get("X-Order-Flow") != rawHex(secret) || json.NewDecoder(r.Body).Decode(&in) != nil {
 				http.Error(w, "denied", http.StatusForbidden)
@@ -720,6 +862,39 @@ func TestOrderFlow(t *testing.T) {
 				case "quote-lifetime":
 					_, err := db.Exec(ctx, "UPDATE ledger.issuance_profile SET quote_lifetime_seconds=$2 WHERE branch_id=$1", s.branch, in.Seconds)
 					return map[string]bool{"ok": true}, err
+				case "stock": // what is left of one product, as the orders of other customers leave it
+					branch := s.branch
+					if in.Store != "" {
+						branch = s.finder[in.Store]
+					}
+					done, err := db.Exec(ctx, "UPDATE ledger.stock SET available=$3 WHERE branch_id=$1 AND sku=$2", branch, in.Sku, in.Count)
+					if err == nil && done.RowsAffected() != 1 {
+						err = errors.New("no such product")
+					}
+					return map[string]bool{"ok": err == nil}, err
+				case "end-hold": // the time a store holds an unpaid cart is over now; the expiry loop then closes the cart
+					done, err := db.Exec(ctx, `UPDATE ledger.order_checkout c SET expires_at=clock_timestamp() FROM ledger.sale s
+						WHERE s.id=c.sale_id AND s.state='preview' AND c.branch_id=$1 AND c.expires_at>clock_timestamp()`, s.branch)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]int64{"carts": done.RowsAffected()}, nil
+				case "entrance-limit": // one request limit of the entrance made small, so the server itself says "too many"; zero puts its own back
+					if customers == nil {
+						return nil, errors.New("this run has no customer entrance")
+					}
+					usual := commerce.NewCustomerLimits(nil)
+					places := map[string][2]**commerce.RateLimiter{"read": {&customers.ReadLimiter, &usual.ReadLimiter},
+						"session": {&customers.SessionLimiter, &usual.SessionLimiter}, "challenge": {&customers.IssueLimiter, &usual.IssueLimiter}}
+					place, known := places[in.Kind]
+					if !known || in.PerMinute < 0 || in.Burst < 0 || (in.PerMinute == 0) != (in.Burst == 0) {
+						return nil, errors.New("kind, perMinute and burst")
+					}
+					*place[0] = *place[1]
+					if in.PerMinute > 0 {
+						*place[0] = commerce.NewRateLimiter(in.PerMinute, in.Burst, nil)
+					}
+					return map[string]bool{"ok": true}, nil
 				case "warp": // only the chain clock moves
 					chain.Lock()
 					defer chain.Unlock()
@@ -750,7 +925,7 @@ func TestOrderFlow(t *testing.T) {
 			"endpoint": server.URL, "ca": write("ca.crt", encode("CERTIFICATE", server.Certificate().Raw)), "expiresAt": expires,
 			"shop": s.name, "shops": len(shops), "tenant": tenant, "branch": s.branch, "rpc": endpoint, "control": control.URL, "secret": rawHex(secret), "home": lower(home.From),
 			"amount": s.units(8_000_000).String(), "unit": s.units(1).String(), "directory": dir,
-			"payment":  payment,
+			"payment": payment, "entrance": entrance, "stores": s.finder,
 			"customer": identity(s, customer), "terminal": identity(s, terminal), "kitchen": identity(s, kitchen),
 			"finance1": identity(s, finance1), "finance2": identity(s, finance2),
 		})
